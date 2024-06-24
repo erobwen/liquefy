@@ -1,0 +1,34 @@
+{
+  "name": "flow",
+  "author": "Robert Renbris",
+  "version": "1.0.0",
+  "description": "A reactive front end framework with built in state management.",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erobwen/liquefy.git"
+  },
+  "keywords": [
+    "Javascript",
+    "Proxy",
+    "Reactive"
+  ],
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "devDependencies": {
+    "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "causality": "3.0.0",
+    "flow.core": "1.0.0",
+    "flow.DOMTarget": "1.0.0"
+  }
+}

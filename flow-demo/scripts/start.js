@@ -1,0 +1,1 @@
+const openBrowser = require('react-dev-utils/openBrowser');

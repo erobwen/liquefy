@@ -1,0 +1,9 @@
+diff a/src/application/demo.js b/src/application/demo.js	(rejected hunks)
+@@ -14,6 +14,7 @@
+ import { column, columnStyle, filler, flexAutoStyle, row } from "../components/Layout";
+ import { modernButton } from "../components/ModernButton";
+ import { modalFrame } from "../components/Modal";
++import { svgImage } from "./images";
+ 
+ const log = console.log;
+ 

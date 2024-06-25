@@ -1,0 +1,27 @@
+{
+    "name": "liquefy",
+    "author": "Robert Renbris",
+    "version": "1.0.0",
+    "description": "A monorepo for liquefy products.",
+    "scripts": {
+      "build": "vite build"
+    },
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/erobwen/liquefy.git"
+    },
+    "keywords": [
+      "Javascript",
+      "Proxy",
+      "Reactive Programming",
+      "Front End Framework"
+    ],
+    "license": "ISC",
+    "bugs": {
+      "url": "https://github.com/erobwen/liquefy/issues"
+    },
+    "homepage": "https://github.com/erobwen/liquefy#readme",
+    "devDependencies": {},
+    "dependencies": {}
+  }
+  

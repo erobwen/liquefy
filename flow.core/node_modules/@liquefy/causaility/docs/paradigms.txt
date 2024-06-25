@@ -1,7 +1,0 @@
-Mental concepts with terminology to be aware of:
-
-async iterators generators
-streams
-RxJS
-EventListener
-mobX

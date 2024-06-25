@@ -1,5 +1,5 @@
-import flowCore from "flow.core";
-import flowDOMTarget from "flow.DOMTarget";
+import * as flowCore from "@liquefy/flow.core";
+import * as flowDOMTarget from "@liquefy/flow.DOMTarget";
 
 export default {
     ...flowCore,

@@ -1,12 +1,13 @@
 {
-  "name": "flow",
+  "name": "flow-hello-world",
   "author": "Robert Renbris",
   "version": "1.0.0",
-  "description": "A reactive front end framework with built in state management.",
+  "description": "A DOM implementation of flow.core",
   "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
+  "main": "./dist/flow.DOMTarget.umd.csj",
+  "module": "./dist/flow.DOMTarget.js",
   "scripts": {
+    "start": "vite --debug",
     "build": "vite build"
   },
   "repository": {
@@ -18,6 +19,7 @@
     "Proxy",
     "Reactive"
   ],
+
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
@@ -27,8 +29,6 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
-    "@liquefy/causality": "file:../causality",
-    "@liquefy/flow.core": "file:./core",
-    "@liquefy/flow.DOMTarget": "file:./DOMTarget"
+    "@liquefy/flow": "file:../flow"
   }
 }

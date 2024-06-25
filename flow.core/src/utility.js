@@ -1,4 +1,4 @@
-import { adjustLightness, rgba2hex } from "../components/themed/Color";
+// import { adjustLightness, rgba2hex } from "../components/themed/Color";
 import { traceAnimation } from "./Flow";
 
 export const log = console.log;
@@ -36,9 +36,9 @@ export function insertAfter(newNode, referenceNode) {
 
 const color = "rgba(170, 100, 100, 1)";
 
-const animationFrameBackgroundColor = rgba2hex("rgba(150, 150, 255, 1)");
+const animationFrameBackgroundColor = "rgba(150, 150, 255, 1)"; // rgba2hex("rgba(150, 150, 255, 1)");
 const animationFrameColor = "#000000"; //rgba2hex("rgba(255, 255, 255, 1)");
-const animationFrameSeparatorBackgroundColor = adjustLightness(animationFrameBackgroundColor, +0.1)
+const animationFrameSeparatorBackgroundColor = "rgba(170, 170, 255, 1)"; // adjustLightness(animationFrameBackgroundColor, +0.1)
 export function logAnimationFrameGroup(counter) {
   if (!traceAnimation) return;
   const text = "      Animation Frame " + counter + "      ";

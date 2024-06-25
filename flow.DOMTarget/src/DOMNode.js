@@ -4,6 +4,7 @@ import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickIn
 import { FlowPrimitive } from "../flow.core/FlowPrimitive";
 import { logMark } from "../flow.core/utility";
 import { changeType, flowChanges, getHeightIncludingMargin, getWidthIncludingMargin, previousFlowChanges } from "./DOMAnimation";
+import { standardAnimation } from "../flow.DOMTarget/ZoomFlyDOMNodeAnimation.js";
 
 const log = console.log;
 
@@ -263,6 +264,10 @@ export function clearNode(node, attributes) {
   synchronizeDomNodeStyle(properties) {
     // Enforce writing of all dom node style to the dom. This is used when the dom node is out of sync with the flow, for example after a halted animation.  
     throw new Error("Not implemented yet!");
+  }
+
+  getStandardAnimation() {
+    return standardAnimation; 
   }
 }
 

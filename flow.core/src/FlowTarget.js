@@ -1,4 +1,3 @@
-import { clearNode } from "../flow.DOMTarget/DOMNode";
 import { component, repeat, trace, workOnPriorityLevel } from "./Flow";
 
 /**
@@ -21,20 +20,10 @@ export class FlowTarget {
 		workOnPriorityLevel(1, () => this.flow.ensureBuiltRecursive(this));
 		if (flow.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();
-		// flow.getPrimitive().givenDomNode = this.rootElement;
-		// workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
 	}
     
 	ensureContentInPlace() {
-		this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
-			if (trace) console.group(repeater.causalityString());
-			clearNode(this.rootElement);
-			this.flow.getPrimitive().givenDomNode = this.rootElement;
-			workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
-
-			
-			if (trace) console.groupEnd();
-		}, {priority: 2}); 
+		throw new Error("Not implemented yet!");
 	}
 
 	// General creation method, this is similar to a service locator in the service locator pattern. 
@@ -44,8 +33,8 @@ export class FlowTarget {
 	// But the same flow could be sent to a FlowTarget that renders a native app, or create contents for a printout, 
 	// or create a server rendered page. The possibilities are endless!      
 	create(...parameters) {
-			const properties = readFlowProperties(parameters);
-			throw new Error("Not implemented yet!");
+		const properties = readFlowProperties(parameters);
+		throw new Error("Not implemented yet!");
 	}
 	
 	// dispose() {

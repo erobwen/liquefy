@@ -59,6 +59,21 @@ export class DOMFlowTarget extends FlowTarget {
     super.setContent(flow);
   }
 
+	ensureContentInPlace() {
+		this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
+			if (trace) console.group(repeater.causalityString());
+			
+			placeContent();
+			clearNode(this.rootElement);
+			this.flow.getPrimitive().givenDomNode = this.rootElement;
+
+			workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
+
+			
+			if (trace) console.groupEnd();
+		}, {priority: 2}); 
+	}
+
   dispose() {
     super.dispose();
     if (this.animate) removeDOMFlowTarget(this);

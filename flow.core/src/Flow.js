@@ -1,6 +1,6 @@
-import getWorld from "../causality/causality.js";
+import getWorld from "@liquefy/causaility";
 import { logMark, isUpperCase } from "./utility.js";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "../flow.core/flowParameters";
+import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "./flowParameters";
 import { creators, getCreator, getTarget, getTheme } from "./flowBuildContext.js";
 const log = console.log;
 

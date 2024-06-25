@@ -1,8 +1,6 @@
-import { flowChanges } from "../flow.DOMTarget/DOMAnimation.js";
 import { configuration, finalize, Component, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
-import { readFlowProperties, findTextAndKeyInProperties } from "../flow.core/flowParameters";
+import { readFlowProperties, findTextAndKeyInProperties } from "./flowParameters";
 import { logMark } from "./utility.js";
-import { standardAnimation } from "../flow.DOMTarget/ZoomFlyDOMNodeAnimation.js";
 
 const log = console.log;
 
@@ -137,8 +135,12 @@ export class FlowPrimitive extends Component {
       result = this.previousParentPrimitive.inheritFromEquivalentCreator("animateChildren");   
     }
     
-    if (result === true) result = standardAnimation;
+    if (result === true) result = this.getStandardAnimation();
     return result;
+  }
+
+  getStandardAnimation() {
+    throw new Error("Not implemented yet");
   }
 
   get animation() {

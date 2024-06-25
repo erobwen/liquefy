@@ -1,10 +1,10 @@
 
-import Flow from "./Flow";
-import flowBuildContext from "./flowBuildContext";
-import flowParameters from "./flowParameters";
-import FlowPrimitive from "./FlowPrimitive"
-import FlowTarget from "./FlowTarget"
-import utility from "./utility"
+import * as Flow from "./Flow";
+import * as flowBuildContext from "./flowBuildContext";
+import * as flowParameters from "./flowParameters";
+import * as FlowPrimitive from "./FlowPrimitive"
+import * as FlowTarget from "./FlowTarget"
+import * as utility from "./utility"
 
 
 export default {

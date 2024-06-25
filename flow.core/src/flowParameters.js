@@ -1,4 +1,4 @@
-import getWorld from "../causality/causality.js";
+import getWorld from "@liquefy/causaility";
 import { isObservable } from "./Flow.js";
 import { logMark, isUpperCase } from "./utility.js";
 const log = console.log;

@@ -14,10 +14,12 @@ export function elemenNode(...parameters) {
 }
 
 export function textNode(...parameters) {
-  let properties = findKeyInProperties(readFlowProperties(parameters)); 
+  let properties = findTextAndKeyInProperties(readFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
-  return getTarget().create({type: "dom.textNode", key: properties.key, attributes, children: properties.children});
+  return getTarget().create({type: "dom.textNode", text: properties.text, key: properties.key, attributes});
 }
+
+export const text = textNode;
 
 export function span(...parameters) {
   // log("Span")
@@ -39,7 +41,6 @@ export function styledDiv(classNameOverride, style, parameters) {
   attributes.style = {...style, ...attributes.style}; // Inject row style (while making it possible to override)
   return getTarget().create({type: "dom.elementNode", key: properties.key, classNameOverride, tagName: "div", attributes, ...properties }); 
 }
-
 
 export function textToTextNode(properties) {
   if (properties.text) { //textToTextNode(parameters);

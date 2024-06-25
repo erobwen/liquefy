@@ -1,4 +1,4 @@
-import { observable, transaction } from "@liquefy/flow.core";
+import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
 import { readFlowProperties, findKeyInProperties } from "@liquefy/flow.core";
 import { FlowTarget } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
@@ -6,6 +6,7 @@ import { logMark } from "@liquefy/flow.core";
 import { DOMElementNode } from "./DOMElementNode";
 import { DOMTextNode} from "./DOMTextNode";
 import { addDOMFlowTarget, removeDOMFlowTarget } from "./DOMAnimation";
+import { clearNode } from "./DOMNode";
 
 const log = console.log;
 
@@ -63,13 +64,10 @@ export class DOMFlowTarget extends FlowTarget {
 	ensureContentInPlace() {
 		this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
 			if (trace) console.group(repeater.causalityString());
-			
-			placeContent();
+
 			clearNode(this.rootElement);
 			this.flow.getPrimitive().givenDomNode = this.rootElement;
-
 			workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
-
 			
 			if (trace) console.groupEnd();
 		}, {priority: 2}); 

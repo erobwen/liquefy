@@ -1,6 +1,6 @@
 (function(global, factory) {
-  typeof exports === "object" && typeof module !== "undefined" ? module.exports = factory(require("@liquefy/flow.core")) : typeof define === "function" && define.amd ? define(["@liquefy/flow.core"], factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, global.flowDOMTarget = factory(global.flow_core));
-})(this, function(flow_core) {
+  typeof exports === "object" && typeof module !== "undefined" ? factory(exports, require("@liquefy/flow.core")) : typeof define === "function" && define.amd ? define(["exports", "@liquefy/flow.core"], factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, factory(global.flowDOMTarget = {}, global.flow_core));
+})(this, function(exports2, flow_core) {
   "use strict";var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
@@ -155,24 +155,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     delete object[property];
     return result;
   }
-  const domNodeAttributes = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    eventHandlerContentElementAttributesCamelCase,
-    extractAttributes,
-    extractChildStyles,
-    extractProperty,
-    globalElementAttributesCamelCase
-  }, Symbol.toStringTag, { value: "Module" }));
   function elemenNode(...parameters) {
     let properties = flow_core.findKeyInProperties(flow_core.readFlowProperties(parameters));
     const attributes = extractAttributes(properties);
     return flow_core.getTarget().create({ type: "dom.elementNode", key: properties.key, attributes, children: properties.children });
   }
   function textNode(...parameters) {
-    let properties = flow_core.findKeyInProperties(flow_core.readFlowProperties(parameters));
+    let properties = flow_core.findTextAndKeyInProperties(flow_core.readFlowProperties(parameters));
     const attributes = extractAttributes(properties);
     return flow_core.getTarget().create({ type: "dom.textNode", key: properties.key, attributes, children: properties.children });
   }
+  const text = textNode;
   function span(...parameters) {
     let properties = flow_core.findTextAndKeyInPropertiesUsingCase(flow_core.readFlowProperties(parameters));
     const attributes = extractAttributes(properties);
@@ -200,15 +193,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       });
     }
   }
-  const BasicHtml = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    div,
-    elemenNode,
-    span,
-    styledDiv,
-    textNode,
-    textToTextNode
-  }, Symbol.toStringTag, { value: "Module" }));
   class DOMNodeAnimation {
     /**
      * Foundation requirements
@@ -272,10 +256,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       throw new Error("Not implemented yet!");
     }
   }
-  const DOMNodeAnimation$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    DOMNodeAnimation
-  }, Symbol.toStringTag, { value: "Module" }));
   let animationTime = 1;
   function setAnimationTime(value) {
     animationTime = value;
@@ -973,13 +953,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   const zoomFlyAnimation = new ZoomFlyDOMNodeAnimation();
   const standardAnimation = zoomFlyAnimation;
-  const ZoomFlyDOMNodeAnimation$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    ZoomFlyDOMNodeAnimation,
-    setAnimationTime,
-    standardAnimation,
-    zoomFlyAnimation
-  }, Symbol.toStringTag, { value: "Module" }));
   const log$3 = console.log;
   function mostAbstractFlow(flow) {
     while (flow.equivalentCreator) flow = flow.equivalentCreator;
@@ -1001,13 +974,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       node.removeChild(node.lastChild);
     }
   }
-  const flexAutoStyle = {
-    overflow: "hidden",
-    boxSizing: "border-box",
-    flexGrow: 0,
-    flexShrink: 0,
-    flexBasis: "auto"
-  };
   class DOMNode extends flow_core.FlowPrimitive {
     dimensions(contextNode) {
       if (flow_core.traceWarnings) console.warn("Calls to dimensions() could lead to performance issues as it forces a reflow to measure the size of a dom-node. Note that transition animations may use dimensions() for measuring the size of added nodes");
@@ -1074,16 +1040,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       if (!(node instanceof Element)) return;
       const newChildren = this.getPrimitiveChildren(node);
       const newChildNodes = newChildren.map((child) => child.ensureDomNodeBuilt()).filter((child) => !!child);
-      let index2 = 0;
-      while (index2 < newChildNodes.length) {
-        const child = newChildNodes[index2];
+      let index = 0;
+      while (index < newChildNodes.length) {
+        const child = newChildNodes[index];
         if (child.leader && child.parentNode === child.leader && child.leader.parentNode === node) {
-          newChildNodes[index2] = child.leader;
+          newChildNodes[index] = child.leader;
         }
         if (child.trailer && child.parentNode === child.trailer && child.trailer.parentNode === node) {
-          newChildNodes[index2] = child.trailer;
+          newChildNodes[index] = child.trailer;
         }
-        index2++;
+        index++;
       }
       const recoveredNodes = [];
       for (let existingChildNode of node.childNodes) {
@@ -1114,27 +1080,27 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           }
         }
       });
-      index2 = node.childNodes.length - 1;
-      while (index2 >= 0) {
-        const existingChildNode = node.childNodes[index2];
+      index = node.childNodes.length - 1;
+      while (index >= 0) {
+        const existingChildNode = node.childNodes[index];
         if (existingChildNode instanceof Element && !newChildNodes.includes(existingChildNode)) {
           node.removeChild(existingChildNode);
         }
-        index2--;
+        index--;
       }
-      index2 = 0;
-      while (index2 < newChildNodes.length) {
-        const newChildNode = newChildNodes[index2];
-        const existingChildNode = node.childNodes[index2];
+      index = 0;
+      while (index < newChildNodes.length) {
+        const newChildNode = newChildNodes[index];
+        const existingChildNode = node.childNodes[index];
         if (existingChildNode) {
-          const existingWrappedNode = node.childNodes[index2];
+          const existingWrappedNode = node.childNodes[index];
           if (newChildNode !== existingWrappedNode) {
             node.insertBefore(newChildNode, existingChildNode);
           }
         } else {
           node.appendChild(newChildNode);
         }
-        index2++;
+        index++;
       }
     }
     getChildNodes() {
@@ -1171,15 +1137,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       return standardAnimation;
     }
   }
-  const DOMNode$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    DOMNode,
-    aggregateToString,
-    clearNode: clearNode$1,
-    flexAutoStyle,
-    mostAbstractFlow,
-    movedPrimitives
-  }, Symbol.toStringTag, { value: "Module" }));
   const log$2 = console.log;
   function installDOMAnimation() {
     flow_core.configuration.onFinishReBuildingFlowCallbacks.push(onFinishReBuildingFlow);
@@ -1187,7 +1144,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   function resetDOMAnimation() {
     Object.assign(flowChanges, newFlowChanges());
-    previousFlowChanges = {};
+    exports2.previousFlowChanges = {};
     counter = 0;
     domFlowTargets = [];
   }
@@ -1315,7 +1272,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     };
   }
-  let previousFlowChanges = {};
+  exports2.previousFlowChanges = {};
   window.flowChanges = flowChanges;
   let counter = 0;
   const changeType = {
@@ -1331,7 +1288,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       flow_core.logAnimationSeparator("---------------------------------------- Flow rebuilt, DOM untouched, calculate changes... -------------------");
       console.groupCollapsed("Potentially start DOM building for new flows here ...");
     }
-    Object.assign(previousFlowChanges, flowChanges);
+    Object.assign(exports2.previousFlowChanges, flowChanges);
     flowChanges.number++;
     flowChanges.idPrimitiveMap = {};
     flowChanges.idParentIdMap = {};
@@ -1353,9 +1310,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     for (let id in idPrimitiveMap) {
       const primitive = idPrimitiveMap[id];
-      const inPreviousMap = previousFlowChanges ? !!previousFlowChanges.idPrimitiveMap[id] : false;
+      const inPreviousMap = exports2.previousFlowChanges ? !!exports2.previousFlowChanges.idPrimitiveMap[id] : false;
       if (inPreviousMap) {
-        if (!previousFlowChanges.idParentIdMap || previousFlowChanges.idParentIdMap[id] === idParentIdMap[id]) {
+        if (!exports2.previousFlowChanges.idParentIdMap || exports2.previousFlowChanges.idParentIdMap[id] === idParentIdMap[id]) {
           flowChanges.globallyResident[id] = primitive;
         } else {
           flowChanges.globallyMoved[id] = primitive;
@@ -1364,8 +1321,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         flowChanges.globallyAdded[id] = primitive;
       }
     }
-    for (let id in previousFlowChanges.idPrimitiveMap) {
-      const inPreviousMap = previousFlowChanges.idPrimitiveMap[id];
+    for (let id in exports2.previousFlowChanges.idPrimitiveMap) {
+      const inPreviousMap = exports2.previousFlowChanges.idPrimitiveMap[id];
       if (typeof idPrimitiveMap[id] === "undefined" && !inPreviousMap.parentPrimitive) {
         flowChanges.globallyRemoved[id] = inPreviousMap;
       }
@@ -1545,29 +1502,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     return extractScaleTranslate([1, 0, 0, 1, 0, 0]);
   }
-  const DOMAnimation = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    addDOMFlowTarget,
-    camelCase,
-    changeType,
-    extractProperties,
-    flowChanges,
-    freezeFlowChanges,
-    getHeightIncludingMargin,
-    getWidthIncludingMargin,
-    installDOMAnimation,
-    logProperties,
-    onFinishReBuildingDOM,
-    onFinishReBuildingFlow,
-    parseMatrix,
-    get previousFlowChanges() {
-      return previousFlowChanges;
-    },
-    removeDOMFlowTarget,
-    resetDOMAnimation,
-    sameBounds,
-    unfreezeFlowChanges
-  }, Symbol.toStringTag, { value: "Module" }));
   const log$1 = console.log;
   class DOMElementNode extends DOMNode {
     initialUnobservables() {
@@ -1676,13 +1610,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     }
   }
-  const DOMElementNode$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    DOMElementNode
-  }, Symbol.toStringTag, { value: "Module" }));
   class DOMTextNode extends DOMNode {
-    setProperties({ text }) {
-      this.text = text;
+    setProperties({ text: text2 }) {
+      this.text = text2;
     }
     createEmptyDomNode() {
       return document.createTextNode("");
@@ -1693,10 +1623,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     synchronizeDomNodeStyle(properties) {
     }
   }
-  const DOMTextNode$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    DOMTextNode
-  }, Symbol.toStringTag, { value: "Module" }));
   class DOMFlowTarget extends flow_core.FlowTarget {
     constructor(rootElement, configuration = {}) {
       const { creator = null, fullWindow = true } = configuration;
@@ -1736,13 +1662,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       super.setContent(flow);
     }
     ensureContentInPlace() {
-      this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", (repeater) => {
-        if (trace) console.group(repeater.causalityString());
-        placeContent();
+      this.contentPlacementRepeater = flow_core.repeat(this.toString() + ".contentPlacementRepeater", (repeater) => {
+        if (flow_core.trace) console.group(repeater.causalityString());
         clearNode(this.rootElement);
         this.flow.getPrimitive().givenDomNode = this.rootElement;
-        workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
-        if (trace) console.groupEnd();
+        flow_core.workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
+        if (flow_core.trace) console.groupEnd();
       }, { priority: 2 });
     }
     dispose() {
@@ -1759,10 +1684,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     }
   }
-  const DOMFlowTarget$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    DOMFlowTarget
-  }, Symbol.toStringTag, { value: "Module" }));
   const log = console.log;
   class FlyFromTopDOMNodeAnimation extends ZoomFlyDOMNodeAnimation {
     constructor() {
@@ -1946,12 +1867,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   const flyFromTopAnimation = new FlyFromTopDOMNodeAnimation();
   const flyFromLeftAnimation = new FlyFromLeftDOMNodeAnimation();
-  const FlyDOMNodeAnimation = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    flyFromLeftAnimation,
-    flyFromTopAnimation
-  }, Symbol.toStringTag, { value: "Module" }));
-  function fitTextWithinWidth(text, targetWidth, fontWeight) {
+  function fitTextWithinWidth(text2, targetWidth, fontWeight) {
     if (!fontWeight) fontWeight = 400;
     let lowerLimitFontSize = 0;
     let experimentalFactor = 0.324;
@@ -1960,7 +1876,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     let upperLimitFontSize = guessFontSize * 2;
     let iterations = 10;
     while (iterations-- > 0) {
-      guessWidth = uncachedTextWidth(text, guessFontSize, fontWeight);
+      guessWidth = uncachedTextWidth(text2, guessFontSize, fontWeight);
       if (guessWidth == targetWidth) {
         return guessFontSize;
       } else if (guessWidth > targetWidth) {
@@ -1978,13 +1894,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     return fontSize;
   }
   const textMeasures = {};
-  function textWidth(text, styleOrFontSize) {
-    return textDimensions(text, styleOrFontSize).width;
+  function textWidth(text2, styleOrFontSize) {
+    return textDimensions(text2, styleOrFontSize).width;
   }
-  function textHeight(text, styleOrFontSize) {
-    return textDimensions(text, styleOrFontSize).height;
+  function textHeight(text2, styleOrFontSize) {
+    return textDimensions(text2, styleOrFontSize).height;
   }
-  function textDimensions(text, styleOrFontSize) {
+  function textDimensions(text2, styleOrFontSize) {
     if (typeof styleOrFontSize === "undefined") styleOrFontSize = 13;
     if (typeof styleOrFontSize === "number") styleOrFontSize = { fontSize: styleOrFontSize };
     const style = styleOrFontSize;
@@ -1992,21 +1908,21 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const fontWeight = style.fontWeight ? style.fontWeight : 400;
     const styleKey = fontSize + ":" + fontWeight;
     if (typeof textMeasures[styleKey] === "undefined") {
-      textMeasures[styleKey] = uncachedTextDimensions(text, fontSize, fontWeight);
+      textMeasures[styleKey] = uncachedTextDimensions(text2, fontSize, fontWeight);
     }
     const styleBucket = textMeasures[styleKey];
-    if (typeof styleBucket[text] === "undefined") {
-      styleBucket[text] = uncachedTextDimensions(text, fontSize, fontWeight);
+    if (typeof styleBucket[text2] === "undefined") {
+      styleBucket[text2] = uncachedTextDimensions(text2, fontSize, fontWeight);
     }
-    return styleBucket[text];
+    return styleBucket[text2];
   }
-  function uncachedTextWidth(text, fontSize, fontWeight) {
-    return uncachedTextDimensions(text, fontSize, fontWeight).width;
+  function uncachedTextWidth(text2, fontSize, fontWeight) {
+    return uncachedTextDimensions(text2, fontSize, fontWeight).width;
   }
-  function uncachedTextHeight(text, fontSize, fontWeight) {
-    return uncachedTextDimensions(text, fontSize, fontWeight).height;
+  function uncachedTextHeight(text2, fontSize, fontWeight) {
+    return uncachedTextDimensions(text2, fontSize, fontWeight).height;
   }
-  function uncachedTextDimensions(text, fontSize, fontWeight) {
+  function uncachedTextDimensions(text2, fontSize, fontWeight) {
     const parentElement = document.body;
     let div2 = document.createElement("div");
     div2.style["font-weight"] = fontWeight;
@@ -2015,7 +1931,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     div2.style["position"] = "absolute";
     div2.style["margin"] = "0px";
     div2.style["padding"] = "0px";
-    div2.innerHTML = text;
+    div2.innerHTML = text2;
     parentElement.appendChild(div2);
     let width = div2.clientWidth + 1;
     let height = div2.scrollHeight + 1;
@@ -2195,32 +2111,60 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     document.body.removeChild(myCanvas);
     return myMetrics;
   }
-  const fontMetrics = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-    __proto__: null,
-    capHeight,
-    fitTextWithinCapHeight,
-    fitTextWithinWidth,
-    getFontSizeToCapHeightRatio,
-    getGoldenRatioTopPadding,
-    textDimensions,
-    textHeight,
-    textWidth,
-    uncachedTextDimensions,
-    uncachedTextHeight,
-    uncachedTextWidth
-  }, Symbol.toStringTag, { value: "Module" }));
-  const index = {
-    ...BasicHtml,
-    ...DOMAnimation,
-    ...DOMElementNode$1,
-    ...DOMFlowTarget$1,
-    ...DOMNode$1,
-    ...DOMNodeAnimation$1,
-    ...domNodeAttributes,
-    ...DOMTextNode$1,
-    ...FlyDOMNodeAnimation,
-    ...fontMetrics,
-    ...ZoomFlyDOMNodeAnimation$1
-  };
-  return index;
+  exports2.DOMElementNode = DOMElementNode;
+  exports2.DOMFlowTarget = DOMFlowTarget;
+  exports2.DOMNode = DOMNode;
+  exports2.DOMNodeAnimation = DOMNodeAnimation;
+  exports2.DOMTextNode = DOMTextNode;
+  exports2.ZoomFlyDOMNodeAnimation = ZoomFlyDOMNodeAnimation;
+  exports2.addDOMFlowTarget = addDOMFlowTarget;
+  exports2.aggregateToString = aggregateToString;
+  exports2.camelCase = camelCase;
+  exports2.capHeight = capHeight;
+  exports2.changeType = changeType;
+  exports2.clearNode = clearNode$1;
+  exports2.div = div;
+  exports2.elemenNode = elemenNode;
+  exports2.eventHandlerContentElementAttributesCamelCase = eventHandlerContentElementAttributesCamelCase;
+  exports2.extractAttributes = extractAttributes;
+  exports2.extractChildStyles = extractChildStyles;
+  exports2.extractProperties = extractProperties;
+  exports2.extractProperty = extractProperty;
+  exports2.fitTextWithinCapHeight = fitTextWithinCapHeight;
+  exports2.fitTextWithinWidth = fitTextWithinWidth;
+  exports2.flowChanges = flowChanges;
+  exports2.flyFromLeftAnimation = flyFromLeftAnimation;
+  exports2.flyFromTopAnimation = flyFromTopAnimation;
+  exports2.freezeFlowChanges = freezeFlowChanges;
+  exports2.getFontSizeToCapHeightRatio = getFontSizeToCapHeightRatio;
+  exports2.getGoldenRatioTopPadding = getGoldenRatioTopPadding;
+  exports2.getHeightIncludingMargin = getHeightIncludingMargin;
+  exports2.getWidthIncludingMargin = getWidthIncludingMargin;
+  exports2.globalElementAttributesCamelCase = globalElementAttributesCamelCase;
+  exports2.installDOMAnimation = installDOMAnimation;
+  exports2.logProperties = logProperties;
+  exports2.mostAbstractFlow = mostAbstractFlow;
+  exports2.movedPrimitives = movedPrimitives;
+  exports2.onFinishReBuildingDOM = onFinishReBuildingDOM;
+  exports2.onFinishReBuildingFlow = onFinishReBuildingFlow;
+  exports2.parseMatrix = parseMatrix;
+  exports2.removeDOMFlowTarget = removeDOMFlowTarget;
+  exports2.resetDOMAnimation = resetDOMAnimation;
+  exports2.sameBounds = sameBounds;
+  exports2.setAnimationTime = setAnimationTime;
+  exports2.span = span;
+  exports2.standardAnimation = standardAnimation;
+  exports2.styledDiv = styledDiv;
+  exports2.text = text;
+  exports2.textDimensions = textDimensions;
+  exports2.textHeight = textHeight;
+  exports2.textNode = textNode;
+  exports2.textToTextNode = textToTextNode;
+  exports2.textWidth = textWidth;
+  exports2.uncachedTextDimensions = uncachedTextDimensions;
+  exports2.uncachedTextHeight = uncachedTextHeight;
+  exports2.uncachedTextWidth = uncachedTextWidth;
+  exports2.unfreezeFlowChanges = unfreezeFlowChanges;
+  exports2.zoomFlyAnimation = zoomFlyAnimation;
+  Object.defineProperty(exports2, Symbol.toStringTag, { value: "Module" });
 });

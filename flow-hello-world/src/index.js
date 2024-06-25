@@ -1,4 +1,4 @@
-import { setFlowConfiguration, DOMFlowTarget, div, text } from "@liquefy/flow";
+import { setFlowConfiguration, DOMFlowTarget, div, text, Component } from "@liquefy/flow";
 
 setFlowConfiguration({
   warnWhenNoKey: false,
@@ -6,12 +6,13 @@ setFlowConfiguration({
   autoAssignProperties: true
 });
 
-new DOMFlowTarget(document.getElementById("flow-root")).setContent(
-  new HelloWorld()
-);
-
-class HelloWorld {
-  render() {
+class HelloWorld extends Component {
+  build() {
     return div(text("Hello World"));
   }
 }
+
+new DOMFlowTarget(document.getElementById("root")).setContent(
+  new HelloWorld()
+);
+

@@ -830,6 +830,7 @@ class FlowTarget {
   dispose() {
   }
   setContent(flow) {
+    if (!(flow instanceof Flow)) throw new Error("Flow target content must be a flow!");
     this.flow = flow;
     flow.target = this;
     flow.ensureEstablished();

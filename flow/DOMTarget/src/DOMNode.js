@@ -43,13 +43,13 @@ export function clearNode(node, attributes) {
   // }
 }
 
-export const flexAutoStyle = {
-  overflow: "hidden",
-  boxSizing: "border-box",
-  flexGrow: 0,
-  flexShrink: 0,
-  flexBasis: 'auto'
-};
+// const flexAutoStyle = {
+//   overflow: "hidden",
+//   boxSizing: "border-box",
+//   flexGrow: 0,
+//   flexShrink: 0,
+//   flexBasis: 'auto'
+// };
 
 /**
  * DOM Node
@@ -153,6 +153,7 @@ export const flexAutoStyle = {
     // Get new children list, this is the target
     const newChildren = this.getPrimitiveChildren(node);
     const newChildNodes = newChildren.map(child => child.ensureDomNodeBuilt()).filter(child => !!child);
+
 
     // Nodes wrapped in a leader or trailer, should maintain their wrapper during this operation. 
     let index = 0;

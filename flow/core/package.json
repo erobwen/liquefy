@@ -4,7 +4,7 @@
   "description": "An abstract Reactive front end framework.",
   "type": "module",
   "main": "./dist/flow.core.umd.csj",
-  "module": "./dist/flow.core.js",
+  "module": "./src/index.js",
   "scripts": {
     "build": "vite build"
   },
@@ -28,6 +28,6 @@
     "rollup-plugin-deps-external": "^0.2.1"
   },
   "peerDependencies": {
-    "@liquefy/causaility": "file:../causality"
+    "@liquefy/causaility": "file:../../causality"
   }
 }

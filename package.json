@@ -4,7 +4,8 @@
     "version": "1.0.0",
     "description": "A monorepo for liquefy products.",
     "scripts": {
-      "build": "vite build"
+      "build": "(cd causality && npm run build); (cd flow && npm run build); (cd flow/core && npm run build); (cd flow/DOMTarget && npm run build)",
+      "postinstall": "(cd causality && npm install); (cd flow && npm install); (cd flow/core && npm install); (cd flow/DOMTarget && npm install)"
     },
     "repository": {
       "type": "git",

@@ -1,4 +1,4 @@
-import { component, repeat, trace, workOnPriorityLevel } from "./Flow";
+import { Component, component, repeat, trace, workOnPriorityLevel } from "./Flow";
 
 /**
  * Implement any flow target that implements HTML Element Node and HTML Text Node. 
@@ -14,6 +14,7 @@ export class FlowTarget {
 	dispose() {}
 
 	setContent(flow) {
+		if (!(flow instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.flow = flow;
 		flow.target = this;
 		flow.ensureEstablished();

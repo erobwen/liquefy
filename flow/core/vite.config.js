@@ -7,8 +7,6 @@ import depsExternal from 'rollup-plugin-deps-external'
 import { peerDependencies } from './package.json';
 const external = []
 Object.keys(peerDependencies).map(dependency => external.push(dependency));
-// console.log("external dependencies:")
-// console.log(external);
 
 export default defineConfig({
   plugins: [],

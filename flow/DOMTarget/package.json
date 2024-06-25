@@ -4,7 +4,7 @@
   "description": "A DOM implementation of flow.core",
   "type": "module",
   "main": "./dist/flow.DOMTarget.umd.csj",
-  "module": "./dist/flow.DOMTarget.js",
+  "module": "./src/index.js",
   "scripts": {
     "build": "vite build"
   },

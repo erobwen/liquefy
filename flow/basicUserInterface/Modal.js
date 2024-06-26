@@ -1,8 +1,8 @@
 import { Component, transaction } from "../../flow/Flow.js";
 import { creators, getTarget } from "../../flow/flowBuildContext.js";
 import { readFlowProperties, findKeyInProperties } from "../../flow/flowParameters.js";
-import { div } from "../../flow.DOMTarget/BasicHtml.js";
-import { extractAttributes } from "../../flow.DOMTarget/domNodeAttributes.js";
+import { div } from "../../flow.DOM/BasicHtml.js";
+import { extractAttributes } from "../../flow.DOM/domNodeAttributes.js";
 import { logMark } from "../../flow/utility.js";
 const log = console.log;
 

@@ -1,9 +1,9 @@
 import { Component } from "../flow/Flow";
 import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { panel, text } from "../components/basic/BasicWidgets";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitStyle, row, zStack, zStackElementStyle } from "../components/basic/Layout";
-import { div } from "../flow.DOMTarget/BasicHtml"
+import { div } from "../flow.DOM/BasicHtml"
 ;
 import { adjustLightness } from "../components/themed/Color";
 import { modernButton } from "../components/modern/ModernButton";

@@ -139,7 +139,7 @@ import {
     ZoomFlyDOMNodeAnimation, 
     zoomFlyAnimation, 
     standardAnimation
-} from "@liquefy/flow.DOMTarget";
+} from "@liquefy/flow.DOM";
 
 
 

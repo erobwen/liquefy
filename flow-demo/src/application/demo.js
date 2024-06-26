@@ -1,5 +1,5 @@
 import { observable, Component, component, repeat, creators } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { AnimationExample } from "./animationExample";
 import { ComplexForm, initialData } from "./complexFormApplication";
 import { RecursiveExample } from "./recursiveDemoApplication";
@@ -15,7 +15,7 @@ import flowImage from "../../resources/flow.svg"
 import { applicationMenuFrame } from "../components/basic/ApplicationMenuFrame";
 import { text } from "../components/basic/BasicWidgets";
 import { logMark } from "../flow/utility";
-import { span } from "../flow.DOMTarget/BasicHtml";
+import { span } from "../flow.DOM/BasicHtml";
 
 const log = console.log;
 

@@ -1,6 +1,6 @@
 import { findTextKeyAndOnClickInProperties, Flow } from "../flow/Flow";
 import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
-import { div } from "../flow.DOMTarget/BasicHtml";
+import { div } from "../flow.DOM/BasicHtml";
 import { adjustLightness } from "./Color";
 import { button, inputField, text, textInputField } from "./basic/BasicWidgets";
 import { panelStyle } from "./modern/Style";

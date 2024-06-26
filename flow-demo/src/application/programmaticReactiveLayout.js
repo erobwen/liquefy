@@ -1,12 +1,12 @@
 import { observable, Component, component, repeat } from "../flow/Flow";
 import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { basicWidgetTheme, numberInputField, text } from "../components/basic/BasicWidgets";
 import { centerMiddle, column, fitStyle, flexAutoHeightStyle, flexAutoStyle, flexGrowShrinkStyle, flexerStyle, row } from "../components/basic/Layout";
-import { div } from "../flow.DOMTarget/BasicHtml"
+import { div } from "../flow.DOM/BasicHtml"
 ;
 import { logMark } from "../flow/utility";
-import { fitTextWithinWidth } from "../flow.DOMTarget/fontMetrics";
+import { fitTextWithinWidth } from "../flow.DOM/fontMetrics";
 
 
 const log = console.log;

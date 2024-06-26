@@ -23,7 +23,7 @@ export function findTextAndKeyInProperties(properties) {
   // console.log(properties)
   if (!properties.stringsAndNumbers) return properties;
   if (properties.stringsAndNumbers.length) {
-    properties.text = properties.stringsAndNumbers.pop();
+    properties.text = properties.stringsAndNumbers.pop() + "";
   }
   if (properties.stringsAndNumbers.length) {
     properties.key = properties.stringsAndNumbers.pop();

@@ -1,7 +1,7 @@
 import { observable, Component, component, repeat, transaction, model } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 // import { simpleButton as button } from "../components/SimpleButton";
-import { div, span, textNode } from "../flow.DOMTarget/BasicHtml";
+import { div, span, textNode } from "../flow.DOM/BasicHtml";
 import { column, filler, flexGrowShrinkStyle, row } from "../components/basic/Layout";
 import { checkboxInputField, numberInputField, text } from "../components/basic/BasicWidgets";
 import { button, textInputField } from "../components/themed/Theme";

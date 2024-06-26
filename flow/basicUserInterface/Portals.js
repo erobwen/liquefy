@@ -1,4 +1,4 @@
-import { extractAttributes } from "../../flow.DOMTarget/domNodeAttributes.js";
+import { extractAttributes } from "../../flow.DOM/domNodeAttributes.js";
 import { Component } from "../../flow/Flow.js";
 import { getTarget } from "../../flow/flowBuildContext.js";
 import { readFlowProperties, findKeyInProperties } from "../../flow/flowParameters";

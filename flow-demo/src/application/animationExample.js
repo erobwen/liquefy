@@ -1,11 +1,11 @@
 import { observable, Component, component, repeat, transaction } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
-import { animationTime } from "../flow.DOMTarget/DOMNodeAnimation";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
+import { animationTime } from "../flow.DOM/DOMNodeAnimation";
 import { column, filler, row } from "../components/basic/Layout";
 import { button, text } from "../components/basic/BasicWidgets";
-import { div } from "../flow.DOMTarget/BasicHtml";
+import { div } from "../flow.DOM/BasicHtml";
 import { startExperiment } from "..";
-import { standardAnimation } from "../flow.DOMTarget/ZoomFlyDOMNodeAnimation";
+import { standardAnimation } from "../flow.DOM/ZoomFlyDOMNodeAnimation";
 
 const log = console.log;
 

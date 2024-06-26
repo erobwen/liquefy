@@ -1,5 +1,5 @@
 import { observable, world, repeat, when, Component, finalize, readFlowProperties } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { portalEntrance } from "../components/basic/Portals";
 import { button, text } from "../components/basic/BasicWidgets";
 import { column, filler, row } from "../components/basic/Layout";

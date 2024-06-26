@@ -1,8 +1,8 @@
-import { div, elemenNode } from "../flow.DOMTarget/BasicHtml";
+import { div, elemenNode } from "../flow.DOM/BasicHtml";
 import flow from "../../resources/flow.svg"
 import { getTarget } from "../flow/flowBuildContext";
 import { addDefaultStyleToProperties, readFlowProperties } from "../flow/flowParameters";
-import { extractAttributes } from "../flow.DOMTarget/domNodeAttributes";
+import { extractAttributes } from "../flow.DOM/domNodeAttributes";
 
 const log = console.log;
 

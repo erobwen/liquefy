@@ -1,4 +1,4 @@
-import { flyFromLeftAnimation, flyFromTopAnimation } from "../../flow.DOMTarget/FlyDOMNodeAnimation";
+import { flyFromLeftAnimation, flyFromTopAnimation } from "../../flow.DOM/FlyDOMNodeAnimation";
 import { Component } from "../../flow/Flow"
 import { readFlowProperties } from "../../flow/flowParameters";
 import { log, logMark } from "../../flow/utility";

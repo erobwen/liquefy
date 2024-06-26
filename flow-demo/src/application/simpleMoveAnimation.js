@@ -1,5 +1,5 @@
 import { observable, Component, component, repeat, transaction } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { text } from "../components/basic/BasicWidgets";
 import { column, filler, fillerStyle, row } from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
@@ -7,7 +7,7 @@ import { animatedContainerStyle, borderStyle, panelStyle } from "../components/m
 import { button as basicButton } from "../components/basic/BasicWidgets";
 import { button } from "../components/themed/Theme";
 import { startExperiment, inExperiment } from "..";
-import { div } from "../flow.DOMTarget/BasicHtml";
+import { div } from "../flow.DOM/BasicHtml";
 import { logMark } from "../flow/utility";
 
 

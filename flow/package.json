@@ -29,6 +29,6 @@
   "dependencies": {
     "@liquefy/causality": "file:../causality",
     "@liquefy/flow.core": "file:./core",
-    "@liquefy/flow.DOMTarget": "file:./DOMTarget"
+    "@liquefy/flow.DOM": "file:./DOM"
   }
 }

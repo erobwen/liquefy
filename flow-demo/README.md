@@ -96,7 +96,7 @@ This example showcases some basic principles of Flow. It shows two ways of defin
 ```js
 import { observable, Flow, flow, repeat } from "../flow/Flow";
 import { text, row as basicRow } from "../components/BasicFlowComponents";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 
 const log = console.log;
 

@@ -5,7 +5,7 @@ import { startProgrammaticReactiveLayout } from "./application/programmaticReact
 import { startComplexFormApplication } from "./application/complexFormApplication.js";
 import { startAnimationExample } from "./application/animationExample.js";
 import { startDemo } from "./application/demo.js";
-import { installDOMAnimation, resetDOMAnimation } from "./flow.DOMTarget/DOMAnimation.js";
+import { installDOMAnimation, resetDOMAnimation } from "./flow.DOM/DOMAnimation.js";
 import { startPatternMatching } from "./application/patternMatching.js";
 import { buttonTest } from "./application/buttonTest.js";
 import { startModalDemo } from "./application/modalDemo.js";
@@ -13,7 +13,7 @@ import { startSingleStaticWidget } from "./application/singleStaticWidget.js";
 import { startSimpleMoveAnimation } from "./application/simpleMoveAnimation.js";
 import { startSimpleAddRemoveAnimation } from "./application/simpleAddRemoveAnimation.js";
 import { logMark } from "./flow/utility.js";
-import { setAnimationTime } from "./flow.DOMTarget/ZoomFlyDOMNodeAnimation.js";
+import { setAnimationTime } from "./flow.DOM/ZoomFlyDOMNodeAnimation.js";
 import { startSimpleApplicationMenu } from "./application/simpleApplicationMenu.js";
 
 if (module.hot) {

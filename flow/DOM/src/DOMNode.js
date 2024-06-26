@@ -3,7 +3,7 @@ import { FlowPrimitive } from "@liquefy/flow.core";
 import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
-import { changeType, flowChanges, getHeightIncludingMargin, getWidthIncludingMargin, previousFlowChanges } from "./DOMAnimation";
+import { changeType, flowChanges, getHeightIncludingMargin, getWidthIncludingMargin, previousFlowChanges } from "./DOMAnimation.js";
 import { standardAnimation } from "./ZoomFlyDOMNodeAnimation.js";
 
 const log = console.log;

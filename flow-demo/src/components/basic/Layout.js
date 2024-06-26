@@ -1,7 +1,7 @@
 import { trace, Component, transaction, creators } from "../../flow/Flow.js";
 import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "../../flow/flowParameters.js";
 import { deepFreeze } from "../../flow/utility.js";
-import { styledDiv } from "../../flow.DOMTarget/BasicHtml.js";
+import { styledDiv } from "../../flow.DOM/BasicHtml.js";
 const log = console.log;
 
 

@@ -16,7 +16,7 @@ export default defineConfig({
     minify: false,
     lib: {
       entry: resolve(__dirname, 'src/index.js'),
-      name: "flowDOMTarget"
+      name: "flowDOM"
     },
     rollupOptions: {
       external,

@@ -1,7 +1,7 @@
-import { div } from "../flow.DOMTarget/BasicHtml";
+import { div } from "../flow.DOM/BasicHtml";
 import { button, text } from "../components/basic/BasicWidgets";
 import { column } from "../components/basic/Layout";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget";
 import { Component } from "../flow/Flow";
 
 const log = console.log;

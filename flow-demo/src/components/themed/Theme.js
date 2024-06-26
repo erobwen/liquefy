@@ -1,4 +1,4 @@
-import { div } from "../../flow.DOMTarget/BasicHtml";
+import { div } from "../../flow.DOM/BasicHtml";
 import { model } from "../../flow/Flow";
 import { textInputField as basicTextInputField } from "../basic/BasicWidgets";
 import { button as basicButton } from "../basic/BasicWidgets";

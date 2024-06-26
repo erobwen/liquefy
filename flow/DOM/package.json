@@ -1,9 +1,9 @@
 {
-  "name": "flow.DOMTarget",
+  "name": "flow.DOM",
   "version": "1.0.0",
   "description": "A DOM implementation of flow.core",
   "type": "module",
-  "main": "./dist/flow.DOMTarget.umd.csj",
+  "main": "./dist/flow.DOM.umd.csj",
   "module": "./src/index.js",
   "scripts": {
     "build": "vite build"

@@ -1,5 +1,5 @@
 import { observable, Component } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOMTarget/DOMFlowTarget.js";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { button, text } from "../components/basic/BasicWidgets";
 import { column, row } from "../components/basic/Layout";
 

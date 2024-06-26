@@ -1,4 +1,5 @@
 import { DOMNode } from "./DOMNode";    
+import { domNodeClassRegistry } from "./DOMFlowTarget";
 const log = console.log;
 
 
@@ -23,3 +24,5 @@ export class DOMTextNode extends DOMNode {
     // }
   }
 }
+
+domNodeClassRegistry["dom.textNode"] = DOMTextNode;

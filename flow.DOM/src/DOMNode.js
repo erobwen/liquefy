@@ -2,9 +2,7 @@ import { repeat, Component, trace, configuration, finalize, traceWarnings } from
 import { FlowPrimitive } from "@liquefy/flow.core";
 import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
-
-import { changeType, flowChanges, getHeightIncludingMargin, getWidthIncludingMargin, previousFlowChanges } from "./DOMAnimation.js";
-import { standardAnimation } from "./ZoomFlyDOMNodeAnimation.js";
+import { standardAnimation } from "./ZoomFlyDOMNodeAnimation";
 
 const log = console.log;
 
@@ -26,8 +24,8 @@ export function aggregateToString(flow) {
   return id.join(" | ");
 }
 
-export const movedPrimitives = [];
-window.moved = movedPrimitives;
+// export const movedPrimitives = [];
+// window.moved = movedPrimitives;
 
 export function clearNode(node, attributes) {
   while (node.childNodes.length > 0) {
@@ -50,6 +48,23 @@ export function clearNode(node, attributes) {
 //   flexShrink: 0,
 //   flexBasis: 'auto'
 // };
+
+export function getHeightIncludingMargin(node) {
+  var styles = window.getComputedStyle(node);
+  var margin = parseFloat(styles['marginTop']) +
+               parseFloat(styles['marginBottom']);
+
+  return Math.ceil(node.offsetHeight + margin);
+}
+
+export function getWidthIncludingMargin(node) {
+  var styles = window.getComputedStyle(node);
+  var margin = parseFloat(styles['marginLeft']) +
+               parseFloat(styles['marginRight']);
+  return Math.ceil(node.offsetWidth + margin);
+}
+
+
 
 /**
  * DOM Node
@@ -156,6 +171,7 @@ export function clearNode(node, attributes) {
 
 
     // Nodes wrapped in a leader or trailer, should maintain their wrapper during this operation. 
+    // Note: trailer, leader and isControlledByAnimation is actually support for DOMAnimation, but this support is needed here. Consider ways to factor this out to flow.DOMAnimation if possible?
     let index = 0;
     while (index < newChildNodes.length) {
       // log("scanning.....");
@@ -238,25 +254,28 @@ export function clearNode(node, attributes) {
   }
 
   ensureDomNodeExists() { 
-    if (this.givenDomNode) {
-      this.domNode = this.givenDomNode;
-      this.domNode.className = aggregateToString(this);
-      this.domNode.equivalentCreator = this; 
-    } else if (!this.createElementRepeater) {
+    if (!this.createElementRepeater) {
       this.createElementRepeater = repeat(mostAbstractFlow(this).toString() + ".createElementRepeater", (repeater) => {
         if (trace) log(repeater.causalityString());
 
-        // Create empty dom node
-        this.domNode = this.createEmptyDomNode();
-        this.domNode.id = aggregateToString(this);
-        this.domNode.equivalentCreator = this; 
-        // this.domNode.id = mostAbstractFlow(this).toString()
-        
-        // Decorate all equivalent flows
-        let scanFlow = this.equivalentCreator;
-        while (scanFlow != null) {
-          scanFlow.domNode = this.domNode;
-          scanFlow = scanFlow.equivalentCreator;
+        if (this.givenDomNode) {
+          clearNode(this.givenDomNode);
+          this.domNode = this.givenDomNode;
+          this.domNode.className = aggregateToString(this);
+          this.domNode.equivalentCreator = this; 
+        } else {
+          // Create empty dom node
+          this.domNode = this.createEmptyDomNode();
+          this.domNode.id = aggregateToString(this);
+          this.domNode.equivalentCreator = this; 
+          // this.domNode.id = mostAbstractFlow(this).toString()
+          
+          // Decorate all equivalent flows
+          let scanFlow = this.equivalentCreator;
+          while (scanFlow != null) {
+            scanFlow.domNode = this.domNode;
+            scanFlow = scanFlow.equivalentCreator;
+          }
         }
 
         if (trace) log(this.domNode);
@@ -276,7 +295,8 @@ export function clearNode(node, attributes) {
   }
 
   getStandardAnimation() {
-    return standardAnimation; 
+    return null;
+    // return standardAnimation; 
   }
 }
 

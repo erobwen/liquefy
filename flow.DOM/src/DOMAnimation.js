@@ -1,5 +1,6 @@
 import { repeat, Component, trace, configuration, component, activeTrace, creators, postponeInvalidations, continueInvalidations, traceAnimation, traceWarnings } from "@liquefy/flow.core";
 import { logMark, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator } from "@liquefy/flow.core";
+import { getDomFlowTargets } from "./DOMFlowTarget";
 
 // import { inExperiment, inExperimentOnCount } from "..";
 
@@ -21,7 +22,7 @@ export function resetDOMAnimation() {
   Object.assign(flowChanges, newFlowChanges());
   previousFlowChanges = {}
   counter = 0;
-  domFlowTargets = [];
+  getDomFlowTargets().length = 0;
 }
 
 
@@ -43,23 +44,8 @@ export function unfreezeFlowChanges() {
 
 
 /**
- * DOM Flow Targets to animate
- */
-let domFlowTargets = [];
-
-export function addDOMFlowTarget(target) {
-  domFlowTargets.push(target)
-}
-
-export function removeDOMFlowTarget(target) {
-  domFlowTargets.splice(domFlowTargets.indexOf(target), 1);
-}
-
-
-/**
  * Debug printouts
  */
-
 export function logProperties(object, properties) {
   log(extractProperties(object, properties));
 }
@@ -243,7 +229,7 @@ export function onFinishReBuildingFlow() {
     }
   }
   
-  for (let target of domFlowTargets) {
+  for (let target of getDomFlowTargets()) {
     analyzePrimitives(idPrimitiveMap, target.flow.getPrimitive());
   }
   // console.log(idParentIdMap);
@@ -508,20 +494,6 @@ export const camelCase = (function () {
   };
 })();
 
-export function getHeightIncludingMargin(node) {
-  var styles = window.getComputedStyle(node);
-  var margin = parseFloat(styles['marginTop']) +
-               parseFloat(styles['marginBottom']);
-
-  return Math.ceil(node.offsetHeight + margin);
-}
-
-export function getWidthIncludingMargin(node) {
-  var styles = window.getComputedStyle(node);
-  var margin = parseFloat(styles['marginLeft']) +
-               parseFloat(styles['marginRight']);
-  return Math.ceil(node.offsetWidth + margin);
-}
 
 
 /**

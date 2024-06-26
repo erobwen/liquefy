@@ -1,5 +1,10 @@
 {
   "name": "flow.DOM",
+  "keywords": [
+    "Javascript",
+    "Proxy",
+    "Reactive"
+  ],
   "version": "1.0.0",
   "description": "A DOM implementation of flow.core",
   "type": "module",
@@ -12,21 +17,15 @@
     "type": "git",
     "url": "https://github.com/erobwen/liquefy.git"
   },
-  "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
-  ],
-  "author": "Robert Renbris",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
-  "devDependencies": {
-    "vite": "^5.3.1"
-  },
+  "author": "Robert Renbris",
+  "license": "ISC",
+
   "peerDependencies": {
-    "@liquefy/flow.core": "file:../core"
+    "@liquefy/flow.core": "file:../flow.core",
+    "@liquefy/flow.DOMAnimation": "file:../flow.DOMAnimation"
   }
 }

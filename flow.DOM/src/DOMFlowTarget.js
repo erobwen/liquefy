@@ -3,12 +3,24 @@ import { readFlowProperties, findKeyInProperties } from "@liquefy/flow.core";
 import { FlowTarget } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
-import { DOMElementNode } from "./DOMElementNode";
-import { DOMTextNode} from "./DOMTextNode";
-import { addDOMFlowTarget, removeDOMFlowTarget } from "./DOMAnimation";
-import { clearNode } from "./DOMNode";
+// import { clearNode } from "./DOMNode";
 
+export const domNodeClassRegistry = {};
 const log = console.log;
+
+export function getDomFlowTargets() {
+  return domFlowTargets;
+}
+
+export const domFlowTargets = [];
+
+export function addDOMFlowTarget(target) {
+  domFlowTargets.push(target)
+}
+
+export function removeDOMFlowTarget(target) {
+  domFlowTargets.splice(domFlowTargets.indexOf(target), 1);
+}
 
 export class DOMFlowTarget extends FlowTarget {
   constructor(rootElement, configuration={}){
@@ -65,7 +77,7 @@ export class DOMFlowTarget extends FlowTarget {
 		this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
 			if (trace) console.group(repeater.causalityString());
 
-			clearNode(this.rootElement);
+			// clearNode(this.rootElement);
 			this.flow.getPrimitive().givenDomNode = this.rootElement;
 			workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
 			
@@ -80,12 +92,9 @@ export class DOMFlowTarget extends FlowTarget {
 
   create(...parameters) {
     const properties = findKeyInProperties(readFlowProperties(parameters));
-    switch(properties.type) {
-      case "dom.textNode":
-        return new DOMTextNode(properties);
-      case "dom.elementNode": 
-        return new DOMElementNode(properties);
-    }
+    const DOMNodeClass = domNodeClassRegistry[properties.type];
+    if (!DOMNodeClass) throw Error("Unknown primitive type: " + properties.type);
+    return new DOMNodeClass(properties)
   }
 }
 

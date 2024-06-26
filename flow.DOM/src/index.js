@@ -1,15 +1,18 @@
 
 import { elemenNode, textNode, text, span, div, styledDiv, textToTextNode} from "./BasicHtml";
-import { installDOMAnimation, resetDOMAnimation, freezeFlowChanges, unfreezeFlowChanges, addDOMFlowTarget, removeDOMFlowTarget, logProperties, extractProperties, flowChanges, previousFlowChanges, changeType, onFinishReBuildingFlow, onFinishReBuildingDOM, sameBounds, camelCase, getHeightIncludingMargin, getWidthIncludingMargin, parseMatrix } from "./DOMAnimation";
 import { DOMElementNode } from "./DOMElementNode";
-import { DOMFlowTarget} from "./DOMFlowTarget"
-import { mostAbstractFlow, aggregateToString, movedPrimitives, clearNode, DOMNode  } from "./DOMNode";
-import { DOMNodeAnimation } from "./DOMNodeAnimation"
-import { extractAttributes, eventHandlerContentElementAttributesCamelCase, globalElementAttributesCamelCase, extractChildStyles, extractProperty } from "./domNodeAttributes";
 import { DOMTextNode } from "./DOMTextNode"
-import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMNodeAnimation"
+import { DOMFlowTarget} from "./DOMFlowTarget"
+import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
+import { extractAttributes, eventHandlerContentElementAttributesCamelCase, globalElementAttributesCamelCase, extractChildStyles, extractProperty } from "./domNodeAttributes";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
+
+// Animation
+import { installDOMAnimation, resetDOMAnimation, freezeFlowChanges, unfreezeFlowChanges, logProperties, extractProperties, flowChanges, previousFlowChanges, changeType, onFinishReBuildingFlow, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation";
+import { DOMNodeAnimation } from "./DOMNodeAnimation"
+import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMNodeAnimation"
 import { setAnimationTime, ZoomFlyDOMNodeAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMNodeAnimation"
+
 
 export {
     // Basic HTML
@@ -20,26 +23,6 @@ export {
     div, 
     styledDiv, 
     textToTextNode,
-
-    // DOM Animation
-    installDOMAnimation, 
-    resetDOMAnimation, 
-    freezeFlowChanges, 
-    unfreezeFlowChanges, 
-    addDOMFlowTarget, 
-    removeDOMFlowTarget, 
-    logProperties, 
-    extractProperties, 
-    flowChanges, 
-    previousFlowChanges, 
-    changeType, 
-    onFinishReBuildingFlow, 
-    onFinishReBuildingDOM, 
-    sameBounds, 
-    camelCase, 
-    getHeightIncludingMargin, 
-    getWidthIncludingMargin, 
-    parseMatrix,
     
     // DOMElementNode
     DOMElementNode,
@@ -50,12 +33,10 @@ export {
     //DOMNode
     mostAbstractFlow, 
     aggregateToString, 
-    movedPrimitives, 
     clearNode, 
+    getWidthIncludingMargin,
+    getHeightIncludingMargin,
     DOMNode,
-
-    //DOMNodeAnimation
-    DOMNodeAnimation,
 
     //domNodeAttributes
     extractAttributes, 
@@ -66,10 +47,6 @@ export {
     
     //DOMTextNode 
     DOMTextNode,
-
-    // FlyDOMNodeAnimation
-    flyFromLeftAnimation, 
-    flyFromTopAnimation,
 
     // fontMetrics
     fitTextWithinWidth, 
@@ -83,6 +60,31 @@ export {
     capHeight, 
     getFontSizeToCapHeightRatio, 
     getGoldenRatioTopPadding, 
+
+    // Animation
+
+    // DOM Animation
+    installDOMAnimation, 
+    resetDOMAnimation, 
+    freezeFlowChanges, 
+    unfreezeFlowChanges,
+    logProperties, 
+    extractProperties, 
+    flowChanges, 
+    previousFlowChanges, 
+    changeType, 
+    onFinishReBuildingFlow, 
+    onFinishReBuildingDOM, 
+    sameBounds, 
+    camelCase, 
+    parseMatrix,
+
+    //DOMNodeAnimation
+    DOMNodeAnimation,
+
+    // FlyDOMNodeAnimation
+    flyFromLeftAnimation, 
+    flyFromTopAnimation,
 
     // ZoomFlyDOMNodeAnimation
     setAnimationTime, 

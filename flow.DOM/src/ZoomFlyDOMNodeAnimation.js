@@ -1,7 +1,7 @@
 import { draw, insertAfter, logMark } from "@liquefy/flow.core";
 
 import { camelCase, changeType, extractProperties, flowChanges, freezeFlowChanges, sameBounds, unfreezeFlowChanges } from "./DOMAnimation";
-import { movedPrimitives } from "./DOMNode";
+// import { movedPrimitives } from "./DOMNode";
 import { DOMNodeAnimation } from "./DOMNodeAnimation";
 
 const log = console.log;
@@ -623,7 +623,7 @@ export class ZoomFlyDOMNodeAnimation extends DOMNodeAnimation {
   recordBoundsInNewStructure(node) {
     // node.style.transform = ""; // Cannot do here as some resident nodes will continue on same animation.
     node.newStructureBounds = node.getBoundingClientRect();
-    movedPrimitives.push(node)
+    // movedPrimitives.push(node)
     draw(node.newStructureBounds, "red");
   }
 

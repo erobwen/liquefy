@@ -70,26 +70,6 @@ import {
     div, 
     styledDiv, 
     textToTextNode,
-
-    // DOM Animation
-    installDOMAnimation, 
-    resetDOMAnimation, 
-    freezeFlowChanges, 
-    unfreezeFlowChanges, 
-    addDOMFlowTarget, 
-    removeDOMFlowTarget, 
-    logProperties, 
-    extractProperties, 
-    flowChanges, 
-    previousFlowChanges, 
-    changeType, 
-    onFinishReBuildingFlow, 
-    onFinishReBuildingDOM, 
-    sameBounds, 
-    camelCase, 
-    getHeightIncludingMargin, 
-    getWidthIncludingMargin, 
-    parseMatrix,
     
     // DOMElementNode
     DOMElementNode,
@@ -100,12 +80,10 @@ import {
     //DOMNode
     mostAbstractFlow, 
     aggregateToString, 
-    movedPrimitives, 
     clearNode, 
+    getHeightIncludingMargin, 
+    getWidthIncludingMargin, 
     DOMNode,
-
-    //DOMNodeAnimation
-    DOMNodeAnimation,
 
     //domNodeAttributes
     extractAttributes, 
@@ -116,10 +94,6 @@ import {
     
     //DOMTextNode 
     DOMTextNode,
-
-    // FlyDOMNodeAnimation
-    flyFromLeftAnimation, 
-    flyFromTopAnimation,
 
     // fontMetrics
     fitTextWithinWidth, 
@@ -132,7 +106,30 @@ import {
     uncachedTextDimensions, 
     capHeight, 
     getFontSizeToCapHeightRatio, 
-    getGoldenRatioTopPadding, 
+    getGoldenRatioTopPadding,
+
+    // DOM Animation
+    installDOMAnimation, 
+    resetDOMAnimation, 
+    freezeFlowChanges, 
+    unfreezeFlowChanges, 
+    logProperties, 
+    extractProperties, 
+    flowChanges, 
+    previousFlowChanges, 
+    changeType, 
+    onFinishReBuildingFlow, 
+    onFinishReBuildingDOM, 
+    sameBounds, 
+    camelCase, 
+    parseMatrix,
+
+    //DOMNodeAnimation
+    DOMNodeAnimation,
+
+    // FlyDOMNodeAnimation
+    flyFromLeftAnimation, 
+    flyFromTopAnimation,
 
     // ZoomFlyDOMNodeAnimation
     setAnimationTime, 
@@ -140,8 +137,6 @@ import {
     zoomFlyAnimation, 
     standardAnimation
 } from "@liquefy/flow.DOM";
-
-
 
 
 export {
@@ -219,9 +214,7 @@ export {
     installDOMAnimation, 
     resetDOMAnimation, 
     freezeFlowChanges, 
-    unfreezeFlowChanges, 
-    addDOMFlowTarget, 
-    removeDOMFlowTarget, 
+    unfreezeFlowChanges,
     logProperties, 
     extractProperties, 
     flowChanges, 
@@ -231,8 +224,6 @@ export {
     onFinishReBuildingDOM, 
     sameBounds, 
     camelCase, 
-    getHeightIncludingMargin, 
-    getWidthIncludingMargin, 
     parseMatrix,
 
     // DOMElementNode
@@ -243,9 +234,10 @@ export {
 
     //DOMNode
     mostAbstractFlow, 
-    aggregateToString, 
-    movedPrimitives, 
+    aggregateToString,
     clearNode, 
+    getHeightIncludingMargin, 
+    getWidthIncludingMargin, 
     DOMNode,
 
     //DOMNodeAnimation

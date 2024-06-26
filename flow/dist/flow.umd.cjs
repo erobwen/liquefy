@@ -1,7 +1,10 @@
 (function(global, factory) {
   typeof exports === "object" && typeof module !== "undefined" ? factory(exports) : typeof define === "function" && define.amd ? define(["exports"], factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, factory(global.flow = {}));
 })(this, function(exports2) {
-  "use strict";
+  "use strict";var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
   function K(r) {
     return Array.prototype.slice.call(r);
   }
@@ -1290,10 +1293,7 @@
     const n = rt(r);
     return typeof V[n] > "u" && (V[n] = ct(r)), V[n];
   }
-  var __defProp$1 = Object.defineProperty;
-  var __defNormalProp$1 = (obj, key, value) => key in obj ? __defProp$1(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-  var __publicField$1 = (obj, key, value) => __defNormalProp$1(obj, typeof key !== "symbol" ? key + "" : key, value);
-  const log$1$1 = console.log;
+  const log$5 = console.log;
   function deepFreeze(o) {
     Object.freeze(o);
     if (o === void 0) {
@@ -1362,7 +1362,7 @@
   function findTextAndKeyInProperties(properties) {
     if (!properties.stringsAndNumbers) return properties;
     if (properties.stringsAndNumbers.length) {
-      properties.text = properties.stringsAndNumbers.pop();
+      properties.text = properties.stringsAndNumbers.pop() + "";
     }
     if (properties.stringsAndNumbers.length) {
       properties.key = properties.stringsAndNumbers.pop();
@@ -1491,7 +1491,7 @@
     finalize,
     withoutRecording,
     sameAsPreviousDeep,
-    workOnPriorityLevel: workOnPriorityLevel$1,
+    workOnPriorityLevel,
     invalidateOnChange: invalidateOnChange$1,
     postponeInvalidations,
     continueInvalidations,
@@ -1540,8 +1540,8 @@
   }
   class Component {
     constructor(...parameters) {
-      __publicField$1(this, "theme");
-      __publicField$1(this, "target");
+      __publicField(this, "theme");
+      __publicField(this, "target");
       let properties = findKeyInProperties(readFlowProperties$1(parameters));
       if (properties.build) {
         properties.buildFunction = properties.build;
@@ -1820,7 +1820,7 @@
         }
         this.parentPrimitive = parentPrimitive;
       }
-      workOnPriorityLevel$1(1, () => this.getPrimitive().ensureBuiltRecursive(flowTarget, parentPrimitive));
+      workOnPriorityLevel(1, () => this.getPrimitive().ensureBuiltRecursive(flowTarget, parentPrimitive));
       return this.getPrimitive(parentPrimitive);
     }
     getPrimitive(parentPrimitive) {
@@ -2121,10 +2121,11 @@
     dispose() {
     }
     setContent(flow) {
+      if (!(flow instanceof Component)) throw new Error("Flow target content must be a flow Component!");
       this.flow = flow;
       flow.target = this;
       flow.ensureEstablished();
-      workOnPriorityLevel$1(1, () => this.flow.ensureBuiltRecursive(this));
+      workOnPriorityLevel(1, () => this.flow.ensureBuiltRecursive(this));
       if (flow.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
       this.ensureContentInPlace();
     }
@@ -2145,9 +2146,6 @@
     //     flowTargets.splice(flowTargets.indexOf(this), 1);
     // }
   }
-  var __defProp = Object.defineProperty;
-  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
   function extractAttributes(properties) {
     const attributes = {};
     if (!properties) return attributes;
@@ -2306,7 +2304,7 @@
   function textNode(...parameters) {
     let properties = findTextAndKeyInProperties(readFlowProperties$1(parameters));
     const attributes = extractAttributes(properties);
-    return getTarget().create({ type: "dom.textNode", key: properties.key, attributes, children: properties.children });
+    return getTarget().create({ type: "dom.textNode", text: properties.text, key: properties.key, attributes });
   }
   const text = textNode;
   function span(...parameters) {
@@ -2335,6 +2333,422 @@
         text: extractProperty(properties, "text")
       });
     }
+  }
+  const domNodeClassRegistry = {};
+  function getDomFlowTargets() {
+    return domFlowTargets;
+  }
+  const domFlowTargets = [];
+  function addDOMFlowTarget(target) {
+    domFlowTargets.push(target);
+  }
+  function removeDOMFlowTarget(target) {
+    domFlowTargets.splice(domFlowTargets.indexOf(target), 1);
+  }
+  class DOMFlowTarget extends FlowTarget {
+    constructor(rootElement, configuration2 = {}) {
+      const { creator = null, fullWindow = true } = configuration2;
+      super();
+      if (!this.key) this.key = configuration2.key ? configuration2.key : null;
+      this.animate = typeof configuration2.animate === "undefined" ? true : configuration2.animate;
+      if (this.animate) addDOMFlowTarget(this);
+      this.creator = creator;
+      this.rootElement = rootElement;
+      if (fullWindow) {
+        document.body.style.margin = "0px";
+        document.body.style.width = "100%";
+        document.body.style.height = window.innerHeight + "px";
+        this.rootElement.style.width = "100%";
+        this.rootElement.style.height = "100%";
+        this.rootElement.style.overflow = "hidden";
+        window.addEventListener("resize", () => {
+          if (document.body.style.height != window.innerHeight + "px")
+            document.body.style.height = window.innerHeight + "px";
+          transaction(() => {
+            if (this.flow) {
+              this.flow.bounds = { width: window.innerWidth, height: window.innerHeight };
+            }
+          });
+        });
+      }
+      this.state = observable({
+        modalDiv: null
+      });
+      return observable(this, this.key);
+    }
+    toString() {
+      return "[target]" + (this.flow ? this.flow.toString() : "null");
+    }
+    setContent(flow) {
+      flow.bounds = { width: window.innerWidth, height: window.innerHeight };
+      super.setContent(flow);
+    }
+    ensureContentInPlace() {
+      this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", (repeater) => {
+        if (exports2.trace) console.group(repeater.causalityString());
+        this.flow.getPrimitive().givenDomNode = this.rootElement;
+        workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
+        if (exports2.trace) console.groupEnd();
+      }, { priority: 2 });
+    }
+    dispose() {
+      super.dispose();
+      if (this.animate) removeDOMFlowTarget(this);
+    }
+    create(...parameters) {
+      const properties = findKeyInProperties(readFlowProperties$1(parameters));
+      const DOMNodeClass = domNodeClassRegistry[properties.type];
+      if (!DOMNodeClass) throw Error("Unknown primitive type: " + properties.type);
+      return new DOMNodeClass(properties);
+    }
+  }
+  const log$3 = console.log;
+  function installDOMAnimation() {
+    configuration.onFinishReBuildingFlowCallbacks.push(onFinishReBuildingFlow);
+    configuration.onFinishReBuildingDOMCallbacks.push(onFinishReBuildingDOM);
+  }
+  function resetDOMAnimation() {
+    Object.assign(flowChanges, newFlowChanges());
+    exports2.previousFlowChanges = {};
+    counter = 0;
+    getDomFlowTargets().length = 0;
+  }
+  let count = 0;
+  function freezeFlowChanges() {
+    count++;
+    if (exports2.traceAnimation && exports2.traceWarnings) console.warn("Risky to use freeze " + count);
+  }
+  function unfreezeFlowChanges() {
+    count--;
+    if (exports2.traceAnimation && exports2.traceWarnings) console.warn("Unfreeze... " + count);
+  }
+  function logProperties(object, properties) {
+    log$3(extractProperties(object, properties));
+  }
+  function extractProperties(object, properties) {
+    const condensed = {};
+    properties.forEach((property) => {
+      if (typeof property !== "string") {
+        property.partial.forEach((part) => {
+          if (object[part]) {
+            condensed[part] = object[part];
+          }
+        });
+        if (object[property.compound]) {
+          condensed[property.compound] = object[property.compound];
+        }
+      } else {
+        if (object[property]) {
+          condensed[property] = object[property];
+        }
+      }
+    });
+    return condensed;
+  }
+  const flowChanges = newFlowChanges();
+  function newFlowChanges() {
+    return {
+      number: 0,
+      idPrimitiveMap: {},
+      idParentIdMap: {},
+      globallyAdded: {},
+      globallyRemoved: {},
+      globallyResident: {},
+      globallyMoved: {},
+      globallyAddedAnimated: {},
+      globallyRemovedAnimated: {},
+      globallyResidentAnimated: {},
+      globallyMovedAnimated: {},
+      *allAnimatedFlows() {
+        for (let flow of Object.values(this.globallyAddedAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyRemovedAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyResidentAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyMovedAnimated)) {
+          yield flow;
+        }
+      },
+      *allAddedFlows() {
+        for (let flow of Object.values(this.globallyAdded)) {
+          yield flow;
+        }
+      },
+      *allAnimatedAddedFlows() {
+        for (let flow of Object.values(this.globallyAddedAnimated)) {
+          yield flow;
+        }
+      },
+      *allAnimatedRemovedFlows() {
+        for (let flow of Object.values(this.globallyRemovedAnimated)) {
+          yield flow;
+        }
+      },
+      *allAnimatedResidentFlows() {
+        for (let flow of Object.values(this.globallyResidentAnimated)) {
+          yield flow;
+        }
+      },
+      *allAnimatedMovedFlows() {
+        for (let flow of Object.values(this.globallyMovedAnimated)) {
+          yield flow;
+        }
+      },
+      *allAnimatedMovedResidentAndRemovedFlows() {
+        for (let flow of Object.values(this.globallyResidentAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyMovedAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyRemovedAnimated)) {
+          yield flow;
+        }
+      },
+      *allAnimatedMovedResidentFlows() {
+        for (let flow of Object.values(this.globallyResidentAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyMovedAnimated)) {
+          yield flow;
+        }
+      },
+      *allAnimatedMovedAddedAndRemovedFlows() {
+        for (let flow of Object.values(this.globallyMovedAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyAddedAnimated)) {
+          yield flow;
+        }
+        for (let flow of Object.values(this.globallyRemovedAnimated)) {
+          yield flow;
+        }
+      }
+    };
+  }
+  exports2.previousFlowChanges = {};
+  window.flowChanges = flowChanges;
+  let counter = 0;
+  const changeType = {
+    resident: "resident",
+    added: "added",
+    removed: "removed",
+    moved: "moved"
+  };
+  function onFinishReBuildingFlow() {
+    counter++;
+    if (exports2.traceAnimation) {
+      logAnimationFrameGroup(counter);
+      logAnimationSeparator("---------------------------------------- Flow rebuilt, DOM untouched, calculate changes... -------------------");
+      console.groupCollapsed("Potentially start DOM building for new flows here ...");
+    }
+    Object.assign(exports2.previousFlowChanges, flowChanges);
+    flowChanges.number++;
+    flowChanges.idPrimitiveMap = {};
+    flowChanges.idParentIdMap = {};
+    flowChanges.globallyAdded = {};
+    flowChanges.globallyResident = {};
+    flowChanges.globallyMoved = {};
+    flowChanges.globallyRemoved = {};
+    const idPrimitiveMap = flowChanges.idPrimitiveMap;
+    const idParentIdMap = flowChanges.idParentIdMap;
+    function analyzePrimitives(idPrimitiveMap2, primitiveFlow) {
+      idPrimitiveMap2[primitiveFlow.id] = primitiveFlow;
+      idParentIdMap[primitiveFlow.id] = primitiveFlow.parentPrimitive;
+      for (let child of primitiveFlow.iteratePrimitiveChildren()) {
+        analyzePrimitives(idPrimitiveMap2, child);
+      }
+    }
+    for (let target of getDomFlowTargets()) {
+      analyzePrimitives(idPrimitiveMap, target.flow.getPrimitive());
+    }
+    for (let id in idPrimitiveMap) {
+      const primitive = idPrimitiveMap[id];
+      const inPreviousMap = exports2.previousFlowChanges ? !!exports2.previousFlowChanges.idPrimitiveMap[id] : false;
+      if (inPreviousMap) {
+        if (!exports2.previousFlowChanges.idParentIdMap || exports2.previousFlowChanges.idParentIdMap[id] === idParentIdMap[id]) {
+          flowChanges.globallyResident[id] = primitive;
+        } else {
+          flowChanges.globallyMoved[id] = primitive;
+        }
+      } else {
+        flowChanges.globallyAdded[id] = primitive;
+      }
+    }
+    for (let id in exports2.previousFlowChanges.idPrimitiveMap) {
+      const inPreviousMap = exports2.previousFlowChanges.idPrimitiveMap[id];
+      if (typeof idPrimitiveMap[id] === "undefined" && !inPreviousMap.parentPrimitive) {
+        flowChanges.globallyRemoved[id] = inPreviousMap;
+      }
+    }
+    function filterAnimatedInMap(map) {
+      return Object.values(map).reduce((result, flow) => {
+        if (flow.animation) {
+          let stableFoundation = true;
+          let scan = flow.parentPrimitive;
+          while (scan) {
+            if (flowChanges.globallyAdded[scan.id] && (!scan.animation || !scan.animation.allwaysStableFoundationEvenWhenAdded())) {
+              stableFoundation = false;
+              break;
+            }
+            scan = scan.parentPrimitive;
+          }
+          if (stableFoundation || flow.animation.acceptUnstableFoundation(scan)) {
+            result[flow.id] = flow;
+          }
+        }
+        return result;
+      }, {});
+    }
+    flowChanges.globallyAddedAnimated = filterAnimatedInMap(flowChanges.globallyAdded);
+    flowChanges.globallyResidentAnimated = filterAnimatedInMap(flowChanges.globallyResident);
+    flowChanges.globallyMovedAnimated = filterAnimatedInMap(flowChanges.globallyMoved);
+    flowChanges.globallyRemovedAnimated = filterAnimatedInMap(flowChanges.globallyRemoved);
+    function toStrings(changes) {
+      return {
+        addedIncludingNonAnimated: Object.values(changes.globallyAdded).map((flow) => flow.toString()),
+        added: Object.values(changes.globallyAddedAnimated).map((flow) => flow.toString()),
+        resident: Object.values(changes.globallyResidentAnimated).map((flow) => flow.toString()),
+        moved: Object.values(changes.globallyMovedAnimated).map((flow) => flow.toString()),
+        movedIncludingNonAnimated: Object.values(changes.globallyMoved).map((flow) => flow.toString()),
+        removed: Object.values(changes.globallyRemovedAnimated).map((flow) => flow.toString()),
+        removedIncludingNonAnimated: Object.values(changes.globallyRemoved).map((flow) => flow.toString())
+      };
+    }
+    for (let flow of flowChanges.allAnimatedFlows()) {
+      if (flow.getDomNode()) {
+        const changes = {
+          number: flowChanges.number,
+          activated: false,
+          type: changeType.resident,
+          previous: flow.changes,
+          transitioningProperties: flow.changes && flow.changes.transitioningProperties ? flow.changes.transitioningProperties : {}
+        };
+        flow.changes = changes;
+        flow.domNode.changes = changes;
+      }
+    }
+    for (let flow of flowChanges.allAnimatedMovedFlows()) {
+      if (flow.domNode) {
+        flow.domNode.changes.type = changeType.moved;
+      }
+    }
+    for (let flow of flowChanges.allAnimatedAddedFlows()) {
+      if (flow.getDomNode()) {
+        flow.domNode.changes.type = changeType.added;
+      }
+    }
+    for (let flow of flowChanges.allAnimatedRemovedFlows()) {
+      if (flow.domNode) {
+        flow.domNode.changes.type = changeType.removed;
+        flow.domNode.changes.targetDimensions = { width: flow.domNode.offsetWidth, height: flow.domNode.offsetHeight };
+      }
+    }
+    if (exports2.traceAnimation) {
+      console.groupEnd();
+      console.log("New animated changes:");
+      log$3(toStrings(flowChanges));
+    }
+    logAnimationSeparator("---------------------------------------- Measure original bounds... ------------------------------------------");
+    for (let flow of flowChanges.allAnimatedFlows()) {
+      if (flow.getDomNode()) {
+        flow.animation.recordOriginalBoundsAndStyle(flow);
+      }
+    }
+    logAnimationSeparator("---------------------------------------- Prepare for DOM building... -----------------------------------------");
+    for (let flow of flowChanges.allAnimatedFlows()) {
+      if (flow.domNode) {
+        flow.animation.prepareForDOMBuilding(flow);
+      }
+    }
+    logAnimationSeparator("---------------------------------------- Rebuilding DOM... ----------------------------------------------------");
+    if (exports2.traceAnimation) console.groupCollapsed("...");
+    flowChanges.onFinishReBuildingFlowDone = true;
+  }
+  function onFinishReBuildingDOM() {
+    if (!flowChanges.onFinishReBuildingFlowDone) return;
+    delete flowChanges.onFinishReBuildingFlowDone;
+    if (exports2.traceAnimation) console.groupEnd();
+    logAnimationSeparator("---------------------------------------- DOM rebuilt, measure target sizes ... -------------------------------");
+    for (let flow of flowChanges.allAnimatedFlows()) {
+      if (flow.domNode) {
+        flow.animation.domJustRebuiltMeasureTargetSizes(flow);
+      }
+    }
+    logAnimationSeparator("---------------------------------------- Emulate original footprints and styles ------------------------------");
+    for (let flow of flowChanges.allAnimatedFlows()) {
+      if (flow.domNode) {
+        flow.animation.emulateOriginalFootprintsAndFixateAnimatedStyle(flow);
+      }
+    }
+    logAnimationSeparator("---------------------------------------- Emulate original bounds for FLIP animations -------------------------");
+    for (let flow of flowChanges.allAnimatedFlows()) {
+      if (flow.domNode) {
+        flow.animation.emulateOriginalBounds(flow);
+      }
+    }
+    activateAnimationAfterFirstRender({ ...flowChanges });
+  }
+  function activateAnimationAfterFirstRender(currentFlowChanges) {
+    postponeInvalidations();
+    requestAnimationFrame(() => {
+      logAnimationSeparator("---------------------------------------- Rendered first frame, activate animations...  ---------------------");
+      for (let flow of currentFlowChanges.allAnimatedFlows()) {
+        if (flow.domNode) {
+          if (exports2.traceAnimation) {
+            console.group();
+            console.log(flow.domNode);
+          }
+          flow.animation.activateAnimation(flow, currentFlowChanges);
+          if (exports2.traceAnimation) {
+            console.groupEnd();
+          }
+        }
+        flow.changes.activated = true;
+      }
+      logAnimationSeparator("---------------------------------------- Setup animation cleanup...  ---------------------");
+      for (let flow of currentFlowChanges.allAnimatedFlows()) {
+        if (flow.domNode) {
+          flow.animation.setupAnimationCleanup(flow);
+        }
+      }
+      logAnimationSeparator(counter + "------------------------------------------------------------------------------------------------------------");
+      console.groupEnd();
+      continueInvalidations();
+    });
+  }
+  function sameBounds(b1, b2) {
+    return b1.top === b2.top && b1.left === b2.left && b1.width === b2.width && b1.height === b2.height;
+  }
+  const camelCase = /* @__PURE__ */ function() {
+    var DEFAULT_REGEX = /[-_]+(.)?/g;
+    function toUpper(match, group1) {
+      return group1 ? group1.toUpperCase() : "";
+    }
+    return function(str, delimiters) {
+      return str.replace(delimiters ? new RegExp("[" + delimiters + "]+(.)?", "g") : DEFAULT_REGEX, toUpper);
+    };
+  }();
+  function parseMatrix(matrix) {
+    function extractScaleTranslate(matrix2) {
+      return {
+        scaleX: matrix2[0],
+        scaleY: matrix2[3],
+        translateX: matrix2[4],
+        translateY: matrix2[5]
+      };
+    }
+    let matrixPattern = /^\w*\((-?((\d+)|(\d*\.\d+)),\s*)*(-?(\d+)|(\d*\.\d+))\)/i;
+    if (matrixPattern.test(matrix)) {
+      let matrixCopy = matrix.replace(/^\w*\(/, "").replace(")", "");
+      let matrixValue = matrixCopy.split(/\s*,\s*/).map((value) => parseFloat(value));
+      return extractScaleTranslate(matrixValue);
+    }
+    return extractScaleTranslate([1, 0, 0, 1, 0, 0]);
   }
   class DOMNodeAnimation {
     /**
@@ -2407,6 +2821,9 @@
   class ZoomFlyDOMNodeAnimation extends DOMNodeAnimation {
     constructor() {
       super(...arguments);
+      /**
+       * Configuration
+       */
       __publicField(this, "animateLeaderWidth", true);
       __publicField(this, "animateLeaderHeight", true);
       __publicField(this, "animatedProperties", [
@@ -2418,6 +2835,13 @@
         "opacity",
         "color"
       ]);
+      /**
+       * -------------------------------------------------------------------------------------
+       * 
+       *                           Activate animations
+       * 
+       * -------------------------------------------------------------------------------------
+       */
       __publicField(this, "typicalAnimatedProperties", [
         "opacity",
         "display",
@@ -2854,7 +3278,6 @@
     }
     recordBoundsInNewStructure(node) {
       node.newStructureBounds = node.getBoundingClientRect();
-      movedPrimitives.push(node);
       draw(node.newStructureBounds, "red");
     }
     translateToOriginalBoundsIfNeeded(flow) {
@@ -3086,7 +3509,7 @@
   }
   const zoomFlyAnimation = new ZoomFlyDOMNodeAnimation();
   const standardAnimation = zoomFlyAnimation;
-  const log$3 = console.log;
+  const log$2 = console.log;
   function mostAbstractFlow(flow) {
     while (flow.equivalentCreator) flow = flow.equivalentCreator;
     return flow;
@@ -3100,12 +3523,20 @@
     }
     return id.join(" | ");
   }
-  const movedPrimitives = [];
-  window.moved = movedPrimitives;
-  function clearNode$1(node, attributes) {
+  function clearNode(node, attributes) {
     while (node.childNodes.length > 0) {
       node.removeChild(node.lastChild);
     }
+  }
+  function getHeightIncludingMargin(node) {
+    var styles = window.getComputedStyle(node);
+    var margin = parseFloat(styles["marginTop"]) + parseFloat(styles["marginBottom"]);
+    return Math.ceil(node.offsetHeight + margin);
+  }
+  function getWidthIncludingMargin(node) {
+    var styles = window.getComputedStyle(node);
+    var margin = parseFloat(styles["marginLeft"]) + parseFloat(styles["marginRight"]);
+    return Math.ceil(node.offsetWidth + margin);
   }
   class DOMNode extends FlowPrimitive {
     dimensions(contextNode) {
@@ -3240,22 +3671,25 @@
       return this.getPrimitiveChildren().map((child) => child.ensureDomNodeBuilt());
     }
     ensureDomNodeExists() {
-      if (this.givenDomNode) {
-        this.domNode = this.givenDomNode;
-        this.domNode.className = aggregateToString(this);
-        this.domNode.equivalentCreator = this;
-      } else if (!this.createElementRepeater) {
+      if (!this.createElementRepeater) {
         this.createElementRepeater = repeat(mostAbstractFlow(this).toString() + ".createElementRepeater", (repeater) => {
-          if (exports2.trace) log$3(repeater.causalityString());
-          this.domNode = this.createEmptyDomNode();
-          this.domNode.id = aggregateToString(this);
-          this.domNode.equivalentCreator = this;
-          let scanFlow = this.equivalentCreator;
-          while (scanFlow != null) {
-            scanFlow.domNode = this.domNode;
-            scanFlow = scanFlow.equivalentCreator;
+          if (exports2.trace) log$2(repeater.causalityString());
+          if (this.givenDomNode) {
+            clearNode(this.givenDomNode);
+            this.domNode = this.givenDomNode;
+            this.domNode.className = aggregateToString(this);
+            this.domNode.equivalentCreator = this;
+          } else {
+            this.domNode = this.createEmptyDomNode();
+            this.domNode.id = aggregateToString(this);
+            this.domNode.equivalentCreator = this;
+            let scanFlow = this.equivalentCreator;
+            while (scanFlow != null) {
+              scanFlow.domNode = this.domNode;
+              scanFlow = scanFlow.equivalentCreator;
+            }
           }
-          if (exports2.trace) log$3(this.domNode);
+          if (exports2.trace) log$2(this.domNode);
         }, { priority: 2 });
       }
       return this.domNode;
@@ -3267,373 +3701,8 @@
       throw new Error("Not implemented yet!");
     }
     getStandardAnimation() {
-      return standardAnimation;
+      return null;
     }
-  }
-  const log$2 = console.log;
-  function installDOMAnimation() {
-    configuration.onFinishReBuildingFlowCallbacks.push(onFinishReBuildingFlow);
-    configuration.onFinishReBuildingDOMCallbacks.push(onFinishReBuildingDOM);
-  }
-  function resetDOMAnimation() {
-    Object.assign(flowChanges, newFlowChanges());
-    exports2.previousFlowChanges = {};
-    counter = 0;
-    domFlowTargets = [];
-  }
-  let count = 0;
-  function freezeFlowChanges() {
-    count++;
-    if (exports2.traceAnimation && exports2.traceWarnings) console.warn("Risky to use freeze " + count);
-  }
-  function unfreezeFlowChanges() {
-    count--;
-    if (exports2.traceAnimation && exports2.traceWarnings) console.warn("Unfreeze... " + count);
-  }
-  let domFlowTargets = [];
-  function addDOMFlowTarget(target) {
-    domFlowTargets.push(target);
-  }
-  function removeDOMFlowTarget(target) {
-    domFlowTargets.splice(domFlowTargets.indexOf(target), 1);
-  }
-  function logProperties(object, properties) {
-    log$2(extractProperties(object, properties));
-  }
-  function extractProperties(object, properties) {
-    const condensed = {};
-    properties.forEach((property) => {
-      if (typeof property !== "string") {
-        property.partial.forEach((part) => {
-          if (object[part]) {
-            condensed[part] = object[part];
-          }
-        });
-        if (object[property.compound]) {
-          condensed[property.compound] = object[property.compound];
-        }
-      } else {
-        if (object[property]) {
-          condensed[property] = object[property];
-        }
-      }
-    });
-    return condensed;
-  }
-  const flowChanges = newFlowChanges();
-  function newFlowChanges() {
-    return {
-      number: 0,
-      idPrimitiveMap: {},
-      idParentIdMap: {},
-      globallyAdded: {},
-      globallyRemoved: {},
-      globallyResident: {},
-      globallyMoved: {},
-      globallyAddedAnimated: {},
-      globallyRemovedAnimated: {},
-      globallyResidentAnimated: {},
-      globallyMovedAnimated: {},
-      *allAnimatedFlows() {
-        for (let flow of Object.values(this.globallyAddedAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyRemovedAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyResidentAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyMovedAnimated)) {
-          yield flow;
-        }
-      },
-      *allAddedFlows() {
-        for (let flow of Object.values(this.globallyAdded)) {
-          yield flow;
-        }
-      },
-      *allAnimatedAddedFlows() {
-        for (let flow of Object.values(this.globallyAddedAnimated)) {
-          yield flow;
-        }
-      },
-      *allAnimatedRemovedFlows() {
-        for (let flow of Object.values(this.globallyRemovedAnimated)) {
-          yield flow;
-        }
-      },
-      *allAnimatedResidentFlows() {
-        for (let flow of Object.values(this.globallyResidentAnimated)) {
-          yield flow;
-        }
-      },
-      *allAnimatedMovedFlows() {
-        for (let flow of Object.values(this.globallyMovedAnimated)) {
-          yield flow;
-        }
-      },
-      *allAnimatedMovedResidentAndRemovedFlows() {
-        for (let flow of Object.values(this.globallyResidentAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyMovedAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyRemovedAnimated)) {
-          yield flow;
-        }
-      },
-      *allAnimatedMovedResidentFlows() {
-        for (let flow of Object.values(this.globallyResidentAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyMovedAnimated)) {
-          yield flow;
-        }
-      },
-      *allAnimatedMovedAddedAndRemovedFlows() {
-        for (let flow of Object.values(this.globallyMovedAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyAddedAnimated)) {
-          yield flow;
-        }
-        for (let flow of Object.values(this.globallyRemovedAnimated)) {
-          yield flow;
-        }
-      }
-    };
-  }
-  exports2.previousFlowChanges = {};
-  window.flowChanges = flowChanges;
-  let counter = 0;
-  const changeType = {
-    resident: "resident",
-    added: "added",
-    removed: "removed",
-    moved: "moved"
-  };
-  function onFinishReBuildingFlow() {
-    counter++;
-    if (exports2.traceAnimation) {
-      logAnimationFrameGroup(counter);
-      logAnimationSeparator("---------------------------------------- Flow rebuilt, DOM untouched, calculate changes... -------------------");
-      console.groupCollapsed("Potentially start DOM building for new flows here ...");
-    }
-    Object.assign(exports2.previousFlowChanges, flowChanges);
-    flowChanges.number++;
-    flowChanges.idPrimitiveMap = {};
-    flowChanges.idParentIdMap = {};
-    flowChanges.globallyAdded = {};
-    flowChanges.globallyResident = {};
-    flowChanges.globallyMoved = {};
-    flowChanges.globallyRemoved = {};
-    const idPrimitiveMap = flowChanges.idPrimitiveMap;
-    const idParentIdMap = flowChanges.idParentIdMap;
-    function analyzePrimitives(idPrimitiveMap2, primitiveFlow) {
-      idPrimitiveMap2[primitiveFlow.id] = primitiveFlow;
-      idParentIdMap[primitiveFlow.id] = primitiveFlow.parentPrimitive;
-      for (let child of primitiveFlow.iteratePrimitiveChildren()) {
-        analyzePrimitives(idPrimitiveMap2, child);
-      }
-    }
-    for (let target of domFlowTargets) {
-      analyzePrimitives(idPrimitiveMap, target.flow.getPrimitive());
-    }
-    for (let id in idPrimitiveMap) {
-      const primitive = idPrimitiveMap[id];
-      const inPreviousMap = exports2.previousFlowChanges ? !!exports2.previousFlowChanges.idPrimitiveMap[id] : false;
-      if (inPreviousMap) {
-        if (!exports2.previousFlowChanges.idParentIdMap || exports2.previousFlowChanges.idParentIdMap[id] === idParentIdMap[id]) {
-          flowChanges.globallyResident[id] = primitive;
-        } else {
-          flowChanges.globallyMoved[id] = primitive;
-        }
-      } else {
-        flowChanges.globallyAdded[id] = primitive;
-      }
-    }
-    for (let id in exports2.previousFlowChanges.idPrimitiveMap) {
-      const inPreviousMap = exports2.previousFlowChanges.idPrimitiveMap[id];
-      if (typeof idPrimitiveMap[id] === "undefined" && !inPreviousMap.parentPrimitive) {
-        flowChanges.globallyRemoved[id] = inPreviousMap;
-      }
-    }
-    function filterAnimatedInMap(map) {
-      return Object.values(map).reduce((result, flow) => {
-        if (flow.animation) {
-          let stableFoundation = true;
-          let scan = flow.parentPrimitive;
-          while (scan) {
-            if (flowChanges.globallyAdded[scan.id] && (!scan.animation || !scan.animation.allwaysStableFoundationEvenWhenAdded())) {
-              stableFoundation = false;
-              break;
-            }
-            scan = scan.parentPrimitive;
-          }
-          if (stableFoundation || flow.animation.acceptUnstableFoundation(scan)) {
-            result[flow.id] = flow;
-          }
-        }
-        return result;
-      }, {});
-    }
-    flowChanges.globallyAddedAnimated = filterAnimatedInMap(flowChanges.globallyAdded);
-    flowChanges.globallyResidentAnimated = filterAnimatedInMap(flowChanges.globallyResident);
-    flowChanges.globallyMovedAnimated = filterAnimatedInMap(flowChanges.globallyMoved);
-    flowChanges.globallyRemovedAnimated = filterAnimatedInMap(flowChanges.globallyRemoved);
-    function toStrings(changes) {
-      return {
-        addedIncludingNonAnimated: Object.values(changes.globallyAdded).map((flow) => flow.toString()),
-        added: Object.values(changes.globallyAddedAnimated).map((flow) => flow.toString()),
-        resident: Object.values(changes.globallyResidentAnimated).map((flow) => flow.toString()),
-        moved: Object.values(changes.globallyMovedAnimated).map((flow) => flow.toString()),
-        movedIncludingNonAnimated: Object.values(changes.globallyMoved).map((flow) => flow.toString()),
-        removed: Object.values(changes.globallyRemovedAnimated).map((flow) => flow.toString()),
-        removedIncludingNonAnimated: Object.values(changes.globallyRemoved).map((flow) => flow.toString())
-      };
-    }
-    for (let flow of flowChanges.allAnimatedFlows()) {
-      if (flow.getDomNode()) {
-        const changes = {
-          number: flowChanges.number,
-          activated: false,
-          type: changeType.resident,
-          previous: flow.changes,
-          transitioningProperties: flow.changes && flow.changes.transitioningProperties ? flow.changes.transitioningProperties : {}
-        };
-        flow.changes = changes;
-        flow.domNode.changes = changes;
-      }
-    }
-    for (let flow of flowChanges.allAnimatedMovedFlows()) {
-      if (flow.domNode) {
-        flow.domNode.changes.type = changeType.moved;
-      }
-    }
-    for (let flow of flowChanges.allAnimatedAddedFlows()) {
-      if (flow.getDomNode()) {
-        flow.domNode.changes.type = changeType.added;
-      }
-    }
-    for (let flow of flowChanges.allAnimatedRemovedFlows()) {
-      if (flow.domNode) {
-        flow.domNode.changes.type = changeType.removed;
-        flow.domNode.changes.targetDimensions = { width: flow.domNode.offsetWidth, height: flow.domNode.offsetHeight };
-      }
-    }
-    if (exports2.traceAnimation) {
-      console.groupEnd();
-      console.log("New animated changes:");
-      log$2(toStrings(flowChanges));
-    }
-    logAnimationSeparator("---------------------------------------- Measure original bounds... ------------------------------------------");
-    for (let flow of flowChanges.allAnimatedFlows()) {
-      if (flow.getDomNode()) {
-        flow.animation.recordOriginalBoundsAndStyle(flow);
-      }
-    }
-    logAnimationSeparator("---------------------------------------- Prepare for DOM building... -----------------------------------------");
-    for (let flow of flowChanges.allAnimatedFlows()) {
-      if (flow.domNode) {
-        flow.animation.prepareForDOMBuilding(flow);
-      }
-    }
-    logAnimationSeparator("---------------------------------------- Rebuilding DOM... ----------------------------------------------------");
-    if (exports2.traceAnimation) console.groupCollapsed("...");
-    flowChanges.onFinishReBuildingFlowDone = true;
-  }
-  function onFinishReBuildingDOM() {
-    if (!flowChanges.onFinishReBuildingFlowDone) return;
-    delete flowChanges.onFinishReBuildingFlowDone;
-    if (exports2.traceAnimation) console.groupEnd();
-    logAnimationSeparator("---------------------------------------- DOM rebuilt, measure target sizes ... -------------------------------");
-    for (let flow of flowChanges.allAnimatedFlows()) {
-      if (flow.domNode) {
-        flow.animation.domJustRebuiltMeasureTargetSizes(flow);
-      }
-    }
-    logAnimationSeparator("---------------------------------------- Emulate original footprints and styles ------------------------------");
-    for (let flow of flowChanges.allAnimatedFlows()) {
-      if (flow.domNode) {
-        flow.animation.emulateOriginalFootprintsAndFixateAnimatedStyle(flow);
-      }
-    }
-    logAnimationSeparator("---------------------------------------- Emulate original bounds for FLIP animations -------------------------");
-    for (let flow of flowChanges.allAnimatedFlows()) {
-      if (flow.domNode) {
-        flow.animation.emulateOriginalBounds(flow);
-      }
-    }
-    activateAnimationAfterFirstRender({ ...flowChanges });
-  }
-  function activateAnimationAfterFirstRender(currentFlowChanges) {
-    postponeInvalidations();
-    requestAnimationFrame(() => {
-      logAnimationSeparator("---------------------------------------- Rendered first frame, activate animations...  ---------------------");
-      for (let flow of currentFlowChanges.allAnimatedFlows()) {
-        if (flow.domNode) {
-          if (exports2.traceAnimation) {
-            console.group();
-            console.log(flow.domNode);
-          }
-          flow.animation.activateAnimation(flow, currentFlowChanges);
-          if (exports2.traceAnimation) {
-            console.groupEnd();
-          }
-        }
-        flow.changes.activated = true;
-      }
-      logAnimationSeparator("---------------------------------------- Setup animation cleanup...  ---------------------");
-      for (let flow of currentFlowChanges.allAnimatedFlows()) {
-        if (flow.domNode) {
-          flow.animation.setupAnimationCleanup(flow);
-        }
-      }
-      logAnimationSeparator(counter + "------------------------------------------------------------------------------------------------------------");
-      console.groupEnd();
-      continueInvalidations();
-    });
-  }
-  function sameBounds(b1, b2) {
-    return b1.top === b2.top && b1.left === b2.left && b1.width === b2.width && b1.height === b2.height;
-  }
-  const camelCase = /* @__PURE__ */ function() {
-    var DEFAULT_REGEX = /[-_]+(.)?/g;
-    function toUpper(match, group1) {
-      return group1 ? group1.toUpperCase() : "";
-    }
-    return function(str, delimiters) {
-      return str.replace(delimiters ? new RegExp("[" + delimiters + "]+(.)?", "g") : DEFAULT_REGEX, toUpper);
-    };
-  }();
-  function getHeightIncludingMargin(node) {
-    var styles = window.getComputedStyle(node);
-    var margin = parseFloat(styles["marginTop"]) + parseFloat(styles["marginBottom"]);
-    return Math.ceil(node.offsetHeight + margin);
-  }
-  function getWidthIncludingMargin(node) {
-    var styles = window.getComputedStyle(node);
-    var margin = parseFloat(styles["marginLeft"]) + parseFloat(styles["marginRight"]);
-    return Math.ceil(node.offsetWidth + margin);
-  }
-  function parseMatrix(matrix) {
-    function extractScaleTranslate(matrix2) {
-      return {
-        scaleX: matrix2[0],
-        scaleY: matrix2[3],
-        translateX: matrix2[4],
-        translateY: matrix2[5]
-      };
-    }
-    let matrixPattern = /^\w*\((-?((\d+)|(\d*\.\d+)),\s*)*(-?(\d+)|(\d*\.\d+))\)/i;
-    if (matrixPattern.test(matrix)) {
-      let matrixCopy = matrix.replace(/^\w*\(/, "").replace(")", "");
-      let matrixValue = matrixCopy.split(/\s*,\s*/).map((value) => parseFloat(value));
-      return extractScaleTranslate(matrixValue);
-    }
-    return extractScaleTranslate([1, 0, 0, 1, 0, 0]);
   }
   const log$1 = console.log;
   class DOMElementNode extends DOMNode {
@@ -3743,6 +3812,7 @@
       }
     }
   }
+  domNodeClassRegistry["dom.elementNode"] = DOMElementNode;
   class DOMTextNode extends DOMNode {
     setProperties({ text: text2 }) {
       this.text = text2;
@@ -3756,251 +3826,7 @@
     synchronizeDomNodeStyle(properties) {
     }
   }
-  class DOMFlowTarget extends FlowTarget {
-    constructor(rootElement, configuration2 = {}) {
-      const { creator = null, fullWindow = true } = configuration2;
-      super();
-      if (!this.key) this.key = configuration2.key ? configuration2.key : null;
-      this.animate = typeof configuration2.animate === "undefined" ? true : configuration2.animate;
-      if (this.animate) addDOMFlowTarget(this);
-      this.creator = creator;
-      this.rootElement = rootElement;
-      if (fullWindow) {
-        document.body.style.margin = "0px";
-        document.body.style.width = "100%";
-        document.body.style.height = window.innerHeight + "px";
-        this.rootElement.style.width = "100%";
-        this.rootElement.style.height = "100%";
-        this.rootElement.style.overflow = "hidden";
-        window.addEventListener("resize", () => {
-          if (document.body.style.height != window.innerHeight + "px")
-            document.body.style.height = window.innerHeight + "px";
-          transaction(() => {
-            if (this.flow) {
-              this.flow.bounds = { width: window.innerWidth, height: window.innerHeight };
-            }
-          });
-        });
-      }
-      this.state = observable({
-        modalDiv: null
-      });
-      return observable(this, this.key);
-    }
-    toString() {
-      return "[target]" + (this.flow ? this.flow.toString() : "null");
-    }
-    setContent(flow) {
-      flow.bounds = { width: window.innerWidth, height: window.innerHeight };
-      super.setContent(flow);
-    }
-    ensureContentInPlace() {
-      this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", (repeater) => {
-        if (trace) console.group(repeater.causalityString());
-        placeContent();
-        clearNode(this.rootElement);
-        this.flow.getPrimitive().givenDomNode = this.rootElement;
-        workOnPriorityLevel(2, () => this.flow.getPrimitive().ensureDomNodeBuilt());
-        if (trace) console.groupEnd();
-      }, { priority: 2 });
-    }
-    dispose() {
-      super.dispose();
-      if (this.animate) removeDOMFlowTarget(this);
-    }
-    create(...parameters) {
-      const properties = findKeyInProperties(readFlowProperties$1(parameters));
-      switch (properties.type) {
-        case "dom.textNode":
-          return new DOMTextNode(properties);
-        case "dom.elementNode":
-          return new DOMElementNode(properties);
-      }
-    }
-  }
-  const log = console.log;
-  class FlyFromTopDOMNodeAnimation extends ZoomFlyDOMNodeAnimation {
-    constructor() {
-      super(...arguments);
-      __publicField(this, "animateLeaderWidth", false);
-      __publicField(this, "animateLeaderHeight", true);
-    }
-    emulateOriginalFootprintsAndFixateAnimatedStyle(flow) {
-      console.group("Emulate original style and footprints for " + this.changesChain(flow) + ": " + flow.toString());
-      const node = flow.domNode;
-      const trailer = node.trailer;
-      switch (flow.changes.type) {
-        case changeType.added:
-        case changeType.moved:
-          this.setupALeaderForIncomingWithOriginalFootprint(node);
-          break;
-      }
-      switch (flow.changes.type) {
-        case changeType.removed:
-          if (node.parentNode !== trailer) {
-            trailer.appendChild(node);
-          }
-          if (trailer) this.show(trailer);
-          break;
-        case changeType.moved:
-          if (trailer) this.show(trailer);
-          break;
-      }
-      if (node.ongoingAnimation) {
-        this.fixateOriginalInheritedStyles(node);
-        switch (flow.changes.type) {
-          case changeType.resident:
-            break;
-          case changeType.added:
-            this.fixateOriginalTransformAndOpacity(node);
-            break;
-          case changeType.removed:
-            this.fixateOriginalTransformAndOpacity(node);
-            break;
-          case changeType.moved:
-            this.fixateOriginalTransformAndOpacity(node);
-            break;
-        }
-      } else {
-        switch (flow.changes.type) {
-          case changeType.resident:
-            break;
-          case changeType.added:
-            this.originalPositionForFlyIn(node);
-            break;
-          case changeType.removed:
-            this.originalPositionForZoomOut(node);
-            break;
-          case changeType.moved:
-            this.fixateOriginalInheritedStyles(node);
-            this.originalPositionForMoveAndResize(node);
-            break;
-        }
-      }
-      console.groupEnd();
-    }
-    originalPositionForFlyIn(node) {
-      Object.assign(node.style, {
-        position: "absolute",
-        transform: "matrix(1, 0, 0, 1, 0, -" + node.changes.targetDimensions.heightWithoutMargin + ")",
-        //transform, //"matrix(1, 0, 0, 1, 0, 0)", //
-        // This is to make the absolute positioned added node to have the right size.
-        width: node.changes.targetDimensions.widthWithoutMargin + "px",
-        height: node.changes.targetDimensions.heightWithoutMargin + "px",
-        // Note: Added can have target dimensions at this stage, because it is transformed into a point. 
-        opacity: "0.001"
-      });
-    }
-    activateAnimation(flow) {
-      const node = flow.domNode;
-      const ongoingAnimation = node.ongoingAnimation;
-      flow.changes;
-      const trailer = node.trailer;
-      const leader = node.leader;
-      console.group("Activate for " + this.changesChain(flow) + ": " + flow.toString());
-      log(extractProperties(node.style, this.typicalAnimatedProperties));
-      if (node.leader) {
-        log(extractProperties(node.leader.style, this.typicalAnimatedProperties));
-      }
-      if (node.trailer) {
-        log(extractProperties(node.trailer.style, this.typicalAnimatedProperties));
-      }
-      if (ongoingAnimation) {
-        switch (flow.changes.type) {
-          case changeType.added:
-            this.targetPositionForZoomIn(node);
-            this.targetSizeForLeader(node, node.leader);
-            if (trailer) throw new Error("Internal error, should not happen!");
-            break;
-          case changeType.resident:
-            if (flow.outOfPosition) {
-              delete flow.outOfPosition;
-              this.targetPositionForMovingInsideContainer(node);
-            }
-            break;
-          case changeType.moved:
-            this.targetPositionForMoved(node);
-            this.targetSizeForLeader(node, node.leader);
-            if (node.trailer) this.targetSizeForTrailer(node.trailer);
-            break;
-          case changeType.removed:
-            this.targetPositionForFlyOut(node);
-            this.targetSizeForTrailer(node.trailer);
-            break;
-        }
-      } else {
-        switch (flow.changes.type) {
-          case changeType.added:
-            this.targetPositionForZoomIn(node);
-            this.targetSizeForLeader(node, node.leader);
-            if (trailer) throw new Error("Internal error, should not happen!");
-            this.startAnimationChain(node);
-            break;
-          case changeType.resident:
-            if (flow.outOfPosition) {
-              this.startAnimationChain(node);
-              delete flow.outOfPosition;
-              this.targetPositionForMovingInsideContainer(node);
-            }
-            break;
-          case changeType.moved:
-            this.targetPositionForMoved(node);
-            this.targetSizeForLeader(node, node.leader);
-            if (node.trailer) this.targetSizeForTrailer(node.trailer);
-            this.startAnimationChain(node);
-            break;
-          case changeType.removed:
-            this.targetPositionForFlyOut(node);
-            this.targetSizeForTrailer(node.trailer);
-            this.startAnimationChain(node);
-            break;
-        }
-      }
-      log(extractProperties(flow.domNode.style, this.typicalAnimatedProperties));
-      if (leader) {
-        log(extractProperties(leader.style, this.typicalAnimatedProperties));
-      }
-      if (node.trailer) {
-        log(extractProperties(node.trailer.style, this.typicalAnimatedProperties));
-      }
-      console.groupEnd();
-    }
-    targetPositionForFlyOut(node) {
-      node.style.transition = this.removeTransition();
-      Object.assign(node.style, {
-        transform: "matrix(1, 0, 0, 1, 0, -" + node.changes.originalDimensions.heightWithoutMargin + ")",
-        opacity: "1"
-      });
-    }
-  }
-  class FlyFromLeftDOMNodeAnimation extends FlyFromTopDOMNodeAnimation {
-    constructor() {
-      super(...arguments);
-      __publicField(this, "animateLeaderWidth", true);
-      __publicField(this, "animateLeaderHeight", false);
-    }
-    originalPositionForFlyIn(node) {
-      Object.assign(node.style, {
-        position: "absolute",
-        transform: "matrix(1, 0, 0, 1, -" + node.changes.targetDimensions.widthWithoutMargin + ", 0)",
-        //transform, //"matrix(1, 0, 0, 1, 0, 0)", //
-        // This is to make the absolute positioned added node to have the right size.
-        width: node.changes.targetDimensions.widthWithoutMargin + "px",
-        height: node.changes.targetDimensions.heightWithoutMargin + "px",
-        // Note: Added can have target dimensions at this stage, because it is transformed into a point. 
-        opacity: "0.001"
-      });
-    }
-    targetPositionForFlyOut(node) {
-      node.style.transition = this.removeTransition();
-      Object.assign(node.style, {
-        transform: "matrix(1, 0, 0, 1, -" + node.changes.originalDimensions.widthWithoutMargin + ", 0)",
-        opacity: "1"
-      });
-    }
-  }
-  const flyFromTopAnimation = new FlyFromTopDOMNodeAnimation();
-  const flyFromLeftAnimation = new FlyFromLeftDOMNodeAnimation();
+  domNodeClassRegistry["dom.textNode"] = DOMTextNode;
   function fitTextWithinWidth(text2, targetWidth, fontWeight) {
     if (!fontWeight) fontWeight = 400;
     let lowerLimitFontSize = 0;
@@ -4245,6 +4071,189 @@
     document.body.removeChild(myCanvas);
     return myMetrics;
   }
+  const log = console.log;
+  class FlyFromTopDOMNodeAnimation extends ZoomFlyDOMNodeAnimation {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "animateLeaderWidth", false);
+      __publicField(this, "animateLeaderHeight", true);
+    }
+    emulateOriginalFootprintsAndFixateAnimatedStyle(flow) {
+      console.group("Emulate original style and footprints for " + this.changesChain(flow) + ": " + flow.toString());
+      const node = flow.domNode;
+      const trailer = node.trailer;
+      switch (flow.changes.type) {
+        case changeType.added:
+        case changeType.moved:
+          this.setupALeaderForIncomingWithOriginalFootprint(node);
+          break;
+      }
+      switch (flow.changes.type) {
+        case changeType.removed:
+          if (node.parentNode !== trailer) {
+            trailer.appendChild(node);
+          }
+          if (trailer) this.show(trailer);
+          break;
+        case changeType.moved:
+          if (trailer) this.show(trailer);
+          break;
+      }
+      if (node.ongoingAnimation) {
+        this.fixateOriginalInheritedStyles(node);
+        switch (flow.changes.type) {
+          case changeType.resident:
+            break;
+          case changeType.added:
+            this.fixateOriginalTransformAndOpacity(node);
+            break;
+          case changeType.removed:
+            this.fixateOriginalTransformAndOpacity(node);
+            break;
+          case changeType.moved:
+            this.fixateOriginalTransformAndOpacity(node);
+            break;
+        }
+      } else {
+        switch (flow.changes.type) {
+          case changeType.resident:
+            break;
+          case changeType.added:
+            this.originalPositionForFlyIn(node);
+            break;
+          case changeType.removed:
+            this.originalPositionForZoomOut(node);
+            break;
+          case changeType.moved:
+            this.fixateOriginalInheritedStyles(node);
+            this.originalPositionForMoveAndResize(node);
+            break;
+        }
+      }
+      console.groupEnd();
+    }
+    originalPositionForFlyIn(node) {
+      Object.assign(node.style, {
+        position: "absolute",
+        transform: "matrix(1, 0, 0, 1, 0, -" + node.changes.targetDimensions.heightWithoutMargin + ")",
+        //transform, //"matrix(1, 0, 0, 1, 0, 0)", //
+        // This is to make the absolute positioned added node to have the right size.
+        width: node.changes.targetDimensions.widthWithoutMargin + "px",
+        height: node.changes.targetDimensions.heightWithoutMargin + "px",
+        // Note: Added can have target dimensions at this stage, because it is transformed into a point. 
+        opacity: "0.001"
+      });
+    }
+    activateAnimation(flow) {
+      const node = flow.domNode;
+      const ongoingAnimation = node.ongoingAnimation;
+      flow.changes;
+      const trailer = node.trailer;
+      const leader = node.leader;
+      console.group("Activate for " + this.changesChain(flow) + ": " + flow.toString());
+      log(extractProperties(node.style, this.typicalAnimatedProperties));
+      if (node.leader) {
+        log(extractProperties(node.leader.style, this.typicalAnimatedProperties));
+      }
+      if (node.trailer) {
+        log(extractProperties(node.trailer.style, this.typicalAnimatedProperties));
+      }
+      if (ongoingAnimation) {
+        switch (flow.changes.type) {
+          case changeType.added:
+            this.targetPositionForZoomIn(node);
+            this.targetSizeForLeader(node, node.leader);
+            if (trailer) throw new Error("Internal error, should not happen!");
+            break;
+          case changeType.resident:
+            if (flow.outOfPosition) {
+              delete flow.outOfPosition;
+              this.targetPositionForMovingInsideContainer(node);
+            }
+            break;
+          case changeType.moved:
+            this.targetPositionForMoved(node);
+            this.targetSizeForLeader(node, node.leader);
+            if (node.trailer) this.targetSizeForTrailer(node.trailer);
+            break;
+          case changeType.removed:
+            this.targetPositionForFlyOut(node);
+            this.targetSizeForTrailer(node.trailer);
+            break;
+        }
+      } else {
+        switch (flow.changes.type) {
+          case changeType.added:
+            this.targetPositionForZoomIn(node);
+            this.targetSizeForLeader(node, node.leader);
+            if (trailer) throw new Error("Internal error, should not happen!");
+            this.startAnimationChain(node);
+            break;
+          case changeType.resident:
+            if (flow.outOfPosition) {
+              this.startAnimationChain(node);
+              delete flow.outOfPosition;
+              this.targetPositionForMovingInsideContainer(node);
+            }
+            break;
+          case changeType.moved:
+            this.targetPositionForMoved(node);
+            this.targetSizeForLeader(node, node.leader);
+            if (node.trailer) this.targetSizeForTrailer(node.trailer);
+            this.startAnimationChain(node);
+            break;
+          case changeType.removed:
+            this.targetPositionForFlyOut(node);
+            this.targetSizeForTrailer(node.trailer);
+            this.startAnimationChain(node);
+            break;
+        }
+      }
+      log(extractProperties(flow.domNode.style, this.typicalAnimatedProperties));
+      if (leader) {
+        log(extractProperties(leader.style, this.typicalAnimatedProperties));
+      }
+      if (node.trailer) {
+        log(extractProperties(node.trailer.style, this.typicalAnimatedProperties));
+      }
+      console.groupEnd();
+    }
+    targetPositionForFlyOut(node) {
+      node.style.transition = this.removeTransition();
+      Object.assign(node.style, {
+        transform: "matrix(1, 0, 0, 1, 0, -" + node.changes.originalDimensions.heightWithoutMargin + ")",
+        opacity: "1"
+      });
+    }
+  }
+  class FlyFromLeftDOMNodeAnimation extends FlyFromTopDOMNodeAnimation {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "animateLeaderWidth", true);
+      __publicField(this, "animateLeaderHeight", false);
+    }
+    originalPositionForFlyIn(node) {
+      Object.assign(node.style, {
+        position: "absolute",
+        transform: "matrix(1, 0, 0, 1, -" + node.changes.targetDimensions.widthWithoutMargin + ", 0)",
+        //transform, //"matrix(1, 0, 0, 1, 0, 0)", //
+        // This is to make the absolute positioned added node to have the right size.
+        width: node.changes.targetDimensions.widthWithoutMargin + "px",
+        height: node.changes.targetDimensions.heightWithoutMargin + "px",
+        // Note: Added can have target dimensions at this stage, because it is transformed into a point. 
+        opacity: "0.001"
+      });
+    }
+    targetPositionForFlyOut(node) {
+      node.style.transition = this.removeTransition();
+      Object.assign(node.style, {
+        transform: "matrix(1, 0, 0, 1, -" + node.changes.originalDimensions.widthWithoutMargin + ", 0)",
+        opacity: "1"
+      });
+    }
+  }
+  const flyFromTopAnimation = new FlyFromTopDOMNodeAnimation();
+  const flyFromLeftAnimation = new FlyFromLeftDOMNodeAnimation();
   exports2.Component = Component;
   exports2.DOMElementNode = DOMElementNode;
   exports2.DOMFlowTarget = DOMFlowTarget;
@@ -4255,7 +4264,6 @@
   exports2.FlowTarget = FlowTarget;
   exports2.ZoomFlyDOMNodeAnimation = ZoomFlyDOMNodeAnimation;
   exports2.activeTraceModel = activeTraceModel;
-  exports2.addDOMFlowTarget = addDOMFlowTarget;
   exports2.addDefaultStyleToProperties = addDefaultStyleToProperties;
   exports2.aggregateToString = aggregateToString;
   exports2.callback = callback;
@@ -4263,7 +4271,7 @@
   exports2.camelCased = camelCased;
   exports2.capHeight = capHeight;
   exports2.changeType = changeType;
-  exports2.clearNode = clearNode$1;
+  exports2.clearNode = clearNode;
   exports2.component = component;
   exports2.configuration = configuration;
   exports2.continueInvalidations = continueInvalidations;
@@ -4303,7 +4311,7 @@
   exports2.invalidateOnChange = invalidateOnChange$1;
   exports2.isObservable = isObservable;
   exports2.isUpperCase = isUpperCase;
-  exports2.log = log$1$1;
+  exports2.log = log$5;
   exports2.logAnimationFrameEnd = logAnimationFrameEnd;
   exports2.logAnimationFrameGroup = logAnimationFrameGroup;
   exports2.logAnimationSeparator = logAnimationSeparator;
@@ -4311,14 +4319,12 @@
   exports2.logProperties = logProperties;
   exports2.model = model;
   exports2.mostAbstractFlow = mostAbstractFlow;
-  exports2.movedPrimitives = movedPrimitives;
   exports2.observable = observable;
   exports2.onFinishReBuildingDOM = onFinishReBuildingDOM;
   exports2.onFinishReBuildingFlow = onFinishReBuildingFlow;
   exports2.parseMatrix = parseMatrix;
   exports2.postponeInvalidations = postponeInvalidations;
   exports2.readFlowProperties = readFlowProperties$1;
-  exports2.removeDOMFlowTarget = removeDOMFlowTarget;
   exports2.repeat = repeat;
   exports2.resetDOMAnimation = resetDOMAnimation;
   exports2.sameAsPreviousDeep = sameAsPreviousDeep;
@@ -4342,7 +4348,7 @@
   exports2.unfreezeFlowChanges = unfreezeFlowChanges;
   exports2.when = when;
   exports2.withoutRecording = withoutRecording;
-  exports2.workOnPriorityLevel = workOnPriorityLevel$1;
+  exports2.workOnPriorityLevel = workOnPriorityLevel;
   exports2.world = world;
   exports2.zoomFlyAnimation = zoomFlyAnimation;
   Object.defineProperty(exports2, Symbol.toStringTag, { value: "Module" });

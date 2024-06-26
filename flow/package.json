@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "description": "A reactive front end framework with built in state management.",
   "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
   "scripts": {
     "build": "vite build"
   },
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@liquefy/causality": "file:../causality",
-    "@liquefy/flow.core": "file:./core",
-    "@liquefy/flow.DOM": "file:./DOM"
+    "@liquefy/flow.core": "file:../flow.core",
+    "@liquefy/flow.DOM": "file:../flow.DOM"
   }
 }

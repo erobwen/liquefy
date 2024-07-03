@@ -41,22 +41,30 @@ export function textNode(...parameters) {
 export function styledDiv(classNameOverride, style, parameters) { 
   const properties = findKeyInProperties(readFlowProperties(parameters));
   const attributes = extractAttributes(properties);
-  attributes.style = {...style, ...attributes.style}; // Inject row style (while making it possible to override)
+  attributes.style = {...style, ...attributes.style}; // Inject given style (while making it possible to override)
   return getTarget().create({type: "dom.elementNode", key: properties.key, classNameOverride, tagName: "div", attributes, ...properties }); 
 }
 
 export function textToTextNode(properties) {
   if (properties.text) { //textToTextNode(parameters);
-    // TODO: Investigate why there is an infinite loop if we do not add array around children??
-    properties.children = 
-      // [
-        getTarget().create({
-          type: "dom.textNode",
-          key: properties.key ? properties.key + ".text" : null,
-          text: extractProperty(properties, "text"),
-        })
-      // ]
-      ;
+    const textNode = getTarget().create({
+      type: "dom.textNode",
+      key: properties.key ? properties.key + ".text" : null,
+      text: extractProperty(properties, "text"),
+    })
+
+    if (properties.children) {
+      // throw new Error("Cannot combine a text property, with already existing children!");
+      console.warn("Combining a text property (text directly as a parameter) with children will force the text to be first");
+      properties.children.unshift(textNode);
+    } else {
+      // TODO: Investigate why there is an infinite loop if we do not add array around children??
+      properties.children = textNode; 
+        // [
+        // ]
+        ;
+    }
+
   }
 }
 

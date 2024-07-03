@@ -176,6 +176,7 @@ export function button(...parameters) {
     }  
   }
 
+  // TODO: use textToTextNode
   // Autogenerate child text node from string.
   let children; 
   if (properties.text && !properties.children) {

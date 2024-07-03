@@ -1,12 +1,31 @@
 
-/**
- * Basic HTML Node building 
- */
-
 import { getTarget } from "@liquefy/flow.core";
 import { readFlowProperties, findTextAndKeyInPropertiesUsingCase, findTextAndKeyInProperties, findKeyInProperties } from "@liquefy/flow.core";
 import { extractAttributes, extractProperty } from "./domNodeAttributes";
 
+
+/**
+ * HTML tags
+ */
+export function span(...parameters) {
+  // log("Span")
+  let properties = findTextAndKeyInPropertiesUsingCase(readFlowProperties(parameters)); 
+  const attributes = extractAttributes(properties);
+  textToTextNode(properties);
+  return getTarget().create({type: "dom.elementNode", tagName: "span", key: properties.key, classNameOverride: "span", attributes, children: properties.children, animate: properties.animate});
+}
+
+export function div(...parameters) {
+  let properties = findTextAndKeyInProperties(readFlowProperties(parameters)); 
+  textToTextNode(properties);
+  const attributes = extractAttributes(properties);
+  return getTarget().create({type: "dom.elementNode", tagName: "div", key: properties.key, classNameOverride: "div", attributes, children: properties.children, animate: properties.animate});
+}
+
+
+/**
+ * Basic HTML Node building 
+ */
 export function elemenNode(...parameters) {
   let properties = findKeyInProperties(readFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
@@ -17,22 +36,6 @@ export function textNode(...parameters) {
   let properties = findTextAndKeyInProperties(readFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
   return getTarget().create({type: "dom.textNode", text: properties.text, key: properties.key, attributes});
-}
-
-export const text = textNode;
-
-export function span(...parameters) {
-  // log("Span")
-  let properties = findTextAndKeyInPropertiesUsingCase(readFlowProperties(parameters)); 
-  const attributes = extractAttributes(properties);
-  textToTextNode(properties);
-  return getTarget().create({type: "dom.elementNode", tagName: "span", key: properties.key, classNameOverride: "span", attributes, children: properties.children, animate: properties.animate});
-}
-
-export function div(...parameters) {
-  let properties = findKeyInProperties(readFlowProperties(parameters)); 
-  const attributes = extractAttributes(properties);
-  return getTarget().create({type: "dom.elementNode", tagName: "div", key: properties.key, classNameOverride: "div", attributes, children: properties.children, animate: properties.animate});
 }
 
 export function styledDiv(classNameOverride, style, parameters) { 

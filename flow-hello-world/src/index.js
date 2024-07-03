@@ -1,18 +1,13 @@
-import { setFlowConfiguration, DOMFlowTarget, div, text, Component } from "@liquefy/flow";
+import { DOMFlowTarget, div, Component } from "@liquefy/flow";
 
-setFlowConfiguration({
-  warnWhenNoKey: false,
-  traceReactivity: false,
-  autoAssignProperties: true
-});
-
+// Declare a component
 class HelloWorld extends Component {
   build() {
-    return div(text("Hello World"));
+    return div("Hello World");
   }
 }
 
+// Create an instance, and set as content of a flow target.
 new DOMFlowTarget(document.getElementById("root")).setContent(
   new HelloWorld()
-);
-
+)

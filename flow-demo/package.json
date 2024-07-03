@@ -1,35 +1,28 @@
 {
-  "name": "reactive-flow",
+  "name": "flow-demo",
+  "author": "Robert Renbris",
+  "license": "ISC",
   "version": "1.0.0",
-  "description": "A causality based react inspired framework.",
+  "description": "A demo showcasing flow.",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server",
-    "build": "webpack -p"
+    "start": "vite --debug"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/erobwen/reactive-flow.git"
+    "url": "https://github.com/erobwen/liquefy.git"
   },
-  "author": "",
-  "license": "ISC",
   "bugs": {
-    "url": "https://github.com/erobwen/reactive-flow/issues"
+    "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/reactive-flow#readme",
+  "homepage": "https://github.com/erobwen/liquefy#readme",
   "devDependencies": {
-    "copy-webpack-plugin": "^11.0.0",
-    "file-loader": "^6.2.0",
-    "source-map-loader": "^3.0.1",
-    "webpack": "^5.66.0",
-    "webpack-cli": "^4.9.1",
-    "webpack-dev-server": "^4.7.3"
+    "vite": "^5.3.1"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
     "@fortawesome/free-regular-svg-icons": "^6.4.0",
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
-    "causalityjs": "^3.1.4",
-    "lit-html": "^2.1.1"
+    "@liquefy/flow": "file:../flow"
   }
 }

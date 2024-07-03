@@ -107,7 +107,7 @@ function onFinishedPriorityLevel(level, didActualWork) {
 }
 
 /**
- * Flow
+ * Flow TODO: Move to separate file. 
  */
 export class Component {
   theme;

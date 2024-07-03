@@ -20,13 +20,18 @@ export function findKeyInProperties(properties) {
 }
 
 export function findTextAndKeyInProperties(properties) {
+  if (properties.children) {
+    // Containers usually should not contain text directly
+    return findKeyInProperties(properties)
+  }
+
   // console.log(properties)
   if (!properties.stringsAndNumbers) return properties;
   if (properties.stringsAndNumbers.length) {
     properties.text = properties.stringsAndNumbers.pop() + "";
   }
   if (properties.stringsAndNumbers.length) {
-    properties.key = properties.stringsAndNumbers.pop();
+    properties.key = properties.stringsAndNumbers.pop() + "";
   }
   if (properties.stringsAndNumbers.length) {
     throw new Error("Found too many loose strings in flow parameters");
@@ -36,6 +41,11 @@ export function findTextAndKeyInProperties(properties) {
 }
 
 export function findTextAndKeyInPropertiesUsingCase(properties) {
+  if (properties.children) {
+    // Containers usually should not contain text directly
+    return findKeyInProperties(properties)
+  }
+
   // console.log(properties)
   if (!properties.stringsAndNumbers) return properties;
   while(properties.stringsAndNumbers.length) {
@@ -125,7 +135,7 @@ export function readFlowProperties(arglist) {
     if (typeof arglist[0] === "object" && !arglist[0].causality) {
       if (arglist[0] instanceof Array) {
         if (!properties.children) properties.children = [];
-        for (let child of arglist.shift()) { // TODO: Use iterator! 
+        for (let child of arglist.shift()) { // TODO: Use iterator! ?? Why?.. 
           properties.children.push(child);
         }
       } else {

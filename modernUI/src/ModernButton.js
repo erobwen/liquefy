@@ -1,6 +1,6 @@
 import { Component } from "../../flow/Flow";
 import { div } from "../../flow.DOM/BasicHtml";
-import { adjustLightness, grayColor } from "../themed/Color";
+import { adjustLightness, grayColor } from "../../flow-demo/src/components/themed/Color";
 import { button, text } from "../basic/BasicWidgets";
 import { panelStyle } from "./Style";
 import { centerMiddle, fitStyle, wrapper } from "../basic/Layout";
@@ -23,7 +23,7 @@ const boxShadowStyle = {
 export class ModernButton extends Component {
 
   setProperties({
-    style={}, 
+    style={},
     
     children, 
     text, 

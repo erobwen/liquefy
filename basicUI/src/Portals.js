@@ -24,6 +24,7 @@ export class PortalEntrance extends Component {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway. 
         this.portalExit.children = this.portalContent;
       } else {
+        // Note that we need to check not to remove content put in place by other portals!
         if (this.portalExit.children && this.portalExit.children === this.portalContent) {
           this.portalExit.children = null;
         }
@@ -32,9 +33,8 @@ export class PortalEntrance extends Component {
   }
 
   build() {
-    // return null;
-    return text("[portal active]");
-    // return this.children;
+    // Just render into nothing.
+    return null;
   }
 }
 
@@ -42,6 +42,8 @@ export function portalExit(...parameters) {
   const properties = readFlowProperties(parameters);
   findKeyInProperties(properties);
   const attributes = extractAttributes(properties);
+
+  // Return just a plain div (with portalExit debug info.)
   return getTarget().create(properties.key, 
     { 
       type: "dom.elementNode",

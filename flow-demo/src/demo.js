@@ -1,21 +1,23 @@
-import { observable, Component, component, repeat, creators } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { AnimationExample } from "./animationExample";
-import { ComplexForm, initialData } from "./complexFormApplication";
-import { RecursiveExample } from "./recursiveDemoApplication";
-import { ProgrammaticReactiveLayout } from "./programmaticReactiveLayout";
-import { PortalExample } from "./portalDemo";
-import { ModalExample } from "./modalDemo";
-import { portalExit } from "../components/basic/Portals";
+import { observable, Component, component, repeat, creators } from "@liquefy/flow";
+import { DOMFlowTarget } from "@liquefy/flow";
+
+import { RecursiveExample } from "./pages/recursiveDemoApplication";
+// import { ComplexForm, initialData } from "./pages/complexFormApplication";
+// import { AnimationExample } from "./pages/animationExample";
+// import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout";
+// import { PortalExample } from "./pages/portalDemo";
+// import { ModalExample } from "./pages/modalDemo";
+
+import { portalExit } from "e";
 import { button } from "../components/themed/Theme";
 import { column, columnStyle, filler, flexAutoStyle, row } from "../components/basic/Layout";
 import { svgImage } from "./images";
-import { startExperiment } from "..";
 import flowImage from "../../resources/flow.svg"
 import { applicationMenuFrame } from "../components/basic/ApplicationMenuFrame";
 import { text } from "../components/basic/BasicWidgets";
-import { logMark } from "../flow/utility";
 import { span } from "../flow.DOM/BasicHtml";
+import { logMark } from "../flow/utility";
+import { startExperiment } from "..";
 
 const log = console.log;
 
@@ -30,11 +32,11 @@ export class Demo extends Component {
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [
       new RecursiveExample({key: "recursiveDemo", name: "Recursive Example"}),
-      new ComplexForm({key: "complexForm", initialData}),
-      new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"]}),
-      new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness"}),
-      new ModalExample({key: "modalExample", portal: this.leftColumnPortal}),
-      new PortalExample({key: "portalExample", portal: this.leftColumnPortal})
+      // new ComplexForm({key: "complexForm", initialData}),
+      // new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"]}),
+      // new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness"}),
+      // new ModalExample({key: "modalExample", portal: this.leftColumnPortal}),
+      // new PortalExample({key: "portalExample", portal: this.leftColumnPortal})
     ];
     
     for (let item of this.items) {

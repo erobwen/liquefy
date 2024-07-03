@@ -65,7 +65,6 @@ import {
     // Basic HTMKL
     elemenNode, 
     textNode, 
-    text,
     span, 
     div, 
     styledDiv, 
@@ -204,7 +203,6 @@ export {
     // Basic HTMKL
     elemenNode, 
     textNode, 
-    text,
     span, 
     div, 
     styledDiv, 

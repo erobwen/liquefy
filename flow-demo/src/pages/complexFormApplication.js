@@ -1,11 +1,10 @@
-import { observable, Component, component, repeat, transaction, model } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-// import { simpleButton as button } from "../components/SimpleButton";
-import { div, span, textNode } from "../flow.DOM/BasicHtml";
-import { column, filler, fillerStyle, row } from "../components/basic/Layout";
-import { checkboxInputField, numberInputField, text } from "../components/basic/BasicWidgets";
-import { button, textInputField } from "../components/themed/Theme";
-import { crossIcon, plusIcon, suitcaseIcon, icon } from "../components/basic/Icons";
+import { observable, Component, component, repeat, transaction, model, DOMFlowTarget, div, span, textNode } from "@liquefy/flow";
+
+import { column, filler, fillerStyle, row } from "@liquefy/basicUI";
+import { checkboxInputField, numberInputField, text } from "@liquefy/basicUI";
+import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
+
+import { button, textInputField } from "../customUI";
 
 const log = console.log;
 

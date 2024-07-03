@@ -2,6 +2,7 @@ Note: This is a compound repository where I experiment with Flow together with o
 
 # Flow - Reactive DOM Rendering and State Management
 
+
 ![Logotype](/resources/flow.PNG?raw=true "Flow Logotype")
 
 * Composite component model. 
@@ -74,6 +75,11 @@ Note: This is a compound repository where I experiment with Flow together with o
     * Lightweight < 100 kb.
     * Open source 
     * DOM independent component model, this would make it easier to make support other platforms besides Web, or perhaps develop a system for server side rendering. 
+
+# Generality of flow.core
+
+flow.core together with flow.DOM is Reactive DOM rendering. But if you just take flow.core, it is a general engine for Reactive Recursive Object Composition and State Management. Reactive Recursive Object Composition is a reactive generative process where a Recursive Object Composition of any kind is created. On each level, a build function is called, that builds the children of a component, depending on state. It can be a word-processor document, a spread-sheet or a native mobile UI. Since it is a reactive process, minimal changes are guaranteed. Through given keys and pattern matching, the identities and state of child components can be stable, despite the build function apparently rebuilding its child on any change.    
+
 
 # Video introduction
 

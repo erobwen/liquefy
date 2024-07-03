@@ -2,9 +2,9 @@ import { configuration, model, setFlowConfiguration } from "@liquefy/flow";
 import { installDOMAnimation, resetDOMAnimation } from "@liquefy/flow";
 
 import { startRecursiveDemo } from "./pages/recursiveDemoApplication.js";
+import { startComplexFormApplication } from "./pages/complexFormApplication.js";
 import { startDemo } from "./demo.js";
 // import { startProgrammaticReactiveLayout } from "./application/programmaticReactiveLayout.js";
-// import { startComplexFormApplication } from "./application/complexFormApplication.js";
 // import { startAnimationExample } from "./application/animationExample.js";
 // import { startModalDemo } from "./application/modalDemo.js";
 
@@ -67,8 +67,8 @@ Array.prototype.remove = function(target) {
  * Set 
  */
 
-startRecursiveDemo();
-// startComplexFormApplication();
+// startRecursiveDemo();
+startComplexFormApplication();
 // startAnimationExample();
 // startProgrammaticReactiveLayout();
 // startModalDemo();

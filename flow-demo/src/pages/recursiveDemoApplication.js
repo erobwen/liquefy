@@ -1,11 +1,9 @@
-import { observable, world, repeat, when, Component, finalize, getTarget, trace, model } from "@liquefy/flow";
-import { DOMFlowTarget } from "@liquefy/flow";
+import { observable, world, repeat, when, Component, finalize, getTarget, trace, model, DOMFlowTarget } from "@liquefy/flow";
+import { findKeyInProperties, readFlowProperties } from "@liquefy/flow";
 
 import { button, numberInputField, text } from "@liquefy/basicUI";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basicUI";
-;
 import { modal } from "@liquefy/basicUI";
-import { findKeyInProperties, readFlowProperties } from "../../../flow.core/src/flowParameters";
 
 const log = console.log;
 const loga = (action) => {

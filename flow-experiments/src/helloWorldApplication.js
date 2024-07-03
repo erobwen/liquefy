@@ -101,7 +101,7 @@ function asyncModifications(helloWorld) {
   // Set state property to "world!", using a component path to access child component.
   setTimeout(() => {
     // log("----------------------------------");
-    helloWorld.getChild("world").worldText = "world";
+    // helloWorld.getChild("world").worldText = "world";
   }, 2000);
   
   // Exclamation mark!

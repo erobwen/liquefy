@@ -1,7 +1,9 @@
-import { extractAttributes } from "@liquefy/flow";
-import { Component } from "@liquefy/flow";
-import { getTarget } from "@liquefy/flow";
-import { readFlowProperties, findKeyInProperties } from "@liquefy/flow";
+import { Component } from "@liquefy/flow.core";
+import { getTarget } from "@liquefy/flow.core";
+import { readFlowProperties, findKeyInProperties } from "@liquefy/flow.core";
+
+import { extractAttributes } from "@liquefy/flow.DOM";
+
 const log = console.log;
 
 

@@ -25,6 +25,9 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
-    "@liquefy/flow": "file:../flow"
+    "@liquefy/flow": "file:../flow",
+    "@liquefy/causality": "file:../causality",
+    "@liquefy/flow.core": "file:../flow.core",
+    "@liquefy/flow.DOM": "file:../flow.DOM"
   }
 }

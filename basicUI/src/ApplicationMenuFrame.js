@@ -1,6 +1,4 @@
-import { Component } from "@liquefy/flow"
-import { readFlowProperties } from "@liquefy/flow";
-import { log, logMark } from "@liquefy/flow";
+import { Component, readFlowProperties, log, logMark } from "@liquefy/flow.core"
 
 import { button } from "./BasicWidgets";
 import { icon } from "./Icons";

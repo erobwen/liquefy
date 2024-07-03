@@ -1,5 +1,5 @@
-import { configuration, model, setFlowConfiguration } from "@liquefy/flow";
-import { installDOMAnimation, resetDOMAnimation } from "@liquefy/flow";
+import { configuration, model, setFlowConfiguration } from "@liquefy/flow.core";
+import { installDOMAnimation, resetDOMAnimation } from "@liquefy/flow.DOM";
 
 import { startRecursiveDemo } from "./pages/recursiveDemoApplication.js";
 import { startComplexFormApplication } from "./pages/complexFormApplication.js";
@@ -8,8 +8,7 @@ import { startDemo } from "./demo.js";
 // import { startAnimationExample } from "./application/animationExample.js";
 // import { startModalDemo } from "./application/modalDemo.js";
 
-import { logMark } from "@liquefy/flow";
-import { setAnimationTime } from "@liquefy/flow";
+import { logMark } from "@liquefy/flow.core";
 
 // Setup flow 
 setFlowConfiguration({

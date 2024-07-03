@@ -1,7 +1,8 @@
-import { observable, Component, component, repeat, transaction, model, DOMFlowTarget, div, span, textNode } from "@liquefy/flow";
+import { Component, component, transaction, model } from "@liquefy/flow.core";
+import { DOMFlowTarget, div, span } from "@liquefy/flow.DOM";
 
-import { column, filler, fillerStyle, row } from "@liquefy/basicUI";
-import { checkboxInputField, numberInputField, text } from "@liquefy/basicUI";
+import { column, filler, fillerStyle, row, text } from "@liquefy/basicUI";
+import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
 
 import { button, textInputField } from "../customUI";

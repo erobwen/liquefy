@@ -1,7 +1,8 @@
-import { observable, Component, component, repeat, creators } from "@liquefy/flow";
-import { DOMFlowTarget } from "@liquefy/flow";
-import { span } from "@liquefy/flow";
-import { logMark } from "@liquefy/flow";
+import { observable, Component, repeat, creators } from "@liquefy/flow.core";
+import { logMark } from "@liquefy/flow.core";
+
+import { DOMFlowTarget } from "@liquefy/flow.DOM";
+import { span } from "@liquefy/flow.DOM";
 
 import { portalExit } from "@liquefy/basicUI";
 import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basicUI";

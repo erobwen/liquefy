@@ -1,10 +1,11 @@
-import { extractAttributes, extractChildStyles, extractProperty } from "@liquefy/flow";
-import { trace, Component, callback } from "@liquefy/flow";
-import { getTarget } from "@liquefy/flow";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow";
-import { div,  textToTextNode } from "@liquefy/flow";
+import { trace, Component, callback } from "@liquefy/flow.core";
+import { getTarget } from "@liquefy/flow.core";
+import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
+
+import { extractProperty, extractChildStyles, div,  textToTextNode, extractAttributes } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
+
 const log = console.log;
 
 const lineHeight = "20px"; 

@@ -1,9 +1,9 @@
-import { Component, transaction } from "@liquefy/flow";
-import { creators, getTarget } from "@liquefy/flow";
-import { readFlowProperties, findKeyInProperties } from "@liquefy/flow";
-import { div } from "@liquefy/flow";
-import { extractAttributes } from "@liquefy/flow";
-import { logMark } from "@liquefy/flow";
+import { Component, transaction, creators, getTarget } from "@liquefy/flow.core";
+import { readFlowProperties, findKeyInProperties } from "@liquefy/flow.core";
+
+import { extractAttributes } from "@liquefy/flow.DOM";
+import { div } from "@liquefy/flow.DOM";
+import { logMark } from "@liquefy/flow.core";
 const log = console.log;
 
 /**

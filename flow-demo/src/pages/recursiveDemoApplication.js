@@ -1,5 +1,5 @@
-import { observable, world, repeat, when, Component, finalize, getTarget, trace, model, DOMFlowTarget } from "@liquefy/flow";
-import { findKeyInProperties, readFlowProperties } from "@liquefy/flow";
+import { Component, trace, model, readFlowProperties } from "@liquefy/flow.core";
+import { DOMFlowTarget } from "@liquefy/flow.DOM";
 
 import { button, numberInputField, text } from "@liquefy/basicUI";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basicUI";

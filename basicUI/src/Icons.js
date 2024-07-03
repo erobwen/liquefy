@@ -2,10 +2,10 @@
 // import { faCross, faPlus, faSuitcase, faXmark, faXmarkCircle } from '@fortawesome/free-solid-svg-icons';
 // import { DOMElementNode } from '@liquefy/flow';
 // import { finalize, repeat, trace } from '@liquefy/flow';
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow";
-import { extractProperty } from '@liquefy/flow';
-import { logMark } from '@liquefy/flow';
-import { span } from '@liquefy/flow';
+import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { logMark } from '@liquefy/flow.core';
+
+import { extractProperty, span } from '@liquefy/flow.DOM';
 
 // "@fortawesome/fontawesome-svg-core": "^6.4.0",
 // "@fortawesome/free-regular-svg-icons": "^6.4.0",

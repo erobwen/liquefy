@@ -38,7 +38,7 @@ export function textNode(...parameters) {
   return getTarget().create({type: "dom.textNode", text: properties.text, key: properties.key, attributes});
 }
 
-export function styledDiv(classNameOverride, style, parameters) { 
+export function icstyledDiv(classNameOverride, style, parameters) { 
   const properties = findKeyInProperties(readFlowProperties(parameters));
   const attributes = extractAttributes(properties);
   attributes.style = {...style, ...attributes.style}; // Inject given style (while making it possible to override)

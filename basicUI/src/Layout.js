@@ -1,7 +1,5 @@
-import { trace, Component, transaction, creators } from "@liquefy/flow";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow";
-import { deepFreeze } from "@liquefy/flow";
-import { styledDiv } from "@liquefy/flow";
+import { deepFreeze } from "@liquefy/flow.core";
+import { styledDiv } from "@liquefy/flow.DOM";
 
 const log = console.log;
 

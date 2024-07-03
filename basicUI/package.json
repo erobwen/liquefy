@@ -22,7 +22,10 @@
     "url": "https://github.com/erobwen/liquefy/issues"
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
-  "dependencies": {
-    "@liquefy/flow": "file:../flow"
+  "peerDependencies": {
+    "@liquefy/causality": "file:../causality",
+    "@liquefy/flow": "file:../flow",
+    "@liquefy/flow.core": "file:../flow.core",
+    "@liquefy/flow.DOM": "file:../flow.DOM"
   }
 }

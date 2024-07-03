@@ -2,7 +2,7 @@ import { observable, Component, component, repeat } from "../flow/Flow";
 import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { basicWidgetTheme, numberInputField, text } from "../components/basic/BasicWidgets";
-import { centerMiddle, column, fitStyle, flexAutoHeightStyle, flexAutoStyle, flexGrowShrinkStyle, flexerStyle, row } from "../components/basic/Layout";
+import { centerMiddle, column, fitContainerStyle, flexAutoHeightStyle, naturalSizeStyle, fillerStyle, fillerStyle, row } from "../components/basic/Layout";
 import { div } from "../flow.DOM/BasicHtml"
 ;
 import { logMark } from "../flow/utility";
@@ -33,7 +33,7 @@ export class ProgrammaticReactiveLayout extends Component {
       row(numberInputField("Rows", this, "rows")),
       row(numberInputField("Columns", this, "columns")),
       text("Try change the size of the browser window, and add/remove columns/rows. Try do this with css :-)"),
-      {style: flexAutoStyle}
+      {style: naturalSizeStyle}
     );
 
     const controlPanelHeight = controlPanel.dimensions().height; 
@@ -55,20 +55,20 @@ export class ProgrammaticReactiveLayout extends Component {
         const bounds = {width: columnWidth, height: rowHeight};
         switch(cellType) {
           case 0: 
-            columns.push(new BoundsDisplay({key, bounds, style: flexerStyle}));
+            columns.push(new BoundsDisplay({key, bounds, style: fillerStyle}));
             break; 
           case 1: 
-            columns.push(new StringDisplay({key, bounds, style: flexerStyle}));
+            columns.push(new StringDisplay({key, bounds, style: fillerStyle}));
             break; 
           case 2: 
-            columns.push(new FixedAspectRatioDisplay({key, bounds, style: flexerStyle}));
+            columns.push(new FixedAspectRatioDisplay({key, bounds, style: fillerStyle}));
             break; 
         }
 
         cellType = (cellType + 1)% 3; 
         columnIndex++;
       }
-      const currentRow = row(columns, {style: flexerStyle});
+      const currentRow = row(columns, {style: fillerStyle});
       // log(currentRow);
       rows.push(currentRow);
       rowIndex++;
@@ -78,7 +78,7 @@ export class ProgrammaticReactiveLayout extends Component {
 
     return column(
       controlPanel,
-      column(rows, {style: flexerStyle}),
+      column(rows, {style: fillerStyle}),
       // new Cell({bounds: {width: this.bounds.width, height: this.bounds.height - controlPanelHeight}}),
       {style: {
         height: "100%", 
@@ -151,7 +151,7 @@ function scaledTextWithMaxFontSize(...parameters) {
       text(properties.text), 
       {
         style: {
-          ...fitStyle,
+          ...fitContainerStyle,
           overflow: "hidden",
           fontSize: fontSize + "px",
           ...properties.style
@@ -228,7 +228,7 @@ export class FixedAspectRatioDisplay extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startProgrammaticReactiveLayout() {
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(
+  new DOMFlowTarget(document.getElementById("root")).setContent(
     new ProgrammaticReactiveLayout()
   );
 }

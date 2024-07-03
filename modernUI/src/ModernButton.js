@@ -1,11 +1,11 @@
-import { Component } from "../../flow/Flow";
+import { Component } from "@liquefy/flow";
 import { div } from "../../flow.DOM/BasicHtml";
 import { adjustLightness, grayColor } from "../../flow-demo/src/components/themed/Color";
 import { button, text } from "../basic/BasicWidgets";
 import { panelStyle } from "./Style";
-import { centerMiddle, fitStyle, wrapper } from "../basic/Layout";
-import { logMark } from "../../flow/utility";
-import { findTextKeyAndOnClickInProperties, readFlowProperties } from "../../flow/flowParameters";
+import { centerMiddle, fitContainerStyle, wrapper } from "../basic/Layout";
+import { logMark } from "@liquefy/flow";
+import { findTextKeyAndOnClickInProperties, readFlowProperties } from "@liquefy/flow";
 
 const log = console.log; 
 
@@ -60,7 +60,7 @@ export class ModernButton extends Component {
     this.mouseOverPressedBackgroundColor = adjustLightness(this.pressedBackgroundColor, -0.1);
     this.style = {
       ...(edge ? boxShadowStyle : null), 
-      // ...fitStyle, 
+      // ...fitContainerStyle, 
       // ...panelStyle,
       boxSizing: "border-box",
       borderWidth: edge ? "1px" : "0px",

@@ -1,5 +1,5 @@
 import { text } from "../components/basic/BasicWidgets";
-import { centerMiddle, column, fitStyle } from "../components/basic/Layout";
+import { centerMiddle, column, fitContainerStyle } from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget";
 import { Component } from "../flow/Flow";
@@ -17,7 +17,7 @@ class ButtonTest extends Component {
   build() {
     return centerMiddle(
       modernButton("test", "Test", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}}),
-      {style: {...fitStyle, fontSize: "40px", padding: "20px"}}
+      {style: {...fitContainerStyle, fontSize: "40px", padding: "20px"}}
     );
   }
 }
@@ -27,5 +27,5 @@ class ButtonTest extends Component {
  */
 export function buttonTest() {
   const test = new ButtonTest()  
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(test)
+  new DOMFlowTarget(document.getElementById("root")).setContent(test)
 }

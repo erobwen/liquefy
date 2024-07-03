@@ -1,9 +1,10 @@
-import { observable, world, repeat, when, Component, finalize, getTarget, trace, model } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { button, numberInputField, text } from "../components/basic/BasicWidgets";
-import { centerMiddle, column, row, wrapper } from "../components/basic/Layout";
+import { observable, world, repeat, when, Component, finalize, getTarget, trace, model } from "@liquefy/flow";
+import { DOMFlowTarget } from "@liquefy/flow";
+
+import { button, numberInputField, text } from "@liquefy/basicUI";
+import { centerMiddle, column, row, wrapper } from "@liquefy/basicUI";
 ;
-import { modal } from "../components/basic/Portals";
+import { modal } from "@liquefy/basicUI";
 
 const log = console.log;
 const loga = (action) => {
@@ -166,7 +167,7 @@ export class Item extends Component {
   
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(root);
+  new DOMFlowTarget(document.getElementById("root")).setContent(root);
 
   // Emulated user interaction.
   // console.log(root.buildRepeater.buildIdObjectMap);

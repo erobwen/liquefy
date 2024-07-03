@@ -2,12 +2,12 @@ import { Component } from "../flow/Flow";
 import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { panel, text } from "../components/basic/BasicWidgets";
-import { centerMiddle, centerMiddleStyle, column, columnStyle, fitStyle, row, zStack, zStackElementStyle } from "../components/basic/Layout";
+import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "../components/basic/Layout";
 import { div } from "../flow.DOM/BasicHtml"
 ;
 import { adjustLightness } from "../components/themed/Color";
 import { modernButton } from "../components/modern/ModernButton";
-import { animatedContainerStyle } from "../components/modern/Style";
+import { overflowVisibleStyle } from "@liquefy/basicUI";
 import { modal, modalFrame } from "../components/basic/Modal";
 import { button } from "../components/themed/Theme";
 
@@ -55,7 +55,7 @@ export class Dialog extends Component {
       key: "background", 
       style: {
         ...zStackElementStyle, 
-        ...animatedContainerStyle, 
+        ...overflowVisibleStyle, 
         transition: "background-color 1000ms linear", 
         backgroundColor: this.backgroundColor
       }});
@@ -69,11 +69,11 @@ export class Dialog extends Component {
           text(this.text),
           button("Close", () => this.close()), 
           ...this.children,
-          {style: {...panelStyle, ...animatedContainerStyle}, animateChildrenWhenThisAppears: true}
+          {style: {...panelStyle, ...overflowVisibleStyle}, animateChildrenWhenThisAppears: true}
         ),
-        {style: {...zStackElementStyle, ...animatedContainerStyle, height: "100%", pointerEvents: "auto"}}
+        {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%", pointerEvents: "auto"}}
       ),
-      {style: fitStyle, ...animatedContainerStyle}
+      {style: fitContainerStyle, ...overflowVisibleStyle}
     )
   }
 }
@@ -97,7 +97,7 @@ export class ModalExample extends Component {
       modalFrame(
         column(
           new BasicModalExample(),
-          {style: animatedContainerStyle}
+          {style: overflowVisibleStyle}
         )
       )
     );
@@ -117,7 +117,7 @@ class BasicModalExample extends Component {
         text("Standard responsive modal demo."),
         // row(
           button("Open Modal", ()=> {this.showModal = true;}),
-          {style: animatedContainerStyle}
+          {style: overflowVisibleStyle}
         // ), 
         // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
       ),
@@ -142,7 +142,7 @@ class FlyoutModalExample extends Component {
         text("Standard responsive modal demo."),
         // row(
           button("Open Modal", ()=> {this.showModal = true;}),
-          {style: animatedContainerStyle}
+          {style: overflowVisibleStyle}
         // ), 
         // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
       ),
@@ -167,7 +167,7 @@ class PopoverModalExample extends Component {
         text("Standard responsive modal demo."),
         // row(
           button("Open Modal", ()=> {this.showModal = true;}),
-          {style: animatedContainerStyle}
+          {style: overflowVisibleStyle}
         // ), 
         // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
       ),
@@ -192,7 +192,7 @@ class HybridModalExample extends Component {
         text("Standard responsive modal demo."),
         // row(
           button("Open Modal", ()=> {this.showModal = true;}),
-          {style: animatedContainerStyle}
+          {style: overflowVisibleStyle}
         // ), 
         // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
       ),
@@ -217,5 +217,5 @@ class HybridModalExample extends Component {
   
 export function startModalDemo() {
   const root = new ModalExample();
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(root);
+  new DOMFlowTarget(document.getElementById("root")).setContent(root);
 }

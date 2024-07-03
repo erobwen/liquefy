@@ -41,14 +41,6 @@ export function clearNode(node, attributes) {
   // }
 }
 
-// const flexAutoStyle = {
-//   overflow: "hidden",
-//   boxSizing: "border-box",
-//   flexGrow: 0,
-//   flexShrink: 0,
-//   flexBasis: 'auto'
-// };
-
 export function getHeightIncludingMargin(node) {
   var styles = window.getComputedStyle(node);
   var margin = parseFloat(styles['marginTop']) +
@@ -96,7 +88,6 @@ export function getWidthIncludingMargin(node) {
       if (domNode.style.height === "") {
         domNode.style.height = "auto";
       }
-      // Object.assign(domNode.style, flexAutoStyle);
       document.body.appendChild(domNode);  
       // log("No context, deep cloing and appending child to document... ");
     }

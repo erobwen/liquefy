@@ -4,7 +4,7 @@ import { div } from "../flow.DOM/BasicHtml";
 import { adjustLightness } from "./Color";
 import { button, inputField, text, textInputField } from "./basic/BasicWidgets";
 import { panelStyle } from "./modern/Style";
-import { centerMiddle, column, filler, fitStyle, row } from "./basic/Layout";
+import { centerMiddle, column, filler, fitContainerStyle, row } from "./basic/Layout";
 
 const log = console.log; 
 

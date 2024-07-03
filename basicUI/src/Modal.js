@@ -1,9 +1,9 @@
-import { Component, transaction } from "../../flow/Flow.js";
-import { creators, getTarget } from "../../flow/flowBuildContext.js";
-import { readFlowProperties, findKeyInProperties } from "../../flow/flowParameters.js";
-import { div } from "../../flow.DOM/BasicHtml.js";
-import { extractAttributes } from "../../flow.DOM/domNodeAttributes.js";
-import { logMark } from "../../flow/utility.js";
+import { Component, transaction } from "@liquefy/flow";
+import { creators, getTarget } from "@liquefy/flow";
+import { readFlowProperties, findKeyInProperties } from "@liquefy/flow";
+import { div } from "@liquefy/flow";
+import { extractAttributes } from "@liquefy/flow";
+import { logMark } from "@liquefy/flow";
 const log = console.log;
 
 /**
@@ -53,7 +53,7 @@ export function modalFrame(...parameters) {
   return result; 
 }
 
-class ModalFrame extends Component {
+export class ModalFrame extends Component {
   setProperties({style, children}) {
     this.style = style; 
     this.children = children;  
@@ -163,7 +163,7 @@ class ModalFrame extends Component {
   }
 }
 
-export function modalFrameDiv(...parameters) {
+function modalFrameDiv(...parameters) {
   let properties = findKeyInProperties(readFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
   return getTarget().create({type: "dom.elementNode", tagName: "div", key: properties.key, classNameOverride: "modal-frame", attributes, children: properties.children});

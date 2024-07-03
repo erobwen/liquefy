@@ -1,4 +1,4 @@
-import { fitStyle } from "../basic/Layout";
+import { fitContainerStyle } from "../basic/Layout";
 
 export const paperShadow = "1px 1px 4px 1px rgba(0, 0, 0, 0.6)"; 
 export const hardPaperShadow = "1px 1px 2px 1px rgba(0, 0, 0, 0.6)"; 
@@ -11,10 +11,6 @@ export const panelStyle = {
   borderStyle: "solid",
   boxShadow: paperShadow
 };
-
-export const animatedContainerStyle = {
-  overflow: "visible"
-}
 
 export const borderStyle = {
   boxShadow: "border-box",

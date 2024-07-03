@@ -83,7 +83,7 @@ const myRow = component("myRow", (flow) => {
 export function startHelloWorld() {
   // Activate continous build/integration to DOMFlowTarget.
   const helloWorld = new HelloWorld();
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(helloWorld);
+  new DOMFlowTarget(document.getElementById("root")).setContent(helloWorld);
   asyncModifications(helloWorld);  
 }
 

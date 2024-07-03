@@ -3,7 +3,7 @@ import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { panel, text } from "../components/basic/BasicWidgets";
 import { column, filler, row, centerMiddle, columnStyle} from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
-import { animatedContainerStyle, borderStyle, panelStyle } from "../components/modern/Style";
+import { overflowVisibleStyle, borderStyle, panelStyle } from "../components/modern/Style";
 import { div, span } from "../flow.DOM/BasicHtml"
 ;
 import { button } from "../components/themed/Theme";
@@ -39,5 +39,5 @@ export class SingleStaticWidget extends Component {
  */
 export function startSingleStaticWidget() {
   const singleWidget = new SingleStaticWidget()  
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(singleWidget)
+  new DOMFlowTarget(document.getElementById("root")).setContent(singleWidget)
 }

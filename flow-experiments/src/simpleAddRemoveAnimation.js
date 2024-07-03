@@ -43,5 +43,5 @@ export class SimpleAddRemoveAnimation extends Component {
  */
 export function startSimpleAddRemoveAnimation() {
   const simple = new SimpleAddRemoveAnimation()  
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(simple)
+  new DOMFlowTarget(document.getElementById("root")).setContent(simple)
 }

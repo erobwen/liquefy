@@ -139,7 +139,7 @@ export class AnimationExample extends Component {
  */
 export function startAnimationExample() {
   new DOMFlowTarget(
-    document.getElementById("flow-root")
+    document.getElementById("root")
   ).setContent(
     new AnimationExample({items})
   )

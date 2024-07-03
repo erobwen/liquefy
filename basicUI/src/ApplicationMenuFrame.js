@@ -1,11 +1,10 @@
-import { flyFromLeftAnimation, flyFromTopAnimation } from "../../flow.DOM/FlyDOMNodeAnimation";
-import { Component } from "../../flow/Flow"
-import { readFlowProperties } from "../../flow/flowParameters";
-import { log, logMark } from "../../flow/utility";
-import { button, text } from "./BasicWidgets";
+import { Component } from "@liquefy/flow"
+import { readFlowProperties } from "@liquefy/flow";
+import { log, logMark } from "@liquefy/flow";
+
+import { button } from "./BasicWidgets";
 import { icon } from "./Icons";
 import { centerMiddle, column, filler, fillerStyle, layoutBorderStyle, row } from "./Layout";
-import { animatedContainerStyle } from "../modern/Style"
 import { modal, modalFrame } from "./Modal";
 
 
@@ -66,10 +65,10 @@ class ApplicationMenuFrame extends Component {
     const leftPanel = column("leftMenu", 
       this.appplicationMenu,
       // text("Menu..."),
-      {style: {...layoutBorderStyle, ...animatedContainerStyle}} //, animate: flyFromLeftAnimation
+      {style: {...layoutBorderStyle, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
     );
 
-    // const animatedContainerStyle = {};
+    // const overflowVisibleStyle = {};
 
     return row("a",
       leftPanel.show(!menuIsModal),
@@ -77,9 +76,9 @@ class ApplicationMenuFrame extends Component {
         topPanel,
         this.applicationContent,
         // centerMiddle("content", toggleButton,{style: fillerStyle}),
-        {style: {...fillerStyle, ...layoutBorderStyle, ...animatedContainerStyle}}
+        {style: {...fillerStyle, ...layoutBorderStyle, ...overflowVisibleStyle}}
       ),
-      {style: {...fillerStyle, ...layoutBorderStyle, ...animatedContainerStyle}}
+      {style: {...fillerStyle, ...layoutBorderStyle, ...overflowVisibleStyle}}
     )
 
 

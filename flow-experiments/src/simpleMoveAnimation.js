@@ -3,7 +3,7 @@ import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { text } from "../components/basic/BasicWidgets";
 import { column, filler, fillerStyle, row } from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
-import { animatedContainerStyle, borderStyle, panelStyle } from "../components/modern/Style";
+import { overflowVisibleStyle, borderStyle, panelStyle } from "../components/modern/Style";
 import { button as basicButton } from "../components/basic/BasicWidgets";
 import { button } from "../components/themed/Theme";
 import { startExperiment, inExperiment } from "..";
@@ -83,24 +83,24 @@ export class SimpleMoveAnimation extends Component {
         basicButton("Move", this.move.bind(this)),
         basicButton("Experiment", () => startExperiment()),
         filler(),
-        {style: {...animatedContainerStyle}}
+        {style: {...overflowVisibleStyle}}
       ),
       div({style: {height: "200px"}}),
       row(
         column(
           movingButton.show(this.left),
-          {style: {...animatedContainerStyle, width: "150px"}}
+          {style: {...overflowVisibleStyle, width: "150px"}}
         ),
         div({style: {width: "200px"}}),
         column(
           // text("Some Text", {animate: true, style: borderStyle}).show(!this.left),
           movingButton.show(!this.left),
-          {style: {...animatedContainerStyle, width: "150px"}}
+          {style: {...overflowVisibleStyle, width: "150px"}}
         ),
-        {style: animatedContainerStyle}
+        {style: overflowVisibleStyle}
       ),
       filler(),
-      {style: {...animatedContainerStyle, fontSize: "40px", padding: "20px"}}
+      {style: {...overflowVisibleStyle, fontSize: "40px", padding: "20px"}}
     );
   }
 }
@@ -110,5 +110,5 @@ export class SimpleMoveAnimation extends Component {
  */
 export function startSimpleMoveAnimation() {
   const simple = new SimpleMoveAnimation()  
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(simple)
+  new DOMFlowTarget(document.getElementById("root")).setContent(simple)
 }

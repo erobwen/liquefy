@@ -2,7 +2,7 @@ import { observable, Component, component, repeat, transaction, model } from "..
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 // import { simpleButton as button } from "../components/SimpleButton";
 import { div, span, textNode } from "../flow.DOM/BasicHtml";
-import { column, filler, flexGrowShrinkStyle, row } from "../components/basic/Layout";
+import { column, filler, fillerStyle, row } from "../components/basic/Layout";
 import { checkboxInputField, numberInputField, text } from "../components/basic/BasicWidgets";
 import { button, textInputField } from "../components/themed/Theme";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "../components/basic/Icons";
@@ -217,7 +217,7 @@ export class ComplexForm extends Component {
           text(JSON.stringify(this.editData, null, 4)),
           {style: {borderLeft: "1px", borderLeftStyle: "solid", borderLeftColor: "lightgray", backgroundColor: "#eeeeee"}}
         ),
-        {style: flexGrowShrinkStyle}
+        {style: fillerStyle}
       )
     );
   }
@@ -326,7 +326,7 @@ export class LuggageForm extends Component {
  */
 
 export function startComplexFormApplication() {
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(
+  new DOMFlowTarget(document.getElementById("root")).setContent(
     new ComplexForm({initialData})
   );
 }

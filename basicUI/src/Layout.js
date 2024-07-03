@@ -1,7 +1,8 @@
-import { trace, Component, transaction, creators } from "../../flow/Flow.js";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "../../flow/flowParameters.js";
-import { deepFreeze } from "../../flow/utility.js";
-import { styledDiv } from "../../flow.DOM/BasicHtml.js";
+import { trace, Component, transaction, creators } from "@liquefy/flow";
+import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow";
+import { deepFreeze } from "@liquefy/flow";
+import { styledDiv } from "@liquefy/flow";
+
 const log = console.log;
 
 
@@ -68,7 +69,7 @@ export const naturalSizeStyle = { // For bottom up components inside scroll comp
   flexBasis: 'auto'
 }
 
-export const fitStyle = {
+export const fitContainerStyle = {
   overflow: "hidden", // Enforce top down layout. If set to auto or display, layout might be influenced by grand children that are too large to fit within their given space. 
   boxSizing: "border-box",  // Each component needs to be responsible of their own padding/border space...
   width: "100%",
@@ -76,91 +77,72 @@ export const fitStyle = {
 } 
 
 // For components that needs to grow and shrink without regard to its contents. Scroll panels typically, or for equal distribution of space.
-export const flexGrowShrinkStyle = {
+export const fillerStyle = {
   overflow: "hidden", 
-  boxSizing: "border-box",
-  flexGrow: 1,
-  flexShrink: 1,
-  flexBasis: 1,
-}
-export const fillerStyle = flexGrowShrinkStyle; 
-
-// For components that needs to grow and shrink without regard to its contents. Scroll panels typically, or for equal distribution of space.
-export const flexerStyle = {
-  overflow: "hidden", 
-  boxSizing: "border-box",
-  flexGrow: 1,
-  flexShrink: 1,
-  flexBasis: 0,
-}
-
-export function flexGrowShrinkRatioStyle(ratio) {
-  return {
-    overflow: "hidden", 
-    boxSizing: "border-box",
-    flexGrow: ratio,
-    flexShrink: 1,
-    flexBasis: 1,
-  };
-}
-
-// For a component that stubbornly needs to keep its size in the flex direction. For buttons etc.  
-export const flexAutoStyle = {
-  overflow: "hidden",
-  boxSizing: "border-box",
-  flexGrow: 0,
-  flexShrink: 0,
-  flexBasis: 'auto'
-};
-
-export const flexShrinkAutoStyle = {
-  overflow: "hidden",
-  boxSizing: "border-box",
-  flexGrow: 0,
-  flexShrink: 1,
-  flexBasis: 'auto'
-};
-
-// Convenience for an auto width style with fixed width. 
-export function flexAutoWidthStyle(width) {
-  return {
-    overflow: "hidden",
-    boxSizing: "border-box",
-    width: width, 
-    flexGrow: 0,
-    flexShrink: 0,
-    flexBasis: 'auto'    
-  };
-};
-
-// Convenience for an auto width style with fixed height. 
-export function flexAutoHeightStyle(height) {
-  return {
-    overflow: "hidden",
-    boxSizing: "border-box",
-    height: height, 
-    flexGrow: 0,
-    flexShrink: 0,
-    flexBasis: 'auto'
-  };
-};
-
-// For components that needs to grow and shrink with the size of its contents as base. This was needed for some IE11 support. 
-export const flexGrowShrinkAutoStyle = {
-  overflow: "hidden",
   boxSizing: "border-box",
   flexGrow: 1,
   flexShrink: 1,
   flexBasis: 'auto',
 }
 
-export const flexGrowAutoStyle = {
-  overflow: "hidden",
-  boxSizing: "border-box",
-  flexGrow: 1,
-  flexShrink: 0,
-  flexBasis: 'auto',  
-} 
+
+// For a component that stubbornly needs to keep its size in the flex direction. For buttons etc.  
+// export const flexAutoStyle = {
+//   overflow: "hidden",
+//   boxSizing: "border-box",
+//   flexGrow: 0,
+//   flexShrink: 0,
+//   flexBasis: 'auto'
+// };
+
+// export const naturalSizeLimitStyle = {
+//   overflow: "hidden",
+//   boxSizing: "border-box",
+//   flexGrow: 0,
+//   flexShrink: 1,
+//   flexBasis: 'auto'
+// };
+
+// Convenience for an auto width style with fixed width. 
+// export function flexAutoWidthStyle(width) {
+//   return {
+//     overflow: "hidden",
+//     boxSizing: "border-box",
+//     width: width, 
+//     flexGrow: 0,
+//     flexShrink: 0,
+//     flexBasis: 'auto'    
+//   };
+// };
+
+// Convenience for an auto width style with fixed height. 
+// export function flexAutoHeightStyle(height) {
+//   return {
+//     overflow: "hidden",
+//     boxSizing: "border-box",
+//     height: height, 
+//     flexGrow: 0,
+//     flexShrink: 0,
+//     flexBasis: 'auto'
+//   };
+// };
+
+// For components that needs to grow and shrink with the size of its contents as base. This was needed for some IE11 support. 
+// export const flexGrowShrinkAutoStyle = {
+//   overflow: "hidden",
+//   boxSizing: "border-box",
+//   flexGrow: 1,
+//   flexShrink: 1,
+//   flexBasis: 'auto',
+// }
+
+// export const flexGrowAutoStyle = {
+//   overflow: "hidden",
+//   boxSizing: "border-box",
+//   flexGrow: 1,
+//   flexShrink: 0,
+//   flexBasis: 'auto',  
+// } 
 
 
 /**
@@ -176,7 +158,7 @@ export const centerMiddle = (...parameters) => styledDiv("centerMiddle", centerM
 /**
  * Basic basic layout fillers
  */
-export const filler = (...parameters) => styledDiv("filler", flexGrowShrinkStyle, parameters);
+export const filler = (...parameters) => styledDiv("filler", fillerStyle, parameters);
 
 
 /**
@@ -184,7 +166,7 @@ export const filler = (...parameters) => styledDiv("filler", flexGrowShrinkStyle
  */
 
 export const zStackElementStyle = {
-  ...fitStyle,
+  ...fitContainerStyle,
   position:"absolute", 
   top:0, 
   left:0,
@@ -193,3 +175,11 @@ export const zStackElementStyle = {
 }
 
 export const zStack = (...parameters) => styledDiv("zStack", {...parameters.style, position: "relative"}, parameters);
+
+
+/**
+ * Animations
+ */
+export const overflowVisibleStyle = {
+  overflow: "visible"
+}

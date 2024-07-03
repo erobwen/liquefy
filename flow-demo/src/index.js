@@ -19,14 +19,14 @@ setFlowConfiguration({
 });
 installDOMAnimation();
 
-if (module.hot) {
-  module.hot.accept();
-  module.hot.dispose(() => { 
-    resetDOMAnimation();
-    configuration.onFinishReBuildingFlowCallbacks.length = 0;
-    configuration.onFinishReBuildingDOMCallbacks.length = 0;
-  });
-}
+// if (module.hot) {
+//   module.hot.accept();
+//   module.hot.dispose(() => { 
+//     resetDOMAnimation();
+//     configuration.onFinishReBuildingFlowCallbacks.length = 0;
+//     configuration.onFinishReBuildingDOMCallbacks.length = 0;
+//   });
+// }
 
 // const debuggingState = model({
 //   inExperiment: false

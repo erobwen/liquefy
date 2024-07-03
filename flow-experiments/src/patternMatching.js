@@ -42,5 +42,5 @@ export class PatternMatching extends Component {
  */
  export function startPatternMatching() {
   const application = new PatternMatching({model});  
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(application)
+  new DOMFlowTarget(document.getElementById("root")).setContent(application)
 }

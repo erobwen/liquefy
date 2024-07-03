@@ -27,7 +27,7 @@ export class SimpleApplicationMenu extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startSimpleApplicationMenu() {
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(
+  new DOMFlowTarget(document.getElementById("root")).setContent(
     new SimpleApplicationMenu()
   );
 }

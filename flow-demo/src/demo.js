@@ -1,5 +1,13 @@
 import { observable, Component, component, repeat, creators } from "@liquefy/flow";
 import { DOMFlowTarget } from "@liquefy/flow";
+import { span } from "@liquefy/flow";
+import { logMark } from "@liquefy/flow";
+
+import { portalExit } from "@liquefy/basicUI";
+import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basicUI";
+import { applicationMenuFrame, svgImage, text } from "@liquefy/basicUI";
+
+import flowImage from "../resources/flow.svg"
 
 import { RecursiveExample } from "./pages/recursiveDemoApplication";
 // import { ComplexForm, initialData } from "./pages/complexFormApplication";
@@ -8,16 +16,7 @@ import { RecursiveExample } from "./pages/recursiveDemoApplication";
 // import { PortalExample } from "./pages/portalDemo";
 // import { ModalExample } from "./pages/modalDemo";
 
-import { portalExit } from "e";
-import { button } from "../components/themed/Theme";
-import { column, columnStyle, filler, flexAutoStyle, row } from "../components/basic/Layout";
-import { svgImage } from "./images";
-import flowImage from "../../resources/flow.svg"
-import { applicationMenuFrame } from "../components/basic/ApplicationMenuFrame";
-import { text } from "../components/basic/BasicWidgets";
-import { span } from "../flow.DOM/BasicHtml";
-import { logMark } from "../flow/utility";
-import { startExperiment } from "..";
+import { button } from "./customUI";
 
 const log = console.log;
 
@@ -82,7 +81,7 @@ export class Demo extends Component {
       {
         key: "left-column", 
         style: {
-          ...flexAutoStyle, 
+          ...naturalSizeStyle, 
           borderRight: "2px", 
           borderRightStyle: "solid", 
           backgroundColor: "lightgray", 
@@ -108,7 +107,7 @@ export class Demo extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startDemo() {
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(
+  new DOMFlowTarget(document.getElementById("root")).setContent(
     new Demo()
   );
 }

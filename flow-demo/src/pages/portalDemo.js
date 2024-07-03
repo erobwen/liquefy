@@ -76,5 +76,5 @@ export class PortalExample extends Component {
   
 export function startPortalDemo() {
   const root = new PortalExample();
-  new DOMFlowTarget(document.getElementById("flow-root")).setContent(root);
+  new DOMFlowTarget(document.getElementById("root")).setContent(root);
 }

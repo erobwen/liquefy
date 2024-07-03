@@ -24,6 +24,7 @@ export function removeDOMFlowTarget(target) {
 
 export class DOMFlowTarget extends FlowTarget {
   constructor(rootElement, configuration={}){
+    if (!rootElement) throw new Error("No root element!");
     const {creator=null, fullWindow=true} = configuration;
     super();
 
@@ -57,9 +58,9 @@ export class DOMFlowTarget extends FlowTarget {
     //   log(this.rootElement.scrollHeight);
     //   log(this.rootElement.scrollWidth);
     // }, 0);
-    this.state = observable({
-      modalDiv: null
-    });
+    // this.state = observable({
+    //   modalDiv: null
+    // });
 
     return observable(this, this.key);
   }

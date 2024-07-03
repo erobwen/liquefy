@@ -1,8 +1,9 @@
-import { extractAttributes, extractChildStyles, extractProperty } from "../../flow.DOM/domNodeAttributes.js";
-import { trace, Component, callback } from "../../flow/Flow.js";
-import { getTarget } from "../../flow/flowBuildContext.js";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "../../flow/flowParameters.js";
-import { div,  textToTextNode } from "../../flow.DOM/BasicHtml.js";
+import { extractAttributes, extractChildStyles, extractProperty } from "@liquefy/flow";
+import { trace, Component, callback } from "@liquefy/flow";
+import { getTarget } from "@liquefy/flow";
+import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow";
+import { div,  textToTextNode } from "@liquefy/flow";
+
 import { filler, row } from "./Layout.js";
 const log = console.log;
 

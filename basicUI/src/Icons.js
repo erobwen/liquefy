@@ -1,13 +1,17 @@
-import { library } from '@fortawesome/fontawesome-svg-core';
-import { faCross, faPlus, faSuitcase, faXmark, faXmarkCircle } from '@fortawesome/free-solid-svg-icons';
-import { DOMElementNode } from '../../flow.DOM/DOMElementNode';
-import { finalize, repeat, trace } from '../../flow/Flow';
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "../../flow/flowParameters";
+// import { library } from '@fortawesome/fontawesome-svg-core';
+// import { faCross, faPlus, faSuitcase, faXmark, faXmarkCircle } from '@fortawesome/free-solid-svg-icons';
+// import { DOMElementNode } from '@liquefy/flow';
+// import { finalize, repeat, trace } from '@liquefy/flow';
+import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow";
+import { extractProperty } from '@liquefy/flow';
+import { logMark } from '@liquefy/flow';
+import { span } from '@liquefy/flow';
 
-import { aggregateToString } from '../../flow.DOM/DOMNode';
-import { logMark } from '../../flow/utility';
-import { elemenNode, span } from '../../flow.DOM/BasicHtml';
-import { extractProperty } from '../../flow.DOM/domNodeAttributes';
+// "@fortawesome/fontawesome-svg-core": "^6.4.0",
+// "@fortawesome/free-regular-svg-icons": "^6.4.0",
+// "@fortawesome/free-solid-svg-icons": "^6.4.0",
+
+// import { aggregateToString } from '@liquefy/flow';
 // library.add(faSuitcase);
 // library.add(faPlus);
 // library.add(faCross);
@@ -15,6 +19,41 @@ import { extractProperty } from '../../flow.DOM/domNodeAttributes';
 // library.add(faXmarkCircle);
 
 const log = console.log; 
+
+
+
+export function suitcaseIcon(...parameters) {
+  const properties = readFlowProperties(parameters);
+  properties.iconName = "suitcase";
+  return faIcon(properties);
+}
+
+export function plusIcon(...parameters) {
+  const properties = readFlowProperties(parameters);
+  properties.iconName = "plus";
+  return faIcon(properties);
+}
+
+export function crossIcon(...parameters) {
+  const properties = readFlowProperties(parameters);
+  properties.iconName = "cross";
+  return faIcon(properties);
+}
+
+export function icon(iconName, ...parameters) {
+  const properties = readFlowProperties(parameters);
+  properties.iconName = iconName;
+  return faIcon(properties); 
+}
+
+export function faIcon(...parameters) {
+  const properties = readFlowProperties(parameters);
+  findPrefixAndIconNameInProperties(properties);
+  const iconName = extractProperty(properties, "iconName");
+  properties.className = "fa " + "fa-" + iconName;
+  return span(properties)
+  // return new DOMFaNode(properties);
+}
 
 export function findPrefixAndIconNameInProperties(properties) {
   if (!properties.stringsAndNumbers) return properties;
@@ -33,42 +72,6 @@ export function findPrefixAndIconNameInProperties(properties) {
   return properties; 
 }
 
-
-export function suitcaseIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
-  properties.iconName = "suitcase";
-  return faIcon(properties);
-}
-
-
-export function plusIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
-  properties.iconName = "plus";
-  return faIcon(properties);
-}
-
-
-export function crossIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
-  properties.iconName = "cross";
-  return faIcon(properties);
-}
-
-
-export function icon(iconName, ...parameters) {
-  const properties = readFlowProperties(parameters);
-  properties.iconName = iconName;
-  return faIcon(properties); 
-}
-
-export function faIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
-  findPrefixAndIconNameInProperties(properties);
-  const iconName = extractProperty(properties, "iconName");
-  properties.className = "fa " + "fa-" + iconName;
-  return span(properties)
-  // return new DOMFaNode(properties);
-}
 
 // export class DOMFaNode extends DOMElementNode {
 //   setProperties({prefix, iconName}) {

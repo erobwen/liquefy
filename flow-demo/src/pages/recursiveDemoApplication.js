@@ -5,6 +5,7 @@ import { button, numberInputField, text } from "@liquefy/basicUI";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basicUI";
 ;
 import { modal } from "@liquefy/basicUI";
+import { findKeyInProperties, readFlowProperties } from "../../../flow.core/src/flowParameters";
 
 const log = console.log;
 const loga = (action) => {
@@ -56,12 +57,20 @@ export class RecursiveExample extends Component {
         new List("root-list", {
           maxCount: this.count, 
           count: 1
-        })
+        }),
+        text("Info:"),
+        text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+        text(" - Stable component identity and local state is demonstrated."), 
+        text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
       )
     );
   }
 }
   
+export function controlRow(...parameters) {
+  return new ControlRow(readFlowProperties(parameters));
+}
+
 export class ControlRow extends Component {
   setProperties({demoComponent}) {
     this.demoComponent = demoComponent;
@@ -87,7 +96,7 @@ export class ControlRow extends Component {
         text("Depth:"),
         moreButton, 
         button({key: "less-button", onClick: () => {me.demoComponent.count--}, text: "Less"}),
-        ),
+      ),
       numberInputField("Shared state", this.inherit("myModel"), "value"),
       {style: {padding: "10px", gap: "20px"}} // Reactive programmatic styling! 
     )
@@ -170,9 +179,10 @@ export function startRecursiveDemo() {
   new DOMFlowTarget(document.getElementById("root")).setContent(root);
 
   // Emulated user interaction.
-  // console.log(root.buildRepeater.buildIdObjectMap);
-  root.getChild("control-row").getChild("more-button").onClick();
-  root.findChild("more-button").onClick();
-  root.findChild("more-button").onClick();
-  root.findChild("more-button").onClick();
+  // console.log(root.getChild("control-row").getChild("more-button"));
+  // console.log(root.getChild("control-row"));
+  // root.getChild("control-row").getChild("more-button").onClick();
+  // root.findChild("more-button").onClick();
+  // root.findChild("more-button").onClick();
+  // root.findChild("more-button").onClick();
 }

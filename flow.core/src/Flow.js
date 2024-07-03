@@ -453,6 +453,8 @@ export class Component {
   }
 
   getChild(keyOrPath) {
+    // TODO: Think this function through. 
+    // Should we work according to creator hierarchy or primitive parent hierarchy?
     if (typeof keyOrPath === "string") {
       const key = keyOrPath;
       if (typeof this.buildRepeater.buildIdObjectMap[key] === "undefined")
@@ -464,6 +466,9 @@ export class Component {
       if (path.length === 0) {
         return child;
       } else {
+        if (this.children) {
+
+        }
         return child.getChild(path);
       }
     }

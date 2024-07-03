@@ -134,6 +134,8 @@ export function readFlowProperties(arglist) {
     // Not a flow object
     if (typeof arglist[0] === "object" && !arglist[0].causality) {
       if (arglist[0] instanceof Array) {
+        // Consider: Is this case really used, or could it be used to read a properties list itself?
+        throw new Error("Is this case really used!?");
         if (!properties.children) properties.children = [];
         for (let child of arglist.shift()) { // TODO: Use iterator! ?? Why?.. 
           properties.children.push(child);

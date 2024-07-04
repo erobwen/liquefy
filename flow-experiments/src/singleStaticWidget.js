@@ -1,4 +1,4 @@
-import { observable, Component, component, repeat } from "../flow/Flow";
+import { observable, Component, repeat } from "../flow/Flow";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { panel, text } from "../components/basic/BasicWidgets";
 import { column, filler, row, centerMiddle, columnStyle} from "../components/basic/Layout";

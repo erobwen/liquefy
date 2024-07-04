@@ -1,5 +1,5 @@
 
-import { elemenNode, textNode, span, div, styledDiv, textToTextNode} from "./BasicHtml";
+import { elemenNode, textNode, span, div, styledDiv } from "./BasicHtml";
 import { DOMElementNode } from "./DOMElementNode";
 import { DOMTextNode } from "./DOMTextNode"
 import { DOMFlowTarget} from "./DOMFlowTarget"
@@ -18,8 +18,7 @@ export {
     // Basic HTML
     elemenNode, 
     textNode,
-    styledDiv, 
-    textToTextNode,
+    styledDiv,
 
     // HTML tags
     span, 

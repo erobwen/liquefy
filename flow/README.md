@@ -129,3 +129,21 @@ When build is run for a component, child objects are created, but in the case wh
 The following slide shows the theory and philosopy behind Flow, in particular the idea behind Programmatic Reactive Layout and the No CSS principles.
  
 https://docs.google.com/presentation/d/13E7E8TzRBoGBJ5BhVV78-s73AnYHnI4MrQ233xihZdY/edit?usp=sharing
+
+
+## Argument lists explained
+
+The arguments to any given flow component follow a standard pattern. 
+
+myComponent([Component|string|number]*, )
+
+The argument list contains: 
+ * At most one plain JS object that is the properties object, this object can contain whatever the component needs. 
+ * At most one plain JS Array, that is the childrens list. corresponding to properties.children
+
+ * At most one funciton, that are implicitly used as an onClick callback for some components.
+   If there is both a function and properties.onClick, there will be an error. 
+
+ * Component|string|number in any order, these are the childrens arguments array. If the childrens arguments array contains at least  items and the first is a string starting with a lowercase or a number, it is assumed to be the key of the  
+
+The childrens list can be defined in tree ways. Either as an array, defining properties.children and adding loose Component|string|number in the argument list. Any 

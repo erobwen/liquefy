@@ -25,4 +25,4 @@ export class DOMTextNode extends DOMNode {
   }
 }
 
-domNodeClassRegistry["dom.textNode"] = DOMTextNode;
+domNodeClassRegistry["textNode"] = DOMTextNode;

@@ -1,5 +1,5 @@
-import { observable, Component, component, repeat } from "../flow/Flow";
-import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
+import { observable, Component, repeat } from "../flow/Flow";
+import { readFlowProperties } from "../flow/flowParameters";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { basicWidgetTheme, numberInputField, text } from "../components/basic/BasicWidgets";
 import { centerMiddle, column, fitContainerStyle, flexAutoHeightStyle, naturalSizeStyle, fillerStyle, fillerStyle, row } from "../components/basic/Layout";
@@ -7,6 +7,7 @@ import { div } from "../flow.DOM/BasicHtml"
 ;
 import { logMark } from "../flow/utility";
 import { fitTextWithinWidth } from "../flow.DOM/fontMetrics";
+import { findImplicitChildren } from "../../../flow.core/src/flowParameters.js";
 
 
 const log = console.log;
@@ -142,23 +143,22 @@ export class StringDisplay extends Component {
 
 function scaledTextWithMaxFontSize(...parameters) {
   const properties = readFlowProperties(parameters);
-  findTextAndKeyInProperties(properties)
+  findImplicitChildren(properties);
+
   // console.log(properties);
   const fontSize = Math.min(basicWidgetTheme.fontSize, fitTextWithinWidth(properties.text, properties.width*0.8));
   // log(fontSize)
   return (
     centerMiddle(
-      text(properties.text), 
       {
+        key: properties.key,
+        children: properties.children,
         style: {
           ...fitContainerStyle,
           overflow: "hidden",
           fontSize: fontSize + "px",
           ...properties.style
         }
-      }, 
-      {    
-        key: properties.key,
       }
     )
   );

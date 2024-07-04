@@ -155,4 +155,4 @@ const log = console.log;
   }
 }
 
-domNodeClassRegistry["dom.elementNode"] = DOMElementNode;
+domNodeClassRegistry["elementNode"] = DOMElementNode;

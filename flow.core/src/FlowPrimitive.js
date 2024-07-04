@@ -1,5 +1,4 @@
 import { configuration, finalize, Component, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
-import { readFlowProperties, findTextAndKeyInProperties } from "./flowParameters";
 import { logMark } from "./utility.js";
 
 const log = console.log;
@@ -28,6 +27,7 @@ export class FlowPrimitive extends Component {
     if (parentPrimitive && this.parentPrimitive !== parentPrimitive) {
       if (this.parentPrimitive) {
         // log("FlowPrimitive.getPrimitive");
+        // TODO: Should this really be a warning? Normal behavior?
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
@@ -122,6 +122,10 @@ export class FlowPrimitive extends Component {
 
   getPrimitiveChildren() {
     return [...this.iteratePrimitiveChildren()];
+  }
+
+  build() {
+    throw new Error("Internal Error: A primitive should never be built!");
   }
 
   inheritAnimation() {

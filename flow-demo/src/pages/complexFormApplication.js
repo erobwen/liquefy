@@ -1,4 +1,4 @@
-import { Component, component, transaction, model } from "@liquefy/flow.core";
+import { Component, transaction, model } from "@liquefy/flow.core";
 import { DOMFlowTarget, div, span } from "@liquefy/flow.DOM";
 
 import { column, filler, fillerStyle, row, text } from "@liquefy/basicUI";
@@ -6,6 +6,7 @@ import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
 
 import { button, textInputField } from "../customUI";
+import { addDefaultStyleToProperties, readFlowProperties } from "../../../flow.core/src";
 
 const log = console.log;
 
@@ -113,8 +114,21 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
  * Reusable components. Flow component definitions.
  */
 
-const panel = component("panel", ({ children }) =>
-  div("panel", {children, style: {margin: "4px", borderRadius: "5px", backgroundColor: "#eeeeee", borderColor: "#cccccc", borderStyle: "solid", borderWidth: "1px", padding: "10px", boxSizing: "border-box"}})
+const panel = (...parameters) =>
+  div(
+    addDefaultStyleToProperties(
+      readFlowProperties(parameters),
+      {
+        margin: "4px", 
+        borderRadius: "5px", 
+        backgroundColor: "#eeeeee", 
+        borderColor: "#cccccc", 
+        borderStyle: "solid", 
+        borderWidth: "1px", 
+        padding: "10px", 
+        boxSizing: "border-box"
+      }
+  )
 );
 
 export class SimpleDrawer extends Component {

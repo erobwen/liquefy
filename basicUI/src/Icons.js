@@ -2,7 +2,7 @@
 // import { faCross, faPlus, faSuitcase, faXmark, faXmarkCircle } from '@fortawesome/free-solid-svg-icons';
 // import { DOMElementNode } from '@liquefy/flow';
 // import { finalize, repeat, trace } from '@liquefy/flow';
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { readFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.core";
 import { logMark } from '@liquefy/flow.core';
 
 import { extractProperty, span } from '@liquefy/flow.DOM';

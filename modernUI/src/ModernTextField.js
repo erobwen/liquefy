@@ -1,5 +1,5 @@
-import { findTextKeyAndOnClickInProperties, Flow } from "../flow/Flow";
-import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
+import { Component } from "../flow/Flow";
+import { readFlowProperties } from "../flow/flowParameters";
 import { div } from "../flow.DOM/BasicHtml";
 import { adjustLightness } from "./Color";
 import { button, inputField, text, textInputField } from "./basic/BasicWidgets";
@@ -23,7 +23,7 @@ export function modernTextField(label, getter, setter, ...parameters) {
   return new ModernTextField({label, getter, setter, ...readFlowProperties(parameters)});
 }
 
-export class ModernTextField extends Flow {
+export class ModernTextField extends Component {
 
   setProperties({label="[label]"}) {
     this.label = label; 

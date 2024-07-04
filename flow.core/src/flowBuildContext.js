@@ -20,3 +20,11 @@ export function getTheme() {
   const creator = getCreator();
   return creator ? creator.theme : null;
 }
+
+export function inherit(key) {
+  const creator = getCreator();
+  return creator ? creator.inherit(key) : null;
+}
+
+
+// Creator inheritance. 

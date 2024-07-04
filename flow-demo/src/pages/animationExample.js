@@ -1,4 +1,4 @@
-import { observable, Component, component, repeat, transaction } from "../flow/Flow";
+import { observable, Component, repeat, transaction } from "../flow/Flow";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { animationTime } from "../flow.DOM/DOMNodeAnimation";
 import { column, filler, row } from "../components/basic/Layout";
@@ -6,6 +6,7 @@ import { button, text } from "../components/basic/BasicWidgets";
 import { div } from "../flow.DOM/BasicHtml";
 import { startExperiment } from "..";
 import { standardAnimation } from "../flow.DOM/ZoomFlyDOMNodeAnimation";
+import { addDefaultStyleToProperties, readFlowProperties } from "../../../flow.core/src/flowParameters.js";
 
 const log = console.log;
 
@@ -29,21 +30,22 @@ const items = [
     "Fumbar"
 ];
 
-const panel = component("panel", ({ children, style }) =>
-  column({key: "panel", 
-    children, 
-    style: {
-      marginBottom: "0px", 
-      borderRadius: "15px", 
-      backgroundColor: "#eeeeee", 
-      borderColor: "#cccccc", 
-      borderStyle: "solid", 
-      borderWidth: "1px", 
-      padding: "10px", 
-      ...style
-    }
-  })
-);
+const panel = (...parameters) =>
+  column(
+    addDefaultStyleToProperties(
+      readFlowProperties(parameters),
+      {
+        marginBottom: "0px", 
+        borderRadius: "15px", 
+        backgroundColor: "#eeeeee", 
+        borderColor: "#cccccc", 
+        borderStyle: "solid", 
+        borderWidth: "1px", 
+        padding: "10px", 
+        ...style
+      }
+    ) 
+  );
 
 // Items
 function itemDisplay(item) {

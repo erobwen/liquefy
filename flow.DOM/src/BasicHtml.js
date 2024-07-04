@@ -1,6 +1,6 @@
 
 import { getTarget } from "@liquefy/flow.core";
-import { readFlowProperties, findTextAndKeyInPropertiesUsingCase, findTextAndKeyInProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { readFlowProperties, findImplicitChildren } from "@liquefy/flow.core";
 import { extractAttributes, extractProperty } from "./domNodeAttributes";
 
 
@@ -9,17 +9,17 @@ import { extractAttributes, extractProperty } from "./domNodeAttributes";
  */
 export function span(...parameters) {
   // log("Span")
-  let properties = findTextAndKeyInPropertiesUsingCase(readFlowProperties(parameters)); 
+  let properties = findImplicitChildren(readFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
-  textToTextNode(properties);
-  return getTarget().create({type: "dom.elementNode", tagName: "span", key: properties.key, classNameOverride: "span", attributes, children: properties.children, animate: properties.animate});
+  return getTarget().create({type: "elementNode", tagName: "span", key: properties.key, classNameOverride: "span", attributes, children: properties.children, animate: properties.animate});
 }
 
 export function div(...parameters) {
-  let properties = findTextAndKeyInProperties(readFlowProperties(parameters)); 
-  textToTextNode(properties);
+  let properties = findImplicitChildren(readFlowProperties(parameters)); 
+  // extractLoneChild(properties);
+  // console.log(properties);
   const attributes = extractAttributes(properties);
-  return getTarget().create({type: "dom.elementNode", tagName: "div", key: properties.key, classNameOverride: "div", attributes, children: properties.children, animate: properties.animate});
+  return getTarget().create({type: "elementNode", tagName: "div", key: properties.key, classNameOverride: "div", attributes, children: properties.children, animate: properties.animate});
 }
 
 
@@ -27,44 +27,40 @@ export function div(...parameters) {
  * Basic HTML Node building 
  */
 export function elemenNode(...parameters) {
-  let properties = findKeyInProperties(readFlowProperties(parameters)); 
+  let properties = findImplicitChildren(readFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
-  return getTarget().create({type: "dom.elementNode", key: properties.key, attributes, children: properties.children});
+  return getTarget().create({type: "elementNode", key: properties.key, attributes, children: properties.children});
 }
 
 export function textNode(...parameters) {
-  let properties = findTextAndKeyInProperties(readFlowProperties(parameters)); 
+  let properties = readFlowProperties(parameters);
+  findImplicitSingleTextInContent(properties); 
   const attributes = extractAttributes(properties);
-  return getTarget().create({type: "dom.textNode", text: properties.text, key: properties.key, attributes});
+  return getTarget().create({type: "textNode", text: properties.text, key: properties.key, attributes});
+}
+
+function findImplicitSingleTextInContent(properties) {
+  if (!properties.content) return;
+  if (properties.content.length > 1) throw new Error("Expecting just one text as content");
+  const content = extractProperty(properties, "content");
+  if (!["string", "number"].includes(typeof properties.content[0])) throw new Error("Expecting a string or number as content");
+  if (properties.text) throw new Error("Found implicit text, but 'text' is already definded in properties given.");
+  properties.text = content[0] + "";
 }
 
 export function styledDiv(classNameOverride, style, parameters) { 
-  const properties = findKeyInProperties(readFlowProperties(parameters));
+  const properties = findImplicitChildren(readFlowProperties(parameters));
   const attributes = extractAttributes(properties);
   attributes.style = {...style, ...attributes.style}; // Inject given style (while making it possible to override)
-  return getTarget().create({type: "dom.elementNode", key: properties.key, classNameOverride, tagName: "div", attributes, ...properties }); 
+  return getTarget().create({type: "elementNode", key: properties.key, classNameOverride, tagName: "div", attributes, ...properties }); 
 }
 
-export function textToTextNode(properties) {
-  if (properties.text) { //textToTextNode(parameters);
-    const textNode = getTarget().create({
-      type: "dom.textNode",
-      key: properties.key ? properties.key + ".text" : null,
-      text: extractProperty(properties, "text"),
-    })
-
-    if (properties.children) {
-      // throw new Error("Cannot combine a text property, with already existing children!");
-      console.warn("Combining a text property (text directly as a parameter) with children will force the text to be first");
-      properties.children.unshift(textNode);
-    } else {
-      // TODO: Investigate why there is an infinite loop if we do not add array around children??
-      properties.children = textNode; 
-        // [
-        // ]
-        ;
-    }
-
+// Note: this is needed because for some reason create() breaks on a childs array.  
+export function extractLoneChild(properties) {
+  if (!properties.children) return;
+  if (properties.children.length === 0) {
+    properties.children = null;
+  } else if (properties.children.length === 1) {
+    properties.children = properties.children[0];
   }
 }
-

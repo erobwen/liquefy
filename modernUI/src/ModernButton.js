@@ -5,14 +5,16 @@ import { button, text } from "../basic/BasicWidgets";
 import { panelStyle } from "./Style";
 import { centerMiddle, fitContainerStyle, wrapper } from "../basic/Layout";
 import { logMark } from "@liquefy/flow";
-import { findTextKeyAndOnClickInProperties, readFlowProperties } from "@liquefy/flow";
+import { findImplicitChildrenAndOnClick, readFlowProperties } from "@liquefy/flow";
 
 const log = console.log; 
 
 export function modernButton(...parameters) { 
-  const properties = findTextKeyAndOnClickInProperties(readFlowProperties(parameters));
-  properties.hoverEffect = true; 
-  properties.ripple = true; 
+  const properties = findImplicitChildrenAndOnClick(readFlowProperties(parameters));
+  
+  properties.hoverEffect = true; // Debug override
+  properties.ripple = true; // Debug override 
+
   return new ModernButton(properties);
 };
 

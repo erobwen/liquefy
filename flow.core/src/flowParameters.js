@@ -1,168 +1,164 @@
-import getWorld from "@liquefy/causaility";
-import { isObservable } from "./Flow.js";
-import { logMark, isUpperCase } from "./utility.js";
+import { Component, isObservable } from "./Flow.js";
+import { getTarget } from "./flowBuildContext.js";
 const log = console.log;
 
 export function addDefaultStyleToProperties(properties, defaultStyle) {
   properties.style = Object.assign({}, defaultStyle, properties.style);
-}
-
-export function findKeyInProperties(properties) {
-  if (!properties.stringsAndNumbers) return properties;
-  if (properties.stringsAndNumbers.length) {
-    properties.key = properties.stringsAndNumbers.pop();
-  }
-  if (properties.stringsAndNumbers.length) {
-    throw new Error("Found too many loose strings in flow parameters");
-  }
-  delete properties.stringsAndNumbers;
-  return properties; 
-}
-
-export function findTextAndKeyInProperties(properties) {
-  if (properties.children) {
-    // Containers usually should not contain text directly
-    return findKeyInProperties(properties)
-  }
-
-  // console.log(properties)
-  if (!properties.stringsAndNumbers) return properties;
-  if (properties.stringsAndNumbers.length) {
-    properties.text = properties.stringsAndNumbers.pop() + "";
-  }
-  if (properties.stringsAndNumbers.length) {
-    properties.key = properties.stringsAndNumbers.pop() + "";
-  }
-  if (properties.stringsAndNumbers.length) {
-    throw new Error("Found too many loose strings in flow parameters");
-  }
-  delete properties.stringsAndNumbers;
   return properties;
 }
 
-export function findTextAndKeyInPropertiesUsingCase(properties) {
-  if (properties.children) {
-    // Containers usually should not contain text directly
-    return findKeyInProperties(properties)
-  }
+export function extractProperty(object, property) {
+  const result = object[property];
+  delete object[property];
+  return result; 
+}
 
-  // console.log(properties)
-  if (!properties.stringsAndNumbers) return properties;
-  while(properties.stringsAndNumbers.length) {
-    const string = properties.stringsAndNumbers.pop();
-    if (properties.text && !properties.key) {
-      // only key left
-      properties.key = string; 
-    } else if (properties.key && !properties.text) {
-      // only text left
-      properties.text = string; 
-    } else if (/[a-z0-9]/.test(string[0]+"") && !properties.key) { //!(/[A-Z]|\s/.test(string[0] + "")
-      // We assume this is a key
-      properties.key = string;
-    } else if (!properties.text){
-      // Big character, assume it is a text.
-      properties.text = string; 
+export function findImplicitChildren(properties) {
+  if (!properties.content) return properties;
+
+  let children = null;
+  for (let item of extractProperty(properties, "content")) {
+    if (!children) children = [];
+    children.push(item);
+  }
+  if (children) {
+    if (properties.children) {
+      throw new Error("Children both implicitly defined as loose flow parameters, but also explicitly in flow properties.");
+    }
+    properties.children = children;
+  }
+  createTextNodesFromStringChildren(properties, properties.key);
+  return properties;
+}
+
+export function findImplicitChildrenAndOnClick(properties) {
+  const content = extractProperty(properties, "content");
+  let children = null;
+  let onClick = null;
+  for (let item of content) {
+    if (typeof item === "function") {
+      if (onClick) throw new Error("Can only have one onClick function as flow content.");
+      onClick = item; 
     } else {
-      throw new Error("Could not match loose strings in flow parameters, add them to properties.");
+      if (!children) children = [];
+      children.push(item);
     }
   }
-  delete properties.stringsAndNumbers;
+  if (onClick) {
+    if (properties.onClick) {
+      throw new Error("implicitly defined onClick already defined explicitly in properties.");
+    }
+    properties.onClick = onClick;
+  }
+  if (!properties.onClick) throw new Error("Expected onClick defined as a property.");
+  if (children) {
+    if (properties.children) {
+      throw new Error("implicitly defined children already defined explicitly in properties.");
+    }
+    properties.children = children;
+  }
+  createTextNodesFromStringChildren(properties, properties.key);
   return properties;
 }
 
-export function findTextKeyAndOnClickInProperties(properties) {
-  findTextAndKeyInPropertiesUsingCase(properties);
-  if (!properties.functions) return properties;
-  if (properties.functions.length) {
-    properties.onClick = properties.functions.pop();
-  }
-  if (properties.functions.length) {
-    throw new Error("Found too many loose functions in flow parameters");
-  }
-  delete properties.functions;
-  return properties;
-}
+function createTextNodesFromStringChildren(properties, keyPrefix) {
+  if (!properties.children) return;
 
-export function findBuildInProperties(properties) {
-  findKeyInProperties(properties);
-  if (!properties.functions) return properties;
-  if (properties.functions.length) {
-    properties.buildFunction = properties.functions.pop();
-  }
-  if (properties.functions.length) {
-    throw new Error("Found too many loose functions in flow parameters");
-  }
-  delete properties.functions;
-  return properties;
+  let stamp = 1;
+
+  properties.children = properties.children.map(child => {
+    if (typeof child === "string" || typeof child === "number") {
+      return getTarget().create({type: "textNode", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, text: child});
+    } else if (child instanceof Component) {
+      return child; 
+    } else {
+      throw new Error("Dont know what to do with flow component child: " + child.toS());  
+    }
+  }); 
 }
 
 export function readFlowProperties(arglist) {
   if (!(arglist instanceof Array)) throw new Error("readFlowProperties expects an array");
+
   // Shortcut if argument is a properties object
-  if (arglist[0] !== null && typeof(arglist[0]) === "object" && !(arglist[0] instanceof Array) && !isObservable(arglist[0]) && typeof(arglist[1]) === "undefined") {
-    return arglist[0];
+  const first = arglist[0]; 
+  if (arglist.length === 1 && first !== null && typeof(first) === "object" && !(first instanceof Array) && !isObservable(first)) {
+    return first;
   }
 
-  // The long way
-  let properties = {};
-  while (arglist.length > 0) {
-    if (typeof arglist[0] === "function") {
-      if (!properties.functions) {
-        properties.functions = [];
-      }
-      properties.functions.push(arglist.shift());
-    }
+  // Interpret arguments
+  return buildPropertiesObject(arglist);
+}
 
-    // String or numbers
-    if ((typeof arglist[0] === "string" || typeof arglist[0] === "number") && !arglist[0].causality) {
-      if (!properties.stringsAndNumbers) {
-        properties.stringsAndNumbers = [];
-      }
-      properties.stringsAndNumbers.push(arglist.shift());
-    }
+function buildPropertiesObject(arglist) {
+
+  // Things to find in arglist
+  let properties = null;
+  let looseContent = null;
+  let contentArray = null;
+
+  while (arglist.length > 0) {
+    let current = arglist.shift();
 
     // No argument, skip!
-    if (!arglist[0]) {
-      arglist.shift();
+    if (current === null) {
       continue;
     }
 
-    if (arglist[0] === true) {
-      throw new Error("Could not make sense of flow parameter 'true'");
+    // Loose content
+    if (typeof current === "boolean"
+      || typeof current === "function"
+      || typeof current === "string" 
+      || typeof current === "number" 
+      || (typeof current === "object" && current.causality)) { // model or Component
+      if (!looseContent) {
+        looseContent = [];
+      }
+      looseContent.push(current);
     }
 
-    // Not a flow object
-    if (typeof arglist[0] === "object" && !arglist[0].causality) {
-      if (arglist[0] instanceof Array) {
-        // Consider: Is this case really used, or could it be used to read a properties list itself?
-        throw new Error("Is this case really used!?");
-        if (!properties.children) properties.children = [];
-        for (let child of arglist.shift()) { // TODO: Use iterator! ?? Why?.. 
-          properties.children.push(child);
+    // A plain object, either a properties object, or a content array
+    if (typeof current === "object" && !current.causality) {
+      if (current instanceof Array) {
+        if (contentArray) {
+          throw new Error("Cannot have two content arrays in flow argument list")
         }
+        contentArray = current; 
       } else {
-        Object.assign(properties, arglist.shift());
+        if (properties) {
+          throw new Error("Cannot have two properties objects in flow argument list")
+        }
+        properties = current; 
       }
     }
-
-    // A flow object
-    if (typeof arglist[0] === "object" && arglist[0].causality) {
-      if (!properties.children) properties.children = [];
-      properties.children.push(arglist.shift());
-    }
-    //if (properties.children && !(typeof(properties.children) instanceof Array)) properties.children = [properties.children];
   }
+
+  let implicitKey = null;
+
+  if (!properties) properties = {};
+
+  if (contentArray) {
+    if (looseContent) {
+      implicitKey = looseContent.shift() + "";
+    }
+    if (looseContent.size > 0) {
+      throw new Error("Cannot have both loose content and a content array in flow argument");
+    }
+    properties.content = contentArray;
+  } else if (looseContent) {
+    const firstContent = looseContent[0];
+    if (((typeof firstContent === "string") && (/[a-z]/.test(firstContent[0]))) || typeof firstContent === "number") {
+      implicitKey = looseContent.shift() + "";
+    }
+    properties.content = looseContent;
+  }
+
+  if (implicitKey) {
+    if (properties.key) {
+      throw new Error("Cannot define key both explicitly and implicitly in flow argument list.");
+    }
+    properties.key = implicitKey;
+  }
+
   return properties;
-}
-
-function *iterateChildren(properties) {
-  if (properties.children instanceof Array) {
-    for (let child of properties.children) {
-      if (child instanceof Flow && child !== null) {
-        yield child;
-      }
-    }
-  } else if (properties.children instanceof Flow  && properties.children !== null) {
-    yield properties.children;
-  }
 }

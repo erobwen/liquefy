@@ -1,6 +1,6 @@
 import getWorld from "@liquefy/causaility";
 import { logMark, isUpperCase } from "./utility.js";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "./flowParameters";
+import { readFlowProperties, addDefaultStyleToProperties, findImplicitChildren } from "./flowParameters";
 import { creators, getCreator, getTarget, getTheme } from "./flowBuildContext.js";
 const log = console.log;
 
@@ -132,7 +132,9 @@ export class Component {
 
   constructor(...parameters) {
     // Process parameters. 
-    let properties = findKeyInProperties(readFlowProperties(parameters));
+    let properties = readFlowProperties(parameters);
+    findImplicitChildren(properties);
+
     if (properties.build) {
       properties.buildFunction = properties.build;
       delete properties.build;
@@ -597,7 +599,8 @@ export class Component {
   }
 }
 
-export function when(condition, operation) {
+
+export function when(condition, operation) { // TODO: Move to causality. 
   return repeat(() => {
     const value = condition();
     if (value) {
@@ -611,26 +614,6 @@ export function callback(callback, key) {
   return observable(callback, key);
 }
 
-
-export function component(descriptionOrBuildFunction, possibleBuildFunction) {
-  if (traceWarnings) console.warn("Deprecated: dont use this function, build a macro component instead using flow parameter helper functions.")
-  let description;
-  let buildFunction;
-  if (typeof descriptionOrBuildFunction === "string") {
-    description = descriptionOrBuildFunction;
-    buildFunction = possibleBuildFunction;
-  } else {
-    buildFunction = descriptionOrBuildFunction;
-  }
-  function flowBuilder(...parameters) {
-    const properties = findKeyInProperties(readFlowProperties(parameters));
-    properties.buildFunction = buildFunction;
-    const flow = new Component(properties);
-    if (description) flow.description = description;
-    return flow;
-  }
-  return flowBuilder;
-}
 
 function getShapeAnalysis(flow) {
   return {

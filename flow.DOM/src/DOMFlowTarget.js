@@ -1,5 +1,5 @@
 import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
-import { readFlowProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { readFlowProperties } from "@liquefy/flow.core";
 import { FlowTarget } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
@@ -92,7 +92,7 @@ export class DOMFlowTarget extends FlowTarget {
   }
 
   create(...parameters) {
-    const properties = findKeyInProperties(readFlowProperties(parameters));
+    const properties = readFlowProperties(parameters);
     const DOMNodeClass = domNodeClassRegistry[properties.type];
     if (!DOMNodeClass) throw Error("Unknown primitive type: " + properties.type);
     return new DOMNodeClass(properties)

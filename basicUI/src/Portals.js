@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
-import { readFlowProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { readFlowProperties } from "@liquefy/flow.core";
 
 import { extractAttributes } from "@liquefy/flow.DOM";
 
@@ -11,9 +11,7 @@ const log = console.log;
  * Portals
  */
 export function portalEntrance(...parameters) {
-  const properties = readFlowProperties(parameters);
-  findKeyInProperties(properties);
-  return new PortalEntrance(properties);
+  return new PortalEntrance(readFlowProperties(parameters));
 }
 
 export class PortalEntrance extends Component {
@@ -41,13 +39,12 @@ export class PortalEntrance extends Component {
 
 export function portalExit(...parameters) {
   const properties = readFlowProperties(parameters);
-  findKeyInProperties(properties);
   const attributes = extractAttributes(properties);
 
   // Return just a plain div (with portalExit debug info.)
   return getTarget().create(properties.key, 
     { 
-      type: "dom.elementNode",
+      type: "elementNode",
       classNameOverride: "portalExit", 
       tagName: "div", 
       attributes, 

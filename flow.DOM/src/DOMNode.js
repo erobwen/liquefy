@@ -1,6 +1,6 @@
 import { repeat, Component, trace, configuration, finalize, traceWarnings } from "@liquefy/flow.core";
 import { FlowPrimitive } from "@liquefy/flow.core";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { readFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { standardAnimation } from "./ZoomFlyDOMNodeAnimation";
 

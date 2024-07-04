@@ -1,10 +1,12 @@
 import { trace, Component, callback } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
-import { readFlowProperties, findTextAndKeyInProperties, findTextKeyAndOnClickInProperties, addDefaultStyleToProperties, findKeyInProperties } from "@liquefy/flow.core";
+import { readFlowProperties, findImplicitChildrenAndOnClick, addDefaultStyleToProperties } from "@liquefy/flow.core";
 
-import { extractProperty, extractChildStyles, div,  textToTextNode, extractAttributes } from "@liquefy/flow.DOM";
+import { extractProperty, extractChildStyles, div, extractAttributes } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
+import { extractLoneChild } from "../../flow.DOM/src/BasicHtml.js";
+import { findImplicitChildren } from "../../flow.core/src/flowParameters.js";
 
 const log = console.log;
 
@@ -30,14 +32,15 @@ export let basicWidgetTheme = {
  * Basic widgets
  */
 
-
 /**
  * Text macro flow
  * 
  * arguments: key, text, animate, + all HTML attributes 
  */
-export function text(...parameters) {
+export function text(...parameters) { // TODO: Rename as label, move to basicUI
   let properties = readFlowProperties(parameters);
+
+  // inherit("theme").text.style
 
   // Default style
   properties.style = Object.assign({}, basicWidgetTheme.text.style, properties.style);
@@ -46,20 +49,19 @@ export function text(...parameters) {
 }
 
 
-export function unstyledText(...parameters) {
-  let properties = readFlowProperties(parameters);
-  findTextAndKeyInProperties(properties);
+export function unstyledText(...parameters) { // TODO: Rename as label
+  let properties = readFlowProperties(parameters); 
+  findImplicitChildren(properties);
   // const debugIdentifier = properties.text ? properties.text.substring(0, 20) + "..." : "...";
-  textToTextNode(properties);
   extractAttributes(properties);
 
   // A label surrounded by div
   if (properties.div) return textDiv(properties);
   
   const key = extractProperty(properties, "key");
-  const label = getTarget().create(key ? key : null, 
+  const label = getTarget().create(key ? key : null, // TODO: move key into? 
     {
-      type: "dom.elementNode",
+      type: "elementNode",
       classNameOverride: "text",// + debugIdentifier + "]",
       tagName:"span",
       attributes: extractProperty(properties, "attributes"), 
@@ -67,7 +69,7 @@ export function unstyledText(...parameters) {
       animate: extractProperty(properties, "animate")
     });
 
-  // Error on too many properties. 
+  // Error on too many properties. TODO: Move this test to inside the create function? 
   if (Object.keys(properties).length) {
     throw new Error("text() macro flow got unknown properties:" + Object.keys(properties).join(", "));
   }
@@ -104,7 +106,7 @@ export function textInputField(label, getter, setter, ...parameters) {
 }
 
 export function inputField(type, label, getter, setter, ...parameters) {
-  const properties = findKeyInProperties(readFlowProperties(parameters));
+  const properties = readFlowProperties(parameters);
   let key;
   let error;
   if (!properties.key) {
@@ -141,7 +143,7 @@ export function inputField(type, label, getter, setter, ...parameters) {
     ...inputAttributes
   };
   
-  const children = [getTarget().create({type: "dom.elementNode", 
+  const children = [getTarget().create({type: "elementNode", 
     key: properties.key + ".input", 
     classNameOverride: type + "InputField", 
     tagName: "input", 
@@ -162,7 +164,8 @@ export function inputField(type, label, getter, setter, ...parameters) {
 
 export function button(...parameters) { 
   const properties = readFlowProperties(parameters);
-  findTextKeyAndOnClickInProperties(properties);
+  findImplicitChildrenAndOnClick(properties);
+
   addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
   const attributes = extractAttributes(properties);
   if (properties.disabled) attributes.disabled = true; 
@@ -177,21 +180,13 @@ export function button(...parameters) {
     }  
   }
 
-  // TODO: use textToTextNode
-  // Autogenerate child text node from string.
-  let children; 
-  if (properties.text && !properties.children) {
-    children = [getTarget().create({type: "dom.textNode", key: properties.key ? properties.key + ".button-text" : null, text: properties.text})]; 
-  } else {
-    children = properties.children;
-  } 
-
+  extractLoneChild(properties);
   const creationProperties = {
-    type: "dom.elementNode",
+    type: "elementNode",
     classNameOverride: "button", 
     tagName: "button", 
     attributes, 
-    children, 
+    children: properties.children, 
   }
   if (typeof(properties.animate) !== "undefined") { // Note: Had to do this to make animate undefined in the flow, so a set value could survive recreation. 
     creationProperties.animate = properties.animate;
@@ -205,7 +200,6 @@ export function button(...parameters) {
 
 export const panel = (...parameters) => {
   const properties = readFlowProperties(parameters);
-  findKeyInProperties(properties);
   addDefaultStyleToProperties(properties, {
     margin: "4px", 
     borderRadius: "5px", 
@@ -216,13 +210,6 @@ export const panel = (...parameters) => {
     padding: "10px", 
     boxSizing: "border-box"
   });
-  // console.log(properties);
-  return new Component({
-    ...properties,
-    description: "panel",
-    buildFunction: flow => {
-      return div("panel", properties);
-    }
-  });
+  return div(properties);
 }
 

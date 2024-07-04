@@ -1,5 +1,5 @@
 import { Component } from "../flow/Flow";
-import { readFlowProperties, findTextAndKeyInProperties } from "../flow/flowParameters";
+import { readFlowProperties } from "../flow/flowParameters";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { panel, text } from "../components/basic/BasicWidgets";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "../components/basic/Layout";
@@ -17,12 +17,10 @@ const loga = (action) => {
   log("-----------" + action + "-----------");
 }
 
-function dialog(...parameters) {
-  let properties = readFlowProperties(parameters);
-  properties = findTextAndKeyInProperties(properties);
-  return new Dialog(properties);
-}
 
+function dialog(...parameters) {
+  return new Dialog(readFlowProperties(parameters));
+}
 
 const panelStyle = {
   backgroundColor: "rgb(250, 250, 250)",

@@ -7,7 +7,7 @@ import { div } from "../flow.DOM/BasicHtml"
 ;
 import { logMark } from "../flow/utility";
 import { fitTextWithinWidth } from "../flow.DOM/fontMetrics";
-import { findImplicitChildren } from "../../../flow.core/src/flowParameters.js";
+import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/flowParameters.js";
 
 
 const log = console.log;
@@ -142,8 +142,7 @@ export class StringDisplay extends Component {
 }
 
 function scaledTextWithMaxFontSize(...parameters) {
-  const properties = getFlowProperties(parameters);
-  findImplicitChildren(properties);
+  const properties = getFlowPropertiesIncludingChildren(parameters);
 
   // console.log(properties);
   const fontSize = Math.min(basicWidgetTheme.fontSize, fitTextWithinWidth(properties.text, properties.width*0.8));

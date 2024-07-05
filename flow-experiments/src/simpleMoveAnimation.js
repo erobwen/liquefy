@@ -6,8 +6,8 @@ import { modernButton } from "../components/modern/ModernButton";
 import { overflowVisibleStyle, borderStyle, panelStyle } from "../components/modern/Style";
 import { button as basicButton } from "../components/basic/BasicWidgets";
 import { button } from "../components/themed/Theme";
-import { startExperiment, inExperiment } from "..";
-import { div } from "../flow.DOM/BasicHtml";
+// import { startExperiment, inExperiment } from "..";
+import { div, text } from "../flow.DOM/BasicHtml";
 import { logMark } from "../flow/utility";
 
 
@@ -81,7 +81,7 @@ export class SimpleMoveAnimation extends Component {
     return column(
       row(
         basicButton("Move", this.move.bind(this)),
-        basicButton("Experiment", () => startExperiment()),
+        // basicButton("Experiment", () => startExperiment()),
         filler(),
         {style: {...overflowVisibleStyle}}
       ),

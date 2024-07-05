@@ -2,7 +2,7 @@ import { Component, transaction, creators, getTarget } from "@liquefy/flow.core"
 import { getFlowProperties } from "@liquefy/flow.core";
 
 import { extractAttributes } from "@liquefy/flow.DOM";
-import { div } from "@liquefy/flow.DOM";
+import { div, elementNode } from "@liquefy/flow.DOM";
 import { logMark } from "@liquefy/flow.core";
 const log = console.log;
 
@@ -156,12 +156,11 @@ export class ModalFrame extends Component {
   build() {
     if (this.reallyDisposed) throw new Error("CANNOT REBUILD A DISPOSED ONE!!!");
     return new modalFrameDiv({style: this.style, children: this.actualChildren});
-    // return new styledDiv("modalFrame", this.style, {children: this.actualChildren});
   }
 }
 
 function modalFrameDiv(...parameters) {
   let properties = getFlowProperties(parameters); 
   const attributes = extractAttributes(properties);
-  return getTarget().create({type: "elementNode", tagName: "div", key: properties.key, classNameOverride: "modal-frame", attributes, children: properties.children});
+  return elementNode({type: "elementNode", tagName: "div", key: properties.key, classNameOverride: "modal-frame", attributes, children: properties.children});
 }

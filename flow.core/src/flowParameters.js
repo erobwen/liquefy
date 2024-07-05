@@ -2,16 +2,33 @@ import { Component, isObservable } from "./Flow.js";
 import { getTarget } from "./flowBuildContext.js";
 const log = console.log;
 
-export function addDefaultStyleToProperties(properties, defaultStyle) {
-  properties.style = Object.assign({}, defaultStyle, properties.style);
-  return properties;
-}
-
 export function extractProperty(object, property) {
   const result = object[property];
   delete object[property];
   return result; 
 }
+
+export function extractProperties(object, properties) {
+  const condensed = {};
+  properties.forEach(property => {
+    if (typeof(property) !== "string") {
+      property.partial.forEach(part => {
+        if (object[part]) {
+          condensed[part] = object[part]   
+        }
+      });
+      if (object[property.compound]) {
+        condensed[property.compound] = object[property.compound];
+      }
+    } else {
+      if (object[property]) {
+        condensed[property] = object[property];
+      }
+    }
+  });
+  return condensed;
+}
+
 
 export function findImplicitChildren(properties) {
   if (!properties.argumentsContent) return properties;
@@ -25,9 +42,7 @@ export function findImplicitChildren(properties) {
     if (properties.children) {
       throw new Error("Children both implicitly defined as loose flow parameters, but also explicitly in flow properties.");
     }
-    if (!children[0]) log(children);
     properties.children = children;
-    console.log(properties.children)
   }
   createTextNodesFromStringChildren(properties, properties.key);
   return properties;
@@ -81,7 +96,7 @@ function createTextNodesFromStringChildren(properties, keyPrefix) {
   }); 
 }
 
-export function getFlowPropertiesAndChildren(arglist) {
+export function getFlowPropertiesIncludingChildren(arglist) {
   const properties = getFlowProperties(arglist);
   findImplicitChildren(properties);
   return properties;
@@ -151,7 +166,7 @@ function buildPropertiesObject(arglist) {
     if (looseContent) {
       implicitKey = looseContent.shift() + "";
     }
-    if (looseContent.size > 0) {
+    if (looseContent && looseContent.size > 0) {
       throw new Error("Cannot have both loose content and a content array in flow argument");
     }
     properties.argumentsContent = contentArray;

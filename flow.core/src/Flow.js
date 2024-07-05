@@ -1,7 +1,7 @@
 import getWorld from "@liquefy/causaility";
 import { logMark, isUpperCase } from "./utility.js";
-import { getFlowProperties, addDefaultStyleToProperties, findImplicitChildren } from "./flowParameters";
-import { creators, getCreator, getTarget, getTheme } from "./flowBuildContext.js";
+import { getFlowProperties, findImplicitChildren } from "./flowParameters";
+import { creators, getCreator } from "./flowBuildContext.js";
 const log = console.log;
 
 
@@ -147,18 +147,19 @@ export class Component {
     let properties = getFlowProperties(parameters);
     findImplicitChildren(properties);
 
-    if (properties.build) {
-      properties.buildFunction = properties.build;
-      delete properties.build;
-    }
     // log("Flow constructor: " + this.className() + "." + properties.key);
 
     // For debug purposes, this place this property first in the list and makes it easier to identify flows when they are proxies in the debugger. 
     this._ = null; 
 
-    // Key
+    // Key & class name override
     if (!this.key) this.key = properties.key ? properties.key : null;
     delete properties.key;
+    if (properties.classNameOverride) {
+      this.classNameOverride = properties.classNameOverride;
+      delete properties.classNameOverride; 
+    }
+
     // this.flowDepth = this.creator ? this.creator.flowDepth + 1 : 0;
     
     // Auto set all properties to this. Have an option for this?
@@ -205,7 +206,7 @@ export class Component {
   /**
    * Lifecycle methods
    */
-  setProperties() {
+  setProperties(properties) {
     // throw new Error("Not implemented yet");
   }
 

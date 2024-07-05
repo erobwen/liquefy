@@ -33,8 +33,7 @@ export class FlowTarget {
 	// new ways. For example, a DOMFlowTarget may create FlowPrimitive objects that renders a DOM in a web browsser.
 	// But the same flow could be sent to a FlowTarget that renders a native app, or create contents for a printout, 
 	// or create a server rendered page. The possibilities are endless!      
-	create(...parameters) {
-		const properties = getFlowProperties(parameters);
+	create(properties) {
 		throw new Error("Not implemented yet!");
 	}
 	

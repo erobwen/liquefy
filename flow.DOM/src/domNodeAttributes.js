@@ -3,12 +3,12 @@
  * Element Node Attributes 
  */
 export function extractAttributes(properties) {
-  // TODO: Do not destructivley change properties... can we guarantee that we do not change a const 
-  const attributes = {};
+  let attributes = null;
   if (!properties) return attributes;
   eventHandlerContentElementAttributes.forEach(
     attribute => {
       if (typeof(properties[attribute.camelCase]) !== "undefined") {
+        if (!attributes) attributes = {};
         attributes[attribute.lowerCase] = properties[attribute.camelCase];
         delete properties[attribute.camelCase];
       }
@@ -17,13 +17,20 @@ export function extractAttributes(properties) {
   globalElementAttributes.forEach(
     attribute => {
       if (typeof(properties[attribute.camelCase]) !== "undefined") {
+        if (!attributes) attributes = {};
         attributes[attribute.lowerCase] = properties[attribute.camelCase];
         delete properties[attribute.camelCase]; // Destructive change of properties... could this cause problems?
       }
     }
   );
-  if (properties.className) attributes["class"] = properties.className;  
-  properties.attributes = attributes;
+
+  // if (properties.className) attributes["class"] = properties.className;  
+  if (attributes) {
+    if (properties.attributes) {
+      throw new Error("An attributes property is already existing in properties, combined with loose attributes.")
+    }
+    properties.attributes = attributes;
+  }
   return attributes;
 }
 
@@ -163,10 +170,3 @@ const childStylePropertiesCamelCase = [
 ]
 
 const childStyleProperties = childStylePropertiesCamelCase.map(camelCase => ({camelCase, lowerCase: camelCase.toLowerCase()}));
-
-
-export function extractProperty(object, property) {
-  const result = object[property];
-  delete object[property];
-  return result; 
-}

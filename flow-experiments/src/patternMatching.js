@@ -1,7 +1,8 @@
 import { observable, Component } from "../flow/Flow";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { button, text } from "../components/basic/BasicWidgets";
+import { button } from "../components/basic/BasicWidgets";
 import { column, row } from "../components/basic/Layout";
+import { text } from "../../flow.DOM/src/HTMLBuilding.js";
 
 const log = console.log;
 

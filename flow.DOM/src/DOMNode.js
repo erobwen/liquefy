@@ -1,7 +1,7 @@
-import { repeat, Component, trace, configuration, finalize, traceWarnings } from "@liquefy/flow.core";
+import { repeat, trace, finalize, traceWarnings } from "@liquefy/flow.core";
 import { FlowPrimitive } from "@liquefy/flow.core";
-import { getFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
+
 import { standardAnimation } from "./ZoomFlyDOMNodeAnimation";
 
 const log = console.log;

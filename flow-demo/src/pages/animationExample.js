@@ -1,12 +1,9 @@
-import { observable, Component, repeat, transaction } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { animationTime } from "../flow.DOM/DOMNodeAnimation";
-import { column, filler, row } from "../components/basic/Layout";
-import { button, text } from "../components/basic/BasicWidgets";
-import { div } from "../flow.DOM/BasicHtml";
-import { startExperiment } from "..";
-import { standardAnimation } from "../flow.DOM/ZoomFlyDOMNodeAnimation";
-import { addDefaultStyleToProperties, getFlowProperties } from "../../../flow.core/src/flowParameters.js";
+import { observable, Component, transaction } from "@liquefy/flow.core";
+import { button, column, filler, row } from "@liquefy/basicUI";
+import { text, DOMFlowTarget } from "@liquefy/flow.DOM";
+// import { startExperiment } from "..";
+import { standardAnimation } from "@liquefy/flow.DOM";
+import { getFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 const log = console.log;
 
@@ -103,9 +100,9 @@ export class AnimationExample extends Component {
         button({text: "Add random", disabled: this.store.length === 0, onClick: () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA))}),
         button({text: "Remove random", disabled: this.listA.length === 0, onClick: () => transaction(() => this.store.push(removeOneRandom(this.listA)))}),
         button({text: "Juggle", onClick: () => this.juggle()}),
-        button({text: "Experiment", onClick: () => {
-          startExperiment();
-        }})
+        // button({text: "Experiment", onClick: () => {
+        //   startExperiment();
+        // }})
       ),
       row(
         column(

@@ -2,7 +2,7 @@ import { Component } from "../flow/Flow";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { centerMiddle, column, fillerStyle, layoutBorderStyle } from "../components/basic/Layout";
 import { applicationMenuFrame } from "../components/basic/ApplicationMenuFrame";
-import { text } from "../components/basic/BasicWidgets";
+import { text } from "../../flow.DOM/src/HTMLBuilding.js";
 
 const log = console.log;
 

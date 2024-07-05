@@ -1,3 +1,4 @@
+import { extractProperty } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
 import { domNodeClassRegistry } from "./DOMFlowTarget";
   
@@ -7,6 +8,16 @@ const log = console.log;
  * DOM Flow Target Primitive
  */
  export class DOMElementNode extends DOMNode {
+  setProperties(properties) {
+    this.attributes = extractProperty(properties, "attributes");
+    this.children = extractProperty(properties, "children");
+    this.animation = extractProperty(properties, "animation");
+
+    const redundantProperties = Object.keys(properties);  
+    if (redundantProperties.length > 0) 
+      throw new Error("Unexpected keys in DOMNode properties: " + redundantProperties.join(", "));
+  }
+
   initialUnobservables() {
     let result = super.initialUnobservables();
     result.previouslySetStyles = {};

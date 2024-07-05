@@ -1,8 +1,8 @@
 import { Component } from "../flow/Flow";
 import { getFlowProperties } from "../flow/flowParameters";
-import { div } from "../flow.DOM/BasicHtml";
+import { div, text } from "../flow.DOM/BasicHtml";
 import { adjustLightness } from "./Color";
-import { button, inputField, text, textInputField } from "./basic/BasicWidgets";
+import { button, inputField, textInputField } from "./basic/BasicWidgets";
 import { panelStyle } from "./modern/Style";
 import { centerMiddle, column, filler, fitContainerStyle, row } from "./basic/Layout";
 

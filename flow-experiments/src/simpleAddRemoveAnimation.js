@@ -1,5 +1,5 @@
-import { div } from "../flow.DOM/BasicHtml";
-import { button, text } from "../components/basic/BasicWidgets";
+import { div, text } from "../flow.DOM/BasicHtml";
+import { button } from "../components/basic/BasicWidgets";
 import { column } from "../components/basic/Layout";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget";
 import { Component } from "../flow/Flow";
@@ -15,7 +15,7 @@ export class SimpleAddRemoveAnimation extends Component {
     this.color = "green"; 
   }
 
-  // text("Some text", {div: false, animate: true, key: "my-text", style: {color: "green"}}).show(this.showText)
+  // text("Some text", {animate: true, key: "my-text", style: {color: "green"}}).show(this.showText)
 
   onClick() {
     this.showText = !this.showText;

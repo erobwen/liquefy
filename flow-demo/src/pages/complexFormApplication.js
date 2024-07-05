@@ -1,12 +1,11 @@
-import { Component, transaction, model } from "@liquefy/flow.core";
-import { DOMFlowTarget, div, span } from "@liquefy/flow.DOM";
+import { Component, transaction, model, getFlowProperties } from "@liquefy/flow.core";
+import { DOMFlowTarget, div, span, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { column, filler, fillerStyle, row, text } from "@liquefy/basicUI";
 import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
 
 import { button, textInputField } from "../customUI";
-import { addDefaultStyleToProperties, getFlowProperties } from "../../../flow.core/src";
 
 const log = console.log;
 

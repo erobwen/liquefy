@@ -1,10 +1,10 @@
 import { observable, Component, repeat } from "../flow/Flow";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { panel, text } from "../components/basic/BasicWidgets";
+import { panel } from "../components/basic/BasicWidgets";
 import { column, filler, row, centerMiddle, columnStyle} from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
 import { overflowVisibleStyle, borderStyle, panelStyle } from "../components/modern/Style";
-import { div, span } from "../flow.DOM/BasicHtml"
+import { div, span, text } from "../flow.DOM/BasicHtml"
 ;
 import { button } from "../components/themed/Theme";
 import { suitcaseIcon } from "../components/basic/Icons";

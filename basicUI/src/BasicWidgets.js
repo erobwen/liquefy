@@ -1,12 +1,11 @@
 import { trace, Component, callback } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
-import { getFlowProperties, findImplicitChildrenAndOnClick, addDefaultStyleToProperties } from "@liquefy/flow.core";
+import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
-import { extractProperty, extractChildStyles, div, extractAttributes } from "@liquefy/flow.DOM";
+import { extractChildStyles, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
-import { extractLoneChild } from "../../flow.DOM/src/BasicHtml.js";
-import { findImplicitChildren, getFlowPropertiesAndChildren } from "../../flow.core/src/flowParameters.js";
+import { extractLoneChild, text } from "../../flow.DOM/src/HTMLBuilding.js";
 
 const log = console.log;
 
@@ -37,7 +36,7 @@ export let basicWidgetTheme = {
  * 
  * arguments: key, text, animate, + all HTML attributes 
  */
-export function text(...parameters) { // TODO: Rename as label, move to basicUI
+export function label(...parameters) { // TODO: Rename as label, move to basicUI
   let properties = getFlowProperties(parameters);
 
   // inherit("theme").text.style
@@ -45,46 +44,7 @@ export function text(...parameters) { // TODO: Rename as label, move to basicUI
   // Default style
   properties.style = Object.assign({}, basicWidgetTheme.text.style, properties.style);
 
-  return label(properties)
-}
-
-
-export function label(...parameters) { // TODO: Rename as label
-  let properties = getFlowPropertiesAndChildren(parameters);
-
-  // const debugIdentifier = properties.text ? properties.text.substring(0, 20) + "..." : "...";
-  extractAttributes(properties);
-
-  // A label surrounded by div
-  if (properties.div) return textDiv(properties);
-  
-  const key = extractProperty(properties, "key");
-  const label = getTarget().create(key ? key : null, // TODO: move key into? 
-    {
-      type: "elementNode",
-      classNameOverride: "text",// + debugIdentifier + "]",
-      tagName: "label",
-      attributes: extractProperty(properties, "attributes"), 
-      children: extractProperty(properties, "children"), 
-      animate: extractProperty(properties, "animate")
-    });
-
-  // Error on too many properties. TODO: Move this test to inside the create function? 
-  if (Object.keys(properties).length) {
-    throw new Error("text() macro flow got unknown properties:" + Object.keys(properties).join(", "));
-  }
-
-  return label; 
-}
-
-
-export function textDiv(properties) {
-  delete properties.div;
-  const style = extractChildStyles(extraproperties.attributes.style); 
-  const animate = extractProperty(properties, "animate"); 
-  const key = extractProperty(properties, "key");
-  properties.key = key ? key + ".label" : null;
-  return div(label(properties), {key, style, animate});
+  return htmlLabel(properties)
 }
 
 
@@ -149,7 +109,7 @@ export function inputField(type, label, getter, setter, ...parameters) {
     tagName: "input", 
     attributes, 
     onClick: properties.onClick})];
-  const labelChild = text(label, {style: {paddingRight: "4px", margin: ""}, ...properties.labelProperties}); 
+  const labelChild = label(text(label), {style: {paddingRight: "4px", margin: ""}, ...properties.labelProperties}); 
   if (type === "checkbox") {
     children.push(labelChild);
   } else {
@@ -180,22 +140,7 @@ export function button(...parameters) {
     }  
   }
 
-  extractLoneChild(properties);
-  const creationProperties = {
-    type: "elementNode",
-    classNameOverride: "button", 
-    tagName: "button", 
-    attributes, 
-    children: properties.children, 
-  }
-  if (typeof(properties.animate) !== "undefined") { // Note: Had to do this to make animate undefined in the flow, so a set value could survive recreation. 
-    creationProperties.animate = properties.animate;
-  }
-  if (typeof(properties.onClick) !== "undefined") { // Note: Had to do this to make onClick undefined in the flow, so a set value could survive recreation. 
-    creationProperties.onClick = properties.onClick;
-  }
-  result = getTarget().create(properties.key, creationProperties);
-  return result; 
+  return htmlButton(properties);
 };
 
 export const panel = (...parameters) => {

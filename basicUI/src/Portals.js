@@ -42,8 +42,9 @@ export function portalExit(...parameters) {
   const attributes = extractAttributes(properties);
 
   // Return just a plain div (with portalExit debug info.)
-  return getTarget().create(properties.key, 
+  return getTarget().create( 
     { 
+      key: properties.key,
       type: "elementNode",
       classNameOverride: "portalExit", 
       tagName: "div", 

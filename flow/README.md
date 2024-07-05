@@ -135,7 +135,7 @@ https://docs.google.com/presentation/d/13E7E8TzRBoGBJ5BhVV78-s73AnYHnI4MrQ233xih
 
 The arguments to any given flow component follow a standard pattern. 
 
-myComponent([Component|string|number]*, )
+myComponent([key],[Component|model|string|number]*,[properties])
 
 The argument list contains: 
  * At most one plain JS object that is the properties object, this object can contain whatever the component needs. 

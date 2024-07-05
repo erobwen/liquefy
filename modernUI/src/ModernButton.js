@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/flow";
-import { div } from "../../flow.DOM/BasicHtml";
+import { div, text } from "../../flow.DOM/BasicHtml";
 import { adjustLightness, grayColor } from "../../flow-demo/src/components/themed/Color";
-import { button, text } from "../basic/BasicWidgets";
+import { button } from "../basic/BasicWidgets";
 import { panelStyle } from "./Style";
 import { centerMiddle, fitContainerStyle, wrapper } from "../basic/Layout";
 import { logMark } from "@liquefy/flow";
@@ -28,7 +28,6 @@ export class ModernButton extends Component {
     style={},
     
     children, 
-    text, 
     
     onClick,
     
@@ -265,17 +264,7 @@ export class ModernButton extends Component {
       children = this.children;
     } else if (this.render) {
       children = this.render(); 
-    } else if (this.text) {
-      children = text(
-        "text",
-        this.text,
-        {style: {
-          cursor: "pointer", 
-          pointerEvents: "none"
-        }}
-        ) 
     }
-
     
     return button("button",
       children, 

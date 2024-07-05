@@ -50,27 +50,6 @@ export function logProperties(object, properties) {
   log(extractProperties(object, properties));
 }
 
-export function extractProperties(object, properties) {
-  const condensed = {};
-  properties.forEach(property => {
-    if (typeof(property) !== "string") {
-      property.partial.forEach(part => {
-        if (object[part]) {
-          condensed[part] = object[part]   
-        }
-      });
-      if (object[property.compound]) {
-        condensed[property.compound] = object[property.compound];
-      }
-    } else {
-      if (object[property]) {
-        condensed[property] = object[property];
-      }
-    }
-  });
-  return condensed;
-}
-
 
 /**
  * Global flow change tracking

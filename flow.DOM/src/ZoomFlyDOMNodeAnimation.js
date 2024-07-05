@@ -1,6 +1,6 @@
-import { draw, insertAfter, logMark } from "@liquefy/flow.core";
+import { draw, insertAfter, extractProperties, logMark } from "@liquefy/flow.core";
 
-import { camelCase, changeType, extractProperties, flowChanges, freezeFlowChanges, sameBounds, unfreezeFlowChanges } from "./DOMAnimation";
+import { camelCase, changeType, flowChanges, freezeFlowChanges, sameBounds, unfreezeFlowChanges } from "./DOMAnimation";
 // import { movedPrimitives } from "./DOMNode";
 import { DOMNodeAnimation } from "./DOMNodeAnimation";
 

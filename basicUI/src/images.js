@@ -1,6 +1,6 @@
-import { addDefaultStyleToProperties, getFlowProperties, getTarget } from "@liquefy/flow.core";
+import { getFlowProperties, getTarget } from "@liquefy/flow.core";
 
-import { div, elemenNode, extractAttributes } from "@liquefy/flow.DOM";
+import { div, elementNode, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 // import flowImage from "../../resources/flow.svg"
 

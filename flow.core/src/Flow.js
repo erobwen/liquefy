@@ -164,6 +164,10 @@ export class Component {
     
     // Auto set all properties to this. Have an option for this?
     if (configuration.autoAssignProperties) {
+      if (properties.className) {
+        console.log(properties.className);
+        throw new Error("Dont!");
+      }
       Object.assign(this, properties);
     }
     

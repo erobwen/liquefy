@@ -1,3 +1,5 @@
+import { extractProperty } from "@liquefy/flow.core";
+
 
 /**
  * Element Node Attributes 
@@ -24,7 +26,10 @@ export function extractAttributes(properties) {
     }
   );
 
-  // if (properties.className) attributes["class"] = properties.className;  
+  if (properties.className) {
+    if (!attributes) attributes = {};
+    attributes["class"] = extractProperty(properties, "className");  
+  }
   if (attributes) {
     if (properties.attributes) {
       throw new Error("An attributes property is already existing in properties, combined with loose attributes.")

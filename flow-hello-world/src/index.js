@@ -16,8 +16,9 @@ class HelloWorld extends Component {
       ),
       1, 
       span("Bold", {style: {fontWeight: "bold"}}),
-      div("Next"),
-      "some other text"
+      div("Next", {style: {borderWidth: "1px", borderStyle: "solid"}}),
+      "some other text", 
+      {style: {padding: "20px", boxSizing: "border-box"}}
     );
   }
 }

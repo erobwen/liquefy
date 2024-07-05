@@ -24,6 +24,8 @@ export function textNode(...parameters) {
   return getTarget().create({type: "textNode", ...properties});
 }
 
+export const text = textNode;
+
 function findImplicitSingleTextInContent(properties) {
   if (!properties.argumentsContent) return;
   if (properties.argumentsContent.length > 1) throw new Error("Expecting just one text as content");

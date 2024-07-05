@@ -2,10 +2,9 @@ import { trace, Component, callback } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
 import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
-import { extractChildStyles, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { text, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
-import { extractLoneChild, text } from "../../flow.DOM/src/HTMLBuilding.js";
 
 const log = console.log;
 
@@ -32,11 +31,9 @@ export let basicWidgetTheme = {
  */
 
 /**
- * Text macro flow
- * 
- * arguments: key, text, animate, + all HTML attributes 
+ * Label
  */
-export function label(...parameters) { // TODO: Rename as label, move to basicUI
+export function label(...parameters) {
   let properties = getFlowProperties(parameters);
 
   // inherit("theme").text.style
@@ -53,24 +50,24 @@ export function label(...parameters) { // TODO: Rename as label, move to basicUI
  * 
  * highlighted arguments: label, getter, setter,
  */
-export function checkboxInputField(label, getter, setter, ...parameters) {
-  return inputField("checkbox", label, getter, setter, ...parameters);
+export function checkboxInputField(labelText, getter, setter, ...parameters) {
+  return inputField("checkbox", labelText, getter, setter, ...parameters);
 }
 
-export function numberInputField(label, getter, setter, ...parameters) {
-  return inputField("number", label, getter, setter, ...parameters);
+export function numberInputField(labelText, getter, setter, ...parameters) {
+  return inputField("number", labelText, getter, setter, ...parameters);
 }
 
-export function textInputField(label, getter, setter, ...parameters) {
-  return inputField("text", label, getter, setter, ...parameters);
+export function textInputField(labelText, getter, setter, ...parameters) {
+  return inputField("text", labelText, getter, setter, ...parameters);
 }
 
-export function inputField(type, label, getter, setter, ...parameters) {
+export function inputField(type, labelText, getter, setter, ...parameters) {
   const properties = getFlowProperties(parameters);
   let key;
   let error;
   if (!properties.key) {
-    properties.key = label;
+    properties.key = labelText;
   }
 
   if (typeof(getter) === "object" && typeof(setter) === "string") {
@@ -85,10 +82,12 @@ export function inputField(type, label, getter, setter, ...parameters) {
 
   const inputAttributes = extractAttributes(properties.inputProperties);
   delete properties.inputProperties;
-  if (type === "number") {
-    if (!inputAttributes.style) inputAttributes.style = {};
-    if (!inputAttributes.style.width) inputAttributes.style.width = "50px";
-  } 
+  if (inputAttributes) {
+    if (type === "number") {
+      if (!inputAttributes.style) inputAttributes.style = {};
+      if (!inputAttributes.style.width) inputAttributes.style.width = "50px";
+    } 
+  }
   const attributes = {
     oninput: callback(event => setter(type === "checkbox" ? event.target.checked : event.target.value), properties.key + ".oninput"),
     value: getter(),
@@ -109,7 +108,7 @@ export function inputField(type, label, getter, setter, ...parameters) {
     tagName: "input", 
     attributes, 
     onClick: properties.onClick})];
-  const labelChild = label(text(label), {style: {paddingRight: "4px", margin: ""}, ...properties.labelProperties}); 
+  const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: ""}}); 
   if (type === "checkbox") {
     children.push(labelChild);
   } else {

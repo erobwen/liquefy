@@ -50,6 +50,8 @@ export function findImplicitChildren(properties) {
 
 export function findImplicitChildrenAndOnClick(properties) {
   const argumentsContent = extractProperty(properties, "argumentsContent");
+  if (!argumentsContent) return properties;
+  
   let children = null;
   let onClick = null;
   for (let item of argumentsContent) {

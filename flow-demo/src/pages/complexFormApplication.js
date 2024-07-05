@@ -1,7 +1,7 @@
 import { Component, transaction, model, getFlowProperties } from "@liquefy/flow.core";
-import { DOMFlowTarget, div, span, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { DOMFlowTarget, text, div, span, p, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
-import { column, filler, fillerStyle, row, text } from "@liquefy/basicUI";
+import { column, filler, fillerStyle, row } from "@liquefy/basicUI";
 import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
 
@@ -186,8 +186,8 @@ export class ComplexForm extends Component {
         div("scrollPanel",
           column(
             // Header       
-            text("Cost: " + calculateCost(data), {style: {marginBottom: "5px"}}),
-            text("Traveler Information " + travelerString(), {style: {fontSize: "15px", paddingBottom: "10px"}}),
+            p("Cost: " + calculateCost(data), {style: {marginBottom: "5px"}}),
+            p("Traveler Information " + travelerString(), {style: {fontSize: "15px", paddingBottom: "10px"}}),
 
             // Traveler forms
             new TravelerForm({traveler, isFellowTraveller: false}),

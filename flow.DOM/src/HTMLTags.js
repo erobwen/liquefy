@@ -1,4 +1,4 @@
-import { getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
+import { getFlowPropertiesIncludingChildren, findImplicitChildrenAndOnClick, getFlowProperties } from "@liquefy/flow.core";
 import { extractAttributes } from "./domNodeAttributes";
 import { elementNode } from "./HTMLBuilding";
 

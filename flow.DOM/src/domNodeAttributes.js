@@ -31,7 +31,10 @@ export function extractAttributes(properties) {
     }
     properties.attributes = attributes;
   }
-  return attributes;
+
+  if (!properties.attributes) properties.attributes = {};
+
+  return properties.attributes;
 }
 
 

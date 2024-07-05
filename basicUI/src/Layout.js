@@ -1,4 +1,6 @@
 import { deepFreeze } from "@liquefy/flow.core";
+import { getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
+import { elementNode, extractAttributes } from "@liquefy/flow.DOM";
 
 const log = console.log;
 
@@ -7,7 +9,7 @@ export function styledDiv(classNameOverride, style, parameters) {
   const properties = getFlowPropertiesIncludingChildren(parameters);
   const attributes = extractAttributes(properties);
   attributes.style = {...style, ...attributes.style}; // Inject given style (while making it possible to override)
-  return getTarget().create({type: "elementNode", key: properties.key, classNameOverride, tagName: "div", attributes, ...properties }); 
+  return elementNode({type: "elementNode", classNameOverride, tagName: "div", ...properties}); 
 }
 
 

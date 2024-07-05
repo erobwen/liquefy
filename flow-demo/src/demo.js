@@ -2,11 +2,11 @@ import { observable, Component, repeat, creators } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
 import { DOMFlowTarget } from "@liquefy/flow.DOM";
-import { span } from "@liquefy/flow.DOM";
+import { span, text } from "@liquefy/flow.DOM";
 
 import { portalExit } from "@liquefy/basicUI";
 import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basicUI";
-import { applicationMenuFrame, svgImage, text } from "@liquefy/basicUI";
+import { applicationMenuFrame, svgImage } from "@liquefy/basicUI";
 
 import flowImage from "../resources/flow.svg"
 

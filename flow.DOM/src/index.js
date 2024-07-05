@@ -108,7 +108,7 @@ import {
   slot,
   template
 } from "./HTMLTags";
-import { elementNode, textNode, addDefaultStyleToProperties } from "./HTMLBuilding";
+import { elementNode, textNode, text, addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode } from "./DOMElementNode";
 import { DOMTextNode } from "./DOMTextNode"
 import { DOMFlowTarget} from "./DOMFlowTarget"
@@ -236,6 +236,7 @@ export {
     // Basic HTML
     elementNode, 
     textNode,
+    text,
     addDefaultStyleToProperties,
 
     // DOMElementNode

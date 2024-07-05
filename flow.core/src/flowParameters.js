@@ -14,10 +14,10 @@ export function extractProperty(object, property) {
 }
 
 export function findImplicitChildren(properties) {
-  if (!properties.content) return properties;
+  if (!properties.argumentsContent) return properties;
 
   let children = null;
-  for (let item of extractProperty(properties, "content")) {
+  for (let item of extractProperty(properties, "argumentsContent")) {
     if (!children) children = [];
     children.push(item);
   }
@@ -25,17 +25,19 @@ export function findImplicitChildren(properties) {
     if (properties.children) {
       throw new Error("Children both implicitly defined as loose flow parameters, but also explicitly in flow properties.");
     }
+    if (!children[0]) log(children);
     properties.children = children;
+    console.log(properties.children)
   }
   createTextNodesFromStringChildren(properties, properties.key);
   return properties;
 }
 
 export function findImplicitChildrenAndOnClick(properties) {
-  const content = extractProperty(properties, "content");
+  const argumentsContent = extractProperty(properties, "argumentsContent");
   let children = null;
   let onClick = null;
-  for (let item of content) {
+  for (let item of argumentsContent) {
     if (typeof item === "function") {
       if (onClick) throw new Error("Can only have one onClick function as flow content.");
       onClick = item; 
@@ -67,20 +69,28 @@ function createTextNodesFromStringChildren(properties, keyPrefix) {
   let stamp = 1;
 
   properties.children = properties.children.map(child => {
-    if (typeof child === "string" || typeof child === "number") {
+    if (typeof child === "undefined" || child === null) {
+      return child; 
+    } else if (typeof child === "string" || typeof child === "number") {
       return getTarget().create({type: "textNode", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, text: child});
     } else if (child instanceof Component) {
       return child; 
     } else {
-      throw new Error("Dont know what to do with flow component child: " + child.toS());  
+      throw new Error("Dont know what to do with flow component child: " + child.toString());  
     }
   }); 
 }
 
-export function readFlowProperties(arglist) {
-  if (!(arglist instanceof Array)) throw new Error("readFlowProperties expects an array");
+export function getFlowPropertiesAndChildren(arglist) {
+  const properties = getFlowProperties(arglist);
+  findImplicitChildren(properties);
+  return properties;
+} 
 
-  // Shortcut if argument is a properties object
+export function getFlowProperties(arglist) {
+  if (!(arglist instanceof Array)) throw new Error("getFlowProperties expects an array");
+
+  // Shortcut if argument is a single properties object
   const first = arglist[0]; 
   if (arglist.length === 1 && first !== null && typeof(first) === "object" && !(first instanceof Array) && !isObservable(first)) {
     return first;
@@ -101,7 +111,7 @@ function buildPropertiesObject(arglist) {
     let current = arglist.shift();
 
     // No argument, skip!
-    if (current === null) {
+    if (typeof current === "undefined" || current === null) {
       continue;
     }
 
@@ -110,7 +120,7 @@ function buildPropertiesObject(arglist) {
       || typeof current === "function"
       || typeof current === "string" 
       || typeof current === "number" 
-      || (typeof current === "object" && current.causality)) { // model or Component
+      || isObservable(current)) { // model or component
       if (!looseContent) {
         looseContent = [];
       }
@@ -144,13 +154,13 @@ function buildPropertiesObject(arglist) {
     if (looseContent.size > 0) {
       throw new Error("Cannot have both loose content and a content array in flow argument");
     }
-    properties.content = contentArray;
+    properties.argumentsContent = contentArray;
   } else if (looseContent) {
     const firstContent = looseContent[0];
     if (((typeof firstContent === "string") && (/[a-z]/.test(firstContent[0]))) || typeof firstContent === "number") {
       implicitKey = looseContent.shift() + "";
     }
-    properties.content = looseContent;
+    properties.argumentsContent = looseContent;
   }
 
   if (implicitKey) {

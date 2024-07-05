@@ -1,6 +1,6 @@
 import getWorld from "@liquefy/causaility";
 import { logMark, isUpperCase } from "./utility.js";
-import { readFlowProperties, addDefaultStyleToProperties, findImplicitChildren } from "./flowParameters";
+import { getFlowProperties, addDefaultStyleToProperties, findImplicitChildren } from "./flowParameters";
 import { creators, getCreator, getTarget, getTheme } from "./flowBuildContext.js";
 const log = console.log;
 
@@ -37,6 +37,18 @@ export const {
   continueInvalidations,
   state
 } = world;
+
+/**
+ * Testers
+ */
+export function isComponent(object) {
+  return object instanceof Component;
+}
+
+export function isModel(object) {
+  return isObservable() || !isComponent(object);
+}
+
 
 
 /**
@@ -132,7 +144,7 @@ export class Component {
 
   constructor(...parameters) {
     // Process parameters. 
-    let properties = readFlowProperties(parameters);
+    let properties = getFlowProperties(parameters);
     findImplicitChildren(properties);
 
     if (properties.build) {

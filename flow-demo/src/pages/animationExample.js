@@ -6,7 +6,7 @@ import { button, text } from "../components/basic/BasicWidgets";
 import { div } from "../flow.DOM/BasicHtml";
 import { startExperiment } from "..";
 import { standardAnimation } from "../flow.DOM/ZoomFlyDOMNodeAnimation";
-import { addDefaultStyleToProperties, readFlowProperties } from "../../../flow.core/src/flowParameters.js";
+import { addDefaultStyleToProperties, getFlowProperties } from "../../../flow.core/src/flowParameters.js";
 
 const log = console.log;
 
@@ -33,7 +33,7 @@ const items = [
 const panel = (...parameters) =>
   column(
     addDefaultStyleToProperties(
-      readFlowProperties(parameters),
+      getFlowProperties(parameters),
       {
         marginBottom: "0px", 
         borderRadius: "15px", 

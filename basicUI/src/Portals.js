@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
-import { readFlowProperties } from "@liquefy/flow.core";
+import { getFlowProperties } from "@liquefy/flow.core";
 
 import { extractAttributes } from "@liquefy/flow.DOM";
 
@@ -11,7 +11,7 @@ const log = console.log;
  * Portals
  */
 export function portalEntrance(...parameters) {
-  return new PortalEntrance(readFlowProperties(parameters));
+  return new PortalEntrance(getFlowProperties(parameters));
 }
 
 export class PortalEntrance extends Component {
@@ -38,7 +38,7 @@ export class PortalEntrance extends Component {
 }
 
 export function portalExit(...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   const attributes = extractAttributes(properties);
 
   // Return just a plain div (with portalExit debug info.)

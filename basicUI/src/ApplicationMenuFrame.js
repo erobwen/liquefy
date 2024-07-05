@@ -1,4 +1,4 @@
-import { Component, readFlowProperties, log, logMark } from "@liquefy/flow.core"
+import { Component, getFlowProperties, log, logMark } from "@liquefy/flow.core"
 
 import { button } from "./BasicWidgets";
 import { icon } from "./Icons";
@@ -7,7 +7,7 @@ import { modal, modalFrame } from "./Modal";
 
 
 export function applicationMenuFrame(...parameters) {
-  return new ApplicationMenuFrame(readFlowProperties(parameters));
+  return new ApplicationMenuFrame(getFlowProperties(parameters));
 }
 
 class ApplicationMenuFrame extends Component {

@@ -1,6 +1,6 @@
 
 import { getTarget } from "@liquefy/flow.core";
-import { readFlowProperties, findImplicitChildren } from "@liquefy/flow.core";
+import { getFlowProperties, findImplicitChildren } from "@liquefy/flow.core";
 import { extractAttributes, extractProperty } from "./domNodeAttributes";
 
 
@@ -9,13 +9,13 @@ import { extractAttributes, extractProperty } from "./domNodeAttributes";
  */
 export function span(...parameters) {
   // log("Span")
-  let properties = findImplicitChildren(readFlowProperties(parameters)); 
+  let properties = findImplicitChildren(getFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
   return getTarget().create({type: "elementNode", tagName: "span", key: properties.key, classNameOverride: "span", attributes, children: properties.children, animate: properties.animate});
 }
 
 export function div(...parameters) {
-  let properties = findImplicitChildren(readFlowProperties(parameters)); 
+  let properties = findImplicitChildren(getFlowProperties(parameters)); 
   // extractLoneChild(properties);
   // console.log(properties);
   const attributes = extractAttributes(properties);
@@ -27,13 +27,13 @@ export function div(...parameters) {
  * Basic HTML Node building 
  */
 export function elemenNode(...parameters) {
-  let properties = findImplicitChildren(readFlowProperties(parameters)); 
+  let properties = findImplicitChildren(getFlowProperties(parameters)); 
   const attributes = extractAttributes(properties);
   return getTarget().create({type: "elementNode", key: properties.key, attributes, children: properties.children});
 }
 
 export function textNode(...parameters) {
-  let properties = readFlowProperties(parameters);
+  let properties = getFlowProperties(parameters);
   findImplicitSingleTextInContent(properties); 
   const attributes = extractAttributes(properties);
   return getTarget().create({type: "textNode", text: properties.text, key: properties.key, attributes});
@@ -49,7 +49,7 @@ function findImplicitSingleTextInContent(properties) {
 }
 
 export function styledDiv(classNameOverride, style, parameters) { 
-  const properties = findImplicitChildren(readFlowProperties(parameters));
+  const properties = findImplicitChildren(getFlowProperties(parameters));
   const attributes = extractAttributes(properties);
   attributes.style = {...style, ...attributes.style}; // Inject given style (while making it possible to override)
   return getTarget().create({type: "elementNode", key: properties.key, classNameOverride, tagName: "div", attributes, ...properties }); 

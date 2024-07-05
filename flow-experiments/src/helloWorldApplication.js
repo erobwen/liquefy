@@ -1,6 +1,6 @@
 import { observable, Component, repeat } from "../flow/Flow";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { button, unstyledText as text } from "../components/basic/BasicWidgets";
+import { button, label as text } from "../components/basic/BasicWidgets";
 import { column, row as basicRow } from "../components/basic/Layout";
 
 

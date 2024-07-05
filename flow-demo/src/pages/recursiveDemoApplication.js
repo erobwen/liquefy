@@ -1,4 +1,4 @@
-import { Component, trace, model, readFlowProperties } from "@liquefy/flow.core";
+import { Component, trace, model, getFlowProperties } from "@liquefy/flow.core";
 import { DOMFlowTarget } from "@liquefy/flow.DOM";
 
 import { button, numberInputField, text } from "@liquefy/basicUI";
@@ -66,7 +66,7 @@ export class RecursiveExample extends Component {
 }
   
 export function controlRow(...parameters) {
-  return new ControlRow(readFlowProperties(parameters));
+  return new ControlRow(getFlowProperties(parameters));
 }
 
 export class ControlRow extends Component {

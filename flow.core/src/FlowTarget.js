@@ -34,7 +34,7 @@ export class FlowTarget {
 	// But the same flow could be sent to a FlowTarget that renders a native app, or create contents for a printout, 
 	// or create a server rendered page. The possibilities are endless!      
 	create(...parameters) {
-		const properties = readFlowProperties(parameters);
+		const properties = getFlowProperties(parameters);
 		throw new Error("Not implemented yet!");
 	}
 	

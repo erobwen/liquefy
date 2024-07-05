@@ -6,7 +6,7 @@ import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
 
 import { button, textInputField } from "../customUI";
-import { addDefaultStyleToProperties, readFlowProperties } from "../../../flow.core/src";
+import { addDefaultStyleToProperties, getFlowProperties } from "../../../flow.core/src";
 
 const log = console.log;
 
@@ -117,7 +117,7 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
 const panel = (...parameters) =>
   div(
     addDefaultStyleToProperties(
-      readFlowProperties(parameters),
+      getFlowProperties(parameters),
       {
         margin: "4px", 
         borderRadius: "5px", 

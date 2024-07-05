@@ -2,7 +2,7 @@
 // import { faCross, faPlus, faSuitcase, faXmark, faXmarkCircle } from '@fortawesome/free-solid-svg-icons';
 // import { DOMElementNode } from '@liquefy/flow';
 // import { finalize, repeat, trace } from '@liquefy/flow';
-import { readFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.core";
+import { getFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.core";
 import { logMark } from '@liquefy/flow.core';
 
 import { extractProperty, span } from '@liquefy/flow.DOM';
@@ -23,31 +23,31 @@ const log = console.log;
 
 
 export function suitcaseIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   properties.iconName = "suitcase";
   return faIcon(properties);
 }
 
 export function plusIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   properties.iconName = "plus";
   return faIcon(properties);
 }
 
 export function crossIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   properties.iconName = "cross";
   return faIcon(properties);
 }
 
 export function icon(iconName, ...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   properties.iconName = iconName;
   return faIcon(properties); 
 }
 
 export function faIcon(...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   findPrefixAndIconNameInProperties(properties);
   const iconName = extractProperty(properties, "iconName");
   properties.className = "fa " + "fa-" + iconName;

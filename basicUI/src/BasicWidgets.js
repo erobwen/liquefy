@@ -1,12 +1,12 @@
 import { trace, Component, callback } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
-import { readFlowProperties, findImplicitChildrenAndOnClick, addDefaultStyleToProperties } from "@liquefy/flow.core";
+import { getFlowProperties, findImplicitChildrenAndOnClick, addDefaultStyleToProperties } from "@liquefy/flow.core";
 
 import { extractProperty, extractChildStyles, div, extractAttributes } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
 import { extractLoneChild } from "../../flow.DOM/src/BasicHtml.js";
-import { findImplicitChildren } from "../../flow.core/src/flowParameters.js";
+import { findImplicitChildren, getFlowPropertiesAndChildren } from "../../flow.core/src/flowParameters.js";
 
 const log = console.log;
 
@@ -38,20 +38,20 @@ export let basicWidgetTheme = {
  * arguments: key, text, animate, + all HTML attributes 
  */
 export function text(...parameters) { // TODO: Rename as label, move to basicUI
-  let properties = readFlowProperties(parameters);
+  let properties = getFlowProperties(parameters);
 
   // inherit("theme").text.style
 
   // Default style
   properties.style = Object.assign({}, basicWidgetTheme.text.style, properties.style);
 
-  return unstyledText(properties)
+  return label(properties)
 }
 
 
-export function unstyledText(...parameters) { // TODO: Rename as label
-  let properties = readFlowProperties(parameters); 
-  findImplicitChildren(properties);
+export function label(...parameters) { // TODO: Rename as label
+  let properties = getFlowPropertiesAndChildren(parameters);
+
   // const debugIdentifier = properties.text ? properties.text.substring(0, 20) + "..." : "...";
   extractAttributes(properties);
 
@@ -63,7 +63,7 @@ export function unstyledText(...parameters) { // TODO: Rename as label
     {
       type: "elementNode",
       classNameOverride: "text",// + debugIdentifier + "]",
-      tagName:"span",
+      tagName: "label",
       attributes: extractProperty(properties, "attributes"), 
       children: extractProperty(properties, "children"), 
       animate: extractProperty(properties, "animate")
@@ -84,7 +84,7 @@ export function textDiv(properties) {
   const animate = extractProperty(properties, "animate"); 
   const key = extractProperty(properties, "key");
   properties.key = key ? key + ".label" : null;
-  return div(unstyledText(properties), {key, style, animate});
+  return div(label(properties), {key, style, animate});
 }
 
 
@@ -106,7 +106,7 @@ export function textInputField(label, getter, setter, ...parameters) {
 }
 
 export function inputField(type, label, getter, setter, ...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   let key;
   let error;
   if (!properties.key) {
@@ -163,7 +163,7 @@ export function inputField(type, label, getter, setter, ...parameters) {
 // export const button = modernButton;
 
 export function button(...parameters) { 
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
 
   addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
@@ -199,7 +199,7 @@ export function button(...parameters) {
 };
 
 export const panel = (...parameters) => {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   addDefaultStyleToProperties(properties, {
     margin: "4px", 
     borderRadius: "5px", 

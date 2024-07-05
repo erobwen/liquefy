@@ -1,5 +1,5 @@
 import { Component, transaction, creators, getTarget } from "@liquefy/flow.core";
-import { readFlowProperties } from "@liquefy/flow.core";
+import { getFlowProperties } from "@liquefy/flow.core";
 
 import { extractAttributes } from "@liquefy/flow.DOM";
 import { div } from "@liquefy/flow.DOM";
@@ -10,7 +10,7 @@ const log = console.log;
  * Modal
  */
 export function modal(...parameters) {
-  return new Modal(readFlowProperties(parameters));
+  return new Modal(getFlowProperties(parameters));
 }
 
 export class Modal extends Component {
@@ -45,7 +45,7 @@ export class Modal extends Component {
 
 export function modalFrame(...parameters) {
   // debugger; 
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   const result = new ModalFrame(properties);
   return result; 
 }
@@ -161,7 +161,7 @@ export class ModalFrame extends Component {
 }
 
 function modalFrameDiv(...parameters) {
-  let properties = readFlowProperties(parameters); 
+  let properties = getFlowProperties(parameters); 
   const attributes = extractAttributes(properties);
   return getTarget().create({type: "elementNode", tagName: "div", key: properties.key, classNameOverride: "modal-frame", attributes, children: properties.children});
 }

@@ -9,8 +9,9 @@ class HelloWorld extends Component {
       "Hello World", 
       "Foo", 
       1, 
-      span("XAasdf"),
-      div("Next")
+      span("XAasdf", {style: {fontWeight: "bold"}}),
+      div("Next"),
+      "some other text"
     );
   }
 }

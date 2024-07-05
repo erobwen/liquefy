@@ -1,5 +1,5 @@
 import { Component } from "../flow/Flow";
-import { readFlowProperties } from "../flow/flowParameters";
+import { getFlowProperties } from "../flow/flowParameters";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { panel, text } from "../components/basic/BasicWidgets";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "../components/basic/Layout";
@@ -19,7 +19,7 @@ const loga = (action) => {
 
 
 function dialog(...parameters) {
-  return new Dialog(readFlowProperties(parameters));
+  return new Dialog(getFlowProperties(parameters));
 }
 
 const panelStyle = {

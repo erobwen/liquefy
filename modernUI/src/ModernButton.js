@@ -5,12 +5,12 @@ import { button, text } from "../basic/BasicWidgets";
 import { panelStyle } from "./Style";
 import { centerMiddle, fitContainerStyle, wrapper } from "../basic/Layout";
 import { logMark } from "@liquefy/flow";
-import { findImplicitChildrenAndOnClick, readFlowProperties } from "@liquefy/flow";
+import { findImplicitChildrenAndOnClick, getFlowProperties } from "@liquefy/flow";
 
 const log = console.log; 
 
 export function modernButton(...parameters) { 
-  const properties = findImplicitChildrenAndOnClick(readFlowProperties(parameters));
+  const properties = findImplicitChildrenAndOnClick(getFlowProperties(parameters));
   
   properties.hoverEffect = true; // Debug override
   properties.ripple = true; // Debug override 

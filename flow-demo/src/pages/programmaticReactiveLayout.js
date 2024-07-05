@@ -1,5 +1,5 @@
 import { observable, Component, repeat } from "../flow/Flow";
-import { readFlowProperties } from "../flow/flowParameters";
+import { getFlowProperties } from "../flow/flowParameters";
 import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
 import { basicWidgetTheme, numberInputField, text } from "../components/basic/BasicWidgets";
 import { centerMiddle, column, fitContainerStyle, flexAutoHeightStyle, naturalSizeStyle, fillerStyle, fillerStyle, row } from "../components/basic/Layout";
@@ -142,7 +142,7 @@ export class StringDisplay extends Component {
 }
 
 function scaledTextWithMaxFontSize(...parameters) {
-  const properties = readFlowProperties(parameters);
+  const properties = getFlowProperties(parameters);
   findImplicitChildren(properties);
 
   // console.log(properties);

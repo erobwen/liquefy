@@ -1,4 +1,5 @@
-import { Component, isObservable } from "./Flow.js";
+import { Component } from "./Component.js";
+import { isObservable } from "./flow.js";
 import { getTarget } from "./flowBuildContext.js";
 const log = console.log;
 

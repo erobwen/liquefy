@@ -1,4 +1,5 @@
-import { Component, workOnPriorityLevel } from "./Flow";
+import { Component } from "./Component";
+import { workOnPriorityLevel } from "./flow";
 
 /**
  * Implement any flow target that implements HTML Element Node and HTML Text Node. 

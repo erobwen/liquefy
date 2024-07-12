@@ -250,6 +250,8 @@ export class TravelerForm extends Component {
   build() {
     const traveler = this.traveler;
     return panel(
+      // Recommendation: Do ineritance first, to avoid diabling caches further down. Nooo... wait... setting the same value twice will not trigger anything! 
+
       // Remove button
       row(
         filler(),
@@ -295,7 +297,7 @@ export class TravelerForm extends Component {
         filler(),
         button(
           icon("suitcase-rolling", {style: {marginRight: "10px"}}),
-          span("Add luggage"),
+          "Add luggage",
           () => {
             transaction(() => {
               this.traveler.luggages.push(model({weight: 1, type: "bag"}));

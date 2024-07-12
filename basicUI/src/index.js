@@ -5,6 +5,15 @@ import { svgImage } from "./images";
 import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle } from "./Layout";
 import { modal, Modal, modalFrame, ModalFrame } from "./Modal";
 import { portalEntrance, PortalEntrance, portalExit } from "./Portals";
+import { globalContext } from "@liquefy/flow.core";
+
+export function setBasicUIAsTheme() {
+  globalContext.components.input = inputField;
+  globalContext.components.textInputField = textInputField; 
+  globalContext.components.checkboxInputField = checkboxInputField; 
+  globalContext.components.numberInputField = numberInputField; 
+  globalContext.components.label = label; 
+}
 
 export {
   applicationMenuFrame,

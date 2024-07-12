@@ -816,6 +816,7 @@ function createWorld(configuration) {
     if (typeof(createdTarget) === 'undefined') {
       createdTarget = {};
     }
+    if (typeof(createdTarget) !== "object") return createdTarget;
     if (typeof(buildId) === 'undefined') {
       buildId = null;
     }

@@ -1,3 +1,4 @@
+import { model } from "./flow";
 
 
 
@@ -17,8 +18,32 @@ export function getTarget() {
 }
 
 export function getTheme() {
-  const creator = getCreator();
-  return creator ? creator.theme : null;
+  return this.inherit("theme");
+}
+
+export const defaultGlobalContext = model({
+  theme: {
+    modifiers: {},
+    components: {}
+  }
+}); 
+
+export const globalContext = defaultGlobalContext;
+
+
+// Helper function that ensures that your set value is a model, so respond to future changes can happen. 
+export function modifyGlobalContext(...pathAndValue) {
+  const value = model(pathAndValue.pop());
+  const target = globalContext; 
+  while(pathAndValue.length > 1) {
+    fragment = pathAndValue.shift()
+  }
+  target[pathAndValue[0]] = value;
+}
+
+
+export function setGlobalTheme(theme) {
+  globalTheme = globalContext.theme = model(theme);
 }
 
 export function inherit(key) {
@@ -27,4 +52,4 @@ export function inherit(key) {
 }
 
 
-// Creator inheritance. 
+// Creator inheritance.

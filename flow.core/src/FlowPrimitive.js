@@ -1,4 +1,5 @@
-import { configuration, finalize, Component, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
+import { finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./flow.js";
+import { Component } from "./Component.js";
 import { logMark } from "./utility.js";
 
 const log = console.log;

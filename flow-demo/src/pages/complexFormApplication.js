@@ -1,9 +1,13 @@
 import { Component, transaction, model, getFlowProperties } from "@liquefy/flow.core";
 import { DOMFlowTarget, text, div, span, p, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
-import { column, filler, fillerStyle, row } from "@liquefy/basicUI";
-import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
-import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
+// import { column, filler, fillerStyle, row } from "@liquefy/basicUI";
+// import { checkboxInputField, numberInputField } from "@liquefy/basicUI";
+// import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/basicUI";
+
+import { column, filler, fillerStyle, row } from "../themedComponents";
+import { checkboxInputField, numberInputField } from "../themedComponents";
+import { crossIcon, plusIcon, suitcaseIcon, icon } from "../themedComponents";
 
 import { button, textInputField } from "../customUI";
 

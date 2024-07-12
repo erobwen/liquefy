@@ -1,6 +1,4 @@
-import { model } from "./flow";
-
-
+import { model } from "./Flow";
 
 /**
  * Flow creation stack. When a flow is created and running its constructor, it can find its creator using these functions. 
@@ -17,19 +15,17 @@ export function getTarget() {
   return creator ? creator.target : null;
 }
 
-export function getTheme() {
-  return this.inherit("theme");
+// Compositional and creator inheritance.
+export function inherit(key) {
+  const creator = getCreator();
+  return creator ? creator.inherit(key) : null;
 }
 
-export const defaultGlobalContext = model({
-  theme: {
-    modifiers: {},
-    components: {}
-  }
-}); 
 
-export const globalContext = defaultGlobalContext;
-
+/**
+ * Global context
+ */
+export const globalContext = model({});
 
 // Helper function that ensures that your set value is a model, so respond to future changes can happen. 
 export function modifyGlobalContext(...pathAndValue) {
@@ -42,14 +38,24 @@ export function modifyGlobalContext(...pathAndValue) {
 }
 
 
+/**
+ * Theme
+ */
+globalContext.theme = model({
+  modifiers: {},
+  components: {}
+}); 
+console.log("theme set!");
+
+export function getGlobalTheme() {
+  return globalContext.theme;
+}
+
 export function setGlobalTheme(theme) {
-  globalTheme = globalContext.theme = model(theme);
+  globalContext.theme = globalContext.theme = model(theme);
 }
 
-export function inherit(key) {
-  const creator = getCreator();
-  return creator ? creator.inherit(key) : null;
+export function getTheme() {
+  return getCreator().inherit("theme");
 }
 
-
-// Creator inheritance.

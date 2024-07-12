@@ -1,3 +1,4 @@
+import { getGlobalTheme } from "../../flow.core/src/flowBuildContext";
 import { applicationMenuFrame } from "./ApplicationMenuFrame";
 import { basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel } from "./BasicWidgets";
 import { suitcaseIcon, plusIcon, crossIcon, icon } from "./Icons";
@@ -7,15 +8,21 @@ import { modal, Modal, modalFrame, ModalFrame } from "./Modal";
 import { portalEntrance, PortalEntrance, portalExit } from "./Portals";
 import { globalContext } from "@liquefy/flow.core";
 
-export function setBasicUIAsTheme() {
-  globalContext.components.input = inputField;
-  globalContext.components.textInputField = textInputField; 
-  globalContext.components.checkboxInputField = checkboxInputField; 
-  globalContext.components.numberInputField = numberInputField; 
-  globalContext.components.label = label; 
+const allFunctions = {
+  applicationMenuFrame,
+  basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel,
+  suitcaseIcon, plusIcon, crossIcon, icon,
+  svgImage,
+  layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
+  modal, Modal, modalFrame, ModalFrame,
+  portalEntrance, PortalEntrance, portalExit
 }
 
-export {
+export function setBasicUIAsTheme() {
+  Object.assign(getGlobalTheme().components, allFunctions);
+}
+
+export { // Note: A copy paste of allFunctions, since we are not allowed to use spread operators for export. 
   applicationMenuFrame,
   basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel,
   suitcaseIcon, plusIcon, crossIcon, icon,

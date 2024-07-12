@@ -9,6 +9,9 @@ import { startDemo } from "./demo.js";
 // import { startModalDemo } from "./application/modalDemo.js";
 
 import { logMark } from "@liquefy/flow.core";
+import { setBasicUIAsTheme } from "@liquefy/basicUI";
+
+setBasicUIAsTheme();
 
 // Setup flow 
 setFlowConfiguration({

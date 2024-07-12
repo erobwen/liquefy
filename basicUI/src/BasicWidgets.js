@@ -53,14 +53,17 @@ export function label(...parameters) {
  * OR
  * 
  * labelText, targetObject, targetProperty
+ * 
+ * Extra feature: labelText will double as a key if you have no other key given. 
  */
 
 export function findImplicitInputFieldParameters(properties) {
-  console.log(properties)
   const argumentsContent = extractProperty(properties, "argumentsContent");
   if (!argumentsContent) return properties;
   if (!argumentsContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
+
   properties.labelText = argumentsContent.shift();
+  if (!properties.key) properties.key = properties.labelText;
   if (typeof(argumentsContent[0]) === "function") {
     properties.getter = argumentsContent.shift();
     properties.setter = argumentsContent.shift();
@@ -110,29 +113,27 @@ export function textInputField(...parameters) {
 }
 
 export function inputField(properties) {
-  let { labelText, getter, setter, targetObject, targetProperty } = properties;
-  const type = extractProperty(properties);
-  delete properties.type;
-  console.log(properties)
+  const type = extractProperty(properties, "type");
+  let labelText = extractProperty(properties, "labelText");
+  let getter = extractProperty(properties, "getter");
+  let setter = extractProperty(properties, "getter");
+  const targetObject = extractProperty(properties, "targetObject");
+  const targetProperty = extractProperty(properties, "targetProperty");
 
   if (!getter && targetObject) {
-    getter = callback(properties.key + ".setter", () => targetObject[targetProperty]);
-    setter = callback(properties.key + ".setter", newValue => { targetObject[targetProperty] = (properties.type === "number") ? parseInt(newValue) : newValue;})
-  }
-
-  let key;
-  let error;
-  if (!properties.key) {
-    properties.key = labelText;
-  }
-
-  if (typeof(getter) === "object" && typeof(setter) === "string") {
-    const targetObject = getter;
-    const targetProperty = setter; 
     properties.key = properties.key + "." + targetObject.causality.id + "." + targetProperty;
-    key = properties.key; 
     getter = callback(properties.key + ".getter", () => targetObject[targetProperty]);
     setter = callback(properties.key + ".setter", newValue => { targetObject[targetProperty] = (type === "number") ? parseInt(newValue) : newValue;})
+  }
+
+  // Cannot function as both key and label.... hmm.... or can it! 
+  // let key;
+  let error;
+  // if (!properties.key) {
+  //   properties.key = labelText;
+  // }
+
+  if (targetObject) {
     error = targetObject[targetProperty + "Error"];
   }
 

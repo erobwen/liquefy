@@ -1,5 +1,5 @@
 import { Component } from "./Component.js";
-import { isObservable } from "./flow.js";
+import { isObservable } from "./Flow.js";
 import { getTarget } from "./flowBuildContext.js";
 const log = console.log;
 
@@ -108,7 +108,7 @@ export function getFlowPropertiesIncludingChildren(arglist) {
 export function getFlowProperties(arglist) {
   if (!(arglist instanceof Array)) throw new Error("getFlowProperties expects an array");
 
-  // Shortcut if argument is a single properties object
+  // Shortcut if argument is a single properties object. 
   const first = arglist[0]; 
   if (arglist.length === 1 && first !== null && typeof(first) === "object" && !(first instanceof Array) && !isObservable(first)) {
     return first;

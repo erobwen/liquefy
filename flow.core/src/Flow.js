@@ -132,6 +132,6 @@ export function when(condition, operation) { // TODO: Move to causality.
   }
   
 
-export function callback(callback, key) {
+export function callback(key, callback) {
     return observable(callback, key);
 }

@@ -2,7 +2,7 @@ import { Component } from "../flow/Flow";
 import { getFlowProperties } from "../flow/flowParameters";
 import { div, text } from "../flow.DOM/BasicHtml";
 import { adjustLightness } from "./Color";
-import { button, inputField, textInputField } from "./basic/BasicWidgets";
+import { button, textInputField } from "./basic/BasicWidgets";
 import { panelStyle } from "./modern/Style";
 import { centerMiddle, column, filler, fitContainerStyle, row } from "./basic/Layout";
 

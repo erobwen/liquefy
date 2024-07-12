@@ -5,6 +5,7 @@ import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesInc
 import { text, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
+import { extractProperty } from "../../flow.core/src/flowParameters.js";
 
 const log = console.log;
 
@@ -44,26 +45,81 @@ export function label(...parameters) {
   return htmlLabel(properties)
 }
 
+/**
+ * Shorthand parameter list for input fields. 
+ * 
+ * labelText, getter, setter
+ * 
+ * OR
+ * 
+ * labelText, targetObject, targetProperty
+ */
+
+export function findImplicitInputFieldParameters(properties) {
+  console.log(properties)
+  const argumentsContent = extractProperty(properties, "argumentsContent");
+  if (!argumentsContent) return properties;
+  if (!argumentsContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
+  properties.labelText = argumentsContent.shift();
+  if (typeof(argumentsContent[0]) === "function") {
+    properties.getter = argumentsContent.shift();
+    properties.setter = argumentsContent.shift();
+  } else {
+    properties.targetObject = argumentsContent.shift();
+    properties.targetProperty = argumentsContent.shift();
+  }
+}
+
 
 /**
- * Input macro flow
+ * Input fields
  * 
- * highlighted arguments: label, getter, setter,
+ * Properties: 
+ * 
+ * labeledText, getter, setter, targetObject, targetProperty
+ * 
+ * (either getter|setter OR targetObject|targetProperty) 
+ * 
+ * Shorthand content: 
+ * 
+ * [labelText, getter, setter]
+ * 
+ * OR
+ * 
+ * [labelText, targetObject, targetProperty]
  */
-export function checkboxInputField(labelText, getter, setter, ...parameters) {
-  return inputField("checkbox", labelText, getter, setter, ...parameters);
-}
-
-export function numberInputField(labelText, getter, setter, ...parameters) {
-  return inputField("number", labelText, getter, setter, ...parameters);
-}
-
-export function textInputField(labelText, getter, setter, ...parameters) {
-  return inputField("text", labelText, getter, setter, ...parameters);
-}
-
-export function inputField(type, labelText, getter, setter, ...parameters) {
+export function checkboxInputField(...parameters) {
   const properties = getFlowProperties(parameters);
+  properties.type = "checkbox";
+  findImplicitInputFieldParameters(properties);
+  return inputField(properties);
+}
+
+export function numberInputField(...parameters) {
+  const properties = getFlowProperties(parameters);
+  properties.type = "number";
+  findImplicitInputFieldParameters(properties);
+  return inputField(properties);
+}
+
+export function textInputField(...parameters) {
+  const properties = getFlowProperties(parameters);
+  properties.type = "text";
+  findImplicitInputFieldParameters(properties);
+  return inputField(properties);
+}
+
+export function inputField(properties) {
+  let { labelText, getter, setter, targetObject, targetProperty } = properties;
+  const type = extractProperty(properties);
+  delete properties.type;
+  console.log(properties)
+
+  if (!getter && targetObject) {
+    getter = callback(properties.key + ".setter", () => targetObject[targetProperty]);
+    setter = callback(properties.key + ".setter", newValue => { targetObject[targetProperty] = (properties.type === "number") ? parseInt(newValue) : newValue;})
+  }
+
   let key;
   let error;
   if (!properties.key) {
@@ -75,8 +131,8 @@ export function inputField(type, labelText, getter, setter, ...parameters) {
     const targetProperty = setter; 
     properties.key = properties.key + "." + targetObject.causality.id + "." + targetProperty;
     key = properties.key; 
-    getter = callback(() => targetObject[targetProperty], properties.key + ".getter");
-    setter = callback(newValue => { targetObject[targetProperty] = (type === "number") ? parseInt(newValue) : newValue;}, properties.key + ".setter")
+    getter = callback(properties.key + ".getter", () => targetObject[targetProperty]);
+    setter = callback(properties.key + ".setter", newValue => { targetObject[targetProperty] = (type === "number") ? parseInt(newValue) : newValue;})
     error = targetObject[targetProperty + "Error"];
   }
 
@@ -89,7 +145,7 @@ export function inputField(type, labelText, getter, setter, ...parameters) {
     } 
   }
   const attributes = {
-    oninput: callback(event => setter(type === "checkbox" ? event.target.checked : event.target.value), properties.key + ".oninput"),
+    oninput: callback(properties.key + ".oninput", event => setter(type === "checkbox" ? event.target.checked : event.target.value)),
     value: getter(),
     checked: getter(),
     type,

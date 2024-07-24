@@ -24,60 +24,42 @@ const log = console.log;
 
 export function suitcaseIcon(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.iconName = "suitcase";
+  properties.name = "suitcase";
   return faIcon(properties);
 }
 
 export function plusIcon(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.iconName = "plus";
+  properties.name = "plus";
   return faIcon(properties);
 }
 
 export function crossIcon(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.iconName = "cross";
+  properties.name = "cross";
   return faIcon(properties);
 }
 
-export function icon(iconName, ...parameters) {
+export function icon(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.iconName = iconName;
   return faIcon(properties); 
 }
 
 export function faIcon(...parameters) {
   const properties = getFlowProperties(parameters);
-  findPrefixAndIconNameInProperties(properties);
-  const iconName = extractProperty(properties, "iconName");
-  properties.className = "fa " + "fa-" + iconName;
+  const name = extractProperty(properties, "name");
+  properties.className = "fa " + "fa-" + name;
   return span(properties)
   // return new DOMFaNode(properties);
 }
 
-export function findPrefixAndIconNameInProperties(properties) {
-  if (!properties.stringsAndNumbers) return properties;
-  if (properties.stringsAndNumbers.length >= 2) {
-    properties.prefix = properties.stringsAndNumbers.pop();
-  } else {
-    properties.prefix = "far";
-  }
-  if (properties.stringsAndNumbers.length) {
-    properties.iconName = properties.stringsAndNumbers.pop();
-  }
-  if (properties.stringsAndNumbers.length) {
-    throw new Error("Found too many loose strings in flow parameters");
-  }
-  delete properties.stringsAndNumbers;
-  return properties; 
-}
 
 
 // export class DOMFaNode extends DOMElementNode {
-//   setProperties({prefix, iconName}) {
+//   setProperties({prefix, name}) {
 //     this.tagName = "span"
 //     this.prefix = prefix;
-//     this.iconName = iconName;
+//     this.name = name;
 //   }
   
 //   createEmptyDomNode() {
@@ -95,7 +77,7 @@ export function findPrefixAndIconNameInProperties(properties) {
 //         log(library);
 //
 //          This crap interface did not work!!! doing it the css way... 
-//         // this.domNode.innerHTML = icon(this.iconName).html;
+//         // this.domNode.innerHTML = icon(this.name).html;
 //         this.ensureDomNodeAttributesSet();
 //         if (trace) console.groupEnd();  
 //       }, {priority: 2});
@@ -104,4 +86,4 @@ export function findPrefixAndIconNameInProperties(properties) {
 //   }
 // }
 
-// //window.FontAwesomeConfig.icon({ prefix: 'far', iconName: 'suitcase' });
+// //window.FontAwesomeConfig.icon({ prefix: 'far', name: 'suitcase' });

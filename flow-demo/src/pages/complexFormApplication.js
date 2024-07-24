@@ -143,7 +143,7 @@ export class SimpleDrawer extends Component {
     this.content = content;
  }
  build() {
-  const buttonIcon = this.isOpen ? icon("chevron-up") : icon("chevron-down");
+  const buttonIcon = this.isOpen ? icon({name: "chevron-up"}) : icon({name: "chevron-down"});
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
     button(row(span(buttonLabel), buttonIcon, {style: {justifyContent: "space-between"}}), () => this.toggleOpen(), {style: {margin: "5px"}, ripple: true}),
@@ -259,7 +259,7 @@ export class TravelerForm extends Component {
       // Remove button
       row(
         filler(),
-        button(icon("xmark"), () => {this.creator.editData.fellowTravellers.remove(this.traveler)}, {edge: false, square: true, ripple: true})
+        button(icon({name: "xmark"}), () => {this.creator.editData.fellowTravellers.remove(this.traveler)}, {edge: false, square: true, ripple: true})
       ).show(traveler.isFellowTraveller),
 
       // Traveler inforation
@@ -300,7 +300,7 @@ export class TravelerForm extends Component {
       row("add-luggage",
         filler(),
         button(
-          icon("suitcase-rolling", {style: {marginRight: "10px"}}),
+          icon({name: "suitcase-rolling", style: {marginRight: "10px"}}),
           "Add luggage",
           () => {
             transaction(() => {
@@ -333,7 +333,7 @@ export class LuggageForm extends Component {
         suitcaseIcon({style: {padding: "14px"}}),
         numberInputField("Weight", this.luggage, "weight", {unit: "kg"}),
         filler(),
-        button(icon("xmark"), () => {this.creator.traveler.luggages.remove(this.luggage)}, {edge: false, square: true, ripple: true})
+        button(icon({name: "xmark"}), () => {this.creator.traveler.luggages.remove(this.luggage)}, {edge: false, square: true, ripple: true})
       )
     );
   }

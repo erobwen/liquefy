@@ -1,5 +1,4 @@
 import { getTheme } from "../../flow.core/src/flowBuildContext";
-import { getFlowProperties } from "../../flow.core/src/flowParameters"
 
 
 /**
@@ -16,11 +15,4 @@ export function getThemedComponent(name, properties) {
     }
     return component(properties); 
 } 
-
-
-/**
- * Themed components
- */
-export const button = (...parameters) => getThemedComponent("button", getFlowProperties(parameters));
-export const input = (...parameters) => getThemedComponent("input", getFlowProperties(parameters));
 

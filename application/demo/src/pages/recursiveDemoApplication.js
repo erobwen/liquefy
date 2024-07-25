@@ -1,0 +1,186 @@
+import { Component, trace, model, getFlowProperties } from "@liquefy/flow.core";
+import { DOMFlowTarget, text } from "@liquefy/flow.DOM";
+
+import { button, numberInputField } from "@liquefy/basic-ui";
+import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
+import { modal } from "@liquefy/basic-ui";
+
+const log = console.log;
+const loga = (action) => {
+  if (trace) log("-----------" + action + "-----------");
+}
+
+
+/**
+ * This is a demo-application that showcases some of the principles of Flow. 
+ * Please read the comments for a tour over what features exists and how they work.  
+ * 
+ * This simple program just demonstrates the recursive and state preserving capabilities 
+ * of Flow. A number of components are created recursivley according to the "count" state.
+ * And each component has its own state that can be toggled on/off. Note that the state of each individual 
+ * component is maintained, while the whole recursive chain of components are re-built. 
+ * Also, open and expand the view-elements debug panel in Chrome, to verify minimal updates
+ * to the DOM when the UI is rebuilt.  
+ */
+export class RecursiveExample extends Component {
+  
+  // Constructor: Normally do not override constructor!!! (unless modifying the framework itself)
+
+  // Set properties from parent, suitable for default values etc.
+  setProperties(properties) {}
+
+  // Create state, create model data and initilize external resources
+  setState() {
+    this.count = 1
+    this.myModel = model({
+      value: 42 
+    });
+  }
+
+  // Release external resources
+  disposeState() {}
+
+  // Allow children to inherit data from this component 
+  getContext() {
+    return {
+      myModel: this.myModel
+    };
+  }
+
+  // Build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
+  build() {
+    return (
+      column(
+        new ControlRow("control-row", {demoComponent: this}),
+        new List("root-list", {
+          maxCount: this.count, 
+          count: 1
+        }),
+        text("Info:"),
+        text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+        text(" - Stable component identity and local state is demonstrated."), 
+        text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
+      )
+    );
+  }
+}
+  
+export function controlRow(...parameters) {
+  return new ControlRow(getFlowProperties(parameters));
+}
+
+export class ControlRow extends Component {
+  setProperties({demoComponent}) {
+    this.demoComponent = demoComponent;
+  }
+      
+  build() {
+    const me = this;    
+    const rootText = text({ key: "root-text", text: "Recursive Structure"});
+    const moreButton = button({
+      key: "more-button", 
+      onClick: () => { 
+        me.demoComponent.count++ 
+      },
+      text: "More"
+    });
+
+    // Early finalization of sub-component, and dimension analysis of it while building 
+    // console.log(moreButton.dimensions());
+
+    return row(
+      rootText,
+      row(
+        text("Depth:"),
+        moreButton, 
+        button({key: "less-button", onClick: () => {me.demoComponent.count--}, text: "Less"}),
+      ),
+      numberInputField("Shared state", this.inherit("myModel"), "value"),
+      {style: {padding: "10px", gap: "20px"}} // Reactive programmatic styling! 
+    )
+  }
+}
+
+export class List extends Component {
+  // This is the function setProperties where you declare all properties that a parent can set on its child. This is optional, but is a good place to define default values, modify values given by parent, or document what properties that the component needs.   
+  setProperties({maxCount, count}) {
+    this.maxCount = maxCount;
+    this.count = count;
+  }
+
+  build() {
+    const children = [];
+    children.push(new Item("first-item", {depth: this.count}));
+    if (this.count < this.maxCount) {
+      children.push(new List("rest-list", {maxCount: this.maxCount, count: this.count + 1}));
+    }
+    return column("list-column", {style: {marginLeft: "10px", marginBottom: "2px", marginRight: "2px", borderWidth: "1px", borderStyle: "solid"}, children: children});
+  }
+}
+
+export class Item extends Component {
+  setProperties({depth}) {
+    this.depth = depth;
+  }
+  
+  setState() {
+    // This is the place to define view model variables. In this case the "on" property is defined.
+    this.value = 42;
+  }
+ 
+  build() {
+    const me = this; 
+
+    function close() {
+      // log("Closing modal...");
+      me.showModal = false; 
+    }
+
+    return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomFlowTarget module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
+      text({ key: "item-text", text: "Depth " +  me.depth}),
+      numberInputField("Local state", this, "value"),
+      text(" Shared state: " + me.inherit("myModel").value, {}), 
+      {
+        style: {gap: "20px"}
+      }
+    );
+  }
+}
+
+// function shadePanel(close) {
+//   const target = getTarget();
+//   return target.create({type: "elementNode", 
+//     tagName: "div", 
+//     classNameOverride: "shadePanel",
+//     attributes: {
+//       onclick: () => {close();},
+//       style:{
+//         position: "absolute",
+//         top: 0,
+//         left: 0,
+//         width: "100%", 
+//         height: "100%", 
+//         backgroundColor: "black", 
+//         opacity: 0.2
+//       }
+//     }, 
+//   });
+// }
+
+
+/**
+ * Start the demo
+ */
+  
+export function startRecursiveDemo() {
+  const root = new RecursiveExample();
+  new DOMFlowTarget(document.getElementById("root")).setContent(root);
+
+  // Emulated user interaction.
+  // console.log(root.getChild("control-row").getChild("more-button"));
+  // console.log(root.getChild("control-row"));
+  // root.getChild("control-row").getChild("more-button").onClick();
+  // root.findChild("more-button").onClick();
+  // root.findChild("more-button").onClick();
+  // root.findChild("more-button").onClick();
+}

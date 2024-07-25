@@ -1,0 +1,31 @@
+{
+  "name": "@liquefy/flow-demo",
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "version": "1.0.0",
+  "description": "A demo showcasing flow.",
+  "type": "module",
+  "scripts": {
+    "start": "vite --debug"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erobwen/liquefy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "devDependencies": {
+    "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "@liquefy/causality": "file:../../causality",
+    "@liquefy/flow": "file:../../flow",
+    "@liquefy/flow.core": "file:../../flow.core",
+    "@liquefy/flow.DOM": "file:../../flow.DOM",
+    "@liquefy/basic-ui": "file:../../ui/basic",
+    "@liquefy/modern-ui": "file:../../ui/basic",
+    "@liquefy/themed-ui": "file:../../ui/basic"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@liquefy/hello-world",
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "version": "1.0.0",
+  "description": "A helo world with flow.",
+  "type": "module",
+  "scripts": {
+    "start": "vite --debug"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erobwen/liquefy.git"
+  },
+  "keywords": [
+    "Javascript",
+    "Proxy",
+    "Reactive"
+  ],
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "devDependencies": {
+    "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "@liquefy/flow": "file:../../flow",
+    "@liquefy/causality": "file:../../causality",
+    "@liquefy/flow.core": "file:../../flow.core",
+    "@liquefy/flow.DOM": "file:../../flow.DOM"
+  }
+}

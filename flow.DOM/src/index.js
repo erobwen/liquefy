@@ -110,6 +110,7 @@ import {
 } from "./HTMLTags";
 import { elementNode, textNode, text, addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode } from "./DOMElementNode";
+import { getThemedComponent } from "./domFlowBuildContext"
 import { DOMTextNode } from "./DOMTextNode"
 import { DOMFlowTarget} from "./DOMFlowTarget"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
@@ -241,6 +242,9 @@ export {
 
     // DOMElementNode
     DOMElementNode,
+
+    // domFlowBuildContext
+    getThemedComponent,
 
     //DOMFlowTarget
     DOMFlowTarget,

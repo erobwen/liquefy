@@ -287,8 +287,8 @@ export function getWidthIncludingMargin(node) {
   }
 
   getStandardAnimation() {
-    return null;
-    // return standardAnimation; 
+    // return null;
+    return standardAnimation; 
   }
 }
 

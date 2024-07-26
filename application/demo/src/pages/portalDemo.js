@@ -52,7 +52,7 @@ export class PortalExample extends Component {
           filler()
         ),
         row(
-          button(this.showFlyingTextInPortal ? "Fly from portal" : "Fly to portal", ()=> {flyingText.animate = true; this.showFlyingTextInPortal = !this.showFlyingTextInPortal}),
+          button(this.showFlyingTextInPortal ? "Fly from portal" : "Fly to portal", ()=> {this.showFlyingTextInPortal = !this.showFlyingTextInPortal}),
           flyingText.show(!this.showFlyingTextInPortal),
           filler(),
           {style: {overflow: "visible"}}

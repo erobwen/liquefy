@@ -4,9 +4,9 @@ import { installDOMAnimation, resetDOMAnimation } from "@liquefy/flow.DOM";
 import { startRecursiveDemo } from "./pages/recursiveDemoApplication.js";
 import { startComplexFormApplication } from "./pages/complexFormApplication.js";
 import { startDemo } from "./demo.js";
-// import { startProgrammaticReactiveLayout } from "./application/programmaticReactiveLayout.js";
-// import { startAnimationExample } from "./application/animationExample.js";
-// import { startModalDemo } from "./application/modalDemo.js";
+import { startAnimationExample } from "./pages/animationExample.js";
+// import { startProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout.js";
+// import { startModalDemo } from "./pages/modalDemo.js";
 
 import { logMark } from "@liquefy/flow.core";
 import { setBasicUIAsTheme } from "@liquefy/basic-ui";
@@ -70,8 +70,8 @@ Array.prototype.remove = function(target) {
  */
 
 // startRecursiveDemo();
-startComplexFormApplication();
-// startAnimationExample();
+// startComplexFormApplication();
+startAnimationExample();
 // startProgrammaticReactiveLayout();
 // startModalDemo();
 // startPortalDemo();

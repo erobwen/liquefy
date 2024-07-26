@@ -1,7 +1,7 @@
 import { Component, trace, model, getFlowProperties } from "@liquefy/flow.core";
 import { DOMFlowTarget, text } from "@liquefy/flow.DOM";
 
-import { button, numberInputField } from "@liquefy/basic-ui";
+import { button, numberInputField, filler } from "@liquefy/basic-ui";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
 import { modal } from "@liquefy/basic-ui";
 
@@ -56,6 +56,7 @@ export class RecursiveExample extends Component {
           maxCount: this.count, 
           count: 1
         }),
+        filler(),
         text("Info:"),
         text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
         text(" - Stable component identity and local state is demonstrated."), 
@@ -77,13 +78,15 @@ export class ControlRow extends Component {
   build() {
     const me = this;    
     const rootText = text({ key: "root-text", text: "Recursive Structure"});
-    const moreButton = button({
-      key: "more-button", 
-      onClick: () => { 
-        me.demoComponent.count++ 
-      },
-      text: "More"
-    });
+    const moreButton = button(
+      "More", 
+      {
+        key: "more-button", 
+        onClick: () => { 
+          me.demoComponent.count++ 
+        },
+      }
+    );
 
     // Early finalization of sub-component, and dimension analysis of it while building 
     // console.log(moreButton.dimensions());
@@ -93,7 +96,7 @@ export class ControlRow extends Component {
       row(
         text("Depth:"),
         moreButton, 
-        button({key: "less-button", onClick: () => {me.demoComponent.count--}, text: "Less"}),
+        button("Less", {key: "less-button", onClick: () => {me.demoComponent.count--}}),
       ),
       numberInputField("Shared state", this.inherit("myModel"), "value"),
       {style: {padding: "10px", gap: "20px"}} // Reactive programmatic styling! 

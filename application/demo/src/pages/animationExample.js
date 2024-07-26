@@ -1,9 +1,9 @@
-import { observable, Component, transaction } from "@liquefy/flow.core";
+
+import { observable, Component, transaction, getFlowProperties } from "@liquefy/flow.core";
+
+import { text, div, DOMFlowTarget, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+
 import { button, column, filler, row } from "@liquefy/basic-ui";
-import { text, DOMFlowTarget } from "@liquefy/flow.DOM";
-// import { startExperiment } from "..";
-import { standardAnimation } from "@liquefy/flow.DOM";
-import { getFlowProperties, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 const log = console.log;
 
@@ -27,7 +27,7 @@ const items = [
     "Fumbar"
 ];
 
-const panel = (...parameters) =>
+const panel = (...parameters) => 
   column(
     addDefaultStyleToProperties(
       getFlowProperties(parameters),
@@ -38,8 +38,7 @@ const panel = (...parameters) =>
         borderColor: "#cccccc", 
         borderStyle: "solid", 
         borderWidth: "1px", 
-        padding: "10px", 
-        ...style
+        padding: "10px"
       }
     ) 
   );
@@ -47,10 +46,10 @@ const panel = (...parameters) =>
 // Items
 function itemDisplay(item) {
   // return div(
-  //   text(item, {style: {margin: "", lineHeight: ""}}),
-  //   {key: item, animate: true, style: {width: "200px", height: "40px", backgroundColor: "green", textAlign: "center", lineHeight: "40px"}}
+  //   text(item),
+  //   {key: item, animate: true, style: {margin: "", lineHeight: "", width: "200px", height: "40px", backgroundColor: "green", textAlign: "center", lineHeight: "40px"}}
   // );
-  return text({key: item, text: item, style: {display: "block", lineHeight: "", padding: "", margin: smallSpace, textAlign: "left"}})
+  return div(text(item), {key: item, style: {display: "block", lineHeight: "", padding: "", margin: smallSpace, textAlign: "left"}});
 }
 
 
@@ -96,10 +95,10 @@ export class AnimationExample extends Component {
 
     return column(
       row(
-        button({text: "Randomize", onClick: () => transaction(() => randomize(this.listA))}),
-        button({text: "Add random", disabled: this.store.length === 0, onClick: () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA))}),
-        button({text: "Remove random", disabled: this.listA.length === 0, onClick: () => transaction(() => this.store.push(removeOneRandom(this.listA)))}),
-        button({text: "Juggle", onClick: () => this.juggle()}),
+        button("Randomize", () => transaction(() => randomize(this.listA))),
+        button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
+        button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
+        button("Juggle", () => this.juggle()),
         // button({text: "Experiment", onClick: () => {
         //   startExperiment();
         // }})

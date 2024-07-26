@@ -162,7 +162,7 @@ export class ComplexForm extends Component {
   
   setState() {
     this.shouldVerifyData = false;
-    this.derrive(() => {
+    this.ensure(() => {
       if (this.shouldVerifyData) {
         verifyData(this.editData);
         if (!this.editData.anyError) {

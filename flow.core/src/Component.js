@@ -102,10 +102,10 @@ export class Component {
 
   setState() {
     // throw new Error("Not implemented yet");
-    // Use this.derrive(action) to establish reactive relations here. 
+    // Use this.ensure(action) to establish reactive relations here. 
   }
 
-  ensure() {
+  ensureOld() {
     // Component worker here.
   }
 
@@ -220,18 +220,18 @@ export class Component {
    * Internal methods
    */
 
-  derrive(action) {
-    if (!this.derriveRepeaters) {
-      this.derriveRepeaters = [];
+  ensure(action) {
+    if (!this.ensureRepeaters) {
+      this.ensureRepeaters = [];
     }
-    this.derriveRepeaters.push(repeat(action));
+    this.ensureRepeaters.push(repeat(action));
   }
 
-  derriveAtBuild(action) {
-    if (!this.derriveRepeaters) {
-      this.derriveRepeaters = [];
+  ensureAtBuild(action) {
+    if (!this.ensureRepeaters) {
+      this.ensureRepeaters = [];
     }
-    this.derriveRepeaters.push(repeat(action, {priority: 1}));
+    this.ensureRepeaters.push(repeat(action, {priority: 1}));
   }
 
   ensureEstablished() {
@@ -264,7 +264,7 @@ export class Component {
         this.toString() + ".generalRepeater",
         (repeater) => {
           // if (trace) console.group(repeater.causalityString());
-          this.ensure();
+          this.ensureOld();
           // if (trace) console.groupEnd();
         });
     }
@@ -286,7 +286,7 @@ export class Component {
       this.buildRepeater.dispose();
       this.buildRepeater.repeaterAction = () => {};
     }
-    if (this.derriveRepeaters) this.derriveRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
+    if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
     this.disposeState();
   }
 
@@ -295,7 +295,7 @@ export class Component {
     // Called if the visibility is changed for this component. 
     // Since Flow allows hidden component that maintain their state but are not disposed, 
     // this is how you know if your component is visible.  
-    // Tips: It might be better do do a derrive and simply reading isVisible instead of 
+    // Tips: It might be better do do a ensure and simply reading isVisible instead of 
     // overloading this method. 
   }
 

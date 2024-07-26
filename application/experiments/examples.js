@@ -12,7 +12,7 @@ export class ExmapleFlow extends Component {
   setState() {
     this.foo = 1;
     this.fie = 2; 
-    this.derrive(() => {
+    this.ensure(() => {
       this.fooPlusFie = this.foo + this.fie;
     });
     this.expensiveResource = getExpensiveResource();

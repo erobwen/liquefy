@@ -17,8 +17,8 @@ export class HelloWorld extends Component {
     this.name = "Hello World";
     this.helloText = observable({ value: "..." });
     this.emphasis = false;
-    this.derrive(() => {
-      // In setState you can establish reactive relations between different properties using this.derrive(). You could accomplish the same thing using causality/repeat but this.derrive takes care of disposing the repeater for your convenience. 
+    this.ensure(() => {
+      // In setState you can establish reactive relations between different properties using this.ensure(). You could accomplish the same thing using causality/repeat but this.ensure takes care of disposing the repeater for your convenience. 
       // Note that this repeater even decorates the observable helloText object with additional data, but we could have added more properties to this as well, it would make no difference. 
       this.helloText.withComma = this.helloText.value.length > 4 ? this.helloText.value + "," : this.helloText.value;
     });

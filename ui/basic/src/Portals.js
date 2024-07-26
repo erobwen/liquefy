@@ -18,7 +18,7 @@ export class PortalEntrance extends Component {
   setProperties({portalContent, portalExit}) {
     this.portalExit = portalExit; 
     this.portalContent = portalContent;
-    this.derriveAtBuild(() => {
+    this.ensureAtBuild(() => {
       if (this.isVisible) {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway. 
         this.portalExit.children = this.portalContent;

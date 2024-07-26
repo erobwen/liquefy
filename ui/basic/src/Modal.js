@@ -22,20 +22,19 @@ export class Modal extends Component {
 
   setState() {
     this.visibleOnFrame = null;
-  }
-
-  ensure() {
-    if (this.isVisible) {
-      // Try to show
-      const modalFrame = this.inherit("modalFrame");
-      if (modalFrame) {
-        this.visibleOnFrame = modalFrame;
-        modalFrame.openModal(this.content);
+    this.ensure(() => {
+      if (this.isVisible) {
+        // Try to show
+        const modalFrame = this.inherit("modalFrame");
+        if (modalFrame) {
+          this.visibleOnFrame = modalFrame;
+          modalFrame.openModal(this.content);
+        }
+      } else if (this.visibleOnFrame) {
+        // Try to hide
+        this.visibleOnFrame.closeModal(this.content);
       }
-    } else if (this.visibleOnFrame) {
-      // Try to hide
-      this.visibleOnFrame.closeModal(this.content);
-    }
+    });
   }
 
   build() {
@@ -61,13 +60,12 @@ export class ModalFrame extends Component {
   setState() {
     this.modalContent = null;
     this.modalSubFrame = null;
-    this.actualChildren = [...this.children];
-  }
-
-  updateChildren() {
-    const newChildren = [...this.staticContent]
-    if (this.modalSubFrame) newChildren.push(this.modalSubFrame);
-    this.actualChildren = newChildren;  
+    this.childrenWithPossibleModal = [...this.children];
+    this.ensure(() => {
+      const newChildren = [...this.staticContent]
+      if (this.modalSubFrame) newChildren.push(this.modalSubFrame);
+      this.childrenWithPossibleModal = newChildren;
+    })
   }
 
   openModal(modalContent) {
@@ -91,7 +89,6 @@ export class ModalFrame extends Component {
   setStaticContent(staticContent) {
     staticContent = staticContent instanceof Array ? staticContent : [staticContent]
     this.staticContent = staticContent;
-    this.updateChildren();
   }
 
   setModalContent(modalContent) {
@@ -105,7 +102,6 @@ export class ModalFrame extends Component {
         if (!modalContent) {
           // Remove modal
           this.disposeModalSubFrame();
-          this.updateChildren();
         } else if (previousContent) {
           // Replace content
           this.modalSubFrame.setStaticContent(modalContent)
@@ -114,7 +110,6 @@ export class ModalFrame extends Component {
           // New content
           this.ensureModalSubFrame(this.modalContent);
           modalContent.modalFrame = this.modalSubFrame;
-          this.updateChildren();
         }
       }
     });
@@ -155,7 +150,7 @@ export class ModalFrame extends Component {
 
   build() {
     if (this.reallyDisposed) throw new Error("CANNOT REBUILD A DISPOSED ONE!!!");
-    return new modalFrameDiv({style: this.style, children: this.actualChildren});
+    return new modalFrameDiv({style: this.style, children: this.childrenWithPossibleModal});
   }
 }
 

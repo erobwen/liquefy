@@ -90,7 +90,7 @@ export class ModernButton extends Component {
     this.hover = false;
   }
 
-  ensure() {
+  ensureOld() {
     // log("ENSURE");
     // log(foo);
     // log("--")

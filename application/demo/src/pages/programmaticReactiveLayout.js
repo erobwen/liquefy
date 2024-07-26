@@ -1,14 +1,10 @@
-import { observable, Component, repeat } from "../flow/Flow";
-import { getFlowProperties } from "../flow/flowParameters";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { basicWidgetTheme, numberInputField, text } from "../components/basic/BasicWidgets";
-import { centerMiddle, column, fitContainerStyle, flexAutoHeightStyle, naturalSizeStyle, fillerStyle, fillerStyle, row } from "../components/basic/Layout";
-import { div } from "../flow.DOM/BasicHtml"
-;
-import { logMark } from "../flow/utility";
-import { fitTextWithinWidth } from "../flow.DOM/fontMetrics";
-import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/flowParameters.js";
+import { repeat, observable, Component, transaction, getFlowProperties, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
+import { text, div, DOMFlowTarget, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
+
+import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row } from "@liquefy/basic-ui";
+
+import { logMark } from "@liquefy/flow.core";
 
 const log = console.log;
 
@@ -29,7 +25,7 @@ export class ProgrammaticReactiveLayout extends Component {
   }
 
   build() {
-
+    console.log(this.bounds);  
     const controlPanel = column("control-panel",
       row(numberInputField("Rows", this, "rows")),
       row(numberInputField("Columns", this, "columns")),
@@ -97,7 +93,7 @@ export class BoundsDisplay extends Component {
   } 
     
   build() {
-    const text = "bounds: " + Math.round(this.bounds.width) + " x " + Math.round(this.bounds.height);
+    const text = "Bounds: " + Math.round(this.bounds.width) + " x " + Math.round(this.bounds.height);
     return (
       centerMiddle(
         scaledTextWithMaxFontSize(
@@ -143,6 +139,7 @@ export class StringDisplay extends Component {
 
 function scaledTextWithMaxFontSize(...parameters) {
   const properties = getFlowPropertiesIncludingChildren(parameters);
+  // findImplicitSingleTextInContent
 
   // console.log(properties);
   const fontSize = Math.min(basicWidgetTheme.fontSize, fitTextWithinWidth(properties.text, properties.width*0.8));
@@ -198,7 +195,7 @@ export class FixedAspectRatioDisplay extends Component {
       centerMiddle(
         div(
           scaledTextWithMaxFontSize(
-            "width / height = " + Math.round(this.aspectRatio * 100) / 100, 
+            "Width / Height = " + Math.round(this.aspectRatio * 100) / 100, 
             {width}
           ),{
           style: {

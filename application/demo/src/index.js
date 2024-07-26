@@ -5,7 +5,7 @@ import { startRecursiveDemo } from "./pages/recursiveDemoApplication.js";
 import { startComplexFormApplication } from "./pages/complexFormApplication.js";
 import { startDemo } from "./demo.js";
 import { startAnimationExample } from "./pages/animationExample.js";
-// import { startProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout.js";
+import { startProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout.js";
 // import { startModalDemo } from "./pages/modalDemo.js";
 
 import { logMark } from "@liquefy/flow.core";
@@ -71,8 +71,8 @@ Array.prototype.remove = function(target) {
 
 // startRecursiveDemo();
 // startComplexFormApplication();
-startAnimationExample();
-// startProgrammaticReactiveLayout();
+// startAnimationExample();
+startProgrammaticReactiveLayout();
 // startModalDemo();
 // startPortalDemo();
 

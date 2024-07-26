@@ -1,8 +1,20 @@
-import { extractProperty } from "@liquefy/flow.core";
+import { extractProperty, getFlowPropertiesIncludingChildren, getTarget } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
 import { domNodeClassRegistry } from "./DOMFlowTarget";
+import { extractAttributes } from "./domNodeAttributes";
   
 const log = console.log;
+
+
+/**
+ * Element Node
+ */
+export function elementNode(...parameters) {
+  let properties = getFlowPropertiesIncludingChildren(parameters); 
+  extractAttributes(properties);
+  return getTarget().create({type: "elementNode", ...properties});
+}
+
 
 /**
  * DOM Flow Target Primitive

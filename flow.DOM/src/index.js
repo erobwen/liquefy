@@ -108,10 +108,10 @@ import {
   slot,
   template
 } from "./HTMLTags";
-import { elementNode, textNode, text, addDefaultStyleToProperties } from "./HTMLBuilding";
-import { DOMElementNode } from "./DOMElementNode";
+import { addDefaultStyleToProperties } from "./HTMLBuilding";
+import { DOMElementNode, elementNode } from "./DOMElementNode";
 import { getThemedComponent } from "./domFlowBuildContext"
-import { DOMTextNode } from "./DOMTextNode"
+import { textNode, text, DOMTextNode, findImplicitSingleTextInContent } from "./DOMTextNode"
 import { DOMFlowTarget} from "./DOMFlowTarget"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { extractAttributes, eventHandlerContentElementAttributesCamelCase, globalElementAttributesCamelCase, extractChildStyles } from "./domNodeAttributes";
@@ -235,12 +235,10 @@ export {
     template,
     
     // Basic HTML
-    elementNode, 
-    textNode,
-    text,
     addDefaultStyleToProperties,
 
     // DOMElementNode
+    elementNode, 
     DOMElementNode,
 
     // domFlowBuildContext
@@ -264,7 +262,10 @@ export {
     extractChildStyles,
     
     //DOMTextNode 
+    textNode,
+    text,
     DOMTextNode,
+    findImplicitSingleTextInContent,
 
     // fontMetrics
     fitTextWithinWidth, 

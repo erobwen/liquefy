@@ -89,7 +89,7 @@ export const fillerStyle = {
   boxSizing: "border-box",
   flexGrow: 1,
   flexShrink: 1,
-  flexBasis: 'auto',
+  flexBasis: 0, // 'auto',
 }
 
 

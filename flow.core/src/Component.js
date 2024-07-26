@@ -520,7 +520,8 @@ function getShapeAnalysis(flow) {
       } else if (establishedObject instanceof Component && newObject instanceof Component) {
         if (childrenProperty) yield [establishedObject, newObject];
         for (let property in newObject) {
-          if (property === "children") {
+          // if (property === "children") {
+          if (establishedObject[property] instanceof Array && newObject[property] instanceof Array) { // Could we do this for all arrays?
             yield * this.slotsIterator(
               establishedObject[property], 
               newObject[property],

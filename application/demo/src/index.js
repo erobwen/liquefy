@@ -75,6 +75,6 @@ Array.prototype.remove = function(target) {
 // startAnimationExample();
 // startProgrammaticReactiveLayout();
 // startModalDemo();
-startPortalDemo();
+// startPortalDemo();
 
-// startDemo();
+startDemo();

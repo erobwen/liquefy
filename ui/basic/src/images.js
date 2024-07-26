@@ -11,6 +11,6 @@ export function svgImage(...parameters) {
   const properties = getFlowProperties(parameters);
   addDefaultStyleToProperties(properties, {padding: "20px", backgroundColor: "white"});
   const attributes = extractAttributes(properties);
-  attributes.src = parameters.image;
+  attributes.src = properties.image;
   return getTarget().create({type: "elementNode", tagName: "img", attributes});
 }

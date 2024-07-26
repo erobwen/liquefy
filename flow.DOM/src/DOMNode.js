@@ -214,11 +214,12 @@ export function getWidthIncludingMargin(node) {
       }
     })
 
-    // Removing pass, will also rearrange moved elements
+    // Removing pass, will also rearrange moved elements.
     index =  node.childNodes.length - 1;
     while(index >= 0) {
       const existingChildNode = node.childNodes[index];
-      if ((existingChildNode instanceof Element) && !newChildNodes.includes(existingChildNode)) {
+      // Consider: Do we need test for Element and Text ?
+      if ((existingChildNode instanceof Element || existingChildNode instanceof Text) && !newChildNodes.includes(existingChildNode)) {
         node.removeChild(existingChildNode);
       }
       index--;

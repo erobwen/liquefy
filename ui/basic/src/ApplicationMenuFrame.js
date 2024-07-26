@@ -52,7 +52,7 @@ class ApplicationMenuFrame extends Component {
     // const toggleButton = button(menuIsModal ? "To Modal" : "To Nonmodal", () => this.menuIsModalOverride = !this.menuIsModalOverride);
     // return centerMiddle(toggleButton);
 
-    const modalButton = button("modalButton", icon("bars"));
+    const modalButton = button("modalButton", icon("bars"), () => {});
 
     const topPanel = row("modalMenu",
       modalButton.show(menuIsModal),
@@ -60,13 +60,13 @@ class ApplicationMenuFrame extends Component {
       {style: {...layoutBorderStyle, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
 
+    const overflowVisibleStyle = { overflow: "visible"};
+
     const leftPanel = column("leftMenu", 
       this.appplicationMenu,
       // text("Menu..."),
       {style: {...layoutBorderStyle, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
     );
-
-    // const overflowVisibleStyle = {};
 
     return row("a",
       leftPanel.show(!menuIsModal),

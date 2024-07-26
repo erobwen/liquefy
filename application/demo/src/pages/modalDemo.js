@@ -1,15 +1,11 @@
-import { Component } from "../flow/Flow";
-import { getFlowProperties } from "../flow/flowParameters";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { panel, text } from "../components/basic/BasicWidgets";
-import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "../components/basic/Layout";
-import { div } from "../flow.DOM/BasicHtml"
-;
-import { adjustLightness } from "../components/themed/Color";
-import { modernButton } from "../components/modern/ModernButton";
+import { Component } from "@liquefy/flow.core";
+import { getFlowProperties } from "@liquefy/flow.core";
+import { DOMFlowTarget, text, div } from "@liquefy/flow.DOM";
+import { panel } from "@liquefy/basic-ui";
+import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
 import { overflowVisibleStyle } from "@liquefy/basic-ui";
-import { modal, modalFrame } from "../components/basic/Modal";
-import { button } from "../components/themed/Theme";
+import { modal, modalFrame } from "@liquefy/basic-ui";
+import { button } from "@liquefy/basic-ui";
 
 
 const log = console.log;

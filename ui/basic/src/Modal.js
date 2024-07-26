@@ -76,10 +76,10 @@ export class ModalFrame extends Component {
   
   onDispose() {
     log("DISPOSE!!!!!");
-    console.group("onDispose");
+    // console.group("onDispose");
     super.onDispose();
     this.setModalContent(null);
-    console.groupEnd();
+    // console.groupEnd();
   }
   
   closeModal(modalContent) {

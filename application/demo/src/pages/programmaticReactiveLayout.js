@@ -25,7 +25,6 @@ export class ProgrammaticReactiveLayout extends Component {
   }
 
   build() {
-    console.log(this.bounds);  
     const controlPanel = column("control-panel",
       row(numberInputField("Rows", this, "rows")),
       row(numberInputField("Columns", this, "columns")),

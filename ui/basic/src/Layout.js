@@ -89,7 +89,16 @@ export const fillerStyle = {
   boxSizing: "border-box",
   flexGrow: 1,
   flexShrink: 1,
-  flexBasis: 0, // 'auto',
+  flexBasis: 0,
+}
+
+// For components that needs to grow and shrink without regard to its contents. Scroll panels typically, or for equal distribution of space.
+export const autoFillerStyle = {
+  overflow: "hidden", 
+  boxSizing: "border-box",
+  flexGrow: 1,
+  flexShrink: 1,
+  flexBasis: 'auto',
 }
 
 

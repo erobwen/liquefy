@@ -1,5 +1,5 @@
 import { Component } from "./Component";
-import { workOnPriorityLevel } from "./flow";
+import { buildComponentTime, workOnPriorityLevel } from "./Flow";
 
 /**
  * Implement any flow target that implements HTML Element Node and HTML Text Node. 
@@ -19,7 +19,7 @@ export class FlowTarget {
 		this.flow = flow;
 		flow.target = this;
 		flow.ensureEstablished();
-		workOnPriorityLevel(1, () => this.flow.ensureBuiltRecursive(this));
+		workOnPriorityLevel(buildComponentTime, () => this.flow.ensureBuiltRecursive(this));
 		if (flow.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();
 	}

@@ -105,10 +105,6 @@ export class Component {
     // Use this.ensure(action) to establish reactive relations here. 
   }
 
-  ensureOld() {
-    // Component worker here.
-  }
-
   onDidDisplayFirstFrame() {
     // Component was drawn for the first animation frame, 
     // If you want to change an animated property on entry, now is the time. 
@@ -221,17 +217,19 @@ export class Component {
    */
 
   ensure(action) {
-    if (!this.ensureRepeaters) {
-      this.ensureRepeaters = [];
+    const unobservable = this.unobservable;
+    if (!unobservable.ensureRepeaters) {
+      unobservable.ensureRepeaters = [];
     }
-    this.ensureRepeaters.push(repeat(action));
+    unobservable.ensureRepeaters.push(repeat(action));
   }
 
   ensureAtBuild(action) {
-    if (!this.ensureRepeaters) {
-      this.ensureRepeaters = [];
+    const unobservable = this.unobservable;
+    if (!unobservable.ensureRepeaters) {
+      unobservable.ensureRepeaters = [];
     }
-    this.ensureRepeaters.push(repeat(action, {priority: 1}));
+    unobservable.ensureRepeaters.push(repeat(action, {priority: buildComponentTime}));
   }
 
   ensureEstablished() {
@@ -248,26 +246,9 @@ export class Component {
     creators.push(this);
     this.setState();
     creators.pop();
-    this.startGeneralEnsure();
     if (trace) log("Established:" + this.toString());
     // Lifecycle, override to do expensive things. Like opening up connections etc.
     // However, this will not guarantee a mount. For that, just observe specific properties set by the integration process.
-  }
-
-  startGeneralEnsure() {
-    // Only start if ensure is implemented
-    const proto = Object.getPrototypeOf(this);
-    if (!proto.hasOwnProperty("ensure")) return;
-
-    if (!this.generalEnsureRepeater) {
-      this.generalEnsureRepeater = repeat(
-        this.toString() + ".generalRepeater",
-        (repeater) => {
-          // if (trace) console.group(repeater.causalityString());
-          this.ensureOld();
-          // if (trace) console.groupEnd();
-        });
-    }
   }
 
   onRemoveFromFlowTarget() {
@@ -467,7 +448,7 @@ export class Component {
 
           if (trace) console.groupEnd();
         }, {
-          priority: 1, 
+          priority: buildComponentTime, 
           rebuildShapeAnalysis: getShapeAnalysis(me)
         }
       );

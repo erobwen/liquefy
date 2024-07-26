@@ -3,6 +3,7 @@ import { FlowPrimitive } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
 import { standardAnimation } from "./ZoomFlyDOMNodeAnimation";
+import { renderViewTime } from "../../flow.core/src/Flow";
 
 const log = console.log;
 
@@ -141,7 +142,7 @@ export function getWidthIncludingMargin(node) {
         this.ensureDomNodeChildrenInPlace();
         
         if (trace) console.groupEnd();  
-      }, {priority: 2});
+      }, {priority: renderViewTime});
     }
     return this.domNode;
   }
@@ -270,7 +271,7 @@ export function getWidthIncludingMargin(node) {
         }
 
         if (trace) log(this.domNode);
-      }, {priority: 2});
+      }, {priority: renderViewTime});
     }
     return this.domNode;
   }

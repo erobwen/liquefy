@@ -88,36 +88,35 @@ export class ModernButton extends Component {
 
   setState() {
     this.hover = false;
-  }
-
-  ensureOld() {
-    // log("ENSURE");
-    // log(foo);
-    // log("--")
-    // Ensure event listeners
-    const pannel = this.findChild("button").domNode;
-    if (pannel !== this.eventListenersDomNode) {
-      this.eventListenersDomNode = pannel;
-      this.clearEventListeners();
-      this.setEventListeners(this.onClick, this.mouseOverBackgroundColor);
-    }
-
-    // Ensure right background color
-    // log(this.toString())
-    // log("hover:" + this.hover);
-    if (this.pressed) {
-      if (this.hover && this.hoverEffect) {
-        this.style = {...this.style, backgroundColor: this.mouseOverPressedBackgroundColor};      
-      } else {
-        this.style = {...this.style, backgroundColor: this.pressedBackgroundColor};      
+    this.ensure(() => {
+      // log("ENSURE");
+      // log(foo);
+      // log("--")
+      // Ensure event listeners
+      const pannel = this.findChild("button").domNode;
+      if (pannel !== this.eventListenersDomNode) {
+        this.eventListenersDomNode = pannel;
+        this.clearEventListeners();
+        this.setEventListeners(this.onClick, this.mouseOverBackgroundColor);
       }
-    } else {
-      if (this.hover  && this.hoverEffect) {
-        this.style = {...this.style, backgroundColor: this.mouseOverBackgroundColor};      
+
+      // Ensure right background color
+      // log(this.toString())
+      // log("hover:" + thiover);
+      if (this.pressed) {
+        if (this.hover && this.hoverEffect) {
+          this.style = {...this.style, backgroundColor: this.mouseOverPressedBackgroundColor};      
+        } else {
+          this.style = {...this.style, backgroundColor: this.pressedBackgroundColor};      
+        }
       } else {
-        this.style = {...this.style, backgroundColor: this.backgroundColor};      
+        if (this.hover  && this.hoverEffect) {
+          this.style = {...this.style, backgroundColor: this.mouseOverBackgroundColor};      
+        } else {
+          this.style = {...this.style, backgroundColor: this.backgroundColor};      
+        }
       }
-    }
+    });
   }
 
   onDispose() {

@@ -1,4 +1,4 @@
-import { finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./flow.js";
+import { buildComponentTime, finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
 import { Component } from "./Component.js";
 import { logMark } from "./utility.js";
 
@@ -96,7 +96,7 @@ export class FlowPrimitive extends Component {
         }
       
         if (trace) console.groupEnd();
-      }, {priority: 1});
+      }, {priority: buildComponentTime});
     }
     return this; 
   }

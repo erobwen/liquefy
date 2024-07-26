@@ -1,6 +1,6 @@
 import { repeat, observable, Component, transaction, getFlowProperties, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
-import { text, div, DOMFlowTarget, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
+import { text, div, DOMFlowTarget, getFlowPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
 import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row } from "@liquefy/basic-ui";
 
@@ -97,8 +97,7 @@ export class BoundsDisplay extends Component {
     return (
       centerMiddle(
         scaledTextWithMaxFontSize(
-          text, 
-          {width: this.bounds.width}
+          {text, width: this.bounds.width}
         ),
         {style: {
           overflow: "hidden",
@@ -138,8 +137,7 @@ export class StringDisplay extends Component {
 }
 
 function scaledTextWithMaxFontSize(...parameters) {
-  const properties = getFlowPropertiesIncludingChildren(parameters);
-  // findImplicitSingleTextInContent
+  const properties = getFlowPropertiesWithImplicitSingleText(parameters);
 
   // console.log(properties);
   const fontSize = Math.min(basicWidgetTheme.fontSize, fitTextWithinWidth(properties.text, properties.width*0.8));
@@ -148,7 +146,7 @@ function scaledTextWithMaxFontSize(...parameters) {
     centerMiddle(
       {
         key: properties.key,
-        children: properties.children,
+        children: text(properties.text),
         style: {
           ...fitContainerStyle,
           overflow: "hidden",
@@ -194,9 +192,11 @@ export class FixedAspectRatioDisplay extends Component {
     return (
       centerMiddle(
         div(
-          scaledTextWithMaxFontSize(
-            "Width / Height = " + Math.round(this.aspectRatio * 100) / 100, 
-            {width}
+          scaledTextWithMaxFontSize( 
+            {
+              text: "Width / Height = " + Math.round(this.aspectRatio * 100) / 100,
+              width
+            }
           ),{
           style: {
             border: "1px solid",

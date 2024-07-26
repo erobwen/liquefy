@@ -111,7 +111,7 @@ import {
 import { addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode, elementNode } from "./DOMElementNode";
 import { getThemedComponent } from "./domFlowBuildContext"
-import { textNode, text, DOMTextNode, findImplicitSingleTextInContent } from "./DOMTextNode"
+import { textNode, text, DOMTextNode, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMFlowTarget} from "./DOMFlowTarget"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { extractAttributes, eventHandlerContentElementAttributesCamelCase, globalElementAttributesCamelCase, extractChildStyles } from "./domNodeAttributes";
@@ -266,6 +266,7 @@ export {
     text,
     DOMTextNode,
     findImplicitSingleTextInContent,
+    getFlowPropertiesWithImplicitSingleText,
 
     // fontMetrics
     fitTextWithinWidth, 

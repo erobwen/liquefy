@@ -247,7 +247,7 @@ export class ModernButton extends Component {
   
   build() {
     // log("REBUILDING BUTTON")
-    let {style, onClick} = this;
+    const {style, onClick} = this;
     if (onClick) {
       style.cursor = "pointer";
     }

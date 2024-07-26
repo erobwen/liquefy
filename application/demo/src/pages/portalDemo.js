@@ -1,8 +1,10 @@
-import { observable, world, repeat, when, Component, finalize, getFlowProperties } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
-import { portalEntrance } from "../components/basic/Portals";
-import { button, text } from "../components/basic/BasicWidgets";
-import { column, filler, row } from "../components/basic/Layout";
+import { Component } from "@liquefy/flow.core";
+import { DOMFlowTarget, text, div } from "@liquefy/flow.DOM";
+import { filler, column, row } from "@liquefy/basic-ui";
+import { button } from "@liquefy/basic-ui";
+import { portalEntrance } from "@liquefy/basic-ui";
+import { layoutBorderStyle, portalExit } from "@liquefy/basic-ui";
+
 
 const log = console.log;
 const loga = (action) => {
@@ -29,13 +31,13 @@ export class PortalExample extends Component {
   }
   
   setState() {
-    this.showPortal = true;
+    this.showPortal = false;
     this.showFlyingTextInPortal = false; 
   }
 
   build() {
-    const flyingText = text("flying text in portal", {animate: true, key: "flying-content"}); 
-    const staticText = text("text in portal", {key: "content", animate: true})
+    const flyingText = div("flying-content", text("flying text in portal"), {animate: true}); 
+    const staticText = div("content", text("Static text in portal"), {animate: true});
 
     const portalContent = [staticText];
     if (this.showFlyingTextInPortal) portalContent.push(flyingText)
@@ -69,12 +71,21 @@ export class PortalExample extends Component {
   }
 }
   
+export class PortalStandaloneExample extends Component {
+  build() {
+    const portal = portalExit("portal", {style: {width: "300px", height: "300px", ...layoutBorderStyle}})
+    // const portal = div("portal", {style: {width: "300px", height: "300px", ...layoutBorderStyle}});
+    const example = new PortalExample("example", {portal});
+    return row(div(example), filler(), div(portal)); 
+  }
+}
+
 
 /**
  * Start the demo
  */
   
 export function startPortalDemo() {
-  const root = new PortalExample();
+  const root = new PortalStandaloneExample();
   new DOMFlowTarget(document.getElementById("root")).setContent(root);
 }

@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
 import { getFlowProperties } from "@liquefy/flow.core";
 
-import { extractAttributes } from "@liquefy/flow.DOM";
+import { extractAttributes, text, div } from "@liquefy/flow.DOM";
 
 const log = console.log;
 
@@ -32,8 +32,7 @@ export class PortalEntrance extends Component {
   }
 
   build() {
-    // Just render into nothing.
-    return null;
+    return div({style: {display: "none"}});
   }
 }
 

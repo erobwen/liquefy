@@ -7,6 +7,7 @@ import { startDemo } from "./demo.js";
 import { startAnimationExample } from "./pages/animationExample.js";
 import { startProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout.js";
 import { startModalDemo } from "./pages/modalDemo.js";
+import { startPortalDemo } from "./pages/portalDemo.js";
 
 import { logMark } from "@liquefy/flow.core";
 import { setBasicUIAsTheme } from "@liquefy/basic-ui";
@@ -73,7 +74,7 @@ Array.prototype.remove = function(target) {
 // startComplexFormApplication();
 // startAnimationExample();
 // startProgrammaticReactiveLayout();
-startModalDemo();
-// startPortalDemo();
+// startModalDemo();
+startPortalDemo();
 
 // startDemo();

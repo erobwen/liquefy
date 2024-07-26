@@ -8,12 +8,28 @@ const log = console.log;
  * Text Node
  */
 export function textNode(...parameters) {
-  let properties = getFlowProperties(parameters);
-  findImplicitSingleTextInContent(properties); 
+  const properties = getTextNodeProperties(parameters)
   return getTarget().create({type: "textNode", ...properties});
 }
 
 export const text = textNode;
+
+export function getTextNodeProperties(parameters) {
+  let properties; 
+  let text; 
+  if (typeof(parameters[0]) === "string" || typeof(parameters[0]) === "number") {
+    text = parameters.shift() + "";
+  } 
+  if (typeof(parameters[0]) === "object") {
+    properties = parameters.shift();
+  }
+  if (!properties) properties = {};
+  if (properties.text && text) throw new Error("Cannot have both text as parameter and as property!");
+  if (text) {
+    properties.text = text; 
+  }
+  return properties;
+}
 
 export function getFlowPropertiesWithImplicitSingleText(parameters) {
   let properties = getFlowProperties(parameters);

@@ -883,7 +883,15 @@ function createWorld(configuration) {
       const repeater = state.inRepeater;
       if (buildId !== null) {
         if (!repeater.newBuildIdObjectMap) repeater.newBuildIdObjectMap = {};
-        if (repeater.buildIdObjectMap && typeof(repeater.buildIdObjectMap[buildId]) !== 'undefined') {
+        if (repeater.buildIdObjectMap 
+          && typeof(repeater.buildIdObjectMap[buildId]) !== 'undefined'
+          && (!repeater.options.rebuildShapeAnalysis // Note: reject identity reuse if objects are too different (allowMatch() returns false)
+            || !repeater.options.rebuildShapeAnalysis.allowMatch 
+            || withoutRecording(
+              () => repeater.options.rebuildShapeAnalysis.allowMatch(repeater.buildIdObjectMap[buildId], proxy)
+            ))
+          ) {
+
           // Build identity previously created
           handler.meta.isBeingRebuilt = true;
           let establishedObject = repeater.buildIdObjectMap[buildId];

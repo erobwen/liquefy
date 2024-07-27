@@ -4,7 +4,7 @@
   "description": "A library for reactive programming based on Javascript proxies.",
   "type": "module",
   "main": "./dist/causality.umd.csj",
-  "module": "./dist/causality.js",
+  "module": "./src/causality.js",
   "scripts": {
     "test": "mocha ./src/test",
     "build": "vite build"

@@ -16,8 +16,8 @@ setBasicUIAsTheme();
 
 // Setup flow 
 setFlowConfiguration({
+  traceReactivity: true,
   warnWhenNoKey: false,
-  traceReactivity: false,
   autoAssignProperties: true
 });
 installDOMAnimation();

@@ -65,9 +65,9 @@ export const model = deeplyObservable;
  */
 export const configuration = {
   warnWhenNoKey: false,
-  // traceReactivity: true,
-  // traceAnimation: false,
-  // traceWarnings: false, 
+  traceReactivity: false,
+  traceAnimation: false,
+  traceWarnings: false, 
   autoAssignProperties: false, 
   defaultTransitionAnimations: null,
   onFinishReBuildingFlowCallbacks: [],
@@ -76,18 +76,18 @@ export const configuration = {
 
 export function setFlowConfiguration(newConfiguration) {
   Object.assign(configuration, newConfiguration);
-  // trace = configuration.traceReactivity;
-  // traceAnimation = configuration.traceAnimation;
-  // traceWarnings = configuration.traceWarnings; 
+  trace = configuration.traceReactivity;
+  traceAnimation = configuration.traceAnimation;
+  traceWarnings = configuration.traceWarnings; 
 }
 
 
 /**
  * Debugging
  */
-export const trace = false;
-export const traceAnimation = false; 
-export const traceWarnings = false; 
+export let trace = false;
+export let traceAnimation = false; 
+export let traceWarnings = false; 
 export let activeTrace = false; 
 export const activeTraceModel = model({
   on: false 

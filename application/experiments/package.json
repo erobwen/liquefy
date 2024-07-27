@@ -5,7 +5,6 @@
   "version": "1.0.0",
   "description": "A demo showcasing flow.",
   "type": "module",
-  "module": "./src/index.js",
   "scripts": {
     "start": "vite --debug"
   },

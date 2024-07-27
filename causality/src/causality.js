@@ -215,9 +215,10 @@ function createWorld(configuration) {
   function withoutRecording(action) {
     state.recordingPaused++;
     updateContextState();
-    action();
+    const result = action();
     state.recordingPaused--;
     updateContextState();
+    return result; 
   }
 
   function postponeInvalidationsAndDo(callback) {

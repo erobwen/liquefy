@@ -4,6 +4,7 @@ import { getFlowProperties } from "@liquefy/flow.core";
 import { extractAttributes } from "@liquefy/flow.DOM";
 import { div, elementNode } from "@liquefy/flow.DOM";
 import { logMark } from "@liquefy/flow.core";
+import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/flowParameters";
 const log = console.log;
 
 /**
@@ -44,7 +45,7 @@ export class Modal extends Component {
 
 export function modalFrame(...parameters) {
   // debugger; 
-  const properties = getFlowProperties(parameters);
+  const properties = getFlowPropertiesIncludingChildren(parameters);
   const result = new ModalFrame(properties);
   return result; 
 }
@@ -73,7 +74,6 @@ export class ModalFrame extends Component {
   }
   
   onDispose() {
-    log("DISPOSE!!!!!");
     // console.group("onDispose");
     super.onDispose();
     this.setModalContent(null);

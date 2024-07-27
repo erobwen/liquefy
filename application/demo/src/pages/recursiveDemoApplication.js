@@ -57,10 +57,10 @@ export class RecursiveExample extends Component {
           count: 1
         }),
         filler(),
-        text("Info:"),
-        text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
-        text(" - Stable component identity and local state is demonstrated."), 
-        text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
+        // text("Info:"),
+        // text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+        // text(" - Stable component identity and local state is demonstrated."), 
+        // text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
       )
     );
   }

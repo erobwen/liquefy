@@ -11,3 +11,5 @@ export const crossIcon = (...parameters) => getThemedComponent("crossIcon", getF
 export const plusIcon = (...parameters) => getThemedComponent("plusIcon", getFlowProperties(parameters));
 export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon", getFlowProperties(parameters));
 export const icon = (...parameters) => getThemedComponent("icon", getFlowProperties(parameters));
+export const button = (...parameters) => getThemedComponent("button", getFlowProperties(parameters));
+export const textInputField = (...parameters) => getThemedComponent("textInputField", getFlowProperties(parameters));

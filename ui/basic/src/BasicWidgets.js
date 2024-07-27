@@ -66,7 +66,9 @@ export function findImplicitInputFieldParameters(properties) {
   if (!properties.key) properties.key = properties.labelText;
   if (typeof(argumentsContent[0]) === "function") {
     properties.getter = argumentsContent.shift();
+    console.log("here")
     properties.setter = argumentsContent.shift();
+    console.log(properties.setter);
   } else {
     properties.targetObject = argumentsContent.shift();
     properties.targetProperty = argumentsContent.shift();
@@ -116,7 +118,7 @@ export function inputField(properties) {
   const type = extractProperty(properties, "type");
   let labelText = extractProperty(properties, "labelText");
   let getter = extractProperty(properties, "getter");
-  let setter = extractProperty(properties, "getter");
+  let setter = extractProperty(properties, "setter");
   const targetObject = extractProperty(properties, "targetObject");
   const targetProperty = extractProperty(properties, "targetProperty");
 

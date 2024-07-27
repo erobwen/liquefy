@@ -15,7 +15,7 @@ export class Component {
     return this.causality.id;
   }
 
-  get get() { // TODO: Move this to causality, as some optional generic "get target" property, maybe use underscore? 
+  get get() { 
     return this.causality.target;
   }
 

@@ -18,6 +18,8 @@ import { PortalExample } from "./pages/portalDemo";
 import { ModalExample } from "./pages/modalDemo";
 
 import { button, textInputField } from "@liquefy/themed-ui";
+import { setModernUIAsTheme } from "@liquefy/modern-ui";
+import { setBasicUIAsTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
 
 const log = console.log;
 
@@ -27,16 +29,18 @@ const log = console.log;
 
 export class Demo extends Component {
   setState() {
+    this.modernTheme = false; 
+
     this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
 
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [
-      new RecursiveExample({key: "recursiveDemo", name: "Recursive Example"}),
-      new ComplexForm({key: "complexForm", initialData}),
-      new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"]}),
-      new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness"}),
-      new ModalExample({key: "modalExample", portal: this.leftColumnPortal}),
-      new PortalExample({key: "portalExample", portal: this.leftColumnPortal})
+      new RecursiveExample({key: "recursiveDemo", name: "Recursive Example", style: fitContainerStyle}),
+      new ComplexForm({key: "complexForm", initialData, style: fitContainerStyle}),
+      new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle}),
+      new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness", style: fitContainerStyle}),
+      new ModalExample({key: "modalExample", style: fitContainerStyle}),
+      new PortalExample({key: "portalExample", portal: this.leftColumnPortal, style: fitContainerStyle})
     ];
     
     for (let item of this.items) {
@@ -48,6 +52,14 @@ export class Demo extends Component {
     // this.choosen = this.items.find(item => item.key === "programmaticReactiveLayout");
     // this.choosen = this.items.find(item => item.key === "modalExample");
     this.choosen = this.items.find(item => item.key === "recursiveDemo");
+
+    this.ensure(() => {
+      if (this.modernTheme) {
+        setModernUIAsTheme()
+      } else {
+        setBasicUIAsTheme();
+      }
+    })
   }
   
   disposeState() {
@@ -73,6 +85,7 @@ export class Demo extends Component {
     }
     buttons.push(this.leftColumnPortal);
     buttons.push(filler());
+    buttons.push(checkboxInputField("Modern Theme", this, "modernTheme"));
     // buttons.push(button({text: "Experiment", onClick: () => {
     //   startExperiment();
     // }}));
@@ -83,7 +96,8 @@ export class Demo extends Component {
         key: "left-column", 
         style: {
           ...naturalSizeStyle, 
-          borderRight: "2px", 
+          borderRight: "2px",
+          height: "100%",
           borderRightStyle: "solid", 
           backgroundColor: "lightgray", 
           overflow: "visible"

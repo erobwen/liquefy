@@ -70,7 +70,7 @@ export function findImplicitChildrenAndOnClick(properties) {
     }
     properties.onClick = onClick;
   }
-  if (!properties.onClick) throw new Error("Expected onClick defined as a property.");
+  // if (!properties.onClick) throw new Error("Expected onClick defined as a property.");
   if (children) {
     if (properties.children) {
       throw new Error("implicitly defined children already defined explicitly in properties.");

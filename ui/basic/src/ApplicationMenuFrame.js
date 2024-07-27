@@ -2,7 +2,7 @@ import { Component, getFlowProperties, log, logMark } from "@liquefy/flow.core"
 
 import { button } from "./BasicWidgets";
 import { icon } from "./Icons";
-import { centerMiddle, column, filler, fillerStyle, layoutBorderStyle, row } from "./Layout";
+import { centerMiddle, column, filler, fillerStyle, fitContainerStyle, layoutBorderStyle, row, rowStyle } from "./Layout";
 import { modal, modalFrame } from "./Modal";
 
 
@@ -68,15 +68,15 @@ class ApplicationMenuFrame extends Component {
       {style: {...layoutBorderStyle, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
     );
 
-    return row("a",
+    return modalFrame("row",
       leftPanel.show(!menuIsModal),
-      column("d",
+      column("column",
         topPanel,
-        this.applicationContent,
+        filler(this.applicationContent),
         // centerMiddle("content", toggleButton,{style: fillerStyle}),
-        {style: {...fillerStyle, ...layoutBorderStyle, ...overflowVisibleStyle}}
+        {style: {...fillerStyle, ...overflowVisibleStyle}}
       ),
-      {style: {...fillerStyle, ...layoutBorderStyle, ...overflowVisibleStyle}}
+      {style: {...rowStyle, ...fitContainerStyle}}
     )
 
 

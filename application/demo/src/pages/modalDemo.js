@@ -83,18 +83,8 @@ export class ModalExample extends Component {
     this.name = "Modal Example";
   }
 
-
   build() {
-    const openAnimatedModalButton = button("openAnimatedButton", this.showAnimatedModal ? "Close Animated Modal" : "Open Animated Modal", ()=> {this.showAnimatedModal = !this.showAnimatedModal;}, {animate: true});
-    const color = "rgb(143, 212, 190)";
-    return (
-      modalFrame(
-        column(
-          new BasicModalExample(),
-          {style: overflowVisibleStyle}
-        )
-      )
-    );
+    return new BasicModalExample()
   }
 }
   
@@ -200,16 +190,24 @@ class HybridModalExample extends Component {
 }
 
 
-          // modal(
-          //   "animatedModal",
-          //   dialog("animatedDialog", "Animated Modal!", openAnimatedModalButton.show(this.showAnimatedModal), {close: () => {log("CLOSE"); this.showAnimatedModal = false}})
-          // ).show(this.showAnimatedModal),
+export class ModalStandaloneExample extends Component {
+  build() {
+    return (
+      modalFrame(
+        new ModalExample(),
+        {style: overflowVisibleStyle}
+      )
+    ) 
+  }
+}
+
+
 
 /**
  * Start the demo
  */
   
 export function startModalDemo() {
-  const root = new ModalExample();
+  const root = new ModalStandaloneExample();
   new DOMFlowTarget(document.getElementById("root")).setContent(root);
 }

@@ -230,7 +230,7 @@ export class ComplexForm extends Component {
           text(JSON.stringify(this.editData, null, 4)),
           {style: {borderLeft: "1px", borderLeftStyle: "solid", borderLeftColor: "lightgray", backgroundColor: "#eeeeee"}}
         ),
-        {style: fillerStyle}
+        { style: this.style }
       )
     );
   }

@@ -375,10 +375,11 @@ export class Component {
   }
 
   ensureBuiltRecursive(flowTarget, parentPrimitive) {
-    if (parentPrimitive && this.parentPrimitive !== parentPrimitive) {
-      if (this.parentPrimitive) {
+    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
+    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
+      if (peekParentPrimitive) {
         // log("Flow.ensureBuiltRecursive");
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
+        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
     } 
@@ -387,11 +388,12 @@ export class Component {
   }
 
   getPrimitive(parentPrimitive) {
+    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (parentPrimitive && this.parentPrimitive && this.parentPrimitive !== parentPrimitive) console.warn("Changed parent primitive for " + this.toString());
-    if (parentPrimitive && this.parentPrimitive !== parentPrimitive) {
-      if (this.parentPrimitive) {
+    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+      if (peekParentPrimitive) {
         // log("getPrimitive");
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
+        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
     } 

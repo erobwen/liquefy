@@ -1,4 +1,4 @@
-import { buildComponentTime, finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
+import { withoutRecording, buildComponentTime, finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
 import { Component } from "./Component.js";
 import { logMark } from "./utility.js";
 
@@ -25,11 +25,12 @@ export class FlowPrimitive extends Component {
   }
 
   getPrimitive(parentPrimitive) {
-    if (parentPrimitive && this.parentPrimitive !== parentPrimitive) {
-      if (this.parentPrimitive) {
+    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
+    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+      if (peekParentPrimitive) {
         // log("FlowPrimitive.getPrimitive");
         // TODO: Should this really be a warning? Normal behavior?
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
+        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
     } 
@@ -38,12 +39,13 @@ export class FlowPrimitive extends Component {
 
   ensureBuiltRecursive(flowTarget, parentPrimitive) {
     const name = this.toString(); // For chrome debugger
+    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     if (flowTarget) this.visibleOnTarget = flowTarget;
-    if (parentPrimitive && this.parentPrimitive !== parentPrimitive) {
-      if (this.parentPrimitive) {
+    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+      if (peekParentPrimitive) {
         // log("FlowPrimitive.ensureBuiltRecursive");
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
+        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
         if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
       }
       this.parentPrimitive = parentPrimitive

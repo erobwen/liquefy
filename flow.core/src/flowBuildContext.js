@@ -42,8 +42,8 @@ export function modifyGlobalContext(...pathAndValue) {
  * Theme
  */
 globalContext.theme = model({
-  modifiers: {},
-  components: {}
+  modifiers: model({}),
+  components: model({})
 }); 
 console.log("theme set!");
 

@@ -6,6 +6,9 @@ import { modernButton } from "@liquefy/modern-ui";
 import { button, textInputField } from "@liquefy/themed-ui";
 import { setModernUIAsTheme } from "@liquefy/modern-ui";
 import { setBasicUIAsTheme, checkboxInputField } from "@liquefy/basic-ui";
+import { applicationMenuFrame, fillerStyle, layoutBorderStyle } from "@liquefy/basic-ui";
+import { getCreator } from "../../../flow.core/src/flowBuildContext";
+import { state } from "../../../flow.core/src/Flow";
 
 const log = console.log;
 
@@ -14,7 +17,11 @@ const log = console.log;
  */
 class ThemeTest extends Component {
   setState() {
+    this.pressed = true; 
     this.modernTheme = false;
+    this.ensureAtBuild(() => {
+      this.button = button("Test1", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}});
+    });
     this.ensure(() => {
       if (this.modernTheme) {
         setModernUIAsTheme()
@@ -25,6 +32,25 @@ class ThemeTest extends Component {
   }
 
   build() {
+    return applicationMenuFrame({
+      appplicationMenu: column(
+        checkboxInputField("Modern Theme", this, "modernTheme"),
+        text("First"), 
+        text("Second"), 
+        text("Third"), 
+        // button("test1", "Test1", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}}),
+        {style: {width: "200px"}
+      }),
+      topPanelContent: [text("by Robert Renbris")],
+      applicationContent: centerMiddle(
+        // button("test2", "Test2", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}}),
+        this.button,
+        text("Content!"), 
+        {style: {...fillerStyle, ...layoutBorderStyle}}
+      ),
+      bounds: this.bounds
+    })
+
     console.log("building!")
     // return div("Some Text");
     return centerMiddle(

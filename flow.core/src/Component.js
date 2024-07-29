@@ -216,20 +216,24 @@ export class Component {
    * Internal methods
    */
 
-  ensure(action) {
+  ensure(action, options=null) {
+    const description = this.toString() + ".ensureRepeater"; 
+    const wrappedAction = (repeater) => {
+      if (trace) console.group(repeater.causalityString() + " " + repeater.id);
+      creators.push(this);
+      action(); 
+      creators.pop();
+      if (trace) console.groupEnd();
+    }
     const unobservable = this.unobservable;
     if (!unobservable.ensureRepeaters) {
       unobservable.ensureRepeaters = [];
     }
-    unobservable.ensureRepeaters.push(repeat(action));
+    unobservable.ensureRepeaters.push(repeat(description, wrappedAction, options));
   }
 
   ensureAtBuild(action) {
-    const unobservable = this.unobservable;
-    if (!unobservable.ensureRepeaters) {
-      unobservable.ensureRepeaters = [];
-    }
-    unobservable.ensureRepeaters.push(repeat(action, {priority: buildComponentTime}));
+    this.ensure(action, {priority: buildComponentTime});
   }
 
   ensureEstablished() {

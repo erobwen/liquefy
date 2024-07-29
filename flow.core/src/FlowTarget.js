@@ -18,8 +18,10 @@ export class FlowTarget {
 		if (!(flow instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.flow = flow;
 		flow.target = this;
-		flow.ensureEstablished();
-		workOnPriorityLevel(buildComponentTime, () => this.flow.ensureBuiltRecursive(this));
+		workOnPriorityLevel(buildComponentTime, () => {
+			flow.ensureEstablished()
+			this.flow.ensureBuiltRecursive(this)
+		});
 		if (flow.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();
 	}

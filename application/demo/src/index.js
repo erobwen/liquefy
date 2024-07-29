@@ -16,7 +16,7 @@ setBasicUIAsTheme();
 
 // Setup flow 
 setFlowConfiguration({
-  traceReactivity: true,
+  traceReactivity: false,
   warnWhenNoKey: false,
   autoAssignProperties: true
 });

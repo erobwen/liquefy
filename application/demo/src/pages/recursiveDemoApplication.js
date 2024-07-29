@@ -1,9 +1,10 @@
 import { Component, trace, model, getFlowProperties } from "@liquefy/flow.core";
 import { DOMFlowTarget, text } from "@liquefy/flow.DOM";
 
-import { button, numberInputField, filler } from "@liquefy/basic-ui";
+import { numberInputField, filler } from "@liquefy/basic-ui";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
 import { modal } from "@liquefy/basic-ui";
+import { button } from "@liquefy/themed-ui"
 
 const log = console.log;
 const loga = (action) => {

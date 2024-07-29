@@ -4,7 +4,7 @@ import { DOMFlowTarget, text, div, span, p, addDefaultStyleToProperties } from "
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
-import { button, textInputField } from "@liquefy/themed-ui";
+import { button, paper, paperRow, paperColumn, textInputField } from "@liquefy/themed-ui";
 
 
 const log = console.log;
@@ -107,28 +107,6 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
     return false;
   }
 }
-
-
-/**
- * Reusable components. Flow component definitions.
- */
-
-const panel = (...parameters) =>
-  div(
-    addDefaultStyleToProperties(
-      getFlowProperties(parameters),
-      {
-        margin: "4px", 
-        borderRadius: "5px", 
-        backgroundColor: "#eeeeee", 
-        borderColor: "#cccccc", 
-        borderStyle: "solid", 
-        borderWidth: "1px", 
-        padding: "10px", 
-        boxSizing: "border-box"
-      }
-  )
-);
 
 export class SimpleDrawer extends Component {
  setProperties({openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content}) {
@@ -249,7 +227,7 @@ export class TravelerForm extends Component {
   
   build() {
     const traveler = this.traveler;
-    return panel(
+    return paperColumn(
       // Recommendation: Do ineritance first, to avoid diabling caches further down. Nooo... wait... setting the same value twice will not trigger anything! 
 
       // Remove button
@@ -324,13 +302,11 @@ export class LuggageForm extends Component {
 
   build() {
     // return div({style: {height: "48px", backgroundColor: "green"}})
-    return panel(
-      row(
-        suitcaseIcon({style: {padding: "14px"}}),
-        numberInputField("Weight", this.luggage, "weight", {unit: "kg"}),
-        filler(),
-        button(icon({name: "xmark"}), () => {this.creator.traveler.luggages.remove(this.luggage)}, {edge: false, square: true, ripple: true})
-      )
+    return paperRow(
+      suitcaseIcon({style: {padding: "14px"}}),
+      numberInputField("Weight", this.luggage, "weight", {unit: "kg"}),
+      filler(),
+      button(icon({name: "xmark"}), () => {this.creator.traveler.luggages.remove(this.luggage)}, {edge: false, square: true, ripple: true})
     );
   }
 }

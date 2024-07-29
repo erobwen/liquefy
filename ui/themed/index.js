@@ -13,3 +13,6 @@ export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon"
 export const icon = (...parameters) => getThemedComponent("icon", getFlowProperties(parameters));
 export const button = (...parameters) => getThemedComponent("button", getFlowProperties(parameters));
 export const textInputField = (...parameters) => getThemedComponent("textInputField", getFlowProperties(parameters));
+export const paper = (...parameters) => getThemedComponent("paper", getFlowProperties(parameters));
+export const paperColumn = (...parameters) => getThemedComponent("paperColumn", getFlowProperties(parameters));
+export const paperRow = (...parameters) => getThemedComponent("paperRow", getFlowProperties(parameters));

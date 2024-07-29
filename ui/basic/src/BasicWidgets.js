@@ -131,9 +131,6 @@ export function inputField(properties) {
   // Cannot function as both key and label.... hmm.... or can it! 
   // let key;
   let error;
-  // if (!properties.key) {
-  //   properties.key = labelText;
-  // }
 
   if (targetObject) {
     error = targetObject[targetProperty + "Error"];

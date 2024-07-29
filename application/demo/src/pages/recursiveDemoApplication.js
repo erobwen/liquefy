@@ -4,7 +4,7 @@ import { DOMFlowTarget, text } from "@liquefy/flow.DOM";
 import { numberInputField, filler } from "@liquefy/basic-ui";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
 import { modal } from "@liquefy/basic-ui";
-import { button } from "@liquefy/themed-ui"
+import { button, paper, paperColumn } from "@liquefy/themed-ui"
 
 const log = console.log;
 const loga = (action) => {
@@ -73,18 +73,17 @@ export function controlRow(...parameters) {
 
 export class ControlRow extends Component {
   setProperties({demoComponent}) {
-    this.demoComponent = demoComponent;
+      this.demoComponent = demoComponent;
   }
       
   build() {
-    const me = this;    
     const rootText = text({ key: "root-text", text: "Recursive Structure"});
     const moreButton = button(
       "More", 
       {
         key: "more-button", 
         onClick: () => { 
-          me.demoComponent.count++ 
+          this.demoComponent.count++ 
         },
       }
     );
@@ -97,10 +96,11 @@ export class ControlRow extends Component {
       row(
         text("Depth:"),
         moreButton, 
-        button("Less", {key: "less-button", onClick: () => {me.demoComponent.count--}}),
+        button("Less", {key: "less-button", disabled: this.demoComponent.count === 1, onClick: () => {this.demoComponent.count--}}),
+        {style: {alignItems: "baseline"}}
       ),
       numberInputField("Shared state", this.inherit("myModel"), "value"),
-      {style: {padding: "10px", gap: "20px"}} // Reactive programmatic styling! 
+      {style: {padding: "10px", gap: "20px", alignItems: "baseline"}} // Reactive programmatic styling! 
     )
   }
 }
@@ -118,7 +118,7 @@ export class List extends Component {
     if (this.count < this.maxCount) {
       children.push(new List("rest-list", {maxCount: this.maxCount, count: this.count + 1}));
     }
-    return column("list-column", {style: {marginLeft: "10px", marginBottom: "2px", marginRight: "2px", borderWidth: "1px", borderStyle: "solid"}, children: children});
+    return paperColumn("list-column", {style: {marginLeft: "10px", marginBottom: "2px", marginRight: "2px", borderWidth: "1px", borderStyle: "solid"}, children: children});
   }
 }
 
@@ -145,7 +145,7 @@ export class Item extends Component {
       numberInputField("Local state", this, "value"),
       text(" Shared state: " + me.inherit("myModel").value, {}), 
       {
-        style: {gap: "20px"}
+        style: {gap: "20px", alignItems: "baseline"}
       }
     );
   }

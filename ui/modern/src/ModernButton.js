@@ -2,6 +2,7 @@ import { findImplicitChildrenAndOnClick, getFlowProperties, Component } from "@l
 import { button } from "@liquefy/basic-ui";
 
 import { adjustLightness, grayColor } from "./Color";
+import { paperShadow2, paperShadow5 } from "./Paper";
 
 const log = console.log; 
 
@@ -15,7 +16,7 @@ export function modernButton(...parameters) {
 };
 
 const boxShadowStyle = {
-  boxShadow: "rgba(0, 0, 0, 0.2) 0px 3px 1px -2px, rgba(0, 0, 0, 0.14) 0px 2px 2px 0px, rgba(0, 0, 0, 0.12) 0px 1px 5px 0px"
+  boxShadow: paperShadow2
 }
 
 export class ModernButton extends Component {
@@ -27,6 +28,8 @@ export class ModernButton extends Component {
     
     onClick,
     
+    disabled=false,
+
     pressed=false, 
     hoverAjust = -0.1, 
     ripple=true, 
@@ -40,6 +43,7 @@ export class ModernButton extends Component {
     this.hoverEffect = hoverEffect;
     this.children = children; 
     this.onClick = onClick;
+    this.disabled = disabled; 
 
     // New args: 
     this.lightenOnHoverAndPressed = true;  
@@ -70,7 +74,7 @@ export class ModernButton extends Component {
       width: square ? "35px" : "", 
       position: "relative", 
       overflow: "hidden", 
-      color: "black", 
+      color: disabled ? "rgba(0,0,0,0.3)" : "black", 
       transition: "background 0.5s", 
       overflow: "hidden", 
       userSelect: "none", 
@@ -247,7 +251,7 @@ export class ModernButton extends Component {
   
   build() {
     // log("REBUILDING BUTTON")
-    const {style, onClick} = this;
+    const {style, onClick, disabled} = this;
     if (onClick) {
       style.cursor = "pointer";
     }
@@ -262,6 +266,7 @@ export class ModernButton extends Component {
     return button("button",
       children, 
       {
+        disabled,
         style
       }
     );

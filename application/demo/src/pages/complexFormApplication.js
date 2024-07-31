@@ -1,5 +1,5 @@
 import { Component, transaction, model, getFlowProperties } from "@liquefy/flow.core";
-import { DOMFlowTarget, text, div, span, p, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { DOMFlowTarget, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
@@ -121,7 +121,7 @@ export class SimpleDrawer extends Component {
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
     button(row(span(buttonLabel), buttonIcon, {style: {justifyContent: "space-between"}}), () => this.toggleOpen(), {style: {margin: "5px"}, ripple: true}),
-    column("contents", {children: [this.isOpen ? this.content : null], /*animateChildren: true*/ })
+    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: null })
   );
  }
 }
@@ -171,7 +171,7 @@ export class ComplexForm extends Component {
             new TravelerForm({traveler, isFellowTraveller: false}),
             column({
               children: this.editData.fellowTravellers.map(traveler => new TravelerForm("id-" + traveler.causality.id, {traveler, isFellowTraveller: true})),
-              // animateChildren: true,  
+              animateChildren: zoomAnimation,  
               style: { overflow: "visible" } 
             }),
 
@@ -243,7 +243,7 @@ export class TravelerForm extends Component {
 
       // Child info
       checkboxInputField("Is Child", traveler, "isChild").show(this.isFellowTraveller),
-      numberInputField("Age", traveler, "age", {unit: "years" /*, animate: true*/}).show(traveler.isChild),
+      numberInputField("Age", traveler, "age", {unit: "years", animate: null}).show(traveler.isChild),
       
       // Adress
       column(
@@ -255,7 +255,7 @@ export class TravelerForm extends Component {
 
       // Luggages 
       new SimpleDrawer("luggages-drawer", {
-        // animate: true,
+        // animate: zoomAnimation,
         closeButtonLabel: "Hide luggage",
         openButtonLabel: "Show luggage (" + this.traveler.luggages.length + ")",
         toggleOpen: () => { this.showLuggage = !this.showLuggage },
@@ -263,7 +263,7 @@ export class TravelerForm extends Component {
         content: column("luggage-panel",
           column("luggage-list", {
             children: this.traveler.luggages.map(luggage => new LuggageForm("id-" + luggage.causality.id, {luggage})),
-            // animateChildren: true
+            // animateChildren: zoomAnimation
           })
         )
       }).show(this.traveler.luggages.length),
@@ -287,9 +287,9 @@ export class TravelerForm extends Component {
             edge: false 
           }
         ),
-        // {
-        //   animate: true
-        // }
+        {
+          // animate: zoomAnimation
+        }
       ).show(!this.traveler.luggages.length || this.showLuggage)
     );
   }

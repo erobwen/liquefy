@@ -122,6 +122,7 @@ import { installDOMAnimation, resetDOMAnimation, freezeFlowChanges, unfreezeFlow
 import { DOMNodeAnimation } from "./DOMNodeAnimation"
 import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMNodeAnimation"
 import { setAnimationTime, ZoomFlyDOMNodeAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMNodeAnimation"
+import { zoomAnimation } from "./ZoomDOMNodeAnimation"
 
 
 export {
@@ -310,5 +311,6 @@ export {
     setAnimationTime, 
     ZoomFlyDOMNodeAnimation, 
     zoomFlyAnimation, 
+    zoomAnimation,
     standardAnimation
 };

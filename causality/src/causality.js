@@ -948,6 +948,9 @@ function createWorld(configuration) {
       target = objectCopy; 
     } else {
       target = object; 
+      for (let property in object) {
+        target[property] = deeplyObservable(target[property], copy);
+      }
     }
     return observable(target);
   }

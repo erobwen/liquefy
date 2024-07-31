@@ -72,7 +72,7 @@ class ApplicationMenuFrame extends Component {
       leftPanel.show(!menuIsModal),
       column("column",
         topPanel,
-        filler(this.applicationContent),
+        filler(this.applicationContent, {style: overflowVisibleStyle}),
         // centerMiddle("content", toggleButton,{style: fillerStyle}),
         {style: {...fillerStyle, ...overflowVisibleStyle}}
       ),

@@ -1,5 +1,5 @@
 import { findImplicitChildrenAndOnClick, getFlowProperties, Component } from "@liquefy/flow.core";
-import { text, div } from "@liquefy/flow.DOM";
+import { text, div, label, fieldset, legend, span, input } from "@liquefy/flow.DOM";
 
 import { adjustLightness, grayColor } from "./Color";
 import { getInputFieldProperties } from "@liquefy/basic-ui";
@@ -43,6 +43,18 @@ export class TextInput extends Component {
   setEventListeners() {}
   
   build() {
-    return div(text("HERE"))
+    const { labelText } = this;
+
+    return div(
+      label(labelText), 
+      div(
+        input({attributes: {type: "text", ariaInvalid: false}}),
+        fieldset(
+          legend(
+            span()
+          )
+        )
+      )
+    )
   }
 }

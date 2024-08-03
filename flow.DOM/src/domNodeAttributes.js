@@ -140,6 +140,10 @@ export const globalElementAttributesCamelCase = [
   "tabIndex",
   "title",
   "translate",
+
+  // Added 2024-08-03. TODO: Check if more is missing. 
+  // "ariaInvalid",
+  // "type",
 ];
 
 const globalElementAttributes = globalElementAttributesCamelCase.map(camelCase => ({camelCase, lowerCase: camelCase.toLowerCase()}));

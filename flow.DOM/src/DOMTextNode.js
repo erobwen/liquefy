@@ -7,8 +7,7 @@ const log = console.log;
 /**
  * Text Node
  */
-export function textNode(...parameters) {
-  const properties = getTextNodeProperties(parameters)
+export function textNode(properties) {
   return getTarget().create({type: "textNode", ...properties});
 }
 

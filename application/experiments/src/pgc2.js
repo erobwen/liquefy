@@ -17,11 +17,13 @@ const fenceBeam = (properties) => (
  */
 class Fence extends Component {
 
-  setProperties({position, length, spacing, elevation=0}) {
+  setProperties({position, ...defaultStateValues}) {
     this.position = position;
-    this.length = length; 
-    this.spacing = spacing; 
-    this.elevation = elevation;
+    this.defaultStateValues = Object.assign({elevation: 1}, defaultStateValues);
+  }
+
+  setState() {
+    Object.assign(this, this.defaultStateValues);
   }
 
   build() {
@@ -36,6 +38,7 @@ class Fence extends Component {
           start: 0, 
           end: length, 
           spacing,
+          count,
           generator: (properties) => fencePost(properties)
         }),
         fenceBeam({key: "topBeam", position: {x: 0, y: 0}}),
@@ -43,6 +46,14 @@ class Fence extends Component {
       ]
     }    
   }
+} 
+
+
+const distributions = {
+  usingSpacingFromStart: "usingSpacingFromStart",
+  spaceBetween: "spaceBetween",
+  spaceAround: "spaceAround",
+  spaceEvenly: "spaceEvenly"
 }
 
 /**
@@ -50,11 +61,37 @@ class Fence extends Component {
  */
 class HorizontalArray extends Component {
 
-  setProperties(properties) {
-    Object.assign(this, properties); // no default values.
+  setProperties({children, ...defaultStateValues}) {
+    this.defaultStateValues = Object.assign({
+      type: distributions.usingSpacingFromStart
+    }, defaultStateValues);
+    this.children = children;
+  }
+
+  setState() {
+    // type is now a state, and can be direct manipulated in editor, and will maintain state even if parent is rebuilt.
+    Object.assign(this, this.defaultStateValues);
   }
 
   build() {
+    const { type } = this; 
+
+    switch(type) {
+      case (distributions.useSpacingFromStart):
+        return this.buildUsingSpacingFromStart();
+
+      case (distributions.spaceBetween):
+        return this.buildSpaceBetween();
+
+      case (distributions.spaceAround):
+        return this.buildSpaceAround();
+
+      case (distributions.spaceEvenly):
+        return this.buildSpaceEvenly();
+    }
+  }
+
+  buildUsingSpacingFromStart() {
     const { start, stop, spacing, generator } = this;     
     
     const result = {position, children: []}
@@ -70,7 +107,35 @@ class HorizontalArray extends Component {
     result.children.push(generator({key: "endPost"}));
     return result;
   }
+
+  buildUsingSpaceBetween() {
+    const { start, stop, count, generator } = this;
+    const first = generator({key: "first", position: {x: 0, y: 0}});
+    const width = stop - start; 
+    const widthItem = first.width();
+    const spacesWidth = width - widthItem*count;
+    const result = [first];
+    let index = 1;
+    let position = widthItem;
+    while (index++ < count) {
+      position += spacesWidth;
+      const key = index < ((start + end) / 2) ? `item ${count}` : `item ${count - index}`; 
+      result.push(generator({key, position: {x: position, y: 0}}));
+    }
+    return result; 
+  }
+
+  buildSpaceAround() {
+    throw new Error("Not implemented yet!");
+  }
+
+  buildSpaceEvenly() {
+    throw new Error("Not implemented yet!");
+  }
 }
+
+
+
 
 // Create an instance of component.
 const fence = new Fence({position: {x:0, y:0}, length: 100, spacing: 5, elevation: 1});

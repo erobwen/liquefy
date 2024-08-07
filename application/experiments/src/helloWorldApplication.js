@@ -1,7 +1,8 @@
-import { observable, Component } from "@liquefy/flow.core";
-import { text, DOMFlowTarget } from "@liquefy/flow.DOM";
-import { centerMiddle, column, fitContainerStyle } from "@liquefy/basic-ui";
-import { column, row as basicRow } from "@liquefy/basic-ui";
+import { observable, Component, repeat } from "../flow/Flow";
+import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
+import { button } from "../components/basic/BasicWidgets";
+import { column, row as basicRow } from "../components/basic/Layout";
+import { text } from "../../../flow.DOM/src/HTMLBuilding.js";
 
 
 const log = console.log;

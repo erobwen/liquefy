@@ -32,10 +32,10 @@ export function extractProperties(object, properties) {
 
 
 export function findImplicitChildren(properties) {
-  if (!properties.content) return properties;
+  if (!properties.argumentsContent) return properties;
 
   let children = null;
-  for (let item of extractProperty(properties, "content")) {
+  for (let item of extractProperty(properties, "argumentsContent")) {
     if (!children) children = [];
     children.push(item);
   }
@@ -50,12 +50,12 @@ export function findImplicitChildren(properties) {
 }
 
 export function findImplicitChildrenAndOnClick(properties) {
-  const content = extractProperty(properties, "content");
-  if (!content) return properties;
+  const argumentsContent = extractProperty(properties, "argumentsContent");
+  if (!argumentsContent) return properties;
   
   let children = null;
   let onClick = null;
-  for (let item of content) {
+  for (let item of argumentsContent) {
     if (typeof item === "function") {
       if (onClick) throw new Error("Can only have one onClick function as flow content.");
       onClick = item; 
@@ -172,13 +172,13 @@ function buildPropertiesObject(arglist) {
     if (looseContent && looseContent.size > 0) {
       throw new Error("Cannot have both loose content and a content array in flow argument");
     }
-    properties.content = contentArray;
+    properties.argumentsContent = contentArray;
   } else if (looseContent) {
     const firstContent = looseContent[0];
     if (((typeof firstContent === "string") && (/[a-z]/.test(firstContent[0]))) || typeof firstContent === "number") {
       implicitKey = looseContent.shift() + "";
     }
-    properties.content = looseContent;
+    properties.argumentsContent = looseContent;
   }
 
   if (implicitKey) {

@@ -9,8 +9,9 @@ const log = console.log;
 /**
  * Element Node
  */
-export function elementNode(properties) {
-  extractAttributes(properties); // type attribute should be extracted here... ?  
+export function elementNode(...parameters) {
+  let properties = getFlowPropertiesIncludingChildren(parameters); 
+  extractAttributes(properties);
   return getTarget().create({type: "elementNode", ...properties});
 }
 

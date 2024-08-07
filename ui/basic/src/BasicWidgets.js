@@ -34,8 +34,8 @@ export let basicWidgetTheme = {
 /**
  * Label
  */
-export function label(...arglist) {
-  let properties = getFlowProperties(arglist);
+export function label(...parameters) {
+  let properties = getFlowProperties(parameters);
 
   // inherit("theme").text.style
 
@@ -57,28 +57,22 @@ export function label(...arglist) {
  * Extra feature: labelText will double as a key if you have no other key given. 
  */
 
-export function getInputFieldProperties(arglist) {
-  return findInputFieldContent(getFlowProperties(arglist));
-}
+export function findImplicitInputFieldParameters(properties) {
+  const argumentsContent = extractProperty(properties, "argumentsContent");
+  if (!argumentsContent) return properties;
+  if (!argumentsContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
 
-export function findInputFieldContent(properties) {
-  const content = extractProperty(properties, "content");
-  if (!content) return properties;
-  if (!content.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
-
-  properties.labelText = content.shift();
-  
+  properties.labelText = argumentsContent.shift();
   if (!properties.key) properties.key = properties.labelText;
-
-  if (typeof(content[0]) === "function") {
-    properties.getter = content.shift();
-    properties.setter = content.shift();
+  if (typeof(argumentsContent[0]) === "function") {
+    properties.getter = argumentsContent.shift();
+    console.log("here")
+    properties.setter = argumentsContent.shift();
+    console.log(properties.setter);
   } else {
-    properties.targetObject = content.shift();
-    properties.targetProperty = content.shift();
+    properties.targetObject = argumentsContent.shift();
+    properties.targetProperty = argumentsContent.shift();
   }
-
-  console.log(properties);
 }
 
 
@@ -99,21 +93,24 @@ export function findInputFieldContent(properties) {
  * 
  * [labelText, targetObject, targetProperty]
  */
-export function checkboxInputField(...arglist) {
-  const properties = getInputFieldProperties(arglist);
+export function checkboxInputField(...parameters) {
+  const properties = getFlowProperties(parameters);
   properties.type = "checkbox";
+  findImplicitInputFieldParameters(properties);
   return inputField(properties);
 }
 
-export function numberInputField(...arglist) {
-  const properties = getInputFieldProperties(arglist);
+export function numberInputField(...parameters) {
+  const properties = getFlowProperties(parameters);
   properties.type = "number";
+  findImplicitInputFieldParameters(properties);
   return inputField(properties);
 }
 
-export function textInputField(...arglist) {
-  const properties = getInputFieldProperties(arglist);
+export function textInputField(...parameters) {
+  const properties = getFlowProperties(parameters);
   properties.type = "text";
+  findImplicitInputFieldParameters(properties);
   return inputField(properties);
 }
 
@@ -180,8 +177,8 @@ export function inputField(properties) {
 
 // export const button = modernButton;
 
-export function button(...arglist) { 
-  const properties = getFlowProperties(arglist);
+export function button(...parameters) { 
+  const properties = getFlowProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
 
   addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
@@ -201,8 +198,8 @@ export function button(...arglist) {
   return htmlButton(properties);
 };
 
-export const panel = (...arglist) => {
-  const properties = getFlowProperties(arglist);
+export const panel = (...parameters) => {
+  const properties = getFlowProperties(parameters);
   addDefaultStyleToProperties(properties, {
     margin: "4px", 
     borderRadius: "5px", 

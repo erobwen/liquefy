@@ -4,11 +4,11 @@
  * Primitive (Mostly data, can be generated from editor)
  */
 const fencePost = (position) => (
-  {position, offset, mesh: [{x: 0, y: 0}, {x: 0, y: 10}, {x: 10, y: 1}, {x: 0, y: 1}]} // Note: position given by parent, offset set locally. 
+  {position, mesh: [{x: 0, y: 0}, {x: 0, y: 10}, {x: 10, y: 1}, {x: 0, y: 1}]}
 )
 
 const fenceBeam = (position, length) => (
-  {position, offset, mesh: [{x: 0, y: 0}, {x: length, y: 0}, {x: length, y: 1}, {x: 0, y: 1}]}
+  {position, mesh: [{x: 0, y: 0}, {x: length, y: 0}, {x: length, y: 1}, {x: 0, y: 1}]}
 )
 
 

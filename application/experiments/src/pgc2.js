@@ -10,6 +10,7 @@ const fenceBeam = (properties) => (
   new Model2D({...properties, mesh: [{x: 0, y: 0}, {x: length, y: 0}, {x: length, y: 1}, {x: 0, y: 1}]})
 )
 
+// Note: if we need manual editing of meshes, they need both position given by their parent, but also an offset that can be changed in editing. These two should then be added together.
 
 /**
  * Parametric reactive
@@ -37,8 +38,8 @@ class Fence extends Component {
           spacing,
           generator: (properties) => fencePost(properties)
         }),
-        fencePost({key: "topPost", position: {x: 0, y: 0}}),
-        fencePost({key: "bottomPost", position: {x: 0, y: 9}})
+        fenceBeam({key: "topBeam", position: {x: 0, y: 0}}),
+        fenceBeam({key: "bottomBeam", position: {x: 0, y: 9}})
       ]
     }    
   }

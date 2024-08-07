@@ -2,7 +2,7 @@ import { trace, Component, callback } from "@liquefy/flow.core";
 import { getTarget } from "@liquefy/flow.core";
 import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
-import { text, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { text, div, input, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
 import { extractProperty } from "../../../flow.core/src/flowParameters.js";
@@ -79,6 +79,7 @@ export function findInputFieldContent(properties) {
   }
 
   console.log(properties);
+  return properties; 
 }
 
 
@@ -161,12 +162,12 @@ export function inputField(properties) {
     ...inputAttributes
   };
   
-  const children = [getTarget().create({type: "elementNode", 
+  const children = [input({
     key: properties.key + ".input", 
-    classNameOverride: type + "InputField", 
-    tagName: "input", 
+    // classNameOverride: type + "InputField", // TODO: Consider how to do?
     attributes, 
-    onClick: properties.onClick})];
+    onClick: properties.onClick
+  })];
   const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: ""}}); 
   if (type === "checkbox") {
     children.push(labelChild);

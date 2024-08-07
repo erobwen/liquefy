@@ -44,11 +44,12 @@ export class TextInput extends Component {
   
   build() {
     const { labelText } = this;
+    // return label(labelText, {attributes: {for: "someId"}}); 
 
     return div(
-      label(labelText), 
+      label(labelText, {attributes: {for: `${this.id}-label`}}), 
       div(
-        input({attributes: {type: "text", ariaInvalid: false}}),
+        input({attributes: {type: "text", id: `${this.id}-label`}}),
         fieldset(
           legend(
             span()

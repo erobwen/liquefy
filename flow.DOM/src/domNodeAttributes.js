@@ -7,6 +7,22 @@ import { extractProperty } from "@liquefy/flow.core";
 export function extractAttributes(properties) {
   let attributes = null;
   if (!properties) return attributes;
+
+  if (properties.tagName) {
+    const tagName= properties.tagName;
+    if (tagSpecificAttributes[tagName]) {
+      tagSpecificAttributes[tagName].forEach(
+        attribute => {
+          if (typeof(properties[attribute.camelCase]) !== "undefined") {
+            if (!attributes) attributes = {};
+            attributes[attribute.lowerCase] = properties[attribute.camelCase];
+            delete properties[attribute.camelCase];
+          }
+        }
+      );
+    }
+  }
+
   eventHandlerContentElementAttributes.forEach(
     attribute => {
       if (typeof(properties[attribute.camelCase]) !== "undefined") {
@@ -16,6 +32,7 @@ export function extractAttributes(properties) {
       }
     }
   );
+
   globalElementAttributes.forEach(
     attribute => {
       if (typeof(properties[attribute.camelCase]) !== "undefined") {
@@ -42,6 +59,22 @@ export function extractAttributes(properties) {
   return properties.attributes;
 }
 
+/**
+ * Tag specific attributes
+ */
+
+const tagSpecificAttributes = {};
+
+export const inputAttributes = [
+
+]
+
+tagSpecificAttributes.input = inputAttributes.map(camelCase => ({camelCase, lowerCase: camelCase.toLowerCase()}));
+
+
+/**
+ * Event handlers
+ */
 
 // Source https://html.spec.whatwg.org/#global-attributes
 export const eventHandlerContentElementAttributesCamelCase = [
@@ -115,6 +148,11 @@ export const eventHandlerContentElementAttributesCamelCase = [
 ]
 const eventHandlerContentElementAttributes = eventHandlerContentElementAttributesCamelCase.map(camelCase => ({camelCase, lowerCase: camelCase.toLowerCase()}));
 
+
+/**
+ * Global attributes
+ */
+
 // Source https://html.spec.whatwg.org/#global-attributes
 export const globalElementAttributesCamelCase = [
   "accessKey",
@@ -149,8 +187,9 @@ export const globalElementAttributesCamelCase = [
 
 const globalElementAttributes = globalElementAttributesCamelCase.map(camelCase => ({camelCase, lowerCase: camelCase.toLowerCase()}));
 
+
 /**
- * Child styles
+ * Child styles (experimental)
  */
 
 export function extractChildStyles(style) {

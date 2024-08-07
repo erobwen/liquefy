@@ -8,6 +8,7 @@ import { elementNode } from "./DOMElementNode";
 function standardTag(tagName, parameters) {
   let properties = getFlowPropertiesIncludingChildren(parameters); 
   extractAttributes(properties);
+  console.log(properties)
   return elementNode({tagName: tagName, classNameOverride: tagName, ...properties});
 }
 

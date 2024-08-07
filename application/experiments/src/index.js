@@ -18,6 +18,6 @@ setBasicUIAsTheme();
 // startSingleStaticWidget();
 // startPatternMatching();
 // startHelloWorld();
-// themeTest();
+themeTest();
 
-startInputTest();
+// startInputTest();

@@ -228,8 +228,6 @@ export class TravelerForm extends Component {
   build() {
     const traveler = this.traveler;
     return paperColumn(
-      // Recommendation: Do ineritance first, to avoid diabling caches further down. Nooo... wait... setting the same value twice will not trigger anything! 
-
       // Remove button
       row(
         filler(),
@@ -267,8 +265,6 @@ export class TravelerForm extends Component {
           })
         )
       }).show(this.traveler.luggages.length),
-
-      // div({style: {height: "48px", backgroundColor: "green"}, animate: true}).show(this.traveler.luggages.length),
 
       // Add luggages button
       row("add-luggage",

@@ -55,6 +55,7 @@ export function elementNode(properties) {
     // console.log(element);
 
     const newAttributes = this.attributes;
+    console.log(Object.keys(newAttributes));
     const newPreviouslySetAttributes = {};
     if (this.tagName.toUpperCase() !== element.tagName) {
       throw new Error("Too high expectations error. Cannot change tagName of existing HTML element. Please do not change the tagName property once set!");
@@ -79,12 +80,14 @@ export function elementNode(properties) {
       } else {
         // Note, only change if we have a new value. Alow for animation kit to set the value to something else while this code is unaware.  
         if (this.unobservable.previouslySetAttributes[property] !== newValue) {
-          if (property === "class") {
-            // TODO: Investigate why we had to use the setAttribute function for it to work with "class", is it the same with more attributes?
-            element.setAttribute('class', newValue);
-          } else {
-            element[property] = newValue;
-          }
+          element.setAttribute(property, newValue);
+          // if (property === "class") {
+          //   // TODO: Investigate why we had to use the setAttribute function for it to work with "class", is it the same with more attributes?
+          //   element.setAttribute('class', newValue);
+          // } else {
+          //   console.log(property, newValue)
+          //   element[property] = newValue;
+          // }
         }
         newPreviouslySetAttributes[property] = newValue;  
       }

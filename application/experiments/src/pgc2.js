@@ -27,9 +27,9 @@ class Fence extends Component {
   }
 
   build() {
-    const { position, length, spacing, elevation } = this;    
+    const { position, length, spacing, count, elevation } = this;    
 
-    return {
+    return Model2D({
       position, 
       children: [
         new HorizontalArray({
@@ -44,13 +44,12 @@ class Fence extends Component {
         fenceBeam({key: "topBeam", position: {x: 0, y: 0}}),
         fenceBeam({key: "bottomBeam", position: {x: 0, y: 9}})
       ]
-    }    
+    })
   }
 } 
 
-
 const distributions = {
-  usingSpacingFromStart: "usingSpacingFromStart",
+  useSpacingFromStart: "usingSpacingFromStart",
   spaceBetween: "spaceBetween",
   spaceAround: "spaceAround",
   spaceEvenly: "spaceEvenly"
@@ -105,11 +104,12 @@ class HorizontalArray extends Component {
       x += spacing;
     }
     result.children.push(generator({key: "endPost"}));
-    return result;
+    return Model2D(result);
   }
 
   buildUsingSpaceBetween() {
     const { start, stop, count, generator } = this;
+
     const first = generator({key: "first", position: {x: 0, y: 0}});
     const width = stop - start; 
     const widthItem = first.width();
@@ -122,7 +122,7 @@ class HorizontalArray extends Component {
       const key = index < ((start + end) / 2) ? `item ${count}` : `item ${count - index}`; 
       result.push(generator({key, position: {x: position, y: 0}}));
     }
-    return result; 
+    return Model2D(result); 
   }
 
   buildSpaceAround() {

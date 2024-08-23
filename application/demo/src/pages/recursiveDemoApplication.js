@@ -135,11 +135,6 @@ export class Item extends Component {
   build() {
     const me = this; 
 
-    function close() {
-      // log("Closing modal...");
-      me.showModal = false; 
-    }
-
     return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomFlowTarget module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
       text({ key: "item-text", text: "Depth " +  me.depth}),
       numberInputField("Local state", this, "value"),

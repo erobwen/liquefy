@@ -14,15 +14,15 @@ export class Target {
 	// }
 	dispose() {}
 
-	setContent(flow) {
-		if (!(flow instanceof Component)) throw new Error("Flow target content must be a flow Component!");
-		this.flow = flow;
-		flow.target = this;
+	setContent(component) {
+		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
+		this.flow = component;
+		component.target = this;
 		workOnPriorityLevel(buildComponentTime, () => {
-			flow.ensureEstablished()
+			component.ensureEstablished()
 			this.flow.ensureBuiltRecursive(this)
 		});
-		if (flow.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
+		if (component.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();
 	}
     

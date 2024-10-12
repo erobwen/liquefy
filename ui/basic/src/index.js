@@ -1,4 +1,4 @@
-import { getGlobalTheme } from "@liquefy/flow.core";
+import { getGlobalTheme } from "@liquefy/themed-ui";
 
 import { applicationMenuFrame } from "./ApplicationMenuFrame";
 import { basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel } from "./BasicWidgets";

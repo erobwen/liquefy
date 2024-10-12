@@ -1,6 +1,6 @@
 import { Component } from "./Component.js";
 import { isObservable } from "./Flow.js";
-import { getTarget } from "./flowBuildContext.js";
+import { getTarget } from "./buildContext.js";
 const log = console.log;
 
 export function extractProperty(object, property) {

@@ -1,5 +1,39 @@
 import { getFlowProperties } from "@liquefy/flow.core";
-import { getThemedComponent } from "@liquefy/flow.DOM";
+import { globalContext } from "@liquefy/flow.core";
+import { getCreator } from "@liquefy/flow.core";
+
+
+/**
+ * Theme
+ */
+globalContext.theme = model({
+  modifiers: model({}),
+  components: model({})
+}); 
+  
+export function getGlobalTheme() {
+  return globalContext.theme;
+}
+
+export function setGlobalTheme(theme) {
+  globalContext.theme = globalContext.theme = model(theme);
+}
+
+export function getTheme() {
+  return getCreator().inherit("theme");
+} 
+
+export function getThemedComponent(name, properties) {
+  const theme = getTheme();
+  if (!theme || !theme.components) {
+      throw new Error("Theme contains no components!");
+  } 
+  const component = theme.components[name]; 
+  if (!component) {
+      throw new Error(`Could not get themed component: '${name}'`);
+  }
+  return component(properties); 
+} 
 
 export const filler = (...parameters) => getThemedComponent("filler", getFlowProperties(parameters));
 export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", getFlowProperties(parameters));
@@ -16,3 +50,4 @@ export const textInputField = (...parameters) => getThemedComponent("textInputFi
 export const paper = (...parameters) => getThemedComponent("paper", getFlowProperties(parameters));
 export const paperColumn = (...parameters) => getThemedComponent("paperColumn", getFlowProperties(parameters));
 export const paperRow = (...parameters) => getThemedComponent("paperRow", getFlowProperties(parameters));
+

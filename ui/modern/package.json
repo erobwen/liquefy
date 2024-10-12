@@ -25,6 +25,7 @@
   "peerDependencies": {
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.DOM": "file:../../flow.DOM",
-    "@liquefy/basic-ui": "file:../basic"
+    "@liquefy/basic-ui": "file:../basic",
+    "@liquefy/themed-ui": "file:../themed"
   }
 }

@@ -1,4 +1,4 @@
-import { getGlobalTheme } from "@liquefy/flow.core";
+import { getGlobalTheme } from "@liquefy/themed-ui";
 import { adjustLightness, grayColor, rgba2hex } from "./Color";
 import { modernButton, ModernButton } from "./ModernButton";
 import { ModernTextField, modernTextField } from "./ModernTextField";

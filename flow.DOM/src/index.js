@@ -110,7 +110,6 @@ import {
 } from "./HTMLTags";
 import { addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode, elementNode } from "./DOMElementNode";
-import { getThemedComponent } from "./domFlowBuildContext"
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMFlowTarget} from "./DOMFlowTarget"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
@@ -241,9 +240,6 @@ export {
     // DOMElementNode
     elementNode, 
     DOMElementNode,
-
-    // domFlowBuildContext
-    getThemedComponent,
 
     //DOMFlowTarget
     DOMFlowTarget,

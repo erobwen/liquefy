@@ -38,24 +38,3 @@ export function modifyGlobalContext(...pathAndValue) {
 }
 
 
-/**
- * Theme
- */
-globalContext.theme = model({
-  modifiers: model({}),
-  components: model({})
-}); 
-console.log("theme set!");
-
-export function getGlobalTheme() {
-  return globalContext.theme;
-}
-
-export function setGlobalTheme(theme) {
-  globalContext.theme = globalContext.theme = model(theme);
-}
-
-export function getTheme() {
-  return getCreator().inherit("theme");
-}
-

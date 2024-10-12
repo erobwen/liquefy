@@ -1,6 +1,7 @@
 import { themeTest } from "./themeTest"
 import { configuration, model, setFlowConfiguration } from "@liquefy/flow.core";
 import { setBasicUIAsTheme } from "@liquefy/basic-ui";
+import { materialExperiment } from "./materialExperiments";
 
 setFlowConfiguration({
   traceReactivity: true,
@@ -8,7 +9,6 @@ setFlowConfiguration({
   autoAssignProperties: true
 });
 
-setBasicUIAsTheme();
 // buttonTest();
 // startSimpleMoveAnimation();
 // startSimpleAddRemoveAnimation();
@@ -17,4 +17,7 @@ setBasicUIAsTheme();
 // startPatternMatching();
 // startHelloWorld();
 
-themeTest();
+//setBasicUIAsTheme();
+//themeTest();
+
+materialExperiment();

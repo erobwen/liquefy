@@ -30,7 +30,6 @@ export function extractProperties(object, properties) {
   return condensed;
 }
 
-
 export function findImplicitChildren(properties) {
   if (!properties.argumentsContent) return properties;
 

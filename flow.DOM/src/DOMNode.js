@@ -1,5 +1,5 @@
 import { repeat, trace, finalize, traceWarnings } from "@liquefy/flow.core";
-import { FlowPrimitive } from "@liquefy/flow.core";
+import { PrimitiveComponent } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
 import { standardAnimation } from "./ZoomFlyDOMNodeAnimation";
@@ -62,7 +62,7 @@ export function getWidthIncludingMargin(node) {
 /**
  * DOM Node
  */
- export class DOMNode extends FlowPrimitive {
+ export class DOMNode extends PrimitiveComponent {
 
   dimensions(contextNode) {
     //TODO: Research a way to isolate the reflow used in dimensions to a wecomponent?

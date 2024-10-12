@@ -3,7 +3,7 @@ import { world, transaction, observable, deeplyObservable, isObservable, repeat,
 import { Component } from "./Component";
 import { creators, getCreator, getTarget, inherit, globalContext, modifyGlobalContext } from "./buildContext";
 import { findImplicitChildren, findImplicitChildrenAndOnClick, getFlowProperties, getFlowPropertiesIncludingChildren, extractProperty, extractProperties} from "./flowParameters";
-import { FlowPrimitive } from "./FlowPrimitive"
+import { PrimitiveComponent } from "./PrimitiveComponent"
 import { Target } from "./Target"
 import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator, logMark, isUpperCase, draw, camelCased } from "./utility"
 
@@ -54,8 +54,8 @@ export {
     getFlowPropertiesIncludingChildren,
     getFlowProperties,
     
-    // FlowPrimitive.js
-    FlowPrimitive,
+    // PrimitiveComponent.js
+    PrimitiveComponent,
 
     // Target.js
     Target,

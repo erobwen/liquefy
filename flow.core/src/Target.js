@@ -31,9 +31,9 @@ export class Target {
 	}
 
 	// General creation method, this is similar to a service locator in the service locator pattern. 
-	// The purpose of this method is to choose what FlowPrimitive to create, given the properties object.
+	// The purpose of this method is to choose what PrimitiveComponent to create, given the properties object.
 	// This makes it possible to create total custom Targets that reinterprets the properties in 
-	// new ways. For example, a DOMTarget may create FlowPrimitive objects that renders a DOM in a web browsser.
+	// new ways. For example, a DOMTarget may create PrimitiveComponent objects that renders a DOM in a web browsser.
 	// But the same flow could be sent to a Target that renders a native app, or create contents for a printout, 
 	// or create a server rendered page. The possibilities are endless!      
 	create(properties) {

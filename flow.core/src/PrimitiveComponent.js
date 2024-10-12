@@ -4,7 +4,13 @@ import { logMark } from "./utility.js";
 
 const log = console.log;
 
-export class FlowPrimitive extends Component {
+/**
+ * A Primitive component corresponds to a single entity in the target. Such as a node in a web-browser.
+ * A primitive component is typically created by the Target.create() function that act as a service
+ * locator pattern that make it possible for different Target objects to have different sets of primitive
+ * components. 
+ */
+export class PrimitiveComponent extends Component {
     
   findKey(key) {
     if (this.key === key) return this;
@@ -26,14 +32,17 @@ export class FlowPrimitive extends Component {
 
   getPrimitive(parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
+    
+    // Setup parent primitive
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
-        // log("FlowPrimitive.getPrimitive");
+        // log("PrimitiveComponent.getPrimitive");
         // TODO: Should this really be a warning? Normal behavior?
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
-    } 
+    }
+
     return this;
   }
 
@@ -44,7 +53,7 @@ export class FlowPrimitive extends Component {
     if (flowTarget) this.visibleOnTarget = flowTarget;
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
-        // log("FlowPrimitive.ensureBuiltRecursive");
+        // log("PrimitiveComponent.ensureBuiltRecursive");
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
         if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
       }
@@ -76,7 +85,7 @@ export class FlowPrimitive extends Component {
           } else {
             if (this.parentPrimitive && this.parentPrimitive !== scan.parentPrimitive) {
               if (this.parentPrimitive) {
-                // log("FlowPrimitive, scanning equivalent creators");
+                // log("PrimitiveComponent, scanning equivalent creators");
                 if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
               }
               scan.parentPrimitive = this.parentPrimitive

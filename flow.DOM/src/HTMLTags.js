@@ -8,7 +8,7 @@ import { elementNode } from "./DOMElementNode";
 function standardTag(tagName, parameters) {
   let properties = getFlowPropertiesIncludingChildren(parameters); 
   extractAttributes(properties);
-  return elementNode({tagName: tagName, classNameOverride: tagName, ...properties});
+  return elementNode({tagName: tagName, componentTypeName: tagName, ...properties});
 }
 
 /**
@@ -106,7 +106,7 @@ export function button(...parameters) {
   const properties = getFlowProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
   extractAttributes(properties);
-  return elementNode({tagName: "button", classNameOverride: "button", ...properties})
+  return elementNode({tagName: "button", componentTypeName: "button", ...properties})
 }
 export const datalist = (...parameters) => standardTag("datalist", parameters);
 export const fieldset = (...parameters) => standardTag("fieldset", parameters);

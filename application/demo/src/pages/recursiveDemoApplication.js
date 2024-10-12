@@ -150,7 +150,7 @@ export class Item extends Component {
 //   const target = getTarget();
 //   return target.create({type: "elementNode", 
 //     tagName: "div", 
-//     classNameOverride: "shadePanel",
+//     componentTypeName: "shadePanel",
 //     attributes: {
 //       onclick: () => {close();},
 //       style:{

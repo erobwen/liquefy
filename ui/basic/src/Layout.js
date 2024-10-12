@@ -5,11 +5,11 @@ import { elementNode, extractAttributes } from "@liquefy/flow.DOM";
 const log = console.log;
 
 
-export function styledDiv(classNameOverride, style, parameters) { 
+export function styledDiv(componentTypeName, style, parameters) { 
   const properties = getFlowPropertiesIncludingChildren(parameters);
   const attributes = extractAttributes(properties);
   attributes.style = {...style, ...attributes.style}; // Inject given style (while making it possible to override)
-  return elementNode({type: "elementNode", classNameOverride, tagName: "div", ...properties}); 
+  return elementNode({type: "elementNode", componentTypeName, tagName: "div", ...properties}); 
 }
 
 

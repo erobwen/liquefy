@@ -33,7 +33,7 @@ export class Component {
     let properties = getFlowProperties(parameters);
     findImplicitChildren(properties);
 
-    // log("Flow constructor: " + this.className() + "." + properties.key);
+    // log("Flow constructor: " + this.getComponentTypeName() + "." + properties.key);
 
     // For debug purposes, this place this property first in the list and makes it easier to identify flows when they are proxies in the debugger. 
     this._ = null; 
@@ -41,9 +41,9 @@ export class Component {
     // Key & class name override
     if (!this.key) this.key = properties.key ? properties.key : null;
     delete properties.key;
-    if (properties.classNameOverride) {
-      this.classNameOverride = properties.classNameOverride;
-      delete properties.classNameOverride; 
+    if (properties.componentTypeName) {
+      this.componentTypeName = properties.componentTypeName;
+      delete properties.componentTypeName; 
     }
 
     // this.flowDepth = this.creator ? this.creator.flowDepth + 1 : 0;
@@ -284,41 +284,24 @@ export class Component {
     // overloading this method. 
   }
 
-  className() {
+  getComponentTypeName() {
     let result;
     withoutRecording(() => {
-      // Consider: Use classNameOverride here already.
-      result = this.constructor.name;
+      result = this.componentTypeName ? this.componentTypeName : this.constructor.name;
     });
     return result;
   }
 
   toString() {
-    let classNameOverride;
-    withoutRecording(() => {
-      classNameOverride = this.classNameOverride;
-    });
-
-    let classDescription = classNameOverride ? classNameOverride : this.className();
-    if (classDescription === "Flow" && this.description)
-      classDescription = this.description;
     return (
-      classDescription +
+      this.getComponentTypeName() +
       ":" +
       this.causality.id +
-      this.buildUniqueName()
+      this.keyString()
     );
   }
 
-  uniqueName() {
-    let result;
-    withoutRecording(() => {
-      result = (this.key ? this.key + ":" : "") + this.causality.id;
-    });
-    return result;
-  }
-
-  buildUniqueName() {
+  keyString() {
     let result;
     withoutRecording(() => {
       result = this.key ? this.key : null;
@@ -500,12 +483,12 @@ function getShapeAnalysis(flow) {
     allowMatch: (establishedFlow, newFlow) => {
       // log(establishedFlow instanceof Flow);
       // log(newFlow instanceof Flow);
-      // log(newFlow.className() === establishedFlow.className());
-      // log(newFlow.classNameOverride === establishedFlow.classNameOverride);
+      // log(newFlow.getComponentTypeName() === establishedFlow.getComponentTypeName());
+      // log(newFlow.componentTypeName === establishedFlow.componentTypeName);
       return (establishedFlow instanceof Component && newFlow instanceof Component
         && (!newFlow.tagName || newFlow.tagName === establishedFlow.tagName)  
-        && (newFlow.className() === establishedFlow.className()) 
-        && (newFlow.classNameOverride === establishedFlow.classNameOverride));
+        && (newFlow.getComponentTypeName() === establishedFlow.getComponentTypeName()) 
+        && (newFlow.componentTypeName === establishedFlow.componentTypeName));
     },
     shapeRoot: () => flow.newBuild,
     slotsIterator: function*(establishedObject, newObject, hasKey, childrenProperty=false) {

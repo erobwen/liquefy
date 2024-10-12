@@ -157,5 +157,5 @@ export class ModalFrame extends Component {
 function modalFrameDiv(...parameters) {
   let properties = getFlowProperties(parameters); 
   const attributes = extractAttributes(properties);
-  return elementNode({type: "elementNode", tagName: "div", key: properties.key, classNameOverride: "modal-frame", attributes, children: properties.children});
+  return elementNode({type: "elementNode", tagName: "div", key: properties.key, componentTypeName: "modal-frame", attributes, children: properties.children});
 }

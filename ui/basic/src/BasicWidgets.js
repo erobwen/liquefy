@@ -160,7 +160,7 @@ export function inputField(properties) {
   
   const children = [getTarget().create({type: "elementNode", 
     key: properties.key + ".input", 
-    classNameOverride: type + "InputField", 
+    componentTypeName: type + "InputField", 
     tagName: "input", 
     attributes, 
     onClick: properties.onClick})];

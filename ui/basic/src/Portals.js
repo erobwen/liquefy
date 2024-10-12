@@ -45,7 +45,7 @@ export function portalExit(...parameters) {
     { 
       key: properties.key,
       type: "elementNode",
-      classNameOverride: "portalExit", 
+      componentTypeName: "portalExit", 
       tagName: "div", 
       attributes, 
     }

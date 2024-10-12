@@ -1,5 +1,5 @@
 import { Component, transaction, model, getFlowProperties } from "@liquefy/flow.core";
-import { DOMFlowTarget, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
+import { DOMTarget, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
@@ -317,7 +317,7 @@ export class LuggageForm extends Component {
  */
 
 export function startComplexFormApplication() {
-  new DOMFlowTarget(document.getElementById("root")).setContent(
+  new DOMTarget(document.getElementById("root")).setContent(
     new ComplexForm({initialData})
   );
 }

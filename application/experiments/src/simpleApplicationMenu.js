@@ -1,5 +1,5 @@
 import { Component } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
+import { DOMTarget } from "../flow.DOM/DOMTarget.js";
 import { centerMiddle, column, fillerStyle, layoutBorderStyle } from "../components/basic/Layout";
 import { applicationMenuFrame } from "../components/basic/ApplicationMenuFrame";
 import { text } from "../../../flow.DOM/src/HTMLBuilding.js";
@@ -27,7 +27,7 @@ export class SimpleApplicationMenu extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startSimpleApplicationMenu() {
-  new DOMFlowTarget(document.getElementById("root")).setContent(
+  new DOMTarget(document.getElementById("root")).setContent(
     new SimpleApplicationMenu()
   );
 }

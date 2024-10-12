@@ -1,7 +1,7 @@
 
 import { observable, Component, transaction, getFlowProperties } from "@liquefy/flow.core";
 
-import { text, div, DOMFlowTarget, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { text, div, DOMTarget, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { button, column, filler, row } from "@liquefy/basic-ui";
 
@@ -136,7 +136,7 @@ export class AnimationExample extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startAnimationExample() {
-  new DOMFlowTarget(
+  new DOMTarget(
     document.getElementById("root")
   ).setContent(
     new AnimationExample({items})

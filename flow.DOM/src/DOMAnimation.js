@@ -1,6 +1,6 @@
 import { configuration, postponeInvalidations, continueInvalidations, traceAnimation, traceWarnings } from "@liquefy/flow.core";
 import { logAnimationFrameGroup, logAnimationSeparator } from "@liquefy/flow.core";
-import { getDomFlowTargets } from "./DOMFlowTarget";
+import { getDomTargets } from "./DOMTarget";
 
 // import { inExperiment, inExperimentOnCount } from "..";
 
@@ -22,7 +22,7 @@ export function resetDOMAnimation() {
   Object.assign(flowChanges, newFlowChanges());
   previousFlowChanges = {}
   counter = 0;
-  getDomFlowTargets().length = 0;
+  getDomTargets().length = 0;
 }
 
 
@@ -208,7 +208,7 @@ export function onFinishReBuildingFlow() {
     }
   }
   
-  for (let target of getDomFlowTargets()) {
+  for (let target of getDomTargets()) {
     analyzePrimitives(idPrimitiveMap, target.flow.getPrimitive());
   }
   // console.log(idParentIdMap);

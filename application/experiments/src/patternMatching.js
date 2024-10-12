@@ -1,5 +1,5 @@
 import { observable, Component } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
+import { DOMTarget } from "../flow.DOM/DOMTarget.js";
 import { button } from "../components/basic/BasicWidgets";
 import { column, row } from "../components/basic/Layout";
 import { text } from "../../../flow.DOM/src/HTMLBuilding.js";
@@ -43,5 +43,5 @@ export class PatternMatching extends Component {
  */
  export function startPatternMatching() {
   const application = new PatternMatching({model});  
-  new DOMFlowTarget(document.getElementById("root")).setContent(application)
+  new DOMTarget(document.getElementById("root")).setContent(application)
 }

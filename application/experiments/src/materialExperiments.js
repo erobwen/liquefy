@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core"
-import { div, DOMFlowTarget } from "@liquefy/flow.DOM"
+import { div, DOMTarget } from "@liquefy/flow.DOM"
 
 /**
  * Minimalistic component used for experiments. 
@@ -17,6 +17,6 @@ class MaterialExperiment extends Component {
  */
 export function materialExperiment() {
   const experiment = new MaterialExperiment()  
-  new DOMFlowTarget(document.getElementById("root")).setContent(experiment)
+  new DOMTarget(document.getElementById("root")).setContent(experiment)
 }
   

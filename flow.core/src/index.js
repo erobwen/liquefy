@@ -4,7 +4,7 @@ import { Component } from "./Component";
 import { creators, getCreator, getTarget, inherit, globalContext, modifyGlobalContext } from "./buildContext";
 import { findImplicitChildren, findImplicitChildrenAndOnClick, getFlowProperties, getFlowPropertiesIncludingChildren, extractProperty, extractProperties} from "./flowParameters";
 import { FlowPrimitive } from "./FlowPrimitive"
-import { FlowTarget } from "./FlowTarget"
+import { Target } from "./Target"
 import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator, logMark, isUpperCase, draw, camelCased } from "./utility"
 
 
@@ -57,8 +57,8 @@ export {
     // FlowPrimitive.js
     FlowPrimitive,
 
-    // FlowTarget.js
-    FlowTarget,
+    // Target.js
+    Target,
 
     // Utility
     log, 

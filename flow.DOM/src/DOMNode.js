@@ -16,7 +16,7 @@ export function aggregateToString(flow) {
   let id = [];
   let scan = flow;
   while (scan) {
-    // if (!(scan instanceof FlowTargetPrimitive)) {
+    // if (!(scan instanceof TargetPrimitive)) {
       // Dont display flow target primitive.       
       id.unshift(scan.toString());
     // }

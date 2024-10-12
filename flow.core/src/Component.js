@@ -255,7 +255,7 @@ export class Component {
     // However, this will not guarantee a mount. For that, just observe specific properties set by the integration process.
   }
 
-  onRemoveFromFlowTarget() {
+  onRemoveFromTarget() {
     if (this.onClose) {
       this.onClose();
     }

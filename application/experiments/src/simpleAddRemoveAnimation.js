@@ -1,7 +1,7 @@
 import { div, text } from "../flow.DOM/BasicHtml";
 import { button } from "../components/basic/BasicWidgets";
 import { column } from "../components/basic/Layout";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget";
+import { DOMTarget } from "../flow.DOM/DOMTarget";
 import { Component } from "../flow/Flow";
 
 const log = console.log;
@@ -43,5 +43,5 @@ export class SimpleAddRemoveAnimation extends Component {
  */
 export function startSimpleAddRemoveAnimation() {
   const simple = new SimpleAddRemoveAnimation()  
-  new DOMFlowTarget(document.getElementById("root")).setContent(simple)
+  new DOMTarget(document.getElementById("root")).setContent(simple)
 }

@@ -1,5 +1,5 @@
 import { observable, Component, repeat, transaction } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
+import { DOMTarget } from "../flow.DOM/DOMTarget.js";
 import { text } from "../components/basic/BasicWidgets";
 import { column, filler, fillerStyle, row } from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
@@ -110,5 +110,5 @@ export class SimpleMoveAnimation extends Component {
  */
 export function startSimpleMoveAnimation() {
   const simple = new SimpleMoveAnimation()  
-  new DOMFlowTarget(document.getElementById("root")).setContent(simple)
+  new DOMTarget(document.getElementById("root")).setContent(simple)
 }

@@ -1,5 +1,5 @@
 import { observable, Component, repeat } from "../flow/Flow";
-import { DOMFlowTarget } from "../flow.DOM/DOMFlowTarget.js";
+import { DOMTarget } from "../flow.DOM/DOMTarget.js";
 import { button } from "../components/basic/BasicWidgets";
 import { column, row as basicRow } from "../components/basic/Layout";
 import { text } from "../../../flow.DOM/src/HTMLBuilding.js";
@@ -82,9 +82,9 @@ const myRow = component("myRow", (flow) => {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startHelloWorld() {
-  // Activate continous build/integration to DOMFlowTarget.
+  // Activate continous build/integration to DOMTarget.
   const helloWorld = new HelloWorld();
-  new DOMFlowTarget(document.getElementById("root")).setContent(helloWorld);
+  new DOMTarget(document.getElementById("root")).setContent(helloWorld);
   asyncModifications(helloWorld);  
 }
 

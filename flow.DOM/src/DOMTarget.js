@@ -1,6 +1,6 @@
 import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
 import { getFlowProperties, extractProperty } from "@liquefy/flow.core";
-import { FlowTarget } from "@liquefy/flow.core";
+import { Target } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { renderViewTime } from "../../flow.core/src/Flow";
 
@@ -9,21 +9,21 @@ import { renderViewTime } from "../../flow.core/src/Flow";
 export const domNodeClassRegistry = {};
 const log = console.log;
 
-export function getDomFlowTargets() {
-  return domFlowTargets;
+export function getDomTargets() {
+  return domTargets;
 }
 
-export const domFlowTargets = [];
+export const domTargets = [];
 
-export function addDOMFlowTarget(target) {
-  domFlowTargets.push(target)
+export function addDOMTarget(target) {
+  domTargets.push(target)
 }
 
-export function removeDOMFlowTarget(target) {
-  domFlowTargets.splice(domFlowTargets.indexOf(target), 1);
+export function removeDOMTarget(target) {
+  domTargets.splice(domTargets.indexOf(target), 1);
 }
 
-export class DOMFlowTarget extends FlowTarget {
+export class DOMTarget extends Target {
   constructor(rootElement, configuration={}){
     if (!rootElement) throw new Error("No root element!");
     const {creator=null, fullWindow=true} = configuration;
@@ -31,7 +31,7 @@ export class DOMFlowTarget extends FlowTarget {
 
     if (!this.key) this.key = configuration.key ? configuration.key : null;
     this.animate = typeof(configuration.animate) === "undefined" ? true : configuration.animate; 
-    if (this.animate) addDOMFlowTarget(this);
+    if (this.animate) addDOMTarget(this);
     this.creator = creator;
     this.rootElement = rootElement;
     if (fullWindow) {
@@ -89,7 +89,7 @@ export class DOMFlowTarget extends FlowTarget {
 
   dispose() {
     super.dispose();
-    if (this.animate) removeDOMFlowTarget(this);
+    if (this.animate) removeDOMTarget(this);
   }
 
   create(properties) {
@@ -127,7 +127,7 @@ export class DOMFlowTarget extends FlowTarget {
   //   this.modalFlow = flow;
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
-  //   this.modalTarget = new DOMFlowTarget(modalDiv, {creator: this});
+  //   this.modalTarget = new DOMTarget(modalDiv, {creator: this});
   //   this.modalTarget.setContent(this.modalFlow);
 
   //   // Display modal flow

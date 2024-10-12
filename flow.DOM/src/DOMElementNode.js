@@ -1,6 +1,6 @@
 import { extractProperty, getFlowPropertiesIncludingChildren, getTarget } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
-import { domNodeClassRegistry } from "./DOMFlowTarget";
+import { domNodeClassRegistry } from "./DOMTarget";
 import { extractAttributes } from "./domNodeAttributes";
   
 const log = console.log;

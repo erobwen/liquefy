@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { DOMFlowTarget, text, div } from "@liquefy/flow.DOM";
+import { DOMTarget, text, div } from "@liquefy/flow.DOM";
 import { filler, column, row } from "@liquefy/basic-ui";
 import { button } from "@liquefy/basic-ui";
 import { portalEntrance } from "@liquefy/basic-ui";
@@ -87,5 +87,5 @@ export class PortalStandaloneExample extends Component {
   
 export function startPortalDemo() {
   const root = new PortalStandaloneExample();
-  new DOMFlowTarget(document.getElementById("root")).setContent(root);
+  new DOMTarget(document.getElementById("root")).setContent(root);
 }

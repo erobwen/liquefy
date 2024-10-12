@@ -287,6 +287,7 @@ export class Component {
   className() {
     let result;
     withoutRecording(() => {
+      // Consider: Use classNameOverride here already.
       result = this.constructor.name;
     });
     return result;

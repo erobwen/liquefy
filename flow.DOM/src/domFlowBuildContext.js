@@ -2,7 +2,7 @@ import { getTheme } from "../../flow.core/src/flowBuildContext";
 
 
 /**
- * Helper
+ * Helper (move to themed ui)
  */
 export function getThemedComponent(name, properties) {
     const theme = getTheme();

@@ -119,7 +119,7 @@ export class StringDisplay extends Component {
   } 
   
   build() {
-    const fittedString = "Fitted Text"// + this.key; 
+    const fittedString = "Text that fit the width of container"// + this.key; 
     return (
       centerMiddle(
         text(fittedString), 

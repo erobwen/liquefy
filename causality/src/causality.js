@@ -813,20 +813,20 @@ function createWorld(configuration) {
   }
 
 
-  function observable(createdTarget, buildId) {
-    if (typeof(createdTarget) === 'undefined') {
-      createdTarget = {};
+  function observable(createdRenderContext, buildId) {
+    if (typeof(createdRenderContext) === 'undefined') {
+      createdRenderContext = {};
     }
-    if (typeof(createdTarget) !== "object") return createdTarget;
+    if (typeof(createdRenderContext) !== "object") return createdRenderContext;
     if (typeof(buildId) === 'undefined') {
       buildId = null;
     }
-    if (isObservable(createdTarget)) {
+    if (isObservable(createdRenderContext)) {
       throw new Error("Cannot observe an already observed object!");
     }
 
     let handler;
-    if (createdTarget instanceof Array) {
+    if (createdRenderContext instanceof Array) {
       handler = {
         _arrayObservers : null,
         // getPrototypeOf: function () {},
@@ -861,9 +861,9 @@ function createWorld(configuration) {
       };
     }
 
-    let proxy = new Proxy(createdTarget, handler);
+    let proxy = new Proxy(createdRenderContext, handler);
     
-    handler.target = createdTarget;
+    handler.target = createdRenderContext;
     handler.proxy = proxy;
 
     handler.meta = {
@@ -871,7 +871,7 @@ function createWorld(configuration) {
       id: "not yet", // Wait for rebuild analysis
       buildId : buildId,
       forwardTo : null,
-      target: createdTarget,
+      target: createdRenderContext,
       handler : handler,
       proxy : proxy,
 
@@ -1381,8 +1381,8 @@ function createWorld(configuration) {
       }
     }
 
-    function matchChildrenInEquivalentSlot(establishedObjectTarget, newObjectTarget) {
-      for (let [establishedSlot, newSlot] of shapeAnalysis.slotsIterator(establishedObjectTarget, newObjectTarget, object => (isObservable(object) && object[objectMetaProperty].buildId))) {
+    function matchChildrenInEquivalentSlot(establishedObjectRenderContext, newObjectRenderContext) {
+      for (let [establishedSlot, newSlot] of shapeAnalysis.slotsIterator(establishedObjectRenderContext, newObjectRenderContext, object => (isObservable(object) && object[objectMetaProperty].buildId))) {
         matchInEquivalentSlot(establishedSlot, newSlot);
       }
     }
@@ -1496,10 +1496,10 @@ function createWorld(configuration) {
         for (let id in repeater.idObjectShapeMap) {
           if (typeof(repeater.newIdObjectShapeMap[id]) === "undefined") {
             const object = repeater.idObjectShapeMap[id];
-            const objectTarget = object[objectMetaProperty].target;
-            // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
+            const objectRenderContext = object[objectMetaProperty].target;
+            // console.log("Dispose object: " + objectRenderContext.constructor.name + "." + object[objectMetaProperty].id)
             emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectTarget.onDispose) === "function") object.onDispose();
+            if (typeof(objectRenderContext.onDispose) === "function") object.onDispose();
           }
         }
       }
@@ -1525,10 +1525,10 @@ function createWorld(configuration) {
         for (let buildId in repeater.buildIdObjectMap) {
           if (typeof(repeater.newBuildIdObjectMap[buildId]) === "undefined") {
             const object = repeater.buildIdObjectMap[buildId];
-            const objectTarget = object[objectMetaProperty].target;
-            // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
+            const objectRenderContext = object[objectMetaProperty].target;
+            // console.log("Dispose object: " + objectRenderContext.constructor.name + "." + object[objectMetaProperty].id)
             emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectTarget.onDispose) === "function") objectTarget.onDispose();
+            if (typeof(objectRenderContext.onDispose) === "function") objectRenderContext.onDispose();
           }
         }
       }

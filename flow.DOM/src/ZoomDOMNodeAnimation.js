@@ -362,7 +362,7 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
    * However, removed nodes are still present at this point... maybe we should ensure added leaders for removed ones start out minimized?
    * Trailers should also be minimized at this point.
    */
-  domJustRebuiltMeasureTargetSizes(flow) {
+  domJustRebuiltMeasureRenderContextSizes(flow) {
     // console.group("Measure target size for " + this.changesChain(flow) + ": " + flow.toString());
     const node = flow.domNode;
     // log("trailer: " + node.trailer);
@@ -373,7 +373,7 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
           const removeChange = flow.changes.previous; 
           node.changes.targetBounds = removeChange.originalBounds;
           node.changes.targetStyle = removeChange.originalStyle;
-          node.changes.computedTargetStyle = removeChange.computedOriginalStyle; 
+          node.changes.computedRenderContextStyle = removeChange.computedOriginalStyle; 
           node.changes.targetDimensions = removeChange.originalDimensions;
           break;
         }
@@ -390,10 +390,10 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
       
         // Styles
         node.changes.targetStyle = {...node.style}
-        node.changes.computedTargetStyle = {...getComputedStyle(node)}; // TODO: Remove or optimize if not needed fully. 
+        node.changes.computedRenderContextStyle = {...getComputedStyle(node)}; // TODO: Remove or optimize if not needed fully. 
 
         // Dimensions (with and without margins)
-        node.changes.targetDimensions = this.calculateDimensionsIncludingMargin(node.changes.targetBounds, node.changes.computedTargetStyle);
+        node.changes.targetDimensions = this.calculateDimensionsIncludingMargin(node.changes.targetBounds, node.changes.computedRenderContextStyle);
     }
     console.groupEnd();
   }
@@ -863,7 +863,7 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
     Object.assign(node.style, {
       transform: "matrix(1, 0, 0, 1, 0, 0)"
     });
-    this.setInheritedTargetStyles(node);
+    this.setInheritedRenderContextStyles(node);
   }
 
 
@@ -875,10 +875,10 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
     });
   }
   
-  setInheritedTargetStyles(node) {
+  setInheritedRenderContextStyles(node) {
     // Fixate environment dependent styles
     for (let property of inheritedProperties) {
-      node.style[property] = node.changes.computedTargetStyle[property];
+      node.style[property] = node.changes.computedRenderContextStyle[property];
     }    
   }
 

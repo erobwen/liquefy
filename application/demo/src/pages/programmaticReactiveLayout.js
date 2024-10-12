@@ -1,6 +1,6 @@
 import { repeat, observable, Component, transaction, getFlowProperties, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
-import { text, div, DOMTarget, getFlowPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
+import { text, div, DOMRenderContext, getFlowPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
 import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row } from "@liquefy/basic-ui";
 
@@ -223,7 +223,7 @@ export class FixedAspectRatioDisplay extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startProgrammaticReactiveLayout() {
-  new DOMTarget(document.getElementById("root")).setContent(
+  new DOMRenderContext(document.getElementById("root")).setContent(
     new ProgrammaticReactiveLayout()
   );
 }

@@ -42,7 +42,7 @@ export class DOMNodeAnimation {
    * However, removed nodes are still present at this point... maybe we should ensure added leaders for removed ones start out minimized?
    * Trailers should also be minimized at this point.
    */
-  domJustRebuiltMeasureTargetSizes(flow) {
+  domJustRebuiltMeasureRenderContextSizes(flow) {
     throw new Error("Not implemented yet!");
   }
 

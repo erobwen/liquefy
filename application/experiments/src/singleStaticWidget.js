@@ -1,5 +1,5 @@
 import { observable, Component, repeat } from "../flow/Flow";
-import { DOMTarget } from "../flow.DOM/DOMTarget.js";
+import { DOMRenderContext } from "../flow.DOM/DOMRenderContext.js";
 import { panel } from "../components/basic/BasicWidgets";
 import { column, filler, row, centerMiddle, columnStyle} from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
@@ -39,5 +39,5 @@ export class SingleStaticWidget extends Component {
  */
 export function startSingleStaticWidget() {
   const singleWidget = new SingleStaticWidget()  
-  new DOMTarget(document.getElementById("root")).setContent(singleWidget)
+  new DOMRenderContext(document.getElementById("root")).setContent(singleWidget)
 }

@@ -1,6 +1,6 @@
-import { extractProperty, getFlowProperties, getTarget } from "@liquefy/flow.core";
+import { extractProperty, getFlowProperties, getRenderContext } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";    
-import { domNodeClassRegistry } from "./DOMTarget";
+import { domNodeClassRegistry } from "./DOMRenderContext";
 const log = console.log;
 
 
@@ -9,7 +9,7 @@ const log = console.log;
  */
 export function textNode(...parameters) {
   const properties = getTextNodeProperties(parameters)
-  return getTarget().create({type: "textNode", ...properties});
+  return getRenderContext().create({type: "textNode", ...properties});
 }
 
 export const text = textNode;

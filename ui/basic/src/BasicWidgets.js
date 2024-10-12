@@ -1,5 +1,5 @@
 import { trace, Component, callback } from "@liquefy/flow.core";
-import { getTarget } from "@liquefy/flow.core";
+import { getRenderContext } from "@liquefy/flow.core";
 import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
 import { text, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
@@ -158,7 +158,7 @@ export function inputField(properties) {
     ...inputAttributes
   };
   
-  const children = [getTarget().create({type: "elementNode", 
+  const children = [getRenderContext().create({type: "elementNode", 
     key: properties.key + ".input", 
     componentTypeName: type + "InputField", 
     tagName: "input", 

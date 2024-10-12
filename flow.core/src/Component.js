@@ -5,11 +5,11 @@ const log = console.log;
 
 
 /**
- * Flow TODO: Move to separate file. 
+ * Component
  */
 export class Component {
   theme;
-  target; 
+  renderContext; 
 
   get id() {
     return this.causality.id;
@@ -88,8 +88,8 @@ export class Component {
     this.theme = theme; 
   }
 
-  setTarget(target) {
-    this.target = target; 
+  setRenderContext(renderContext) {
+    this.renderContext = renderContext; 
   }
 
 
@@ -120,7 +120,7 @@ export class Component {
    */
   inheritFromCreator() {
     if (this.creator) {
-      this.setTarget(this.creator.target);
+      this.setRenderContext(this.creator.renderContext);
       this.setTheme(this.creator.theme);
     }
   }
@@ -255,7 +255,7 @@ export class Component {
     // However, this will not guarantee a mount. For that, just observe specific properties set by the integration process.
   }
 
-  onRemoveFromTarget() {
+  onRemoveFromRenderContext() {
     if (this.onClose) {
       this.onClose();
     }
@@ -362,7 +362,7 @@ export class Component {
     }
   }
 
-  ensureBuiltRecursive(flowTarget, parentPrimitive) {
+  ensureBuiltRecursive(flowRenderContext, parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
       if (peekParentPrimitive) {
@@ -371,7 +371,7 @@ export class Component {
       }
       this.parentPrimitive = parentPrimitive
     } 
-    workOnPriorityLevel(buildComponentTime, () => this.getPrimitive().ensureBuiltRecursive(flowTarget, parentPrimitive));
+    workOnPriorityLevel(buildComponentTime, () => this.getPrimitive().ensureBuiltRecursive(flowRenderContext, parentPrimitive));
     return this.getPrimitive(parentPrimitive);
   }
 

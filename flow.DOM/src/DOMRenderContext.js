@@ -1,6 +1,6 @@
 import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
 import { getFlowProperties, extractProperty } from "@liquefy/flow.core";
-import { Target } from "@liquefy/flow.core";
+import { RenderContext } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { renderViewTime } from "../../flow.core/src/Flow";
 
@@ -9,21 +9,21 @@ import { renderViewTime } from "../../flow.core/src/Flow";
 export const domNodeClassRegistry = {};
 const log = console.log;
 
-export function getDomTargets() {
-  return domTargets;
+export function getDomRenderContexts() {
+  return domRenderContexts;
 }
 
-export const domTargets = [];
+export const domRenderContexts = [];
 
-export function addDOMTarget(target) {
-  domTargets.push(target)
+export function addDOMRenderContext(target) {
+  domRenderContexts.push(target)
 }
 
-export function removeDOMTarget(target) {
-  domTargets.splice(domTargets.indexOf(target), 1);
+export function removeDOMRenderContext(target) {
+  domRenderContexts.splice(domRenderContexts.indexOf(target), 1);
 }
 
-export class DOMTarget extends Target {
+export class DOMRenderContext extends RenderContext {
   constructor(rootElement, configuration={}){
     if (!rootElement) throw new Error("No root element!");
     const {creator=null, fullWindow=true} = configuration;
@@ -31,7 +31,7 @@ export class DOMTarget extends Target {
 
     if (!this.key) this.key = configuration.key ? configuration.key : null;
     this.animate = typeof(configuration.animate) === "undefined" ? true : configuration.animate; 
-    if (this.animate) addDOMTarget(this);
+    if (this.animate) addDOMRenderContext(this);
     this.creator = creator;
     this.rootElement = rootElement;
     if (fullWindow) {
@@ -89,7 +89,7 @@ export class DOMTarget extends Target {
 
   dispose() {
     super.dispose();
-    if (this.animate) removeDOMTarget(this);
+    if (this.animate) removeDOMRenderContext(this);
   }
 
   create(properties) {
@@ -127,8 +127,8 @@ export class DOMTarget extends Target {
   //   this.modalFlow = flow;
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
-  //   this.modalTarget = new DOMTarget(modalDiv, {creator: this});
-  //   this.modalTarget.setContent(this.modalFlow);
+  //   this.modalRenderContext = new DOMRenderContext(modalDiv, {creator: this});
+  //   this.modalRenderContext.setContent(this.modalFlow);
 
   //   // Display modal flow
   //   this.state.modalDiv = modalDiv;
@@ -139,8 +139,8 @@ export class DOMTarget extends Target {
   //     // Remove new flow target, hide modal panel
   //     this.modalFlow = null;
   //     this.modalFlowClose = null;
-  //     this.modalTarget.dispose();
-  //     this.modalTarget = null;
+  //     this.modalRenderContext.dispose();
+  //     this.modalRenderContext = null;
   //     this.state.modalDiv = null;
   //   }
   // }

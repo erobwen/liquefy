@@ -47,7 +47,7 @@ Note: This is a compound repository where I experiment with Flow together with o
         * You can build your custom flow target, with its own set of flow primitives that is provided to the flow rendered upon it. 
         * This means that you could theoretically render your flow components onto anything on any platform, as long as you have a flow target/flow-primitives that supports it.
     * You can use flow targets in recursive configurations as you wish. For example, inside a flow component, there can be a new flow target, that another flow component renders onto, etc. 
-    * If you want to modify the existing dom rendering to support some missing feature? You can just overload DOMTarget and related classes and do whatever changes you like. 
+    * If you want to modify the existing dom rendering to support some missing feature? You can just overload DOMRenderContext and related classes and do whatever changes you like. 
 
 * Compliance with web component standards. 
     You can use Flow to use or to build webcomponents. For example, inside a web component definition, you can create a new flow target connected to the web component, that another inner flow component is rendered upon. The drawback of doing so is that the dom outside the web component needs to render and send new arguments to the web component, before any chage can happen to the flow inside the web component. This could potentially have consequences for frame and animation synchronization over the entire document as a whole. Flow component contexts will also not work within webcomponents. You can use webcomponents if you want to comply to modern web browser standards or integrate with other projects, or you can just use bare flow components if you want to have a better component intercommunication. The choice is yours!  
@@ -102,7 +102,7 @@ This example showcases some basic principles of Flow. It shows two ways of defin
 ```js
 import { observable, Flow, flow, repeat } from "../flow/Flow";
 import { text, row as basicRow } from "../components/BasicFlowComponents";
-import { DOMTarget } from "../flow.DOM/DOMTarget.js";
+import { DOMRenderContext } from "../flow.DOM/DOMRenderContext.js";
 
 const log = console.log;
 

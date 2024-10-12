@@ -1,6 +1,6 @@
-import { extractProperty, getFlowPropertiesIncludingChildren, getTarget } from "@liquefy/flow.core";
+import { extractProperty, getFlowPropertiesIncludingChildren, getRenderContext } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
-import { domNodeClassRegistry } from "./DOMTarget";
+import { domNodeClassRegistry } from "./DOMRenderContext";
 import { extractAttributes } from "./domNodeAttributes";
   
 const log = console.log;
@@ -12,12 +12,12 @@ const log = console.log;
 export function elementNode(...parameters) {
   let properties = getFlowPropertiesIncludingChildren(parameters); 
   extractAttributes(properties);
-  return getTarget().create({type: "elementNode", ...properties});
+  return getRenderContext().create({type: "elementNode", ...properties});
 }
 
 
 /**
- * DOM Flow Target Primitive
+ * DOM Flow RenderContext Primitive
  */
  export class DOMElementNode extends DOMNode {
   setProperties(properties) {

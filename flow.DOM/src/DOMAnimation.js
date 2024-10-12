@@ -1,6 +1,6 @@
 import { configuration, postponeInvalidations, continueInvalidations, traceAnimation, traceWarnings } from "@liquefy/flow.core";
 import { logAnimationFrameGroup, logAnimationSeparator } from "@liquefy/flow.core";
-import { getDomTargets } from "./DOMTarget";
+import { getDomRenderContexts } from "./DOMRenderContext";
 
 // import { inExperiment, inExperimentOnCount } from "..";
 
@@ -22,7 +22,7 @@ export function resetDOMAnimation() {
   Object.assign(flowChanges, newFlowChanges());
   previousFlowChanges = {}
   counter = 0;
-  getDomTargets().length = 0;
+  getDomRenderContexts().length = 0;
 }
 
 
@@ -208,7 +208,7 @@ export function onFinishReBuildingFlow() {
     }
   }
   
-  for (let target of getDomTargets()) {
+  for (let target of getDomRenderContexts()) {
     analyzePrimitives(idPrimitiveMap, target.flow.getPrimitive());
   }
   // console.log(idParentIdMap);
@@ -363,7 +363,7 @@ export function onFinishReBuildingDOM() {
   // Measure the final size of added and moved (do this before we start to emulate original)
   for (let flow of flowChanges.allAnimatedFlows()) {
     if (flow.domNode) {
-      flow.animation.domJustRebuiltMeasureTargetSizes(flow);
+      flow.animation.domJustRebuiltMeasureRenderContextSizes(flow);
     }
   }
   // if (inExperiment()) return;

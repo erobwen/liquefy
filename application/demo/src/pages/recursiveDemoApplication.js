@@ -1,5 +1,5 @@
 import { Component, trace, model, getFlowProperties } from "@liquefy/flow.core";
-import { DOMTarget, text } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text } from "@liquefy/flow.DOM";
 
 import { numberInputField, filler } from "@liquefy/basic-ui";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
@@ -135,7 +135,7 @@ export class Item extends Component {
   build() {
     const me = this; 
 
-    return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomTarget module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
+    return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomRenderContext module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
       text({ key: "item-text", text: "Depth " +  me.depth}),
       numberInputField("Local state", this, "value"),
       text(" Shared state: " + me.inherit("myModel").value, {}), 
@@ -147,7 +147,7 @@ export class Item extends Component {
 }
 
 // function shadePanel(close) {
-//   const target = getTarget();
+//   const target = getRenderContext();
 //   return target.create({type: "elementNode", 
 //     tagName: "div", 
 //     componentTypeName: "shadePanel",
@@ -173,7 +173,7 @@ export class Item extends Component {
   
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMTarget(document.getElementById("root")).setContent(root);
+  new DOMRenderContext(document.getElementById("root")).setContent(root);
 
   // Emulated user interaction.
   // console.log(root.getChild("control-row").getChild("more-button"));

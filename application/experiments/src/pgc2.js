@@ -140,11 +140,11 @@ class HorizontalArray extends Component {
 // Create an instance of component.
 const fence = new Fence({position: {x:0, y:0}, length: 100, spacing: 5, elevation: 1});
 
-const target = new Engine2DTarget(); // This would be a connection to the actual 2D rendering engine
+const target = new Engine2DRenderContext(); // This would be a connection to the actual 2D rendering engine
 
 target.setContent(fence);  // Starts reactive process of rebuilding fence upon change, and
 
-// If the Mesh2D and Engine2DTarget is implemented correctly, only minimal changes would be pushed to the rendering.  
+// If the Mesh2D and Engine2DRenderContext is implemented correctly, only minimal changes would be pushed to the rendering.  
 
 fence.length = 200; //would instantly double the size of the fence.
 

@@ -9,12 +9,12 @@ describe("array-splices", function(){
 	// resetObjectIds();
   
 	var result;
-  const arrayTarget = ['a', 'b', 'c'];
-  arrayTarget.onChange = (event) => {
+  const arrayRenderContext = ['a', 'b', 'c'];
+  arrayRenderContext.onChange = (event) => {
 		result = event;
   };
-  // arrayTarget.onChange();
-	var observedArray = observable(arrayTarget);
+  // arrayRenderContext.onChange();
+	var observedArray = observable(arrayRenderContext);
 
 	it('should report changes', function(){
 		observedArray[1] = 'z';

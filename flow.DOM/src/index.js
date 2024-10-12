@@ -111,7 +111,7 @@ import {
 import { addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode, elementNode } from "./DOMElementNode";
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
-import { DOMTarget} from "./DOMTarget"
+import { DOMRenderContext} from "./DOMRenderContext"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { extractAttributes, eventHandlerContentElementAttributesCamelCase, globalElementAttributesCamelCase, extractChildStyles } from "./domNodeAttributes";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
@@ -241,8 +241,8 @@ export {
     elementNode, 
     DOMElementNode,
 
-    //DOMTarget
-    DOMTarget,
+    //DOMRenderContext
+    DOMRenderContext,
 
     //DOMNode
     mostAbstractFlow, 

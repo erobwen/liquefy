@@ -6,8 +6,8 @@ const log = console.log;
 
 /**
  * A Primitive component corresponds to a single entity in the target. Such as a node in a web-browser.
- * A primitive component is typically created by the Target.create() function that act as a service
- * locator pattern that make it possible for different Target objects to have different sets of primitive
+ * A primitive component is typically created by the RenderContext.create() function that act as a service
+ * locator pattern that make it possible for different RenderContext objects to have different sets of primitive
  * components. 
  */
 export class PrimitiveComponent extends Component {
@@ -46,11 +46,11 @@ export class PrimitiveComponent extends Component {
     return this;
   }
 
-  ensureBuiltRecursive(flowTarget, parentPrimitive) {
+  ensureBuiltRecursive(flowRenderContext, parentPrimitive) {
     const name = this.toString(); // For chrome debugger
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
-    if (flowTarget) this.visibleOnTarget = flowTarget;
+    if (flowRenderContext) this.visibleOnRenderContext = flowRenderContext;
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
         // log("PrimitiveComponent.ensureBuiltRecursive");
@@ -69,9 +69,9 @@ export class PrimitiveComponent extends Component {
         // Check visibility
         if (this.parentPrimitive) {
           if (this.parentPrimitive.childPrimitives && this.parentPrimitive.childPrimitives.includes(this)) {
-            this.visibleOnTarget = this.parentPrimitive.visibleOnTarget;
+            this.visibleOnRenderContext = this.parentPrimitive.visibleOnRenderContext;
           } else {
-            this.visibleOnTarget = null;
+            this.visibleOnRenderContext = null;
             this.previousParentPrimitive = this.parentPrimitive;
             this.parentPrimitive = null;
           }
@@ -80,7 +80,7 @@ export class PrimitiveComponent extends Component {
         // Populate portals and stuff
         let scan = this.equivalentCreator; 
         while(scan) {
-          if (scan.visibleOnTarget === this.visibleOnTarget) {
+          if (scan.visibleOnRenderContext === this.visibleOnRenderContext) {
             scan = null; 
           } else {
             if (this.parentPrimitive && this.parentPrimitive !== scan.parentPrimitive) {
@@ -91,8 +91,8 @@ export class PrimitiveComponent extends Component {
               scan.parentPrimitive = this.parentPrimitive
             }         
             scan.parentPrimitive = this.parentPrimitive; 
-            scan.visibleOnTarget = this.visibleOnTarget;
-            scan.isVisible = !!this.visibleOnTarget
+            scan.visibleOnRenderContext = this.visibleOnRenderContext;
+            scan.isVisible = !!this.visibleOnRenderContext
             scan.onVisibilityWillChange(scan.isVisible);
             scan = scan.equivalentCreator;
           }
@@ -103,7 +103,7 @@ export class PrimitiveComponent extends Component {
 
         // Expand known children (do as much as possible before integration)
         for (let childPrimitive of this.childPrimitives) { 
-          childPrimitive.ensureBuiltRecursive(flowTarget, this);
+          childPrimitive.ensureBuiltRecursive(flowRenderContext, this);
         }
       
         if (trace) console.groupEnd();

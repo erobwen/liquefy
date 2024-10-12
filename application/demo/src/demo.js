@@ -1,7 +1,7 @@
 import { observable, Component, repeat, creators } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
-import { DOMTarget } from "@liquefy/flow.DOM";
+import { DOMRenderContext } from "@liquefy/flow.DOM";
 import { span, text } from "@liquefy/flow.DOM";
 
 import { portalExit } from "@liquefy/basic-ui";
@@ -123,7 +123,7 @@ export class Demo extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startDemo() {
-  new DOMTarget(document.getElementById("root")).setContent(
+  new DOMRenderContext(document.getElementById("root")).setContent(
     new Demo()
   );
 }

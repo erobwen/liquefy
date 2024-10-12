@@ -18,7 +18,7 @@ INVESTIGATE: Should we really dispose of a keyed component that is not used???..
 
 # After first release
 TODO: Causality could check if objects are frozen, and then automatically do a deep comparison. 
-EPIC: Alternative Flow Target Demo, word-processor  
+EPIC: Alternative Flow RenderContext Demo, word-processor  
 INVESTIGATE: Is there a way to avoid observation of temporary objects during rebuild? Is it a problem?
 INVESTIGATE: Reconsider use of webpack now that we do not need jsx? Call webpack from within a script instead to avoid global install. 
 

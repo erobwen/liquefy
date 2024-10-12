@@ -1,10 +1,10 @@
 
 import { world, transaction, observable, deeplyObservable, isObservable, repeat, finalize, withoutRecording, sameAsPreviousDeep, workOnPriorityLevel, invalidateOnChange, postponeInvalidations, continueInvalidations, state, model, configuration, setFlowConfiguration, trace, traceAnimation, traceWarnings, activeTrace, activeTraceModel, when, callback } from "./Flow";
 import { Component } from "./Component";
-import { creators, getCreator, getTarget, inherit, globalContext, modifyGlobalContext } from "./buildContext";
+import { creators, getCreator, getRenderContext, inherit, globalContext, modifyGlobalContext } from "./buildContext";
 import { findImplicitChildren, findImplicitChildrenAndOnClick, getFlowProperties, getFlowPropertiesIncludingChildren, extractProperty, extractProperties} from "./flowParameters";
 import { PrimitiveComponent } from "./PrimitiveComponent"
-import { Target } from "./Target"
+import { RenderContext } from "./RenderContext"
 import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator, logMark, isUpperCase, draw, camelCased } from "./utility"
 
 
@@ -41,7 +41,7 @@ export {
     // flowBuildContext.js
     creators, 
     getCreator, 
-    getTarget,
+    getRenderContext,
     inherit,
     globalContext,
     modifyGlobalContext,
@@ -57,8 +57,8 @@ export {
     // PrimitiveComponent.js
     PrimitiveComponent,
 
-    // Target.js
-    Target,
+    // RenderContext.js
+    RenderContext,
 
     // Utility
     log, 

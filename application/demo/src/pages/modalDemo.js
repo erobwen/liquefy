@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/flow.core";
 import { getFlowProperties } from "@liquefy/flow.core";
-import { DOMTarget, text, div } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
 import { panel } from "@liquefy/basic-ui";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
 import { overflowVisibleStyle } from "@liquefy/basic-ui";
@@ -209,5 +209,5 @@ export class ModalStandaloneExample extends Component {
   
 export function startModalDemo() {
   const root = new ModalStandaloneExample();
-  new DOMTarget(document.getElementById("root")).setContent(root);
+  new DOMRenderContext(document.getElementById("root")).setContent(root);
 }

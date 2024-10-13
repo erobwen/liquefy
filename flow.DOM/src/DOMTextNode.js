@@ -38,13 +38,13 @@ export function getFlowPropertiesWithImplicitSingleText(parameters) {
 }
 
 export function findImplicitSingleTextInContent(properties) {
-  if (!properties.argumentsContent) return;
-  if (properties.argumentsContent.length > 1) throw new Error("Expecting just one text as content");
-  const argumentsContent = extractProperty(properties, "argumentsContent");
-  if (argumentsContent.length !== 1) throw new Error("Expected just one implicit content")
-  if (!["string", "number"].includes(typeof argumentsContent[0])) throw new Error("Expecting a string or number as content");
+  if (!properties.componentContent) return;
+  if (properties.componentContent.length > 1) throw new Error("Expecting just one text as content");
+  const componentContent = extractProperty(properties, "componentContent");
+  if (componentContent.length !== 1) throw new Error("Expected just one implicit content")
+  if (!["string", "number"].includes(typeof componentContent[0])) throw new Error("Expecting a string or number as content");
   if (properties.text) throw new Error("Found implicit text, but 'text' is already definded in properties given.");
-  properties.text = argumentsContent[0] + "";
+  properties.text = componentContent[0] + "";
 }
 
 

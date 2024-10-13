@@ -58,20 +58,20 @@ export function label(...parameters) {
  */
 
 export function findImplicitInputFieldParameters(properties) {
-  const argumentsContent = extractProperty(properties, "argumentsContent");
-  if (!argumentsContent) return properties;
-  if (!argumentsContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
+  const componentContent = extractProperty(properties, "componentContent");
+  if (!componentContent) return properties;
+  if (!componentContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
 
-  properties.labelText = argumentsContent.shift();
+  properties.labelText = componentContent.shift();
   if (!properties.key) properties.key = properties.labelText;
-  if (typeof(argumentsContent[0]) === "function") {
-    properties.getter = argumentsContent.shift();
+  if (typeof(componentContent[0]) === "function") {
+    properties.getter = componentContent.shift();
     console.log("here")
-    properties.setter = argumentsContent.shift();
+    properties.setter = componentContent.shift();
     console.log(properties.setter);
   } else {
-    properties.targetObject = argumentsContent.shift();
-    properties.targetProperty = argumentsContent.shift();
+    properties.targetObject = componentContent.shift();
+    properties.targetProperty = componentContent.shift();
   }
 }
 

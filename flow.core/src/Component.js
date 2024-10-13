@@ -15,7 +15,7 @@ export class Component {
     return this.causality.id;
   }
 
-  get get() { 
+  get target() { 
     return this.causality.target;
   }
 

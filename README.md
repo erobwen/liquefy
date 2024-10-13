@@ -25,11 +25,11 @@ Flow is a generative front end framework based on Javascript-first principle and
 
 Javascript first principle means that building DOM is done with Javascript functions instead of JSX/litteral templates/HTML:  
 
-![Alt text](/documents/code.png?raw=true "Screenshot")
+![Alt text](/documents/images/code.png?raw=true "Screenshot")
 
 Although Flow is styling agnostic, it favours programmatic styling where styles are programmatically generated and applied to DOM elements. Future versions might support auto-stylesheet generation for better memmory usage. 
 
-![Alt text](/documents/screenshot.png?raw=true "Screenshot")
+![Alt text](/documents/images/screenshot.png?raw=true "Screenshot")
 
 Everything is generative, even themes and styling, and can be changed dynamically (checkbox bottom left).
 

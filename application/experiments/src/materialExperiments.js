@@ -18,7 +18,12 @@ class MaterialExperiment extends Component {
   setState() { }
 
   build() {
-    return div(button("Some text", () => {console.log("clicked me!")}))
+    return (
+      div(
+        button("Button Text", () => {console.log("clicked me!")}),
+        icon({name: "delete"})
+      )
+    )
   }
 }
 
@@ -31,16 +36,37 @@ export function materialExperiment() {
 }
 
 
+/**
+ * Stamp
+ */
 let stamp = 0;
+
+
+/**
+ * Icon component
+ */
+const icon = (...parameters) => {
+  const properties = getFlowProperties(parameters)
+  const attributes = {name: properties.name};
+  return getRenderContext().create({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
+
+  // <mdui-icon name="delete"></mdui-icon>
+}
+
+
+/**
+ * Button component
+ */
 const button = (...parameters) => {
   const properties = buttonParametersToProperties(parameters);
   const keyPrefix = properties.key;
   return getRenderContext().create({type: "elementNode", tagName: "mdui-button", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, ...properties})
 }
 
-
 const buttonParametersToProperties = (parameters) => {
   const properties = getFlowProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
   return properties; 
 }
+
+{/* <mdui-icon name="delete"></mdui-icon> */}

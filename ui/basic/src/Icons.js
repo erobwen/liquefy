@@ -7,6 +7,8 @@ import { logMark } from '@liquefy/flow.core';
 
 import { span, addDefaultStyleToProperties } from '@liquefy/flow.DOM';
 
+import "./Icons.css";
+
 // "@fortawesome/fontawesome-svg-core": "^6.4.0",
 // "@fortawesome/free-regular-svg-icons": "^6.4.0",
 // "@fortawesome/free-solid-svg-icons": "^6.4.0",

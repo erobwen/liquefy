@@ -35,6 +35,10 @@ export function getThemedComponent(name, properties) {
   return component(properties); 
 } 
 
+
+/**
+ * Components
+ */
 export const filler = (...parameters) => getThemedComponent("filler", getFlowProperties(parameters));
 export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", getFlowProperties(parameters));
 export const row = (...parameters) => getThemedComponent("row", getFlowProperties(parameters));
@@ -51,3 +55,12 @@ export const paper = (...parameters) => getThemedComponent("paper", getFlowPrope
 export const paperColumn = (...parameters) => getThemedComponent("paperColumn", getFlowProperties(parameters));
 export const paperRow = (...parameters) => getThemedComponent("paperRow", getFlowProperties(parameters));
 
+
+/**
+ * Standardized properties
+ */
+export const getButtonProperties = (parameters) => {
+  const properties = getFlowProperties(parameters);
+  findImplicitChildrenAndOnClick(properties);
+  return properties; 
+}

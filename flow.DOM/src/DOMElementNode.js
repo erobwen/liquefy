@@ -7,17 +7,30 @@ const log = console.log;
 
 
 /**
- * Element Node
+ * Element node parameters
+ */
+
+export const getElementNodeProperties = (parameters, tagSpecificAttributes) => {
+  const properties = getFlowPropertiesIncludingChildren(parameters); 
+  extractAttributes(properties, tagSpecificAttributes);
+  return properties;
+}
+export const getElementProperties = getElementNodeProperties; // Alias
+
+
+/**
+ * Element node factory
  */
 export function elementNode(...parameters) {
-  let properties = getFlowPropertiesIncludingChildren(parameters); 
-  extractAttributes(properties);
+  let properties = getElementProperties(parameters); 
   return getRenderContext().create({type: "elementNode", ...properties});
 }
 
 
+// Note: There is a 1:1 relation between render context primitives, and flow component primitives. 
+
 /**
- * DOM Flow RenderContext Primitive
+ * DOM Element node primitive
  */
  export class DOMElementNode extends DOMNode {
   setProperties(properties) {

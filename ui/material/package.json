@@ -1,0 +1,33 @@
+{
+  "name": "@liquefy/ui-material",
+  "version": "1.0.0",
+  "description": "A material designs user interface framework for Flow, based on mdui 2.1 web-components.",
+  "type": "module",
+  "module": "./index.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erobwen/liquefy.git"
+  },
+  "keywords": [
+    "Javascript",
+    "Proxy",
+    "Reactive"
+  ],
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "peerDependencies": {
+    "@liquefy/flow.core": "file:../../flow.core",
+    "@liquefy/flow.DOM": "file:../../flow.DOM",
+    "@liquefy/ui-themed": "file:../../ui/themed"
+  },
+  "dependencies": {
+    "mdui": "^2.1.2"
+  }
+}

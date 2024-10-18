@@ -177,14 +177,14 @@ export function inputField(properties) {
 
 // export const button = modernButton;
 
-export const buttonParametersToProperties = (parameters) => {
+export const getButtonProperties = (parameters) => {
   const properties = getFlowProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
   return properties; 
 }
 
 export function button(...parameters) { 
-  const properties = buttonParametersToProperties(parameters)
+  const properties = getButtonProperties(parameters)
 
   addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
   const attributes = extractAttributes(properties);

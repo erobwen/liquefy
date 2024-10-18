@@ -27,7 +27,6 @@
     "@liquefy/flow.DOM": "file:../../flow.DOM",
     "@liquefy/modern-ui": "file:../../ui/modern",
     "@liquefy/themed-ui": "file:../../ui/themed",
-    "@material/web": "^2.2.0",
     "mdui": "^2.1.2"
   }
 }

@@ -15,7 +15,8 @@ const mduiIconAttributes = mduiIconAttributesCamelCase.map(camelCase => ({camelC
  * Icon component
  */
 const icon = (...parameters) => {
-  const properties = getElementNodeProperties(parameters) // TODO: mduiIconAttributes
-  const attributes = {name: properties.name}; // Is this lifted by element nodes auto
+  const properties = getElementNodeProperties(parameters, mduiIconAttributes) 
+  // console.log({...properties.attributes})
+  // debugger;
   return getRenderContext().create({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
 }

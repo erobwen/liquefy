@@ -109,7 +109,7 @@ import {
   template
 } from "./HTMLTags";
 import { addDefaultStyleToProperties } from "./HTMLBuilding";
-import { DOMElementNode, elementNode } from "./DOMElementNode";
+import { DOMElementNode, elementNode, getElementNodeProperties, getElementProperties } from "./DOMElementNode";
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMRenderContext} from "./DOMRenderContext"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
@@ -240,6 +240,8 @@ export {
     // DOMElementNode
     elementNode, 
     DOMElementNode,
+    getElementNodeProperties,
+    getElementProperties,
 
     //DOMRenderContext
     DOMRenderContext,

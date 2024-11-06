@@ -48,7 +48,7 @@ export class Component {
 
     // this.flowDepth = this.creator ? this.creator.flowDepth + 1 : 0;
     
-    // Auto set all properties to this. Have an option for this?
+    // Auto set all properties to this.
     if (configuration.autoAssignProperties) {
       if (properties.className) {
         console.log(properties.className);
@@ -97,7 +97,7 @@ export class Component {
    * Lifecycle methods
    */
   setProperties(properties) {
-    // throw new Error("Not implemented yet");
+    Object.assign(this, properties)
   }
 
   setState() {

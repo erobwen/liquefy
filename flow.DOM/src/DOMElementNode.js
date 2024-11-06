@@ -13,6 +13,7 @@ const log = console.log;
 export const getElementNodeProperties = (parameters, tagSpecificAttributes) => {
   const properties = getFlowPropertiesIncludingChildren(parameters); 
   extractAttributes(properties, tagSpecificAttributes);
+  // console.log({... {...properties.attributes}})
   return properties;
 }
 export const getElementProperties = getElementNodeProperties; // Alias

@@ -4,10 +4,19 @@ import { extractProperty } from "@liquefy/flow.core";
 /**
  * Element Node Attributes 
  */
-export function extractAttributes(properties) {
+export function extractAttributes(properties, tagSpecificAttributes) {
   let attributes = null;
   if (!properties) return attributes;
-  eventHandlerContentElementAttributes.forEach(
+  if (tagSpecificAttributes) tagSpecificAttributes.forEach(
+    attribute => {
+      if (typeof(properties[attribute.camelCase]) !== "undefined") {
+        if (!attributes) attributes = {};
+        attributes[attribute.lowerCase] = properties[attribute.camelCase];
+        delete properties[attribute.camelCase];
+      }
+    }
+  ) 
+  eventHandlerContentElementAttributes.forEach( // Move this to tag specific attributes?
     attribute => {
       if (typeof(properties[attribute.camelCase]) !== "undefined") {
         if (!attributes) attributes = {};
@@ -21,7 +30,7 @@ export function extractAttributes(properties) {
       if (typeof(properties[attribute.camelCase]) !== "undefined") {
         if (!attributes) attributes = {};
         attributes[attribute.lowerCase] = properties[attribute.camelCase];
-        delete properties[attribute.camelCase]; // Destructive change of properties... could this cause problems?
+        delete properties[attribute.camelCase];
       }
     }
   );

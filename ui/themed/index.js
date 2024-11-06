@@ -1,6 +1,7 @@
 import { getFlowProperties } from "@liquefy/flow.core";
 import { globalContext } from "@liquefy/flow.core";
 import { getCreator } from "@liquefy/flow.core";
+import { getElementNodeProperties } from "@liquefy/flow.DOM";
 
 
 /**
@@ -59,8 +60,61 @@ export const paperRow = (...parameters) => getThemedComponent("paperRow", getFlo
 /**
  * Standardized properties
  */
-export const getButtonProperties = (parameters) => {
+export const getButtonProperties = (parameters, additionalAttributes) => {
   const properties = getFlowProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
+  getElementNodeProperties(properties, additionalAttributes);
   return properties; 
+}
+
+
+export function findImplicitChildrenAndOnClick(properties) {
+  const componentContent = extractProperty(properties, "componentContent");
+  if (!componentContent) return properties;
+  
+  let children = null;
+  let onClick = null;
+  for (let item of componentContent) {
+    if (typeof item === "function") {
+      if (onClick) throw new Error("Can only have one onClick function as flow content.");
+      onClick = item; 
+    } else {
+      if (!children) children = [];
+      children.push(item);
+    }
+  }
+  if (onClick) {
+    if (properties.onClick) { 
+      // What about onClick in attributes?
+      throw new Error("implicitly defined onClick already defined explicitly in properties.");
+    }
+    properties.onClick = onClick;
+  }
+  // if (!properties.onClick) throw new Error("Expected onClick defined as a property.");
+  if (children) {
+    if (properties.children) {
+      throw new Error("implicitly defined children already defined explicitly in properties.");
+    }
+    properties.children = children;
+  }
+  createTextNodesFromStringChildren(properties, properties.key);
+  return properties;
+}
+
+function createTextNodesFromStringChildren(properties, keyPrefix) {
+  if (!properties.children) return;
+
+  let stamp = 1;
+
+  properties.children = properties.children.map(child => {
+    if (typeof child === "undefined" || child === null) {
+      return child; 
+    } else if (typeof child === "string" || typeof child === "number") {
+      return getRenderContext().create({type: "textNode", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, text: child});
+    } else if (child instanceof Component) {
+      return child; 
+    } else {
+      throw new Error("Dont know what to do with flow component child: " + child.toString());  
+    }
+  }); 
 }

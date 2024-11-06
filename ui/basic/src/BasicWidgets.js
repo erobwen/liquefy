@@ -2,7 +2,7 @@ import { trace, Component, callback } from "@liquefy/flow.core";
 import { getRenderContext } from "@liquefy/flow.core";
 import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
 
-import { text, div, label as htmlLabel, button as htmlButton, extractAttributes, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
 import { extractProperty } from "../../../flow.core/src/flowParameters.js";
@@ -136,7 +136,7 @@ export function inputField(properties) {
     error = targetObject[targetProperty + "Error"];
   }
 
-  const inputAttributes = extractAttributes(properties.inputProperties);
+  const inputAttributes = properties.inputProperties;
   delete properties.inputProperties;
   if (inputAttributes) {
     if (type === "number") {
@@ -187,8 +187,7 @@ export function button(...parameters) {
   const properties = getButtonProperties(parameters)
 
   addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
-  const attributes = extractAttributes(properties);
-  if (properties.disabled) attributes.disabled = true; 
+  if (properties.disabled) properties.disabled = true; 
   
   // Inject debug printout in click.
   let result; 

@@ -1,7 +1,6 @@
 import { extractProperty, getFlowPropertiesIncludingChildren, getRenderContext } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
 import { domNodeClassRegistry } from "./DOMRenderContext";
-import { extractAttributes } from "./domNodeAttributes";
   
 const log = console.log;
 
@@ -10,12 +9,7 @@ const log = console.log;
  * Element node parameters
  */
 
-export const getElementNodeProperties = (parameters, tagSpecificAttributes) => {
-  const properties = getFlowPropertiesIncludingChildren(parameters); 
-  extractAttributes(properties, tagSpecificAttributes);
-  // console.log({... {...properties.attributes}})
-  return properties;
-}
+export const getElementNodeProperties = getFlowPropertiesIncludingChildren;  // Alias
 export const getElementProperties = getElementNodeProperties; // Alias
 
 
@@ -35,13 +29,21 @@ export function elementNode(...parameters) {
  */
  export class DOMElementNode extends DOMNode {
   setProperties(properties) {
-    this.attributes = extractProperty(properties, "attributes");
     this.children = extractProperty(properties, "children");
-    this.animation = extractProperty(properties, "animation");
-
-    const redundantProperties = Object.keys(properties);  
-    if (redundantProperties.length > 0) 
-      throw new Error("Unexpected keys in DOMNode properties: " + redundantProperties.join(", "));
+    this.tagName = extractProperty(properties, "tagName");
+    console.log(this)
+    const animation = extractProperty(properties, "animation");
+    console.log(animation)
+    this.animation = animation;
+    
+    let attributes = extractProperty(properties, "attributes");
+    const looseAttributes = Object.keys(properties).length;
+    if (looseAttributes && !this.attributes) {
+      attributes = properties
+    } else if (attributes && looseAttributes) {
+      Object.assign(attributes, properties);
+    }
+    this.attributes = attributes; 
   }
 
   initialUnobservables() {
@@ -49,12 +51,6 @@ export function elementNode(...parameters) {
     result.previouslySetStyles = {};
     result.previouslySetAttributes = {};
     return result;
-  }
-
-  setProperties({children, tagName, attributes}) {
-    this.children = children;
-    this.tagName =  tagName ? tagName : "div";
-    this.attributes = attributes ? attributes : {};
   }
   
   createEmptyDomNode() {
@@ -141,7 +137,7 @@ export function elementNode(...parameters) {
 
   // getAnimatedFinishStyles() {
   //   const style = (this.attributes && this.attributes.style) ? this.attributes.style : {};
-  //   const animation = this.animation ? this.animation : this.getAnimation();
+  //   const animation = this.getAnimation() ? this.getAnimation() : this.getAnimation();
   //   return extractProperties(style, animation.animatedProperties);
   // }
 

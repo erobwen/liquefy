@@ -17,7 +17,7 @@ const log = console.log;
  */
 export class SingleStaticWidget extends Component {
   setState() {}
-
+  
   build() {
   
     const singleWidget = text("Hello");

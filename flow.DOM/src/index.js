@@ -113,7 +113,6 @@ import { DOMElementNode, elementNode, getElementNodeProperties, getElementProper
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMRenderContext} from "./DOMRenderContext"
 import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
-import { extractAttributes, eventHandlerContentElementAttributesCamelCase, globalElementAttributesCamelCase, extractChildStyles } from "./domNodeAttributes";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
 
 // Animation
@@ -254,12 +253,6 @@ export {
     getHeightIncludingMargin,
     DOMNode,
 
-    //domNodeAttributes
-    extractAttributes, 
-    eventHandlerContentElementAttributesCamelCase, 
-    globalElementAttributesCamelCase, 
-    extractChildStyles,
-    
     //DOMTextNode 
     textNode,
     text,

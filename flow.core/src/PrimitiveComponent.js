@@ -159,7 +159,7 @@ export class PrimitiveComponent extends Component {
     throw new Error("Not implemented yet");
   }
 
-  get animation() {
+  getAnimation() {
     if (!this.cachedAnimation) {
       invalidateOnChange(
         () => {

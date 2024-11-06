@@ -48,15 +48,6 @@ export class Component {
 
     // this.flowDepth = this.creator ? this.creator.flowDepth + 1 : 0;
     
-    // Auto set all properties to this.
-    if (configuration.autoAssignProperties) {
-      if (properties.className) {
-        console.log(properties.className);
-        throw new Error("Dont!");
-      }
-      Object.assign(this, properties);
-    }
-    
     // Get and inherit certain things from creator.
     this.creator = getCreator(); // Note this can only be done in constructor!
     this.inheritFromCreator();

@@ -243,19 +243,19 @@ export function onFinishReBuildingFlow() {
   function filterAnimatedInMap(map) {
      return Object.values(map)
       .reduce((result, flow) => {
-        if (flow.animation) {
+        if (flow.getAnimation()) {
 
           let stableFoundation = true; 
           let scan = flow.parentPrimitive;
           while(scan) {
           
-            if (flowChanges.globallyAdded[scan.id] && (!scan.animation || !scan.animation.allwaysStableFoundationEvenWhenAdded())) {
+            if (flowChanges.globallyAdded[scan.id] && (!scan.getAnimation() || !scan.getAnimation().allwaysStableFoundationEvenWhenAdded())) {
               stableFoundation = false; 
               break; 
             }
             scan = scan.parentPrimitive;
           }
-          if (stableFoundation || flow.animation.acceptUnstableFoundation(scan)) {
+          if (stableFoundation || flow.getAnimation().acceptUnstableFoundation(scan)) {
             result[flow.id] = flow;
           }
         }
@@ -322,7 +322,7 @@ export function onFinishReBuildingFlow() {
 
   for (let flow of flowChanges.allAnimatedFlows()) {
     if (flow.getDomNode()) {
-      flow.animation.recordOriginalBoundsAndStyle(flow);
+      flow.getAnimation().recordOriginalBoundsAndStyle(flow);
     }
   }
   
@@ -330,7 +330,7 @@ export function onFinishReBuildingFlow() {
 
   for (let flow of flowChanges.allAnimatedFlows()) {
     if (flow.domNode) {
-      flow.animation.prepareForDOMBuilding(flow)
+      flow.getAnimation().prepareForDOMBuilding(flow)
     }
   }
 
@@ -363,7 +363,7 @@ export function onFinishReBuildingDOM() {
   // Measure the final size of added and moved (do this before we start to emulate original)
   for (let flow of flowChanges.allAnimatedFlows()) {
     if (flow.domNode) {
-      flow.animation.domJustRebuiltMeasureRenderContextSizes(flow);
+      flow.getAnimation().domJustRebuiltMeasureRenderContextSizes(flow);
     }
   }
   // if (inExperiment()) return;
@@ -376,7 +376,7 @@ export function onFinishReBuildingDOM() {
   // Emulate original footprints. 
   for (let flow of flowChanges.allAnimatedFlows()) {
     if (flow.domNode) {
-      flow.animation.emulateOriginalFootprintsAndFixateAnimatedStyle(flow);
+      flow.getAnimation().emulateOriginalFootprintsAndFixateAnimatedStyle(flow);
     }
   }
   // if (inExperimentOnCount(3)) return;
@@ -387,7 +387,7 @@ export function onFinishReBuildingDOM() {
   // Emulate original footprints. 
   for (let flow of flowChanges.allAnimatedFlows()) {
     if (flow.domNode) {
-      flow.animation.emulateOriginalBounds(flow);
+      flow.getAnimation().emulateOriginalBounds(flow);
     }
   }
 
@@ -419,7 +419,7 @@ function activateAnimationAfterFirstRender(currentFlowChanges) {
           console.group();
           console.log(flow.domNode);
         }
-        flow.animation.activateAnimation(flow, currentFlowChanges);
+        flow.getAnimation().activateAnimation(flow, currentFlowChanges);
         if (traceAnimation) {
           console.groupEnd();
         }
@@ -434,7 +434,7 @@ function activateAnimationAfterFirstRender(currentFlowChanges) {
     // Note: There is still time to do this since we have not released controll and allowed a second frame to render. 
     for (let flow of currentFlowChanges.allAnimatedFlows()) {
       if (flow.domNode) {
-        flow.animation.setupAnimationCleanup(flow);
+        flow.getAnimation().setupAnimationCleanup(flow);
       }
     }
 
@@ -564,13 +564,13 @@ export function parseMatrix(matrix) {
 //   scan = flow.parentPrimitive;
 //   while (scan) {
 //     if (scan.domNode && scan.domNode.originMark === originMark) {
-//       flow.domNode.animationOriginNode = scan.domNode;
+//       flow.domNode.getAnimation()OriginNode = scan.domNode;
 //       break;
 //     }
 //     scan = scan.parentPrimitive;
 //   }
   
-// standardAnimation.recordOriginalBoundsAndStyle(flow.domNode.animationOriginNode);  
+// standardAnimation.recordOriginalBoundsAndStyle(flow.domNode.getAnimation()OriginNode);  
 // }
 
 

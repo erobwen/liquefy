@@ -1,7 +1,6 @@
 import { Component, transaction, creators, getRenderContext } from "@liquefy/flow.core";
 import { getFlowProperties } from "@liquefy/flow.core";
 
-import { extractAttributes } from "@liquefy/flow.DOM";
 import { div, elementNode } from "@liquefy/flow.DOM";
 import { logMark } from "@liquefy/flow.core";
 import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/flowParameters";
@@ -155,7 +154,6 @@ export class ModalFrame extends Component {
 }
 
 function modalFrameDiv(...parameters) {
-  let properties = getFlowProperties(parameters); 
-  const attributes = extractAttributes(properties);
-  return elementNode({type: "elementNode", tagName: "div", key: properties.key, componentTypeName: "modal-frame", attributes, children: properties.children});
+  let properties = getFlowProperties(parameters);
+  return elementNode({type: "elementNode", tagName: "div", componentTypeName: "modal-frame", ...properties});
 }

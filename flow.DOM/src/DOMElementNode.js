@@ -24,18 +24,25 @@ export function elementNode(...parameters) {
 
 // Note: There is a 1:1 relation between render context primitives, and flow component primitives. 
 
+function toLowerCase(object) {
+  const result = {}
+  for (let property in object) {
+    result[property.toLowerCase()] = object[property]
+  }
+  return result; 
+}
+
 /**
  * DOM Element node primitive
  */
  export class DOMElementNode extends DOMNode {
+  preSetProperties() {}
+
   setProperties(properties) {
     this.children = extractProperty(properties, "children");
     this.tagName = extractProperty(properties, "tagName");
-    console.log(this)
-    const animation = extractProperty(properties, "animation");
-    console.log(animation)
-    this.animation = animation;
-    
+    this.animation = extractProperty(properties, "animation");
+
     let attributes = extractProperty(properties, "attributes");
     const looseAttributes = Object.keys(properties).length;
     if (looseAttributes && !this.attributes) {
@@ -43,7 +50,7 @@ export function elementNode(...parameters) {
     } else if (attributes && looseAttributes) {
       Object.assign(attributes, properties);
     }
-    this.attributes = attributes; 
+    this.attributes = toLowerCase(attributes); 
   }
 
   initialUnobservables() {

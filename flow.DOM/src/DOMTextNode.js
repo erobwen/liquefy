@@ -59,9 +59,7 @@ export function findImplicitSingleTextInContent(properties) {
 // }
 
 export class DOMTextNode extends DOMNode {
-  setProperties({text}) {
-    this.text = text;
-  }
+  preSetProperties() {}
 
   setProperties(properties) {
     this.text = extractProperty(properties, "text");

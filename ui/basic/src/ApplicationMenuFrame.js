@@ -61,7 +61,7 @@ class ApplicationMenuFrame extends Component {
       {style: {...layoutBorderStyle, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
 
-    const overflowVisibleStyle = { overflow: "visible"};
+    const overflowVisibleStyle = this.applicationContent.usesExternalAnimations ? { overflow: "visible"} : null;
 
     const leftPanel = column("leftMenu", 
       this.appplicationMenu,

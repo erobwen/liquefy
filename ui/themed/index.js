@@ -107,7 +107,7 @@ function createTextNodesFromStringChildren(properties, keyPrefix) {
   let stamp = 1;
 
   properties.children = properties.children.map(child => {
-    if (typeof child === "undefined" || child === null) {
+    if (typeof child === "undefined" || child === null || child === false) {
       return child; 
     } else if (typeof child === "string" || typeof child === "number") {
       return getRenderContext().create({type: "textNode", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, text: child});

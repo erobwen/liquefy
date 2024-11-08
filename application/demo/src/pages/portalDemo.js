@@ -28,6 +28,7 @@ export class PortalExample extends Component {
   setProperties({portal}) {
     this.name = "Portal Example";
     this.portal = portal;
+    this.usesExternalAnimations = true; 
   }
   
   setState() {

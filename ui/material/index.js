@@ -1,7 +1,7 @@
 import { button } from "./src/button";
-import { icon } from "./src/icon";
+// import { icon } from "./src/icon";
 
 export {
   button,
-  icon
+  // icon
 }

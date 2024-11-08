@@ -80,7 +80,6 @@ class ApplicationMenuFrame extends Component {
       {style: {...rowStyle, ...fitContainerStyle}}
     )
 
-
     return column("a",
       topPanel.show(menuIsModal),
       row("b",

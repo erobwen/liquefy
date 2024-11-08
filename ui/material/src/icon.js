@@ -1,5 +1,5 @@
-import { getElementNodeProperties } from "@liquefy/flow.DOM";
-import "./materialAndIcons.css";
+// import { getElementNodeProperties } from "@liquefy/flow.DOM";
+// import "./materialAndIcons.css";
 
 /**
  * Additional attributes
@@ -14,7 +14,7 @@ const mduiIconAttributes = mduiIconAttributesCamelCase.map(camelCase => ({camelC
 /**
  * Icon component
  */
-const icon = (...parameters) => {
+export const icon = (...parameters) => {
   const properties = getElementNodeProperties(parameters, mduiIconAttributes) 
   // console.log({...properties.attributes})
   // debugger;

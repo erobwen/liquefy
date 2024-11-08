@@ -25,9 +25,13 @@
   "peerDependencies": {
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.DOM": "file:../../flow.DOM",
-    "@liquefy/ui-themed": "file:../../ui/themed"
-  },
-  "dependencies": {
+    "@liquefy/ui-themed": "file:../../ui/themed",
+    "@liquefy/basic-ui": "file:../../ui/basic",
+    "@liquefy/causality": "file:../../causality",
+    "@liquefy/flow": "file:../../flow",
+    "@liquefy/modern-ui": "file:../../ui/modern",
+    "@liquefy/themed-ui": "file:../../ui/themed",
+    "@material/web": "^2.2.0",
     "mdui": "^2.1.2"
   }
 }

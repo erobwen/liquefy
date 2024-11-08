@@ -103,7 +103,7 @@ function toLowerCase(object) {
         if (this.unobservable.previouslySetAttributes[property] !== newValue) {
           if (property === "class") {
             // TODO: Investigate why we had to use the setAttribute function for it to work with "class", is it the same with more attributes?
-            element.setAttribute('class', newValue);
+            element.setAttribute("class", newValue);
           } else {
             element[property] = newValue;
           }

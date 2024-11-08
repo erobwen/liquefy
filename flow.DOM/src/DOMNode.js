@@ -254,7 +254,7 @@ export function getWidthIncludingMargin(node) {
         if (this.givenDomNode) {
           clearNode(this.givenDomNode);
           this.domNode = this.givenDomNode;
-          this.domNode.className = aggregateToString(this);
+          this.domNode.setAttribute("class", aggregateToString(this));
           this.domNode.equivalentCreator = this; 
         } else {
           // Create empty dom node

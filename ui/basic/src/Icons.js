@@ -50,7 +50,7 @@ export function icon(...parameters) {
 export function faIcon(...parameters) {
   const properties = getFlowProperties(parameters);
   const name = extractProperty(properties, "name");
-  properties.className = "fa " + "fa-" + name;
+  properties.class = "fa " + "fa-" + name;
   return span(properties)
   // return new DOMFaNode(properties);
 }

@@ -219,6 +219,7 @@ export class TravelerForm extends Component {
   setProperties({traveler, isFellowTraveller}) {
     this.traveler = traveler; 
     this.isFellowTraveller = isFellowTraveller;
+    this.animate = zoomAnimation
   }  
 
   setState() {
@@ -297,6 +298,7 @@ export class TravelerForm extends Component {
 
 export class LuggageForm extends Component {
   setProperties({luggage}) {
+    this.animate = zoomAnimation
     this.luggage = luggage;
   }
 

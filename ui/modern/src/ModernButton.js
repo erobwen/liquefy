@@ -93,9 +93,6 @@ export class ModernButton extends Component {
   setState() {
     this.hover = false;
     this.ensure(() => {
-      // log("ENSURE");
-      // log(foo);
-      // log("--")
       // Ensure event listeners
       const pannel = this.findChild("button").domNode;
       if (pannel !== this.eventListenersDomNode) {
@@ -104,8 +101,6 @@ export class ModernButton extends Component {
         this.setEventListeners(this.onClick, this.mouseOverBackgroundColor);
       }
 
-      // Ensure right background color
-      // log(this.toString())
       // log("hover:" + thiover);
       if (this.pressed) {
         if (this.hover && this.hoverEffect) {

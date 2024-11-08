@@ -11,10 +11,11 @@ export function applicationMenuFrame(...parameters) {
 }
 
 class ApplicationMenuFrame extends Component {
-  setProperties({appplicationMenu, applicationContent, topPanelContent}) {
+  setProperties({appplicationMenu, applicationContent, topPanelContent, bounds}) {
     this.appplicationMenu = appplicationMenu;
     this.applicationContent = applicationContent;
     this.topPanelContent = topPanelContent;
+    this.bounds = bounds; 
   }
 
   setState() {

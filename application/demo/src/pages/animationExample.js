@@ -99,9 +99,6 @@ export class AnimationExample extends Component {
         button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
         button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
         button("Juggle", () => this.juggle()),
-        // button({text: "Experiment", onClick: () => {
-        //   startExperiment();
-        // }})
       ),
       row(
         column(

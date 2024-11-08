@@ -25,13 +25,13 @@ const loga = (action) => {
  */
 export class PortalExample extends Component {
   // Lifecycle function build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
-  setProperties({portal}) {
+  recieve({portal}) {
     this.name = "Portal Example";
     this.portal = portal;
     this.usesExternalAnimations = true; 
   }
   
-  setState() {
+  initialize() {
     this.showPortal = false;
     this.showFlyingTextInPortal = false; 
   }
@@ -88,5 +88,5 @@ export class PortalStandaloneExample extends Component {
   
 export function startPortalDemo() {
   const root = new PortalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).setContent(root);
+  new DOMRenderContext(document.getElementById("root")).render(root);
 }

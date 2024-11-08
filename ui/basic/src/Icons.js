@@ -58,7 +58,7 @@ export function faIcon(...parameters) {
 
 
 // export class DOMFaNode extends DOMElementNode {
-//   setProperties({prefix, name}) {
+//   recieve({prefix, name}) {
 //     this.tagName = "span"
 //     this.prefix = prefix;
 //     this.name = name;

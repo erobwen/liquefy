@@ -14,13 +14,13 @@ export function modal(...parameters) {
 }
 
 export class Modal extends Component {
-  setProperties({children}) {
+  recieve({children}) {
     if (children.length !== 1) throw new Error("Modal only accepts a single child!");
     this.content = children[0];
     children.length = 0;
   }
 
-  setState() {
+  initialize() {
     this.visibleOnFrame = null;
     this.ensure(() => {
       if (this.isVisible) {
@@ -50,14 +50,14 @@ export function modalFrame(...parameters) {
 }
 
 export class ModalFrame extends Component {
-  setProperties({style, children}) {
+  recieve({style, children}) {
     this.style = style; 
     this.children = children;  
     this.modalFrame = this;
     this.staticContent = children; 
   }
 
-  setState() {
+  initialize() {
     this.modalContent = null;
     this.modalSubFrame = null;
     this.childrenWithPossibleModal = [...this.children];

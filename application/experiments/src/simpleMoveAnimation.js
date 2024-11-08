@@ -17,7 +17,7 @@ const log = console.log;
  * Minimalistic component used for experiments. 
  */
 export class SimpleMoveAnimation extends Component {
-  setState() {
+  initialize() {
     this.left = false;
     this.showButton = false;
     this.color = "green"; 
@@ -110,5 +110,5 @@ export class SimpleMoveAnimation extends Component {
  */
 export function startSimpleMoveAnimation() {
   const simple = new SimpleMoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).setContent(simple)
+  new DOMRenderContext(document.getElementById("root")).render(simple)
 }

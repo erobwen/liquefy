@@ -13,7 +13,7 @@ const log = console.log;
 
 // Parent flow
 export class HelloWorld extends Component {
-  setState() {
+  initialize() {
     this.name = "Hello World";
     this.helloText = observable({ value: "..." });
     this.emphasis = false;
@@ -44,13 +44,13 @@ const hello = component("hello", (flow) =>
 
 // Statefull child flow
 class World extends Component {
-  setProperties({ exclamationCharacter }) {
+  recieve({ exclamationCharacter }) {
     // This life cycle function is optional, but can be used to set default values for properties.
     this.exclamationCharacter = exclamationCharacter ? exclamationCharacter : "?";
   }
 
-  setState() {
-    // In this lifecycle function you can setup state and obtain expensive resources. You can let go of these resources in disposeState().
+  initialize() {
+    // In this lifecycle function you can setup state and obtain expensive resources. You can let go of these resources in teardown().
     this.worldText = "";
   }
 
@@ -84,7 +84,7 @@ const myRow = component("myRow", (flow) => {
 export function startHelloWorld() {
   // Activate continous build/integration to DOMRenderContext.
   const helloWorld = new HelloWorld();
-  new DOMRenderContext(document.getElementById("root")).setContent(helloWorld);
+  new DOMRenderContext(document.getElementById("root")).render(helloWorld);
   asyncModifications(helloWorld);  
 }
 

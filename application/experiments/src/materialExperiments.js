@@ -14,7 +14,7 @@ MdOutlinedIconButton
  * Minimalistic component used for experiments. 
  */
 class MaterialExperiment extends Component {
-  setState() { }
+  initialize() { }
 
   build() {
     return (
@@ -31,7 +31,7 @@ class MaterialExperiment extends Component {
  */
 export function materialExperiment() {
   const experiment = new MaterialExperiment()  
-  new DOMRenderContext(document.getElementById("root")).setContent(experiment)
+  new DOMRenderContext(document.getElementById("root")).render(experiment)
 }
 
 

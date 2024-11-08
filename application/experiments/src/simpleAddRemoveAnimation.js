@@ -10,7 +10,7 @@ const log = console.log;
  * Minimalistic component used for experiments. 
  */
 export class SimpleAddRemoveAnimation extends Component {
-  setState() {
+  initialize() {
     this.showText = false;
     this.color = "green"; 
   }
@@ -43,5 +43,5 @@ export class SimpleAddRemoveAnimation extends Component {
  */
 export function startSimpleAddRemoveAnimation() {
   const simple = new SimpleAddRemoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).setContent(simple)
+  new DOMRenderContext(document.getElementById("root")).render(simple)
 }

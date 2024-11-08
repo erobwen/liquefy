@@ -38,7 +38,7 @@ function toLowerCase(object) {
  export class DOMElementNode extends DOMNode {
   preSetProperties() {}
 
-  setProperties(properties) {
+  recieve(properties) {
     this.children = extractProperty(properties, "children");
     this.tagName = extractProperty(properties, "tagName");
     this.animation = extractProperty(properties, "animation");

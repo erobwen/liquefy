@@ -50,7 +50,7 @@ class ExhaustableToggleModel extends ToggleModel {
 }
 
 export class ToggleView extends Flow {
-  setState() {
+  initialize() {
     this.toggle = new ExhaustableToggleModel();
   }
   build() {

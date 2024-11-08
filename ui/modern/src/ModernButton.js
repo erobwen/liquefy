@@ -21,7 +21,7 @@ const boxShadowStyle = {
 
 export class ModernButton extends Component {
 
-  setProperties({
+  recieve({
     style={},
     
     children, 
@@ -90,7 +90,7 @@ export class ModernButton extends Component {
     this.eventListenersSet = false; 
   }
 
-  setState() {
+  initialize() {
     this.hover = false;
     this.ensure(() => {
       // Ensure event listeners

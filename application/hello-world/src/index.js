@@ -4,10 +4,19 @@ import { button } from "@liquefy/material-ui"
 
 
 class HelloWorld extends Component {
-  setState() {
+  recieve(properties) {
+    // Set properties from parent
+    Object.assign(this, properties);
+  }
+
+  initialize() {
     this.count = 8;
     window.helloWorld = this; 
     console.log("Try direct manipulate the counter using 'helloWorld.counter = 42' from this global variable and see what happens.")
+  }
+
+  teardown() {
+    // If you need to let go of external resources
   }
 
   build() {
@@ -39,6 +48,6 @@ class HelloWorld extends Component {
 
 
 // Create an instance, and set as content of a flow target.
-new DOMRenderContext(document.getElementById("root")).setContent(
-  new HelloWorld()
+new DOMRenderContext(document.getElementById("root")).render(
+  new HelloWorld({})
 )

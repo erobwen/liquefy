@@ -57,7 +57,7 @@ export class Component {
 
     // Set properties through interface, set default values here.
     me.preSetProperties(properties); 
-    me.setProperties(properties); 
+    me.recieve(properties); 
         
     // Debug & warning
     me._ = me.toString(); 
@@ -91,11 +91,11 @@ export class Component {
   preSetProperties(properties) {
     Object.assign(this, properties)
   }
-  setProperties(properties) {
+  recieve(properties) {
     // Object.assign(this, properties)
   }
 
-  setState() {
+  initialize() {
     // throw new Error("Not implemented yet");
     // Use this.ensure(action) to establish reactive relations here. 
   }
@@ -105,7 +105,7 @@ export class Component {
     // If you want to change an animated property on entry, now is the time. 
   }
   
-  disposeState() {
+  teardown() {
     // throw new Error("Not implemented yet");
   }
 
@@ -243,7 +243,7 @@ export class Component {
     window.components[this.toString()] = this;
     window.idToComponent[this.id] = this;
     creators.push(this);
-    this.setState();
+    this.initialize();
     creators.pop();
     if (trace) log("Established:" + this.toString());
     // Lifecycle, override to do expensive things. Like opening up connections etc.
@@ -267,7 +267,7 @@ export class Component {
       this.buildRepeater.repeaterAction = () => {};
     }
     if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
-    this.disposeState();
+    this.teardown();
   }
 
   onVisibilityWillChange(visibility) {

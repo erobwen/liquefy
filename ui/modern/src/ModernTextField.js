@@ -24,11 +24,11 @@ export function modernTextField(label, getter, setter, ...parameters) {
 
 export class ModernTextField extends Component {
 
-  setProperties({label="[label]"}) {
+  recieve({label="[label]"}) {
     this.label = label; 
   }
 
-  setState() {
+  initialize() {
     this.active = this.getter() !== "";
   }
 

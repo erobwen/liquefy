@@ -14,7 +14,7 @@ const log = console.log;
  * Minimalistic component used for experiments. 
  */
 class ThemeTest extends Component {
-  setState() {
+  initialize() {
     this.pressed = true; 
     this.modernTheme = false;
     this.ensureAtBuild(() => {
@@ -66,5 +66,5 @@ class ThemeTest extends Component {
  */
 export function themeTest() {
   const test = new ThemeTest()  
-  new DOMRenderContext(document.getElementById("root")).setContent(test)
+  new DOMRenderContext(document.getElementById("root")).render(test)
 }

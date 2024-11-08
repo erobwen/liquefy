@@ -15,7 +15,7 @@ export function portalEntrance(...parameters) {
 }
 
 export class PortalEntrance extends Component {
-  setProperties({portalContent, portalExit}) {
+  recieve({portalContent, portalExit}) {
     this.portalExit = portalExit; 
     this.portalContent = portalContent;
     this.ensureAtBuild(() => {

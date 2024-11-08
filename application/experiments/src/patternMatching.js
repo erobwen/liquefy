@@ -15,7 +15,7 @@ const model = observable({value: ""});
 
 // A very simple view component
 export class PatternMatching extends Component {
-  setState() {
+  initialize() {
     this.state = 1;
   }
 
@@ -43,5 +43,5 @@ export class PatternMatching extends Component {
  */
  export function startPatternMatching() {
   const application = new PatternMatching({model});  
-  new DOMRenderContext(document.getElementById("root")).setContent(application)
+  new DOMRenderContext(document.getElementById("root")).render(application)
 }

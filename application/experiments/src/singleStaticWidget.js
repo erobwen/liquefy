@@ -16,7 +16,7 @@ const log = console.log;
  * Minimalistic component used for experiments. 
  */
 export class SingleStaticWidget extends Component {
-  setState() {}
+  initialize() {}
   
   build() {
   
@@ -39,5 +39,5 @@ export class SingleStaticWidget extends Component {
  */
 export function startSingleStaticWidget() {
   const singleWidget = new SingleStaticWidget()  
-  new DOMRenderContext(document.getElementById("root")).setContent(singleWidget)
+  new DOMRenderContext(document.getElementById("root")).render(singleWidget)
 }

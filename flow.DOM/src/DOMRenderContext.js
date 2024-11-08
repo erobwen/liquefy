@@ -70,9 +70,9 @@ export class DOMRenderContext extends RenderContext {
     return "[target]" + (this.flow ? this.flow.toString() : "null");
   }
 
-  setContent(flow) {
+  render(flow) {
     flow.bounds = {width: window.innerWidth, height: window.innerHeight}
-    super.setContent(flow);
+    super.render(flow);
   }
 
 	ensureContentInPlace() {
@@ -128,7 +128,7 @@ export class DOMRenderContext extends RenderContext {
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
   //   this.modalRenderContext = new DOMRenderContext(modalDiv, {creator: this});
-  //   this.modalRenderContext.setContent(this.modalFlow);
+  //   this.modalRenderContext.render(this.modalFlow);
 
   //   // Display modal flow
   //   this.state.modalDiv = modalDiv;

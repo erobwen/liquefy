@@ -3,13 +3,13 @@
  * This is a Flow subclass with all possible lifecycle functions in use. 
   */  
 export class ExmapleFlow extends Component {
-  setProperties({one, two, three="default-value"}) {
+  recieve({one, two, three="default-value"}) {
     this.one = one;
     this.two = two + 2; 
     this.three = three;  
   }
 
-  setState() {
+  initialize() {
     this.foo = 1;
     this.fie = 2; 
     this.ensure(() => {
@@ -18,7 +18,7 @@ export class ExmapleFlow extends Component {
     this.expensiveResource = getExpensiveResource();
   }
 
-  disposeState() {
+  teardown() {
     this.expensiveResource.dispose();
   }
 
@@ -37,7 +37,7 @@ export const myComponent = (...parameters) =>
   new MyComponentFlow(getFlowProperties(parameters));
 
 export class MyComponent extends Component {
-  setProperties({count}) {
+  recieve({count}) {
     this.count = count;
   }
   

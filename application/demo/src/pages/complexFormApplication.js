@@ -109,7 +109,7 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
 }
 
 export class SimpleDrawer extends Component {
- setProperties({openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content}) {
+ recieve({openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content}) {
     this.openButtonLabel = openButtonLabel;
     this.closeButtonLabel = closeButtonLabel;
     this.isOpen = isOpen;
@@ -133,12 +133,12 @@ export class SimpleDrawer extends Component {
 
 export class ComplexForm extends Component {
 
-  setProperties({initialData}) {
+  recieve({initialData}) {
     this.name = "Complex Form";
     this.editData = initialData;
   }
   
-  setState() {
+  initialize() {
     this.shouldVerifyData = false;
     this.ensure(() => {
       if (this.shouldVerifyData) {
@@ -216,13 +216,13 @@ export class ComplexForm extends Component {
 
 
 export class TravelerForm extends Component {
-  setProperties({traveler, isFellowTraveller}) {
+  recieve({traveler, isFellowTraveller}) {
     this.traveler = traveler; 
     this.isFellowTraveller = isFellowTraveller;
     this.animate = zoomAnimation
   }  
 
-  setState() {
+  initialize() {
     this.showLuggage = true; 
   }
   
@@ -297,7 +297,7 @@ export class TravelerForm extends Component {
 }
 
 export class LuggageForm extends Component {
-  setProperties({luggage}) {
+  recieve({luggage}) {
     this.animate = zoomAnimation
     this.luggage = luggage;
   }
@@ -319,7 +319,7 @@ export class LuggageForm extends Component {
  */
 
 export function startComplexFormApplication() {
-  new DOMRenderContext(document.getElementById("root")).setContent(
+  new DOMRenderContext(document.getElementById("root")).render(
     new ComplexForm({initialData})
   );
 }

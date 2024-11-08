@@ -15,11 +15,11 @@ const log = console.log;
 // Parent flow
 export class ProgrammaticReactiveLayout extends Component {
   
-  setProperties({bounds}) {
+  recieve({bounds}) {
     this.bounds = bounds; 
   } 
 
-  setState() {
+  initialize() {
     this.rows = 3; 
     this.columns = 3;  
   }
@@ -86,7 +86,7 @@ export class ProgrammaticReactiveLayout extends Component {
 
 export class BoundsDisplay extends Component {
 
-  setProperties({bounds, style}) {
+  recieve({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
@@ -113,7 +113,7 @@ export class BoundsDisplay extends Component {
 
 export class StringDisplay extends Component {
 
-  setProperties({bounds, style}) {
+  recieve({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
@@ -160,12 +160,12 @@ function scaledTextWithMaxFontSize(...parameters) {
 
 export class FixedAspectRatioDisplay extends Component {
 
-  setProperties({bounds, style}) {
+  recieve({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
 
-  setState() {
+  initialize() {
     this.aspectRatio = (Math.random()*4 + 1) / (1 + (Math.random()*4));
   }
   
@@ -223,7 +223,7 @@ export class FixedAspectRatioDisplay extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startProgrammaticReactiveLayout() {
-  new DOMRenderContext(document.getElementById("root")).setContent(
+  new DOMRenderContext(document.getElementById("root")).render(
     new ProgrammaticReactiveLayout()
   );
 }

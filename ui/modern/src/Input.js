@@ -12,13 +12,13 @@ export function input(...parameters) {
 
 export class Input extends Component {
 
-  setProperties({
+  recieve({
     style={}
   }) {
     this.style = style;
   }
 
-  setState() {
+  initialize() {
     this.hover = false;
     this.ensure(() => {
       const pannel = this.findChild("button").domNode;

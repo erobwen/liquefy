@@ -61,7 +61,7 @@ export function findImplicitSingleTextInContent(properties) {
 export class DOMTextNode extends DOMNode {
   preSetProperties() {}
 
-  setProperties(properties) {
+  recieve(properties) {
     this.text = extractProperty(properties, "text");
 
     const redundantProperties = Object.keys(properties);  

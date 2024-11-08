@@ -30,7 +30,7 @@ const shadeColor = "rgba(0, 0, 0, 0.4)";
 const transparentColor = "rgba(0, 0, 0, 0)";
 
 export class Dialog extends Component {
-  setProperties({close, text, children}) {
+  recieve({close, text, children}) {
     this.close = close; 
     this.text = text; 
     this.children = children ? children : []; 
@@ -78,7 +78,7 @@ export class Dialog extends Component {
  */
 export class ModalExample extends Component {
   // Lifecycle function build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
-  setProperties({}) {
+  recieve({}) {
     // Object.assign(this, properties)
     this.name = "Modal Example";
   }
@@ -91,7 +91,7 @@ export class ModalExample extends Component {
 
 class BasicModalExample extends Component {
  
-  setState() {
+  initialize() {
     this.showModal = false;
   }
 
@@ -116,7 +116,7 @@ class BasicModalExample extends Component {
 
 class FlyoutModalExample extends Component {
  
-  setState() {
+  initialize() {
     this.showModal = false;
   }
 
@@ -141,7 +141,7 @@ class FlyoutModalExample extends Component {
 
 class PopoverModalExample extends Component {
  
-  setState() {
+  initialize() {
     this.showModal = false;
   }
 
@@ -166,7 +166,7 @@ class PopoverModalExample extends Component {
 
 class HybridModalExample extends Component {
  
-  setState() {
+  initialize() {
     this.showModal = false;
   }
 
@@ -209,5 +209,5 @@ export class ModalStandaloneExample extends Component {
   
 export function startModalDemo() {
   const root = new ModalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).setContent(root);
+  new DOMRenderContext(document.getElementById("root")).render(root);
 }

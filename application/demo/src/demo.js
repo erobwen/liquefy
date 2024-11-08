@@ -28,7 +28,7 @@ const log = console.log;
  */
 
 export class Demo extends Component {
-  setState() {
+  initialize() {
     this.modernTheme = false; 
 
     this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
@@ -62,7 +62,7 @@ export class Demo extends Component {
     })
   }
   
-  disposeState() {
+  teardown() {
     super.onDispose();
     for (let name in this.items) {
       this.items[name].onDispose();
@@ -123,7 +123,7 @@ export class Demo extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startDemo() {
-  new DOMRenderContext(document.getElementById("root")).setContent(
+  new DOMRenderContext(document.getElementById("root")).render(
     new Demo()
   );
 }

@@ -28,7 +28,7 @@ class HelloWorld extends @liquefy/flow.core.Component {
 }
 
 const application = new HelloWorld();
-new DOMRenderContext(document.getElementById("root")).setContent(application);
+new DOMRenderContext(document.getElementById("root")).render(application);
 ```
 
 This showcases the HTML-in-JS approach of Flow. Your DOM/document is reactivley and programmatically created by Javascript functions. 
@@ -45,7 +45,7 @@ const globalState = model(
 )
 
 class StateComponent extends @liquefy/flow.core.Component {
-    setState() {
+    initialize() {
         this.componentState = 0
     }
 
@@ -61,7 +61,7 @@ class StateComponent extends @liquefy/flow.core.Component {
 }
 
 const application = new StateComponent();
-new DOMRenderContext(document.getElementById("root")).setContent(application);
+new DOMRenderContext(document.getElementById("root")).render(application);
 
 setTimeout(() => {
     globalState.value = 42
@@ -142,7 +142,7 @@ This is similar in spirit to React and the virtual DOM, but works for any data s
 The first time a child component is built, it will recieve an `onEstablished` message that in turn will call `setState` that the application code can override to setup state. Conversley when the child component is not rebuilt anymore, it will receive an `onDispose` event. 
 
 ### Rebuild merge and component properties
-During rebuild merge, Flow uses the equivalent to `Object.assign(establishedObject, newlyCreatedObject)`. So in order to maintain state of your established component, your state properties cannot be set during construction or the default value will overwrite the changed state! So make sure to initialize your state properties ONLY in `setState()`
+During rebuild merge, Flow uses the equivalent to `Object.assign(establishedObject, newlyCreatedObject)`. So in order to maintain state of your established component, your state properties cannot be set during construction or the default value will overwrite the changed state! So make sure to initialize your state properties ONLY in `initialize()`
 
 ### Identity consistency when using keys
 When you use a ***key*** to build a child component, Flow in actuality takes it a step further. At the moment such an object is created, it assumes the object identity that was previously associated with that key, but with a new temporary state, that reflects the current build. This means that inside your build function you could set a global variable refering to your component, and it would be the correct reference even after the build function finishes. This however does not work for components that are matched with a component in a previous build through pattern matching, for obvious reasons.   
@@ -172,7 +172,7 @@ To control building and rebuilding of components it is important to know the lif
 Flow is a reactive framework based on causality (similar to MobX). If a component might want to do an expensive computation reactivley, you can use the `ensure` function to create a repeater that will continously evaluate something. 
 
 ```js
-  setState() {
+  initialize() {
     this.data = dataFromSomewhere;
     this.ensure(() => {
       this.computationResult = this.expensiveComputation(this.data);

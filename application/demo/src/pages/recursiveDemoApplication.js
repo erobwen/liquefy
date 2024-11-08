@@ -28,10 +28,10 @@ export class RecursiveExample extends Component {
   // Constructor: Normally do not override constructor!!! (unless modifying the framework itself)
 
   // Set properties from parent, suitable for default values etc.
-  setProperties(properties) {}
+  recieve(properties) {}
 
   // Create state, create model data and initilize external resources
-  setState() {
+  initialize() {
     this.count = 1
     this.myModel = model({
       value: 42 
@@ -39,7 +39,7 @@ export class RecursiveExample extends Component {
   }
 
   // Release external resources
-  disposeState() {}
+  teardown() {}
 
   // Allow children to inherit data from this component 
   getContext() {
@@ -72,7 +72,7 @@ export function controlRow(...parameters) {
 }
 
 export class ControlRow extends Component {
-  setProperties({demoComponent}) {
+  recieve({demoComponent}) {
       this.demoComponent = demoComponent;
   }
       
@@ -107,7 +107,7 @@ export class ControlRow extends Component {
 
 export class List extends Component {
   // This is the function setProperties where you declare all properties that a parent can set on its child. This is optional, but is a good place to define default values, modify values given by parent, or document what properties that the component needs.   
-  setProperties({maxCount, count}) {
+  recieve({maxCount, count}) {
     this.maxCount = maxCount;
     this.count = count;
   }
@@ -123,11 +123,11 @@ export class List extends Component {
 }
 
 export class Item extends Component {
-  setProperties({depth}) {
+  recieve({depth}) {
     this.depth = depth;
   }
   
-  setState() {
+  initialize() {
     // This is the place to define view model variables. In this case the "on" property is defined.
     this.value = 42;
   }
@@ -173,7 +173,7 @@ export class Item extends Component {
   
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMRenderContext(document.getElementById("root")).setContent(root);
+  new DOMRenderContext(document.getElementById("root")).render(root);
 
   // Emulated user interaction.
   // console.log(root.getChild("control-row").getChild("more-button"));

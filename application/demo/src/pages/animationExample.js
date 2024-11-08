@@ -55,12 +55,12 @@ function itemDisplay(item) {
 
 // A very simple view component
 export class AnimationExample extends Component {
-  setProperties({items}) {
+  recieve({items}) {
     this.name = "Animation Example"
     this.items = items; 
   }
 
-  setState() {
+  initialize() {
     this.store = observable([...this.items]);
     this.listA = observable([]);
     this.listB = observable([]);
@@ -135,7 +135,7 @@ export class AnimationExample extends Component {
 export function startAnimationExample() {
   new DOMRenderContext(
     document.getElementById("root")
-  ).setContent(
+  ).render(
     new AnimationExample({items})
   )
 }

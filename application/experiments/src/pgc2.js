@@ -17,12 +17,12 @@ const fenceBeam = (properties) => (
  */
 class Fence extends Component {
 
-  setProperties({position, ...defaultStateValues}) {
+  recieve({position, ...defaultStateValues}) {
     this.position = position;
     this.defaultStateValues = Object.assign({elevation: 1}, defaultStateValues);
   }
 
-  setState() {
+  initialize() {
     Object.assign(this, this.defaultStateValues);
   }
 
@@ -60,14 +60,14 @@ const distributions = {
  */
 class HorizontalArray extends Component {
 
-  setProperties({children, ...defaultStateValues}) {
+  recieve({children, ...defaultStateValues}) {
     this.defaultStateValues = Object.assign({
       type: distributions.usingSpacingFromStart
     }, defaultStateValues);
     this.children = children;
   }
 
-  setState() {
+  initialize() {
     // type is now a state, and can be direct manipulated in editor, and will maintain state even if parent is rebuilt.
     Object.assign(this, this.defaultStateValues);
   }
@@ -142,7 +142,7 @@ const fence = new Fence({position: {x:0, y:0}, length: 100, spacing: 5, elevatio
 
 const target = new Engine2DRenderContext(); // This would be a connection to the actual 2D rendering engine
 
-target.setContent(fence);  // Starts reactive process of rebuilding fence upon change, and
+target.render(fence);  // Starts reactive process of rebuilding fence upon change, and
 
 // If the Mesh2D and Engine2DRenderContext is implemented correctly, only minimal changes would be pushed to the rendering.  
 

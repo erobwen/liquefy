@@ -135,7 +135,9 @@ export class SimpleDrawer extends Component {
 
 export class ComplexForm extends Component {
 
-  recieve({initialData}) {
+  recieve(properties) {
+    Object.assign(this, properties)
+    const {initialData} = properties;
     this.name = "Complex Form";
     this.editData = initialData;
   }

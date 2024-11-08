@@ -11,7 +11,7 @@ import { applicationMenuFrame, svgImage } from "@liquefy/basic-ui";
 import flowImage from "../resources/flow.svg"
 
 import { RecursiveExample } from "./pages/recursiveDemoApplication";
-import { ComplexForm, initialData } from "./pages/complexFormApplication";
+import { ReactiveForm, initialData } from "./pages/reactiveFormApplication";
 import { AnimationExample } from "./pages/animationExample";
 import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout";
 import { PortalExample } from "./pages/portalDemo";
@@ -35,8 +35,8 @@ export class Demo extends Component {
 
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [
-      new RecursiveExample({key: "recursiveDemo", name: "Recursive Example", style: fitContainerStyle}),
-      new ComplexForm({key: "complexForm", initialData, style: fitContainerStyle}),
+      new RecursiveExample({key: "recursiveDemo", name: "Recursive Components", style: fitContainerStyle}),
+      new ReactiveForm({key: "reactiveForm", initialData, style: fitContainerStyle}),
       new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle}),
       new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness", style: fitContainerStyle}),
       new ModalExample({key: "modalExample", style: fitContainerStyle}),
@@ -47,7 +47,7 @@ export class Demo extends Component {
       item.onEstablish();
     }
 
-    // this.choosen = this.items.find(item => item.key === "complexForm");
+    // this.choosen = this.items.find(item => item.key === "reactiveForm");
     // this.choosen = this.items.find(item => item.key === "portalExample");
     // this.choosen = this.items.find(item => item.key === "programmaticReactiveLayout");
     // this.choosen = this.items.find(item => item.key === "modalExample");

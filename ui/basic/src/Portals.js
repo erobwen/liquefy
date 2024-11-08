@@ -15,16 +15,16 @@ export function portalEntrance(...parameters) {
 }
 
 export class PortalEntrance extends Component {
-  recieve({portalContent, portalExit}) {
+  recieve({portalChildren, portalExit}) {
     this.portalExit = portalExit; 
-    this.portalContent = portalContent;
+    this.portalChildren = portalChildren;
     this.ensureAtBuild(() => {
       if (this.isVisible) {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway. 
-        this.portalExit.children = this.portalContent;
+        this.portalExit.children = this.portalChildren;
       } else {
         // Note that we need to check not to remove content put in place by other portals!
-        if (this.portalExit.children && this.portalExit.children === this.portalContent) {
+        if (this.portalExit.children && this.portalExit.children === this.portalChildren) {
           this.portalExit.children = null;
         }
       }

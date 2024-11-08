@@ -26,7 +26,7 @@ const loga = (action) => {
 export class PortalExample extends Component {
   // Lifecycle function build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
   recieve({portal}) {
-    this.name = "Portal Example";
+    this.name = "Portals";
     this.portal = portal;
     this.usesExternalAnimations = true; 
   }
@@ -40,8 +40,8 @@ export class PortalExample extends Component {
     const flyingText = div("flying-content", text("flying text in portal"), {animate: true}); 
     const staticText = div("content", text("Static text in portal"), {animate: true});
 
-    const portalContent = [staticText];
-    if (this.showFlyingTextInPortal) portalContent.push(flyingText)
+    const portalChildren = [staticText];
+    if (this.showFlyingTextInPortal) portalChildren.push(flyingText)
 
     // return flyingText; 
 
@@ -63,7 +63,7 @@ export class PortalExample extends Component {
             // children: text("[portal active]"), Will create infinite loop! investigate! 
             key: "portalEntrance", 
             portalExit: this.portal, 
-            portalContent 
+            portalChildren 
           })
           .show(this.showPortal),
         {style: {overflow: "visible"}}

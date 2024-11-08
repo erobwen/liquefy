@@ -100,6 +100,7 @@ window.components = {};
 window.idToComponent = {}
 window.world = world;
 window.model = model;
+window.ensure = world.repeat;
 
 
 function onFinishedPriorityLevel(level, didActualWork) {

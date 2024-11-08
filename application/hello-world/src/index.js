@@ -3,7 +3,7 @@ import { DOMRenderContext, div, h1, h2, span, b, ul, li, br } from "@liquefy/flo
 import { button } from "@liquefy/material-ui"
 
 
-class HelloWorld extends Component {
+class Hello extends Component {
   recieve(properties) {
     // Set properties from parent
     Object.assign(this, properties);
@@ -12,8 +12,8 @@ class HelloWorld extends Component {
   initialize() {
     this.count = 8;
     
-    console.log("Try direct manipulate the counter using 'helloWorld.count = 42' from this global variable and see what happens.")
-    window.helloWorld = this;
+    console.log("Try direct manipulate the counter using 'hello.count = 42' from this global variable and see what happens.")
+    window.hello = this;
     
     this.ensure(() => { // Reactive magic!
       this.squared = this.count * this.count
@@ -22,7 +22,7 @@ class HelloWorld extends Component {
 
   teardown() {
     // If you need to let go of external resources
-    delete window.helloWorld
+    delete window.hello
   }
 
   build() {
@@ -30,12 +30,18 @@ class HelloWorld extends Component {
       h1(`Hello ${this.to}`),
       b("Welcome to Flow, the Javascript centered front end framework!"),
       
-      h2("Main features:"),
+      h2("Technical features:"),
       ul(
         li("Built in state management with auto-observation (similar to MobX)"),
         li("Performs minimal updates to the DOM on any change"),
-        li("Very unrestrictive, easy to learn and use")
+        li("Very unrestrictive, easy to learn and use"),
+        li("DOM transition animations"),
+        li("Reactive component build* function with state merge"),
+        li("'Resident components' with custom lifecycle."),
+        li("Component build* time portals"),
+        li("Component property inheritance")
       ),
+      div("*) build() corresponds to React render()"),
       div("Programmatic styling allows for programmatic adaptive and responsive design.", {style: {fontWeight: "bold", color: "blue", borderWidth: "1px", padding: "10px", borderStyle: "solid"}}),
       br(),
       
@@ -44,7 +50,7 @@ class HelloWorld extends Component {
       button("Click me!", () => this.count++),
       br(),
 
-      (this.count < 10) && div("Note: This component is bound to window.helloWorld. You can try to direct manipulate helloWorld.count to see what happens."),
+      (this.count < 10) && div("Note: This component is bound to window.hello. You can try to direct manipulate hello.count to see what happens."),
       
       div(`Squared: ${this.squared}`),
 

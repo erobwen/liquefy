@@ -14,7 +14,7 @@ describe("Value types", function(){
     const foo = observable({
       value: 1, 
       reference: other, 
-      complexValue: {bar: 32, fum: 42}
+      reactiveValue: {bar: 32, fum: 42}
     });
       
     let repeatCounter = 0;
@@ -24,7 +24,7 @@ describe("Value types", function(){
       // Just observe it: 
       const a = foo.value;
       const b = foo.reference;
-      const c = foo.complexValue; 
+      const c = foo.reactiveValue; 
       repeatCounter++;
     })
     assert.equal(repeatCounter, ++expectedRepeatCounter); 
@@ -39,10 +39,10 @@ describe("Value types", function(){
     foo.reference = another; // This will trigger reaction 
     assert.equal(repeatCounter, ++expectedRepeatCounter);
     
-    foo.complexValue = {bar: 32, fum: 42} // Should also not trigger reaction!
+    foo.reactiveValue = {bar: 32, fum: 42} // Should also not trigger reaction!
     assert.equal(repeatCounter, expectedRepeatCounter);
 
-    foo.complexValue = {bar: "x", fum: 43} // But this should!
+    foo.reactiveValue = {bar: "x", fum: 43} // But this should!
     assert.equal(repeatCounter, ++expectedRepeatCounter);
   });
 });

@@ -45,11 +45,15 @@ const panel = (...parameters) =>
 
 // Items
 function itemDisplay(item) {
-  // return div(
-  //   text(item),
-  //   {key: item, animate: true, style: {margin: "", lineHeight: "", width: "200px", height: "40px", backgroundColor: "green", textAlign: "center", lineHeight: "40px"}}
-  // );
-  return div(text(item), {key: item, style: {display: "block", lineHeight: "", padding: "", margin: smallSpace, textAlign: "left"}});
+  return div(
+    text(item), 
+    {
+      key: item, 
+      style: {
+        display: "block", lineHeight: "", padding: "", margin: smallSpace, textAlign: "left"
+      }
+    }
+  );
 }
 
 
@@ -58,7 +62,7 @@ export class AnimationExample extends Component {
   recieve(properties) {
     Object.assign(this, properties)
     const {items} = properties
-    this.name = "Animation Example"
+    this.name = "DOM Transition Animation"
     this.items = items; 
   }
 

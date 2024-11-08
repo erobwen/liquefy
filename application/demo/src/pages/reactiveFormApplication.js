@@ -133,12 +133,12 @@ export class SimpleDrawer extends Component {
  * Components. Flow component definitions.
  */
 
-export class ComplexForm extends Component {
+export class ReactiveForm extends Component {
 
   recieve(properties) {
     Object.assign(this, properties)
     const {initialData} = properties;
-    this.name = "Complex Form";
+    this.name = "Reactive Form";
     this.editData = initialData;
   }
   
@@ -302,7 +302,7 @@ export class TravelerForm extends Component {
 
 export class LuggageForm extends Component {
   recieve({luggage}) {
-    this.animate = zoomAnimation
+    // this.animate = zoomAnimation
     this.luggage = luggage;
   }
 
@@ -322,8 +322,8 @@ export class LuggageForm extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 
-export function startComplexFormApplication() {
+export function startReactiveFormApplication() {
   new DOMRenderContext(document.getElementById("root")).render(
-    new ComplexForm({initialData})
+    new ReactiveForm({initialData})
   );
 }

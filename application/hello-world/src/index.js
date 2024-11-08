@@ -11,8 +11,9 @@ class HelloWorld extends Component {
 
   initialize() {
     this.count = 8;
-    window.helloWorld = this; 
+    
     console.log("Try direct manipulate the counter using 'helloWorld.counter = 42' from this global variable and see what happens.")
+    window.helloWorld = this;
     
     this.ensure(() => { // Reactive magic!
       this.squared = this.count * this.count
@@ -21,6 +22,7 @@ class HelloWorld extends Component {
 
   teardown() {
     // If you need to let go of external resources
+    delete window.helloWorld
   }
 
   build() {

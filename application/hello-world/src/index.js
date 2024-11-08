@@ -13,6 +13,10 @@ class HelloWorld extends Component {
     this.count = 8;
     window.helloWorld = this; 
     console.log("Try direct manipulate the counter using 'helloWorld.counter = 42' from this global variable and see what happens.")
+    
+    this.ensure(() => { // Reactive magic!
+      this.squared = this.count * this.count
+    })
   }
 
   teardown() {
@@ -40,6 +44,8 @@ class HelloWorld extends Component {
 
       (this.count < 10) && div("Note: This component is bound to window.helloWorld. You can try to direct manipulate helloWorld.count to see what happens."),
       
+      div(`Squared: ${this.squared}`),
+
       {style: {padding: "20px", boxSizing: "border-box"}}
     );
   }

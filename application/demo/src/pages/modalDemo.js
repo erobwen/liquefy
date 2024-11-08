@@ -37,12 +37,6 @@ export class Dialog extends Component {
     this.backgroundColor = shadeColor;
   }
 
-  onDidDisplayFirstFrame() {
-    this.backgroundColor = shadeColor;
-    // log("onDidDisplayFirstFrame");
-    // log("onDidDisplayFirstFrame: " + this.toString() + ".visibility = " + isVisible);
-  }
-
   build() {
     // log("Dialog.build")
     const background = div({

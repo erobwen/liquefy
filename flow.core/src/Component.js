@@ -42,7 +42,7 @@ export class Component {
     if (!this.key) this.key = properties.key ? properties.key : null;
     delete properties.key;
     if (properties.componentTypeName) {
-      this.componentTypeName = properties.componentTypeName;
+      this.componentTypeName = properties.componentTypeName; // Debug type
       delete properties.componentTypeName; 
     }
 
@@ -91,6 +91,7 @@ export class Component {
   preSetProperties(properties) {
     Object.assign(this, properties)
   }
+
   recieve(properties) {
     // Object.assign(this, properties)
   }
@@ -99,25 +100,22 @@ export class Component {
     // throw new Error("Not implemented yet");
     // Use this.ensure(action) to establish reactive relations here. 
   }
-
-  onDidDisplayFirstFrame() {
-    // Component was drawn for the first animation frame, 
-    // If you want to change an animated property on entry, now is the time. 
-  }
   
   teardown() {
     // throw new Error("Not implemented yet");
+  }
+
+  build(_repeater) {
+    throw new Error("Not implemented yet");
   }
 
 
   /**
    * Inheritance 
    */
-  inheritFromCreator() {
-    if (this.creator) {
-      this.setRenderContext(this.creator.renderContext);
-      this.setTheme(this.creator.theme);
-    }
+
+  provide() {
+    return this; 
   }
 
   inherit(property) {
@@ -128,8 +126,15 @@ export class Component {
     return result; 
   }
 
+  inheritFromCreator() {
+    if (this.creator) {
+      this.setRenderContext(this.creator.renderContext);
+      this.setTheme(this.creator.theme);
+    }
+  }
+
   inheritCached(property) {
-    const context = this.getContext();
+    const context = this.provide();
     if (typeof(context[property]) === "undefined") {
       invalidateOnChange(
         () => {
@@ -149,7 +154,7 @@ export class Component {
   }
 
   inheritUncached(property) {
-    const context = this.getContext();
+    const context = this.provide();
     if (typeof(context[property]) !== "undefined") {
       return context[property] 
     } else if (this.equivalentCreator) {
@@ -195,20 +200,9 @@ export class Component {
     }
   }
 
-  getContext() {
-    return this; 
-  }
-
-  build(repeater) {
-    if (this.buildFunction) {
-      return this.buildFunction(this);
-    }
-    throw new Error("Not implemented yet");
-  }
-
   
   /**
-   * Internal methods
+   * Ensure reactivity
    */
 
   ensure(action, options=null) {
@@ -231,11 +225,10 @@ export class Component {
     this.ensure(action, {priority: buildComponentTime});
   }
 
-  ensureEstablished() {
-    if (!this.unobservable.established) {
-      this.onEstablish();
-    }
-  }
+
+  /**
+   * Internal lifecycle functions
+   */
 
   onEstablish() {
     this.causality.established = true; 
@@ -270,7 +263,7 @@ export class Component {
     this.teardown();
   }
 
-  onVisibilityWillChange(visibility) {
+  onVisibilityWillChange(visibility) { // Deprecated? Just observe Component.visible instead. 
     // log("onVisibilityWillChange: " + this.toString() + ".visibility = " + visibility);
     // Called if the visibility is changed for this component. 
     // Since Flow allows hidden component that maintain their state but are not disposed, 
@@ -279,6 +272,10 @@ export class Component {
     // overloading this method. 
   }
 
+
+  /**
+   * Debug
+   */
   getComponentTypeName() {
     let result;
     withoutRecording(() => {
@@ -296,6 +293,10 @@ export class Component {
     );
   }
 
+
+  /**
+   * Naming and paths
+   */
   keyString() {
     let result;
     withoutRecording(() => {
@@ -354,6 +355,16 @@ export class Component {
       path = this.creator.getPath();
       path.push(tag);
       return path;
+    }
+  }
+
+
+  /**
+   * Internal build functions
+   */
+  ensureEstablished() {
+    if (!this.unobservable.established) {
+      this.onEstablish();
     }
   }
 
@@ -472,6 +483,10 @@ export class Component {
 }
 
 
+/**
+ * Build merge pattern matching
+ * TODO: Rename: flow->component
+ */
 
 function getShapeAnalysis(flow) {
   return {

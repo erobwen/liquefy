@@ -42,7 +42,7 @@ export class RecursiveExample extends Component {
   teardown() {}
 
   // Allow children to inherit data from this component 
-  getContext() {
+  provide() {
     return {
       myModel: this.myModel
     };

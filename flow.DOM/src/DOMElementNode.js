@@ -42,6 +42,7 @@ function toLowerCase(object) {
     this.children = extractProperty(properties, "children");
     this.tagName = extractProperty(properties, "tagName");
     this.animation = extractProperty(properties, "animation");
+    this.animate = extractProperty(properties, "animate");
     this.animateChildren = extractProperty(properties, "animateChildren");
 
     let attributes = extractProperty(properties, "attributes");

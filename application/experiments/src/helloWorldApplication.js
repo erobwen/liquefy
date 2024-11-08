@@ -44,7 +44,7 @@ const hello = component("hello", (flow) =>
 
 // Statefull child flow
 class World extends Component {
-  recieve({ exclamationCharacter }) {
+  receive({ exclamationCharacter }) {
     // This life cycle function is optional, but can be used to set default values for properties.
     this.exclamationCharacter = exclamationCharacter ? exclamationCharacter : "?";
   }

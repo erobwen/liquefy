@@ -4,7 +4,7 @@ import { button } from "@liquefy/material-ui"
 
 
 class Hello extends Component {
-  recieve(properties) {
+  receive(properties) {
     // Set properties from parent
     Object.assign(this, properties);
   }

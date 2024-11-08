@@ -56,7 +56,7 @@ export class Component {
     let me = observable(this, this.key);
 
     // Set properties through interface, set default values here.
-    me.recieve(properties); 
+    me.receive(properties); 
         
     // Debug & warning
     me._ = me.toString(); 
@@ -87,7 +87,7 @@ export class Component {
   /**
    * Lifecycle methods
    */
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties)
   }
 

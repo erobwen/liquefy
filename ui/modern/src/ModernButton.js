@@ -21,7 +21,7 @@ const boxShadowStyle = {
 
 export class ModernButton extends Component {
 
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties)
     const {
       style={},

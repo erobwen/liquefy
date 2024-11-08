@@ -139,7 +139,7 @@ When dependencies change, a component will automatically rebuild by running its 
 This is similar in spirit to React and the virtual DOM, but works for any data structure. But this also means that on every rebuild, there will be a lot of throw-away components left for the garbage collector, for this reason expensive intitalization of any component, needs to take place in very specific lifecycle methods. If the rebuild of one component, changes the properties of a child component, it will trigger that component to rebuild as well, but only if those properties were actually read during its build. 
 
 ### onEstablish, onDispose and setState
-The first time a child component is built, it will recieve an `onEstablished` message that in turn will call `setState` that the application code can override to setup state. Conversley when the child component is not rebuilt anymore, it will receive an `onDispose` event. 
+The first time a child component is built, it will receive an `onEstablished` message that in turn will call `setState` that the application code can override to setup state. Conversley when the child component is not rebuilt anymore, it will receive an `onDispose` event. 
 
 ### Rebuild merge and component properties
 During rebuild merge, Flow uses the equivalent to `Object.assign(establishedObject, newlyCreatedObject)`. So in order to maintain state of your established component, your state properties cannot be set during construction or the default value will overwrite the changed state! So make sure to initialize your state properties ONLY in `initialize()`

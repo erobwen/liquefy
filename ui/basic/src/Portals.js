@@ -15,7 +15,7 @@ export function portalEntrance(...parameters) {
 }
 
 export class PortalEntrance extends Component {
-  recieve({portalChildren, portalExit}) {
+  receive({portalChildren, portalExit}) {
     this.portalExit = portalExit; 
     this.portalChildren = portalChildren;
     this.ensureAtBuild(() => {

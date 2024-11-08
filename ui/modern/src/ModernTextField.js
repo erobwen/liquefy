@@ -24,7 +24,7 @@ export function modernTextField(label, getter, setter, ...parameters) {
 
 export class ModernTextField extends Component {
 
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties);
     const {label="[label]"} = properties;
     this.label = label; 

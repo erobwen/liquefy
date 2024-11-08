@@ -109,7 +109,7 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
 }
 
 export class SimpleDrawer extends Component {
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties)
     const {openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content} = properties
     this.openButtonLabel = openButtonLabel;
@@ -135,7 +135,7 @@ export class SimpleDrawer extends Component {
 
 export class ReactiveForm extends Component {
 
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties)
     const {initialData} = properties;
     this.name = "Reactive Form";
@@ -220,7 +220,7 @@ export class ReactiveForm extends Component {
 
 
 export class TravelerForm extends Component {
-  recieve({traveler, isFellowTraveller}) {
+  receive({traveler, isFellowTraveller}) {
     this.traveler = traveler; 
     this.isFellowTraveller = isFellowTraveller;
     this.animate = zoomAnimation
@@ -301,7 +301,7 @@ export class TravelerForm extends Component {
 }
 
 export class LuggageForm extends Component {
-  recieve({luggage}) {
+  receive({luggage}) {
     // this.animate = zoomAnimation
     this.luggage = luggage;
   }

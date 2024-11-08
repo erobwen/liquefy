@@ -3,7 +3,7 @@
  * This is a Flow subclass with all possible lifecycle functions in use. 
   */  
 export class ExmapleFlow extends Component {
-  recieve({one, two, three="default-value"}) {
+  receive({one, two, three="default-value"}) {
     this.one = one;
     this.two = two + 2; 
     this.three = three;  
@@ -37,7 +37,7 @@ export const myComponent = (...parameters) =>
   new MyComponentFlow(getFlowProperties(parameters));
 
 export class MyComponent extends Component {
-  recieve({count}) {
+  receive({count}) {
     this.count = count;
   }
   

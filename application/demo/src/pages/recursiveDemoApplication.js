@@ -28,7 +28,7 @@ export class RecursiveExample extends Component {
   // Constructor: Normally do not override constructor!!! (unless modifying the framework itself)
 
   // Set properties from parent, suitable for default values etc.
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties)
   }
 
@@ -42,7 +42,7 @@ export class RecursiveExample extends Component {
 
   // Release external resources
   teardown() {}
-
+  
   // Allow children to inherit data from this component 
   provide() {
     return {
@@ -74,7 +74,7 @@ export function controlRow(...parameters) {
 }
 
 export class ControlRow extends Component {
-  recieve({demoComponent}) {
+  receive({demoComponent}) {
       this.demoComponent = demoComponent;
   }
       
@@ -109,7 +109,7 @@ export class ControlRow extends Component {
 
 export class List extends Component {
   // This is the function setProperties where you declare all properties that a parent can set on its child. This is optional, but is a good place to define default values, modify values given by parent, or document what properties that the component needs.   
-  recieve({maxCount, count}) {
+  receive({maxCount, count}) {
     this.maxCount = maxCount;
     this.count = count;
   }
@@ -125,7 +125,7 @@ export class List extends Component {
 }
 
 export class Item extends Component {
-  recieve({depth}) {
+  receive({depth}) {
     this.depth = depth;
   }
   

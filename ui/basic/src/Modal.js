@@ -14,7 +14,7 @@ export function modal(...parameters) {
 }
 
 export class Modal extends Component {
-  recieve({children}) {
+  receive({children}) {
     if (children.length !== 1) throw new Error("Modal only accepts a single child!");
     this.content = children[0];
     children.length = 0;
@@ -50,7 +50,7 @@ export function modalFrame(...parameters) {
 }
 
 export class ModalFrame extends Component {
-  recieve({style, children}) {
+  receive({style, children}) {
     this.style = style; 
     this.children = children;  
     this.modalFrame = this;

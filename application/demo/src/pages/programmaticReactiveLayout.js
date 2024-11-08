@@ -15,7 +15,7 @@ const log = console.log;
 // Parent flow
 export class ProgrammaticReactiveLayout extends Component {
   
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties);
     const { bounds } = properties;
     this.bounds = bounds; 
@@ -88,7 +88,7 @@ export class ProgrammaticReactiveLayout extends Component {
 
 export class BoundsDisplay extends Component {
 
-  recieve({bounds, style}) {
+  receive({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
@@ -115,7 +115,7 @@ export class BoundsDisplay extends Component {
 
 export class StringDisplay extends Component {
 
-  recieve({bounds, style}) {
+  receive({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
@@ -162,7 +162,7 @@ function scaledTextWithMaxFontSize(...parameters) {
 
 export class FixedAspectRatioDisplay extends Component {
 
-  recieve({bounds, style}) {
+  receive({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 

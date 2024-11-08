@@ -12,7 +12,7 @@ export function input(...parameters) {
 
 export class Input extends Component {
 
-  recieve(properties) {
+  receive(properties) {
     Object.assign(this, properties)
     const {style={}} = properties
     this.style = style;

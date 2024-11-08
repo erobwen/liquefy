@@ -109,7 +109,9 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
 }
 
 export class SimpleDrawer extends Component {
- recieve({openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content}) {
+  recieve(properties) {
+    Object.assign(this, properties)
+    const {openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content} = properties
     this.openButtonLabel = openButtonLabel;
     this.closeButtonLabel = closeButtonLabel;
     this.isOpen = isOpen;

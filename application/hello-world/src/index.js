@@ -12,7 +12,7 @@ class HelloWorld extends Component {
   initialize() {
     this.count = 8;
     
-    console.log("Try direct manipulate the counter using 'helloWorld.counter = 42' from this global variable and see what happens.")
+    console.log("Try direct manipulate the counter using 'helloWorld.count = 42' from this global variable and see what happens.")
     window.helloWorld = this;
     
     this.ensure(() => { // Reactive magic!
@@ -27,7 +27,7 @@ class HelloWorld extends Component {
 
   build() {
     return div(
-      h1("Hello World"),
+      h1(`Hello ${this.to}`),
       b("Welcome to Flow, the Javascript centered front end framework!"),
       
       h2("Main features:"),
@@ -57,5 +57,5 @@ class HelloWorld extends Component {
 
 // Create an instance, and set as content of a flow target.
 new DOMRenderContext(document.getElementById("root")).render(
-  new HelloWorld({})
+  new Hello({to: "World"})
 )

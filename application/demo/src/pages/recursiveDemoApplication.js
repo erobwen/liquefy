@@ -28,7 +28,9 @@ export class RecursiveExample extends Component {
   // Constructor: Normally do not override constructor!!! (unless modifying the framework itself)
 
   // Set properties from parent, suitable for default values etc.
-  recieve(properties) {}
+  recieve(properties) {
+    Object.assign(this, properties)
+  }
 
   // Create state, create model data and initilize external resources
   initialize() {

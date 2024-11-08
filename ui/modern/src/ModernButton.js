@@ -21,24 +21,27 @@ const boxShadowStyle = {
 
 export class ModernButton extends Component {
 
-  recieve({
-    style={},
+  recieve(properties) {
+    Object.assign(this, properties)
+    const {
+      style={},
+      
+      children, 
+      
+      onClick,
+      
+      disabled=false,
+  
+      pressed=false, 
+      hoverAjust = -0.1, 
+      ripple=true, 
+      hoverEffect= true, 
+      edge=true,
+      square=false, 
+  
+      fixedSize=false
+    } = properties
     
-    children, 
-    
-    onClick,
-    
-    disabled=false,
-
-    pressed=false, 
-    hoverAjust = -0.1, 
-    ripple=true, 
-    hoverEffect= true, 
-    edge=true,
-    square=false, 
-
-    fixedSize=false
-  }) {
     this.ripple = ripple;
     this.hoverEffect = hoverEffect;
     this.children = children; 

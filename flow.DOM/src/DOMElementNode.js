@@ -36,8 +36,6 @@ function toLowerCase(object) {
  * DOM Element node primitive
  */
  export class DOMElementNode extends DOMNode {
-  preSetProperties() {}
-
   recieve(properties) {
     this.children = extractProperty(properties, "children");
     this.tagName = extractProperty(properties, "tagName");

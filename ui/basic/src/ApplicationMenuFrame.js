@@ -11,7 +11,9 @@ export function applicationMenuFrame(...parameters) {
 }
 
 class ApplicationMenuFrame extends Component {
-  recieve({appplicationMenu, applicationContent, topPanelContent, bounds}) {
+  recieve(properties) {
+    Object.assign(this, properties)
+    const {appplicationMenu, applicationContent, topPanelContent, bounds} = properties;
     this.appplicationMenu = appplicationMenu;
     this.applicationContent = applicationContent;
     this.topPanelContent = topPanelContent;

@@ -56,7 +56,6 @@ export class Component {
     let me = observable(this, this.key);
 
     // Set properties through interface, set default values here.
-    me.preSetProperties(properties); 
     me.recieve(properties); 
         
     // Debug & warning
@@ -88,12 +87,8 @@ export class Component {
   /**
    * Lifecycle methods
    */
-  preSetProperties(properties) {
-    Object.assign(this, properties)
-  }
-
   recieve(properties) {
-    // Object.assign(this, properties)
+    Object.assign(this, properties)
   }
 
   initialize() {

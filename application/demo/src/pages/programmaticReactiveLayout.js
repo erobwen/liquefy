@@ -15,7 +15,9 @@ const log = console.log;
 // Parent flow
 export class ProgrammaticReactiveLayout extends Component {
   
-  recieve({bounds}) {
+  recieve(properties) {
+    Object.assign(this, properties);
+    const { bounds } = properties;
     this.bounds = bounds; 
   } 
 

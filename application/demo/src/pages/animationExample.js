@@ -55,7 +55,9 @@ function itemDisplay(item) {
 
 // A very simple view component
 export class AnimationExample extends Component {
-  recieve({items}) {
+  recieve(properties) {
+    Object.assign(this, properties)
+    const {items} = properties
     this.name = "Animation Example"
     this.items = items; 
   }

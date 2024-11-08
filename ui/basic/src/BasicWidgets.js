@@ -136,12 +136,12 @@ export function inputField(properties) {
     error = targetObject[targetProperty + "Error"];
   }
 
-  const inputAttributes = properties.inputProperties;
+  const inputAttributes = properties.inputProperties ? properties.inputProperties : {};
   delete properties.inputProperties;
   if (inputAttributes) {
     if (type === "number") {
       if (!inputAttributes.style) inputAttributes.style = {};
-      if (!inputAttributes.style.width) inputAttributes.style.width = "50px";
+      if (!inputAttributes.style.width) inputAttributes.style.width = "40px";
     } 
   }
   const attributes = {

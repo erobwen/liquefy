@@ -42,11 +42,14 @@ function toLowerCase(object) {
     this.children = extractProperty(properties, "children");
     this.tagName = extractProperty(properties, "tagName");
     this.animation = extractProperty(properties, "animation");
+    this.animateChildren = extractProperty(properties, "animateChildren");
 
     let attributes = extractProperty(properties, "attributes");
     const looseAttributes = Object.keys(properties).length;
-    if (looseAttributes && !this.attributes) {
+    if (looseAttributes && !attributes) {
       attributes = properties
+    } else if (attributes && !looseAttributes) {
+      //noop
     } else if (attributes && looseAttributes) {
       Object.assign(attributes, properties);
     }

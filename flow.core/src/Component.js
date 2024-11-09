@@ -1,4 +1,4 @@
-import { getFlowProperties, findImplicitChildren } from "./flowParameters.js";
+import { getFlowProperties, findImplicitChildren, getFlowPropertiesIncludingChildren } from "./flowParameters.js";
 import { creators, getCreator, globalContext } from "./buildContext.js";
 import { renderComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
 const log = console.log;
@@ -28,13 +28,14 @@ export class Component {
     return {};
   }
 
+  readParameters(parameters) {
+    return getFlowPropertiesIncludingChildren(parameters)
+  }
+
   constructor(...parameters) {
-    // Process parameters. 
-    let properties = getFlowProperties(parameters);
-    findImplicitChildren(properties);
+    let properties = this.readParameters(parameters);
 
     // log("Flow constructor: " + this.getComponentTypeName() + "." + properties.key);
-
     // For debug purposes, this place this property first in the list and makes it easier to identify flows when they are proxies in the debugger. 
     this._ = null; 
 

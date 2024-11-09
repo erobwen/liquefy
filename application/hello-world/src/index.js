@@ -5,8 +5,7 @@ import { button } from "@liquefy/material-ui"
 
 class Hello extends Component {
   receive(properties) {
-    // Set properties from parent
-    Object.assign(this, { to: "Default" },  properties);
+    Object.assign(this, { to: "Default" }, properties);
   }
 
   initialize() {
@@ -20,8 +19,7 @@ class Hello extends Component {
     })
   }
 
-  teardown() {
-    // If you need to let go of external resources
+  teardown() { // If needed
     delete window.hello
   }
 

@@ -1,4 +1,4 @@
-import { withoutRecording, buildComponentTime, finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
+import { withoutRecording, renderComponentTime, finalize, invalidateOnChange, repeat, state, trace, traceWarnings } from "./Flow.js";
 import { Component } from "./Component.js";
 import { logMark } from "./utility.js";
 
@@ -107,7 +107,7 @@ export class PrimitiveComponent extends Component {
         }
       
         if (trace) console.groupEnd();
-      }, {priority: buildComponentTime});
+      }, {priority: renderComponentTime});
     }
     return this; 
   }
@@ -136,7 +136,7 @@ export class PrimitiveComponent extends Component {
     return [...this.iteratePrimitiveChildren()];
   }
 
-  build() {
+  render() {
     throw new Error("Internal Error: A primitive should never be built!");
   }
 

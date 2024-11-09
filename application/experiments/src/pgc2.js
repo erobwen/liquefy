@@ -26,7 +26,7 @@ class Fence extends Component {
     Object.assign(this, this.defaultStateValues);
   }
 
-  build() {
+  render() {
     const { position, length, spacing, count, elevation } = this;    
 
     return Model2D({
@@ -72,7 +72,7 @@ class HorizontalArray extends Component {
     Object.assign(this, this.defaultStateValues);
   }
 
-  build() {
+  render() {
     const { type } = this; 
 
     switch(type) {

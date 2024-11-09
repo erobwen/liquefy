@@ -16,7 +16,7 @@ MdOutlinedIconButton
 class MaterialExperiment extends Component {
   initialize() { }
 
-  build() {
+  render() {
     return (
       div(
         button("Button Text", () => {console.log("clicked me!")}),

@@ -26,7 +26,7 @@ export class SimpleAddRemoveAnimation extends Component {
 
   }
 
-  build() {
+  render() {
     return column(
       button("foo", "Foo", this.onClick.bind(this)),
       column(

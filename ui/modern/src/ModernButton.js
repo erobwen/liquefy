@@ -247,7 +247,7 @@ export class ModernButton extends Component {
     }
   }
   
-  build() {
+  render() {
     // log("REBUILDING BUTTON")
     const {style, onClick, disabled} = this;
     if (onClick) {

@@ -1,5 +1,5 @@
 import { Component } from "./Component";
-import { buildComponentTime, workOnPriorityLevel } from "./Flow";
+import { renderComponentTime, workOnPriorityLevel } from "./Flow";
 
 /**
  * Implement any flow target that implements HTML Element Node and HTML Text Node. 
@@ -18,7 +18,7 @@ export class RenderContext {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.flow = component;
 		component.renderContext = this;
-		workOnPriorityLevel(buildComponentTime, () => {
+		workOnPriorityLevel(renderComponentTime, () => {
 			component.ensureEstablished()
 			this.flow.ensureBuiltRecursive(this)
 		});

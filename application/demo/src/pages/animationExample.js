@@ -87,7 +87,7 @@ export class AnimationExample extends Component {
     });
   }
 
-  build() {
+  render() {
     // return (
     //   column(  
     //       column(

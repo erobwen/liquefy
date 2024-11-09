@@ -34,7 +34,7 @@ export class ModernTextField extends Component {
     this.active = this.getter() !== "";
   }
 
-  build() {
+  render() {
     const {label, getter, setter} = this; 
 
     const labelText = text("label", label);

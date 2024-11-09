@@ -6,7 +6,7 @@ import { button } from "@liquefy/material-ui"
 class Hello extends Component {
   receive(properties) {
     // Set properties from parent
-    Object.assign(this, properties);
+    Object.assign(this, { to: "Default" },  properties);
   }
 
   initialize() {
@@ -25,7 +25,7 @@ class Hello extends Component {
     delete window.hello
   }
 
-  build() {
+  render() {
     return div(
       h1(`Hello ${this.to}`),
       b("Welcome to Flow, the Javascript centered front end framework!"),
@@ -36,12 +36,12 @@ class Hello extends Component {
         li("Performs minimal updates to the DOM on any change"),
         li("Very unrestrictive, easy to learn and use"),
         li("DOM transition animations"),
-        li("Reactive component build* function with state merge"),
+        li("Reactive component render function with state merge"),
         li("'Resident components' with custom lifecycle."),
-        li("Component build* time portals"),
+        li("Component render time portals"),
         li("Component property inheritance")
       ),
-      div("*) build() corresponds to React render()"),
+      div("*) render() corresponds to React render()"),
       div("Programmatic styling allows for programmatic adaptive and responsive design.", {style: {fontWeight: "bold", color: "blue", borderWidth: "1px", padding: "10px", borderStyle: "solid"}}),
       br(),
       

@@ -51,7 +51,7 @@ export class RecursiveExample extends Component {
   }
 
   // Build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
-  build() {
+  render() {
     return (
       column(
         new ControlRow("control-row", {demoComponent: this}),
@@ -78,7 +78,7 @@ export class ControlRow extends Component {
       this.demoComponent = demoComponent;
   }
       
-  build() {
+  render() {
     const rootText = text({ key: "root-text", text: "Recursive Structure"});
     const moreButton = button(
       "More", 
@@ -114,7 +114,7 @@ export class List extends Component {
     this.count = count;
   }
 
-  build() {
+  render() {
     const children = [];
     children.push(new Item("first-item", {depth: this.count}));
     if (this.count < this.maxCount) {
@@ -134,7 +134,7 @@ export class Item extends Component {
     this.value = 42;
   }
  
-  build() {
+  render() {
     const me = this; 
 
     return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomRenderContext module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 

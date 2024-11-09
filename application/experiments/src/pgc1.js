@@ -41,9 +41,9 @@ const horizontalArray = (position, start, stop, spacing, build) => {
   const x = start; 
   let count = Math.floor((stop-start) / spacing);
   while (count-- > 0) {
-    result.children.push(build({x, y:0}));
+    result.children.push(render({x, y:0}));
     x += spacing;
   }
-  result.children.push(build({x: stop, y: 0}))
+  result.children.push(render({x: stop, y: 0}))
   return result;
 }

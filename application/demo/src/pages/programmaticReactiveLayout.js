@@ -26,7 +26,7 @@ export class ProgrammaticReactiveLayout extends Component {
     this.columns = 3;  
   }
 
-  build() {
+  render() {
     const controlPanel = column("control-panel",
       row(numberInputField("Rows", this, "rows")),
       row(numberInputField("Columns", this, "columns")),
@@ -93,7 +93,7 @@ export class BoundsDisplay extends Component {
     this.style = style; 
   } 
     
-  build() {
+  render() {
     const text = "Bounds: " + Math.round(this.bounds.width) + " x " + Math.round(this.bounds.height);
     return (
       centerMiddle(
@@ -120,7 +120,7 @@ export class StringDisplay extends Component {
     this.style = style; 
   } 
   
-  build() {
+  render() {
     const fittedString = "Text that fit the width of container"// + this.key; 
     return (
       centerMiddle(
@@ -171,7 +171,7 @@ export class FixedAspectRatioDisplay extends Component {
     this.aspectRatio = (Math.random()*4 + 1) / (1 + (Math.random()*4));
   }
   
-  build() {
+  render() {
     const fittedString = "Fitted String"// + this.key;
     
     const boundsAspectRatio = this.bounds.width / this.bounds.height; 

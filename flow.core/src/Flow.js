@@ -14,12 +14,13 @@ export const world = getWorld({
   onFinishedPriorityLevel: onFinishedPriorityLevel
 });
 
+
 /**
- * Priority levels
+ * Priority levels, to make reactive updates happen in a certain rough order. 
  */
-export const updateModelTime = 0;
-export const buildComponentTime = 1;
-export const renderViewTime = 2;
+export const updateModelTime = 0; // Default
+export const renderComponentTime = 1;
+export const updateDOMTime = 2;
 
 
 /**

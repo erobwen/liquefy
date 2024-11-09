@@ -24,7 +24,7 @@ export class HelloWorld extends Component {
     });
   }
 
-  build() {
+  render() {
     return column(
       button("Start", {onClick:() => {asyncModifications(this)}}),
       myRow(
@@ -54,7 +54,7 @@ class World extends Component {
     this.worldText = "";
   }
 
-  build() {
+  render() {
     return myRow(
       text(this.worldText),
       exclamationMark({

@@ -37,7 +37,7 @@ export class Modal extends Component {
     });
   }
 
-  build() {
+  render() {
     return div({style: {display: "none"}});
   }
 }
@@ -147,7 +147,7 @@ export class ModalFrame extends Component {
     }
   }
 
-  build() {
+  render() {
     if (this.reallyDisposed) throw new Error("CANNOT REBUILD A DISPOSED ONE!!!");
     return new modalFrameDiv({style: this.style, children: this.childrenWithPossibleModal});
   }

@@ -118,7 +118,7 @@ export class SimpleDrawer extends Component {
     this.toggleOpen = toggleOpen;
     this.content = content;
  }
- build() {
+ render() {
   const buttonIcon = this.isOpen ? icon({name: "chevron-up"}) : icon({name: "chevron-down"});
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
@@ -154,7 +154,7 @@ export class ReactiveForm extends Component {
     });
   }
 
-  build() {
+  render() {
     const data = this.editData;
     const traveler = data.traveler;
 
@@ -230,7 +230,7 @@ export class TravelerForm extends Component {
     this.showLuggage = true; 
   }
   
-  build() {
+  render() {
     const traveler = this.traveler;
     return paperColumn(
       // Recommendation: Do ineritance first, to avoid diabling caches further down. Nooo... wait... setting the same value twice will not trigger anything! 
@@ -306,7 +306,7 @@ export class LuggageForm extends Component {
     this.luggage = luggage;
   }
 
-  build() {
+  render() {
     // return div({style: {height: "48px", backgroundColor: "green"}})
     return paperRow(
       suitcaseIcon({style: {padding: "14px"}}),

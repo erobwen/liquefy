@@ -14,7 +14,7 @@ class ButtonTest extends Component {
     this.pressed = false; 
   }
 
-  build() {
+  render() {
     return centerMiddle(
       modernButton("test", "Test", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}}),
       {style: {...fitContainerStyle, fontSize: "40px", padding: "20px"}}

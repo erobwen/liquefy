@@ -17,7 +17,7 @@ class ThemeTest extends Component {
   initialize() {
     this.pressed = true; 
     this.modernTheme = false;
-    this.ensureAtBuild(() => {
+    this.ensureAtRenderTime(() => {
       this.button = button("Test1", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}});
     });
     this.ensure(() => {
@@ -29,7 +29,7 @@ class ThemeTest extends Component {
     }) 
   }
 
-  build() {
+  render() {
     return applicationMenuFrame({
       appplicationMenu: column(
         checkboxInputField("Modern Theme", this, "modernTheme"),

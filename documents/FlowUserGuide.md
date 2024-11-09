@@ -17,7 +17,7 @@ A simple hello world application is as follows:
 
 ```js
 class HelloWorld extends @liquefy/flow.core.Component {
-    build() {
+    render() {
         return (
             div(
                 h1("Hello World Flow"),
@@ -49,7 +49,7 @@ class StateComponent extends @liquefy/flow.core.Component {
         this.componentState = 0
     }
 
-    build() {
+    render() {
         return (
             div(
                 span(`Global state: ${globalState.value}`),

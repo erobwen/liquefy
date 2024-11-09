@@ -12,7 +12,7 @@ const log = console.log;
  */
 
 export class SimpleApplicationMenu extends Component {
-  build() {
+  render() {
     // return text("Foo");
     return applicationMenuFrame({
       appplicationMenu: column(text("First"), text("Second"), text("Third"), {style: {width: "200px"}}),

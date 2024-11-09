@@ -18,7 +18,7 @@ export class PortalEntrance extends Component {
   receive({portalChildren, portalExit}) {
     this.portalExit = portalExit; 
     this.portalChildren = portalChildren;
-    this.ensureAtBuild(() => {
+    this.ensureAtRenderTime(() => {
       if (this.isVisible) {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway. 
         this.portalExit.children = this.portalChildren;
@@ -31,7 +31,7 @@ export class PortalEntrance extends Component {
     });
   }
 
-  build() {
+  render() {
     return div({style: {display: "none"}});
   }
 }

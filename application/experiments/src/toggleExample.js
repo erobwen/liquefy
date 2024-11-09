@@ -53,7 +53,7 @@ export class ToggleView extends Flow {
   initialize() {
     this.toggle = new ExhaustableToggleModel();
   }
-  build() {
+  render() {
     return column(
       button("Switch Off", {onClick: () => {this.toggle.setOff()}}),
       button("Switch On", {onClick: () => {this.toggle.setOn()}}),

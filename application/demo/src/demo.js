@@ -106,7 +106,7 @@ export class Demo extends Component {
     );
   }
 
-  build() {
+  render() {
     // return text("Foo");
     // logMark("build demo")
     return applicationMenuFrame({

@@ -19,7 +19,7 @@ export class PatternMatching extends Component {
     this.state = 1;
   }
 
-  build() {
+  render() {
     const _readState = this.state; 
 
     return column(

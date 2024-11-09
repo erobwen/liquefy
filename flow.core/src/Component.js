@@ -1,6 +1,6 @@
 import { getFlowProperties, findImplicitChildren } from "./flowParameters.js";
 import { creators, getCreator, globalContext } from "./buildContext.js";
-import { buildComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
+import { renderComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
 const log = console.log;
 
 
@@ -100,7 +100,7 @@ export class Component {
     // throw new Error("Not implemented yet");
   }
 
-  build(_repeater) {
+  render(_repeater) {
     throw new Error("Not implemented yet");
   }
 
@@ -216,8 +216,8 @@ export class Component {
     unobservable.ensureRepeaters.push(repeat(description, wrappedAction, options));
   }
 
-  ensureAtBuild(action) {
-    this.ensure(action, {priority: buildComponentTime});
+  ensureAtRenderTime(action) {
+    this.ensure(action, {priority: renderComponentTime});
   }
 
 
@@ -372,7 +372,7 @@ export class Component {
       }
       this.parentPrimitive = parentPrimitive
     } 
-    workOnPriorityLevel(buildComponentTime, () => this.getPrimitive().ensureBuiltRecursive(flowRenderContext, parentPrimitive));
+    workOnPriorityLevel(renderComponentTime, () => this.getPrimitive().ensureBuiltRecursive(flowRenderContext, parentPrimitive));
     return this.getPrimitive(parentPrimitive);
   }
 
@@ -400,7 +400,7 @@ export class Component {
           creators.push(me);
 
           // Build and rebuild
-          me.newBuild = me.build(repeater);
+          me.newBuild = me.render(repeater);
           if (typeof me.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
           repeater.finishRebuilding();
           // if (window.idToComponent[14]) console.log(window.idToComponent[14].animate);
@@ -440,7 +440,7 @@ export class Component {
 
           if (trace) console.groupEnd();
         }, {
-          priority: buildComponentTime, 
+          priority: renderComponentTime, 
           rebuildShapeAnalysis: getShapeAnalysis(me)
         }
       );

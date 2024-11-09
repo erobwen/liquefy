@@ -29,7 +29,7 @@ class ApplicationMenuFrame extends Component {
     this.applicationContent = content;
   } 
 
-  build() {
+  render() {
     // logMark("build menu frame");
     // log(this.appplicationMenu)
     // log(this.topPanelContent)

@@ -37,7 +37,7 @@ export class Dialog extends Component {
     this.backgroundColor = shadeColor;
   }
 
-  build() {
+  render() {
     // log("Dialog.build")
     const background = div({
       key: "background", 
@@ -77,7 +77,7 @@ export class ModalExample extends Component {
     this.name = "Modal Dialogs";
   }
 
-  build() {
+  render() {
     return new BasicModalExample()
   }
 }
@@ -89,7 +89,7 @@ class BasicModalExample extends Component {
     this.showModal = false;
   }
 
-  build() {
+  render() {
     return panel("panel",
       column("column",
         text("Standard responsive modal demo."),
@@ -114,7 +114,7 @@ class FlyoutModalExample extends Component {
     this.showModal = false;
   }
 
-  build() {
+  render() {
     return panel("panel",
       column("column",
         text("Standard responsive modal demo."),
@@ -139,7 +139,7 @@ class PopoverModalExample extends Component {
     this.showModal = false;
   }
 
-  build() {
+  render() {
     return panel("panel",
       column("column",
         text("Standard responsive modal demo."),
@@ -164,7 +164,7 @@ class HybridModalExample extends Component {
     this.showModal = false;
   }
 
-  build() {
+  render() {
     return panel("panel",
       column("column",
         text("Standard responsive modal demo."),
@@ -185,7 +185,7 @@ class HybridModalExample extends Component {
 
 
 export class ModalStandaloneExample extends Component {
-  build() {
+  render() {
     return (
       modalFrame(
         new ModalExample(),

@@ -2,7 +2,7 @@ import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@li
 import { getFlowProperties, extractProperty } from "@liquefy/flow.core";
 import { RenderContext } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
-import { renderViewTime } from "../../flow.core/src/Flow";
+import { updateDOMTime } from "../../flow.core/src/Flow";
 
 // import { clearNode } from "./DOMNode";
 
@@ -81,10 +81,10 @@ export class DOMRenderContext extends RenderContext {
 
 			// clearNode(this.rootElement);
 			this.flow.getPrimitive().givenDomNode = this.rootElement;
-			workOnPriorityLevel(renderViewTime, () => this.flow.getPrimitive().ensureDomNodeBuilt());
+			workOnPriorityLevel(updateDOMTime, () => this.flow.getPrimitive().ensureDomNodeBuilt());
 			
 			if (trace) console.groupEnd();
-		}, {priority: renderViewTime}); 
+		}, {priority: updateDOMTime}); 
 	}
 
   dispose() {

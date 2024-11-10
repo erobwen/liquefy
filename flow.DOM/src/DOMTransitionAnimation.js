@@ -1,5 +1,5 @@
 
-export class DOMNodeAnimation {
+export class DOMTransitionAnimation {
 
   /**
    * Foundation requirements

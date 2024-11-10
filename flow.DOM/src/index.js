@@ -117,10 +117,10 @@ import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, text
 
 // Animation
 import { installDOMAnimation, resetDOMAnimation, freezeFlowChanges, unfreezeFlowChanges, logProperties, flowChanges, previousFlowChanges, changeType, onFinishReBuildingFlow, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation";
-import { DOMNodeAnimation } from "./DOMNodeAnimation"
-import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMNodeAnimation"
-import { setAnimationTime, ZoomFlyDOMNodeAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMNodeAnimation"
-import { zoomAnimation } from "./ZoomDOMNodeAnimation"
+import { DOMTransitionAnimation } from "./DOMTransitionAnimation"
+import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMTransitionAnimation"
+import { setAnimationTime, ZoomFlyDOMTransitionAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMTransitionAnimation"
+import { zoomAnimation } from "./ZoomDOMTransitionAnimation"
 
 
 export {
@@ -291,16 +291,16 @@ export {
     camelCase, 
     parseMatrix,
 
-    //DOMNodeAnimation
-    DOMNodeAnimation,
+    //DOMTransitionAnimation
+    DOMTransitionAnimation,
 
-    // FlyDOMNodeAnimation
+    // FlyDOMTransitionAnimation
     flyFromLeftAnimation, 
     flyFromTopAnimation,
 
-    // ZoomFlyDOMNodeAnimation
+    // ZoomFlyDOMTransitionAnimation
     setAnimationTime, 
-    ZoomFlyDOMNodeAnimation, 
+    ZoomFlyDOMTransitionAnimation, 
     zoomFlyAnimation, 
     zoomAnimation,
     standardAnimation

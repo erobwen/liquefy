@@ -1,7 +1,8 @@
 import { draw, insertAfter, extractProperties, logMark } from "@liquefy/flow.core";
 
 import { camelCase, changeType, flowChanges, freezeFlowChanges, sameBounds, unfreezeFlowChanges } from "./DOMAnimation";
-import { DOMNodeAnimation } from "./DOMNodeAnimation";
+// import { movedPrimitives } from "./DOMNode";
+import { DOMTransitionAnimation } from "./DOMTransitionAnimation";
 
 const log = console.log;
 
@@ -18,7 +19,7 @@ export function setAnimationTime(value) {
  */
 const inheritedProperties = ["fontSize", "lineHeight", "margin", "padding", "color"];
 
-export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
+export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * Configuration
    */
@@ -637,7 +638,6 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
   ];
 
   translateToOriginalBoundsIfNeeded(flow) {
-    return;
     // TODO: Translate parents first in case of cascading moves? 
     
     if (!sameBounds(flow.domNode.changes.originalBounds, flow.domNode.newStructureBounds)) {
@@ -1036,5 +1036,6 @@ export class ZoomDOMNodeAnimation extends DOMNodeAnimation {
 // }
 
 
-export const zoomAnimation = new ZoomDOMNodeAnimation();
+export const zoomFlyAnimation = new ZoomFlyDOMTransitionAnimation();
+export const standardAnimation = zoomFlyAnimation;
   

@@ -1,11 +1,11 @@
 import { logMark, extractProperties } from "@liquefy/flow.core";
 import { changeType } from "./DOMAnimation";
-import { ZoomFlyDOMNodeAnimation } from "./ZoomFlyDOMNodeAnimation";
+import { ZoomFlyDOMTransitionAnimation } from "./ZoomFlyDOMTransitionAnimation";
 
 const log = console.log;
 
 
-class FlyFromTopDOMNodeAnimation extends ZoomFlyDOMNodeAnimation {
+class FlyFromTopDOMTransitionAnimation extends ZoomFlyDOMTransitionAnimation {
   animateLeaderWidth = false; 
   animateLeaderHeight = true;
 
@@ -193,7 +193,7 @@ class FlyFromTopDOMNodeAnimation extends ZoomFlyDOMNodeAnimation {
 }
 
 
-class FlyFromLeftDOMNodeAnimation extends FlyFromTopDOMNodeAnimation {
+class FlyFromLeftDOMTransitionAnimation extends FlyFromTopDOMTransitionAnimation {
   animateLeaderWidth = true; 
   animateLeaderHeight = false;
 
@@ -219,5 +219,5 @@ class FlyFromLeftDOMNodeAnimation extends FlyFromTopDOMNodeAnimation {
 }
 
 
-export const flyFromTopAnimation = new FlyFromTopDOMNodeAnimation();
-export const flyFromLeftAnimation = new FlyFromLeftDOMNodeAnimation();
+export const flyFromTopAnimation = new FlyFromTopDOMTransitionAnimation();
+export const flyFromLeftAnimation = new FlyFromLeftDOMTransitionAnimation();

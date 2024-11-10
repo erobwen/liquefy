@@ -9,7 +9,7 @@ import 'mdui';
  * Button component
  */
 export const button = (...parameters) => 
-   getRenderContext().create({type: "elementNode", tagName: "mdui-button", ...buttonParametersToProperties(parameters)})
+   getRenderContext().primitive({type: "elementNode", tagName: "mdui-button", ...buttonParametersToProperties(parameters)})
 
 
 const buttonParametersToProperties = (parameters) => {

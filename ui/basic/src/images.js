@@ -8,9 +8,9 @@ import { extractProperty } from "../../../flow.core/src/flowParameters";
 const log = console.log;
 
 export function svgImage(...parameters) {
-  // return getRenderContext().create({type: "elementNode", tagName: "img", attributes: {style: {padding: "20px", backgroundColor: "white"}, src: flowImage}});
+  // return getRenderContext().primitive({type: "elementNode", tagName: "img", attributes: {style: {padding: "20px", backgroundColor: "white"}, src: flowImage}});
   const properties = getFlowProperties(parameters);
   addDefaultStyleToProperties(properties, {padding: "20px", backgroundColor: "white"});
   properties.src = extractProperty(properties, "image");
-  return getRenderContext().create({type: "elementNode", tagName: "img", ...properties});
+  return getRenderContext().primitive({type: "elementNode", tagName: "img", ...properties});
 }

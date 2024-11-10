@@ -81,9 +81,9 @@ Important concepts to understand when using Flow are:
 
 * **Auto observation**
 * Reactive recursive component composition
-    *   **Single build function** / **rebuild merge**
-    *   **Rebuild component matching**, through **keys** and **pattern matching**
-    *   **Resident components**
+    *   **Single render function** / **render merge**
+    *   **Re-render component matching**, through **keys** and **pattern matching**
+    *   **Resident components, allowing for custom component lifecycle**
 * Component creation using **constructor** or **factory function**   
     * **Compact parameter lists**
     * **Standardized properties object**
@@ -111,7 +111,7 @@ myModel.myData = 42;
 Alternativley you can `model(object, true)` to recursivley create models out of a data structure, with just one model call. Auto observation is the nuclear option of state management. As long as the programmer remembers to use the `model()` function correctly to wrap all data, there is no possible way that cache and component invalidation can go wrong. 
 
 ### Avoiding auto obervation for large data analysis
-The Flow auto invalidation works with surgical precision, and invalidates only what needs to be invalidated, no more no less. But this automated model comes with an overhead cost. If you have data models with object counts in the thousands, and components that reads hundreds of properties from such objects while building, the system will explicitly store hundreds of thousands data dependencies. So for large data analysis, you should avoid using model() for all data, but instead just read/write a version number of said data. I.e. 
+The Flow auto invalidation works with surgical precision, and invalidates only what needs to be invalidated, no more no less. But this automated model comes with an overhead cost. If you have data models with object counts in the thousands, and components that reads hundreds of properties from such objects while rendering, the system will explicitly store hundreds of thousands data dependencies. So for large data analysis, you should avoid using model() for all data, but instead just read/write a version number of said data. I.e. 
 
 ```js
 model({
@@ -123,43 +123,43 @@ model({
 For this solution to work, you can no longer direct manipulate data in the largeDataSet, without also updating the version number. But for the typical user interface that anyway displays at most a couple of hundred items, auto observation will give you good result.
 
 ## Recursive Reactive object composition
-When dependencies change, a component will automatically rebuild by running its ***single build function***. This process will create new uninitialized child components, some of which are recreations of child components from a previous build, some of which are new. After the build, Flow will then perform a ***rebuild merge***, where the state and component identities of the previous build are preserved, but where changes from the new build are included. 
+When dependencies change, a component will automatically rerender by running its ***single render function***. This process will create new uninitialized child components, some of which are recreations of child components from a previous render, some of which are new. After the render, Flow will then perform a ***rerender merge***, where the state and component identities of the previous render are preserved, but where changes from the new render are included. 
 
 > Joke: How would a Javascript programmer re-paint a car from red to green? He would first build a totally new car that is already green from the start. He would then scrape the color from the green car, and use it to replace the color of the red car. Then he would simply throw away the new car that he just built, and keep the old car that contains all of his items.  
 
-* The built data structures are compared to what was built when build was run last time, and objects from the previous build will be matched against objects in the current build, in a process called **Rebuild object matching**.
+* The built data structures are compared to what was built when render was run last time, and objects from the previous render will be matched against objects in the current render, in a process called **Rerender object matching**.
 
-* There are two ways for Flow to do rebuild object matching. 
-    * The most powerful way is to use ***keys***. When a child component is built, it is given a key, essentially a string, that is used for rebuild object matching. ***With keys, a component can move anywhere in the component structure while maintaining its identity when its parent rebuild***. (This is an important difference to React that only uses keys within one specific sequence).
+* There are two ways for Flow to do rerender object matching. 
+    * The most powerful way is to use ***keys***. When a child component is built, it is given a key, essentially a string, that is used for rerender object matching. ***With keys, a component can move anywhere in the component structure while maintaining its identity when its parent rerender***. (This is an important difference to React that only uses keys within one specific sequence).
 
-    * Secondarily, Flow uses **data structure pattern matching**, starting from the return value of the build function, and any object built using key. So often, your app will work as intended even without keys. 
+    * Secondarily, Flow uses **data structure pattern matching**, starting from the return value of the render function, and any object built using key. So often, your app will work as intended even without keys. 
 
-* Object properties from an object in the new build will be copied to the corresponding object of the old build, without overwriting the state properties of the object in the old build, thus preserving state of established objects. 
+* Object properties from an object in the new render will be copied to the corresponding object of the old render, without overwriting the state properties of the object in the old render, thus preserving state of established objects. 
 
-This is similar in spirit to React and the virtual DOM, but works for any data structure. But this also means that on every rebuild, there will be a lot of throw-away components left for the garbage collector, for this reason expensive intitalization of any component, needs to take place in very specific lifecycle methods. If the rebuild of one component, changes the properties of a child component, it will trigger that component to rebuild as well, but only if those properties were actually read during its build. 
+This is similar in spirit to React and the virtual DOM, but works for any data structure. But this also means that on every rerender, there will be a lot of throw-away components left for the garbage collector, for this reason expensive intitalization of any component, needs to take place in very specific lifecycle methods. If the rerender of one component, changes the properties of a child component, it will trigger that component to rerender as well, but only if those properties were actually read during its render. 
 
 ### onEstablish, onDispose and setState
 The first time a child component is built, it will receive an `onEstablished` message that in turn will call `setState` that the application code can override to setup state. Conversley when the child component is not rebuilt anymore, it will receive an `onDispose` event. 
 
-### Rebuild merge and component properties
-During rebuild merge, Flow uses the equivalent to `Object.assign(establishedObject, newlyCreatedObject)`. So in order to maintain state of your established component, your state properties cannot be set during construction or the default value will overwrite the changed state! So make sure to initialize your state properties ONLY in `initialize()`
+### Rerender merge and component properties
+During rerender merge, Flow uses the equivalent to `Object.assign(establishedObject, newlyCreatedObject)`. So in order to maintain state of your established component, your state properties cannot be set during construction or the default value will overwrite the changed state! So make sure to initialize your state properties ONLY in `initialize()`
 
 ### Identity consistency when using keys
-When you use a ***key*** to build a child component, Flow in actuality takes it a step further. At the moment such an object is created, it assumes the object identity that was previously associated with that key, but with a new temporary state, that reflects the current build. This means that inside your build function you could set a global variable refering to your component, and it would be the correct reference even after the build function finishes. This however does not work for components that are matched with a component in a previous build through pattern matching, for obvious reasons.   
+When you use a ***key*** to render a child component, Flow in actuality takes it a step further. At the moment such an object is created, it assumes the object identity that was previously associated with that key, but with a new temporary state, that reflects the current render. This means that inside your render function you could set a global variable refering to your component, and it would be the correct reference even after the render function finishes. This however does not work for components that are matched with a component in a previous render through pattern matching, for obvious reasons.   
 
 ### Resident components
-A component typically builds all of its child components in its build function. But Flow also makes it possible to build components globally or during component initialization. Such components can be used in the build function of a component. Resident components have the following advantages:
+A component typically renders all of its child components in its render function. But Flow also makes it possible to render components globally or during component initialization. Such components can be used in the render function of a component. Resident components have the following advantages:
 
-* A resident component will not be rebuilt whenever its parent rebuilds, saving resources.
-* A resident component can maintain its state even if it is temporarily not a part of its parent build.
+* A resident component will not be rebuilt whenever its parent rerenders, saving resources.
+* A resident component can maintain its state even if it is temporarily not a part of its parent render.
 
 Resident components are excellent for making tab-panels, where each tab can maintain its state even when off-screen.
 
 ### Component Lifecycle Functions
 
-To control building and rebuilding of components it is important to know the lifecycle functions of a Flow component. They are as follows:
+To control rendering and rerendering of components it is important to know the lifecycle functions of a Flow component. They are as follows:
 
-* **build**: The main function that reactivley builds the component and its child components based on parameters, state and data models. The build function will automatically re-run on any auto detected change. The build function should return whatever this component builds into, either other components or primitive components.
+* **render**: The main function that reactivley renders the component and its child components based on parameters, state and data models. The render function will automatically re-run on any auto detected change. The render function should return whatever this component renders into, either other components or primitive components.
 
 * **setProperties**: This is where the properties are set on a component. This is where you can set default values for properties. Note that this object might be thrown away, so don´t do any expensive initialization in the setProperties function! Also, **do not** set any default value for local state! The parameter list contains just one standardized properties object.
 
@@ -180,7 +180,7 @@ Flow is a reactive framework based on causality (similar to MobX). If a componen
   }
 ```
 
-Whenever any data read by expensiveComputation, or the lambda sent to ensure, the ensure lambda will run again, ensuring that computationResult will allways be updated correctly. By default, the ensure will be executed in `updateModelTime`, before any component starts to rebuild. 
+Whenever any data read by expensiveComputation, or the lambda sent to ensure, the ensure lambda will run again, ensuring that computationResult will allways be updated correctly. By default, the ensure will be executed in `updateModelTime`, before any component starts to rerender. 
 
 # Standardized component parameters
 

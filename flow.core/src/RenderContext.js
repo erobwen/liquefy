@@ -36,7 +36,7 @@ export class RenderContext {
 	// new ways. For example, a DOMRenderContext may create PrimitiveComponent objects that renders a DOM in a web browsser.
 	// But the same flow could be sent to a RenderContext that renders a native app, or create contents for a printout, 
 	// or create a server rendered page. The possibilities are endless!      
-	create(properties) {
+	primitive(properties) {
 		throw new Error("Not implemented yet!");
 	}
 	

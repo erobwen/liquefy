@@ -9,7 +9,7 @@ const log = console.log;
  */
 export function textNode(...parameters) {
   const properties = getTextNodeProperties(parameters)
-  return getRenderContext().create({type: "textNode", ...properties});
+  return getRenderContext().primitive({type: "textNode", ...properties});
 }
 
 export const text = textNode;
@@ -48,7 +48,7 @@ export function findImplicitSingleTextInContent(properties) {
 }
 
 
-// Note: this is needed because for some reason create() breaks on a childs array.  
+// Note: this is needed because for some reason primitive() breaks on a childs array.  
 // export function extractLoneChild(properties) {
 //   if (!properties.children) return;
 //   if (properties.children.length === 0) {

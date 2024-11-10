@@ -38,7 +38,7 @@ export class PortalEntrance extends Component {
 
 export function portalExit(...parameters) {
   // Return just a plain div (with portalExit debug info.)
-  return getRenderContext().create( 
+  return getRenderContext().primitive( 
     { 
       type: "elementNode",
       componentTypeName: "portalExit", 

@@ -18,7 +18,7 @@ export const getElementProperties = getElementNodeProperties; // Alias
  */
 export function elementNode(...parameters) {
   let properties = getElementProperties(parameters); 
-  return getRenderContext().create({type: "elementNode", ...properties});
+  return getRenderContext().primitive({type: "elementNode", ...properties});
 }
 
 

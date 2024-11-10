@@ -5,7 +5,7 @@ import { button } from "@liquefy/material-ui"
 
 class Hello extends Component {
   receive(properties) {
-    Object.assign(this, { to: "Default" }, properties);
+    Object.assign(this, { to: "Developer" }, properties);
   }
 
   initialize() {

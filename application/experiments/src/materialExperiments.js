@@ -47,7 +47,7 @@ let stamp = 0;
 const icon = (...parameters) => {
   const properties = getFlowProperties(parameters)
   const attributes = {name: properties.name};
-  return getRenderContext().create({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
+  return getRenderContext().primitive({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
 
   // <mdui-icon name="delete"></mdui-icon>
 }
@@ -59,7 +59,7 @@ const icon = (...parameters) => {
 const button = (...parameters) => {
   const properties = buttonParametersToProperties(parameters);
   const keyPrefix = properties.key;
-  return getRenderContext().create({type: "elementNode", tagName: "mdui-button", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, ...properties})
+  return getRenderContext().primitive({type: "elementNode", tagName: "mdui-button", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, ...properties})
 }
 
 const buttonParametersToProperties = (parameters) => {

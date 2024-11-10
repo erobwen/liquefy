@@ -158,7 +158,7 @@ export function inputField(properties) {
     ...inputAttributes
   };
   
-  const children = [getRenderContext().create({type: "elementNode", 
+  const children = [getRenderContext().primitive({type: "elementNode", 
     key: properties.key + ".input", 
     componentTypeName: type + "InputField", 
     tagName: "input", 

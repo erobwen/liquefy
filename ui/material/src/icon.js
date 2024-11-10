@@ -18,5 +18,5 @@ export const icon = (...parameters) => {
   const properties = getElementNodeProperties(parameters, mduiIconAttributes) 
   // console.log({...properties.attributes})
   // debugger;
-  return getRenderContext().create({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
+  return getRenderContext().primitive({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
 }

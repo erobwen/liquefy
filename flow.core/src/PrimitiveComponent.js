@@ -6,7 +6,7 @@ const log = console.log;
 
 /**
  * A Primitive component corresponds to a single entity in the target. Such as a node in a web-browser.
- * A primitive component is typically created by the RenderContext.create() function that act as a service
+ * A primitive component is typically created by the RenderContext.primitive() function that act as a service
  * locator pattern that make it possible for different RenderContext objects to have different sets of primitive
  * components. 
  */

@@ -120,7 +120,10 @@ export class List extends Component {
     if (this.count < this.maxCount) {
       children.push(new List("rest-list", {maxCount: this.maxCount, count: this.count + 1}));
     }
-    return paperColumn("list-column", {style: {marginLeft: "10px", marginBottom: "2px", marginRight: "2px", borderWidth: "1px", borderStyle: "solid"}, children: children});
+    return paperColumn("list-column", {
+      style: {marginLeft: "10px", marginBottom: "2px", marginRight: "2px", borderWidth: "1px", borderStyle: "solid"}, 
+      children
+    });
   }
 }
 
@@ -150,7 +153,7 @@ export class Item extends Component {
 
 // function shadePanel(close) {
 //   const target = getRenderContext();
-//   return target.create({type: "elementNode", 
+//   return target.primitive({type: "elementNode", 
 //     tagName: "div", 
 //     componentTypeName: "shadePanel",
 //     attributes: {

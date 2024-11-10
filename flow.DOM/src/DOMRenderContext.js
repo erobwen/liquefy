@@ -92,7 +92,7 @@ export class DOMRenderContext extends RenderContext {
     if (this.animate) removeDOMRenderContext(this);
   }
 
-  create(properties) {
+  primitive(properties) {
     const type = extractProperty(properties, "type");
     const DOMNodeClass = domNodeClassRegistry[type];
     if (!DOMNodeClass) throw Error("Unknown primitive type: " + type);

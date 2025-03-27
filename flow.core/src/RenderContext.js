@@ -34,8 +34,8 @@ export class RenderContext {
 	// The purpose of this method is to choose what PrimitiveComponent to create, given the properties object.
 	// This makes it possible to create total custom RenderContexts that reinterprets the properties in 
 	// new ways. For example, a DOMRenderContext may create PrimitiveComponent objects that renders a DOM in a web browsser.
-	// But the same flow could be sent to a RenderContext that renders a native app, or create contents for a printout, 
-	// or create a server rendered page. The possibilities are endless!      
+	// But the same component could be sent to a RenderContext that renders a native app, or create contents for a printout, 
+	// or create a server rendered page. The possibilities are endless!
 	primitive(properties) {
 		throw new Error("Not implemented yet!");
 	}

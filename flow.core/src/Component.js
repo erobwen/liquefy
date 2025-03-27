@@ -404,7 +404,6 @@ export class Component {
           me.newBuild = me.render(repeater);
           if (typeof me.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
           repeater.finishRebuilding();
-          // if (window.idToComponent[14]) console.log(window.idToComponent[14].animate);
           me.newBuild = repeater.establishedShapeRoot;
 
           // Establish relationship between equivalent child and this (its creator).

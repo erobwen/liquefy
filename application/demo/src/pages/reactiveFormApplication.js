@@ -48,8 +48,6 @@ function createTraveler(isFellowTraveller, luggage) {
 /**
  * Cost calculator. Plain Javascript. Cost calculator. 
  */
-
-
 function calculateCost(data) {
   let cost = 0;
   function addLuggageCost(luggage) {
@@ -186,13 +184,13 @@ export class ReactiveForm extends Component {
 
             // Submit button
             button("Submit", 
-              () => {
+              callback(() => {
                 this.shouldVerifyData = true;
                 if (!data.anyError) {
                   this.shouldVerifyData = false; 
                   alert("Sent form!\n" + JSON.stringify(this.editData, null, 4));
                 }
-              }, 
+              }), 
               {
                 style: {marginTop: "30px"},
                 disabled: data.anyError,

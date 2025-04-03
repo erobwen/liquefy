@@ -28,10 +28,6 @@ export class Component {
     return {};
   }
 
-  readParameters(parameters) {
-    return getFlowPropertiesIncludingChildren(parameters)
-  }
-
   constructor(...parameters) {
     let properties = this.readParameters(parameters);
 
@@ -88,6 +84,10 @@ export class Component {
   /**
    * Lifecycle methods
    */
+  readParameters(parameters) {
+    return getFlowPropertiesIncludingChildren(parameters)
+  }
+
   receive(properties) {
     Object.assign(this, properties)
   }

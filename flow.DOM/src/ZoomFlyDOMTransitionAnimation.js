@@ -105,8 +105,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     return trailer;
   }
 
-  repurposeOwnTrailerAsLeader(node) {
-    // log("repurposeOwnTrailerAsLeader");
+  repurposeOwnTrailerWrapperAsLeader(node) {
+    // log("repurposeOwnTrailerWrapperAsLeader");
     const trailer = node.trailer; 
     
     delete node.trailer;
@@ -144,6 +144,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     }
 
     const leader = trailer;
+    leader.id = "leader";
     node.leader = leader; 
     leader.owner = node;
     return leader;
@@ -174,7 +175,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     const trailerOrLeader = document.createElement("div");
     trailerOrLeader.isControlledByAnimation = true; 
     trailerOrLeader.style.position = "relative";
-    trailerOrLeader.style.overflow = "visible"    
+    trailerOrLeader.style.overflow = "visible";
     return trailerOrLeader; 
   }
 
@@ -523,9 +524,9 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     if (node.trailer && node.parentNode === node.trailer) {
       // Reuse own trailer as leader. 
       // log("repurpose existing trailer ...")
-      return this.repurposeOwnTrailerAsLeader(node);
+      return this.repurposeOwnTrailerWrapperAsLeader(node);
     } else {
-      return null;
+      // return null;
 
       // Find a leader for added, either borrow one, or create a new one.   
       let trailer; 
@@ -902,7 +903,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       endingAction: (propertyName) => {
         const leader = node.leader;
         const trailer = node.trailer; 
-
+        debugger;
         // Synch properties that was transitioned. 
         // log("Ending node animation");
         node.equivalentCreator.synchronizeDomNodeStyle([propertyName, "transition", "transform", "width", "height", "position", "opacity", ...inheritedProperties]);
@@ -986,7 +987,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   setupNodeAnimationCleanup(node, {endingProperties, endingAction, purpose}) {
     // log("setupNodeAnimationCleanup");
     // log(node);
-
+    debugger;
     // There can be only one
     if (node.hasCleanupEventListener) return; 
     // log("...")

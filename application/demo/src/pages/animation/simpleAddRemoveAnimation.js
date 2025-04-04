@@ -1,7 +1,6 @@
 import { div, text, DOMRenderContext } from "@liquefy/flow.DOM";
 import { Component } from "@liquefy/flow.core";
-import { button } from "@liquefy/modern-ui";
-import { column } from "@liquefy/basic-ui";
+import { column, button, row, layoutBorderStyle } from "@liquefy/basic-ui";
 
 const log = console.log;
 
@@ -27,12 +26,15 @@ export class SimpleAddRemoveAnimation extends Component {
 
   render() {
     return column(
-      button("foo", "Foo", this.onClick.bind(this), {style: flexAutoStyle}),
+      row(
+        button("add-remove", "Add/Remove", this.onClick.bind(this), {style: flexAutoStyle}),
+        {style: flexAutoStyle}
+      ),
       column(
         div({key: "my-text", animate: true, style: {width: "200px", height: "40px", backgroundColor: this.color}}).show(this.showText),
         {style: {overflow: "visible", width: "400px", height: "400px"}}
       ),
-      {style: {fontSize: "40px", padding: "20px", height: "150px"}}
+      {style: {fontSize: "40px", height: "150px", ...layoutBorderStyle}}
     );
   }
 }

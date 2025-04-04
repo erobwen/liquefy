@@ -2,7 +2,7 @@
 import { observable, Component, repeat, transaction } from "@liquefy/flow.core";
 import { div, text, DOMRenderContext } from "@liquefy/flow.DOM";
 import { button as modernButton } from "@liquefy/modern-ui";
-import { button as basicButton, column, filler, fillerStyle, row, overflowVisibleStyle } from "@liquefy/basic-ui";
+import { button as basicButton, column, filler, fillerStyle, row, overflowVisibleStyle, layoutBorderStyle } from "@liquefy/basic-ui";
 
 import { button } from "@liquefy/themed-ui";
 
@@ -58,7 +58,7 @@ export class SimpleMoveAnimation extends Component {
     // const button = new modernButton(
     // const button = div("wrapper", this.button, {animate: true});
     // if (window.idToComponent[14]) console.log(window.idToComponent[14].animate);
-    const movingButton = modernButton(
+    const movingButton = basicButton(
       "button", this.text, 
       this.move.bind(this),
       {
@@ -97,7 +97,7 @@ export class SimpleMoveAnimation extends Component {
         {style: overflowVisibleStyle}
       ),
       filler(),
-      {style: {...overflowVisibleStyle, fontSize: "40px", padding: "20px", height: "150px"}}
+      {style: {...overflowVisibleStyle, ...layoutBorderStyle, fontSize: "40px",height: "150px"}}
     );
   }
 }

@@ -4,6 +4,8 @@ import { observable, Component, transaction, getFlowProperties } from "@liquefy/
 import { text, div, DOMRenderContext, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { button, column, filler, row } from "@liquefy/basic-ui";
+import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";
+import { SimpleAddRemoveAnimation } from "./animation/simpleAddRemoveAnimation";
 
 const log = console.log;
 
@@ -100,6 +102,9 @@ export class AnimationExample extends Component {
     // )  
 
     return column(
+
+      new SimpleMoveAnimation(),
+      new SimpleAddRemoveAnimation(),
       row(
         button("Randomize", () => transaction(() => randomize(this.listA))),
         button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
@@ -128,7 +133,7 @@ export class AnimationExample extends Component {
           filler(),
           {style: {overflow: "visible"}}
         ),
-        {style: {overflow: "visible", height: "100%"}}
+        {style: {overflow: "visible", height: "200px"}}
       ),
       {style: {height: "100%", width: "100%"}},
     );

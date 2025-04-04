@@ -49,9 +49,10 @@ export class Demo extends Component {
 
     // this.choosen = this.items.find(item => item.key === "reactiveForm");
     // this.choosen = this.items.find(item => item.key === "portalExample");
+    this.choosen = this.items.find(item => item.key === "animationExample");
     // this.choosen = this.items.find(item => item.key === "programmaticReactiveLayout");
     // this.choosen = this.items.find(item => item.key === "modalExample");
-    this.choosen = this.items.find(item => item.key === "recursiveDemo");
+    // this.choosen = this.items.find(item => item.key === "recursiveDemo");
 
     this.ensure(() => {
       if (this.modernTheme) {

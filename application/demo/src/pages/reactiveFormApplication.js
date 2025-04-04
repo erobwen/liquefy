@@ -1,4 +1,4 @@
-import { Component, transaction, model, getFlowProperties } from "@liquefy/flow.core";
+import { Component, transaction, model, callback, getFlowProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
@@ -184,13 +184,13 @@ export class ReactiveForm extends Component {
 
             // Submit button
             button("Submit", 
-              callback(() => {
+              () => {
                 this.shouldVerifyData = true;
                 if (!data.anyError) {
                   this.shouldVerifyData = false; 
                   alert("Sent form!\n" + JSON.stringify(this.editData, null, 4));
                 }
-              }), 
+              }, 
               {
                 style: {marginTop: "30px"},
                 disabled: data.anyError,

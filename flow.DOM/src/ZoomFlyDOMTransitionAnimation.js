@@ -903,7 +903,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       endingAction: (propertyName) => {
         const leader = node.leader;
         const trailer = node.trailer; 
-        debugger;
+        // debugger;
         // Synch properties that was transitioned. 
         // log("Ending node animation");
         node.equivalentCreator.synchronizeDomNodeStyle([propertyName, "transition", "transform", "width", "height", "position", "opacity", ...inheritedProperties]);
@@ -987,7 +987,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   setupNodeAnimationCleanup(node, {endingProperties, endingAction, purpose}) {
     // log("setupNodeAnimationCleanup");
     // log(node);
-    debugger;
+    // debugger;
     // There can be only one
     if (node.hasCleanupEventListener) return; 
     // log("...")

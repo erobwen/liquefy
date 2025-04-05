@@ -1,6 +1,6 @@
 import { draw, insertAfter, extractProperties, logMark } from "@liquefy/flow.core";
 
-import { camelCase, changeType, flowChanges, freezeFlowChanges, sameBounds, unfreezeFlowChanges } from "./DOMAnimation";
+import { camelCase, changeType, componentChanges, freezeComponentChanges, sameBounds, unfreezeComponentChanges } from "./DOMAnimation";
 import { DOMTransitionAnimation } from "./DOMTransitionAnimation";
 
 const log = console.log;
@@ -205,7 +205,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
 
   startAnimationChain(node) {
     node.ongoingAnimation = this; 
-    freezeFlowChanges();
+    freezeComponentChanges();
   }
 
   endAnimationChain(node) {        
@@ -221,7 +221,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
       }
       //if (node.changes.type !== changeType.resident) 
       requestAnimationFrame(() => {
-        unfreezeFlowChanges();
+        unfreezeComponentChanges();
       })
     }
   }
@@ -600,7 +600,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
     const node = flow.domNode; 
     // log("trailer: " + node.trailer);
     // Do the FLIP animation technique
-    // Note: This will not happen for flows being removed (in earlier flowChanges.number). Should we include those here as well?
+    // Note: This will not happen for flows being removed (in earlier componentChanges.number). Should we include those here as well?
     this.recordBoundsInNewStructure(flow.domNode);
     switch(flow.changes.type) {
       case changeType.moved:
@@ -657,7 +657,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
         this.recordBoundsInNewStructure(flow.domNode);
       }
 
-      flow.animateInChanges = flowChanges.number; 
+      flow.animateInChanges = componentChanges.number; 
       this.translateFromNewToOriginalPosition(flow.domNode);
 
       // Reflow

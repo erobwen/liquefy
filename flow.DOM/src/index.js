@@ -112,11 +112,11 @@ import { addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode, elementNode, getElementNodeProperties, getElementProperties } from "./DOMElementNode";
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMRenderContext} from "./DOMRenderContext"
-import { mostAbstractFlow, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
+import { mostAbstractComponent, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
 
 // Animation
-import { installDOMAnimation, resetDOMAnimation, freezeFlowChanges, unfreezeFlowChanges, logProperties, flowChanges, previousFlowChanges, changeType, onFinishReBuildingFlow, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation";
+import { installDOMAnimation, resetDOMAnimation, freezeComponentChanges, unfreezeComponentChanges, logProperties, componentChanges, previousComponentChanges, changeType, onFinishRenderingComponents, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation";
 import { DOMTransitionAnimation } from "./DOMTransitionAnimation"
 import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMTransitionAnimation"
 import { setAnimationTime, ZoomFlyDOMTransitionAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMTransitionAnimation"
@@ -246,7 +246,7 @@ export {
     DOMRenderContext,
 
     //DOMNode
-    mostAbstractFlow, 
+    mostAbstractComponent, 
     aggregateToString, 
     clearNode, 
     getWidthIncludingMargin,
@@ -279,13 +279,13 @@ export {
     // DOM Animation
     installDOMAnimation, 
     resetDOMAnimation, 
-    freezeFlowChanges, 
-    unfreezeFlowChanges,
+    freezeComponentChanges, 
+    unfreezeComponentChanges,
     logProperties,
-    flowChanges, 
-    previousFlowChanges, 
+    componentChanges, 
+    previousComponentChanges, 
     changeType, 
-    onFinishReBuildingFlow, 
+    onFinishRenderingComponents, 
     onFinishReBuildingDOM, 
     sameBounds, 
     camelCase, 

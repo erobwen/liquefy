@@ -26,7 +26,7 @@ installDOMAnimation();
 //   module.hot.accept();
 //   module.hot.dispose(() => { 
 //     resetDOMAnimation();
-//     configuration.onFinishReBuildingFlowCallbacks.length = 0;
+//     configuration.onFinishRenderingComponentsCallbacks.length = 0;
 //     configuration.onFinishReBuildingDOMCallbacks.length = 0;
 //   });
 // }

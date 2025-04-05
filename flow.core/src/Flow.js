@@ -71,7 +71,7 @@ export const configuration = {
   traceWarnings: false, 
   autoAssignProperties: false, 
   defaultTransitionAnimations: null,
-  onFinishReBuildingFlowCallbacks: [],
+  onFinishRenderingComponentsCallbacks: [],
   onFinishReBuildingDOMCallbacks:  [],
 }
 
@@ -111,8 +111,8 @@ function onFinishedPriorityLevel(level, didActualWork) {
 
   // Finished re building flow with expanded primitives. Measure bounds and style before FLIP animation. 
   if (level === 1 && didActualWork) {
-    // log(configuration.onFinishReBuildingFlowCallbacks)
-    configuration.onFinishReBuildingFlowCallbacks.forEach(callback => callback())
+    // log(configuration.onFinishRenderingComponentsCallbacks)
+    configuration.onFinishRenderingComponentsCallbacks.forEach(callback => callback())
   }
 
   // Let flow rebuild the DOM, while not removing nodes of animated flows (they might move if inserted elsewhere)

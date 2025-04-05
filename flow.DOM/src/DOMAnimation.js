@@ -10,7 +10,7 @@ const log = console.log;
  * Installation
  */
 export function installDOMAnimation() {
-  configuration.onFinishReBuildingFlowCallbacks.push(onFinishReBuildingFlow);
+  configuration.onFinishRenderingComponentsCallbacks.push(onFinishRenderingComponents);
   configuration.onFinishReBuildingDOMCallbacks.push(onFinishReBuildingDOM);
 }
 
@@ -19,24 +19,24 @@ export function installDOMAnimation() {
  * Reset global animation state (on hot reload)
  */
 export function resetDOMAnimation() {
-  Object.assign(flowChanges, newFlowChanges());
-  previousFlowChanges = {}
+  Object.assign(componentChanges, newComponentChanges());
+  previousComponentChanges = {}
   counter = 0;
   getDomRenderContexts().length = 0;
 }
 
 
 /**
- * Freeze flow changes (to prevent chained animations)
+ * Freeze component changes (to prevent chained animations)
  */
 let count = 0;
-export function freezeFlowChanges() {
+export function freezeComponentChanges() {
   count++;
   if (traceAnimation && traceWarnings) console.warn("Risky to use freeze " + count);
   // postponeInvalidations();
 }
 
-export function unfreezeFlowChanges() {
+export function unfreezeComponentChanges() {
   count--;
   if (traceAnimation && traceWarnings) console.warn("Unfreeze... " + count);
   // continueInvalidations();
@@ -52,11 +52,11 @@ export function logProperties(object, properties) {
 
 
 /**
- * Global flow change tracking
+ * Global component change tracking
  */
-export const flowChanges = newFlowChanges();
+export const componentChanges = newComponentChanges();
 
-function newFlowChanges() {
+function newComponentChanges() {
   return ({
 
   number: 0,
@@ -74,81 +74,81 @@ function newFlowChanges() {
   globallyResidentAnimated: {},
   globallyMovedAnimated: {},
 
-  *allAnimatedFlows() {
-    for (let flow of Object.values(this.globallyAddedAnimated)) {
-      yield flow; 
+  *allAnimatedComponents() {
+    for (let component of Object.values(this.globallyAddedAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyRemovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyRemovedAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyResidentAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyResidentAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyMovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyMovedAnimated)) {
+      yield component; 
     }
   },
 
   *allAddedFlows() {
-    for (let flow of Object.values(this.globallyAdded)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyAdded)) {
+      yield component; 
     }
   },
   
   *allAnimatedAddedFlows() {
-    for (let flow of Object.values(this.globallyAddedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyAddedAnimated)) {
+      yield component; 
     }
   },
   
   *allAnimatedRemovedFlows() {
-    for (let flow of Object.values(this.globallyRemovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyRemovedAnimated)) {
+      yield component; 
     }
   },
 
   *allAnimatedResidentFlows() {
-    for (let flow of Object.values(this.globallyResidentAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyResidentAnimated)) {
+      yield component; 
     }
   },
 
   *allAnimatedMovedFlows() {
-    for (let flow of Object.values(this.globallyMovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyMovedAnimated)) {
+      yield component; 
     }
   },
 
   *allAnimatedMovedResidentAndRemovedFlows() {
-    for (let flow of Object.values(this.globallyResidentAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyResidentAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyMovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyMovedAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyRemovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyRemovedAnimated)) {
+      yield component; 
     }
   },
 
   *allAnimatedMovedResidentFlows() {
-    for (let flow of Object.values(this.globallyResidentAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyResidentAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyMovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyMovedAnimated)) {
+      yield component; 
     }
   },
 
   *allAnimatedMovedAddedAndRemovedFlows() {
-    for (let flow of Object.values(this.globallyMovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyMovedAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyAddedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyAddedAnimated)) {
+      yield component; 
     }
-    for (let flow of Object.values(this.globallyRemovedAnimated)) {
-      yield flow; 
+    for (let component of Object.values(this.globallyRemovedAnimated)) {
+      yield component; 
     }
   },
 })
@@ -158,8 +158,8 @@ function newFlowChanges() {
 /**
  * Flow changes, to keep track of animation frames. 
  */
-export let previousFlowChanges = {}
-window.flowChanges = flowChanges;
+export let previousComponentChanges = {}
+window.componentChanges = componentChanges;
 let counter = 0;
 
 export const changeType = {
@@ -171,33 +171,33 @@ export const changeType = {
 
 
 /**
- * On finish building flow
+ * On finish rendering components
  */
-export function onFinishReBuildingFlow() {
+export function onFinishRenderingComponents() {
   
   counter++
   if (traceAnimation) {
     logAnimationFrameGroup(counter)
     logAnimationSeparator("---------------------------------------- Flow rebuilt, DOM untouched, calculate changes... -------------------");
-    console.groupCollapsed("Potentially start DOM building for new flows here ...");
+    console.groupCollapsed("Potentially start DOM building for new components here ...");
     // log(counter);
   }
   // if (counter === 5) return; 
 
   // Save previous state for comparison
-  Object.assign(previousFlowChanges, flowChanges);
+  Object.assign(previousComponentChanges, componentChanges);
   
   // Reset current state
-  flowChanges.number++;
-  flowChanges.idPrimitiveMap = {};
-  flowChanges.idParentIdMap = {};
-  flowChanges.globallyAdded = {}; 
-  flowChanges.globallyResident = {}; 
-  flowChanges.globallyMoved = {};
-  flowChanges.globallyRemoved = {};
+  componentChanges.number++;
+  componentChanges.idPrimitiveMap = {};
+  componentChanges.idParentIdMap = {};
+  componentChanges.globallyAdded = {}; 
+  componentChanges.globallyResident = {}; 
+  componentChanges.globallyMoved = {};
+  componentChanges.globallyRemoved = {};
 
-  const idPrimitiveMap = flowChanges.idPrimitiveMap;
-  const idParentIdMap = flowChanges.idParentIdMap;
+  const idPrimitiveMap = componentChanges.idPrimitiveMap;
+  const idParentIdMap = componentChanges.idParentIdMap;
 
   function analyzePrimitives(idPrimitiveMap, primitiveFlow) {
     idPrimitiveMap[primitiveFlow.id] = primitiveFlow;
@@ -208,129 +208,129 @@ export function onFinishReBuildingFlow() {
     }
   }
   
-  for (let target of getDomRenderContexts()) {
-    analyzePrimitives(idPrimitiveMap, target.flow.getPrimitive());
+  for (let context of getDomRenderContexts()) {
+    analyzePrimitives(idPrimitiveMap, context.flow.getPrimitive());
   }
   // console.log(idParentIdMap);
 
   // Added, resident or moved 
   for (let id in idPrimitiveMap) {
     const primitive = idPrimitiveMap[id];
-    const inPreviousMap = previousFlowChanges ? !!previousFlowChanges.idPrimitiveMap[id] : false;
+    const inPreviousMap = previousComponentChanges ? !!previousComponentChanges.idPrimitiveMap[id] : false;
     if (inPreviousMap) {
       // In last map, resident or moved        
-      if (!previousFlowChanges.idParentIdMap || (previousFlowChanges.idParentIdMap[id] === idParentIdMap[id])) {
+      if (!previousComponentChanges.idParentIdMap || (previousComponentChanges.idParentIdMap[id] === idParentIdMap[id])) {
         // Same parent, resident
-        flowChanges.globallyResident[id] = primitive;
+        componentChanges.globallyResident[id] = primitive;
       } else {
         // Moved
-        flowChanges.globallyMoved[id] = primitive;
+        componentChanges.globallyMoved[id] = primitive;
       }
     } else {
       // Globally added
-      flowChanges.globallyAdded[id] = primitive;
+      componentChanges.globallyAdded[id] = primitive;
     }
   }
 
   // Find removed nodes
-  for (let id in previousFlowChanges.idPrimitiveMap) {
-    const inPreviousMap = previousFlowChanges.idPrimitiveMap[id];
+  for (let id in previousComponentChanges.idPrimitiveMap) {
+    const inPreviousMap = previousComponentChanges.idPrimitiveMap[id];
     if (typeof(idPrimitiveMap[id]) === "undefined" && !inPreviousMap.parentPrimitive) { // Consider: Keep track of directly removed using inPreviousMap.parentPrimitive? 
-      flowChanges.globallyRemoved[id] = inPreviousMap;
+      componentChanges.globallyRemoved[id] = inPreviousMap;
     }
   }
 
   function filterAnimatedInMap(map) {
      return Object.values(map)
-      .reduce((result, flow) => {
-        if (flow.getAnimation()) {
+      .reduce((result, component) => {
+        if (component.getAnimation()) {
 
           let stableFoundation = true; 
-          let scan = flow.parentPrimitive;
+          let scan = component.parentPrimitive;
           while(scan) {
           
-            if (flowChanges.globallyAdded[scan.id] && (!scan.getAnimation() || !scan.getAnimation().allwaysStableFoundationEvenWhenAdded())) {
+            if (componentChanges.globallyAdded[scan.id] && (!scan.getAnimation() || !scan.getAnimation().allwaysStableFoundationEvenWhenAdded())) {
               stableFoundation = false; 
               break; 
             }
             scan = scan.parentPrimitive;
           }
-          if (stableFoundation || flow.getAnimation().acceptUnstableFoundation(scan)) {
-            result[flow.id] = flow;
+          if (stableFoundation || component.getAnimation().acceptUnstableFoundation(scan)) {
+            result[component.id] = component;
           }
         }
         return result;
       }, {});
   }
 
-  flowChanges.globallyAddedAnimated = filterAnimatedInMap(flowChanges.globallyAdded);
-  flowChanges.globallyResidentAnimated = filterAnimatedInMap(flowChanges.globallyResident);
-  flowChanges.globallyMovedAnimated = filterAnimatedInMap(flowChanges.globallyMoved);
-  flowChanges.globallyRemovedAnimated = filterAnimatedInMap(flowChanges.globallyRemoved);
+  componentChanges.globallyAddedAnimated = filterAnimatedInMap(componentChanges.globallyAdded);
+  componentChanges.globallyResidentAnimated = filterAnimatedInMap(componentChanges.globallyResident);
+  componentChanges.globallyMovedAnimated = filterAnimatedInMap(componentChanges.globallyMoved);
+  componentChanges.globallyRemovedAnimated = filterAnimatedInMap(componentChanges.globallyRemoved);
 
   function toStrings(changes) {
     return {
-      addedIncludingNonAnimated: Object.values(changes.globallyAdded).map(flow => flow.toString()),
-      added: Object.values(changes.globallyAddedAnimated).map(flow => flow.toString()),
-      resident: Object.values(changes.globallyResidentAnimated).map(flow => flow.toString()), 
-      moved: Object.values(changes.globallyMovedAnimated).map(flow => flow.toString()),
-      movedIncludingNonAnimated: Object.values(changes.globallyMoved).map(flow => flow.toString()),
-      removed: Object.values(changes.globallyRemovedAnimated).map(flow => flow.toString()),
-      removedIncludingNonAnimated: Object.values(changes.globallyRemoved).map(flow => flow.toString()),
+      addedIncludingNonAnimated: Object.values(changes.globallyAdded).map(component => component.toString()),
+      added: Object.values(changes.globallyAddedAnimated).map(component => component.toString()),
+      resident: Object.values(changes.globallyResidentAnimated).map(component => component.toString()), 
+      moved: Object.values(changes.globallyMovedAnimated).map(component => component.toString()),
+      movedIncludingNonAnimated: Object.values(changes.globallyMoved).map(component => component.toString()),
+      removed: Object.values(changes.globallyRemovedAnimated).map(component => component.toString()),
+      removedIncludingNonAnimated: Object.values(changes.globallyRemoved).map(component => component.toString()),
     }
   }
 
-  // Mark each flow / node with changes and chained changes sequences for analysis. 
-  for (let flow of flowChanges.allAnimatedFlows()) {
-    if (flow.getDomNode()) {
+  // Mark each component / node with changes and chained changes sequences for analysis. 
+  for (let component of componentChanges.allAnimatedComponents()) {
+    if (component.getDomNode()) {
       const changes = {
-        number: flowChanges.number,
+        number: componentChanges.number,
         activated: false, 
         type: changeType.resident,
-        previous: flow.changes,
-        transitioningProperties: (flow.changes && flow.changes.transitioningProperties) ? flow.changes.transitioningProperties : {} 
+        previous: component.changes,
+        transitioningProperties: (component.changes && component.changes.transitioningProperties) ? component.changes.transitioningProperties : {} 
       };
-      flow.changes = changes; 
-      flow.domNode.changes = changes; 
+      component.changes = changes; 
+      component.domNode.changes = changes; 
     }
   }
 
   // Mark all animated. 
-  for (let flow of flowChanges.allAnimatedMovedFlows()) {
-    if (flow.domNode) {
-      flow.domNode.changes.type = changeType.moved;
+  for (let component of componentChanges.allAnimatedMovedFlows()) {
+    if (component.domNode) {
+      component.domNode.changes.type = changeType.moved;
     }
   }
-  for (let flow of flowChanges.allAnimatedAddedFlows()) {
-    if (flow.getDomNode()) {
-      flow.domNode.changes.type = changeType.added; 
+  for (let component of componentChanges.allAnimatedAddedFlows()) {
+    if (component.getDomNode()) {
+      component.domNode.changes.type = changeType.added; 
     }
   }
-  for (let flow of flowChanges.allAnimatedRemovedFlows()) {
-    if (flow.domNode) {
-      flow.domNode.changes.type = changeType.removed;
-      flow.domNode.changes.targetDimensions = {width: flow.domNode.offsetWidth, height: flow.domNode.offsetHeight } 
+  for (let component of componentChanges.allAnimatedRemovedFlows()) {
+    if (component.domNode) {
+      component.domNode.changes.type = changeType.removed;
+      component.domNode.changes.targetDimensions = {width: component.domNode.offsetWidth, height: component.domNode.offsetHeight } 
     }
   }
 
   if (traceAnimation) {
     console.groupEnd();
     console.log("New animated changes:");
-    log(toStrings(flowChanges));
+    log(toStrings(componentChanges));
   }
   logAnimationSeparator("---------------------------------------- Measure original bounds... ------------------------------------------");
 
-  for (let flow of flowChanges.allAnimatedFlows()) {
-    if (flow.getDomNode()) {
-      flow.getAnimation().recordOriginalBoundsAndStyle(flow);
+  for (let component of componentChanges.allAnimatedComponents()) {
+    if (component.getDomNode()) {
+      component.getAnimation().recordOriginalBoundsAndStyle(component);
     }
   }
   
   logAnimationSeparator("---------------------------------------- Prepare for DOM building... -----------------------------------------");
 
-  for (let flow of flowChanges.allAnimatedFlows()) {
-    if (flow.domNode) {
-      flow.getAnimation().prepareForDOMBuilding(flow)
+  for (let component of componentChanges.allAnimatedComponents()) {
+    if (component.domNode) {
+      component.getAnimation().prepareForDOMBuilding(component)
     }
   }
 
@@ -338,7 +338,7 @@ export function onFinishReBuildingFlow() {
   
   logAnimationSeparator("---------------------------------------- Rebuilding DOM... ----------------------------------------------------")
   if (traceAnimation) console.groupCollapsed("...");
-  flowChanges.onFinishReBuildingFlowDone = true;
+  componentChanges.onFinishRenderingComponentsDone = true;
 }
 
 // Insert deflated leaders for removed but insert added nodes directly to be as close as possible to target for measuring
@@ -354,16 +354,16 @@ export function onFinishReBuildingFlow() {
 export function onFinishReBuildingDOM() {
 
   // counter++
-  if (!flowChanges.onFinishReBuildingFlowDone) return;
-  delete flowChanges.onFinishReBuildingFlowDone;
+  if (!componentChanges.onFinishRenderingComponentsDone) return;
+  delete componentChanges.onFinishRenderingComponentsDone;
 
   if (traceAnimation) console.groupEnd();
   logAnimationSeparator("---------------------------------------- DOM rebuilt, measure target sizes ... -------------------------------");
   
   // Measure the final size of added and moved (do this before we start to emulate original)
-  for (let flow of flowChanges.allAnimatedFlows()) {
-    if (flow.domNode) {
-      flow.getAnimation().domJustRebuiltMeasureRenderContextSizes(flow);
+  for (let component of componentChanges.allAnimatedComponents()) {
+    if (component.domNode) {
+      component.getAnimation().domJustRebuiltMeasureRenderContextSizes(component);
     }
   }
   // if (inExperiment()) return;
@@ -374,9 +374,9 @@ export function onFinishReBuildingDOM() {
   // Styles needs to be original at this point to have correct footprints. 
 
   // Emulate original footprints. 
-  for (let flow of flowChanges.allAnimatedFlows()) {
-    if (flow.domNode) {
-      flow.getAnimation().emulateOriginalFootprintsAndFixateAnimatedStyle(flow);
+  for (let component of componentChanges.allAnimatedComponents()) {
+    if (component.domNode) {
+      component.getAnimation().emulateOriginalFootprintsAndFixateAnimatedStyle(component);
     }
   }
   // if (inExperimentOnCount(3)) return;
@@ -385,19 +385,19 @@ export function onFinishReBuildingDOM() {
   logAnimationSeparator("---------------------------------------- Emulate original bounds for FLIP animations -------------------------");
   
   // Emulate original footprints. 
-  for (let flow of flowChanges.allAnimatedFlows()) {
-    if (flow.domNode) {
-      flow.getAnimation().emulateOriginalBounds(flow);
+  for (let component of componentChanges.allAnimatedComponents()) {
+    if (component.domNode) {
+      component.getAnimation().emulateOriginalBounds(component);
     }
   }
 
-  // Activate animations using a function call to freeze flow changes in a lexical closure. 
-  activateAnimationAfterFirstRender({...flowChanges});  
+  // Activate animations using a function call to freeze component changes in a lexical closure. 
+  activateAnimationAfterFirstRender({...componentChanges});  
 }
 
 
 
-function activateAnimationAfterFirstRender(currentFlowChanges) {
+function activateAnimationAfterFirstRender(currentComponentChanges) {
   
   // Pause causality reactions while we wait for a new frame. 
   postponeInvalidations();
@@ -407,24 +407,24 @@ function activateAnimationAfterFirstRender(currentFlowChanges) {
 
     // TODO: Cleanup may have occured at this stage while we were waiting for the first frame. If so, act accordingly. 
 
-    // if (currentFlowChanges.number !== flowChanges.number) {
+    // if (currentComponentChanges.number !== componentChanges.number) {
     //   throw new Error("A change triggered while animation not started, consider removing event listeners using pointerEvents:none or similar");
-    //   // TODO: Support the possibility of animation flow changes between animation start and animation activation somehow. 
+    //   // TODO: Support the possibility of animation component changes between animation start and animation activation somehow. 
     // }
     // if (inExperiment()) return; 
 
-    for (let flow of currentFlowChanges.allAnimatedFlows()) {
-      if (flow.domNode) {
+    for (let component of currentComponentChanges.allAnimatedComponents()) {
+      if (component.domNode) {
         if (traceAnimation) {
           console.group();
-          console.log(flow.domNode);
+          console.log(component.domNode);
         }
-        flow.getAnimation().activateAnimation(flow, currentFlowChanges);
+        component.getAnimation().activateAnimation(component, currentComponentChanges);
         if (traceAnimation) {
           console.groupEnd();
         }
       }
-      flow.changes.activated = true; 
+      component.changes.activated = true; 
     }
 
     // if (inExperimentOnCount(3)) return;
@@ -432,9 +432,9 @@ function activateAnimationAfterFirstRender(currentFlowChanges) {
     logAnimationSeparator("---------------------------------------- Setup animation cleanup...  ---------------------");
 
     // Note: There is still time to do this since we have not released controll and allowed a second frame to render. 
-    for (let flow of currentFlowChanges.allAnimatedFlows()) {
-      if (flow.domNode) {
-        flow.getAnimation().setupAnimationCleanup(flow);
+    for (let component of currentComponentChanges.allAnimatedComponents()) {
+      if (component.domNode) {
+        component.getAnimation().setupAnimationCleanup(component);
       }
     }
 
@@ -544,14 +544,14 @@ export function parseMatrix(matrix) {
 
 
 
-// function findAndRecordOriginalBoundsOfOrigin(flow) {
+// function findAndRecordOriginalBoundsOfOrigin(component) {
 //   const originMark = nextOriginMark++;
       
 //   // Scan and mark old dom structure
-//   let scan = flow.domNode.parentNode; 
+//   let scan = component.domNode.parentNode; 
 //   if (!scan) {
-//     console.log(flow);
-//     console.log(flow.domNode);
+//     console.log(component);
+//     console.log(component.domNode);
 //     console.log(scan);
 //     throw new Error("Did not expect an animated without a parent!")
 //   } 
@@ -560,17 +560,17 @@ export function parseMatrix(matrix) {
 //     scan = scan.parentNode;
 //   }
   
-//   // Scan new flow structure and find common ancestor for present flow
-//   scan = flow.parentPrimitive;
+//   // Scan new component structure and find common ancestor for present component
+//   scan = component.parentPrimitive;
 //   while (scan) {
 //     if (scan.domNode && scan.domNode.originMark === originMark) {
-//       flow.domNode.getAnimation()OriginNode = scan.domNode;
+//       component.domNode.getAnimation()OriginNode = scan.domNode;
 //       break;
 //     }
 //     scan = scan.parentPrimitive;
 //   }
   
-// standardAnimation.recordOriginalBoundsAndStyle(flow.domNode.getAnimation()OriginNode);  
+// standardAnimation.recordOriginalBoundsAndStyle(component.domNode.getAnimation()OriginNode);  
 // }
 
 

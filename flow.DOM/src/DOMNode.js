@@ -7,7 +7,7 @@ import { updateDOMTime } from "../../flow.core/src/Flow";
 
 const log = console.log;
 
-export function mostAbstractFlow(flow) {
+export function mostAbstractComponent(flow) {
   while (flow.equivalentCreator) flow = flow.equivalentCreator;
   return flow; 
 }
@@ -133,7 +133,7 @@ export function getWidthIncludingMargin(node) {
   ensureDomNodeBuilt() {
     finalize(this);
     if (!this.buildDOMRepeater) {
-      // this.buildDOMRepeater = repeat(mostAbstractFlow(this).toString() + ".buildDOMRepeater", (repeater) => {
+      // this.buildDOMRepeater = repeat(mostAbstractComponent(this).toString() + ".buildDOMRepeater", (repeater) => {
       this.buildDOMRepeater = repeat("[" + aggregateToString(this) + "].buildDOMRepeater", (repeater) => {
         if (trace) console.group(repeater.causalityString());
         
@@ -248,7 +248,7 @@ export function getWidthIncludingMargin(node) {
 
   ensureDomNodeExists() { 
     if (!this.createElementRepeater) {
-      this.createElementRepeater = repeat(mostAbstractFlow(this).toString() + ".createElementRepeater", (repeater) => {
+      this.createElementRepeater = repeat(mostAbstractComponent(this).toString() + ".createElementRepeater", (repeater) => {
         if (trace) log(repeater.causalityString());
 
         if (this.givenDomNode) {
@@ -261,7 +261,7 @@ export function getWidthIncludingMargin(node) {
           this.domNode = this.createEmptyDomNode();
           this.domNode.id = aggregateToString(this);
           this.domNode.equivalentCreator = this; 
-          // this.domNode.id = mostAbstractFlow(this).toString()
+          // this.domNode.id = mostAbstractComponent(this).toString()
           
           // Decorate all equivalent flows
           let scanFlow = this.equivalentCreator;

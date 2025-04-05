@@ -3,7 +3,7 @@ import { observable, Component, transaction, getFlowProperties } from "@liquefy/
 
 import { text, div, DOMRenderContext, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
-import { button, column, filler, row } from "@liquefy/basic-ui";
+import { button, column, filler, fillerStyle, naturalSizeStyle, row } from "@liquefy/basic-ui";
 import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";
 import { SimpleAddRemoveAnimation } from "./animation/simpleAddRemoveAnimation";
 
@@ -105,35 +105,43 @@ export class AnimationExample extends Component {
 
       new SimpleMoveAnimation(),
       new SimpleAddRemoveAnimation(),
-      row(
-        button("Randomize", () => transaction(() => randomize(this.listA))),
-        button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
-        button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
-        button("Juggle", () => this.juggle()),
-      ),
-      row(
+      column(
+        row(
+          button("Randomize", () => transaction(() => randomize(this.listA))),
+          button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
+          button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
+          button("Juggle", () => this.juggle()),
+        ),
         column(
           filler(),
-          panel({
-            children: this.listA.map(item => itemDisplay(item)),
-            style: {fontSize: "40px", lineHeight: "40px", margin: largeSpace, padding: largeSpace, overflow: "visible", borderStyle:"solid", borderWidth: "1px"}, 
-            animateChildren: standardAnimation       
-          }),
+          row(
+            column(
+              filler(),
+              panel({
+                children: this.listA.map(item => itemDisplay(item)),
+                style: {fontSize: "40px", lineHeight: "40px", margin: largeSpace, padding: largeSpace, overflow: "visible", borderStyle:"solid", borderWidth: "1px"}, 
+                animateChildren: standardAnimation       
+              }),
+              filler(),
+              {style: {overflow: "visible"}}
+            ),
+            filler(),
+            column(
+              filler(),
+              panel({
+                children: this.listB.map(item => itemDisplay(item)),
+                style: {fontSize: "20px", lineHeight: "20px", color: "blue", margin: largeSpace, padding: largeSpace, overflow: "visible", borderStyle:"solid", borderWidth: "1px"},  
+                animateChildren: standardAnimation       
+              }),
+              filler(),
+              {style: {overflow: "visible"}}
+            ),
+            {style: {overflow: "visible", ...naturalSizeStyle}}
+          ),
           filler(),
-          {style: {overflow: "visible"}}
+          {style: fillerStyle}
         ),
-        filler(),
-        column(
-          filler(),
-          panel({
-            children: this.listB.map(item => itemDisplay(item)),
-            style: {fontSize: "20px", lineHeight: "20px", color: "blue", margin: largeSpace, padding: largeSpace, overflow: "visible", borderStyle:"solid", borderWidth: "1px"},  
-            animateChildren: standardAnimation       
-          }),
-          filler(),
-          {style: {overflow: "visible"}}
-        ),
-        {style: {overflow: "visible", height: "200px"}}
+        {style: fillerStyle}
       ),
       {style: {height: "100%", width: "100%"}},
     );

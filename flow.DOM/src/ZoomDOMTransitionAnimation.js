@@ -75,15 +75,6 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * General helpers
    */
-
-  fixateLeaderOrTrailer(leaderOrTrailer) {
-    // log("fixating leader/trailer bounds");
-    const bounds = leaderOrTrailer.getBoundingClientRect();
-    // Fixate size, it might get reset after setting display none? 
-    leaderOrTrailer.style.width = bounds.width + "px";
-    leaderOrTrailer.style.height = bounds.height + "px";
-  }
-
   repurposeOwnLeaderAsTrailer(node) {
     // log("repurposeOwnLeaderAsTrailer");
     const leader = node.leader; 
@@ -173,16 +164,19 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
     const trailerOrLeader = document.createElement("div");
     trailerOrLeader.isControlledByAnimation = true; 
     trailerOrLeader.style.position = "relative";
-    trailerOrLeader.style.overflow = "visible"    
+    trailerOrLeader.style.overflow = "visible";
+    registerFixation(trailerOrLeader, ["position", "overflow"])
     return trailerOrLeader; 
   }
 
   hide(node) {
     node.style.display = "none"; // For now! this will be removed after measuring target bounds.  
+    registerFixation(node, ["display"])
   }
 
   show(node) {
     node.style.display = ""; // For now! this will be removed after measuring target bounds.  
+    registerFixation(node, ["display"])
   }
 
   /**
@@ -324,7 +318,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
     if (node.leader && node.leader === node.parentNode && node.parentNode.isControlledByAnimation) {
       // Repurpose existing leader as trailer.
       trailer = this.repurposeOwnLeaderAsTrailer(node);
-      this.fixateLeaderOrTrailer(trailer);
+      fixateWidthAndHeight(trailer);
     } else {
       // Create new trailer.
       trailer = this.createNewTrailer(node);
@@ -834,7 +828,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
     Object.assign(leader.style, style);
   }
 
-  targetSizeForTrailer(trailer) {
+  targetSizeForTrailer(trailer) { // setTarget
     trailer.style.transition = this.leaderTransition();
     Object.assign(trailer.style, {
       width: "0.0001px",
@@ -842,7 +836,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
     });
   }
 
-  targetPositionForZoomIn(node) {
+  targetPositionForZoomIn(node) { // setTarget
     node.style.transition = this.addedTransition();
     Object.assign(node.style, {
       transform: "matrix(1, 0, 0, 1, 0, 0)",
@@ -1037,4 +1031,30 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
 
 
 export const zoomAnimation = new ZoomDOMTransitionAnimation();
-  
+
+
+function fixateWidthAndHeight(node) {
+  const bounds = node.getBoundingClientRect();
+  // Fixate size, it might get reset after setting display none? 
+  node.style.width = bounds.width + "px";
+  node.style.height = bounds.height + "px";
+  registerFixation(node, ["width", "height"])
+}
+
+function registerFixation(node, fixed) {
+  if (typeof(node.fixated) === "undefined") {
+    node.fixated = [];
+  }
+  for (let property in fixed) {
+    node.fixated.push(property)
+  }
+}
+
+function getNewCleanupOrderNumber(node) {
+  if (typeof(node.cleanupNumber) === "undefined") {
+    node.cleanupNumber = 1;
+  } else {
+    node.cleanupNumber++
+  }
+  return node.cleanupNumber;
+}

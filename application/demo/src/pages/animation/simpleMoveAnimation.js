@@ -63,9 +63,9 @@ export class SimpleMoveAnimation extends Component {
       this.move.bind(this),
       {
         animate: true,
-        ripple: true,
+        // ripple: true,
         style: {
-          margin: "10px",
+          // margin: "10px",
           // backgroundColor: this.backgroundColor,
           width: "150px"
         }
@@ -82,7 +82,7 @@ export class SimpleMoveAnimation extends Component {
         filler(),
         {style: {...overflowVisibleStyle}}
       ),
-      div({style: {height: "200px"}}),
+      filler(),
       row(
         column(
           movingButton.show(this.left),

@@ -16,11 +16,11 @@ export class RenderContext {
 
 	render(component) {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
-		this.flow = component;
+		this.component = component;
 		component.renderContext = this;
 		workOnPriorityLevel(renderComponentTime, () => {
 			component.ensureEstablished()
-			this.flow.ensureBuiltRecursive(this)
+			this.component.ensureBuiltRecursive(this)
 		});
 		if (component.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();

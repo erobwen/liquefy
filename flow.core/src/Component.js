@@ -43,7 +43,7 @@ export class Component {
       delete properties.componentTypeName; 
     }
 
-    // this.flowDepth = this.creator ? this.creator.flowDepth + 1 : 0;
+    // this.componentDepth = this.creator ? this.creator.componentDepth + 1 : 0;
     
     // Get and inherit certain things from creator.
     this.creator = getCreator(); // Note this can only be done in constructor!

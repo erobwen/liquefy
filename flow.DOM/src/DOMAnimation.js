@@ -209,7 +209,7 @@ export function onFinishRenderingComponents() {
   }
   
   for (let context of getDomRenderContexts()) {
-    analyzePrimitives(idPrimitiveMap, context.flow.getPrimitive());
+    analyzePrimitives(idPrimitiveMap, context.component.getPrimitive());
   }
   // console.log(idParentIdMap);
 

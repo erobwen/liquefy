@@ -45,8 +45,8 @@ export class DOMRenderContext extends RenderContext {
         if (document.body.style.height != window.innerHeight + "px")
           document.body.style.height = window.innerHeight + "px";
           transaction(() => {
-            if (this.flow) {
-              this.flow.bounds = {width: window.innerWidth, height: window.innerHeight}
+            if (this.component) {
+              this.component.bounds = {width: window.innerWidth, height: window.innerHeight}
             }
           });
       });
@@ -67,12 +67,12 @@ export class DOMRenderContext extends RenderContext {
   }
 
   toString() {
-    return "[target]" + (this.flow ? this.flow.toString() : "null");
+    return "[target]" + (this.component ? this.component.toString() : "null");
   }
 
-  render(flow) {
-    flow.bounds = {width: window.innerWidth, height: window.innerHeight}
-    super.render(flow);
+  render(component) {
+    component.bounds = {width: window.innerWidth, height: window.innerHeight}
+    super.render(component);
   }
 
 	ensureContentInPlace() {
@@ -80,8 +80,8 @@ export class DOMRenderContext extends RenderContext {
 			if (trace) console.group(repeater.causalityString());
 
 			// clearNode(this.rootElement);
-			this.flow.getPrimitive().givenDomNode = this.rootElement;
-			workOnPriorityLevel(updateDOMTime, () => this.flow.getPrimitive().ensureDomNodeBuilt());
+			this.component.getPrimitive().givenDomNode = this.rootElement;
+			workOnPriorityLevel(updateDOMTime, () => this.component.getPrimitive().ensureDomNodeBuilt());
 			
 			if (trace) console.groupEnd();
 		}, {priority: updateDOMTime}); 
@@ -117,26 +117,26 @@ export class DOMRenderContext extends RenderContext {
   //   return div;
   // }
 
-  // setModalFlow(flow, close) {
+  // setModalFlow(component, close) {
   //   // Close existing
   //   if (this.modalFlow) {
   //     this.modalFlowClose();
   //   }
 
-  //   // Setup modal flow
-  //   this.modalFlow = flow;
+  //   // Setup modal component
+  //   this.modalFlow = component;
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
   //   this.modalRenderContext = new DOMRenderContext(modalDiv, {creator: this});
   //   this.modalRenderContext.render(this.modalFlow);
 
-  //   // Display modal flow
+  //   // Display modal component
   //   this.state.modalDiv = modalDiv;
   // }
 
-  // removeModalFlow(flow) {
-  //   if (this.modalFlow === flow) {
-  //     // Remove new flow target, hide modal panel
+  // removeModalFlow(component) {
+  //   if (this.modalFlow === component) {
+  //     // Remove new component target, hide modal panel
   //     this.modalFlow = null;
   //     this.modalFlowClose = null;
   //     this.modalRenderContext.dispose();

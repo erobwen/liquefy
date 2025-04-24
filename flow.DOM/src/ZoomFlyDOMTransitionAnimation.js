@@ -84,7 +84,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     const leader = node.leader; 
     
     delete node.leader;
-    leader.removeEventListener("transitionend", leader.hasCleanupEventListener);
+    delete node.wrapper;
+    // leader.removeEventListener("transitionend", leader.hasCleanupEventListener);
     delete leader.hasCleanupEventListener;
     
     // Disconnect previous trailer
@@ -111,11 +112,13 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     if (node.leader) {
       delete node.leader.owner;
       delete node.leader;
+      delete node.wrapper;
     }
 
     const leader = trailer; 
     if (leader.owner !== node) throw new Error("unexpected owner"); 
     node.leader = leader; 
+    node.wrapper = leader; 
     return leader;
   }
 
@@ -135,11 +138,13 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     if (node.leader) {
       delete node.leader.owner;
       delete node.leader;
+      delete node.wrapper;
     }
 
     const leader = trailer;
     leader.id = "leader";
     node.leader = leader; 
+    node.wrapper = leader; 
     leader.owner = node;
     return leader;
   }
@@ -288,7 +293,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       case changeType.moved:
       case changeType.removed:
         delete node.isControlledByAnimation; // Make sure dom building removes these nodes
-        this.addTrailersForMovedAndRemovedBeforeDomBuilding(node);
+        this.addTrailersForMovedAndRemovedBeforeDomBuilding(node, component.changes.type);
         if (changeType.moved) node.trailer.canBeRepurposed = true;         
         // log(`trailer: `);
         // log(extractProperties(node.trailer.style, this.typicalAnimatedProperties));
@@ -315,7 +320,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     console.groupEnd();    
   }
 
-  addTrailersForMovedAndRemovedBeforeDomBuilding(node) {
+  addTrailersForMovedAndRemovedBeforeDomBuilding(node, changeType) {
     let trailer; 
     
     if (node.leader && node.leader === node.parentNode && node.parentNode.isControlledByAnimation) {
@@ -335,6 +340,16 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
 
     // We hide it for now, to get more accurate target measures, as if removed and moved nodes has already moved out of their place
     this.hide(trailer);
+
+    // Set wrapper
+    switch (changeType) {
+      case changeType.removed:
+        node.wrapper = trailer
+        break;
+      case changeType.moved:
+        delete node.wrapper
+        break;
+    }
 
     // Debugging
     // trailer.style.backgroundColor = "rgba(170, 170, 255, 0.5)";
@@ -499,6 +514,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       // log("create a new leader ...")
       leader = this.createNewLeader(node);
       node.leader = leader;
+      node.wrapper = leader; 
       // Note: We set width/height at this point because here we know if the leader was reused or not. If we do it later, we wont know that.  
       if (this.animateLeaderWidth) leader.style.width = "0.0001px"; 
       if (this.animateLeaderHeight) leader.style.height = "0.0001px";
@@ -893,136 +909,88 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
    */
   setupAnimationCleanup(component) {
     const node = component.domNode;
-    const cleanupNumber = getNewCleanupOrderNumber(node)
-
-    // setTimeout(() => {
-    //   if (node.cleanupNumber === node) {
-    //     node.equivalentCreator.synchronizeDomNodeStyle(node.fixated);
-    //     node.fixated = [];
-    //   }
-    // },animationTime*1000)
+    const cleanupNumber = componentChanges.number
     
-    this.setupNodeAnimationCleanup(node, {
-      purpose: "node",
-      endingAction: (propertyName) => {
-        const leader = node.leader;
-        const trailer = node.trailer; 
-        // debugger;
-        // Synch properties that was transitioned. 
-        // log("Ending node animation");
-        node.equivalentCreator.synchronizeDomNodeStyle([propertyName, "transition", "transform", "width", "height", "position", "opacity", ...inheritedProperties]);
-        if (node.parentNode.isControlledByAnimation) {
-          // Note: This should really go in the cleanup code for the trailer/leader. If a leader is finished, 
-          // it replaces its content. If a trailer is finished, it just removes itself. But for some weird reason
-          // the oneventchange event on the trailer wont fire! TODO: Do more research and find out why! 
-          switch(node.changes.type) {
-            case changeType.removed:
-              if (trailer) {
-                if (node.parentNode !== trailer) throw new Error("Internal error: Wrong trailer!")
-                node.equivalentCreator.synchronizeDomNodeStyle(["position", "width", "height", "transform"]);
-                trailer.removeChild(node);
-                if (trailer.parentNode) trailer.parentNode.removeChild(trailer);
-                delete trailer.owner;
-                node.trailer.canBeRepurposed = true; 
-                delete node.trailer; 
-              }
-              break;
-            case changeType.added:
-            case changeType.moved:
-            case changeType.resident:
-              if (leader) {
-                if (node.parentNode !== leader) throw new Error("Internal error: Wrong leader!");
-                node.equivalentCreator.synchronizeDomNodeStyle(["position", "width", "height", "transform"]);
-                leader.removeChild(node);
-                if (leader.parentNode) leader.parentNode.replaceChild(node, leader);
-                delete leader.owner; 
-                delete node.leader; 
-              }
-              if (trailer) {
-                delete trailer.owner;
-                node.trailer.canBeRepurposed = true; 
-                delete node.trailer; 
-              }
-              break; 
-          }
-        }
-
+    this.setupNodeAnimationCleanup(
+      node,
+      cleanupNumber,
+      () => {
+        node.equivalentCreator.synchronizeDomNodeStyle(["transition", "transform", "width", "height", "position", "opacity", ...inheritedProperties]);
         this.endAnimationChain(node);
       }
-    });
+    );
   
-    // if (leader) {
-    //   this.setupNodeAnimationCleanup(node.leader, {
-    //     endingProperties: ["width", "height"],
-    //     endingAction: () => {
-    //       // TODO: handle if things have already chagned...
-    //       log("Ending leader animation"); 
-    //       leader.removeChild(node);
-    //       leader.parentNode.replaceChild(node, leader);
-    //       node.equivalentCreator.synchronizeDomNodeStyle("position");
-    //       delete node.leader;
-    //     }
-    //   })
-    // }
+    if (node.leader) {
+      const leader = node.leader;
+      this.setupNodeAnimationCleanup(leader,
+        cleanupNumber,
+        () => {
+          leader.removeChild(node);
+          leader.parentNode.replaceChild(node, leader);
+          node.equivalentCreator.synchronizeDomNodeStyle(["position"]);
+          delete leader.isControlledByAnimation;
+          this.detatchLeaderOwner(leader)
+          delete node.wrapper;
+        }
+      )
+    }
     
     if (node.trailer) {
-      this.setupTrailerAnimationCleanup(node.trailer);
+      const trailer = node.trailer;
+      if (trailer === node.wrapper) {
+        // Wrapper trailer
+        this.setupNodeAnimationCleanup(
+          trailer,
+          cleanupNumber, 
+          () => {
+            trailer.removeChild(node);
+            if (trailer.parentNode) trailer.parentNode.removeChild(trailer);
+            delete trailer.isControlledByAnimation;
+            this.detatchTrailerOwner(trailer);
+            delete node.wrapper;
+          }
+        )
+      } else {
+        // Separate trailer
+        this.setupNodeAnimationCleanup(
+          trailer,
+          cleanupNumber, 
+          () => {
+            if (trailer.parentNode) trailer.parentNode.removeChild(trailer);
+            delete trailer.isControlledByAnimation;
+            this.detatchTrailerOwner(trailer);
+          }
+        )
+      }
     }
   }
 
-
-  setupTrailerAnimationCleanup(trailer) {
-    this.setupNodeAnimationCleanup(trailer, {
-      purpose: "trailer",
-      endingProperties: ["width", "height"],
-      endingAction: () => {
-        // log("Ending trailer animation"); 
-        // TODO: handle if things have already changed?... if reused, the observer should have been removed? Right?... 
-        delete trailer.isControlledByAnimation;
-        if (trailer.parentNode) trailer.parentNode.removeChild(trailer);
-        if (trailer.owner) {
-          delete trailer.owner.trailer;
-        }
-        delete trailer.owner; 
+  detatchLeaderOwner(leader) {
+    if (leader.owner) {
+      if (leader.owner.leader === leader) {
+        delete leader.owner.leader;
       }
-    })
-  }  
-
-  setupNodeAnimationCleanup(node, {endingProperties, endingAction, purpose}) {
-    // log("setupNodeAnimationCleanup");
-    // log(node);
-    // debugger;
-    // There can be only one
-    if (node.hasCleanupEventListener) return; 
-    // log("...")
-    
-    function onTransitionEnd(event) {
-      event.stopPropagation();
-      event.preventDefault();
-
-      // if (!node.changes) return;
-      // Is just about to activate a new animation, dont disturb it! 
-      if (!node.changes || !node.changes.activated) return;
-
-      const propertyName = camelCase(event.propertyName); 
-
-      const typeOfAnimationString = node.changes ? (" in " +  node.changes.type + " animation") : ""; 
-      // console.group("cleanup " + node.id + typeOfAnimationString + ", triggered by:  " + event.propertyName);
-      // log("purpose:" + purpose)
-      // log(node);
-      console.groupEnd();
-
-      if (!endingProperties || endingProperties.includes(propertyName)) {
-        endingAction(propertyName);
-  
-        // Finish animation
-        node.removeEventListener("transitionend", onTransitionEnd);
-        delete node.hasCleanupEventListener;
-      }      
+      delete leader.owner; 
     }
-    node.addEventListener("transitionend", onTransitionEnd, true);
-    node.hasCleanupEventListener = onTransitionEnd; 
-  }   
+  }
+
+  detatchTrailerOwner(trailer) {
+    if (trailer.owner) {
+      if (trailer.owner.trailer === trailer) {
+        delete trailer.owner.trailer;
+      }
+      delete trailer.owner; 
+    }
+  }
+
+  setupNodeAnimationCleanup(node, cleanupNumber, endingAction) {
+    node.cleanupNumber = cleanupNumber
+    setTimeout(() => {
+      if (node.cleanupNumber === cleanupNumber) {
+        endingAction()
+      }
+    },animationTime*1000)
+  }
 }
 
 // getAnimatedProperties(computedStyle) {
@@ -1060,10 +1028,5 @@ function registerFixation(node, fixed) {
 }
 
 function getNewCleanupOrderNumber(node) {
-  if (typeof(node.cleanupNumber) === "undefined") {
-    node.cleanupNumber = 1;
-  } else {
-    node.cleanupNumber++
-  }
-  return node.cleanupNumber;
+  return componentChanges.number
 }

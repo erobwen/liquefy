@@ -121,7 +121,7 @@ export class SimpleDrawer extends Component {
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
     button(row(span(buttonLabel), buttonIcon, {style: {justifyContent: "space-between"}}), () => this.toggleOpen(), {style: {margin: "5px"}, ripple: true}),
-    column("contents", {children: [this.isOpen ? this.content : null] })
+    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: true})
   );
  }
 }
@@ -221,7 +221,7 @@ export class TravelerForm extends Component {
     Object.assign(this, {
       traveler: null,
       isFellowTraveller: null,
-      animate: zoomAnimation
+      animate: true
     }, properties)
   }  
 
@@ -266,8 +266,10 @@ export class TravelerForm extends Component {
         content: column("luggage-panel",
           column("luggage-list", {
             children: this.traveler.luggages.map(luggage => new LuggageForm("id-" + luggage.causality.id, {luggage})),
+            animateChildren: true
           })
-        )
+        ),
+        animate: true
       }).show(this.traveler.luggages.length),
 
       // Add luggages button
@@ -286,7 +288,7 @@ export class TravelerForm extends Component {
             ripple: true,
             edge: false 
           }
-        )
+        ), { animate: true }
       ).show(!this.traveler.luggages.length || this.showLuggage)
     );
   }

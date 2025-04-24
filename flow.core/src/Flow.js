@@ -58,6 +58,8 @@ export function isModel(object) {
 /**
  * Model creation
  */
+export const deeplyObservableCopy = (object) => deeplyObservable(object, true)
+
 export const model = deeplyObservable;
 
 

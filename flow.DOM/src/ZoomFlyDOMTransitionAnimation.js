@@ -185,10 +185,10 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * Debugging
    */
-  changesChain(flow) {
+  changesChain(component) {
     let result = ""; 
-    result += flow.domNode.ongoingAnimation ? "[ongoing] " : "";
-    let changes = flow.changes; 
+    result += component.domNode.ongoingAnimation ? "[ongoing] " : "";
+    let changes = component.changes; 
     while(changes) {
       const separator = (result === "" ? "" : ", "); 
       result += (separator + changes.type)
@@ -218,8 +218,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       delete node.ongoingAnimation;
       if (node.changes) {
         node.changes.finished = true; 
-        const flow = node.equivalentCreator;
-        flow.changes = null;
+        const component = node.equivalentCreator;
+        component.changes = null;
         node.changes = null;
       }
       //if (node.changes.type !== changeType.resident) 
@@ -244,9 +244,9 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
    * https://stackoverflow.com/questions/50657526/does-getboundingclientrect-width-and-height-includes-paddings-and-borders-of-e
    * Also offset width and height do not include margin. 
    */
-  recordOriginalBoundsAndStyle(flow) {
-    // console.group("Record original bounds and style for " + this.changesChain(flow) + ": " + flow.toString());
-    const node = flow.domNode; 
+  recordOriginalBoundsAndStyle(component) {
+    // console.group("Record original bounds and style for " + this.changesChain(component) + ": " + component.toString());
+    const node = component.domNode; 
 
     // Bounds (excludes margins)
     node.changes.originalBounds = node.getBoundingClientRect();
@@ -274,17 +274,17 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * Prepare for DOM building. 
    */
-  prepareForDOMBuilding(flow) {
+  prepareForDOMBuilding(component) {
 
     // Attempt to halt transition animation by setting the end style. 
-    // if (flow.changes.changeType !== changeType.resident) flow.domNode.style = flow.changes.originalStyle;
+    // if (component.changes.changeType !== changeType.resident) component.domNode.style = component.changes.originalStyle;
 
-    // console.group("Prepare for DOM building for " + this.changesChain(flow) + ": " + flow.toString());
-    const node = flow.domNode;
+    // console.group("Prepare for DOM building for " + this.changesChain(component) + ": " + component.toString());
+    const node = component.domNode;
     // log("trailer: " + node.trailer);
 
     // Add trailers for removed to keep a reference of their position, since dom building will remove them. 
-    switch (flow.changes.type) {
+    switch (component.changes.type) {
       case changeType.moved:
       case changeType.removed:
         delete node.isControlledByAnimation; // Make sure dom building removes these nodes
@@ -296,18 +296,18 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     }
 
     // Prepare added and moved for correct target size measurement (in case they are in a chained animation) 
-    switch (flow.changes.type) {
+    switch (component.changes.type) {
       case changeType.added:
       case changeType.moved:
         delete node.isControlledByAnimation; // Make sure dom building adds and moves these nodes
-        this.neutralizeTransformationsAndPosition(flow, node);
-        flow.synchronizeDomNodeStyle(inheritedProperties);
+        this.neutralizeTransformationsAndPosition(component, node);
+        component.synchronizeDomNodeStyle(inheritedProperties);
         break;
     }
 
     // Prevent DOM building from touching resident nodes that are inside leaders, moving towards their target.
     // They might have started their movement in a previous animation frame. 
-    if (flow.changes.type === changeType.resident) {
+    if (component.changes.type === changeType.resident) {
       if (node.leader) {
         node.isControlledByAnimation = true; 
       }
@@ -340,8 +340,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     // trailer.style.backgroundColor = "rgba(170, 170, 255, 0.5)";
   }
   
-  neutralizeTransformationsAndPosition(flow) {
-    flow.synchronizeDomNodeStyle(["position", "transform", "width", "height"]);
+  neutralizeTransformationsAndPosition(component) {
+    component.synchronizeDomNodeStyle(["position", "transform", "width", "height"]);
   }
 
 
@@ -360,15 +360,15 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
    * However, removed nodes are still present at this point... maybe we should ensure added leaders for removed ones start out minimized?
    * Trailers should also be minimized at this point.
    */
-  domJustRebuiltMeasureRenderContextSizes(flow) {
-    // console.group("Measure target size for " + this.changesChain(flow) + ": " + flow.toString());
-    const node = flow.domNode;
+  domJustRebuiltMeasureTargetSizes(component) {
+    // console.group("Measure target size for " + this.changesChain(component) + ": " + component.toString());
+    const node = component.domNode;
     // log("trailer: " + node.trailer);
     
-    switch (flow.changes.type) {
+    switch (component.changes.type) {
       case changeType.added:
-        if (flow.changes.previous && flow.changes.previous.type === changeType.removed) {
-          const removeChange = flow.changes.previous; 
+        if (component.changes.previous && component.changes.previous.type === changeType.removed) {
+          const removeChange = component.changes.previous; 
           node.changes.targetBounds = removeChange.originalBounds;
           node.changes.targetStyle = removeChange.originalStyle;
           node.changes.computedRenderContextStyle = removeChange.computedOriginalStyle; 
@@ -414,14 +414,14 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
    * Emulate the original styles and footprints of all animated
    * nodes. This is for a smooth transition from their original position. 
    */
-  emulateOriginalFootprintsAndFixateAnimatedStyle(flow) {
-    // console.group("Emulate original style and footprints for " + this.changesChain(flow) + ": " + flow.toString());
-    const node = flow.domNode;
+  emulateOriginalFootprintsAndFixateAnimatedStyle(component) {
+    // console.group("Emulate original style and footprints for " + this.changesChain(component) + ": " + component.toString());
+    const node = component.domNode;
     const trailer = node.trailer;
     // log("trailer: " + node.trailer);
 
     // Setup leaders, typically deflated unless an existing leader/trailer can be reused.
-    switch (flow.changes.type) {
+    switch (component.changes.type) {
       case changeType.added: 
       case changeType.moved: 
         this.setupALeaderForIncomingWithOriginalFootprint(node);
@@ -429,7 +429,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     }
 
     // Make trailers visible, they should already have original sizes.
-    switch (flow.changes.type) {
+    switch (component.changes.type) {
       case changeType.removed:
         // Add back to trailer if not already here
         if (node.parentNode !== trailer) {
@@ -447,7 +447,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     if (node.ongoingAnimation) {
       // log("ongoing animation...");
       this.fixateOriginalInheritedStyles(node);
-      switch (flow.changes.type) {
+      switch (component.changes.type) {
         case changeType.resident:
           break;
         case changeType.added: 
@@ -462,7 +462,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       }
     } else {
       // log("new animation...");
-      switch (flow.changes.type) {
+      switch (component.changes.type) {
         case changeType.resident:
           break;
         case changeType.added: 
@@ -599,17 +599,17 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * Emulate original bounds
    */
-  emulateOriginalBounds(flow) {
-    // console.group("Emulate original bounds for " + this.changesChain(flow) + ": " + flow.toString());
-    const node = flow.domNode; 
+  emulateOriginalBounds(component) {
+    // console.group("Emulate original bounds for " + this.changesChain(component) + ": " + component.toString());
+    const node = component.domNode; 
     // log("trailer: " + node.trailer);
     // Do the FLIP animation technique
-    // Note: This will not happen for flows being removed (in earlier componentChanges.number). Should we include those here as well?
-    this.recordBoundsInNewStructure(flow.domNode);
-    switch(flow.changes.type) {
+    // Note: This will not happen for components being removed (in earlier componentChanges.number). Should we include those here as well?
+    this.recordBoundsInNewStructure(component.domNode);
+    switch(component.changes.type) {
       case changeType.moved:
       case changeType.resident:
-        this.translateToOriginalBoundsIfNeeded(flow);    
+        this.translateToOriginalBoundsIfNeeded(component);    
         break;
       default:
         break;  
@@ -634,37 +634,37 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     "color"
   ];
 
-  translateToOriginalBoundsIfNeeded(flow) {
+  translateToOriginalBoundsIfNeeded(component) {
     // TODO: Translate parents first in case of cascading moves? 
     
-    if (!sameBounds(flow.domNode.changes.originalBounds, flow.domNode.newStructureBounds)) {
-      flow.outOfPosition = true; 
+    if (!sameBounds(component.domNode.changes.originalBounds, component.domNode.newStructureBounds)) {
+      component.outOfPosition = true; 
 
-      // log("Not same bounds for " + flow.toString());   
-      // log(flow.domNode.changes.originalBounds)
-      // log(flow.domNode.newStructureBounds);  
-      const computedStyle = getComputedStyle(flow.domNode);
-      let currentTransform = getComputedStyle(flow.domNode).transform;
+      // log("Not same bounds for " + component.toString());   
+      // log(component.domNode.changes.originalBounds)
+      // log(component.domNode.newStructureBounds);  
+      const computedStyle = getComputedStyle(component.domNode);
+      let currentTransform = getComputedStyle(component.domNode).transform;
       // log(currentTransform);
       // This is for resident that have a transform already. In an animation already.
       if (!["none", "", " "].includes(currentTransform)) {
-        // log("Already have transform for " + flow.toString());     
+        // log("Already have transform for " + component.toString());     
         // Freeze properties as we start a new animation.
 
-        Object.assign(flow.domNode.style, extractProperties(computedStyle, this.animatedProperties));
+        Object.assign(component.domNode.style, extractProperties(computedStyle, this.animatedProperties));
 
         // Reset transform 
-        flow.domNode.style.transition = "";
-        flow.domNode.style.transform = "";
-        currentTransform = getComputedStyle(flow.domNode).transform;
-        this.recordBoundsInNewStructure(flow.domNode);
+        component.domNode.style.transition = "";
+        component.domNode.style.transform = "";
+        currentTransform = getComputedStyle(component.domNode).transform;
+        this.recordBoundsInNewStructure(component.domNode);
       }
 
-      flow.animateInChanges = componentChanges.number; 
-      this.translateFromNewToOriginalPosition(flow.domNode);
+      component.animateInChanges = componentChanges.number; 
+      this.translateFromNewToOriginalPosition(component.domNode);
 
       // Reflow
-      flow.domNode.getBoundingClientRect();
+      component.domNode.getBoundingClientRect();
     }
   }
 
@@ -725,14 +725,14 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * Activate animation 
    */
-  activateAnimation(flow) {
-    const node = flow.domNode;
+  activateAnimation(component) {
+    const node = component.domNode;
     const ongoingAnimation = node.ongoingAnimation;
-    const changes = flow.changes; 
+    const changes = component.changes; 
     const trailer = node.trailer; 
     const leader = node.leader;
     
-    // console.group("Activate for " + this.changesChain(flow) + ": " + flow.toString());
+    // console.group("Activate for " + this.changesChain(component) + ": " + component.toString());
     // log(`original properties: `);
     // log(extractProperties(node.style, this.typicalAnimatedProperties));
     if (node.leader) {
@@ -747,7 +747,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     // Animate node
     // log("ongoingAnimation: " + ongoingAnimation)
     if (ongoingAnimation) {
-      switch(flow.changes.type) {
+      switch(component.changes.type) {
         case changeType.added:
           this.targetPositionForZoomIn(node);
           this.targetSizeForLeader(node, node.leader);
@@ -758,8 +758,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
           break;
   
         case changeType.resident: 
-          if (flow.outOfPosition) {
-            delete flow.outOfPosition;
+          if (component.outOfPosition) {
+            delete component.outOfPosition;
             this.targetPositionForMovingInsideContainer(node);
             // Might be a leader or not, should work in both cases?
           } 
@@ -777,7 +777,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
           break; 
       }
     } else {
-      switch(flow.changes.type) {
+      switch(component.changes.type) {
         case changeType.added:
           this.targetPositionForZoomIn(node);
           this.targetSizeForLeader(node, node.leader);
@@ -786,10 +786,10 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
           break;
   
         case changeType.resident: 
-          // log("outOfPosition: " + flow.outOfPosition);
-          if (flow.outOfPosition) {
+          // log("outOfPosition: " + component.outOfPosition);
+          if (component.outOfPosition) {
             this.startAnimationChain(node);
-            delete flow.outOfPosition;            
+            delete component.outOfPosition;            
             this.targetPositionForMovingInsideContainer(node);
             // Might be a leader or not, should work in both cases?
           } 
@@ -811,7 +811,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     }
 
     // log("target properties: ");
-    // log(extractProperties(flow.domNode.style, this.typicalAnimatedProperties));
+    // log(extractProperties(component.domNode.style, this.typicalAnimatedProperties));
     if (leader) {
       // log(`leader: `);
       // log(extractProperties(leader.style, this.typicalAnimatedProperties));
@@ -891,8 +891,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   /**
    * Setup animation cleanyp
    */
-  setupAnimationCleanup(flow) {
-    const node = flow.domNode;
+  setupAnimationCleanup(component) {
+    const node = component.domNode;
     const cleanupNumber = getNewCleanupOrderNumber(node)
 
     // setTimeout(() => {

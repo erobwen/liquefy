@@ -356,7 +356,7 @@ export class ZoomDOMTransitionAnimation extends DOMTransitionAnimation {
    * However, removed nodes are still present at this point... maybe we should ensure added leaders for removed ones start out minimized?
    * Trailers should also be minimized at this point.
    */
-  domJustRebuiltMeasureRenderContextSizes(flow) {
+  domJustRebuiltMeasureTargetSizes(flow) {
     // console.group("Measure target size for " + this.changesChain(flow) + ": " + flow.toString());
     const node = flow.domNode;
     // log("trailer: " + node.trailer);

@@ -195,21 +195,43 @@ export function onFinishRenderingComponents() {
   componentChanges.globallyResident = {}; 
   componentChanges.globallyMoved = {};
   componentChanges.globallyRemoved = {};
+  
+  // componentChanges.structure = null; // TODO
+  // componentChanges.idToStructure = new Map()
 
   const idPrimitiveMap = componentChanges.idPrimitiveMap;
   const idParentIdMap = componentChanges.idParentIdMap;
 
-  function analyzePrimitives(idPrimitiveMap, primitiveFlow) {
-    idPrimitiveMap[primitiveFlow.id] = primitiveFlow;
-    idParentIdMap[primitiveFlow.id] = primitiveFlow.parentPrimitive;
+  function analyzePrimitives(idPrimitiveMap, primitiveComponent) {
+    idPrimitiveMap[primitiveComponent.id] = primitiveComponent;
+    idParentIdMap[primitiveComponent.id] = primitiveComponent.parentPrimitive;
   
-    for (let child of primitiveFlow.iteratePrimitiveChildren()) {
+    for (let child of primitiveComponent.iteratePrimitiveChildren()) {
       analyzePrimitives(idPrimitiveMap, child);
     }
   }
+
+  // function copyStructure(primitiveComponent, parent) {
+  //   const result = {
+  //     parent, 
+  //     children: [...mapIter(
+  //       primitiveComponent.iteratePrimitiveChildren(), 
+  //       (child) => copyStructure(child, primitiveComponent)
+  //     )]
+  //   }
+  //   componentChanges.idToStructure.set(primitiveComponent.id, result);
+  //   return result; 
+  // }
+
+  // function* mapIter(iterable, callback) {
+  //   for (let x of iterable) {
+  //     yield callback(x);
+  //   }
+  // }
   
   for (let context of getDomRenderContexts()) {
     analyzePrimitives(idPrimitiveMap, context.component.getPrimitive());
+    // componentChanges.structure = copyStructure(context.component.getPrimitive(), null) 
   }
   // console.log(idParentIdMap);
 
@@ -363,7 +385,7 @@ export function onFinishReBuildingDOM() {
   // Measure the final size of added and moved (do this before we start to emulate original)
   for (let component of componentChanges.allAnimatedComponents()) {
     if (component.domNode) {
-      component.getAnimation().domJustRebuiltMeasureRenderContextSizes(component);
+      component.getAnimation().domJustRebuiltMeasureTargetSizes(component);
     }
   }
   // if (inExperiment()) return;

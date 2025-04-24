@@ -10,6 +10,11 @@ import { button, paper, paperRow, paperColumn, textInputField } from "@liquefy/t
 const log = console.log;
 
 /**
+ * Animation setting 
+ */
+const animation = model({type: zoomAnimation}) 
+
+/**
  * Data model. 
  * Plain Javascript except call to "model()"
  */
@@ -121,7 +126,7 @@ export class SimpleDrawer extends Component {
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
     button(row(span(buttonLabel), buttonIcon, {style: {justifyContent: "space-between"}}), () => this.toggleOpen(), {style: {margin: "5px"}, ripple: true}),
-    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: true})
+    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: animation.type})
   );
  }
 }
@@ -206,6 +211,7 @@ export class ReactiveForm extends Component {
 
         // Model Data Display 
         column(
+          checkboxInputField("Animate", () => animation.type, (checked) => animation.type = checked ? zoomAnimation : null),
           text(JSON.stringify(this.editData, null, 4)),
           {style: {borderLeft: "1px", borderLeftStyle: "solid", borderLeftColor: "lightgray", backgroundColor: "#eeeeee"}}
         ),
@@ -215,13 +221,12 @@ export class ReactiveForm extends Component {
   }
 }
 
-
 export class TravelerForm extends Component {
   receive(properties) {
     Object.assign(this, {
       traveler: null,
       isFellowTraveller: null,
-      animate: true
+      animate: animation.type
     }, properties)
   }  
 
@@ -247,7 +252,7 @@ export class TravelerForm extends Component {
 
       // Child info
       checkboxInputField("Is Child", traveler, "isChild").show(this.isFellowTraveller),
-      numberInputField("Age", traveler, "age", {unit: "years"}).show(traveler.isChild),
+      numberInputField("Age", traveler, "age", {unit: "years", animate: animation.type}).show(traveler.isChild),
       
       // Adress
       column(
@@ -266,10 +271,10 @@ export class TravelerForm extends Component {
         content: column("luggage-panel",
           column("luggage-list", {
             children: this.traveler.luggages.map(luggage => new LuggageForm("id-" + luggage.causality.id, {luggage})),
-            animateChildren: true
+            animateChildren: animation.type
           })
         ),
-        animate: true
+        animate: animation.type
       }).show(this.traveler.luggages.length),
 
       // Add luggages button
@@ -288,7 +293,7 @@ export class TravelerForm extends Component {
             ripple: true,
             edge: false 
           }
-        ), { animate: true }
+        ), { animate: animation.type }
       ).show(!this.traveler.luggages.length || this.showLuggage)
     );
   }

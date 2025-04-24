@@ -793,7 +793,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
           break; 
       }
     } else {
-      switch(component.changes.type) {
+      // Why was this needed?
+      switch(component.changes.type) { // Note: Changes can be null
         case changeType.added:
           this.targetPositionForZoomIn(node);
           this.targetSizeForLeader(node, node.leader);

@@ -66,9 +66,9 @@ export function findImplicitInputFieldParameters(properties) {
   if (!properties.key) properties.key = properties.labelText;
   if (typeof(componentContent[0]) === "function") {
     properties.getter = componentContent.shift();
-    console.log("here")
+    // console.log("here")
     properties.setter = componentContent.shift();
-    console.log(properties.setter);
+    // console.log(properties.setter);
   } else {
     properties.targetObject = componentContent.shift();
     properties.targetProperty = componentContent.shift();

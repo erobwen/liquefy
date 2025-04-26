@@ -174,17 +174,21 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
     // Create a new leader
     const trailerOrLeader = document.createElement("div");
     trailerOrLeader.isControlledByAnimation = true; 
-    trailerOrLeader.style.position = "relative";
-    trailerOrLeader.style.overflow = "visible";
+    setStyleProperty(trailerOrLeader, "position", "relative");
+    setStyleProperty(trailerOrLeader, "overflow", "visible");
+    // trailerOrLeader.style.position = "relative";
+    // trailerOrLeader.style.overflow = "visible";
     return trailerOrLeader; 
   }
 
   hide(node) {
-    node.style.display = "none"; // For now! this will be removed after measuring target bounds.  
+    // node.style.display = "none"; // For now! this will be removed after measuring target bounds.
+    setStyleProperty(node, "display", "none");  
   }
 
   show(node) {
-    node.style.display = ""; // For now! this will be removed after measuring target bounds.  
+    // node.style.display = ""; // For now! this will be removed after measuring target bounds.  
+    setStyleProperty(node, "display", "");
   }
 
   /**
@@ -332,9 +336,10 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       trailer = this.createNewTrailer(node);
 
       // Note: We set width/height at this point because here we know if the leader was reused or not. If we do it later, we wont know that.  
-      trailer.style.width = node.changes.originalDimensions.widthIncludingMargin + "px"; // This will not be in effect until display != none  
-      trailer.style.height = node.changes.originalDimensions.heightIncludingMargin + "px";
-      registerFixation(trailer, ["width, height"])
+      // trailer.style.width = node.changes.originalDimensions.widthIncludingMargin + "px"; // This will not be in effect until display != none  
+      // trailer.style.height = node.changes.originalDimensions.heightIncludingMargin + "px";
+      setStyleProperty(trailer, "width", node.changes.originalDimensions.widthIncludingMargin + "px");
+      setStyleProperty(trailer, "height", node.changes.originalDimensions.heightIncludingMargin + "px");
       insertAfter(trailer, node);
     }
 
@@ -497,9 +502,9 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
 
   fixateOriginalInheritedStyles(node) {
     if ([changeType.added, changeType.removed, changeType.moved].includes(node.changes.type)) {
-      node.style.transition = "";
+      setStyleProperty(node, "transition", "")
       for (let property of inheritedProperties) {
-        node.style[property] = node.changes.computedOriginalStyle[property];
+        setStyleProperty(node, property, node.changes.computedOriginalStyle[property])
       }
     }
   }
@@ -516,8 +521,8 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       node.leader = leader;
       node.wrapper = leader; 
       // Note: We set width/height at this point because here we know if the leader was reused or not. If we do it later, we wont know that.  
-      if (this.animateLeaderWidth) leader.style.width = "0.0001px"; 
-      if (this.animateLeaderHeight) leader.style.height = "0.0001px";
+      if (this.animateLeaderWidth) setStyleProperty(leader, "width", "0.0001px"); 
+      if (this.animateLeaderHeight) setStyleProperty(leader, "height", "0.0001px");
       insertAfter(leader, node);
     }
 
@@ -565,14 +570,14 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   }
 
   fixateOriginalTransformAndOpacity(node) {
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: node.changes.computedOriginalStyle.transform,
       opacity: node.changes.computedOriginalStyle.opacity,
     });
   }
 
   originalPositionForZoomIn(node) {
-    Object.assign(node.style, {
+    assignToStyle(node, {
       position: "absolute", 
       transform: "matrix(0.0001, 0, 0, 0.0001, 0, 0)",//transform, //"matrix(1, 0, 0, 1, 0, 0)", //
       // This is to make the absolute positioned added node to have the right size.
@@ -583,7 +588,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   }
     
   originalPositionForZoomOut(node) {
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: "matrix(1, 0, 0, 1, 0, 0)",
       position: "absolute", 
       // This is to make the absolute positioned added node to have the right size.
@@ -594,7 +599,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   }
 
   originalPositionForMoveAndResize(node) {
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: "matrix(1, 0, 0, 1, 0, 0)",
       position: "absolute", 
       // This is to make the absolute positioned added node to have the right size.
@@ -670,8 +675,9 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
         Object.assign(component.domNode.style, extractProperties(computedStyle, this.animatedProperties));
 
         // Reset transform 
-        component.domNode.style.transition = "";
-        component.domNode.style.transform = "";
+        
+        setStyleProperty(component.domNode, "transition", "");
+        setStyleProperty(component.domNode, "transform", "");
         currentTransform = getComputedStyle(component.domNode).transform;
         this.recordBoundsInNewStructure(component.domNode);
       }
@@ -685,7 +691,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   }
 
   translateFromNewToOriginalPosition(node) {
-    node.style.transition = "";
+    setStyleProperty(node, "transition", "");
 
     // // Origin bouds... really use?
     // const defaultOrigin = {top: 0, left: 0};
@@ -707,7 +713,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
  
     const transform = "matrix(1, 0, 0, 1, " + -deltaX + ", " + -deltaY + ")";
     // log(transform);
-    node.style.transform = transform;
+    setStyleProperty(node, "transform", transform);
     // log(node.style.transform)
     // log("transform:")
     // log(node.style.transform);
@@ -841,16 +847,16 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   }
 
   targetSizeForLeader(node, leader) {
-    leader.style.transition = this.leaderTransition();
+    setStyleProperty(leader, "transition", this.leaderTransition());
     const style = {};
     if (this.animateLeaderHeight) style.height = node.changes.targetDimensions.heightIncludingMargin + "px"; 
     if (this.animateLeaderWidth) style.width = node.changes.targetDimensions.widthIncludingMargin + "px"; 
-    Object.assign(leader.style, style);
+    assignToStyle(leader, style);
   }
 
   targetSizeForTrailer(trailer) {
     trailer.style.transition = this.leaderTransition();
-    Object.assign(trailer.style, {
+    assignToStyle(trailer, {
       width: "0.0001px",
       height: "0.0001px"
     });
@@ -858,7 +864,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
 
   targetPositionForZoomIn(node) {
     node.style.transition = this.addedTransition();
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: "matrix(1, 0, 0, 1, 0, 0)",
       opacity: "1"
     });
@@ -867,14 +873,14 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   targetPositionForMovingInsideContainer(node) {
     // No leader or trailer that needs animation. Just ensure we want to move to a resting place in case we got translated. Should we check this?  
     node.style.transition = this.defaultTransition(node);
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: "matrix(1, 0, 0, 1, 0, 0)"
     });
   }
  
   targetPositionForMoved(node) {
     node.style.transition = this.defaultTransition();
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: "matrix(1, 0, 0, 1, 0, 0)"
     });
     this.setInheritedRenderContextStyles(node);
@@ -883,7 +889,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
 
   targetPositionForZoomOut(node) {
     node.style.transition = this.removeTransition();
-    Object.assign(node.style, {
+    assignToStyle(node, {
       transform: "matrix(0.0001, 0, 0, 0.0001, 0, 0)",
       opacity: "0.001"
     });
@@ -892,7 +898,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
   setInheritedRenderContextStyles(node) {
     // Fixate environment dependent styles
     for (let property of inheritedProperties) {
-      node.style[property] = node.changes.computedRenderContextStyle[property];
+      setStyleProperty(node, property, node.changes.computedRenderContextStyle[property]);
     }    
   }
 
@@ -916,7 +922,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       node,
       cleanupNumber,
       () => {
-        node.equivalentCreator.synchronizeDomNodeStyle(["transition", "transform", "width", "height", "position", "opacity", ...inheritedProperties]);
+        node.equivalentCreator.synchronizeDomNodeStyle(Object.keys(getFixations(node))); //["transition", "transform", "width", "height", "position", "opacity", ...inheritedProperties]
         this.endAnimationChain(node);
       }
     );
@@ -928,7 +934,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
         () => {
           leader.removeChild(node);
           leader.parentNode.replaceChild(node, leader);
-          node.equivalentCreator.synchronizeDomNodeStyle(["position"]);
+          // node.equivalentCreator.synchronizeDomNodeStyle(["position"]);
           delete leader.isControlledByAnimation;
           this.detatchLeaderOwner(leader)
           delete node.wrapper;
@@ -1013,21 +1019,29 @@ export const standardAnimation = zoomFlyAnimation;
 
 function fixateWidthAndHeight(node) {
   const bounds = node.getBoundingClientRect();
-  // Fixate size, it might get reset after setting display none? 
-  node.style.width = bounds.width + "px";
-  node.style.height = bounds.height + "px";
-  registerFixation(node, ["width", "height"])
+  // Fixate size, it might get reset after setting display none?
+  assignToStyle(node, {
+    width: bounds.width + "px",
+    height: bounds.height + "px"
+  }) 
 }
 
-function registerFixation(node, fixed) {
+function setStyleProperty(node, style, value) {
+  node.style[style] = value
+  getFixations(node)[style] = value;
+}
+
+function assignToStyle(node, styles) {
+  Object.assign(node.style, styles);
+  const fixations = getFixations(node)
+  for (let property in styles) {
+    fixations[property] = true;
+  }
+}
+
+function getFixations(node) {
   if (typeof(node.fixated) === "undefined") {
-    node.fixated = [];
+    node.fixated = {};
   }
-  for (let property in fixed) {
-    node.fixated.push(property)
-  }
-}
-
-function getNewCleanupOrderNumber(node) {
-  return componentChanges.number
+  return node.fixated;
 }

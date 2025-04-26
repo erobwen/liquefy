@@ -1,6 +1,7 @@
 import { Component, transaction, model, callback, getFlowProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
+import { naturalSizeStyle} from "@liquefy/basic-ui";
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
@@ -10,9 +11,9 @@ import { button, paper, paperRow, paperColumn, textInputField } from "@liquefy/t
 const log = console.log;
 
 /**
- * Animation setting 
+ * Configuration 
  */
-const animation = model({type: zoomAnimation}) 
+const configuration = model({animation: zoomAnimation}) 
 
 /**
  * Data model. 
@@ -126,7 +127,7 @@ export class SimpleDrawer extends Component {
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
     button(row(span(buttonLabel), buttonIcon, {style: {justifyContent: "space-between"}}), () => this.toggleOpen(), {style: {margin: "5px"}, ripple: true}),
-    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: animation.type})
+    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: configuration.animation})
   );
  }
 }
@@ -211,8 +212,12 @@ export class ReactiveForm extends Component {
 
         // Model Data Display 
         column(
-          checkboxInputField("Animate", () => animation.type, (checked) => animation.type = checked ? zoomAnimation : null),
-          text(JSON.stringify(this.editData, null, 4)),
+          checkboxInputField("Animate", () => configuration.animation, (checked) => configuration.animation = checked ? zoomAnimation : null, 
+            {style: naturalSizeStyle}),
+          div(
+            text(JSON.stringify(this.editData, null, 4)),
+            {style: fillerStyle}
+          ),
           {style: {borderLeft: "1px", borderLeftStyle: "solid", borderLeftColor: "lightgray", backgroundColor: "#eeeeee"}}
         ),
         { style: this.style }
@@ -226,7 +231,7 @@ export class TravelerForm extends Component {
     Object.assign(this, {
       traveler: null,
       isFellowTraveller: null,
-      animate: animation.type
+      animate: configuration.animation
     }, properties)
   }  
 
@@ -252,7 +257,7 @@ export class TravelerForm extends Component {
 
       // Child info
       checkboxInputField("Is Child", traveler, "isChild").show(this.isFellowTraveller),
-      numberInputField("Age", traveler, "age", {unit: "years", animate: animation.type}).show(traveler.isChild),
+      numberInputField("Age", traveler, "age", {unit: "years", animate: configuration.animation}).show(traveler.isChild),
       
       // Adress
       column(
@@ -271,10 +276,10 @@ export class TravelerForm extends Component {
         content: column("luggage-panel",
           column("luggage-list", {
             children: this.traveler.luggages.map(luggage => new LuggageForm("id-" + luggage.causality.id, {luggage})),
-            animateChildren: animation.type
+            animateChildren: configuration.animation
           })
         ),
-        animate: animation.type
+        animate: configuration.animation
       }).show(this.traveler.luggages.length),
 
       // Add luggages button
@@ -293,7 +298,7 @@ export class TravelerForm extends Component {
             ripple: true,
             edge: false 
           }
-        ), { animate: animation.type }
+        ), { animate: configuration.animation }
       ).show(!this.traveler.luggages.length || this.showLuggage)
     );
   }

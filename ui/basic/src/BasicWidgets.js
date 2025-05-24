@@ -46,35 +46,7 @@ export function label(...parameters) {
   return htmlLabel(properties)
 }
 
-/**
- * Shorthand parameter list for input fields. 
- * 
- * labelText, getter, setter
- * 
- * OR
- * 
- * labelText, targetObject, targetProperty
- * 
- * Extra feature: labelText will double as a key if you have no other key given. 
- */
 
-// export function findImplicitInputFieldParameters(properties) {
-//   const componentContent = extractProperty(properties, "componentContent");
-//   if (!componentContent) return properties;
-//   if (!componentContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
-
-//   properties.labelText = componentContent.shift();
-//   if (!properties.key) properties.key = properties.labelText;
-//   if (typeof(componentContent[0]) === "function") {
-//     properties.getter = componentContent.shift();
-//     // console.log("here")
-//     properties.setter = componentContent.shift();
-//     // console.log(properties.setter);
-//   } else {
-//     properties.targetObject = componentContent.shift();
-//     properties.targetProperty = componentContent.shift();
-//   }
-// }
 
 
 /**
@@ -117,21 +89,12 @@ export function inputField(properties) {
   let labelText = extractProperty(properties, "labelText");
   let getter = extractProperty(properties, "getter");
   let setter = extractProperty(properties, "setter");
-  const targetObject = extractProperty(properties, "targetObject");
-  const targetProperty = extractProperty(properties, "targetProperty");
+  let getErrors = extractProperty(properties, "getErrors");
 
-  if (!getter && targetObject) {
-    properties.key = properties.key + "." + targetObject.causality.id + "." + targetProperty;
-    getter = callback(properties.key + ".getter", () => targetObject[targetProperty]);
-    setter = callback(properties.key + ".setter", newValue => { targetObject[targetProperty] = (type === "number") ? parseInt(newValue) : newValue;})
-  }
+  let errors;
 
-  // Cannot function as both key and label.... hmm.... or can it! 
-  // let key;
-  let error;
-
-  if (targetObject) {
-    error = targetObject[targetProperty + "Error"];
+  if (getErrors) {
+    errors = getErrors();
   }
 
   const inputAttributes = properties.inputProperties ? properties.inputProperties : {};
@@ -148,8 +111,8 @@ export function inputField(properties) {
     checked: getter(),
     type,
     style: {
-      backgroundColor: error ? "rgba(255, 240, 240, 255)" : "white",
-      borderColor: "rgba(200, 200, 200, 20)", //error ? "red" : 
+      backgroundColor: errors ? "rgba(255, 240, 240, 255)" : "white",
+      borderColor: "rgba(200, 200, 200, 20)", //errors ? "red" : 
       borderStyle: "solid",
       borderWidth: "1px" 
     },

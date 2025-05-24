@@ -1,5 +1,18 @@
 import { extractProperty, callback } from "@liquefy/flow.core";
 
+
+/**
+ * Shorthand parameter list for input fields. 
+ * 
+ * labelText, getter, setter
+ * 
+ * OR
+ * 
+ * labelText, targetObject, targetProperty
+ * 
+ * Extra feature: labelText will double as a key if you have no other key given. 
+ */
+
 export function findImplicitTextInputFieldParameters(properties) {
   properties.type = "text";
   return findImplicitInputFieldParameters(properties);
@@ -26,11 +39,13 @@ function findImplicitInputFieldParameters(properties) {
     properties.getter = componentContent.shift();
     if (typeof(componentContent[0]) !== "function") throw new Error("No setter found for input field.");
     properties.setter = componentContent.shift();
+    properties.getErrors = componentContent.shift();
   } else {
     const targetObject = componentContent.shift();
     const targetProperty = componentContent.shift();
     properties.key = properties.key + "." + targetObject.causality.id + "." + targetProperty;
     properties.getter = callback(properties.key + ".getter", () => targetObject[targetProperty]);
     properties.setter = callback(properties.key + ".setter", newValue => { targetObject[targetProperty] = (properties.type === "number") ? parseInt(newValue) : newValue;})
+    properties.getErrors = callback(properties.key + ".getErrors", () => targetObject.errors ? targetObject.errors[targetProperty] : null)
   }
 }

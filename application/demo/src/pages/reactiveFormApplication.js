@@ -104,11 +104,17 @@ function verifyAdress(adress) {
 
 function verifyFieldNotEmpty(object, property, requestedDataMessage) {
   if (object[property] === "") {
-    object[property + "Error"] = "Please enter " + requestedDataMessage + ".";
+    if (typeof(object.errors) === "undefined") {
+      object.errors = model({});
+    }
+    object.errors[property] = "Please enter " + requestedDataMessage + ".";
     return true;
-  } else {
-    delete object[property + "Error"];
+  } else if (object.errors && object.errors[property]) {
+    delete object.errors[property];
+    if (Object.keys(object.errors).length === 0) delete object.errors; 
     return false;
+  } else {
+    return false; 
   }
 }
 

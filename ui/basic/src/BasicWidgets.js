@@ -1,3 +1,4 @@
+import { findImplicitTextInputFieldParameters, findImplicitNumberInputFieldParameters, findImplicitCheckboxInputFieldParameters } from "@liquefy/ui-abstract";
 import { trace, Component, callback } from "@liquefy/flow.core";
 import { getRenderContext } from "@liquefy/flow.core";
 import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
@@ -57,23 +58,23 @@ export function label(...parameters) {
  * Extra feature: labelText will double as a key if you have no other key given. 
  */
 
-export function findImplicitInputFieldParameters(properties) {
-  const componentContent = extractProperty(properties, "componentContent");
-  if (!componentContent) return properties;
-  if (!componentContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
+// export function findImplicitInputFieldParameters(properties) {
+//   const componentContent = extractProperty(properties, "componentContent");
+//   if (!componentContent) return properties;
+//   if (!componentContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 
 
-  properties.labelText = componentContent.shift();
-  if (!properties.key) properties.key = properties.labelText;
-  if (typeof(componentContent[0]) === "function") {
-    properties.getter = componentContent.shift();
-    // console.log("here")
-    properties.setter = componentContent.shift();
-    // console.log(properties.setter);
-  } else {
-    properties.targetObject = componentContent.shift();
-    properties.targetProperty = componentContent.shift();
-  }
-}
+//   properties.labelText = componentContent.shift();
+//   if (!properties.key) properties.key = properties.labelText;
+//   if (typeof(componentContent[0]) === "function") {
+//     properties.getter = componentContent.shift();
+//     // console.log("here")
+//     properties.setter = componentContent.shift();
+//     // console.log(properties.setter);
+//   } else {
+//     properties.targetObject = componentContent.shift();
+//     properties.targetProperty = componentContent.shift();
+//   }
+// }
 
 
 /**
@@ -95,22 +96,19 @@ export function findImplicitInputFieldParameters(properties) {
  */
 export function checkboxInputField(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.type = "checkbox";
-  findImplicitInputFieldParameters(properties);
+  findImplicitCheckboxInputFieldParameters(properties);
   return inputField(properties);
 }
 
 export function numberInputField(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.type = "number";
-  findImplicitInputFieldParameters(properties);
+  findImplicitNumberInputFieldParameters(properties);
   return inputField(properties);
 }
 
 export function textInputField(...parameters) {
   const properties = getFlowProperties(parameters);
-  properties.type = "text";
-  findImplicitInputFieldParameters(properties);
+  findImplicitTextInputFieldParameters(properties);
   return inputField(properties);
 }
 

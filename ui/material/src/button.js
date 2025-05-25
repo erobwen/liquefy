@@ -1,4 +1,5 @@
-import { getFlowProperties, findImplicitChildrenAndOnClick, getRenderContext } from "@liquefy/flow.core"
+import { getFlowProperties, getRenderContext } from "@liquefy/flow.core"
+import { findImplicitChildrenAndOnClick } from "@liquefy/flow.DOM"
 import "./materialAndIcons.css";
 import "./button.css";
 import 'mdui/mdui.css';

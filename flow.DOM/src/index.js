@@ -114,6 +114,8 @@ import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleT
 import { DOMRenderContext} from "./DOMRenderContext"
 import { mostAbstractComponent, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
+import { findImplicitChildrenAndOnClick, getButtonProperties, getInputProperties, findImplicitInputFieldParameters } from "./implicitProperties";
+
 
 // Animation
 import { installDOMAnimation, resetDOMAnimation, freezeComponentChanges, unfreezeComponentChanges, logProperties, componentChanges, previousComponentChanges, changeType, onFinishRenderingComponents, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation";
@@ -273,6 +275,12 @@ export {
     capHeight, 
     getFontSizeToCapHeightRatio, 
     getGoldenRatioTopPadding, 
+
+    // Implicit properties
+    getButtonProperties,
+    findImplicitChildrenAndOnClick,
+    getInputProperties, 
+    findImplicitInputFieldParameters,
 
     // Animation
 

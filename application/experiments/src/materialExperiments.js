@@ -1,17 +1,18 @@
-import { observable, repeat, Component, getFlowProperties, findImplicitChildrenAndOnClick, getRenderContext } from "@liquefy/flow.core"
-import { div, DOMRenderContext } from "@liquefy/flow.DOM"
-import { findImplicitInputFieldParameters } from "@liquefy/basic-ui"
+import { observable, deeplyObservable, repeat, Component, getFlowProperties, getRenderContext } from "@liquefy/flow.core"
+import { div, text, DOMRenderContext, getInputProperties, getButtonProperties } from "@liquefy/flow.DOM"
 import "./materialExperiments.css";
-import { MdOutlinedButton, MdOutlinedIconButton, MdTextButton } from '@material/web/all.js';
+import { MdOutlinedIconButton, MdTextButton } from '@material/web/all.js';
 
 import 'mdui/mdui.css';
 import 'mdui';
 //import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
 
 console.log(MdTextButton)
-const data = observable({value: 42})
+const data = deeplyObservable({value: "something"})
+const data2 = deeplyObservable({value: 142})
 console.log(data)
 repeat(() => {
+  console.log("DATA CHANGED!!!!")
   console.log(data.value)
 })
 
@@ -29,7 +30,9 @@ class MaterialExperiment extends Component {
       div(
         button("Button Text", () => {console.log("clicked me!")}),
         icon({name: "delete"}),
-        input("Something", observable, "value")
+        input("Something", data, "value", {style: {marginBottom: "10px"}}),
+        input("Something else", data2, "value", {type: "number", variant: "outlined"}), 
+        text(data.value)
       )
     )
   }
@@ -66,47 +69,75 @@ const icon = (...parameters) => {
  * Button component
  */
 const button = (...parameters) => {
-  const properties = buttonParametersToProperties(parameters);
+  const properties = getButtonProperties(parameters);
   const keyPrefix = properties.key;
   return getRenderContext().primitive({type: "elementNode", tagName: "mdui-button", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, ...properties})
 }
 
-const buttonParametersToProperties = (parameters) => {
-  const properties = getFlowProperties(parameters);
-  findImplicitChildrenAndOnClick(properties);
-  return properties; 
-}
 
 
 /**
  * Input experiment
  */
-// const input = (...parameters) => {
-//   const properties = findImplicitInputFieldParameters(parameters);
-//   const keyPrefix = properties.key;
-//   return getRenderContext().primitive({type: "elementNode", tagName: "mdui-text-field", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, ...properties})
-// }
+const input = (...parameters) => {
+    const properties = getInputProperties(parameters);
 
-const input = (...parameters) => new Input(...parameters)
-
-class Input extends Component {
-  
-  readParameters(parameters) {
-    return findImplicitInputFieldParameters(parameters)
-  }
-
-  receive(properties) {
-    this.properties = properties
-  }
-
-  render() {
-    const keyPrefix = this.properties.key;
+    const {key, labelText, setter, getter, ...attributes} = properties;
     return getRenderContext().primitive({
-      onChange: (event) => console.log(event),
-      type: "elementNode", 
+      key: key + ".text", 
+      type: "elementNode",
       tagName: "mdui-text-field", 
-      key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, 
-      ...this.properties
-    })
-  }
+      attributes: {
+        inputmode: "numeric",
+        vaueAsNumber: 220,
+        onInput: (event) => setter(event.target.value),
+        value: getter(),
+        label: labelText,
+        type: "password",
+        ...attributes
+      }
+    });
 }
+
+
+// type	type		'text' | 'number' | 'password' | 'url' | 'email' | 'search' | 'tel' | 'hidden' | 'date' | 'datetime-local' | 'month' | 'time' | 'week'
+
+// inputmode	inputmode		'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
+
+
+
+
+// class Input extends Component {
+  
+//   readParameters(parameters) {
+//     console.log(parameters);
+//     const properties = getFlowProperties(parameters);
+//     console.log({...properties});
+//     findImplicitTextInputFieldParameters(properties);
+//     console.log({...properties});
+//     return properties; 
+//   }
+
+//   receive({labelText, setter, getter, ...attributes}) {
+//     this.labelText = labelText; 
+//     this.setter = setter; 
+//     this.getter = getter;
+//     this.attributes = attributes;
+//   }
+
+//   render() {
+//     console.log(attributes);
+//     return getRenderContext().primitive({
+//       key: this.key + ".text", 
+//       type: "elementNode",
+//       tagName: "mdui-text-field", 
+//       attributes: {
+//         onInput: (event) => this.setter(event.target.value),
+//         value: this.getter(),
+//         label: this.labelText,
+//         type: "number",
+//         ...this.attributes
+//       }
+//     })
+//   }
+// }

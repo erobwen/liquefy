@@ -1,12 +1,14 @@
 import { Component } from "@liquefy/flow.core";
 import { text, DOMRenderContext } from "@liquefy/flow.DOM";
 import { centerMiddle, column, fitContainerStyle } from "@liquefy/basic-ui";
-import { modernButton } from "@liquefy/modern-ui";
 
 import { button, textInputField } from "@liquefy/themed-ui";
-import { setModernUIAsTheme } from "@liquefy/modern-ui";
-import { setBasicUIAsTheme, checkboxInputField } from "@liquefy/basic-ui";
+import { modernTheme } from "@liquefy/modern-ui";
+import { checkboxInputField } from "@liquefy/basic-ui";
 import { applicationMenuFrame, fillerStyle, layoutBorderStyle } from "@liquefy/basic-ui";
+import { basicTheme } from "@liquefy/basic-ui";
+import { assignGlobalTheme } from "@liquefy/themed-ui";
+
 
 const log = console.log;
 
@@ -21,11 +23,7 @@ class ThemeTest extends Component {
       this.button = button("Test1", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}});
     });
     this.ensure(() => {
-      if (this.modernTheme) {
-        setModernUIAsTheme()
-      } else {
-        setBasicUIAsTheme();
-      }
+      assignGlobalTheme(this.modernTheme ? modernTheme : basicTheme)
     }) 
   }
 

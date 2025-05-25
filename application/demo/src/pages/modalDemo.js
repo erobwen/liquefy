@@ -72,7 +72,7 @@ export class Dialog extends Component {
  */
 export class ModalExample extends Component {
   // Lifecycle function build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
-  receive({}) {
+  receive() {
     // Object.assign(this, properties)
     this.name = "Modal Dialogs";
   }

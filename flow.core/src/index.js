@@ -2,7 +2,7 @@
 import { world, transaction, observable, deeplyObservable, isObservable, repeat, finalize, withoutRecording, sameAsPreviousDeep, workOnPriorityLevel, invalidateOnChange, postponeInvalidations, continueInvalidations, state, model, configuration, setFlowConfiguration, trace, traceAnimation, traceWarnings, activeTrace, activeTraceModel, when, callback } from "./Flow";
 import { Component } from "./Component";
 import { creators, getCreator, getRenderContext, inherit, globalContext, modifyGlobalContext } from "./buildContext";
-import { findImplicitChildren, findImplicitChildrenAndOnClick, getFlowProperties, getFlowPropertiesIncludingChildren, extractProperty, extractProperties} from "./flowParameters";
+import { findImplicitChildren, getFlowProperties, getFlowPropertiesIncludingChildren, createTextNodesFromStringChildren, extractProperty, extractProperties} from "./implicitProperties";
 import { PrimitiveComponent } from "./PrimitiveComponent"
 import { RenderContext } from "./RenderContext"
 import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator, logMark, isUpperCase, draw, camelCased } from "./utility"
@@ -46,13 +46,13 @@ export {
     globalContext,
     modifyGlobalContext,
 
-    // flowParameters.js
+    // implicitProperties.js
     extractProperty,
     extractProperties,
-    findImplicitChildren, 
-    findImplicitChildrenAndOnClick,
+    findImplicitChildren,
     getFlowPropertiesIncludingChildren,
     getFlowProperties,
+    createTextNodesFromStringChildren,
     
     // PrimitiveComponent.js
     PrimitiveComponent,

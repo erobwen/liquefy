@@ -10,9 +10,10 @@ import { startModalDemo } from "./pages/modalDemo.js";
 import { startPortalDemo } from "./pages/portalDemo.js";
 
 import { logMark } from "@liquefy/flow.core";
-import { setBasicUIAsTheme } from "@liquefy/basic-ui";
+import { basicTheme } from "@liquefy/basic-ui";
+import { assignGlobalTheme } from "@liquefy/themed-ui";
 
-setBasicUIAsTheme();
+assignGlobalTheme(basicTheme);
 
 // Setup flow 
 setFlowConfiguration({

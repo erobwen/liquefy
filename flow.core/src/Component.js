@@ -1,4 +1,4 @@
-import { getFlowProperties, findImplicitChildren, getFlowPropertiesIncludingChildren } from "./flowParameters.js";
+import { getFlowProperties, findImplicitChildren, getFlowPropertiesIncludingChildren } from "./implicitProperties.js";
 import { creators, getCreator, globalContext } from "./buildContext.js";
 import { renderComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
 const log = console.log;

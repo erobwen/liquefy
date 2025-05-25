@@ -3,7 +3,7 @@ import { getFlowProperties } from "@liquefy/flow.core";
 
 import { div, elementNode } from "@liquefy/flow.DOM";
 import { logMark } from "@liquefy/flow.core";
-import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/flowParameters";
+import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/implicitProperties";
 const log = console.log;
 
 /**

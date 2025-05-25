@@ -1,7 +1,10 @@
 import { themeTest } from "./themeTest"
 import { configuration, model, setFlowConfiguration } from "@liquefy/flow.core";
-import { setBasicUIAsTheme } from "@liquefy/basic-ui";
+import { basicTheme } from "@liquefy/basic-ui";
+import { assignGlobalTheme } from "@liquefy/themed-ui";
 import { materialExperiment } from "./materialExperiments";
+
+// assignGlobalTheme(basicTheme);
 
 setFlowConfiguration({
   traceReactivity: true,
@@ -17,7 +20,6 @@ setFlowConfiguration({
 // startPatternMatching();
 // startHelloWorld();
 
-//setBasicUIAsTheme();
 //themeTest();
 
 materialExperiment();

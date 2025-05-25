@@ -1,4 +1,5 @@
-import { getFlowPropertiesIncludingChildren, findImplicitChildrenAndOnClick, getFlowProperties } from "@liquefy/flow.core";
+import { getFlowPropertiesIncludingChildren, getFlowProperties } from "@liquefy/flow.core";
+import { getButtonProperties } from "./implicitProperties";
 import { elementNode } from "./DOMElementNode";
 
 /**
@@ -99,15 +100,15 @@ export const tfoot = (...parameters) => taggedElement("tfoot", parameters);
 export const th = (...parameters) => taggedElement("th", parameters);
 export const thead = (...parameters) => taggedElement("thead", parameters);
 export const tr = (...parameters) => taggedElement("tr", parameters);
-export function button(...parameters) {
-  const properties = getFlowProperties(parameters);
-  findImplicitChildrenAndOnClick(properties);
-  return elementNode({tagName: "button", componentTypeName: "button", ...properties})
-}
+export const button = (...parameters) => elementNode({
+  tagName: "button", 
+  componentTypeName: "button", 
+  ...getButtonProperties(parameters)
+})
 export const datalist = (...parameters) => taggedElement("datalist", parameters);
 export const fieldset = (...parameters) => taggedElement("fieldset", parameters);
 export const form = (...parameters) => taggedElement("form", parameters);
-export const input = (...parameters) => taggedElement("input", parameters);
+export const input = (...parameters) => taggedElement("input", parameters); // TODO: use getInputProperties()
 export const label = (...parameters) => taggedElement("label", parameters);
 export const legend = (...parameters) => taggedElement("legend", parameters);
 export const meter = (...parameters) => taggedElement("meter", parameters);

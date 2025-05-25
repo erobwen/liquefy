@@ -135,13 +135,13 @@ export function getWidthIncludingMargin(node) {
     if (!this.buildDOMRepeater) {
       // this.buildDOMRepeater = repeat(mostAbstractComponent(this).toString() + ".buildDOMRepeater", (repeater) => {
       this.buildDOMRepeater = repeat("[" + aggregateToString(this) + "].buildDOMRepeater", (repeater) => {
-        if (trace) console.group(repeater.causalityString());
+        // if (trace) console.group(repeater.causalityString());
         
         this.ensureDomNodeExists();
         this.ensureDomNodeAttributesSet();
         this.ensureDomNodeChildrenInPlace();
         
-        if (trace) console.groupEnd();  
+        // if (trace) console.groupEnd();  
       }, {priority: updateDOMTime});
     }
     return this.domNode;

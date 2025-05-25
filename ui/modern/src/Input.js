@@ -1,7 +1,5 @@
-import { findImplicitChildrenAndOnClick, getFlowProperties, Component } from "@liquefy/flow.core";
-import { button } from "@liquefy/basic-ui";
-
-import { adjustLightness, grayColor } from "./Color";
+import { getFlowProperties, Component } from "@liquefy/flow.core";
+import { findImplicitChildrenAndOnClick } from "@liquefy/flow.DOM";
 
 const log = console.log; 
 

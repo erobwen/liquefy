@@ -48,39 +48,7 @@ export function findImplicitChildren(properties) {
   return properties;
 }
 
-export function findImplicitChildrenAndOnClick(properties) {
-  const componentContent = extractProperty(properties, "componentContent");
-  if (!componentContent) return properties;
-  
-  let children = null;
-  let onClick = null;
-  for (let item of componentContent) {
-    if (typeof item === "function") {
-      if (onClick) throw new Error("Can only have one onClick function as flow content.");
-      onClick = item; 
-    } else {
-      if (!children) children = [];
-      children.push(item);
-    }
-  }
-  if (onClick) {
-    if (properties.onClick) {
-      throw new Error("implicitly defined onClick already defined explicitly in properties.");
-    }
-    properties.onClick = onClick;
-  }
-  // if (!properties.onClick) throw new Error("Expected onClick defined as a property.");
-  if (children) {
-    if (properties.children) {
-      throw new Error("implicitly defined children already defined explicitly in properties.");
-    }
-    properties.children = children;
-  }
-  createTextNodesFromStringChildren(properties, properties.key);
-  return properties;
-}
-
-function createTextNodesFromStringChildren(properties, keyPrefix) {
+export function createTextNodesFromStringChildren(properties, keyPrefix) {
   if (!properties.children) return;
 
   let stamp = 1;

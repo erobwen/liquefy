@@ -1,12 +1,8 @@
-import { findImplicitTextInputFieldParameters, findImplicitNumberInputFieldParameters, findImplicitCheckboxInputFieldParameters } from "@liquefy/ui-abstract";
-import { trace, Component, callback } from "@liquefy/flow.core";
-import { getRenderContext } from "@liquefy/flow.core";
-import { getFlowProperties, findImplicitChildrenAndOnClick, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
-
-import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { trace, callback, getFlowProperties, getRenderContext } from "@liquefy/flow.core";
+import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties, findImplicitChildrenAndOnClick, getButtonProperties, getInputProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
-import { extractProperty } from "../../../flow.core/src/flowParameters.js";
+import { extractProperty } from "../../../flow.core/src/implicitProperties.js";
 
 const log = console.log;
 
@@ -67,20 +63,20 @@ export function label(...parameters) {
  * [labelText, targetObject, targetProperty]
  */
 export function checkboxInputField(...parameters) {
-  const properties = getFlowProperties(parameters);
-  findImplicitCheckboxInputFieldParameters(properties);
+  const properties = getInputProperties(parameters);
+  properties.type = "checkbox";
   return inputField(properties);
 }
 
 export function numberInputField(...parameters) {
-  const properties = getFlowProperties(parameters);
-  findImplicitNumberInputFieldParameters(properties);
+  const properties = getInputProperties(parameters);
+  properties.type = "number";
   return inputField(properties);
 }
 
 export function textInputField(...parameters) {
-  const properties = getFlowProperties(parameters);
-  findImplicitTextInputFieldParameters(properties);
+  const properties = getInputProperties(parameters);
+  properties.type = "text";
   return inputField(properties);
 }
 
@@ -136,13 +132,7 @@ export function inputField(properties) {
   return row({style: {alignItems: "center", padding: "4px", ...properties.style}, children, ...properties}, );
 }
 
-// export const button = modernButton;
 
-export const getButtonProperties = (parameters) => {
-  const properties = getFlowProperties(parameters);
-  findImplicitChildrenAndOnClick(properties);
-  return properties; 
-}
 
 export function button(...parameters) { 
   const properties = getButtonProperties(parameters)

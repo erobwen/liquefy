@@ -17,9 +17,9 @@ import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout";
 import { PortalExample } from "./pages/portalDemo";
 import { ModalExample } from "./pages/modalDemo";
 
-import { button, textInputField } from "@liquefy/themed-ui";
-import { setModernUIAsTheme } from "@liquefy/modern-ui";
-import { setBasicUIAsTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
+import { button, textInputField, assignGlobalTheme } from "@liquefy/themed-ui";
+import { modernTheme } from "@liquefy/modern-ui";
+import { basicTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
 
 const log = console.log;
 
@@ -56,9 +56,9 @@ export class Demo extends Component {
 
     this.ensure(() => {
       if (this.modernTheme) {
-        setModernUIAsTheme()
+        assignGlobalTheme(modernTheme);
       } else {
-        setBasicUIAsTheme();
+        assignGlobalTheme(basicTheme);
       }
     })
   }

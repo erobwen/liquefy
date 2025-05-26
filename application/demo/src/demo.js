@@ -28,8 +28,8 @@ const log = console.log;
  */
 export class Demo extends Component {
   initialize() {
-    assignGlobalTheme(basicTheme);
-    this.selectedTheme = basicTheme;
+    this.selectedTheme = materialTheme;
+    assignGlobalTheme(this.selectedTheme);
 
     this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
 
@@ -53,14 +53,6 @@ export class Demo extends Component {
     // this.choosen = this.items.find(item => item.key === "programmaticReactiveLayout");
     // this.choosen = this.items.find(item => item.key === "modalExample");
     // this.choosen = this.items.find(item => item.key === "recursiveDemo");
-
-    this.ensure(() => {
-      if (this.modernTheme) {
-        assignGlobalTheme(modernTheme);
-      } else {
-        assignGlobalTheme(basicTheme);
-      }
-    })
   }
   
   teardown() {
@@ -88,9 +80,12 @@ export class Demo extends Component {
     buttons.push(filler());
     buttons.push(button(
       this.selectedTheme === basicTheme ? "Material Theme" : "Basic Theme", 
-      () => assignGlobalTheme(
-        this.selectedTheme === basicTheme ? materialTheme : basicTheme
-      )
+      () => {
+        this.selectedTheme = (this.selectedTheme === basicTheme) ? materialTheme : basicTheme
+        assignGlobalTheme(
+          this.selectedTheme
+        )
+      } 
     ));
     // buttons.push(button({text: "Experiment", onClick: () => {
     //   startExperiment();

@@ -1,10 +1,10 @@
-import { getFlowProperties, Component } from "@liquefy/flow.core";
+import { toProperties, Component } from "@liquefy/flow.core";
 import { findImplicitChildrenAndOnClick } from "@liquefy/flow.DOM";
 
 const log = console.log; 
 
 export function input(...parameters) { 
-  const properties = getFlowProperties(parameters);
+  const properties = toProperties(parameters);
   return new ModernButton(properties);
 };
 

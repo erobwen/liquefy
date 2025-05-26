@@ -1,4 +1,4 @@
-import { Component, trace, model, getFlowProperties } from "@liquefy/flow.core";
+import { Component, trace, model, toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text } from "@liquefy/flow.DOM";
 
 import { numberInputField, filler } from "@liquefy/basic-ui";
@@ -70,7 +70,7 @@ export class RecursiveExample extends Component {
 }
   
 export function controlRow(...parameters) {
-  return new ControlRow(getFlowProperties(parameters));
+  return new ControlRow(toProperties(parameters));
 }
 
 export class ControlRow extends Component {

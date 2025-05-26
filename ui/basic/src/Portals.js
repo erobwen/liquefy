@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/flow.core";
 import { getRenderContext } from "@liquefy/flow.core";
-import { getFlowProperties } from "@liquefy/flow.core";
+import { toProperties } from "@liquefy/flow.core";
 
 import { text, div } from "@liquefy/flow.DOM";
 
@@ -11,7 +11,7 @@ const log = console.log;
  * Portals
  */
 export function portalEntrance(...parameters) {
-  return new PortalEntrance(getFlowProperties(parameters));
+  return new PortalEntrance(toProperties(parameters));
 }
 
 export class PortalEntrance extends Component {
@@ -46,7 +46,7 @@ export function portalExit(...parameters) {
       type: "elementNode",
       componentTypeName: "portalExit", 
       tagName: "div", 
-      ...getFlowProperties(parameters), 
+      ...toProperties(parameters), 
     }
   );
 }

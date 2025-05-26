@@ -1,7 +1,7 @@
-import { getFlowProperties } from "@liquefy/flow.core";
+import { toProperties } from "@liquefy/flow.core";
 import { globalContext } from "@liquefy/flow.core";
 import { getCreator } from "@liquefy/flow.core";
-import { getInputProperties } from "@liquefy/flow.DOM";
+import { toInputProperties } from "@liquefy/flow.DOM";
 
 /**
  * Contextual Theme
@@ -50,39 +50,39 @@ export function getThemedComponent(name, properties) {
 /**
  * Components
  */
-export const filler = (...parameters) => getThemedComponent("filler", getFlowProperties(parameters));
-export const row = (...parameters) => getThemedComponent("row", getFlowProperties(parameters));
-export const column = (...parameters) => getThemedComponent("column", getFlowProperties(parameters));
-export const crossIcon = (...parameters) => getThemedComponent("crossIcon", getFlowProperties(parameters));
-export const plusIcon = (...parameters) => getThemedComponent("plusIcon", getFlowProperties(parameters));
-export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon", getFlowProperties(parameters));
-export const icon = (...parameters) => getThemedComponent("icon", getFlowProperties(parameters));
-export const button = (...parameters) => getThemedComponent("button", getFlowProperties(parameters));
-export const inputField = (...parameters) => getThemedComponent("inputField", getFlowProperties(parameters));
-export const paper = (...parameters) => getThemedComponent("paper", getFlowProperties(parameters));
-export const paperColumn = (...parameters) => getThemedComponent("paperColumn", getFlowProperties(parameters));
-export const paperRow = (...parameters) => getThemedComponent("paperRow", getFlowProperties(parameters));
+export const filler = (...parameters) => getThemedComponent("filler", toProperties(parameters));
+export const row = (...parameters) => getThemedComponent("row", toProperties(parameters));
+export const column = (...parameters) => getThemedComponent("column", toProperties(parameters));
+export const crossIcon = (...parameters) => getThemedComponent("crossIcon", toProperties(parameters));
+export const plusIcon = (...parameters) => getThemedComponent("plusIcon", toProperties(parameters));
+export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon", toProperties(parameters));
+export const icon = (...parameters) => getThemedComponent("icon", toProperties(parameters));
+export const button = (...parameters) => getThemedComponent("button", toProperties(parameters));
+export const inputField = (...parameters) => getThemedComponent("inputField", toProperties(parameters));
+export const paper = (...parameters) => getThemedComponent("paper", toProperties(parameters));
+export const paperColumn = (...parameters) => getThemedComponent("paperColumn", toProperties(parameters));
+export const paperRow = (...parameters) => getThemedComponent("paperRow", toProperties(parameters));
 // Styles: 
-export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", getFlowProperties(parameters));
+export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", toProperties(parameters));
 
 
 /**
  * Derrived components 
  */
 export function checkboxInputField(...parameters) {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   properties.type = "checkbox";
   return inputField(properties);
 }
 
 export function numberInputField(...parameters) {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   properties.type = "number";
   return inputField(properties);
 }
 
 export function textInputField(...parameters) {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   properties.type = "text";
   return inputField(properties);
 }

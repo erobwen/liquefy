@@ -34,7 +34,7 @@ export class ExmapleFlow extends Component {
  * One way is to do this to primitive flows only, so they are easy to distinguish from compound/stateful flows. 
  */
 export const myComponent = (...parameters) => 
-  new MyComponentFlow(getFlowProperties(parameters));
+  new MyComponentFlow(toProperties(parameters));
 
 export class MyComponent extends Component {
   receive({count}) {

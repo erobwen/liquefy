@@ -1,4 +1,4 @@
-import { getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
+import { toPropertiesWithChildren } from "@liquefy/flow.core";
 import { addDefaultStyleToProperties, div } from "@liquefy/flow.DOM";
 import { rowStyle, columnStyle } from "./Layout";
 
@@ -34,7 +34,7 @@ function getColor({elevation}) {
  */
 
 export const paper = (...parameters) =>  {
-  const properties = getFlowPropertiesIncludingChildren(parameters);
+  const properties = toPropertiesWithChildren(parameters);
   return (
     div(
       addDefaultStyleToProperties(
@@ -57,7 +57,7 @@ export const paper = (...parameters) =>  {
 }
 
 export const paperRow = (...parameters) => {
-  const properties = getFlowPropertiesIncludingChildren(parameters);
+  const properties = toPropertiesWithChildren(parameters);
   return paper(addDefaultStyleToProperties(
     properties, 
     rowStyle
@@ -66,7 +66,7 @@ export const paperRow = (...parameters) => {
 
 
 export const paperColumn = (...parameters) => {
-  const properties = getFlowPropertiesIncludingChildren(parameters);
+  const properties = toPropertiesWithChildren(parameters);
   return paper(addDefaultStyleToProperties(
     properties, 
     columnStyle

@@ -1,4 +1,4 @@
-import { getFlowProperties, findImplicitChildren, getFlowPropertiesIncludingChildren } from "./implicitProperties.js";
+import { toProperties, findImplicitChildren, toPropertiesWithChildren } from "./implicitProperties.js";
 import { creators, getCreator, globalContext } from "./buildContext.js";
 import { renderComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
 const log = console.log;
@@ -85,7 +85,7 @@ export class Component {
    * Lifecycle methods
    */
   readParameters(parameters) {
-    return getFlowPropertiesIncludingChildren(parameters)
+    return toPropertiesWithChildren(parameters)
   }
 
   receive(properties) {

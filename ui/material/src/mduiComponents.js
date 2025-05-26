@@ -1,4 +1,4 @@
-import { getFlowProperties, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
+import { toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
 import "./icons.css";
 
 
@@ -6,7 +6,7 @@ import "./icons.css";
  * Icon component
  */
 export const icon = (...parameters) => {
-  const properties = getFlowProperties(parameters)
+  const properties = toProperties(parameters)
   const {key, ...attributes} = properties;
   return getRenderContext().primitive({
     key: key, 

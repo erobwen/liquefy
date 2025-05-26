@@ -1,5 +1,5 @@
-import { observable, deeplyObservable, repeat, Component, getFlowProperties, getRenderContext } from "@liquefy/flow.core"
-import { div, text, DOMRenderContext, getInputProperties, getButtonProperties } from "@liquefy/flow.DOM"
+import { observable, deeplyObservable, repeat, Component, toProperties, getRenderContext } from "@liquefy/flow.core"
+import { div, text, DOMRenderContext, toInputProperties, toButtonProperties } from "@liquefy/flow.DOM"
 import "./materialExperiments.css";
 import { MdOutlinedIconButton, MdTextButton } from '@material/web/all.js';
 
@@ -50,7 +50,7 @@ export function materialExperiment() {
  * Icon component
  */
 const icon = (...parameters) => {
-  const properties = getFlowProperties(parameters)
+  const properties = toProperties(parameters)
   const {key, ...attributes} = properties;
   return getRenderContext().primitive({
     key: key, 
@@ -65,7 +65,7 @@ const icon = (...parameters) => {
  * Button component
  */
 const button = (...parameters) => {
-  const properties = getButtonProperties(parameters);
+  const properties = toButtonProperties(parameters);
   const {key, ...attributes} = properties;
   return getRenderContext().primitive({
     key, 
@@ -84,7 +84,7 @@ const button = (...parameters) => {
  * inputmode: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
  */
 const input = (...parameters) => {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   const {key, labelText, setter, getter, ...attributes} = properties;
   return getRenderContext().primitive({
     key, 
@@ -109,7 +109,7 @@ const input = (...parameters) => {
   
 //   readParameters(parameters) {
 //     console.log(parameters);
-//     const properties = getFlowProperties(parameters);
+//     const properties = toProperties(parameters);
 //     console.log({...properties});
 //     findImplicitTextInputFieldParameters(properties);
 //     console.log({...properties});

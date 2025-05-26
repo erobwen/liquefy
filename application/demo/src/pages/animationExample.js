@@ -1,5 +1,5 @@
 
-import { observable, Component, transaction, getFlowProperties } from "@liquefy/flow.core";
+import { observable, Component, transaction, toProperties } from "@liquefy/flow.core";
 
 import { text, div, DOMRenderContext, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
@@ -32,7 +32,7 @@ const items = [
 const panel = (...parameters) => 
   column(
     addDefaultStyleToProperties(
-      getFlowProperties(parameters),
+      toProperties(parameters),
       {
         marginBottom: "0px", 
         borderRadius: "15px", 

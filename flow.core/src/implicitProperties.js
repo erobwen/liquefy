@@ -66,14 +66,14 @@ export function createTextNodesFromStringChildren(properties, keyPrefix) {
   }); 
 }
 
-export function getFlowPropertiesIncludingChildren(arglist) {
-  const properties = getFlowProperties(arglist);
+export function toPropertiesWithChildren(arglist) {
+  const properties = toProperties(arglist);
   findImplicitChildren(properties);
   return properties;
 } 
 
-export function getFlowProperties(arglist) {
-  if (!(arglist instanceof Array)) throw new Error("getFlowProperties expects an array");
+export function toProperties(arglist) {
+  if (!(arglist instanceof Array)) throw new Error("toProperties expects an array");
 
   // Shortcut if argument is a single properties object. 
   const first = arglist[0]; 

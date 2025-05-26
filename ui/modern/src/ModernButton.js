@@ -1,4 +1,4 @@
-import { getFlowProperties, Component } from "@liquefy/flow.core";
+import { toProperties, Component } from "@liquefy/flow.core";
 import { findImplicitChildrenAndOnClick } from "@liquefy/flow.DOM";
 import { button } from "@liquefy/basic-ui";
 
@@ -8,7 +8,7 @@ import { paperShadow2, paperShadow5 } from "./Paper";
 const log = console.log; 
 
 export function modernButton(...parameters) { 
-  const properties = findImplicitChildrenAndOnClick(getFlowProperties(parameters));
+  const properties = findImplicitChildrenAndOnClick(toProperties(parameters));
   
   properties.hoverEffect = true; // Debug override
   properties.ripple = true; // Debug override 

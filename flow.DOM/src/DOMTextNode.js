@@ -1,4 +1,4 @@
-import { extractProperty, getFlowProperties, getRenderContext } from "@liquefy/flow.core";
+import { extractProperty, toProperties, getRenderContext } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";    
 import { domNodeClassRegistry } from "./DOMRenderContext";
 const log = console.log;
@@ -31,8 +31,8 @@ export function getTextNodeProperties(parameters) {
   return properties;
 }
 
-export function getFlowPropertiesWithImplicitSingleText(parameters) {
-  let properties = getFlowProperties(parameters);
+export function toPropertiesWithImplicitSingleText(parameters) {
+  let properties = toProperties(parameters);
   findImplicitSingleTextInContent(properties); 
   return properties; 
 }

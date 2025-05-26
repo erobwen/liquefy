@@ -1,4 +1,4 @@
-import { Component, transaction, model, callback, getFlowProperties } from "@liquefy/flow.core";
+import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
 import { naturalSizeStyle} from "@liquefy/basic-ui";

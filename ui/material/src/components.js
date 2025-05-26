@@ -1,10 +1,10 @@
 import 'mdui/mdui.css';
 import 'mdui';
-import { getFlowProperties, getRenderContext } from "@liquefy/flow.core";
-import { getButtonProperties, getInputProperties, elementNode } from "@liquefy/flow.DOM";
+import { toProperties, getRenderContext } from "@liquefy/flow.core";
+import { toButtonProperties, toInputProperties, elementNode } from "@liquefy/flow.DOM";
 import "./components.css";
 
-import { getMduiInputProperties } from './implicitProperties';
+import { toMduiInputProperties } from './implicitProperties';
 
 
 /**
@@ -18,9 +18,9 @@ function taggedElement(tagName, properties) {
 /**
  * Components
  */
-export const icon = (...parameters) => taggedElement("mdui-icon", getFlowProperties(parameters));
-export const button = (...parameters) => taggedElement("mdui-button", getButtonProperties(parameters));
-export const input = (...parameters) => taggedElement("mdui-button", getMduiInputProperties(parameters));
+export const icon = (...parameters) => taggedElement("mdui-icon", toProperties(parameters));
+export const button = (...parameters) => taggedElement("mdui-button", toButtonProperties(parameters));
+export const input = (...parameters) => taggedElement("mdui-button", toMduiInputProperties(parameters));
 
 
 

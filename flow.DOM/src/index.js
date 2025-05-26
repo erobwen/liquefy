@@ -110,11 +110,11 @@ import {
 } from "./HTMLTags";
 import { addDefaultStyleToProperties } from "./HTMLBuilding";
 import { DOMElementNode, elementNode } from "./DOMElementNode";
-import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, getFlowPropertiesWithImplicitSingleText } from "./DOMTextNode"
+import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, toPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMRenderContext} from "./DOMRenderContext"
 import { mostAbstractComponent, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
-import { findImplicitChildrenAndOnClick, getButtonProperties, getInputProperties, findImplicitInputFieldParameters } from "./implicitProperties";
+import { findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties, findImplicitInputFieldParameters } from "./implicitProperties";
 
 
 // Animation
@@ -241,7 +241,7 @@ export {
     // DOMElementNode
     elementNode, 
     DOMElementNode,
-    
+
     //DOMRenderContext
     DOMRenderContext,
 
@@ -259,7 +259,7 @@ export {
     DOMTextNode,
     getTextNodeProperties, 
     findImplicitSingleTextInContent,
-    getFlowPropertiesWithImplicitSingleText,
+    toPropertiesWithImplicitSingleText,
 
     // fontMetrics
     fitTextWithinWidth, 
@@ -275,9 +275,9 @@ export {
     getGoldenRatioTopPadding, 
 
     // Implicit properties
-    getButtonProperties,
+    toButtonProperties,
     findImplicitChildrenAndOnClick,
-    getInputProperties, 
+    toInputProperties, 
     findImplicitInputFieldParameters,
 
     // Animation

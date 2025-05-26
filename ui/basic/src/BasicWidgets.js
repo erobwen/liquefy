@@ -1,5 +1,5 @@
-import { trace, callback, getFlowProperties, getRenderContext } from "@liquefy/flow.core";
-import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties, findImplicitChildrenAndOnClick, getButtonProperties, getInputProperties } from "@liquefy/flow.DOM";
+import { trace, callback, toProperties, getRenderContext } from "@liquefy/flow.core";
+import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
 import { extractProperty } from "../../../flow.core/src/implicitProperties.js";
@@ -32,7 +32,7 @@ export let basicWidgetTheme = {
  * Label
  */
 export function label(...parameters) {
-  let properties = getFlowProperties(parameters);
+  let properties = toProperties(parameters);
 
   // inherit("theme").text.style
 
@@ -63,19 +63,19 @@ export function label(...parameters) {
  * [labelText, targetObject, targetProperty]
  */
 export function checkboxInputField(...parameters) {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   properties.type = "checkbox";
   return inputField(properties);
 }
 
 export function numberInputField(...parameters) {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   properties.type = "number";
   return inputField(properties);
 }
 
 export function textInputField(...parameters) {
-  const properties = getInputProperties(parameters);
+  const properties = toInputProperties(parameters);
   properties.type = "text";
   return inputField(properties);
 }
@@ -135,7 +135,7 @@ export function inputField(properties) {
 
 
 export function button(...parameters) { 
-  const properties = getButtonProperties(parameters)
+  const properties = toButtonProperties(parameters)
 
   addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
   if (properties.disabled) properties.disabled = true; 
@@ -154,7 +154,7 @@ export function button(...parameters) {
 };
 
 export const panel = (...parameters) => {
-  const properties = getFlowProperties(parameters);
+  const properties = toProperties(parameters);
   addDefaultStyleToProperties(properties, {
     margin: "4px", 
     borderRadius: "5px", 

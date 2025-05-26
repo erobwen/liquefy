@@ -1,4 +1,4 @@
-import { extractProperty, getFlowPropertiesIncludingChildren, getRenderContext } from "@liquefy/flow.core";
+import { extractProperty, toPropertiesWithChildren, getRenderContext } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
 import { domNodeClassRegistry } from "./DOMRenderContext";
   
@@ -10,7 +10,7 @@ const log = console.log;
  * Element node factory
  */
 export function elementNode(...parameters) {
-  let properties = getFlowPropertiesIncludingChildren(parameters); 
+  let properties = toPropertiesWithChildren(parameters); 
   return getRenderContext().primitive({type: "elementNode", ...properties});
 }
 

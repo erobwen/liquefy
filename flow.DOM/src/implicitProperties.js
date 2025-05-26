@@ -1,8 +1,8 @@
-import { createTextNodesFromStringChildren, getFlowProperties, extractProperty, callback  } from "@liquefy/flow.core"
+import { createTextNodesFromStringChildren, toProperties, extractProperty, callback  } from "@liquefy/flow.core"
 
 
-export const getButtonProperties = (parameters) => {
-  const properties = getFlowProperties(parameters);
+export const toButtonProperties = (parameters) => {
+  const properties = toProperties(parameters);
   findImplicitChildrenAndOnClick(properties);
   return properties; 
 }
@@ -51,8 +51,8 @@ export function findImplicitChildrenAndOnClick(properties) {
  * 
  * Extra feature: labelText will double as a key if you have no other key given. 
  */
-export const getInputProperties = (parameters) => {
-  const properties = getFlowProperties(parameters);
+export const toInputProperties = (parameters) => {
+  const properties = toProperties(parameters);
   findImplicitInputFieldParameters(properties);
   if (!properties.type) properties.type = "text";
   return properties; 

@@ -1,4 +1,4 @@
-import { getFlowProperties, getRenderContext } from "@liquefy/flow.core";
+import { toProperties, getRenderContext } from "@liquefy/flow.core";
 
 import { div, elementNode, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 import { extractProperty } from "../../../flow.core/src/implicitProperties";
@@ -9,7 +9,7 @@ const log = console.log;
 
 export function svgImage(...parameters) {
   // return getRenderContext().primitive({type: "elementNode", tagName: "img", attributes: {style: {padding: "20px", backgroundColor: "white"}, src: flowImage}});
-  const properties = getFlowProperties(parameters);
+  const properties = toProperties(parameters);
   addDefaultStyleToProperties(properties, {padding: "20px", backgroundColor: "white"});
   properties.src = extractProperty(properties, "image");
   return getRenderContext().primitive({type: "elementNode", tagName: "img", ...properties});

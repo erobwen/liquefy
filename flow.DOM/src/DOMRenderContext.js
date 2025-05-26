@@ -1,5 +1,5 @@
 import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
-import { getFlowProperties, extractProperty } from "@liquefy/flow.core";
+import { toProperties, extractProperty } from "@liquefy/flow.core";
 import { RenderContext } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { updateDOMTime } from "../../flow.core/src/Flow";

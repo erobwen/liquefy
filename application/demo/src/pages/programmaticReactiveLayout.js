@@ -1,6 +1,6 @@
-import { repeat, observable, Component, transaction, getFlowProperties, getFlowPropertiesIncludingChildren } from "@liquefy/flow.core";
+import { repeat, observable, Component, transaction, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
 
-import { text, div, DOMRenderContext, getFlowPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
+import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
 import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row } from "@liquefy/basic-ui";
 
@@ -138,7 +138,7 @@ export class StringDisplay extends Component {
 }
 
 function scaledTextWithMaxFontSize(...parameters) {
-  const properties = getFlowPropertiesWithImplicitSingleText(parameters);
+  const properties = toPropertiesWithImplicitSingleText(parameters);
 
   // console.log(properties);
   const fontSize = Math.min(basicWidgetTheme.fontSize, fitTextWithinWidth(properties.text, properties.width*0.8));

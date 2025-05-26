@@ -1,16 +1,16 @@
 import { Component, transaction, creators, getRenderContext } from "@liquefy/flow.core";
-import { getFlowProperties } from "@liquefy/flow.core";
+import { toProperties } from "@liquefy/flow.core";
 
 import { div, elementNode } from "@liquefy/flow.DOM";
 import { logMark } from "@liquefy/flow.core";
-import { getFlowPropertiesIncludingChildren } from "../../../flow.core/src/implicitProperties";
+import { toPropertiesWithChildren } from "../../../flow.core/src/implicitProperties";
 const log = console.log;
 
 /**
  * Modal
  */
 export function modal(...parameters) {
-  return new Modal(getFlowProperties(parameters));
+  return new Modal(toProperties(parameters));
 }
 
 export class Modal extends Component {
@@ -44,7 +44,7 @@ export class Modal extends Component {
 
 export function modalFrame(...parameters) {
   // debugger; 
-  const properties = getFlowPropertiesIncludingChildren(parameters);
+  const properties = toPropertiesWithChildren(parameters);
   const result = new ModalFrame(properties);
   return result; 
 }
@@ -154,6 +154,6 @@ export class ModalFrame extends Component {
 }
 
 function modalFrameDiv(...parameters) {
-  let properties = getFlowProperties(parameters);
+  let properties = toProperties(parameters);
   return elementNode({type: "elementNode", tagName: "div", componentTypeName: "modal-frame", ...properties});
 }

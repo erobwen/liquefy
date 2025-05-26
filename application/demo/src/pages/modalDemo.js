@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { getFlowProperties } from "@liquefy/flow.core";
+import { toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
 import { panel } from "@liquefy/basic-ui";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
@@ -15,7 +15,7 @@ const loga = (action) => {
 
 
 function dialog(...parameters) {
-  return new Dialog(getFlowProperties(parameters));
+  return new Dialog(toProperties(parameters));
 }
 
 const panelStyle = {

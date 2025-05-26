@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { getFlowProperties } from "@liquefy/flow.core";
+import { toProperties } from "@liquefy/flow.core";
 import { div, text } from "@liquefy/flow.DOM";
 import { panelStyle } from "./Style";
 import { button, textInputField } from "@liquefy/basic-ui";
@@ -19,7 +19,7 @@ export function modernTextField(label, getter, setter, ...parameters) {
     error = targetObject[targetProperty + "Error"];
   }
 
-  return new ModernTextField({label, getter, setter, ...getFlowProperties(parameters)});
+  return new ModernTextField({label, getter, setter, ...toProperties(parameters)});
 }
 
 export class ModernTextField extends Component {

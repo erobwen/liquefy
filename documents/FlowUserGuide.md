@@ -202,7 +202,7 @@ div(span("one"), span("two"), span("thee"))
 So what we do is typically to create a factory function for each component.
 
 ```js
-  const myComponent = (...parameters) => new MyComponent(getFlowPropertiesIncludingChildren(parameters))
+  const myComponent = (...parameters) => new MyComponent(toPropertiesWithChildren(parameters))
   class MyComponent extends @liquefy/flow.core.Component { ... }
 ```
  
@@ -296,10 +296,10 @@ button("add-button", "Add", () => { this.counter++ })
 
 To deal with compact parameter lists, there are a number of available helper functions, and for specific purposes, new such functions can be implemented depending on the needs. These are commonly used by various components: 
 
- * `getFlowProperties`
- * `getFlowPropertiesIncludingChildren`,
+ * `toProperties`
+ * `toPropertiesWithChildren`,
 
-Everything starts with **getFlowProperties** that is applied to a parameter list. That will result in a properties object of the following structure: 
+Everything starts with **toProperties** that is applied to a parameter list. That will result in a properties object of the following structure: 
 
 ```js
 {
@@ -308,7 +308,7 @@ Everything starts with **getFlowProperties** that is applied to a parameter list
    key: string
 }
 ```
-**getFlowPropertiesIncludingChildren** will analyze the contents one step further, and return a properties object with the following structure: 
+**toPropertiesWithChildren** will analyze the contents one step further, and return a properties object with the following structure: 
 
 ```js
 {

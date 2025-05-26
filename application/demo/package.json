@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "description": "A demo showcasing flow.",
   "type": "module",
-  "module": "./src/index.js",
+  "module": "./index.js",
   "scripts": {
     "start": "vite --debug"
   },
@@ -27,6 +27,7 @@
     "@liquefy/flow.DOM": "file:../../flow.DOM",
     "@liquefy/basic-ui": "file:../../ui/basic",
     "@liquefy/modern-ui": "file:../../ui/modern",
-    "@liquefy/themed-ui": "file:../../ui/themed"
+    "@liquefy/themed-ui": "file:../../ui/themed",
+    "@liquefy/ui-material": "file:../../ui/material"
   }
 }

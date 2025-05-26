@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/flow.core";
 import { DOMRenderContext, div, h1, h2, span, b, ul, li, br } from "@liquefy/flow.DOM";
-import { button } from "@liquefy/material-ui"
+import { button } from "@liquefy/ui-material"
 
 const foo = model({x: 234})
 

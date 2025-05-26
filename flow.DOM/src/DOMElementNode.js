@@ -5,19 +5,12 @@ import { domNodeClassRegistry } from "./DOMRenderContext";
 const log = console.log;
 
 
-/**
- * Element node parameters
- */
-
-export const getElementNodeProperties = getFlowPropertiesIncludingChildren;  // Alias
-export const getElementProperties = getElementNodeProperties; // Alias
-
 
 /**
  * Element node factory
  */
 export function elementNode(...parameters) {
-  let properties = getElementProperties(parameters); 
+  let properties = getFlowPropertiesIncludingChildren(parameters); 
   return getRenderContext().primitive({type: "elementNode", ...properties});
 }
 

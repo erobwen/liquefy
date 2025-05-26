@@ -7,7 +7,7 @@ import { materialExperiment } from "./materialExperiments";
 // assignGlobalTheme(basicTheme);
 
 setFlowConfiguration({
-  traceReactivity: true,
+  traceReactivity: false,
   warnWhenNoKey: false,
   autoAssignProperties: true
 });

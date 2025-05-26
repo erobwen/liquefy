@@ -1,14 +1,16 @@
-import { observable, Component, repeat, creators } from "@liquefy/flow.core";
-import { logMark } from "@liquefy/flow.core";
+import { observable, Component, repeat, creators, logMark } from "@liquefy/flow.core";
+import { DOMRenderContext, span, text } from "@liquefy/flow.DOM";
 
-import { DOMRenderContext } from "@liquefy/flow.DOM";
-import { span, text } from "@liquefy/flow.DOM";
+import { button, assignGlobalTheme } from "@liquefy/themed-ui";
 
+import { modernTheme } from "@liquefy/modern-ui";
+
+import { materialTheme } from "@liquefy/ui-material";
+
+import { basicTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
 import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basic-ui";
 import { applicationMenuFrame, svgImage } from "@liquefy/basic-ui";
-
-import flowImage from "../resources/flow.svg"
 
 import { RecursiveExample } from "./pages/recursiveDemoApplication";
 import { ReactiveForm, initialData } from "./pages/reactiveFormApplication";
@@ -17,19 +19,17 @@ import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout";
 import { PortalExample } from "./pages/portalDemo";
 import { ModalExample } from "./pages/modalDemo";
 
-import { button, textInputField, assignGlobalTheme } from "@liquefy/themed-ui";
-import { modernTheme } from "@liquefy/modern-ui";
-import { basicTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
+import flowImage from "../resources/flow.svg"
 
 const log = console.log;
 
 /**
  * Demo
  */
-
 export class Demo extends Component {
   initialize() {
-    this.modernTheme = false; 
+    assignGlobalTheme(basicTheme);
+    this.selectedTheme = basicTheme;
 
     this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
 
@@ -86,7 +86,12 @@ export class Demo extends Component {
     }
     buttons.push(this.leftColumnPortal);
     buttons.push(filler());
-    buttons.push(checkboxInputField("Modern Theme", this, "modernTheme"));
+    buttons.push(button(
+      this.selectedTheme === basicTheme ? "Material Theme" : "Basic Theme", 
+      () => assignGlobalTheme(
+        this.selectedTheme === basicTheme ? materialTheme : basicTheme
+      )
+    ));
     // buttons.push(button({text: "Experiment", onClick: () => {
     //   startExperiment();
     // }}));

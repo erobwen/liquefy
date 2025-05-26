@@ -1,13 +1,13 @@
 import { configuration, model, setFlowConfiguration } from "@liquefy/flow.core";
 import { installDOMAnimation, resetDOMAnimation } from "@liquefy/flow.DOM";
 
-import { startRecursiveDemo } from "./pages/recursiveDemoApplication.js";
-import { startReactiveFormApplication } from "./pages/reactiveFormApplication.js";
-import { startDemo } from "./demo.js";
-import { startAnimationExample } from "./pages/animationExample.js";
-import { startProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout.js";
-import { startModalDemo } from "./pages/modalDemo.js";
-import { startPortalDemo } from "./pages/portalDemo.js";
+import { startRecursiveDemo } from "./src/pages/recursiveDemoApplication.js";
+import { startReactiveFormApplication } from "./src/pages/reactiveFormApplication.js";
+import { startDemo } from "./src/demo.js";
+import { startAnimationExample } from "./src/pages/animationExample.js";
+import { startProgrammaticReactiveLayout } from "./src/pages/programmaticReactiveLayout.js";
+import { startModalDemo } from "./src/pages/modalDemo.js";
+import { startPortalDemo } from "./src/pages/portalDemo.js";
 
 import { logMark } from "@liquefy/flow.core";
 import { basicTheme } from "@liquefy/basic-ui";

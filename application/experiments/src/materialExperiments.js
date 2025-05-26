@@ -7,18 +7,17 @@ import 'mdui/mdui.css';
 import 'mdui';
 //import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
 
-console.log(MdTextButton)
 const data = deeplyObservable({value: "something"})
 const data2 = deeplyObservable({value: 142})
-console.log(data)
 repeat(() => {
-  console.log("DATA CHANGED!!!!")
+  console.log("Data Changed!")
   console.log(data.value)
+  console.log(data2.value)
 })
 
 
 
-MdOutlinedIconButton
+// MdOutlinedIconButton
 /**
  * Minimalistic component used for experiments. 
  */
@@ -31,7 +30,7 @@ class MaterialExperiment extends Component {
         button("Button Text", () => {console.log("clicked me!")}),
         icon({name: "delete"}),
         input("Something", data, "value", {style: {marginBottom: "10px"}}),
-        input("Something else", data2, "value", {type: "number", variant: "outlined"}), 
+        input("Something else", data2, "value", {type: "number", variant: "outlined", inputmode: "numeric"}), 
         text(data.value)
       )
     )
@@ -48,20 +47,17 @@ export function materialExperiment() {
 
 
 /**
- * Stamp
- */
-let stamp = 0;
-
-
-/**
  * Icon component
  */
 const icon = (...parameters) => {
   const properties = getFlowProperties(parameters)
-  const attributes = {name: properties.name};
-  return getRenderContext().primitive({type: "elementNode", tagName: "mdui-icon", key: properties.key ? properties.key + ".text-" + stamp++ : null, attributes})
-
-  // <mdui-icon name="delete"></mdui-icon>
+  const {key, ...attributes} = properties;
+  return getRenderContext().primitive({
+    key: key, 
+    type: "elementNode", 
+    tagName: "mdui-icon", 
+    attributes
+  })
 }
 
 
@@ -70,39 +66,41 @@ const icon = (...parameters) => {
  */
 const button = (...parameters) => {
   const properties = getButtonProperties(parameters);
-  const keyPrefix = properties.key;
-  return getRenderContext().primitive({type: "elementNode", tagName: "mdui-button", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, ...properties})
+  const {key, ...attributes} = properties;
+  return getRenderContext().primitive({
+    key, 
+    type: "elementNode", 
+    tagName: "mdui-button", 
+    ...attributes
+  })
 }
 
 
 
 /**
- * Input experiment
+ * Input element
+ * 
+ * type: 'text' | 'number' | 'password' | 'url' | 'email' | 'search' | 'tel' | 'hidden' | 'date' | 'datetime-local' | 'month' | 'time' | 'week'
+ * inputmode: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
  */
 const input = (...parameters) => {
-    const properties = getInputProperties(parameters);
-
-    const {key, labelText, setter, getter, ...attributes} = properties;
-    return getRenderContext().primitive({
-      key: key + ".text", 
-      type: "elementNode",
-      tagName: "mdui-text-field", 
-      attributes: {
-        inputmode: "numeric",
-        vaueAsNumber: 220,
-        onInput: (event) => setter(event.target.value),
-        value: getter(),
-        label: labelText,
-        type: "password",
-        ...attributes
-      }
-    });
+  const properties = getInputProperties(parameters);
+  const {key, labelText, setter, getter, ...attributes} = properties;
+  return getRenderContext().primitive({
+    key, 
+    type: "elementNode",
+    tagName: "mdui-text-field", 
+    attributes: {
+      onInput: (event) => setter(event.target.value),
+      value: getter(),
+      label: labelText,
+      ...attributes
+    }
+  });
 }
 
 
-// type	type		'text' | 'number' | 'password' | 'url' | 'email' | 'search' | 'tel' | 'hidden' | 'date' | 'datetime-local' | 'month' | 'time' | 'week'
 
-// inputmode	inputmode		'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
 
 
 

@@ -14,7 +14,6 @@ export function getTheme() {
 /**
  * Global Theme Setup
  */
-
 globalContext.theme = model({
   modifiers: {},
   components: {},

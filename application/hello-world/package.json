@@ -30,6 +30,6 @@
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.DOM": "file:../../flow.DOM",
     "@liquefy/basic-ui": "file:../../ui/basic",
-    "@liquefy/material-ui": "file:../../ui/material"
+    "@liquefy/ui-material": "file:../../ui/material"
   }
 }

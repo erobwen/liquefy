@@ -932,12 +932,14 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
       this.setupNodeAnimationCleanup(leader,
         cleanupNumber,
         () => {
-          leader.removeChild(node);
-          leader.parentNode.replaceChild(node, leader);
-          // node.equivalentCreator.synchronizeDomNodeStyle(["position"]);
-          delete leader.isControlledByAnimation;
-          this.detatchLeaderOwner(leader)
-          delete node.wrapper;
+          if (leader.parentNode) {
+            leader.removeChild(node);
+            leader.parentNode.replaceChild(node, leader);
+            // node.equivalentCreator.synchronizeDomNodeStyle(["position"]);
+            delete leader.isControlledByAnimation;
+            this.detatchLeaderOwner(leader)
+            delete node.wrapper;
+          }
         }
       )
     }

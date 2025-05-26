@@ -1,7 +1,16 @@
-import { button } from "./src/button";
+import { button, icon, input } from "./src/components";
 // import { icon } from "./src/icon";
 
-export {
+export const materialTheme = {
+  components: {
+    button, 
+    icon, 
+    input
+  }
+}
+
+export {  
   button,
-  // icon
+  icon,
+  input,
 }

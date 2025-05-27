@@ -18,7 +18,7 @@ export class ExmapleFlow extends Component {
     this.expensiveResource = getExpensiveResource();
   }
 
-  teardown() {
+  terminate() {
     this.expensiveResource.dispose();
   }
 

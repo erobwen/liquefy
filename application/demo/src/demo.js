@@ -5,7 +5,7 @@ import { button, assignGlobalTheme } from "@liquefy/themed-ui";
 
 import { modernTheme } from "@liquefy/modern-ui";
 
-import { materialTheme } from "@liquefy/ui-material";
+import { list, listItem, materialTheme } from "@liquefy/ui-material";
 
 import { basicTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
@@ -55,30 +55,32 @@ export class Demo extends Component {
     // this.choosen = this.items.find(item => item.key === "recursiveDemo");
   }
   
-  teardown() {
+  terminate() {
     super.onDispose();
     for (let name in this.items) {
       this.items[name].onDispose();
     }
     this.leftColumnPortal.onDispose();
-    this.leftColumnPortal.dispose();
-  }
-
-  buildButton(item) {
-    return button(item.name, {onClick: () => { this.choosen = item }, pressed: this.choosen === item});
   }
 
   buildMenu() {
-    const buttons = [];
-    buttons.push(svgImage({image: flowImage}));
+    const listItems = [];
+    listItems.push(svgImage({image: flowImage}));
     for (let item of this.items) {
-      buttons.push(
-        this.buildButton(item)
+      listItems.push(
+        listItem({
+          children: [
+            text(item.name)
+          ], 
+          onClick: () => { this.choosen = item },
+          rounded: true, 
+          active: this.choosen === item
+        })
       )
     }
-    buttons.push(this.leftColumnPortal);
-    buttons.push(filler());
-    buttons.push(button(
+    listItems.push(this.leftColumnPortal);
+    listItems.push(filler());
+    listItems.push(button(
       this.selectedTheme === basicTheme ? "Material Theme" : "Basic Theme", 
       () => {
         this.selectedTheme = (this.selectedTheme === basicTheme) ? materialTheme : basicTheme
@@ -87,12 +89,9 @@ export class Demo extends Component {
         )
       } 
     ));
-    // buttons.push(button({text: "Experiment", onClick: () => {
-    //   startExperiment();
-    // }}));
 
     return column(
-      buttons,
+      listItems,
       {
         key: "left-column", 
         style: {
@@ -108,17 +107,15 @@ export class Demo extends Component {
   }
 
   render() {
-    // return text("Foo");
-    // logMark("build demo")
     return applicationMenuFrame({
       appplicationMenu: this.buildMenu(),
       applicationContent: this.choosen,
       topPanelContent: [filler(), text("by Robert Renbris")],
-      // topPanelContent: [filler({key: "filler"}), text("by Robert Renbris", {key: "name"})],
       bounds: this.bounds
     })
   }
 }
+
 
 /**
  * This is what you would typically do in index.js to start this app. 

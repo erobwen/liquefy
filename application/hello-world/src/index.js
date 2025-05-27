@@ -21,7 +21,7 @@ class Hello extends Component {
     })
   }
 
-  teardown() { // If needed
+  terminate() { // If needed
     delete window.hello
   }
 

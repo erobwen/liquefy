@@ -41,7 +41,7 @@ export class RecursiveExample extends Component {
   }
 
   // Release external resources
-  teardown() {}
+  terminate() {}
   
   // Allow children to inherit data from this component 
   provide() {

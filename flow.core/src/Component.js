@@ -97,7 +97,7 @@ export class Component {
     // Use this.ensure(action) to establish reactive relations here. 
   }
   
-  teardown() {
+  terminate() {
     // throw new Error("Not implemented yet");
   }
 
@@ -256,7 +256,7 @@ export class Component {
       this.buildRepeater.repeaterAction = () => {};
     }
     if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
-    this.teardown();
+    this.terminate();
   }
 
   onVisibilityWillChange(visibility) { // Deprecated? Just observe Component.visible instead. 

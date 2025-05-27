@@ -50,7 +50,7 @@ class World extends Component {
   }
 
   initialize() {
-    // In this lifecycle function you can setup state and obtain expensive resources. You can let go of these resources in teardown().
+    // In this lifecycle function you can setup state and obtain expensive resources. You can let go of these resources in terminate().
     this.worldText = "";
   }
 

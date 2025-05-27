@@ -111,9 +111,6 @@ export class PrimitiveComponent extends Component {
     }
     return this; 
   }
-  
-  onVisibilityWillChange() {}
-
 
   *iteratePrimitiveChildren() {
     for(let child of this.iterateChildren()) {

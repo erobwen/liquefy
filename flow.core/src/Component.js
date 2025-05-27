@@ -239,12 +239,6 @@ export class Component {
     // However, this will not guarantee a mount. For that, just observe specific properties set by the integration process.
   }
 
-  onRemoveFromRenderContext() {
-    if (this.onClose) {
-      this.onClose();
-    }
-  }
-
   onDispose() {
     delete window.components[this.toString()];
     delete window.idToComponent[this.id];
@@ -259,7 +253,7 @@ export class Component {
     this.terminate();
   }
 
-  onVisibilityWillChange(visibility) { // Deprecated? Just observe Component.visible instead. 
+  onVisibilityWillChange(visibility) { // Deprecated? Just observe Component.isVisible instead. 
     // log("onVisibilityWillChange: " + this.toString() + ".visibility = " + visibility);
     // Called if the visibility is changed for this component. 
     // Since Flow allows hidden component that maintain their state but are not disposed, 

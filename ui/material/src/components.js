@@ -1,4 +1,8 @@
 import 'mdui/mdui.css';
+import 'mdui/components/layout.js';
+import 'mdui/components/layout-item.js';
+import 'mdui/components/layout-main.js';
+import 'mdui/components/button-icon.js';
 import 'mdui';
 import { toProperties, getRenderContext, toPropertiesWithChildren } from "@liquefy/flow.core";
 import { toButtonProperties, toInputProperties, elementNode } from "@liquefy/flow.DOM";
@@ -28,7 +32,7 @@ export const topAppBar = (...parameters) => taggedElement("mdui-top-app-bar", to
 export const navigationDrawer = (...parameters) => taggedElement("mdui-navigation-drawer", toPropertiesWithChildren(parameters));
 export const layoutMain = (...parameters) => taggedElement("mdui-layout-main", toPropertiesWithChildren(parameters));
 
-export const buttonIcon = (...parameters) => taggedElement("mdui-button-icon", toPropertiesWithChildren(parameters));
+export const buttonIcon = (...parameters) => taggedElement("mdui-button-icon", toButtonProperties(parameters));
 export const topAppBarTitle = (...parameters) => taggedElement("mdui-top-app-bar-title", toPropertiesWithChildren(parameters));
 export const langSelect = (...parameters) => taggedElement("pr-lang-select", toProperties(parameters));
 export const themeSelect = (...parameters) => taggedElement("pr-theme-select", toProperties(parameters));

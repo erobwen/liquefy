@@ -50,68 +50,67 @@ export function modalFrame(...parameters) {
 }
 
 export class ModalFrame extends Component {
-  receive({style, children}) {
+  receive({style, children, modalContent}) {
     this.style = style; 
     this.children = children;  
     this.modalFrame = this;
     this.staticContent = children; 
+    this.receivedModalContent = modalContent; 
   }
 
   initialize() {
-    this.modalContent = null;
+    this.assignedModalContent = null;
     this.modalSubFrame = null;
     this.childrenWithPossibleModal = [...this.children];
+
+    // Set children
     this.ensure(() => {
       const newChildren = [...this.staticContent]
       if (this.modalSubFrame) newChildren.push(this.modalSubFrame);
       this.childrenWithPossibleModal = newChildren;
     })
+
+    // Setup modal sub frame
+    this.ensure(() => {
+      if (this.assignedModalContent && this.receivedModalContent) {
+        throw new Error("Cannot both assign modal content and set it as a property for one single modal frame.")
+      } else {
+        const modalContent = this.assignedModalContent ? this.assignedModalContent : this.receivedModalContent 
+         
+        if (!modalContent) {
+          // Remove modal
+          this.disposeModalSubFrame();
+        } else if (this.modalSubFrame) {
+          // Replace content
+          this.modalSubFrame.setStaticContent(modalContent)
+          modalContent.modalFrame = this.modalSubFrame;
+        } else {
+          // New content
+          this.ensureModalSubFrame(modalContent);
+          modalContent.modalFrame = this.modalSubFrame;
+        }
+      }
+    })
   }
 
   openModal(modalContent) {
-    this.setModalContent(modalContent)
+    this.assignedModalContent = modalContent;
   }
   
   onDispose() {
-    // console.group("onDispose");
     super.onDispose();
-    this.setModalContent(null);
-    // console.groupEnd();
+    this.assignedModalContent = null;
   }
   
   closeModal(modalContent) {
-    if (this.modalContent === modalContent) {
-      this.setModalContent(null);
+    if (this.assignedModalContent === modalContent) {
+      this.assignedModalContent = null;
     }
   }
 
   setStaticContent(staticContent) {
     staticContent = staticContent instanceof Array ? staticContent : [staticContent]
     this.staticContent = staticContent;
-  }
-
-  setModalContent(modalContent) {
-
-    const previousContent = this.modalContent;
-
-    transaction(() => {
-      if (previousContent !== modalContent) {
-        this.modalContent = modalContent;
-
-        if (!modalContent) {
-          // Remove modal
-          this.disposeModalSubFrame();
-        } else if (previousContent) {
-          // Replace content
-          this.modalSubFrame.setStaticContent(modalContent)
-          modalContent.modalFrame = this.modalSubFrame;
-        } else {
-          // New content
-          this.ensureModalSubFrame(this.modalContent);
-          modalContent.modalFrame = this.modalSubFrame;
-        }
-      }
-    });
   }
 
   ensureModalSubFrame(content) {
@@ -121,7 +120,7 @@ export class ModalFrame extends Component {
         content, 
         { 
           style: {
-            zIndex: 1,
+            zIndex: 10,
             position: "absolute", 
             top: 0, 
             left: 0, 

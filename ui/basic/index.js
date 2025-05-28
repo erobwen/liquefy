@@ -1,4 +1,3 @@
-import { applicationMenuFrame } from "./src/ApplicationMenuFrame";
 import { basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel } from "./src/BasicWidgets";
 import { suitcaseIcon, plusIcon, crossIcon, icon } from "./src/Icons";
 import { svgImage } from "./src/images";
@@ -10,7 +9,6 @@ import { paper, paperColumn, paperRow } from "./src/Paper";
 
 export const basicTheme = {
   components: {
-    applicationMenuFrame,
     paper, paperColumn, paperRow,
     basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel,
     suitcaseIcon, plusIcon, crossIcon, icon,
@@ -22,7 +20,6 @@ export const basicTheme = {
 }
 
 export { // Note: A copy paste of allFunctions, since we are not allowed to use spread operators for export. 
-  applicationMenuFrame,
   paper, paperColumn, paperRow,
   basicWidgetTheme, label, checkboxInputField, numberInputField, textInputField, inputField, button, panel,
   suitcaseIcon, plusIcon, crossIcon, icon,

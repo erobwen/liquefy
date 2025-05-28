@@ -15,10 +15,10 @@ import {
   materialTheme 
 } from "@liquefy/ui-material";
 
-import { basicTheme, center, checkboxInputField, fillerStyle, fitContainerStyle, modalFrame } from "@liquefy/basic-ui";
+import { basicTheme, center, checkboxInputField, fillerStyle, fitContainerStyle, middle, modalFrame } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
 import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basic-ui";
-import { applicationMenuFrame, svgImage, wrapper } from "@liquefy/basic-ui";
+import { svgImage, wrapper } from "@liquefy/basic-ui";
 
 import { RecursiveExample } from "./pages/recursiveDemoApplication";
 import { ReactiveForm, initialData } from "./pages/reactiveFormApplication";
@@ -28,6 +28,8 @@ import { PortalExample } from "./pages/portalDemo";
 import { ModalExample } from "./pages/modalDemo";
 
 import flowImage from "../resources/flow.svg"
+
+import { applicationMenuFrame } from "./ApplicationMenuFrame"
 
 const log = console.log;
 
@@ -108,13 +110,14 @@ export class Demo extends Component {
       } 
     ));
 
-    return list(
+    return column(
       listItems,
       {
         key: "left-column", 
         style: {
           ...columnStyle,
-          ...naturalSizeStyle,
+          // ...naturalSizeStyle, only in X direction!
+          ...fillerStyle,
           height: "100%",
           width: "270px",
           overflow: "visible"
@@ -124,10 +127,11 @@ export class Demo extends Component {
   }
 
   render() {
+    // return div("foobar");
     return applicationMenuFrame({
       appplicationMenu: this.buildMenu(),
       applicationContent: this.choosen,
-      topPanelContent: [filler(), text("by Robert Renbris")],
+      topPanelContent: [filler(), middle(text("by Robert Renbris"))],
       bounds: this.bounds
     })
 
@@ -159,7 +163,7 @@ export class Demo extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startDemo() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("application")).render(
     new Demo()
   );
 }

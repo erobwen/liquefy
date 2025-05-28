@@ -5,12 +5,20 @@ import { button, assignGlobalTheme } from "@liquefy/themed-ui";
 
 import { modernTheme } from "@liquefy/modern-ui";
 
-import { list, listItem, materialTheme } from "@liquefy/ui-material";
+import { 
+  layout,
+  topAppBar, 
+  navigationDrawer,
+  layoutMain,
+  list, 
+  listItem, 
+  materialTheme 
+} from "@liquefy/ui-material";
 
-import { basicTheme, checkboxInputField, fitContainerStyle } from "@liquefy/basic-ui";
+import { basicTheme, center, checkboxInputField, fillerStyle, fitContainerStyle, modalFrame } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
 import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basic-ui";
-import { applicationMenuFrame, svgImage } from "@liquefy/basic-ui";
+import { applicationMenuFrame, svgImage, wrapper } from "@liquefy/basic-ui";
 
 import { RecursiveExample } from "./pages/recursiveDemoApplication";
 import { ReactiveForm, initialData } from "./pages/reactiveFormApplication";
@@ -65,7 +73,17 @@ export class Demo extends Component {
 
   buildMenu() {
     const listItems = [];
-    listItems.push(svgImage({image: flowImage}));
+    listItems.push(
+      center(
+        svgImage({image: flowImage}),
+        {
+          style: {
+            height: "200px",
+            backgroundColor: "white"
+          }
+        }
+      )
+    );
     for (let item of this.items) {
       listItems.push(
         listItem({
@@ -90,16 +108,15 @@ export class Demo extends Component {
       } 
     ));
 
-    return column(
+    return list(
       listItems,
       {
         key: "left-column", 
         style: {
-          ...naturalSizeStyle, 
-          borderRight: "2px",
+          ...columnStyle,
+          ...naturalSizeStyle,
           height: "100%",
-          borderRightStyle: "solid", 
-          backgroundColor: "lightgray", 
+          width: "270px",
           overflow: "visible"
         }
       }
@@ -113,6 +130,27 @@ export class Demo extends Component {
       topPanelContent: [filler(), text("by Robert Renbris")],
       bounds: this.bounds
     })
+
+    // const mainBounds = {
+    //   width: (this.bounds.width <= 855) ? this.bounds.width : this.bounds.width - 300,
+    //   height: this.bounds.height - 64  
+    // }
+    // console.log(mainBounds);
+    // this.choosen.bounds = mainBounds;
+    // return modalFrame(
+    //   layout(
+    //     topAppBar(filler(), text("by Robert Renbris"), {style: {color: "white", backgroundColor: "rgb(var(--mdui-color-primary))"}}),
+    //     navigationDrawer(this.buildMenu(), {open: true, style: {}}),
+    //     layoutMain(this.choosen),          
+    //     {
+    //       style: fitContainerStyle
+    //     }
+    //   ), 
+    //   {
+    //     style: fitContainerStyle
+    //   },
+    // )
+
   }
 }
 

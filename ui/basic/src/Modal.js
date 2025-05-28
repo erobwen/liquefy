@@ -121,6 +121,7 @@ export class ModalFrame extends Component {
         content, 
         { 
           style: {
+            zIndex: 1,
             position: "absolute", 
             top: 0, 
             left: 0, 

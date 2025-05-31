@@ -16,36 +16,12 @@ import "./components.css";
  * Tag creation helper
  */
 function taggedElement(tagName, properties) {
-  const {key, children, animation, animate, animateChildren, ...attributes} = properties;
-  // console.log(attributes)
-
   return elementNode({
-    key, 
-    children, 
-    animation, animate, animateChildren,
     tagName: tagName, 
-    componentTypeName: tagName,
-    attributes
+    componentTypeName: tagName, 
+    ...properties
   });
 }
-
-
-// const input = (...parameters) => {
-//   const properties = toInputProperties(parameters);
-//   const {key, labelText, setter, getter, ...attributes} = properties;
-//   return getRenderContext().primitive({
-//     key, 
-//     type: "elementNode",
-//     tagName: "mdui-text-field", 
-//     attributes: {
-//       onInput: (event) => setter(event.target.value),
-//       value: getter(),
-//       label: labelText,
-//       ...attributes
-//     }
-//   });
-// }
-
 
 
 /**

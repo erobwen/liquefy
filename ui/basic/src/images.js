@@ -12,5 +12,5 @@ export function svgImage(...parameters) {
   const properties = toProperties(parameters);
   addDefaultStyleToProperties(properties, {padding: "20px", backgroundColor: "white"});
   properties.src = extractProperty(properties, "image");
-  return getRenderContext().primitive({type: "elementNode", tagName: "img", ...properties});
+  return elementNode({tagName: "img", ...properties});
 }

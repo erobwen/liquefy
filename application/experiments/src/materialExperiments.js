@@ -86,6 +86,7 @@ const button = (...parameters) => {
 const input = (...parameters) => {
   const properties = toInputProperties(parameters);
   const {key, labelText, setter, getter, ...attributes} = properties;
+  
   return getRenderContext().primitive({
     key, 
     type: "elementNode",

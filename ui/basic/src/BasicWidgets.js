@@ -3,6 +3,7 @@ import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToP
 
 import { filler, row } from "./Layout.js";
 import { extractProperty } from "../../../flow.core/src/implicitProperties.js";
+import { elementNode } from "../../../flow.DOM/src/DOMElementNode.js";
 
 const log = console.log;
 
@@ -102,7 +103,8 @@ export function inputField(properties) {
     } 
   }
   const attributes = {
-    oninput: callback(properties.key + ".oninput", event => setter(type === "checkbox" ? event.target.checked : event.target.value)),
+    onInput: callback(properties.key + ".oninput", event => setter(type === "checkbox" ? event.target.checked : event.target.value)),
+    onClick: properties.onClick,
     value: getter(),
     checked: getter(),
     type,
@@ -115,12 +117,12 @@ export function inputField(properties) {
     ...inputAttributes
   };
   
-  const children = [getRenderContext().primitive({type: "elementNode", 
+  const children = [elementNode({
     key: properties.key + ".input", 
     componentTypeName: type + "InputField", 
     tagName: "input", 
-    attributes, 
-    onClick: properties.onClick})];
+    attributes
+  })]; 
   const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: ""}}); 
   if (type === "checkbox") {
     children.push(labelChild);

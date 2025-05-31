@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { getRenderContext } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 
-import { text, div } from "@liquefy/flow.DOM";
+import { text, div, elementNode } from "@liquefy/flow.DOM";
 
 const log = console.log;
 
@@ -41,12 +41,13 @@ export class PortalEntrance extends Component {
 
 export function portalExit(...parameters) {
   // Return just a plain div (with portalExit debug info.)
-  return getRenderContext().primitive( 
+  return elementNode(
     { 
-      type: "elementNode",
-      componentTypeName: "portalExit", 
       tagName: "div", 
+      componentTypeName: "portalExit", 
       ...toProperties(parameters), 
     }
+  )
+  getRenderContext().primitive( 
   );
 }

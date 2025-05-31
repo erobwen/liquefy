@@ -3,6 +3,14 @@ import { isObservable } from "./Flow.js";
 import { getRenderContext } from "./buildContext.js";
 const log = console.log;
 
+
+export function extractExpectedProperty(object, property) {
+  if (typeof(object[property]) === "undefined") throw new Error("Could not find expected property: " + property);
+  const result = object[property];
+  delete object[property];
+  return result; 
+}
+
 export function extractProperty(object, property) {
   const result = object[property];
   delete object[property];

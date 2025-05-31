@@ -17,7 +17,7 @@ assignGlobalTheme(basicTheme);
 
 // Setup flow 
 setFlowConfiguration({
-  traceReactivity: false,
+  traceReactivity: true,
   warnWhenNoKey: false,
   autoAssignProperties: true
 });

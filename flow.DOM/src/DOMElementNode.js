@@ -1,6 +1,7 @@
-import { extractProperty, toPropertiesWithChildren, getRenderContext } from "@liquefy/flow.core";
+import { extractProperty, toPropertiesWithChildren, getRenderContext, extractExpectedProperty } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
 import { domNodeClassRegistry } from "./DOMRenderContext";
+import { findDomElementNodeProperties } from "./implicitProperties";
   
 const log = console.log;
 
@@ -11,6 +12,7 @@ const log = console.log;
  */
 export function elementNode(...parameters) {
   let properties = toPropertiesWithChildren(parameters);
+  properties = findDomElementNodeProperties(properties);
   return getRenderContext().primitive({...properties, type: "elementNode"});
 }
 
@@ -25,6 +27,7 @@ function toLowerCase(object) {
   return result; 
 }
 
+
 /**
  * DOM Element node primitive
  */
@@ -32,21 +35,26 @@ function toLowerCase(object) {
   receive(properties) {
     this.children = extractProperty(properties, "children");
 
-    this.tagName = extractProperty(properties, "tagName");
-    if (this.tagName === "mdui-text-field") console.log({...properties})
+    this.componentTypeName = extractProperty(properties, "componentTypeName");
+    this.tagName = extractExpectedProperty(properties, "tagName");
     this.animation = extractProperty(properties, "animation");
     this.animate = extractProperty(properties, "animate");
     this.animateChildren = extractProperty(properties, "animateChildren");
 
     let attributes = extractProperty(properties, "attributes");
     const looseAttributes = Object.keys(properties).length;
-    if (looseAttributes && !attributes) {
-      attributes = properties
-    } else if (attributes && !looseAttributes) {
-      //noop
-    } else if (attributes && looseAttributes) {
-      Object.assign(attributes, properties);
+    if (looseAttributes > 0) {
+      console.log(properties)
+      throw new Error("Unexpected attributes to dom element node");
     }
+    // const looseAttributes = Object.keys(properties).length;
+    // if (looseAttributes && !attributes) {
+    //   attributes = properties
+    // } else if (attributes && !looseAttributes) {
+    //   //noop
+    // } else if (attributes && looseAttributes) {
+    //   Object.assign(attributes, properties);
+    // }
     this.attributes = toLowerCase(attributes); 
   }
 

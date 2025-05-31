@@ -155,5 +155,5 @@ export class ModalFrame extends Component {
 
 function modalFrameDiv(...parameters) {
   let properties = toProperties(parameters);
-  return elementNode({type: "elementNode", tagName: "div", componentTypeName: "modal-frame", ...properties});
+  return elementNode({tagName: "div", componentTypeName: "modal-frame", ...properties});
 }

@@ -4,7 +4,7 @@
   "description": "An abstract Reactive front end framework.",
   "type": "module",
   "main": "./dist/flow.core.umd.csj",
-  "module": "./src/index.js",
+  "module": "./index.js",
   "scripts": {
     "build": "vite build"
   },

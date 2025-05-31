@@ -1,5 +1,5 @@
 import { observable, deeplyObservable, repeat, Component, toProperties, getRenderContext } from "@liquefy/flow.core"
-import { div, text, DOMRenderContext, toInputProperties, toButtonProperties } from "@liquefy/flow.DOM"
+import { div, text, DOMRenderContext, toInputProperties, elementNode, toButtonProperties } from "@liquefy/flow.DOM"
 import "./materialExperiments.css";
 import { MdOutlinedIconButton, MdTextButton } from '@material/web/all.js';
 
@@ -52,9 +52,8 @@ export function materialExperiment() {
 const icon = (...parameters) => {
   const properties = toProperties(parameters)
   const {key, ...attributes} = properties;
-  return getRenderContext().primitive({
+  return elementNode({
     key: key, 
-    type: "elementNode", 
     tagName: "mdui-icon", 
     attributes
   })
@@ -67,9 +66,8 @@ const icon = (...parameters) => {
 const button = (...parameters) => {
   const properties = toButtonProperties(parameters);
   const {key, ...attributes} = properties;
-  return getRenderContext().primitive({
+  return elementNode({
     key, 
-    type: "elementNode", 
     tagName: "mdui-button", 
     ...attributes
   })
@@ -86,9 +84,9 @@ const button = (...parameters) => {
 const input = (...parameters) => {
   const properties = toInputProperties(parameters);
   const {key, labelText, setter, getter, ...attributes} = properties;
-  return getRenderContext().primitive({
+  
+  return elementNode({
     key, 
-    type: "elementNode",
     tagName: "mdui-text-field", 
     attributes: {
       onInput: (event) => setter(event.target.value),

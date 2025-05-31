@@ -1,8 +1,7 @@
-import { trace, callback, toProperties, getRenderContext } from "@liquefy/flow.core";
-import { text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.DOM";
+import { trace, callback, toProperties, getRenderContext, extractProperty } from "@liquefy/flow.core";
+import { elementNode, text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
-import { extractProperty } from "../../../flow.core/src/implicitProperties.js";
 
 const log = console.log;
 
@@ -102,7 +101,8 @@ export function inputField(properties) {
     } 
   }
   const attributes = {
-    oninput: callback(properties.key + ".oninput", event => setter(type === "checkbox" ? event.target.checked : event.target.value)),
+    onInput: callback(properties.key + ".oninput", event => setter(type === "checkbox" ? event.target.checked : event.target.value)),
+    onClick: properties.onClick,
     value: getter(),
     checked: getter(),
     type,
@@ -115,12 +115,14 @@ export function inputField(properties) {
     ...inputAttributes
   };
   
-  const children = [getRenderContext().primitive({type: "elementNode", 
-    key: properties.key + ".input", 
-    componentTypeName: type + "InputField", 
-    tagName: "input", 
-    attributes, 
-    onClick: properties.onClick})];
+  const children = [
+    elementNode({
+      key: properties.key + ".input", 
+      componentTypeName: type + "InputField", 
+      tagName: "input", 
+      attributes
+    })
+  ]; 
   const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: ""}}); 
   if (type === "checkbox") {
     children.push(labelChild);

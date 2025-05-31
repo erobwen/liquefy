@@ -8,7 +8,7 @@ const log = console.log;
 export function styledDiv(componentTypeName, style, parameters) { 
   const properties = toPropertiesWithChildren(parameters);
   properties.style = {...style, ...properties.style}; // Inject given style (while making it possible to override)
-  return elementNode({type: "elementNode", componentTypeName, tagName: "div", ...properties}); 
+  return elementNode({componentTypeName, tagName: "div", ...properties}); 
 }
 
 

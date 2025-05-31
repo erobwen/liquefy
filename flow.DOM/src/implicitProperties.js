@@ -79,3 +79,41 @@ export function findImplicitInputFieldParameters(properties) {
     properties.getErrors = callback(properties.key + ".getErrors", () => targetObject.errors ? targetObject.errors[targetProperty] : null)
   }
 }
+
+export function findDomElementNodeProperties(properties) {
+  // const {
+  //   key, 
+  //   componentTypeName,
+  //   children, 
+  //   tagName, 
+  //   animation, 
+  //   animate, 
+  //   animateChildren, 
+  //   attributes, 
+  //   ...restProperties
+  // } = properties;
+
+  // if (!!attributes && restProperties.length > 0) {
+  //   throw new Error ("Cannot have both loose attributes and an attribute property! Found properties: " + Object.keys(restProperties).join(", "));
+  // }
+  // const result = {}
+
+  // if (key) result.key = key; 
+  // if (componentTypeName) result.key = componentTypeName; 
+  // if (children) result.key = children; 
+  // if (tagName) result.key = tagName;
+
+  // if (typeof (animation) result.key = componentTypeName; 
+  // if (componentTypeName) result.key = componentTypeName; 
+
+  // return {
+  //   key, 
+  //   componentTypeName,
+  //   children, 
+  //   tagName, 
+  //   animation, 
+  //   animate, 
+  //   animateChildren, 
+  //   attributes: (!!attributes ? attributes : restProperties)
+  // }
+}

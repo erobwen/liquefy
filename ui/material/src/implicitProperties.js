@@ -1,5 +1,5 @@
 import { toProperties, getRenderContext } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, elementNode, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { toButtonProperties, toInputProperties, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 
 /**

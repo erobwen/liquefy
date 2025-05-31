@@ -64,7 +64,6 @@ class ApplicationMenuFrame extends Component {
 
   render() {
     const menuWidth = this.appplicationMenu.dimensions().width;
-    console.log(menuWidth)
     const { menuIsModalOverride } = this;
     const menuIsModal = menuIsModalOverride !== null ? menuIsModalOverride : this.bounds.width < menuWidth * 3;
 

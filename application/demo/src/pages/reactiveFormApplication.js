@@ -1,11 +1,11 @@
 import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
-import { naturalSizeStyle} from "@liquefy/basic-ui";
+import { columnStyle, naturalSizeStyle } from "@liquefy/basic-ui";
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
-import { button, paper, paperRow, paperColumn, textInputField } from "@liquefy/themed-ui";
+import { button, paper, paperRow, paperColumn, textInputField, card } from "@liquefy/themed-ui";
 
 
 const log = console.log;
@@ -75,7 +75,7 @@ function calculateCost(data) {
  * Travlers verifier. Plain Javascript, model verification. 
  */
 
- function verifyData(editData) {
+function verifyData(editData) {
   transaction(() => {
     let anyError = false; 
     anyError = verifyTraveler(editData.traveler, false) || anyError;
@@ -247,7 +247,7 @@ export class TravelerForm extends Component {
   
   render() {
     const traveler = this.traveler;
-    return paperColumn(
+    return card(
       // Recommendation: Do ineritance first, to avoid diabling caches further down. Nooo... wait... setting the same value twice will not trigger anything! 
 
       // Remove button
@@ -305,7 +305,13 @@ export class TravelerForm extends Component {
             edge: false 
           }
         ), { animate: configuration.animation }
-      ).show(!this.traveler.luggages.length || this.showLuggage)
+      ).show(!this.traveler.luggages.length || this.showLuggage), 
+      {
+        style: {
+          gap: "4px",
+          ...columnStyle
+        }
+      }
     );
   }
 }

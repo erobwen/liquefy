@@ -2,6 +2,7 @@ import { toProperties } from "@liquefy/flow.core";
 import { globalContext } from "@liquefy/flow.core";
 import { getCreator } from "@liquefy/flow.core";
 import { toInputProperties } from "@liquefy/flow.DOM";
+import { toPropertiesWithChildren } from "../../flow.core/src/implicitProperties";
 
 /**
  * Contextual Theme
@@ -59,6 +60,8 @@ export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon"
 export const icon = (...parameters) => getThemedComponent("icon", toProperties(parameters));
 export const button = (...parameters) => getThemedComponent("button", toProperties(parameters));
 export const inputField = (...parameters) => getThemedComponent("inputField", toProperties(parameters));
+export const input = (...parameters) => getThemedComponent("input", toInputProperties(parameters));
+export const card = (...parameters) => getThemedComponent("card", toPropertiesWithChildren(parameters));
 export const paper = (...parameters) => getThemedComponent("paper", toProperties(parameters));
 export const paperColumn = (...parameters) => getThemedComponent("paperColumn", toProperties(parameters));
 export const paperRow = (...parameters) => getThemedComponent("paperRow", toProperties(parameters));
@@ -72,17 +75,17 @@ export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", 
 export function checkboxInputField(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "checkbox";
-  return inputField(properties);
+  return input(properties);
 }
 
 export function numberInputField(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "number";
-  return inputField(properties);
+  return input(properties);
 }
 
 export function textInputField(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "text";
-  return inputField(properties);
+  return input(properties);
 }

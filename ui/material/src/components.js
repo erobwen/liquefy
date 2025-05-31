@@ -5,7 +5,7 @@ import 'mdui/components/layout-main.js';
 import 'mdui/components/button-icon.js';
 import 'mdui';
 import { toProperties, getRenderContext, toPropertiesWithChildren } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, elementNode } from "@liquefy/flow.DOM";
+import { toButtonProperties, toInputProperties, elementNode, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 import { toMduiInputProperties } from './implicitProperties';
 import "./components.css";
@@ -16,8 +16,36 @@ import "./components.css";
  * Tag creation helper
  */
 function taggedElement(tagName, properties) {
-  return elementNode({tagName: tagName, componentTypeName: tagName, ...properties});
+  const {key, children, animation, animate, animateChildren, ...attributes} = properties;
+  // console.log(attributes)
+
+  return elementNode({
+    key, 
+    children, 
+    animation, animate, animateChildren,
+    tagName: tagName, 
+    componentTypeName: tagName,
+    attributes
+  });
 }
+
+
+// const input = (...parameters) => {
+//   const properties = toInputProperties(parameters);
+//   const {key, labelText, setter, getter, ...attributes} = properties;
+//   return getRenderContext().primitive({
+//     key, 
+//     type: "elementNode",
+//     tagName: "mdui-text-field", 
+//     attributes: {
+//       onInput: (event) => setter(event.target.value),
+//       value: getter(),
+//       label: labelText,
+//       ...attributes
+//     }
+//   });
+// }
+
 
 
 /**
@@ -25,7 +53,45 @@ function taggedElement(tagName, properties) {
  */
 export const icon = (...parameters) => taggedElement("mdui-icon", toProperties(parameters));
 export const button = (...parameters) => taggedElement("mdui-button", toButtonProperties(parameters));
-export const input = (...parameters) => taggedElement("mdui-button", toMduiInputProperties(parameters));
+export const input = (...parameters) => taggedElement("mdui-text-field", toMduiInputProperties(parameters));
+export const card = (...parameters) => 
+  taggedElement(
+    "div", 
+    addDefaultStyleToProperties(
+      toPropertiesWithChildren(parameters),
+      {
+        padding: "10px",
+        backgroundColor: "rgb(179 168 206)",
+        // backgroundColor: "var(--mdui-color-surface-container-low)",
+        boxShadow: "var(--mdui-elevation-level1)",
+        "--shape-corner": "var(--mdui-shape-corner-medium)",
+        borderRadius:  "0.75rem"
+      }
+    )
+  );
+
+  // --shape-corner: var(--mdui-shape-corner-medium);
+  //   position: relative;
+  //   display: inline-block;
+  //   overflow: hidden;
+  //   border-radius: var(--shape-corner);
+// :host([variant=elevated]) {
+//     background-color: rgb(var(--mdui-color-surface-container-low));
+//     box-shadow: var(--mdui-elevation-level1);
+// }
+// constructed stylesheet
+// :host {
+//     --shape-corner: var(--mdui-shape-corner-medium);
+//     position: relative;
+//     display: inline-block;
+//     overflow: hidden;
+//     border-radius: var(--shape-corner);
+//     -webkit-tap-highlight-color: transparent;
+//     transition: box-shadow var(--mdui-motion-duration-short4) var(--mdui-motion-easing-linear);
+//     --mdui-comp-ripple-state-layer-color: var(--mdui-color-on-surface);  //     background-color: rgb(var(--mdui-color-surface-container-low));
+  //     box-shadow: var(--mdui-elevation-level1)
+  // 0 0.5px 1.5px 0 rgba(0,0,0, 19%),0 0 1px 0 rgba(0,0,0, 3.9%)
+  // ;
 
 export const layout = (...parameters) => taggedElement("mdui-layout", toPropertiesWithChildren(parameters));
 export const topAppBar = (...parameters) => taggedElement("mdui-top-app-bar", toPropertiesWithChildren(parameters));

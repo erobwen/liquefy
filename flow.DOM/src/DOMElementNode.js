@@ -10,8 +10,8 @@ const log = console.log;
  * Element node factory
  */
 export function elementNode(...parameters) {
-  let properties = toPropertiesWithChildren(parameters); 
-  return getRenderContext().primitive({type: "elementNode", ...properties});
+  let properties = toPropertiesWithChildren(parameters);
+  return getRenderContext().primitive({...properties, type: "elementNode"});
 }
 
 
@@ -31,7 +31,9 @@ function toLowerCase(object) {
  export class DOMElementNode extends DOMNode {
   receive(properties) {
     this.children = extractProperty(properties, "children");
+
     this.tagName = extractProperty(properties, "tagName");
+    if (this.tagName === "mdui-text-field") console.log({...properties})
     this.animation = extractProperty(properties, "animation");
     this.animate = extractProperty(properties, "animate");
     this.animateChildren = extractProperty(properties, "animateChildren");
@@ -96,6 +98,7 @@ function toLowerCase(object) {
             // TODO: Investigate why we had to use the setAttribute function for it to work with "class", is it the same with more attributes?
             element.setAttribute("class", newValue);
           } else {
+            // console.log(property)
             element[property] = newValue;
           }
         }

@@ -151,25 +151,6 @@ export class Item extends Component {
   }
 }
 
-// function shadePanel(close) {
-//   const target = getRenderContext();
-//   return target.primitive({type: "elementNode", 
-//     tagName: "div", 
-//     componentTypeName: "shadePanel",
-//     attributes: {
-//       onclick: () => {close();},
-//       style:{
-//         position: "absolute",
-//         top: 0,
-//         left: 0,
-//         width: "100%", 
-//         height: "100%", 
-//         backgroundColor: "black", 
-//         opacity: 0.2
-//       }
-//     }, 
-//   });
-// }
 
 
 /**

@@ -1,5 +1,5 @@
 import { toProperties, getRenderContext } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, elementNode } from "@liquefy/flow.DOM";
+import { toButtonProperties, toInputProperties, elementNode, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 
 
 /**
@@ -10,11 +10,18 @@ import { toButtonProperties, toInputProperties, elementNode } from "@liquefy/flo
  */
 export function toMduiInputProperties(parameters) {
   const properties = toInputProperties(parameters);
-  const {key, labelText, setter, getter, ...restProperties} = properties;
+  const {key, labelText, setter, getter, getErrors, ...restProperties} = properties;
+  
   return {
+    key,
     onInput: (event) => setter(event.target.value),
     value: getter(),
     label: labelText,
-    ...restProperties
+    errors: getErrors ?  getErrors() : null,
+    ...addDefaultStyleToProperties(
+      restProperties, {
+        height: "56px"
+      }
+    )
   }
 }

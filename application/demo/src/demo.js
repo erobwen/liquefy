@@ -1,4 +1,4 @@
-import { observable, Component, repeat, creators, logMark } from "@liquefy/flow.core";
+import { observable, Component, repeat, creators, logMark, transaction } from "@liquefy/flow.core";
 import { DOMRenderContext, span, text } from "@liquefy/flow.DOM";
 
 import { button, assignGlobalTheme } from "@liquefy/themed-ui";
@@ -92,7 +92,14 @@ export class Demo extends Component {
           children: [
             text(item.name)
           ], 
-          onClick: () => { this.choosen = item },
+          onClick: () => { 
+            transaction(() => {
+              console.log(this.getChild("menuFrame"));
+              // console.log(this)
+              this.getChild("menuFrame").menuOpen = false;
+              this.choosen = item;
+            })
+          },
           rounded: true, 
           active: this.choosen === item
         })
@@ -128,12 +135,14 @@ export class Demo extends Component {
 
   render() {
     // return div("foobar");
-    return applicationMenuFrame({
-      appplicationMenu: this.buildMenu(),
-      applicationContent: this.choosen,
-      topPanelContent: [filler(), middle(text("by Robert Renbris"))],
-      bounds: this.bounds
-    })
+    return applicationMenuFrame(
+      "menuFrame", {
+        appplicationMenu: this.buildMenu(),
+        applicationContent: this.choosen,
+        topPanelContent: [filler(), middle(text("by Robert Renbris"))],
+        bounds: this.bounds
+      }
+    )
 
     // const mainBounds = {
     //   width: (this.bounds.width <= 855) ? this.bounds.width : this.bounds.width - 300,

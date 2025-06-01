@@ -1,11 +1,11 @@
 import { Component } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
-import { panel } from "@liquefy/basic-ui";
+import { fillerStyle, panel } from "@liquefy/basic-ui";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
 import { overflowVisibleStyle } from "@liquefy/basic-ui";
 import { modal, modalFrame } from "@liquefy/basic-ui";
-import { button } from "@liquefy/basic-ui";
+import { button } from "@liquefy/themed-ui";
 
 
 const log = console.log;
@@ -30,21 +30,24 @@ const shadeColor = "rgba(0, 0, 0, 0.4)";
 const transparentColor = "rgba(0, 0, 0, 0)";
 
 export class Dialog extends Component {
-  receive({close, text, children}) {
+  receive({close, content, children}) {
     this.close = close; 
-    this.text = text; 
-    this.children = children ? children : []; 
+    this.content = content; 
+    // this.children = children ? children : []; 
     this.backgroundColor = shadeColor;
   }
 
   render() {
     // log("Dialog.build")
+    
     const background = div({
       key: "background", 
+      onClick: () => { this.close(); console.log("asdf") }, 
       style: {
         ...zStackElementStyle, 
         ...overflowVisibleStyle, 
         transition: "background-color 1000ms linear", 
+        pointerEvents: "auto", 
         backgroundColor: this.backgroundColor
       }});
     const domNode = background.getPrimitive().getDomNode();
@@ -54,12 +57,12 @@ export class Dialog extends Component {
       background,
       centerMiddle(
         column(
-          text(this.text),
+          this.content,
           button("Close", () => this.close()), 
-          ...this.children,
-          {style: {...panelStyle, ...overflowVisibleStyle}, animateChildrenWhenThisAppears: true}
+          // ...this.children,
+          {style: {...panelStyle, ...overflowVisibleStyle}, pointerEvents: "auto", animateChildrenWhenThisAppears: true}
         ),
-        {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%", pointerEvents: "auto"}}
+        {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
       ),
       {style: fitContainerStyle, ...overflowVisibleStyle}
     )
@@ -72,128 +75,51 @@ export class Dialog extends Component {
  */
 export class ModalExample extends Component {
   // Lifecycle function build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
-  receive() {
+  receive({bounds}) {
+    this.bounds = bounds; 
     // Object.assign(this, properties)
-    this.name = "Modal Dialogs";
+    this.name = "Hybrid Modal Dialogs";
   }
 
   render() {
-    return new BasicModalExample()
+    const {width, height }  = this.bounds;
+    const dialogIsModal = width < 700;
+
+    const dialogContent = text("Dialog content!");
+
+    return row("row",
+      panel("base-panel",
+        column("base-column",
+          text("Standard responsive modal demo."),
+          // row(
+            button("Open Modal", ()=> {this.showDialog = true;}),
+            {style: overflowVisibleStyle}
+          // ), 
+          // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
+        ),
+        {style: fillerStyle}
+      ),
+      div("dialog-panel",
+        panel(
+          column("column",
+            button("Close", () => this.showDialog = false), 
+            dialogContent.show(this.showDialog && !dialogIsModal),
+          ),
+        ).show(this.showDialog && !dialogIsModal),
+        {style: fillerStyle}
+      ).show(!dialogIsModal),
+      modal(
+        "modal",
+        dialog("dialog", 
+          dialogContent.show(this.showDialog && dialogIsModal), 
+          {close: () => { this.showDialog = false}}
+        )
+      ).show(this.showDialog && dialogIsModal),
+      { style: fitContainerStyle }
+    );
   }
 }
   
-
-class BasicModalExample extends Component {
- 
-  initialize() {
-    this.showModal = false;
-  }
-
-  render() {
-    return panel("panel",
-      column("column",
-        text("Standard responsive modal demo."),
-        // row(
-          button("Open Modal", ()=> {this.showModal = true;}),
-          {style: overflowVisibleStyle}
-        // ), 
-        // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
-      ),
-      modal(
-        "modal",
-        dialog("dialog", "Modal!", {close: () => { this.showModal = false}})
-      ).show(this.showModal),
-      { style: { ...centerMiddleStyle, width: "300px", height: "300px", margin: "10px"}}
-    );
-  }
-}
-
-class FlyoutModalExample extends Component {
- 
-  initialize() {
-    this.showModal = false;
-  }
-
-  render() {
-    return panel("panel",
-      column("column",
-        text("Standard responsive modal demo."),
-        // row(
-          button("Open Modal", ()=> {this.showModal = true;}),
-          {style: overflowVisibleStyle}
-        // ), 
-        // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
-      ),
-      modal(
-        "modal",
-        dialog("dialog", "Modal!", {close: () => { this.showModal = false}})
-      ).show(this.showModal),
-      { style: { ...centerMiddleStyle, width: "300px", height: "300px", margin: "10px"}}
-    );
-  }
-}
-
-class PopoverModalExample extends Component {
- 
-  initialize() {
-    this.showModal = false;
-  }
-
-  render() {
-    return panel("panel",
-      column("column",
-        text("Standard responsive modal demo."),
-        // row(
-          button("Open Modal", ()=> {this.showModal = true;}),
-          {style: overflowVisibleStyle}
-        // ), 
-        // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
-      ),
-      modal(
-        "modal",
-        dialog("dialog", "Modal!", {close: () => {log("CLOSE"); this.showModal = false}})
-      ).show(this.showModal),
-      { style: { ...centerMiddleStyle, width: "300px", height: "300px", margin: "10px"}}
-    );
-  }
-}
-
-class HybridModalExample extends Component {
- 
-  initialize() {
-    this.showModal = false;
-  }
-
-  render() {
-    return panel("panel",
-      column("column",
-        text("Standard responsive modal demo."),
-        // row(
-          button("Open Modal", ()=> {this.showModal = true;}),
-          {style: overflowVisibleStyle}
-        // ), 
-        // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
-      ),
-      modal(
-        "modal",
-        dialog("dialog", "Modal!", {close: () => {log("CLOSE"); this.showModal = false}})
-      ).show(this.showModal),
-      { style: { ...centerMiddleStyle, width: "300px", height: "300px", margin: "10px"}}
-    );
-  }
-}
-
-
-export class ModalStandaloneExample extends Component {
-  render() {
-    return (
-      modalFrame(
-        new ModalExample(),
-        {style: overflowVisibleStyle}
-      )
-    ) 
-  }
-}
 
 
 

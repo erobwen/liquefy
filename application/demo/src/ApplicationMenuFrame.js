@@ -1,5 +1,5 @@
 import { Component, toProperties, log, logMark } from "@liquefy/flow.core"
-import { div } from "@liquefy/flow.DOM";
+import { div, text } from "@liquefy/flow.DOM";
 
 import { centerMiddle, column, filler, fillerStyle, fitContainerStyle, row, rowStyle } from "@liquefy/basic-ui";
 import { modal, modalFrame, icon, zStackElementStyle, zStack, overflowVisibleStyle } from "@liquefy/basic-ui";
@@ -25,6 +25,19 @@ class ApplicationMenuFrame extends Component {
   initialize() {
     this.menuOpen = false; 
     this.menuIsModalOverride = null; 
+    this.modalButton = centerMiddle(
+      buttonIcon("modalButton", 
+        () => {
+          this.menuOpen = !this.menuOpen;
+        }, 
+        {icon: "menu"}
+      ), 
+      {style: {width: "64px"}}
+    ).onEstablish()
+  }
+
+  terminate() {
+    this.modalButton.onDispose();
   }
 
   // closeMenu() {
@@ -38,11 +51,13 @@ class ApplicationMenuFrame extends Component {
   buildModalMenuDrawer() {
     const background = div({
       key: "background", 
+      onClick: () => this.menuOpen = false, 
       style: {
         ...zStackElementStyle, 
-        ...overflowVisibleStyle, 
+        ...overflowVisibleStyle,
+        pointerEvents: "auto",
         transition: "background-color 1000ms linear", 
-        backgroundColor: this.backgroundColor
+        backgroundColor: "rgba(0, 0, 0, 0.2)"
       }});
     const domNode = background.getPrimitive().getDomNode();
 
@@ -50,12 +65,12 @@ class ApplicationMenuFrame extends Component {
       background,
       row(
         column(
-          button("Close", () => this.menuOpen = false), 
+          centerMiddle(this.modalButton, {style: {height: "64px", width: "64px"}}),
           this.appplicationMenu,
-          {style: {backgroundColor: "white", boxShadow: paperShadow, ...overflowVisibleStyle}, animateChildrenWhenThisAppears: true}
+          {style: {backgroundColor: "white", boxShadow: paperShadow, pointerEvents: "auto", ...overflowVisibleStyle}, animateChildrenWhenThisAppears: true}
         ),
         filler(),
-        {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%", pointerEvents: "auto"}}
+        {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
       ),
       {style: {...fitContainerStyle, ...overflowVisibleStyle}}
     )
@@ -63,6 +78,8 @@ class ApplicationMenuFrame extends Component {
 
 
   render() {
+    // console.log("RENDER");
+    // console.log(this)
     const menuWidth = this.appplicationMenu.dimensions().width;
     const { menuIsModalOverride } = this;
     const menuIsModal = menuIsModalOverride !== null ? menuIsModalOverride : this.bounds.width < menuWidth * 3;
@@ -72,18 +89,8 @@ class ApplicationMenuFrame extends Component {
       height: this.bounds.height
     };
 
-    const modalButton = centerMiddle(
-      buttonIcon("modalButton", 
-        () => {
-          this.menuOpen = true;
-        }, 
-        {icon: "menu"}
-      ), 
-      {style: {width: "64px"}}
-    );
-
     const topApplicationBar = row("modalMenu",
-      modalButton.show(menuIsModal),
+      this.modalButton.show(menuIsModal && !this.menuOpen),
       ...this.topPanelContent,      
       {style: {height: menuIsModal ? "64px" : "32px", boxShadow: paperShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
@@ -103,7 +110,7 @@ class ApplicationMenuFrame extends Component {
         {style: {...fillerStyle, ...overflowVisibleStyle}}
       ),
       {
-        modalContent: menuIsModal && this.menuOpen ? this.buildModalMenuDrawer() : null,
+        modalContent: this.menuOpen && menuIsModal ? this.buildModalMenuDrawer() : null,
         style: {...rowStyle, ...fitContainerStyle}
       }
     )

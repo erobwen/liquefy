@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { text, DOMRenderContext } from "@liquefy/flow.DOM";
 import { centerMiddle, column, fitContainerStyle } from "@liquefy/basic-ui";
 
-import { button, textInputField } from "@liquefy/themed-ui";
+import { button, textInput } from "@liquefy/themed-ui";
 import { modernTheme } from "@liquefy/modern-ui";
 import { checkboxInputField } from "@liquefy/basic-ui";
 import { applicationMenuFrame, fillerStyle, layoutBorderStyle } from "@liquefy/basic-ui";

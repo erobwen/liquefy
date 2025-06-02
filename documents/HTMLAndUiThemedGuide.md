@@ -64,4 +64,4 @@ button("button-key", div(h1(text("some text node"))), () => action()) // Button 
 button("button-key", new ButtonContent(), () => action()) // Custom component as content
 ```
 
-Note: For textInputFields we will use a single label as a standin for key if a key is not given. This trick do not work reliably for buttons, as it is common to have the text of buttons change depending on state. 
+Note: For textInputs we will use a single label as a standin for key if a key is not given. This trick do not work reliably for buttons, as it is common to have the text of buttons change depending on state. 

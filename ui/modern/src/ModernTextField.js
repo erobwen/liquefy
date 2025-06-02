@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 import { div, text } from "@liquefy/flow.DOM";
 import { panelStyle } from "./Style";
-import { button, textInputField } from "@liquefy/basic-ui";
+import { button, textInput } from "@liquefy/basic-ui";
 import { centerMiddle, column, filler, fitContainerStyle, row } from "@liquefy/basic-ui";
 
 const log = console.log; 
@@ -50,7 +50,7 @@ export class ModernTextField extends Component {
         row(
           "textFieldRow",
           labelText.show(!this.active),
-          textInputField("", getter, setter, {style: {fontSize: this.active ? "14px" : "8px"}}),
+          textInput("", getter, setter, {style: {fontSize: this.active ? "14px" : "8px"}}),
           {style: {fontSize: "14px"}}
         )
       )

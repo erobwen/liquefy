@@ -84,7 +84,7 @@ export function numberInputField(...parameters) {
   return input(properties);
 }
 
-export function textInputField(...parameters) {
+export function textInput(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "text";
   return input(properties);

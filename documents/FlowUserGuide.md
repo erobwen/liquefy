@@ -279,11 +279,11 @@ someComponent("some-key", ...parameters)
 It should be noted that some component uses a label as an implicit key if no key is given. For example: 
 
 ```js
-textInputField("Name", traveler, "name") // "Name" is implicit key
+textInput("Name", traveler, "name") // "Name" is implicit key
 
 //or 
 
-textInputField("explicit-key", "Name", traveler, "name")
+textInput("explicit-key", "Name", traveler, "name")
 ```
 
 In the first case above, "Name" is the label, but it will also double as a key. The same won´t work for buttons however, since the text of buttons often change depending on state, thus a more explicit key is needed. 

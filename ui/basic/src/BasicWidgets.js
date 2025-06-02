@@ -73,7 +73,7 @@ export function numberInputField(...parameters) {
   return inputField(properties);
 }
 
-export function textInputField(...parameters) {
+export function textInput(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "text";
   return inputField(properties);

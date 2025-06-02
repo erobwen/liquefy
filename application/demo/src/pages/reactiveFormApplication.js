@@ -5,7 +5,7 @@ import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/ba
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
-import { button, paper, paperRow, paperColumn, textInputField, card } from "@liquefy/themed-ui";
+import { button, paper, paperRow, paperColumn, textInput, card } from "@liquefy/themed-ui";
 import { buttonIcon } from "@liquefy/ui-material";
 
 
@@ -274,8 +274,8 @@ export class TravelerForm extends Component {
 
       // Traveler inforation
       column(
-        textInputField("Name", traveler, "name"),
-        textInputField("Passport", traveler, "passportNumber"),
+        textInput("Name", traveler, "name"),
+        textInput("Passport", traveler, "passportNumber"),
         {style: { gap: "5px" }}
       ),
 
@@ -285,9 +285,9 @@ export class TravelerForm extends Component {
       
       // Adress
       column(
-        textInputField("Adress", traveler.adress, "adress"),
-        textInputField("Zip code", traveler.adress, "zipCode"),
-        textInputField("City", traveler.adress, "city"), 
+        textInput("Adress", traveler.adress, "adress"),
+        textInput("Zip code", traveler.adress, "zipCode"),
+        textInput("City", traveler.adress, "city"), 
         {style: { gap: "5px" }}
       ).show(!traveler.isFellowTraveller),
 

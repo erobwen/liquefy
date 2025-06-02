@@ -938,7 +938,7 @@ function createWorld(configuration) {
     // console.log("deeplyObservable");
     // console.log(object);
     if (isObservable(object)) return object; 
-    if (typeof(object) !== "object") return object;
+    if (typeof(object) !== "object" || object === null) return object;
     let target; 
     if (copy) {
       const objectCopy = object instanceof Array ? [] : {};

@@ -83,16 +83,16 @@ export class ModalExample extends Component {
 
   render() {
     const {width, height }  = this.bounds;
-    const dialogIsModal = width < 700;
+    const dialogIsModal = width < 800;
 
     const dialogContent = text("Dialog content!");
 
     return row("row",
       panel("base-panel",
         column("base-column",
-          text("Standard responsive modal demo."),
+          text("A hybrid modal dialog, that is only modal when there is not enough space."),
           // row(
-            button("Open Modal", ()=> {this.showDialog = true;}),
+            button("Open Dialog", ()=> {this.showDialog = true;}),
             {style: overflowVisibleStyle}
           // ), 
           // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),

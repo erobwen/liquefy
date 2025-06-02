@@ -1,11 +1,12 @@
 import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
 
-import { columnStyle, naturalSizeStyle } from "@liquefy/basic-ui";
+import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/basic-ui";
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
 import { button, paper, paperRow, paperColumn, textInputField, card } from "@liquefy/themed-ui";
+import { buttonIcon } from "@liquefy/ui-material";
 
 
 const log = console.log;
@@ -129,11 +130,20 @@ export class SimpleDrawer extends Component {
     this.content = content;
  }
  render() {
-  const buttonIcon = this.isOpen ? icon({name: "chevron-up"}) : icon({name: "chevron-down"});
+  const buttonIcon = this.isOpen ? icon({name: "keyboard_arrow_up"}) : icon({name: "keyboard_arrow_down"});
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
-    button(row(span(buttonLabel), buttonIcon, {style: {justifyContent: "space-between"}}), () => this.toggleOpen(), {style: {margin: "5px"}, ripple: true}),
-    column("contents", {children: [this.isOpen ? this.content : null], animateChildren: configuration.animation})
+    button(row(
+      span(buttonLabel, {style: {lineHeight: "24px", marginRight: "20px"}}), 
+      buttonIcon, 
+      {style: {justifyContent: "space-between"}}), 
+      () => this.toggleOpen(), 
+    ),
+    column("contents", {
+      children: [this.isOpen ? this.content : null], animateChildren: configuration.animation,
+      style: {gap: "10px"}
+    }), 
+    {style: {gap: "10px"}}
   );
  }
 }
@@ -178,20 +188,27 @@ export class ReactiveForm extends Component {
         div("scrollPanel",
           column(
             // Header       
-            p("Cost: " + calculateCost(data), {style: {marginBottom: "5px"}}),
-            p("Traveler Information " + travelerString(), {style: {fontSize: "15px", paddingBottom: "10px"}}),
+            div("Cost: " + calculateCost(data)),
+            div("Traveler Information " + travelerString(), {style: {fontSize: "15px"}}),
 
             // Traveler forms
+            // column(
             new TravelerForm({traveler, isFellowTraveller: false}),
+
             column({
               children: this.editData.fellowTravellers.map(traveler => new TravelerForm("id-" + traveler.causality.id, {traveler, isFellowTraveller: true})),
-              style: { overflow: "visible" } 
+              style: { overflow: "visible", gap: "20px" } 
             }),
+            // ),
 
             // Add traveler button
             row(
               filler(),
-              button("+ Traveler", () => this.editData.fellowTravellers.push(createTraveler(true)), {ripple: true})
+              button(
+                middle(icon({name: "add"})),
+                span("Traveler", {style: {lineHeight: "46px"}}), 
+                () => this.editData.fellowTravellers.push(createTraveler(true))
+              )
             ),
 
             // Submit button
@@ -202,14 +219,10 @@ export class ReactiveForm extends Component {
                   this.shouldVerifyData = false; 
                   alert("Sent form!\n" + JSON.stringify(this.editData, null, 4));
                 }
-              }, 
-              {
-                style: {marginTop: "30px"},
-                disabled: data.anyError,
-                ripple: true
-              }),
+              }
+            ),
             filler(),
-            { style: {padding: "30px"}}
+            { style: {gap: "20px", padding: "30px"}}
           ),
           { style: {boxSizing: "border-box", height: "100%", overflowY: "scroll"}}
         ),
@@ -253,13 +266,18 @@ export class TravelerForm extends Component {
       // Remove button
       row(
         filler(),
-        button(icon({name: "xmark"}), () => {this.creator.editData.fellowTravellers.remove(this.traveler)}, {edge: false, square: true, ripple: true})
+        buttonIcon(
+          {icon: "close"}, 
+          () => {this.creator.editData.fellowTravellers.remove(this.traveler)}, 
+        )
       ).show(traveler.isFellowTraveller),
 
       // Traveler inforation
-      textInputField("Name", traveler, "name"),
-      textInputField("Passport", traveler, "passportNumber"),
-      div({style: {height: "10px"}}),
+      column(
+        textInputField("Name", traveler, "name"),
+        textInputField("Passport", traveler, "passportNumber"),
+        {style: { gap: "5px" }}
+      ),
 
       // Child info
       checkboxInputField("Is Child", traveler, "isChild").show(this.isFellowTraveller),
@@ -270,7 +288,7 @@ export class TravelerForm extends Component {
         textInputField("Adress", traveler.adress, "adress"),
         textInputField("Zip code", traveler.adress, "zipCode"),
         textInputField("City", traveler.adress, "city"), 
-        div({style: {height: "10px"}}),
+        {style: { gap: "5px" }}
       ).show(!traveler.isFellowTraveller),
 
       // Luggages 
@@ -282,8 +300,10 @@ export class TravelerForm extends Component {
         content: column("luggage-panel",
           column("luggage-list", {
             children: this.traveler.luggages.map(luggage => new LuggageForm("id-" + luggage.causality.id, {luggage})),
-            animateChildren: configuration.animation
-          })
+            animateChildren: configuration.animation,
+            style: {gap: "10px"}
+          }),
+          {style: {gap: "10px"}}
         ),
         animate: configuration.animation
       }).show(this.traveler.luggages.length),
@@ -292,23 +312,22 @@ export class TravelerForm extends Component {
       row("add-luggage",
         filler(),
         button(
-          icon({name: "suitcase-rolling", style: {marginRight: "10px"}}),
-          "Add luggage",
+          icon({name: "add", style: {marginRight: "10px"}}),
+          span("Add luggage", {style: {lineHeight: "24px"}}),
           () => {
             transaction(() => {
               this.traveler.luggages.push(model({weight: 1, type: "bag"}));
               this.showLuggage = true;
             });
-          },
-          {
-            ripple: true,
-            edge: false 
-          }
-        ), { animate: configuration.animation }
+          }, 
+        ), 
+        { 
+          animate: configuration.animation 
+        }
       ).show(!this.traveler.luggages.length || this.showLuggage), 
       {
         style: {
-          gap: "4px",
+          gap: "10px",
           ...columnStyle
         }
       }
@@ -323,11 +342,16 @@ export class LuggageForm extends Component {
 
   render() {
     // return div({style: {height: "48px", backgroundColor: "green"}})
-    return paperRow(
-      suitcaseIcon({style: {padding: "14px"}}),
-      numberInputField("Weight", this.luggage, "weight", {unit: "kg"}),
+    return row(
+      centerMiddle(icon({name: "luggage"}), {style: {width: "40px"}}),
+      numberInputField("Weight", this.luggage, "weight", {unit: "kg", style: {width: "150px"}}),
       filler(),
-      button(icon({name: "xmark"}), () => {this.creator.traveler.luggages.remove(this.luggage)}, {edge: false, square: true, ripple: true})
+      middle(
+        buttonIcon(
+          {icon: "close"}, 
+          () => {this.creator.traveler.luggages.remove(this.luggage)}, 
+        )
+      )
     );
   }
 }

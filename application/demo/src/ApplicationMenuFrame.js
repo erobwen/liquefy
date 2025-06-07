@@ -13,9 +13,7 @@ export function applicationMenuFrame(...parameters) {
 }
 
 class ApplicationMenuFrame extends Component {
-  receive(properties) {
-    Object.assign(this, properties)
-    const {appplicationMenu, applicationContent, topPanelContent, bounds} = properties;
+  receive({appplicationMenu, applicationContent, topPanelContent, bounds}) {
     this.appplicationMenu = appplicationMenu;
     this.applicationContent = applicationContent;
     this.topPanelContent = topPanelContent;
@@ -81,13 +79,19 @@ class ApplicationMenuFrame extends Component {
     // console.log("RENDER");
     // console.log(this)
     const menuWidth = this.appplicationMenu.dimensions().width;
+
+    console.log("ApplicationMenuFrame.bounds");
+    console.log(this.bounds);
+    console.log(menuWidth);
+
     const { menuIsModalOverride } = this;
     const menuIsModal = menuIsModalOverride !== null ? menuIsModalOverride : this.bounds.width < menuWidth * 3;
 
-    this.applicationContent.bounds = { 
-      width: menuIsModal ? this.bounds.width : this.bounds.width - menuWidth, 
-      height: this.bounds.height
-    };
+    const overflowVisibleStyle = this.applicationContent.usesExternalAnimations ? { overflow: "visible"} : null;
+    const leftMenuDrawer = column("leftMenu", 
+      this.appplicationMenu.show(!menuIsModal),
+      {style: {zIndex: 2,boxShadow: paperShadow, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
+    );
 
     const topApplicationBar = row("modalMenu",
       this.modalButton.show(menuIsModal && !this.menuOpen),
@@ -95,11 +99,10 @@ class ApplicationMenuFrame extends Component {
       {style: {height: menuIsModal ? "64px" : "32px", boxShadow: paperShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
 
-    const overflowVisibleStyle = this.applicationContent.usesExternalAnimations ? { overflow: "visible"} : null;
-    const leftMenuDrawer = column("leftMenu", 
-      this.appplicationMenu.show(!menuIsModal),
-      {style: {zIndex: 2,boxShadow: paperShadow, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
-    );
+    this.applicationContent.bounds = { 
+      width: menuIsModal ? this.bounds.width : this.bounds.width - menuWidth - 5, 
+      height: this.bounds.height - topApplicationBar.dimensions().height - 5
+    };
 
     return modalFrame("modalFrame",
       leftMenuDrawer.show(!menuIsModal),

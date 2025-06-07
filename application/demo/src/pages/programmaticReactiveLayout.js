@@ -2,7 +2,9 @@ import { repeat, observable, Component, transaction, toProperties, toPropertiesW
 
 import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
-import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row } from "@liquefy/basic-ui";
+import { basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, modal, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
+import { buttonIcon } from "@liquefy/ui-material";
+import { zStackElementStyle } from "@liquefy/basic-ui";
 
 import { logMark } from "@liquefy/flow.core";
 
@@ -15,29 +17,66 @@ const log = console.log;
 // Parent flow
 export class ProgrammaticReactiveLayout extends Component {
   
-  receive(properties) {
-    Object.assign(this, properties);
-    const { bounds } = properties;
+  receive({ bounds, name }) {
+    this.name = name; 
     this.bounds = bounds; 
   } 
 
   initialize() {
     this.rows = 3; 
-    this.columns = 3;  
+    this.columns = 3;
+    this.menuOpen = false;
   }
 
   render() {
+    console.log("ProgrammaticReactiveLayout")
+    console.log(this.bounds)
+
+    // Create control panel
     const controlPanel = column("control-panel",
       row(numberInputField("Rows", this, "rows")),
       row(numberInputField("Columns", this, "columns")),
       text("Try change the size of the browser window, and add/remove columns/rows. Try do this with css :-)"),
       {style: naturalSizeStyle}
     );
-
     const controlPanelHeight = controlPanel.dimensions().height; 
-    //console.log(controlPanel.dimensions());
-    //console.log(controlPanelHeight);
-    const gridHeight = this.bounds.height - controlPanelHeight;
+
+    // Create bottom toolbar
+    const menuButton = buttonIcon("menuButton", 
+      () => { this.menuOpen = true; },
+      { icon: "more_horiz", style: {width: "40px"} }
+    )
+    let toolbarWidthLeft = this.bounds.width;
+    const toolbarContents = [];
+    const popupMenuContents = [];
+    
+    const tools = ["search", "home", "settings", "star", "key", "bolt"]
+    let toolCount = 0;
+    const totalTools = 10;
+    while(toolCount++ < totalTools) {
+      const isLast = toolCount === totalTools;
+      const nextWidget = buttonIcon("toolButton" + toolCount, 
+        () => { console.log("pushed tool")},
+        { icon: tools[toolCount % tools.length], style: {width: "40px"}}
+      )
+      const widgetWidth = nextWidget.dimensions().width;
+      if (widgetWidth + (isLast ? 0 : menuButton.dimensions().width) <= toolbarWidthLeft) {
+        toolbarWidthLeft -= widgetWidth;
+        toolbarContents.push(nextWidget)
+      } else {
+        if (toolbarContents[toolbarContents.length - 1] !== menuButton) {
+          toolbarContents.push(menuButton);
+          toolbarWidthLeft -= menuButton.dimensions().width
+        }
+        popupMenuContents.push(nextWidget)
+      }
+    }
+    const toolbar = row(toolbarContents);
+    const toolbarHeight = toolbar.dimensions().height;
+    const extraToolbar = row(popupMenuContents, {style: {backgroundColor: "lightgray", ...layoutBorderStyle}});
+
+    // Create grid of layouts
+    const gridHeight = this.bounds.height - controlPanelHeight - toolbarHeight;
     const gridWidth = this.bounds.width;
     const rows = [];
     let rowIndex = 0;
@@ -67,23 +106,65 @@ export class ProgrammaticReactiveLayout extends Component {
         columnIndex++;
       }
       const currentRow = row(columns, {style: fillerStyle});
-      // log(currentRow);
       rows.push(currentRow);
       rowIndex++;
     } 
-    // log(rows);
 
 
     return column(
       controlPanel,
       column(rows, {style: fillerStyle}),
-      // new Cell({bounds: {width: this.bounds.width, height: this.bounds.height - controlPanelHeight}}),
+      toolbar,
+      modal(modalPopover(
+        extraToolbar,
+        {
+          close: () => { this.menuOpen = false; }, 
+          reference: menuButton,
+        }
+      )).show(this.menuOpen),
       {style: {
         height: "100%", 
-        width: "100%"
+        width: "100%", 
       }}
     );
   }
+}
+
+
+const modalPopover = (...parameters) => {
+  const {children, reference, close } = toPropertiesWithChildren(parameters)
+  if (children.length !== 1) throw new Error("Modal popover expects just one single child.");
+  const child = children[0];
+
+  
+  const referenceRect = reference.getPrimitive().getDomNode().getBoundingClientRect();
+  const clientRect = child.getPrimitive().getDomNode().getBoundingClientRect();
+
+  console.log(clientRect);
+
+  const background = div({
+    key: "background", 
+    onClick: () => { close(); }, 
+    style: {
+      ...zStackElementStyle, 
+      ...overflowVisibleStyle, 
+      transition: "background-color 1000ms linear", 
+      pointerEvents: "auto", 
+      backgroundColor: "rgba(0, 0, 0, 0)"
+    }});
+  const domNode = background.getPrimitive().getDomNode();
+
+  return zStack(
+    background,
+    div(
+      wrapper(
+        child, 
+        {style: {position: "absolute", top: 30, left: 30}
+      }),
+      {style: {...zStackElementStyle, ...overflowVisibleStyle, pointerEvents: "auto", height: "100%"}}
+    ),
+    {style: fitContainerStyle, ...overflowVisibleStyle}
+  )
 }
 
 export class BoundsDisplay extends Component {

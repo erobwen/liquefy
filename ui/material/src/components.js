@@ -74,7 +74,9 @@ export const topAppBar = (...parameters) => taggedElement("mdui-top-app-bar", to
 export const navigationDrawer = (...parameters) => taggedElement("mdui-navigation-drawer", toPropertiesWithChildren(parameters));
 export const layoutMain = (...parameters) => taggedElement("mdui-layout-main", toPropertiesWithChildren(parameters));
 
-export const buttonIcon = (...parameters) => taggedElement("mdui-button-icon", toButtonProperties(parameters));
+export const buttonIcon = (...parameters) => taggedElement("mdui-button-icon", 
+  toButtonProperties(parameters)
+);
 export const topAppBarTitle = (...parameters) => taggedElement("mdui-top-app-bar-title", toPropertiesWithChildren(parameters));
 export const langSelect = (...parameters) => taggedElement("pr-lang-select", toProperties(parameters));
 export const themeSelect = (...parameters) => taggedElement("pr-theme-select", toProperties(parameters));

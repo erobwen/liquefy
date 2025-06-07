@@ -10,7 +10,7 @@ const log = console.log;
  * Modal
  */
 export function modal(...parameters) {
-  return new Modal(toProperties(parameters));
+  return new Modal(toPropertiesWithChildren(parameters));
 }
 
 export class Modal extends Component {

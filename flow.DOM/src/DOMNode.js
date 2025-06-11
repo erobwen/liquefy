@@ -64,6 +64,23 @@ export function getWidthIncludingMargin(node) {
  */
  export class DOMNode extends PrimitiveComponent {
 
+  onDispose() {
+    const unobservable = this.unobservable; 
+    if (unobservable.resizeObserver) {
+      unobservable.resizeObserver.dissconnect();
+      unobservable.mutationObserver.dissconnect();
+      window.removeEventListener('scroll', unobservable.updateBoundingClientRect, true);
+      window.removeEventListener('scroll', unobservable.updateBoundingClientRect, true);
+      delete unobservable.boundingClientRect;
+      delete unobservable.resizeObserver;
+      delete unobservable.mutationObserver;
+      delete unobservable.updateBoundingClientRect; 
+    }
+    super.onDispose()
+  }
+
+
+  // TODO: Make this respond with observable dimensions, and set up DOM event listeners. 
   dimensions(contextNode) {
     //TODO: Research a way to isolate the reflow used in dimensions to a wecomponent?
     if (traceWarnings) console.warn("Calls to dimensions() could lead to performance issues as it forces a reflow to measure the size of a dom-node. Note that transition animations may use dimensions() for measuring the size of added nodes"); 
@@ -89,7 +106,8 @@ export function getWidthIncludingMargin(node) {
       if (domNode.style.height === "") {
         domNode.style.height = "auto";
       }
-      document.body.appendChild(domNode);  
+      document.body.appendChild(domNode); 
+      // Consider: Will this disconnect the dom node if done on an already placed domNode? 
       // log("No context, deep cloing and appending child to document... ");
     }
   
@@ -123,6 +141,58 @@ export function getWidthIncludingMargin(node) {
       document.body.removeChild(domNode);
     }
     return result; 
+  }
+  
+  reactiveBoundingClientRect() {
+    if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a flow without a key. The reason is that a call to dimensions from a parent build function will finalize the flow early, and without a key, causality cannot send proper onEstablish event to your flow component before it is built");
+    const unobservable = this.unobservable; 
+    const domNode = this.getDomNode();
+
+    function updateBoundingClientRect() {
+      // console.log("updateBoundingClientRect");
+      const clientRect = domNode.getBoundingClientRect();
+      // console.log(clientRect);
+      // Object.assign(unobservable.boundingClientRect, clientRect);
+      unobservable.boundingClientRect.x = clientRect.x;
+      unobservable.boundingClientRect.y = clientRect.y;
+      unobservable.boundingClientRect.top = clientRect.top;
+      unobservable.boundingClientRect.left = clientRect.left;
+      unobservable.boundingClientRect.bottom = clientRect.bottom;
+      unobservable.boundingClientRect.right = clientRect.right;
+    }
+
+    if (!unobservable.boundingClientRect) {
+      // console.log("INITIALIZE")
+      // Initialize bounding client rect.
+      const clientRect = domNode.getBoundingClientRect();
+      unobservable.boundingClientRect = model({
+        x: clientRect.x,
+        y: clientRect.y,
+        top: clientRect.top,
+        left: clientRect.left,
+        right: clientRect.right,
+        bottom: clientRect.bottom
+      })
+
+      // Resize observer
+      unobservable.resizeObserver = new ResizeObserver(updateBoundingClientRect);
+      unobservable.resizeObserver.observe(domNode)
+
+      // MutationObserver for layout-affecting DOM changes
+      unobservable.mutationObserver = new MutationObserver(updateBoundingClientRect);
+      unobservable.mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true
+      });
+
+      // Scroll and resize listeners
+      unobservable.windowScrollListener = window.addEventListener('scroll', updateBoundingClientRect, true);
+      unobservable.windowResizeListener = window.addEventListener('resize', updateBoundingClientRect);
+    }
+
+    return unobservable.boundingClientRect; 
   }
 
   getDomNode() {

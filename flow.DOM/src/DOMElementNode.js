@@ -28,6 +28,16 @@ function toLowerCase(object) {
   return result; 
 }
 
+function defaultToPx(value) { // Note: According to ChatGTP there is no style property that is set as an integer.
+  if (typeof(value) === "undefined" || value === null) {
+    return "";
+  } if (typeof(value) === "number") {
+    return `${value}px`;
+  } else {
+    return value; 
+  }
+}
+
 
 /**
  * DOM Element node primitive
@@ -106,7 +116,7 @@ function toLowerCase(object) {
         if (this.unobservable.previouslySetAttributes[property] !== newValue) {
           if (property === "class") {
             // TODO: Investigate why we had to use the setAttribute function for it to work with "class", is it the same with more attributes?
-            element.setAttribute("class", newValue);
+            element.setAttribute("class", newValue)
           } else {
             // console.log(property)
             element[property] = newValue;
@@ -140,7 +150,7 @@ function toLowerCase(object) {
       // Note, only change if we have a new value. Alow for animation kit to set the value to something else while this code is unaware.  
       if (this.unobservable.previouslySetStyles[property] !== newValue) {
         // log(this.toString() + " set style: " + property + " = " + newValue);
-        elementStyle[property] = newValue;
+        elementStyle[property] = defaultToPx(newValue);
       }
       newPreviouslySetStyles[property] = newValue;
     }
@@ -174,7 +184,7 @@ function toLowerCase(object) {
       if (typeof property === "string") {
         if (!same(style[property], this.domNode.style[property])) {
           // log("Synchronizing: " + this.toString() + ", style " + property + " mismatch, resetting: " + this.domNode.style[property] + " --> " + style[property]);
-          this.domNode.style[property] = style[property] ? style[property] : "";
+          this.domNode.style[property] = defaultToPx(style[property]);
         }
       } else {
         const propertyCompoundValue = style[property.compound];
@@ -182,13 +192,13 @@ function toLowerCase(object) {
         if (propertyCompoundValue) {
           if (!same(propertyCompoundValue, this.domNode.style[property.compound])) {
             // log("Synchronizing: " + this.toString() + ", style " + property.compound + " mismatch, resetting: " + this.domNode.style[property.compound] + " --> " + propertyCompoundValue);
-            this.domNode.style[property.compound] = propertyCompoundValue ? propertyCompoundValue : "";
+            this.domNode.style[property.compound] = defaultToPx(propertyCompoundValue);
           }
         } else {
           const propertyPartialValues = {}
           property.partial.forEach(property => {
             if (style[property]) {
-              propertyPartialValues[property] = style[property];  
+              propertyPartialValues[property] = defaultToPx(style[property]);  
             }
           });
 

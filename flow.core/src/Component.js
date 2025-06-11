@@ -462,6 +462,13 @@ export class Component {
     return primitive ? primitive.dimensions(contextNode) : null;
   }
 
+  reactiveBoundingClientRect() {
+    if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a flow without a key. The reason is that a call to dimensions from a parent build function will finalize the flow early, and without a key, causality cannot send proper onEstablish event to your flow component before it is built");
+    const primitive = this.getPrimitive();
+    if (primitive instanceof Array) throw new Error("reactiveBoundingClientRect not supported for fragmented components.");
+    return primitive ? primitive.reactiveBoundingClientRect(contextNode) : null;
+  }
+
   getEquivalentRoot() {
     if (!this.equivalentCreator) return this;
     return this.equivalentCreator.getEquivalentRoot();

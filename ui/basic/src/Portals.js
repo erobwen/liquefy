@@ -48,6 +48,14 @@ export function portalExit(...parameters) {
       ...toProperties(parameters), 
     }
   )
-  getRenderContext().primitive( 
-  );
 }
+
+
+// export function portalExit(...parameters) {
+//   // Return just a plain div (with portalExit debug info.)
+//   elementNode({
+//     tagName: "div", 
+//     componentTypeName: "portalExit", 
+//     attributes: toProperties(parameters), 
+//   });
+// }

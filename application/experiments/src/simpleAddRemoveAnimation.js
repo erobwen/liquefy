@@ -41,8 +41,8 @@ export class SimpleAddRemoveAnimation extends Component {
 export const flexAutoStyle = {
     overflow: "hidden",
     boxSizing: "border-box",
-    flexGrow: 0,
-    flexShrink: 0,
+    flexGrow: "0",
+    flexShrink: "0",
     flexBasis: 'auto'
   };
   

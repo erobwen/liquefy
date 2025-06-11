@@ -70,8 +70,8 @@ export const centerMiddleStyle = {
  */
 export const naturalSizeStyle = { // For bottom up components inside scroll compoennts
   overflow: "visible",
-  flexGrow: 0,
-  flexShrink: 0,
+  flexGrow: "0",
+  flexShrink: "0",
   flexBasis: 'auto'
 }
 
@@ -86,17 +86,17 @@ export const fitContainerStyle = {
 export const fillerStyle = {
   overflow: "hidden", 
   boxSizing: "border-box",
-  flexGrow: 1,
-  flexShrink: 1,
-  flexBasis: 0,
+  flexGrow: "1",
+  flexShrink: "1",
+  flexBasis: "0",
 }
 
 // For components that needs to grow and shrink without regard to its contents. Scroll panels typically, or for equal distribution of space.
 export const autoFillerStyle = {
   overflow: "hidden", 
   boxSizing: "border-box",
-  flexGrow: 1,
-  flexShrink: 1,
+  flexGrow: "1",
+  flexShrink: "1",
   flexBasis: 'auto',
 }
 

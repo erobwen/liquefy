@@ -2,7 +2,7 @@ import { repeat, observable, Component, transaction, toProperties, toPropertiesW
 
 import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyleToProperties, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
-import { basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, modal, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
+import { wrapper, basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, modal, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
 import { buttonIcon } from "@liquefy/ui-material";
 import { zStackElementStyle } from "@liquefy/basic-ui";
 
@@ -29,8 +29,8 @@ export class ProgrammaticReactiveLayout extends Component {
   }
 
   render() {
-    console.log("ProgrammaticReactiveLayout")
-    console.log(this.bounds)
+    // console.log("ProgrammaticReactiveLayout")
+    // console.log(this.bounds)
 
     // Create control panel
     const controlPanel = column("control-panel",
@@ -52,7 +52,7 @@ export class ProgrammaticReactiveLayout extends Component {
     
     const tools = ["search", "home", "settings", "star", "key", "bolt"]
     let toolCount = 0;
-    const totalTools = 10;
+    const totalTools = 20;
     while(toolCount++ < totalTools) {
       const isLast = toolCount === totalTools;
       const nextWidget = buttonIcon("toolButton" + toolCount, 
@@ -118,6 +118,7 @@ export class ProgrammaticReactiveLayout extends Component {
       modal(modalPopover(
         extraToolbar,
         {
+          bounds: this.bounds,
           close: () => { this.menuOpen = false; }, 
           reference: menuButton,
         }
@@ -132,15 +133,20 @@ export class ProgrammaticReactiveLayout extends Component {
 
 
 const modalPopover = (...parameters) => {
-  const {children, reference, close } = toPropertiesWithChildren(parameters)
+  const properties = toPropertiesWithChildren(parameters);
+  const {children, reference, close } = properties;
   if (children.length !== 1) throw new Error("Modal popover expects just one single child.");
   const child = children[0];
+  const popoverDimensions = child.getPrimitive().dimensions();
+  // console.log(popoverDimensions);
 
+  // observable("modalPopoverState" + properties.key)
   
-  const referenceRect = reference.getPrimitive().getDomNode().getBoundingClientRect();
-  const clientRect = child.getPrimitive().getDomNode().getBoundingClientRect();
+  const referenceRect = reference.getPrimitive().reactiveBoundingClientRect(); 
+  const referenceMiddleY = (referenceRect.top + referenceRect.bottom)
 
-  console.log(clientRect);
+
+  console.log(referenceRect);
 
   const background = div({
     key: "background", 

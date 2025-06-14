@@ -73,7 +73,7 @@ export class ProgrammaticReactiveLayout extends Component {
     }
     const toolbar = row(toolbarContents);
     const toolbarHeight = toolbar.dimensions().height;
-    const extraToolbar = row(popupMenuContents, {style: {backgroundColor: "lightgray", ...layoutBorderStyle}});
+    const extraToolbar = row("extraMenu", popupMenuContents, {style: {backgroundColor: "#fef7ff", ...layoutBorderStyle}});
 
     // Create grid of layouts
     const gridHeight = this.bounds.height - controlPanelHeight - toolbarHeight;
@@ -143,10 +143,19 @@ const modalPopover = (...parameters) => {
   // observable("modalPopoverState" + properties.key)
   
   const referenceRect = reference.getPrimitive().reactiveBoundingClientRect(); 
-  const referenceMiddleY = (referenceRect.top + referenceRect.bottom)
+  const xSpace = window.innerWidth - referenceRect.width;
+  const referenceXFraction = (xSpace - referenceRect.left) / xSpace; // 1 = to the right, 0 = to the left.
+  const abstractReferenceXFraction = Math.round(referenceXFraction * 3)/3;  
 
+  const menuBottom = referenceRect.top;
+  const menuLeft = referenceRect.left - (popoverDimensions.width - referenceRect.width) 
+    + (popoverDimensions.width - referenceRect.width) * referenceXFraction;
 
-  console.log(referenceRect);
+  
+  // console.log(popoverDimensions)
+  // console.log(menuLeft)
+  // console.log(referenceXFraction)
+  // console.log(referenceRect);
 
   const background = div({
     key: "background", 
@@ -165,9 +174,9 @@ const modalPopover = (...parameters) => {
     div(
       wrapper(
         child, 
-        {style: {position: "absolute", top: 30, left: 30}
+        {style: {pointerEvents: "auto", position: "absolute", top: menuBottom - popoverDimensions.height, left: menuLeft}
       }),
-      {style: {...zStackElementStyle, ...overflowVisibleStyle, pointerEvents: "auto", height: "100%"}}
+      {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
     ),
     {style: fitContainerStyle, ...overflowVisibleStyle}
   )

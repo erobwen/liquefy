@@ -159,6 +159,8 @@ export function getWidthIncludingMargin(node) {
       unobservable.boundingClientRect.left = clientRect.left;
       unobservable.boundingClientRect.bottom = clientRect.bottom;
       unobservable.boundingClientRect.right = clientRect.right;
+      unobservable.boundingClientRect.width = clientRect.width;
+      unobservable.boundingClientRect.height = clientRect.height;
     }
 
     if (!unobservable.boundingClientRect) {
@@ -171,7 +173,9 @@ export function getWidthIncludingMargin(node) {
         top: clientRect.top,
         left: clientRect.left,
         right: clientRect.right,
-        bottom: clientRect.bottom
+        bottom: clientRect.bottom,
+        width: clientRect.width,
+        height: clientRect.height
       })
 
       // Resize observer

@@ -22,6 +22,17 @@ export const updateModelTime = 0; // Default
 export const renderComponentTime = 1;
 export const updateDOMTime = 2;
 
+const priorityLevels = {
+  updateModel: 0,
+  renderComponent: 1,
+  updateDOM: 2 
+}
+
+const priorityLevelToString = {}
+for(let property in priorityLevels) {
+  priorityLevelToString[priorityLevels[property]] = property;
+}
+
 
 /**
  * World functions
@@ -106,13 +117,26 @@ window.model = model;
 window.ensure = world.repeat;
 
 
+// export const updateModelTime = 0; // Default
+// export const renderComponentTime = 1;
+// export const updateDOMTime = 2;
+
+
+var lastTime = null;
 function onFinishedPriorityLevel(level, didActualWork) {
   // if (trace)
-  if (trace) log("<<<finished priority: " + level + ">>>");
+  const time = new Date().getTime();
+  let difference = null;
+  if (lastTime) {
+    difference = time - lastTime;
+  }
+  lastTime = time; 
+  const differenceString = (difference !== null) ? `${difference / 1000}s` : ""
+  if (trace) log(`<<<finished priority: ${priorityLevelToString[level]} ${differenceString} >>>`);
   // if (finishedAllLevels) log("no more repeaters...");
 
   // Finished re building flow with expanded primitives. Measure bounds and style before FLIP animation. 
-  if (level === 1 && didActualWork) {
+  if (level === renderComponentTime && didActualWork) {
     // log(configuration.onFinishRenderingComponentsCallbacks)
     configuration.onFinishRenderingComponentsCallbacks.forEach(callback => callback())
   }
@@ -120,7 +144,7 @@ function onFinishedPriorityLevel(level, didActualWork) {
   // Let flow rebuild the DOM, while not removing nodes of animated flows (they might move if inserted elsewhere)
 
   // Finished re building DOM, proceed with animations.  
-  if (level === 2) {
+  if (level === updateDOMTime) {
     configuration.onFinishReBuildingDOMCallbacks.forEach(callback => callback())
   }
 }

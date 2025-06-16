@@ -1,23 +1,15 @@
-import { observable, Component, repeat, creators, logMark, transaction } from "@liquefy/flow.core";
-import { DOMRenderContext, span, text } from "@liquefy/flow.DOM";
+import { Component, transaction } from "@liquefy/flow.core";
+import { DOMRenderContext, text } from "@liquefy/flow.DOM";
 
-import { button, assignGlobalTheme } from "@liquefy/themed-ui";
-
-import { modernTheme } from "@liquefy/modern-ui";
+import { button, assignGlobalTheme, listItem } from "@liquefy/themed-ui";
 
 import { 
-  layout,
-  topAppBar, 
-  navigationDrawer,
-  layoutMain,
-  list, 
-  listItem, 
   materialTheme 
 } from "@liquefy/ui-material";
 
-import { basicTheme, center, checkboxInputField, fillerStyle, fitContainerStyle, middle, modalFrame } from "@liquefy/basic-ui";
+import { basicTheme, center, fillerStyle, fitContainerStyle, middle } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
-import { column, columnStyle, filler, naturalSizeStyle, row } from "@liquefy/basic-ui";
+import { column, columnStyle, filler } from "@liquefy/basic-ui";
 import { svgImage, wrapper } from "@liquefy/basic-ui";
 
 import { RecursiveExample } from "./pages/recursiveDemoApplication";
@@ -30,8 +22,6 @@ import { ModalExample } from "./pages/modalDemo";
 import flowImage from "../resources/flow.svg"
 
 import { applicationMenuFrame } from "./ApplicationMenuFrame"
-
-const log = console.log;
 
 /**
  * Demo
@@ -88,14 +78,12 @@ export class Demo extends Component {
     );
     for (let item of this.items) {
       listItems.push(
-        listItem({
+        listItem(`item:${item.name}`, {
           children: [
             text(item.name)
           ], 
           onClick: () => { 
             transaction(() => {
-              console.log(this.getChild("menuFrame"));
-              // console.log(this)
               this.getChild("menuFrame").menuOpen = false;
               this.choosen = item;
             })
@@ -127,6 +115,9 @@ export class Demo extends Component {
           ...fillerStyle,
           height: "100%",
           width: "270px",
+          gap: 5,
+          paddingLeft: 5,
+          paddingRight: 5,
           overflow: "visible"
         }
       }

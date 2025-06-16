@@ -44,3 +44,4 @@ I need to add material design input fields etc. I had started the work to build 
 # TODO (internal): 
 
 * Investigate if reactivity cycles can be improved. How to deal with work on priority level etc. Can we do it automatically by treating repeaters different first time they are refreshed.  
+* Investigate if there is a bug when changing a style property from set to unset. 

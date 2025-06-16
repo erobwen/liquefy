@@ -53,6 +53,7 @@ export function getThemedComponent(name, properties) {
  */
 export const filler = (...parameters) => getThemedComponent("filler", toProperties(parameters));
 export const row = (...parameters) => getThemedComponent("row", toProperties(parameters));
+export const listItem = (...parameters) => getThemedComponent("listItem", toProperties(parameters)); 
 export const column = (...parameters) => getThemedComponent("column", toProperties(parameters));
 export const crossIcon = (...parameters) => getThemedComponent("crossIcon", toProperties(parameters));
 export const plusIcon = (...parameters) => getThemedComponent("plusIcon", toProperties(parameters));

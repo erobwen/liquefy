@@ -5,7 +5,8 @@ import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerSty
 import { modal, Modal, modalFrame, ModalFrame } from "./src/Modal";
 import { portalEntrance, PortalEntrance, portalExit } from "./src/Portals";
 import { paper, paperColumn, paperRow } from "./src/Paper";
-
+import { modalPopover } from "./src/dialogues";
+import { listItem } from "./src/listItem";
 
 export const basicTheme = {
   components: {
@@ -15,6 +16,8 @@ export const basicTheme = {
     svgImage,
     layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
     modal, Modal, modalFrame, ModalFrame,
+    modalPopover,
+    listItem,
     portalEntrance, PortalEntrance, portalExit
   }
 }
@@ -26,5 +29,7 @@ export { // Note: A copy paste of allFunctions, since we are not allowed to use 
   svgImage,
   layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
   modal, Modal, modalFrame, ModalFrame,
+  modalPopover,
+  listItem,
   portalEntrance, PortalEntrance, portalExit
 };

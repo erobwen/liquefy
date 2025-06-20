@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
 import { filler, column, row } from "@liquefy/basic-ui";
 import { button } from "@liquefy/basic-ui";
-import { portalEntrance } from "@liquefy/basic-ui";
+import { portalContents } from "@liquefy/basic-ui";
 import { layoutBorderStyle, portalExit } from "@liquefy/basic-ui";
 
 
@@ -58,12 +58,11 @@ export class PortalExample extends Component {
           filler(),
           {style: {overflow: "visible"}}
         ), 
-        portalEntrance(
+        portalContents("portalContents",
           {
             // children: text("[portal active]"), Will create infinite loop! investigate! 
-            key: "portalEntrance", 
             portalExit: this.portal, 
-            portalChildren 
+            children: portalChildren 
           })
           .show(this.showPortal),
         {style: {overflow: "visible"}}

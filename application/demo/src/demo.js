@@ -7,7 +7,7 @@ import {
   materialTheme 
 } from "@liquefy/ui-material";
 
-import { basicTheme, center, fillerStyle, fitContainerStyle, middle } from "@liquefy/basic-ui";
+import { basicTheme, center, fillerStyle, fitContainerStyle, middle, rowStyle } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
 import { column, columnStyle, filler } from "@liquefy/basic-ui";
 import { svgImage, wrapper } from "@liquefy/basic-ui";
@@ -22,6 +22,7 @@ import { ModalExample } from "./pages/modalDemo";
 import flowImage from "../public/flow.svg"
 
 import { applicationMenuFrame } from "./ApplicationMenuFrame"
+import { IntroductionPage } from "./pages/introductionPage";
 
 /**
  * Demo
@@ -32,10 +33,13 @@ export class Demo extends Component {
     assignGlobalTheme(this.selectedTheme);
 
     this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
+    this.topBarPortal = portalExit("topBarPortal", {style: {...rowStyle}});
+
+    this.introduction = new IntroductionPage("introductionPage", {topBarPortal: this.topBarPortal});
 
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [
-      new RecursiveExample({key: "recursiveDemo", name: "Recursive Components", style: fitContainerStyle}),
+      new RecursiveExample({key: "recursiveDemo", name: "Recursive Components", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new ReactiveForm({key: "reactiveForm", initialData, style: fitContainerStyle}),
       new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle}),
       new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness", style: fitContainerStyle}),
@@ -47,7 +51,8 @@ export class Demo extends Component {
       item.onEstablish();
     }
 
-    this.choosen = this.items.find(item => item.key === "recursiveDemo");
+    this.choosen = this.introduction;
+    // this.choosen = this.items.find(item => item.key === "recursiveDemo");
     // this.choosen = this.items.find(item => item.key === "reactiveForm");
     // this.choosen = this.items.find(item => item.key === "portalExample");
     // this.choosen = this.items.find(item => item.key === "animationExample");
@@ -70,9 +75,11 @@ export class Demo extends Component {
         svgImage({image: flowImage}),
         {
           style: {
+            cursor: "pointer",
             height: "200px",
             backgroundColor: "white"
-          }
+          },
+          onClick: () => { this.choosen = this.introduction }
         }
       )
     );
@@ -131,7 +138,7 @@ export class Demo extends Component {
       "menuFrame", {
         appplicationMenu: this.buildMenu(),
         applicationContent: this.choosen,
-        topPanelContent: [filler(), middle(text("by Robert Renbris "))],
+        topPanelContent: [filler(), this.topBarPortal],
         bounds: this.bounds
       }
     )

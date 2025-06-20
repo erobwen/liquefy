@@ -1,20 +1,12 @@
-import { repeat, observable, Component, transaction, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
+import { Component } from "@liquefy/flow.core";
 
-import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyle, fitTextWithinWidth } from "@liquefy/flow.DOM";
+import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
-import { wrapper, basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, overlay, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
+import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle } from "@liquefy/basic-ui";
+import { popover } from "@liquefy/basic-ui";
+
 import { buttonIcon } from "@liquefy/ui-material";
-import { zStackElementStyle, popover } from "@liquefy/basic-ui";
 
-import { logMark } from "@liquefy/flow.core";
-
-const log = console.log;
-
-/**
- * Flow definitions
- */
-
-// Parent flow
 export class ProgrammaticReactiveLayout extends Component {
   
   receive({ bounds, name }) {
@@ -29,9 +21,6 @@ export class ProgrammaticReactiveLayout extends Component {
   }
 
   render() {
-    // console.log("ProgrammaticReactiveLayout")
-    // console.log(this.bounds)
-
     // Create control panel
     const controlPanel = column("control-panel",
       row(numberInputField("Rows", this, "rows")),
@@ -110,24 +99,19 @@ export class ProgrammaticReactiveLayout extends Component {
       rowIndex++;
     } 
 
-
     return column(
       controlPanel,
       column(rows, {style: fillerStyle}),
       toolbar,
-      popover(
-        "extraMenu",
+      popover("extraToolbarMenu",
         extraToolbar,
         {
           bounds: this.bounds,
-          close: () => { this.menuOpen = false; }, 
           reference: menuButton,
+          close: () => { this.menuOpen = false; }, 
         }
       ).show(this.menuOpen),
-      {style: {
-        height: "100%", 
-        width: "100%", 
-      }}
+      {style: fitContainerStyle}
     );
   }
 }
@@ -218,8 +202,6 @@ export class FixedAspectRatioDisplay extends Component {
   }
   
   render() {
-    const fittedString = "Fitted String"// + this.key;
-    
     const boundsAspectRatio = this.bounds.width / this.bounds.height; 
 
     let width; 

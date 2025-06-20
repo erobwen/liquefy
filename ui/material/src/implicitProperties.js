@@ -15,7 +15,7 @@ export function toMduiInputProperties(parameters) {
     height: 56
   }
   if (type === "number" && variant === "outlined") {
-    defaultStye.width = 200
+    defaultStye.width = 120
     defaultStye.height = 40
   }
   return {

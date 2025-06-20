@@ -96,7 +96,7 @@ class ApplicationMenuFrame extends Component {
     const topApplicationBar = row("modalMenu",
       this.modalButton.show(menuIsModal && !this.menuOpen),
       ...this.topPanelContent,      
-      {style: {height: menuIsModal ? "64px" : "32px", boxShadow: cardShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
+      {style: {height: menuIsModal ? "64px" : "40px", boxShadow: cardShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
 
     this.applicationContent.bounds = { 

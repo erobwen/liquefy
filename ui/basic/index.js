@@ -3,7 +3,7 @@ import { suitcaseIcon, plusIcon, crossIcon, icon } from "./src/Icons";
 import { svgImage } from "./src/images";
 import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle } from "./src/Layout";
 import { overlay, Overlay, overlayFrame, OverlayFrame } from "./src/overlay";
-import { portalEntrance, PortalEntrance, portalExit } from "./src/Portals";
+import { portalContents, PortalContents, portalExit } from "./src/Portals";
 import { card, cardColumn, cardRow } from "./src/card";
 import { popover } from "./src/dialogues";
 import { listItem } from "./src/listItem";
@@ -18,7 +18,7 @@ export const basicTheme = {
     overlay, Overlay, overlayFrame, OverlayFrame,
     popover,
     listItem,
-    portalEntrance, PortalEntrance, portalExit
+    portalContents, PortalContents, portalExit
   }
 }
 
@@ -31,5 +31,5 @@ export { // Note: A copy paste of allFunctions, since we are not allowed to use 
   overlay, Overlay, overlayFrame, OverlayFrame,
   popover,
   listItem,
-  portalEntrance, PortalEntrance, portalExit
+  portalContents, PortalContents, portalExit
 };

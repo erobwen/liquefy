@@ -47,7 +47,7 @@ export const abbr = (...parameters) => taggedElement("abbr", toPropertiesWithChi
 export const b = (...parameters) => taggedElement("b", toPropertiesWithChildren(parameters));
 export const bdi = (...parameters) => taggedElement("bdi", toPropertiesWithChildren(parameters));
 export const bdo = (...parameters) => taggedElement("bdo", toPropertiesWithChildren(parameters));
-export const br = (...parameters) => taggedElement("br", getflowproperties(parameters));
+export const br = (...parameters) => taggedElement("br", toProperties(parameters));
 export const cite = (...parameters) => taggedElement("cite", toPropertiesWithChildren(parameters));
 export const code = (...parameters) => taggedElement("code", toPropertiesWithChildren(parameters));
 export const data = (...parameters) => taggedElement("data", toPropertiesWithChildren(parameters));

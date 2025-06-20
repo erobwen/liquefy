@@ -232,7 +232,7 @@ export class Component {
     window.components[this.toString()] = this;
     window.idToComponent[this.id] = this;
     creators.push(this);
-    this.initialize();
+    this.initialize(); // TODO: Consider: what happens with children created with keys in this call. They will not be accessible through getChild?  
     creators.pop();
     if (trace) log("Established:" + this.toString());
     // Lifecycle, override to do expensive things. Like opening up connections etc.
@@ -317,6 +317,7 @@ export class Component {
 
   getChild(keyOrPath) {
     // TODO: Think this function through. 
+    // Also consider reactivity... Since we observe buildRepeater here, it will re-run if not built yet. 
     // Should we work according to creator hierarchy or primitive parent hierarchy?
     if (typeof keyOrPath === "string") {
       const key = keyOrPath;

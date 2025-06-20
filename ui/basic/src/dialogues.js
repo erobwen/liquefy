@@ -8,7 +8,6 @@ import { zStackElementStyle } from "./Layout";
 import { overlay } from "./overlay";
 
 
-
 export const popover = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
   const {children, reference, close, direction="top", modal=true, ...restOfProperties } = properties;

@@ -1,7 +1,7 @@
 import { Component, model, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, ul, li, p } from "@liquefy/flow.DOM";
 
-import { filler, fitContainerStyle, column, row } from "@liquefy/basic-ui";
+import { filler, fitContainerStyle, column, row, portalContents } from "@liquefy/basic-ui";
 import { numberInputField, button, cardColumn } from "@liquefy/themed-ui";
 
 import { informationButton, displayCodeButton } from "../components/information";
@@ -26,6 +26,8 @@ export class RecursiveExample extends Component {
   // Set properties from parent, suitable for default values etc.
   receive(properties) {
     Object.assign(this, properties)
+    console.log(properties);
+    console.log(this.topBarPortal);
   }
 
   // Create state, create model data and initilize external resources
@@ -48,6 +50,7 @@ export class RecursiveExample extends Component {
 
   // Build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
   render() {
+    console.log(this.topBarPortal);
     return (
       column(
         "recursive column",
@@ -57,6 +60,21 @@ export class RecursiveExample extends Component {
           count: 1
         }),
         filler(),
+        portalContents("information", 
+          informationButton(
+            column(
+              p("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+              ul(
+                li(" - Stable component identity and local state is demonstrated."), 
+                li(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger).")
+              )
+            )
+          ),
+          displayCodeButton({code: file}),
+          {
+            portalExit: this.topBarPortal
+          }
+        ),
         { style: fitContainerStyle }
       )
     );
@@ -87,16 +105,6 @@ export class ControlRow extends Component {
       ),
       numberInputField("Shared state", this.inherit("myModel"), "value", {variant: "outlined"}),
       filler(),
-      informationButton(
-        column(
-          p("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
-          ul(
-            li(" - Stable component identity and local state is demonstrated."), 
-            li(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger).")
-          )
-        )
-      ),
-      displayCodeButton({code: file}),
       {style: {padding: "10px", gap: "20px", alignItems: "baseline"}} // Reactive programmatic styling! 
     )
   }

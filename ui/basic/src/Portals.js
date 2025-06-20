@@ -10,14 +10,13 @@ const log = console.log;
 /**
  * Portals
  */
-export function portalEntrance(...parameters) {
-  return new PortalEntrance(toProperties(parameters));
-}
+export const portalContents = (...parameters) =>
+  new PortalContents(...parameters);
 
-export class PortalEntrance extends Component {
-  receive({portalChildren, portalExit}) {
+export class PortalContents extends Component {
+  receive({children, portalExit}) {
     this.portalExit = portalExit; 
-    this.portalChildren = portalChildren;
+    this.portalChildren = children;
   }
 
   initialize() {

@@ -140,7 +140,7 @@ export function inputField(properties) {
 export function button(...parameters) { 
   const properties = toButtonProperties(parameters)
 
-  addDefaultStyle(properties, {lineHeight: "28px"}) //, display: "block"
+  addDefaultStyle(properties, {lineHeight: "28px", cursor: "pointer"}) //, display: "block"
   // if (properties.disabled) properties.disabled = true; 
   
   // Inject debug printout in click.

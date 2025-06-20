@@ -7,6 +7,7 @@ export function listItem(...parameters) {
   // if (properties.active) {
     addDefaultStyle(properties, {
       // backgroundColor: "rgb(200, 200, 200)"
+      cursor: "pointer",
       height: 35,
       backgroundColor: properties.active ? "rgb(200, 200, 200)" : ""
     })

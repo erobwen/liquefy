@@ -47,12 +47,12 @@ export class Demo extends Component {
       item.onEstablish();
     }
 
+    this.choosen = this.items.find(item => item.key === "recursiveDemo");
     // this.choosen = this.items.find(item => item.key === "reactiveForm");
     // this.choosen = this.items.find(item => item.key === "portalExample");
-    this.choosen = this.items.find(item => item.key === "animationExample");
+    // this.choosen = this.items.find(item => item.key === "animationExample");
     // this.choosen = this.items.find(item => item.key === "programmaticReactiveLayout");
     // this.choosen = this.items.find(item => item.key === "modalExample");
-    // this.choosen = this.items.find(item => item.key === "recursiveDemo");
   }
   
   terminate() {
@@ -118,6 +118,7 @@ export class Demo extends Component {
           gap: 5,
           paddingLeft: 5,
           paddingRight: 5,
+          paddingBottom: 5,
           overflow: "visible"
         }
       }

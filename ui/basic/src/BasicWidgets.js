@@ -1,5 +1,5 @@
 import { trace, callback, toProperties, getRenderContext, extractProperty } from "@liquefy/flow.core";
-import { elementNode, text, div, label as htmlLabel, button as htmlButton, addDefaultStyleToProperties, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.DOM";
+import { elementNode, text, div, label as htmlLabel, button as htmlButton, addDefaultStyle, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.DOM";
 
 import { filler, row } from "./Layout.js";
 
@@ -139,7 +139,7 @@ export function inputField(properties) {
 export function button(...parameters) { 
   const properties = toButtonProperties(parameters)
 
-  addDefaultStyleToProperties(properties, {lineHeight: "28px", display: "block"})
+  addDefaultStyle(properties, {lineHeight: "28px", display: "block"})
   if (properties.disabled) properties.disabled = true; 
   
   // Inject debug printout in click.
@@ -157,7 +157,7 @@ export function button(...parameters) {
 
 export const panel = (...parameters) => {
   const properties = toProperties(parameters);
-  addDefaultStyleToProperties(properties, {
+  addDefaultStyle(properties, {
     margin: "4px", 
     borderRadius: "5px", 
     backgroundColor: "#eeeeee", 

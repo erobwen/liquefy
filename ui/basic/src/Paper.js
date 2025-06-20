@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
-import { addDefaultStyleToProperties, div } from "@liquefy/flow.DOM";
+import { addDefaultStyle, div } from "@liquefy/flow.DOM";
 import { rowStyle, columnStyle } from "./Layout";
 import { borderStyle } from "../../modern";
 
@@ -39,7 +39,7 @@ export const card = (...parameters) =>  {
   const {variant="elevated"} = properties;
   return (
     div(
-      addDefaultStyleToProperties(
+      addDefaultStyle(
         properties,
         getCardStyle(variant)
       )
@@ -75,7 +75,7 @@ function getCardStyle(variant) {
 
 export const cardRow = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return card(addDefaultStyleToProperties(
+  return card(addDefaultStyle(
     properties, 
     rowStyle
   ))
@@ -84,7 +84,7 @@ export const cardRow = (...parameters) => {
 
 export const cardColumn = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return card(addDefaultStyleToProperties(
+  return card(addDefaultStyle(
     properties, 
     columnStyle
   ))

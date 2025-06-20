@@ -1,7 +1,7 @@
 
 import { observable, Component, transaction, toProperties } from "@liquefy/flow.core";
 
-import { text, div, DOMRenderContext, standardAnimation, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { text, div, DOMRenderContext, standardAnimation, addDefaultStyle } from "@liquefy/flow.DOM";
 
 import { button, column, filler, fillerStyle, naturalSizeStyle, row } from "@liquefy/basic-ui";
 import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";
@@ -31,7 +31,7 @@ const items = [
 
 const panel = (...parameters) => 
   column(
-    addDefaultStyleToProperties(
+    addDefaultStyle(
       toProperties(parameters),
       {
         marginBottom: "0px", 

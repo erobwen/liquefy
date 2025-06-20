@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
-import { addDefaultStyleToProperties, div } from "@liquefy/flow.DOM";
+import { addDefaultStyle, div } from "@liquefy/flow.DOM";
 import { rowStyle, columnStyle } from "@liquefy/basic-ui";
 
 export const cardShadows = [
@@ -58,7 +58,7 @@ export const card = (...parameters) =>  {
   const properties = toPropertiesWithChildren(parameters);
   return (
     div(
-      addDefaultStyleToProperties(
+      addDefaultStyle(
         properties,
         {
           boxSizing: "border-box",
@@ -82,7 +82,7 @@ export const card = (...parameters) =>  {
 
 export const cardRow = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return card(addDefaultStyleToProperties(
+  return card(addDefaultStyle(
     properties, 
     rowStyle
   ))
@@ -91,7 +91,7 @@ export const cardRow = (...parameters) => {
 
 export const cardColumn = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return card(addDefaultStyleToProperties(
+  return card(addDefaultStyle(
     properties, 
     columnStyle
   ))

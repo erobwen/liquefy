@@ -108,7 +108,7 @@ import {
   slot,
   template
 } from "./HTMLTags";
-import { addDefaultStyleToProperties } from "./HTMLBuilding";
+import { addDefaultStyle } from "./HTMLBuilding";
 import { DOMElementNode, elementNode } from "./DOMElementNode";
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, toPropertiesWithImplicitSingleText } from "./DOMTextNode"
 import { DOMRenderContext} from "./DOMRenderContext"
@@ -236,7 +236,7 @@ export {
     template,
     
     // Basic HTML
-    addDefaultStyleToProperties,
+    addDefaultStyle,
 
     // DOMElementNode
     elementNode, 

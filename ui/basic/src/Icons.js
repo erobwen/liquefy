@@ -5,7 +5,7 @@
 import { extractProperty, toProperties } from "@liquefy/flow.core";
 import { logMark } from '@liquefy/flow.core';
 
-import { span, addDefaultStyleToProperties } from '@liquefy/flow.DOM';
+import { span, addDefaultStyle } from '@liquefy/flow.DOM';
 
 import "./Icons.css";
 

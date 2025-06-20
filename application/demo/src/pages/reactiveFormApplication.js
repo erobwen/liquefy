@@ -1,5 +1,5 @@
 import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, span, p, addDefaultStyleToProperties, zoomAnimation } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, div, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.DOM";
 
 import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/basic-ui";
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";

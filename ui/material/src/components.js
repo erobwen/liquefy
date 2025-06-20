@@ -5,7 +5,7 @@ import 'mdui/components/layout-main.js';
 import 'mdui/components/button-icon.js';
 import 'mdui';
 import { toProperties, getRenderContext, toPropertiesWithChildren } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, elementNode, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { toButtonProperties, toInputProperties, elementNode, addDefaultStyle } from "@liquefy/flow.DOM";
 
 import { toMduiInputProperties } from './implicitProperties';
 import "./components.css";
@@ -36,7 +36,7 @@ export const card = (...parameters) => {
   const {variant="elevated"} = properties;
   return taggedElement(
     "div", 
-    addDefaultStyleToProperties(
+    addDefaultStyle(
       properties,
       getCardStyle(variant)
     )
@@ -57,7 +57,7 @@ function getCardStyle(variant) {
       padding: "10px",
       borderRadius:  "0.75rem",
       backgroundColor: "rgb(179 168 206)",
-      // backgroundColor: "var(--mdui-color-surface-container-low)",
+      // backgroundColor: "rgb(var(--mdui-color-surface-container-low))",
       boxShadow: "var(--mdui-elevation-level1)", 
       "--shape-corner": "var(--mdui-shape-corner-medium)",
     }
@@ -72,7 +72,7 @@ function getCardStyle(variant) {
 
 export const cardRow = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return card(addDefaultStyleToProperties(
+  return card(addDefaultStyle(
     properties, 
     rowStyle
   ))
@@ -80,34 +80,11 @@ export const cardRow = (...parameters) => {
 
 export const cardColumn = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return card(addDefaultStyleToProperties(
+  return card(addDefaultStyle(
     properties, 
     columnStyle
   ))
 }
-
-  // --shape-corner: var(--mdui-shape-corner-medium);
-  //   position: relative;
-  //   display: inline-block;
-  //   overflow: hidden;
-  //   border-radius: var(--shape-corner);
-// :host([variant=elevated]) {
-//     background-color: rgb(var(--mdui-color-surface-container-low));
-//     box-shadow: var(--mdui-elevation-level1);
-// }
-// constructed stylesheet
-// :host {
-//     --shape-corner: var(--mdui-shape-corner-medium);
-//     position: relative;
-//     display: inline-block;
-//     overflow: hidden;
-//     border-radius: var(--shape-corner);
-//     -webkit-tap-highlight-color: transparent;
-//     transition: box-shadow var(--mdui-motion-duration-short4) var(--mdui-motion-easing-linear);
-//     --mdui-comp-ripple-state-layer-color: var(--mdui-color-on-surface);  //     background-color: rgb(var(--mdui-color-surface-container-low));
-  //     box-shadow: var(--mdui-elevation-level1)
-  // 0 0.5px 1.5px 0 rgba(0,0,0, 19%),0 0 1px 0 rgba(0,0,0, 3.9%)
-  // ;
 
 export const layout = (...parameters) => taggedElement("mdui-layout", toPropertiesWithChildren(parameters));
 export const topAppBar = (...parameters) => taggedElement("mdui-top-app-bar", toPropertiesWithChildren(parameters));
@@ -115,7 +92,7 @@ export const navigationDrawer = (...parameters) => taggedElement("mdui-navigatio
 export const layoutMain = (...parameters) => taggedElement("mdui-layout-main", toPropertiesWithChildren(parameters));
 
 export const buttonIcon = (...parameters) => taggedElement("mdui-button-icon", 
-  addDefaultStyleToProperties(
+  addDefaultStyle(
     toButtonProperties(parameters), 
     {
       width: 40, 

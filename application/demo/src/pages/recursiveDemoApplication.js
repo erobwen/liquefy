@@ -1,17 +1,12 @@
-import { Component, trace, model, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text } from "@liquefy/flow.DOM";
+import { Component, model, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
+import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
 
-import { numberInputField, filler, fitContainerStyle } from "@liquefy/basic-ui";
-import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
+import { filler, fitContainerStyle, column, row } from "@liquefy/basic-ui";
 import { modal } from "@liquefy/basic-ui";
-import { button, card, cardRow, cardColumn } from "@liquefy/themed-ui"
-import { cardShadow } from "@liquefy/modern-ui";
 
-const log = console.log;
-const loga = (action) => {
-  if (trace) log("-----------" + action + "-----------");
-}
+import { numberInputField, button, cardColumn } from "@liquefy/themed-ui";
 
+import file from './reactiveFormApplication?raw';
 
 /**
  * This is a demo-application that showcases some of the principles of Flow. 
@@ -61,15 +56,25 @@ export class RecursiveExample extends Component {
           maxCount: this.count, 
           count: 1
         }),
+        // alert(
+        //   column(
+        //     text("Info:"),
+        //     text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+        //     text(" - Stable component identity and local state is demonstrated."), 
+        //     text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
+        //   )
+        // ),
         filler(),
         { style: fitContainerStyle }
-        // text("Info:"),
-        // text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
-        // text(" - Stable component identity and local state is demonstrated."), 
-        // text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
       )
     );
   }
+}
+
+function alert(...parameters) {
+  const properties = toPropertiesWithChildren(parameters);
+  const { severity, children } = properties;
+  return div({children})
 }
   
 export function controlRow(...parameters) {
@@ -82,30 +87,14 @@ export class ControlRow extends Component {
   }
       
   render() {
-    const rootText = text({ key: "root-text", text: "Recursive Structure"});
-    
     return row(
-      rootText,
+      text("Recursive Structure"),
       row(
-        // text("Depth:"),
-        button("More", 
-          {
-            key: "more-button", 
-            onClick: () => { 
-              this.demoComponent.count++ 
-            },
-          }
-        ), 
-        button("Less", 
-          {
-            key: "less-button", 
-            disabled: this.demoComponent.count === 1, 
-            onClick: () => {this.demoComponent.count--}
-          }
-        ),
+        button("More", () => { this.demoComponent.count++ }), 
+        button("Less", () => {this.demoComponent.count--}),
         {style: {alignItems: "baseline", gap: 5}}
       ),
-      numberInputField("Shared state", this.inherit("myModel"), "value"),
+      numberInputField("Shared state", this.inherit("myModel"), "value", {variant: "outlined"}),
       {style: {padding: "10px", gap: "20px", alignItems: "baseline"}} // Reactive programmatic styling! 
     )
   }
@@ -127,11 +116,12 @@ export class List extends Component {
     return cardColumn("list-column", {
       variant: "outlined",
       style: {
+        gap: 10,
         marginLeft: 10, 
         marginBottom: 2, 
         marginRight: 2, 
         boxShadow: "var(--mdui-elevation-level3)",
-        backgroundColor: "rgb(var(--mdui-color-surface-container-highest))"
+        // backgroundColor: "rgb(var(--mdui-color-surface-container-highest))"
       }, 
       children
     });
@@ -153,10 +143,11 @@ export class Item extends Component {
 
     return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomRenderContext module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
       text({ key: "item-text", text: "Depth " +  me.depth}),
-      numberInputField("Local state", this, "value"),
+      numberInputField("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red"}}),
       text(" Shared state: " + me.inherit("myModel").value, {}), 
       {
-        style: {gap: "20px", alignItems: "baseline"}
+        style: {gap: "20px", alignItems: "baseline", overflow: "visible"},
+        
       }
     );
   }

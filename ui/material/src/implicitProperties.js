@@ -1,5 +1,5 @@
 import { toProperties, getRenderContext } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
+import { toButtonProperties, toInputProperties, addDefaultStyle } from "@liquefy/flow.DOM";
 
 
 /**
@@ -10,18 +10,24 @@ import { toButtonProperties, toInputProperties, addDefaultStyleToProperties } fr
  */
 export function toMduiInputProperties(parameters) {
   const properties = toInputProperties(parameters);
-  const {key, labelText, setter, getter, getErrors, ...restProperties} = properties;
-  
+  const {key, type, labelText, setter, getter, getErrors, ...restProperties} = properties;
+  const defaultStye = {
+    height: 56
+  }
+  if (type === "number") {
+    defaultStye.width = 200
+    defaultStye.height = 40
+  }
   return {
     key,
+    type,
     onInput: (event) => setter(event.target.value),
     value: getter(),
     label: labelText,
     errors: getErrors ?  getErrors() : null,
-    ...addDefaultStyleToProperties(
-      restProperties, {
-        height: "56px"
-      }
+    ...addDefaultStyle(
+      restProperties,
+      defaultStye
     )
   }
 }

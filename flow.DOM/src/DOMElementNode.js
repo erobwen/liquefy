@@ -141,6 +141,7 @@ function defaultToPx(value) { // Note: According to ChatGTP there is no style pr
       if (typeof(newStyle[property]) === "undefined") {
         // log(this.toString() + " clear style: " + property);
         elementStyle[property] = "";
+        // elementStyle.removeProperty(property);
       }
     }
 
@@ -151,6 +152,7 @@ function defaultToPx(value) { // Note: According to ChatGTP there is no style pr
       if (this.unobservable.previouslySetStyles[property] !== newValue) {
         // log(this.toString() + " set style: " + property + " = " + newValue);
         elementStyle[property] = defaultToPx(newValue);
+        // elementStyle.setProperty(property, defaultToPx(newValue)); // TODO: To support custom styles such as --mdui-some-style
       }
       newPreviouslySetStyles[property] = newValue;
     }

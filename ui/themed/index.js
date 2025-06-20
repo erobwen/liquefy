@@ -1,7 +1,7 @@
 import { toProperties } from "@liquefy/flow.core";
 import { globalContext } from "@liquefy/flow.core";
 import { getCreator } from "@liquefy/flow.core";
-import { toInputProperties, addDefaultStyle } from "@liquefy/flow.DOM";
+import { toInputProperties, addDefaultStyle, toButtonProperties } from "@liquefy/flow.DOM";
 import { toPropertiesWithChildren } from "../../flow.core/src/implicitProperties";
 // import { columnStyle } from "@liquefy/basic-ui";
 
@@ -60,7 +60,8 @@ export const crossIcon = (...parameters) => getThemedComponent("crossIcon", toPr
 export const plusIcon = (...parameters) => getThemedComponent("plusIcon", toProperties(parameters));
 export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon", toProperties(parameters));
 export const icon = (...parameters) => getThemedComponent("icon", toProperties(parameters));
-export const button = (...parameters) => getThemedComponent("button", toProperties(parameters));
+export const button = (...parameters) => getThemedComponent("button", toButtonProperties(parameters));
+export const buttonIcon = (...parameters) => getThemedComponent("buttonIcon", toButtonProperties(parameters));
 export const inputField = (...parameters) => getThemedComponent("inputField", toProperties(parameters));
 export const input = (...parameters) => getThemedComponent("input", toInputProperties(parameters));
 export const card = (...parameters) => getThemedComponent("card", toPropertiesWithChildren(parameters));

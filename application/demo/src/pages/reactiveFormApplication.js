@@ -2,11 +2,11 @@ import { Component, transaction, model, callback, toProperties } from "@liquefy/
 import { DOMRenderContext, text, div, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.DOM";
 
 import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/basic-ui";
+
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
-import { button, card, cardRow, cardColumn, textInput } from "@liquefy/themed-ui";
-import { buttonIcon } from "@liquefy/ui-material";
+import { button, card, cardRow, cardColumn, textInput, buttonIcon } from "@liquefy/themed-ui";
 
 
 const log = console.log;

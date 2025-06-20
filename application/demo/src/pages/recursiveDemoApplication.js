@@ -1,10 +1,10 @@
 import { Component, model, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, div, ul, li, p } from "@liquefy/flow.DOM";
 
 import { filler, fitContainerStyle, column, row } from "@liquefy/basic-ui";
-import { modal } from "@liquefy/basic-ui";
-
 import { numberInputField, button, cardColumn } from "@liquefy/themed-ui";
+
+import { informationButton, displayCodeButton } from "../components/information";
 
 import file from './reactiveFormApplication?raw';
 
@@ -56,14 +56,6 @@ export class RecursiveExample extends Component {
           maxCount: this.count, 
           count: 1
         }),
-        // alert(
-        //   column(
-        //     text("Info:"),
-        //     text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
-        //     text(" - Stable component identity and local state is demonstrated."), 
-        //     text(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger)."),
-        //   )
-        // ),
         filler(),
         { style: fitContainerStyle }
       )
@@ -95,6 +87,17 @@ export class ControlRow extends Component {
         {style: {alignItems: "baseline", gap: 5}}
       ),
       numberInputField("Shared state", this.inherit("myModel"), "value", {variant: "outlined"}),
+      filler(),
+      informationButton(
+        column(
+          p("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+          ul(
+            li(" - Stable component identity and local state is demonstrated."), 
+            li(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger).")
+          )
+        )
+      ),
+      displayCodeButton({code: file}),
       {style: {padding: "10px", gap: "20px", alignItems: "baseline"}} // Reactive programmatic styling! 
     )
   }
@@ -147,7 +150,6 @@ export class Item extends Component {
       text(" Shared state: " + me.inherit("myModel").value, {}), 
       {
         style: {gap: "20px", alignItems: "baseline", overflow: "visible"},
-        
       }
     );
   }

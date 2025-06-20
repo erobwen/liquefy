@@ -4,7 +4,7 @@ import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, standa
 
 import { wrapper, basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, overlay, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
 import { buttonIcon } from "@liquefy/ui-material";
-import { zStackElementStyle, modalPopover } from "@liquefy/basic-ui";
+import { zStackElementStyle, popover } from "@liquefy/basic-ui";
 
 import { logMark } from "@liquefy/flow.core";
 
@@ -115,14 +115,15 @@ export class ProgrammaticReactiveLayout extends Component {
       controlPanel,
       column(rows, {style: fillerStyle}),
       toolbar,
-      overlay(modalPopover(
+      popover(
+        "extraMenu",
         extraToolbar,
         {
           bounds: this.bounds,
           close: () => { this.menuOpen = false; }, 
           reference: menuButton,
         }
-      )).show(this.menuOpen),
+      ).show(this.menuOpen),
       {style: {
         height: "100%", 
         width: "100%", 

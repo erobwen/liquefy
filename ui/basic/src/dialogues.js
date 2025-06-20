@@ -5,13 +5,15 @@ import { div } from "@liquefy/flow.DOM";
 
 import { wrapper, overflowVisibleStyle, fitContainerStyle, zStack } from "./Layout";
 import { zStackElementStyle } from "./Layout";
+import { overlay } from "./overlay";
 
 
 
-export const modalPopover = (...parameters) => {
+export const popover = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  const {children, reference, close, direction="top" } = properties;
+  const {children, reference, close, direction="top", modal=true, ...restOfProperties } = properties;
   if (children.length !== 1) throw new Error("Modal popover expects just one single child.");
+  if (!modal) throw new Error("Non modal popover not supported yet. TODO: capture mouse down events before they become a click, and remove popover.")
   const child = children[0];
   const popoverDimensions = child.getPrimitive().dimensions();
 
@@ -38,15 +40,18 @@ export const modalPopover = (...parameters) => {
     }});
   const domNode = background.getPrimitive().getDomNode();
 
-  return zStack(
-    background,
-    div(
-      wrapper(
-        child, 
-        {style: {pointerEvents: "auto", position: "absolute", top: menuBottom - popoverDimensions.height, left: menuLeft}
-      }),
-      {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
+  return overlay(
+    zStack(
+      background,
+      div(
+        wrapper(
+          child, 
+          {style: {pointerEvents: "auto", position: "absolute", top: menuBottom - popoverDimensions.height, left: menuLeft}
+        }),
+        {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
+      ),
+      {style: fitContainerStyle, ...overflowVisibleStyle}
     ),
-    {style: fitContainerStyle, ...overflowVisibleStyle}
+    restOfProperties
   )
 }

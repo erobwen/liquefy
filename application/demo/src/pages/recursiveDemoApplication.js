@@ -138,7 +138,6 @@ export class List extends Component {
   }
 }
 
-//, boxShadow: cardShadow
 export class Item extends Component {
   receive({depth}) {
     this.depth = depth;

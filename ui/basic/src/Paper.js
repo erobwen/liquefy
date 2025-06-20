@@ -51,7 +51,7 @@ function getCardStyle(variant) {
   if (variant === "elevated") {
     return {
       padding: "10px",
-      borderRadius:  3,
+      borderRadius:  2,
       // borderRadius: "var(--shape-corner)",
       backgroundColor: "rgb(var(--mdui-color-surface-container-low))",
       boxShadow: "var(--mdui-elevation-level1)",
@@ -59,13 +59,13 @@ function getCardStyle(variant) {
   } else if (variant === "filled") {
     return {
       padding: "10px",
-      borderRadius:  3,
+      borderRadius:  2,
       backgroundColor: "rgba(179 168 206, 0.5)",
     }
   } else if (variant === "outlined") {
     return {
       padding: 10,
-      borderRadius:  3,
+      borderRadius:  2,
       borderStyle: "solid",
       borderWidth: 1,
       borderColor: "rgb(var(--mdui-color-outline))"

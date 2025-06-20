@@ -19,7 +19,7 @@ import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout";
 import { PortalExample } from "./pages/portalDemo";
 import { ModalExample } from "./pages/modalDemo";
 
-import flowImage from "../resources/flow.svg"
+import flowImage from "../public/flow.svg"
 
 import { applicationMenuFrame } from "./ApplicationMenuFrame"
 
@@ -130,7 +130,7 @@ export class Demo extends Component {
       "menuFrame", {
         appplicationMenu: this.buildMenu(),
         applicationContent: this.choosen,
-        topPanelContent: [filler(), middle(text("by Robert Renbris"))],
+        topPanelContent: [filler(), middle(text("by Robert Renbris "))],
         bounds: this.bounds
       }
     )

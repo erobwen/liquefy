@@ -3,7 +3,7 @@ import { findImplicitChildrenAndOnClick } from "@liquefy/flow.DOM";
 import { button } from "@liquefy/basic-ui";
 
 import { adjustLightness, grayColor } from "./Color";
-import { paperShadow2, paperShadow5 } from "./Paper";
+import { cardShadow2, cardShadow5 } from "./Paper";
 
 const log = console.log; 
 
@@ -17,7 +17,7 @@ export function modernButton(...parameters) {
 };
 
 const boxShadowStyle = {
-  boxShadow: paperShadow2
+  boxShadow: cardShadow2
 }
 
 export class ModernButton extends Component {

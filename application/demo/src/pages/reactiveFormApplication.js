@@ -5,7 +5,7 @@ import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/ba
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
 import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
-import { button, paper, paperRow, paperColumn, textInput, card } from "@liquefy/themed-ui";
+import { button, card, cardRow, cardColumn, textInput } from "@liquefy/themed-ui";
 import { buttonIcon } from "@liquefy/ui-material";
 
 
@@ -326,6 +326,7 @@ export class TravelerForm extends Component {
         }
       ).show(!this.traveler.luggages.length || this.showLuggage), 
       {
+        variant: "filled",
         style: {
           gap: "10px",
           ...columnStyle

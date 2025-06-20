@@ -2,7 +2,7 @@ import { toPropertiesWithChildren } from "@liquefy/flow.core";
 import { addDefaultStyleToProperties, div } from "@liquefy/flow.DOM";
 import { rowStyle, columnStyle } from "@liquefy/basic-ui";
 
-export const paperShadows = [
+export const cardShadows = [
    "",
    "0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12)",
    "0px 3px 1px -2px rgba(0, 0, 0, 0.2), 0px 2px 2px 0px rgba(0, 0, 0, 0.14), 0px 1px 5px 0px rgba(0, 0, 0, 0.12)",
@@ -12,23 +12,23 @@ export const paperShadows = [
    "0px 3px 5px -1px rgba(0, 0, 0, 0.2), 0px 6px 10px 0px rgba(0, 0, 0, 0.14), 0px 1px 18px 0px rgba(0, 0, 0, 0.12)"
 ];
 
-export const paperShadow0 = paperShadows[0];
-export const paperShadow1 = paperShadows[1];
-export const paperShadow2 = paperShadows[2];
-export const paperShadow3 = paperShadows[3];
-export const paperShadow4 = paperShadows[4];
-export const paperShadow5 = paperShadows[5];
-export const paperShadow6 = paperShadows[6];
+export const cardShadow0 = cardShadows[0];
+export const cardShadow1 = cardShadows[1];
+export const cardShadow2 = cardShadows[2];
+export const cardShadow3 = cardShadows[3];
+export const cardShadow4 = cardShadows[4];
+export const cardShadow5 = cardShadows[5];
+export const cardShadow6 = cardShadows[6];
 
-export const buttonShadow = paperShadow2
+export const buttonShadow = cardShadow2
 
 
 function getBoxShadow({elevation}) {
   if (!elevation) {
-    return paperShadow2;
+    return cardShadow2;
   } else {
-    if (typeof paperShadows[elevation] === "undefined") throw new Error("Invalid elevation!");
-    return paperShadows[elevation]
+    if (typeof cardShadows[elevation] === "undefined") throw new Error("Invalid elevation!");
+    return cardShadows[elevation]
   }
 }
 
@@ -36,7 +36,7 @@ function getSuitableMargin({elevation}) {
   if (!elevation) {
     return "4px";
   } else {
-    if (typeof paperShadows[elevation] === "undefined") throw new Error("Invalid elevation!");
+    if (typeof cardShadows[elevation] === "undefined") throw new Error("Invalid elevation!");
     return {
       0: "2px",
       1: "3px",
@@ -54,7 +54,7 @@ function getSuitableMargin({elevation}) {
  * Reusable components. Flow component definitions.
  */
 
-export const paper = (...parameters) =>  {
+export const card = (...parameters) =>  {
   const properties = toPropertiesWithChildren(parameters);
   return (
     div(
@@ -80,18 +80,18 @@ export const paper = (...parameters) =>  {
   )
 }
 
-export const paperRow = (...parameters) => {
+export const cardRow = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return paper(addDefaultStyleToProperties(
+  return card(addDefaultStyleToProperties(
     properties, 
     rowStyle
   ))
 }
 
 
-export const paperColumn = (...parameters) => {
+export const cardColumn = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return paper(addDefaultStyleToProperties(
+  return card(addDefaultStyleToProperties(
     properties, 
     columnStyle
   ))

@@ -4,7 +4,7 @@ import { div, text } from "@liquefy/flow.DOM";
 import { centerMiddle, column, filler, fillerStyle, fitContainerStyle, row, rowStyle } from "@liquefy/basic-ui";
 import { modal, modalFrame, icon, zStackElementStyle, zStack, overflowVisibleStyle } from "@liquefy/basic-ui";
 
-import { hardPaperShadow, paperShadow } from "@liquefy/modern-ui";
+import { hardCardShadow, cardShadow } from "@liquefy/modern-ui";
 import { button, buttonIcon } from "@liquefy/ui-material";
 
 
@@ -65,7 +65,7 @@ class ApplicationMenuFrame extends Component {
         column(
           centerMiddle(this.modalButton, {style: {height: "64px", width: "64px"}}),
           this.appplicationMenu,
-          {style: {backgroundColor: "white", boxShadow: paperShadow, pointerEvents: "auto", ...overflowVisibleStyle}, animateChildrenWhenThisAppears: true}
+          {style: {backgroundColor: "white", boxShadow: cardShadow, pointerEvents: "auto", ...overflowVisibleStyle}, animateChildrenWhenThisAppears: true}
         ),
         filler(),
         {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
@@ -90,13 +90,13 @@ class ApplicationMenuFrame extends Component {
     const overflowVisibleStyle = this.applicationContent.usesExternalAnimations ? { overflow: "visible"} : null;
     const leftMenuDrawer = column("leftMenu", 
       this.appplicationMenu.show(!menuIsModal),
-      {style: {zIndex: 2,boxShadow: paperShadow, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
+      {style: {zIndex: 2,boxShadow: cardShadow, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
     );
 
     const topApplicationBar = row("modalMenu",
       this.modalButton.show(menuIsModal && !this.menuOpen),
       ...this.topPanelContent,      
-      {style: {height: menuIsModal ? "64px" : "32px", boxShadow: paperShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
+      {style: {height: menuIsModal ? "64px" : "32px", boxShadow: cardShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
 
     this.applicationContent.bounds = { 

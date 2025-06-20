@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A modern widget collection for Flow.",
   "type": "module",
-  "module": "./src/index.js",
+  "module": "./index.js",
   "scripts": {
     "build": "vite build"
   },

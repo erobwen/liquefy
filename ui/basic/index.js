@@ -4,13 +4,13 @@ import { svgImage } from "./src/images";
 import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle } from "./src/Layout";
 import { modal, Modal, modalFrame, ModalFrame } from "./src/Modal";
 import { portalEntrance, PortalEntrance, portalExit } from "./src/Portals";
-import { paper, paperColumn, paperRow } from "./src/Paper";
+import { card, cardColumn, cardRow } from "./src/Paper";
 import { modalPopover } from "./src/dialogues";
 import { listItem } from "./src/listItem";
 
 export const basicTheme = {
   components: {
-    paper, paperColumn, paperRow,
+    card, cardColumn, cardRow,
     basicWidgetTheme, label, checkboxInputField, numberInputField, input: textInput, textInput, inputField, button, panel,
     suitcaseIcon, plusIcon, crossIcon, icon,
     svgImage,
@@ -23,7 +23,7 @@ export const basicTheme = {
 }
 
 export { // Note: A copy paste of allFunctions, since we are not allowed to use spread operators for export. 
-  paper, paperColumn, paperRow,
+  card, cardColumn, cardRow,
   basicWidgetTheme, label, checkboxInputField, numberInputField, textInput, inputField, button, panel,
   suitcaseIcon, plusIcon, crossIcon, icon,
   svgImage,

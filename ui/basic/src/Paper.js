@@ -1,6 +1,7 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
 import { addDefaultStyleToProperties, div } from "@liquefy/flow.DOM";
 import { rowStyle, columnStyle } from "./Layout";
+import { borderStyle } from "../../modern";
 
 
 export const borderColors = [
@@ -33,41 +34,57 @@ function getColor({elevation}) {
  * Reusable components. Flow component definitions.
  */
 
-export const paper = (...parameters) =>  {
+export const card = (...parameters) =>  {
   const properties = toPropertiesWithChildren(parameters);
+  const {variant="elevated"} = properties;
   return (
     div(
       addDefaultStyleToProperties(
         properties,
-        {
-          boxSizing: "border-box",
-  
-          backgroundColor: "#eeeeee", 
-          borderColor: getColor(properties), 
-          borderStyle: "solid", 
-          borderWidth: "1px", 
-  
-          padding: "10px", 
-  
-          margin: "4px", 
-        }
+        getCardStyle(variant)
       )
     )
   )
 }
 
-export const paperRow = (...parameters) => {
+function getCardStyle(variant) {
+  if (variant === "elevated") {
+    return {
+      padding: "10px",
+      borderRadius:  3,
+      // borderRadius: "var(--shape-corner)",
+      backgroundColor: "rgb(var(--mdui-color-surface-container-low))",
+      boxShadow: "var(--mdui-elevation-level1)",
+    }
+  } else if (variant === "filled") {
+    return {
+      padding: "10px",
+      borderRadius:  3,
+      backgroundColor: "rgba(179 168 206, 0.5)",
+    }
+  } else if (variant === "outlined") {
+    return {
+      padding: 10,
+      borderRadius:  3,
+      borderStyle: "solid",
+      borderWidth: 1,
+      borderColor: "rgb(var(--mdui-color-outline))"
+    }
+  }
+}
+
+export const cardRow = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return paper(addDefaultStyleToProperties(
+  return card(addDefaultStyleToProperties(
     properties, 
     rowStyle
   ))
 }
 
 
-export const paperColumn = (...parameters) => {
+export const cardColumn = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  return paper(addDefaultStyleToProperties(
+  return card(addDefaultStyleToProperties(
     properties, 
     columnStyle
   ))

@@ -1,8 +1,9 @@
 import { toProperties } from "@liquefy/flow.core";
 import { globalContext } from "@liquefy/flow.core";
 import { getCreator } from "@liquefy/flow.core";
-import { toInputProperties } from "@liquefy/flow.DOM";
+import { toInputProperties, addDefaultStyleToProperties } from "@liquefy/flow.DOM";
 import { toPropertiesWithChildren } from "../../flow.core/src/implicitProperties";
+// import { columnStyle } from "@liquefy/basic-ui";
 
 /**
  * Contextual Theme
@@ -63,9 +64,9 @@ export const button = (...parameters) => getThemedComponent("button", toProperti
 export const inputField = (...parameters) => getThemedComponent("inputField", toProperties(parameters));
 export const input = (...parameters) => getThemedComponent("input", toInputProperties(parameters));
 export const card = (...parameters) => getThemedComponent("card", toPropertiesWithChildren(parameters));
-export const paper = (...parameters) => getThemedComponent("paper", toProperties(parameters));
-export const paperColumn = (...parameters) => getThemedComponent("paperColumn", toProperties(parameters));
-export const paperRow = (...parameters) => getThemedComponent("paperRow", toProperties(parameters));
+export const cardColumn = (...parameters) => getThemedComponent("cardColumn", toPropertiesWithChildren(parameters));
+export const cardRow = (...parameters) => getThemedComponent("cardRow", toPropertiesWithChildren(parameters));
+// export const cardColumn = (...parameters) => getThemedComponent("card", addDefaultStyleToProperties(toProperties(parameters), columnStyle));
 // Styles: 
 export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", toProperties(parameters));
 

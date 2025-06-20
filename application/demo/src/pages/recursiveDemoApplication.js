@@ -1,10 +1,11 @@
 import { Component, trace, model, toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text } from "@liquefy/flow.DOM";
 
-import { numberInputField, filler } from "@liquefy/basic-ui";
+import { numberInputField, filler, fitContainerStyle } from "@liquefy/basic-ui";
 import { centerMiddle, column, row, wrapper } from "@liquefy/basic-ui";
 import { modal } from "@liquefy/basic-ui";
-import { button, paper, paperColumn } from "@liquefy/themed-ui"
+import { button, card, cardRow, cardColumn } from "@liquefy/themed-ui"
+import { cardShadow } from "@liquefy/modern-ui";
 
 const log = console.log;
 const loga = (action) => {
@@ -54,12 +55,14 @@ export class RecursiveExample extends Component {
   render() {
     return (
       column(
+        "recursive column",
         new ControlRow("control-row", {demoComponent: this}),
         new List("root-list", {
           maxCount: this.count, 
           count: 1
         }),
         filler(),
+        { style: fitContainerStyle }
         // text("Info:"),
         // text("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
         // text(" - Stable component identity and local state is demonstrated."), 
@@ -80,26 +83,27 @@ export class ControlRow extends Component {
       
   render() {
     const rootText = text({ key: "root-text", text: "Recursive Structure"});
-    const moreButton = button(
-      "More", 
-      {
-        key: "more-button", 
-        onClick: () => { 
-          this.demoComponent.count++ 
-        },
-      }
-    );
-
-    // Early finalization of sub-component, and dimension analysis of it while building 
-    // console.log(moreButton.dimensions());
-
+    
     return row(
       rootText,
       row(
-        text("Depth:"),
-        moreButton, 
-        button("Less", {key: "less-button", disabled: this.demoComponent.count === 1, onClick: () => {this.demoComponent.count--}}),
-        {style: {alignItems: "baseline"}}
+        // text("Depth:"),
+        button("More", 
+          {
+            key: "more-button", 
+            onClick: () => { 
+              this.demoComponent.count++ 
+            },
+          }
+        ), 
+        button("Less", 
+          {
+            key: "less-button", 
+            disabled: this.demoComponent.count === 1, 
+            onClick: () => {this.demoComponent.count--}
+          }
+        ),
+        {style: {alignItems: "baseline", gap: 5}}
       ),
       numberInputField("Shared state", this.inherit("myModel"), "value"),
       {style: {padding: "10px", gap: "20px", alignItems: "baseline"}} // Reactive programmatic styling! 
@@ -120,13 +124,21 @@ export class List extends Component {
     if (this.count < this.maxCount) {
       children.push(new List("rest-list", {maxCount: this.maxCount, count: this.count + 1}));
     }
-    return paperColumn("list-column", {
-      style: {marginLeft: "10px", marginBottom: "2px", marginRight: "2px", borderWidth: "1px", borderStyle: "solid"}, 
+    return cardColumn("list-column", {
+      variant: "outlined",
+      style: {
+        marginLeft: 10, 
+        marginBottom: 2, 
+        marginRight: 2, 
+        boxShadow: "var(--mdui-elevation-level3)",
+        backgroundColor: "rgb(var(--mdui-color-surface-container-highest))"
+      }, 
       children
     });
   }
 }
 
+//, boxShadow: cardShadow
 export class Item extends Component {
   receive({depth}) {
     this.depth = depth;

@@ -9,6 +9,7 @@ import { toButtonProperties, toInputProperties, elementNode, addDefaultStyleToPr
 
 import { toMduiInputProperties } from './implicitProperties';
 import "./components.css";
+import { rowStyle, columnStyle } from '@liquefy/basic-ui'
 
 
 
@@ -30,21 +31,60 @@ function taggedElement(tagName, properties) {
 export const icon = (...parameters) => taggedElement("mdui-icon", toProperties(parameters));
 export const button = (...parameters) => taggedElement("mdui-button", toButtonProperties(parameters));
 export const input = (...parameters) => taggedElement("mdui-text-field", toMduiInputProperties(parameters));
-export const card = (...parameters) => 
-  taggedElement(
+export const card = (...parameters) => {
+  const properties = toPropertiesWithChildren(parameters); 
+  const {variant="elevated"} = properties;
+  return taggedElement(
     "div", 
     addDefaultStyleToProperties(
-      toPropertiesWithChildren(parameters),
-      {
-        padding: "10px",
-        backgroundColor: "rgb(179 168 206)",
-        // backgroundColor: "var(--mdui-color-surface-container-low)",
-        boxShadow: "var(--mdui-elevation-level1)",
-        "--shape-corner": "var(--mdui-shape-corner-medium)",
-        borderRadius:  "0.75rem"
-      }
+      properties,
+      getCardStyle(variant)
     )
   );
+}
+
+function getCardStyle(variant) {
+  if (variant === "elevated") {
+    return {
+      padding: "10px",
+      borderRadius:  "0.75rem",
+      // borderRadius: "var(--shape-corner)",
+      backgroundColor: "rgb(var(--mdui-color-surface-container-low))",
+      boxShadow: "var(--mdui-elevation-level1)",
+    }
+  } else if (variant === "filled") {
+    return {
+      padding: "10px",
+      borderRadius:  "0.75rem",
+      backgroundColor: "rgb(179 168 206)",
+      // backgroundColor: "var(--mdui-color-surface-container-low)",
+      boxShadow: "var(--mdui-elevation-level1)", 
+      "--shape-corner": "var(--mdui-shape-corner-medium)",
+    }
+  } else if (variant === "outlined") {
+    return {
+      padding: "10px",
+      borderRadius:  "0.75rem",
+      border: ".0625rem solid rgb(var(--mdui-color-outline))"
+    }
+  }
+}
+
+export const cardRow = (...parameters) => {
+  const properties = toPropertiesWithChildren(parameters);
+  return card(addDefaultStyleToProperties(
+    properties, 
+    rowStyle
+  ))
+}
+
+export const cardColumn = (...parameters) => {
+  const properties = toPropertiesWithChildren(parameters);
+  return card(addDefaultStyleToProperties(
+    properties, 
+    columnStyle
+  ))
+}
 
   // --shape-corner: var(--mdui-shape-corner-medium);
   //   position: relative;

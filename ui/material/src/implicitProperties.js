@@ -10,17 +10,18 @@ import { toButtonProperties, toInputProperties, addDefaultStyle } from "@liquefy
  */
 export function toMduiInputProperties(parameters) {
   const properties = toInputProperties(parameters);
-  const {key, type, labelText, setter, getter, getErrors, ...restProperties} = properties;
+  const {key, type, variant="filled", labelText, setter, getter, getErrors, ...restProperties} = properties;
   const defaultStye = {
     height: 56
   }
-  if (type === "number") {
+  if (type === "number" && variant === "outlined") {
     defaultStye.width = 200
     defaultStye.height = 40
   }
   return {
     key,
     type,
+    variant,
     onInput: (event) => setter(event.target.value),
     value: getter(),
     label: labelText,

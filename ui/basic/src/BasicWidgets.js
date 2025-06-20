@@ -85,6 +85,7 @@ export function inputField(properties) {
   let getter = extractProperty(properties, "getter");
   let setter = extractProperty(properties, "setter");
   let getErrors = extractProperty(properties, "getErrors");
+  addDefaultStyle(properties, {height: 28})
 
   let errors;
 

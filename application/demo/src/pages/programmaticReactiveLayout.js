@@ -2,7 +2,7 @@ import { repeat, observable, Component, transaction, toProperties, toPropertiesW
 
 import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, standardAnimation, addDefaultStyle, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
-import { wrapper, basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, modal, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
+import { wrapper, basicWidgetTheme, overflowVisibleStyle, numberInputField, centerMiddle, overlay, column, fitContainerStyle, naturalSizeStyle, fillerStyle, filler, row, zStack, layoutBorderStyle } from "@liquefy/basic-ui";
 import { buttonIcon } from "@liquefy/ui-material";
 import { zStackElementStyle, modalPopover } from "@liquefy/basic-ui";
 
@@ -115,7 +115,7 @@ export class ProgrammaticReactiveLayout extends Component {
       controlPanel,
       column(rows, {style: fillerStyle}),
       toolbar,
-      modal(modalPopover(
+      overlay(modalPopover(
         extraToolbar,
         {
           bounds: this.bounds,

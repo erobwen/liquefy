@@ -69,9 +69,8 @@ function alert(...parameters) {
   return div({children})
 }
   
-export function controlRow(...parameters) {
-  return new ControlRow(toProperties(parameters));
-}
+export const controlRow = (...parameters) => 
+  new ControlRow(...parameters);
 
 export class ControlRow extends Component {
   receive({demoComponent}) {

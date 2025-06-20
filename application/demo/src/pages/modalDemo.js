@@ -4,7 +4,7 @@ import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
 import { fillerStyle, panel } from "@liquefy/basic-ui";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
 import { overflowVisibleStyle } from "@liquefy/basic-ui";
-import { modal, modalFrame } from "@liquefy/basic-ui";
+import { overlay } from "@liquefy/basic-ui";
 import { button } from "@liquefy/themed-ui";
 
 
@@ -108,7 +108,7 @@ export class ModalExample extends Component {
         ).show(this.showDialog && !dialogIsModal),
         {style: fillerStyle}
       ).show(!dialogIsModal),
-      modal(
+      overlay(
         "modal",
         dialog("dialog", 
           dialogContent.show(this.showDialog && dialogIsModal), 

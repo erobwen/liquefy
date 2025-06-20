@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { div } from "@liquefy/flow.DOM";
 
 
-import { modal } from "@liquefy/basic-ui";
+import { overlay } from "@liquefy/basic-ui";
 import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
 
 export function informationButton(...parameters) {
@@ -35,14 +35,14 @@ export class DisplayCodeButton extends Component {
   //   this.ensure(() => {
   //     if (this.open && this.isVisible) {
   //       // Try to show
-  //       const modalFrame = this.inherit("modalFrame");
-  //       if (modalFrame) {
-  //         this.visibleOnFrame = modalFrame;
-  //         modalFrame.openModal(this.content);
+  //       const overlayFrame = this.inherit("overlayFrame");
+  //       if (overlayFrame) {
+  //         this.visibleOnFrame = overlayFrame;
+  //         overlayFrame.showOverlay(this.content);
   //       }
   //     } else {
   //       // Try to hide
-  //       this.visibleOnFrame.closeModal(this.content);
+  //       this.visibleOnFrame.hideOverlay(this.content);
   //       this.visibleOnFrame = null;
   //     }
   //   }) 

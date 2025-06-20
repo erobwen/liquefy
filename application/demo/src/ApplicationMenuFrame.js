@@ -2,9 +2,9 @@ import { Component, toProperties, log, logMark } from "@liquefy/flow.core"
 import { div, text } from "@liquefy/flow.DOM";
 
 import { centerMiddle, column, filler, fillerStyle, fitContainerStyle, row, rowStyle } from "@liquefy/basic-ui";
-import { modal, modalFrame, icon, zStackElementStyle, zStack, overflowVisibleStyle } from "@liquefy/basic-ui";
+import { overlayFrame, icon, zStackElementStyle, zStack, overflowVisibleStyle } from "@liquefy/basic-ui";
 
-import { hardCardShadow, cardShadow } from "@liquefy/modern-ui";
+import { cardShadow } from "@liquefy/modern-ui";
 import { button, buttonIcon } from "@liquefy/ui-material";
 
 
@@ -104,7 +104,7 @@ class ApplicationMenuFrame extends Component {
       height: this.bounds.height - topApplicationBar.dimensions().height - 5
     };
 
-    return modalFrame("modalFrame",
+    return overlayFrame("overlayFrame",
       leftMenuDrawer.show(!menuIsModal),
       column("column",
         topApplicationBar,
@@ -113,7 +113,7 @@ class ApplicationMenuFrame extends Component {
         {style: {...fillerStyle, ...overflowVisibleStyle}}
       ),
       {
-        modalContent: this.menuOpen && menuIsModal ? this.buildModalMenuDrawer() : null,
+        overlayContent: this.menuOpen && menuIsModal ? this.buildModalMenuDrawer() : null,
         style: {...rowStyle, ...fitContainerStyle}
       }
     )

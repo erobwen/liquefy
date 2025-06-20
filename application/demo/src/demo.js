@@ -142,7 +142,7 @@ export class Demo extends Component {
     // }
     // console.log(mainBounds);
     // this.choosen.bounds = mainBounds;
-    // return modalFrame(
+    // return overlayFrame(
     //   layout(
     //     topAppBar(filler(), text("by Robert Renbris"), {style: {color: "white", backgroundColor: "rgb(var(--mdui-color-primary))"}}),
     //     navigationDrawer(this.buildMenu(), {open: true, style: {}}),

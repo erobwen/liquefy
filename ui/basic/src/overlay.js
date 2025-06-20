@@ -3,17 +3,17 @@ import { toProperties } from "@liquefy/flow.core";
 
 import { div, elementNode } from "@liquefy/flow.DOM";
 import { logMark } from "@liquefy/flow.core";
-import { toPropertiesWithChildren } from "../../../flow.core/src/implicitProperties";
+import { toPropertiesWithChildren } from "@liquefy/flow.core/src/implicitProperties";
 const log = console.log;
 
 /**
- * Modal
+ * Overlay
  */
-export function modal(...parameters) {
-  return new Modal(toPropertiesWithChildren(parameters));
+export function overlay(...parameters) {
+  return new Overlay(...parameters);
 }
 
-export class Modal extends Component {
+export class Overlay extends Component {
   receive({children}) {
     if (children.length !== 1) throw new Error("Modal only accepts a single child!");
     this.content = children[0];
@@ -25,14 +25,15 @@ export class Modal extends Component {
     this.ensure(() => {
       if (this.isVisible) {
         // Try to show
-        const modalFrame = this.inherit("modalFrame");
-        if (modalFrame) {
-          this.visibleOnFrame = modalFrame;
-          modalFrame.openModal(this.content);
+        const overlayFrame = this.inherit("overlayFrame");
+        if (overlayFrame) {
+          this.visibleOnFrame = overlayFrame;
+          overlayFrame.showOverlay(this.content);
         }
       } else if (this.visibleOnFrame) {
         // Try to hide
-        this.visibleOnFrame.closeModal(this.content);
+        this.visibleOnFrame.hideOverlay(this.content);
+        this.visibleOnFrame = null;
       }
     });
   }
@@ -42,24 +43,24 @@ export class Modal extends Component {
   }
 }
 
-export function modalFrame(...parameters) {
+export function overlayFrame(...parameters) {
   // debugger; 
   const properties = toPropertiesWithChildren(parameters);
-  const result = new ModalFrame(properties);
+  const result = new OverlayFrame(properties);
   return result; 
 }
 
-export class ModalFrame extends Component {
-  receive({style, children, modalContent}) {
+export class OverlayFrame extends Component {
+  receive({style, children, overlayContent}) {
     this.style = style; 
     this.children = children;  
-    this.modalFrame = this;
+    this.overlayFrame = this;
     this.staticContent = children; 
-    this.receivedModalContent = modalContent; 
+    this.receivedOverlayContent = overlayContent; 
   }
 
   initialize() {
-    this.assignedModalContent = null;
+    this.assignedOverlayContent = null;
     this.modalSubFrame = null;
     this.childrenWithPossibleModal = [...this.children];
 
@@ -72,39 +73,39 @@ export class ModalFrame extends Component {
 
     // Setup modal sub frame
     this.ensure(() => {
-      if (this.assignedModalContent && this.receivedModalContent) {
+      if (this.assignedOverlayContent && this.receivedOverlayContent) {
         throw new Error("Cannot both assign modal content and set it as a property for one single modal frame.")
       } else {
-        const modalContent = this.assignedModalContent ? this.assignedModalContent : this.receivedModalContent 
+        const overlayContent = this.assignedOverlayContent ? this.assignedOverlayContent : this.receivedOverlayContent 
          
-        if (!modalContent) {
+        if (!overlayContent) {
           // Remove modal
           this.disposeModalSubFrame();
         } else if (this.modalSubFrame) {
           // Replace content
-          this.modalSubFrame.setStaticContent(modalContent)
-          modalContent.modalFrame = this.modalSubFrame;
+          this.modalSubFrame.setStaticContent(overlayContent)
+          overlayContent.overlayFrame = this.modalSubFrame;
         } else {
           // New content
-          this.ensureModalSubFrame(modalContent);
-          modalContent.modalFrame = this.modalSubFrame;
+          this.ensureModalSubFrame(overlayContent);
+          overlayContent.overlayFrame = this.modalSubFrame;
         }
       }
     })
   }
 
-  openModal(modalContent) {
-    this.assignedModalContent = modalContent;
+  showOverlay(overlayContent) {
+    this.assignedOverlayContent = overlayContent;
   }
   
   onDispose() {
     super.onDispose();
-    this.assignedModalContent = null;
+    this.assignedOverlayContent = null;
   }
   
-  closeModal(modalContent) {
-    if (this.assignedModalContent === modalContent) {
-      this.assignedModalContent = null;
+  hideOverlay(overlayContent) {
+    if (this.assignedOverlayContent === overlayContent) {
+      this.assignedOverlayContent = null;
     }
   }
 
@@ -116,7 +117,7 @@ export class ModalFrame extends Component {
   ensureModalSubFrame(content) {
     if (!this.modalSubFrame) {
       creators.push(this);
-      this.modalSubFrame = new ModalFrame(
+      this.modalSubFrame = new OverlayFrame(
         content, 
         { 
           style: {
@@ -149,11 +150,11 @@ export class ModalFrame extends Component {
 
   render() {
     if (this.reallyDisposed) throw new Error("CANNOT REBUILD A DISPOSED ONE!!!");
-    return new modalFrameDiv({style: this.style, children: this.childrenWithPossibleModal});
+    return new overlayFrameDiv({style: this.style, children: this.childrenWithPossibleModal});
   }
 }
 
-function modalFrameDiv(...parameters) {
+function overlayFrameDiv(...parameters) {
   let properties = toProperties(parameters);
   return elementNode({tagName: "div", componentTypeName: "modal-frame", ...properties});
 }

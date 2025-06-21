@@ -189,7 +189,7 @@ export const zStackElementStyle = {
   height: "100%",
 }
 
-export const zStack = (...parameters) => styledDiv("zStack", {...parameters.style, position: "relative"}, parameters);
+export const zStack = (...parameters) => styledDiv("zStack", {position: "relative"}, parameters);
 
 
 /**

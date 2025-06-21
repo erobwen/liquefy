@@ -83,31 +83,25 @@ export class Modal extends Component {
   receive({close, content, children}) {
     this.close = close; 
     this.content = content; 
-    // this.children = children ? children : []; 
+    this.children = children;
     this.backgroundColor = shadeColor;
   }
 
   render() {
-    // log("Dialog.build")
-    
-    const background = div({
-      key: "background", 
-      onClick: () => { this.close() }, 
-      style: {
-        ...zStackElementStyle, 
-        ...overflowVisibleStyle, 
-        transition: "background-color 1000ms linear", 
-        pointerEvents: "auto", 
-        backgroundColor: this.backgroundColor
-      }
-    });
-    // const domNode = background.getPrimitive().getDomNode();
-    // log(domNode);
-
     return ( 
       overlay(
         zStack(
-          background,
+          div({
+            key: "background", 
+            onClick: () => { this.close() }, 
+            style: {
+              ...zStackElementStyle, 
+              ...overflowVisibleStyle, 
+              transition: "background-color 1000ms linear", 
+              pointerEvents: "auto", 
+              backgroundColor: this.backgroundColor
+            }
+          }),
           centerMiddle(
             column(
               this.content,

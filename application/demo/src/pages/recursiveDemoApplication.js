@@ -8,6 +8,7 @@ import { informationButton, displayCodeButton } from "../components/information"
 
 import file from './reactiveFormApplication?raw';
 
+
 /**
  * This is a demo-application that showcases some of the principles of Flow. 
  * Please read the comments for a tour over what features exists and how they work.  
@@ -26,8 +27,8 @@ export class RecursiveExample extends Component {
   // Set properties from parent, suitable for default values etc.
   receive(properties) {
     Object.assign(this, properties)
-    console.log(properties);
-    console.log(this.topBarPortal);
+    // console.log(properties);
+    // console.log(this.topBarPortal);
   }
 
   // Create state, create model data and initilize external resources
@@ -48,6 +49,7 @@ export class RecursiveExample extends Component {
     };
   }
 
+
   // Build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
   render() {
     console.log(this.topBarPortal);
@@ -60,21 +62,7 @@ export class RecursiveExample extends Component {
           count: 1
         }),
         filler(),
-        portalContents("information", 
-          informationButton(
-            column(
-              p("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
-              ul(
-                li(" - Stable component identity and local state is demonstrated."), 
-                li(" - Minimal DOM node updates is demonstrated (watch element vierw in debugger).")
-              )
-            )
-          ),
-          displayCodeButton({code: file}),
-          {
-            portalExit: this.topBarPortal
-          }
-        ),
+        topPortalContents(this.topBarPortal),
         { style: fitContainerStyle }
       )
     );
@@ -180,3 +168,25 @@ export function startRecursiveDemo() {
   // root.findChild("more-button").onClick();
   // root.findChild("more-button").onClick();
 }
+
+
+/**
+ * Top portal content
+ */
+
+const topPortalContents = (topBarPortal) =>
+  portalContents("information", 
+    informationButton(
+      column(
+        p("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+        ul(
+          li("Stable component identity and local state is demonstrated."), 
+          li("Minimal DOM node updates is demonstrated (watch element vierw in debugger).")
+        )
+      )
+    ),
+    displayCodeButton({code: file}),
+    {
+      portalExit: topBarPortal
+    }
+  )

@@ -1,7 +1,6 @@
 import { Component } from "./Component.js";
 import { isObservable } from "./Flow.js";
 import { getRenderContext } from "./buildContext.js";
-const log = console.log;
 
 
 export function extractExpectedProperty(object, property) {
@@ -97,8 +96,8 @@ function buildPropertiesObject(arglist) {
 
   // Things to find in arglist
   let properties = null;
-  let looseContent = null;
-  let contentArray = null;
+  let content = null;
+  let firstContentLoose = false;
 
   while (arglist.length > 0) {
     let current = arglist.shift();
@@ -114,19 +113,21 @@ function buildPropertiesObject(arglist) {
       || typeof current === "string" 
       || typeof current === "number" 
       || isObservable(current)) { // model or component
-      if (!looseContent) {
-        looseContent = [];
+      if (!content) {
+        firstContentLoose = true;
+        content = [];
       }
-      looseContent.push(current);
+      content.push(current);
     }
 
     // A plain object, either a properties object, or a content array
     if (typeof current === "object" && !current.causality) {
       if (current instanceof Array) {
-        if (contentArray) {
-          throw new Error("Cannot have two content arrays in flow argument list")
+        if (!content) {
+          content = current;
+        } else {
+          current.forEach(element => content.push(element))
         }
-        contentArray = current; 
       } else {
         if (properties) {
           throw new Error("Cannot have two properties objects in flow argument list")
@@ -140,20 +141,15 @@ function buildPropertiesObject(arglist) {
 
   if (!properties) properties = {};
 
-  if (contentArray) {
-    if (looseContent) {
-      implicitKey = looseContent.shift() + "";
+  if (content) {
+    const firstContent = content[0];
+    if (firstContentLoose && canBeKey(firstContent)) {
+      implicitKey = content.shift() + "";
+      if (content.length === 0) {
+        content = null;
+      }
     }
-    if (looseContent && looseContent.size > 0) {
-      throw new Error("Cannot have both loose content and a content array in flow argument");
-    }
-    properties.componentContent = contentArray;
-  } else if (looseContent) {
-    const firstContent = looseContent[0];
-    if (((typeof firstContent === "string") && (/[a-z]/.test(firstContent[0]))) || typeof firstContent === "number") {
-      implicitKey = looseContent.shift() + "";
-    }
-    properties.componentContent = looseContent;
+    properties.componentContent = content;
   }
 
   if (implicitKey) {
@@ -165,3 +161,7 @@ function buildPropertiesObject(arglist) {
 
   return properties;
 }
+
+
+const canBeKey = (content) => 
+  ((typeof content === "string" && /[a-z]/.test(content[0])) || (typeof content === "number"))

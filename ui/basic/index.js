@@ -5,7 +5,7 @@ import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerSty
 import { overlay, Overlay, overlayFrame, OverlayFrame } from "./src/overlay";
 import { portalContents, PortalContents, portalExit } from "./src/Portals";
 import { card, cardColumn, cardRow } from "./src/card";
-import { popover } from "./src/dialogues";
+import { popover, modal, Modal } from "./src/dialogues";
 import { listItem } from "./src/listItem";
 
 export const basicTheme = {
@@ -16,7 +16,7 @@ export const basicTheme = {
     svgImage,
     layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
     overlay, Overlay, overlayFrame, OverlayFrame,
-    popover,
+    popover, modal, Modal,
     listItem,
     portalContents, PortalContents, portalExit
   }
@@ -29,7 +29,7 @@ export { // Note: A copy paste of allFunctions, since we are not allowed to use 
   svgImage,
   layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
   overlay, Overlay, overlayFrame, OverlayFrame,
-  popover,
+  popover, modal, Modal,
   listItem,
   portalContents, PortalContents, portalExit
 };

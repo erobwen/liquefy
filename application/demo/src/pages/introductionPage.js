@@ -36,6 +36,7 @@ export class IntroductionPage extends Component {
       ),
       h2("This Demo"),
       p("Demonstrates the key features of flow, while showing how little code is needed to use them."),
+      p("In addition, this demo also serves as a testbed for Flow. Right now there are no unit tests, so all features of this demo needs to be validated upon any changes to the framework."),
       portalContents(
         middle(text("by Robert Renbris ")), 
         {

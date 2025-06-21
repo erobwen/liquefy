@@ -1,11 +1,13 @@
 
-import { toPropertiesWithChildren } from "@liquefy/flow.core";
+import { toPropertiesWithChildren, Component } from "@liquefy/flow.core";
 
 import { div } from "@liquefy/flow.DOM";
 
-import { wrapper, overflowVisibleStyle, fitContainerStyle, zStack } from "./Layout";
-import { zStackElementStyle } from "./Layout";
+import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "./Layout";
+import { button } from "./BasicWidgets"
+import { wrapper, overflowVisibleStyle } from "./Layout";
 import { overlay } from "./overlay";
+
 
 
 export const popover = (...parameters) => {
@@ -53,4 +55,71 @@ export const popover = (...parameters) => {
     ),
     restOfProperties
   )
+}
+
+
+
+const log = console.log;
+const loga = (action) => {
+  log("-----------" + action + "-----------");
+}
+
+
+const panelStyle = {
+  backgroundColor: "rgb(250, 250, 250)",
+  borderStyle: "solid", 
+  borderRadius: "5px",
+  borderWidth: "1px",
+  padding: "20px"
+}
+
+const shadeColor = "rgba(0, 0, 0, 0.4)";
+const transparentColor = "rgba(0, 0, 0, 0)";
+
+
+export const modal = (...parameters) => new Modal(...parameters);
+
+export class Modal extends Component {
+  receive({close, content, children}) {
+    this.close = close; 
+    this.content = content; 
+    // this.children = children ? children : []; 
+    this.backgroundColor = shadeColor;
+  }
+
+  render() {
+    // log("Dialog.build")
+    
+    const background = div({
+      key: "background", 
+      onClick: () => { this.close() }, 
+      style: {
+        ...zStackElementStyle, 
+        ...overflowVisibleStyle, 
+        transition: "background-color 1000ms linear", 
+        pointerEvents: "auto", 
+        backgroundColor: this.backgroundColor
+      }
+    });
+    // const domNode = background.getPrimitive().getDomNode();
+    // log(domNode);
+
+    return ( 
+      overlay(
+        zStack(
+          background,
+          centerMiddle(
+            column(
+              this.content,
+              button("Close", () => this.close()), 
+              // ...this.children,
+              {style: {...panelStyle, ...overflowVisibleStyle}, pointerEvents: "auto", animateChildrenWhenThisAppears: true}
+            ),
+            {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
+          ),
+          {style: fitContainerStyle, ...overflowVisibleStyle}
+        )
+      )
+    )
+  }
 }

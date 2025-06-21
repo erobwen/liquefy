@@ -80,11 +80,11 @@ const transparentColor = "rgba(0, 0, 0, 0)";
 export const modal = (...parameters) => new Modal(...parameters);
 
 export class Modal extends Component {
-  receive({close, content, children}) {
+  receive({close, content, children, backgroundColor=shadeColor}) {
     this.close = close; 
     this.content = content; 
     this.children = children;
-    this.backgroundColor = shadeColor;
+    this.backgroundColor = backgroundColor;
   }
 
   render() {
@@ -103,12 +103,7 @@ export class Modal extends Component {
             }
           }),
           centerMiddle(
-            column(
-              this.content,
-              button("Close", () => this.close()), 
-              // ...this.children,
-              {style: {...panelStyle, ...overflowVisibleStyle}, pointerEvents: "auto", animateChildrenWhenThisAppears: true}
-            ),
+            dialogue(this.children),
             {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
           ),
           {style: fitContainerStyle, ...overflowVisibleStyle}
@@ -116,4 +111,23 @@ export class Modal extends Component {
       )
     )
   }
+}
+
+
+export const dialogue = (...parameters) => {
+  const properties = toPropertiesWithChildren(parameters);
+  return div(
+    column("dialogue",
+      row(
+        button("Close", () => this.close())
+      ),
+      properties.content,
+      properties.children,
+      {
+        style: {...panelStyle, ...overflowVisibleStyle}, 
+        pointerEvents: "auto", 
+        animateChildrenWhenThisAppears: true
+      }
+    )
+  );
 }

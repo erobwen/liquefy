@@ -1,8 +1,8 @@
 import { Component } from "@liquefy/flow.core";
-import { div } from "@liquefy/flow.DOM";
+import { div, code } from "@liquefy/flow.DOM";
 
 
-import { overlay } from "@liquefy/basic-ui";
+import { wrapper, overlay, modal, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
 import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
 
 export function informationButton(...parameters) {
@@ -27,11 +27,14 @@ export class DisplayCodeButton extends Component {
     this.code = code;
   }
 
-  // initialize() {
+  initialize() {
+    this.open = false;
+  }
+
   //   this.content = div(this.code)
 
   //   this.visibleOnFrame = null;
-  //   this.open = false;
+
   //   this.ensure(() => {
   //     if (this.open && this.isVisible) {
   //       // Try to show
@@ -49,9 +52,22 @@ export class DisplayCodeButton extends Component {
   // }
 
   render() {
-    return buttonIcon(
-      {icon: "code", style: {color: "green"}}, 
-      () => { this.open = true } 
+    return wrapper(
+      buttonIcon(
+        {icon: "code", style: {color: "green"}}, 
+        () => { this.open = true; console.log("open please... ") } 
+      ),
+      modal(
+        div(
+          code("codeBlock", this.code, {class: "language-js hljs language-javascript"}),
+          {style: {overflowX: "hide", overflowY: "auto", width: 300, height: 200}}       
+        ),
+        {
+          close: () => { this.open = false; }
+        }
+      ).show(this.open)
     ) 
   }
 }
+
+  

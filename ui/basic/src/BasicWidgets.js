@@ -119,8 +119,8 @@ export function inputField(properties) {
   const children = [
     elementNode({
       key: properties.key + ".input", 
+      tagName: "input",
       componentTypeName: type + "InputField", 
-      tagName: "input", 
       attributes
     })
   ]; 
@@ -132,10 +132,8 @@ export function inputField(properties) {
     children.unshift(labelChild);
   }
   
-  return row({style: {alignItems: "center", padding: "4px", ...properties.style}, children, ...properties}, );
+  return row({style: {lineHeight: 40, alignItems: "stretch", padding: "4px", ...properties.style}, children, ...properties}, );
 }
-
-
 
 export function button(...parameters) { 
   const properties = toButtonProperties(parameters)

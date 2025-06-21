@@ -142,9 +142,9 @@ export class Item extends Component {
     return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomRenderContext module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
       text({ key: "item-text", text: "Depth " +  me.depth}),
       numberInputField("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red"}}),
-      text(" Shared state: " + me.inherit("myModel").value, {}), 
+      text(" Shared state: " + me.inherit("myModel").value), 
       {
-        style: {gap: "20px", alignItems: "baseline", overflow: "visible"},
+        style: {gap: "20px", alignItems: "stretch", overflow: "visible", lineHeight: 40},
       }
     );
   }

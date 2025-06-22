@@ -1,7 +1,7 @@
 
 import { toPropertiesWithChildren, Component } from "@liquefy/flow.core";
 
-import { div } from "@liquefy/flow.DOM";
+import { div, addDefaultStyle } from "@liquefy/flow.DOM";
 
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "./Layout";
 import { button } from "./BasicWidgets"
@@ -90,9 +90,8 @@ export class Modal extends Component {
   render() {
     return ( 
       overlay(
-        zStack(
-          div({
-            key: "background", 
+        zStack("zStack",
+          wrapper("background", {
             onClick: () => { this.close() }, 
             style: {
               ...zStackElementStyle, 
@@ -102,8 +101,9 @@ export class Modal extends Component {
               backgroundColor: this.backgroundColor
             }
           }),
-          centerMiddle(
-            dialogue(this.children, {close: this.close}),
+          centerMiddle("centerMiddle",
+            this.content,
+            this.children,
             {style: {...zStackElementStyle, height: "100%"}}
           ),
           {style: fitContainerStyle}
@@ -116,17 +116,21 @@ export class Modal extends Component {
 
 export const dialogue = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters);
-  const {close, children} = properties;  
-  return div(
+  addDefaultStyle(
+    properties, 
+    {...panelStyle, ...overflowVisibleStyle, padding: 0, pointerEvents: "auto"}
+  )
+  const {close, children, style} = properties; 
+
+  return (
     column("dialogue",
       row(
         filler(),
-        button("Close", () => {close(); console.log("closing...")})
+        button("Close", () => close())
       ),
       children,
       {
-        style: {...panelStyle, ...overflowVisibleStyle, pointerEvents: "auto"}, 
-        animateChildrenWhenThisAppears: true
+        style
       }
     )
   );

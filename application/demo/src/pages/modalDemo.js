@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
-import { fillerStyle, panel } from "@liquefy/basic-ui";
+import { dialogue, fillerStyle, panel } from "@liquefy/basic-ui";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
 import { overflowVisibleStyle, modal } from "@liquefy/basic-ui";
 import { overlay } from "@liquefy/basic-ui";
@@ -48,7 +48,10 @@ export class ModalExample extends Component {
         {style: fillerStyle}
       ).show(!dialogIsModal),
       modal("modal", 
-        dialogContent.show(this.showDialog && dialogIsModal), 
+        dialogue(
+          dialogContent.show(this.showDialog && dialogIsModal), 
+          {close: () => { this.showDialog = false}}
+        ),
         {close: () => { this.showDialog = false}}
       ).show(this.showDialog && dialogIsModal),
       { style: fitContainerStyle }

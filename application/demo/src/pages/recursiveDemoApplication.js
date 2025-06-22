@@ -6,77 +6,45 @@ import { numberInputField, button, cardColumn } from "@liquefy/themed-ui";
 
 import { informationButton, displayCodeButton } from "../components/information";
 
-import file from './reactiveFormApplication?raw';
+import file from './recursiveDemoApplication?raw';
 
-
-/**
- * This is a demo-application that showcases some of the principles of Flow. 
- * Please read the comments for a tour over what features exists and how they work.  
- * 
- * This simple program just demonstrates the recursive and state preserving capabilities 
- * of Flow. A number of components are created recursivley according to the "count" state.
- * And each component has its own state that can be toggled on/off. Note that the state of each individual 
- * component is maintained, while the whole recursive chain of components are re-built. 
- * Also, open and expand the view-elements debug panel in Chrome, to verify minimal updates
- * to the DOM when the UI is rebuilt.  
- */
 export class RecursiveExample extends Component {
   
-  // Constructor: Normally do not override constructor!!! (unless modifying the framework itself)
-
-  // Set properties from parent, suitable for default values etc.
-  receive(properties) {
-    Object.assign(this, properties)
-    // console.log(properties);
-    // console.log(this.topBarPortal);
+  receive({style, topBarPortal}) {
+    this.topBarPortal = topBarPortal;
+    this.style = style; 
   }
 
-  // Create state, create model data and initilize external resources
   initialize() {
+    this.name = "Recursive Components"
     this.count = 1
-    this.myModel = model({
+    this.inheritedModel = model({
       value: 42 
     });
   }
 
-  // Release external resources
-  terminate() {}
-  
-  // Allow children to inherit data from this component 
   provide() {
     return {
-      myModel: this.myModel
+      inheritedModel: this.inheritedModel
     };
   }
 
-
-  // Build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
   render() {
-    console.log(this.topBarPortal);
+    const { style, count, topBarPortal } = this; 
     return (
-      column(
-        "recursive column",
-        new ControlRow("control-row", {demoComponent: this}),
-        new List("root-list", {
-          maxCount: this.count, 
+      column("recursiveColumn",
+        new ControlRow("controlRow", {demoComponent: this}),
+        new List("rootList", {
+          maxCount: count, 
           count: 1
         }),
         filler(),
-        topPortalContents(this.topBarPortal),
-        { style: fitContainerStyle }
+        topPortalContents(topBarPortal),
+        { style }
       )
     );
   }
-}
-
-function alert(...parameters) {
-  const properties = toPropertiesWithChildren(parameters);
-  const { severity, children } = properties;
-  return div({children})
-}
-  
-export const controlRow = (...parameters) => 
-  new ControlRow(...parameters);
+} 
 
 export class ControlRow extends Component {
   receive({demoComponent}) {
@@ -91,15 +59,14 @@ export class ControlRow extends Component {
         button("Less", () => {this.demoComponent.count--}),
         {style: {alignItems: "baseline", gap: 5}}
       ),
-      numberInputField("Shared state", this.inherit("myModel"), "value", {variant: "outlined"}),
+      numberInputField("Shared state", this.inherit("inheritedModel"), "value", {variant: "outlined"}),
       filler(),
-      {style: {padding: "10px", gap: "20px", alignItems: "baseline"}} // Reactive programmatic styling! 
+      {style: {padding: 10, gap: 20, alignItems: "baseline"}} 
     )
   }
 }
 
 export class List extends Component {
-  // This is the function setProperties where you declare all properties that a parent can set on its child. This is optional, but is a good place to define default values, modify values given by parent, or document what properties that the component needs.   
   receive({maxCount, count}) {
     this.maxCount = maxCount;
     this.count = count;
@@ -113,14 +80,8 @@ export class List extends Component {
     }
     return cardColumn("list-column", {
       variant: "outlined",
-      style: {
-        gap: 10,
-        marginLeft: 10, 
-        marginBottom: 2, 
-        marginRight: 2, 
-        boxShadow: "var(--mdui-elevation-level3)",
-        // backgroundColor: "rgb(var(--mdui-color-surface-container-highest))"
-      }, 
+      style: { gap: 10, marginLeft: 10, marginBottom: 2, marginRight: 2, boxShadow: "var(--mdui-elevation-level3)" }, 
+      // backgroundColor: "rgb(var(--mdui-color-surface-container-highest))"
       children
     });
   }
@@ -132,51 +93,40 @@ export class Item extends Component {
   }
   
   initialize() {
-    // This is the place to define view model variables. In this case the "on" property is defined.
     this.value = 42;
   }
  
   render() {
     const me = this; 
 
-    return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomRenderContext module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
-      text({ key: "item-text", text: "Depth " +  me.depth}),
+    return row("itemRow",
+      text({key: "depthText", text: "Depth " +  me.depth}),
       middle(
         numberInputField("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red"}}),
         {style: {overflow: "visible"}}
       ),
-      text(" Shared state: " + me.inherit("myModel").value), 
+      text({key: "sharedStateText", text: " Shared state: " + me.inherit("inheritedModel").value}), 
       {
-        style: {gap: "20px", alignItems: "stretch", overflow: "visible", lineHeight: 40},
+        style: {gap: 20, alignItems: "stretch", overflow: "visible", lineHeight: 40},
       }
     );
   }
 }
 
 
-
 /**
  * Start the demo
- */
-  
+ */  
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
   new DOMRenderContext(document.getElementById("root")).render(root);
-
-  // Emulated user interaction.
-  // console.log(root.getChild("control-row").getChild("more-button"));
-  // console.log(root.getChild("control-row"));
-  // root.getChild("control-row").getChild("more-button").onClick();
-  // root.findChild("more-button").onClick();
-  // root.findChild("more-button").onClick();
-  // root.findChild("more-button").onClick();
 }
+
 
 
 /**
  * Top portal content
  */
-
 const topPortalContents = (topBarPortal) =>
   portalContents("information", 
     informationButton(
@@ -193,3 +143,16 @@ const topPortalContents = (topBarPortal) =>
       portalExit: topBarPortal
     }
   )
+
+  
+/**
+ * This is a demo-application that showcases some of the principles of Flow. 
+ * Please read the comments for a tour over what features exists and how they work.  
+ * 
+ * This simple program just demonstrates the recursive and state preserving capabilities 
+ * of Flow. A number of components are created recursivley according to the "count" state.
+ * And each component has its own state that can be toggled on/off. Note that the state of each individual 
+ * component is maintained, while the whole recursive chain of components are re-built. 
+ * Also, open and expand the view-elements debug panel in Chrome, to verify minimal updates
+ * to the DOM when the UI is rebuilt.  
+ */

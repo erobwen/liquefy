@@ -14,6 +14,7 @@ export function textNode(...parameters) {
 
 export const text = textNode;
 
+// TODO: Make this correspond more to the standard parameter lists? 
 export function getTextNodeProperties(parameters) {
   let properties; 
   let text; 

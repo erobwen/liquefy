@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/flow.core";
+import { callback, Component } from "@liquefy/flow.core";
 import { div, code, pre } from "@liquefy/flow.DOM";
 // import hljs from 'highlight.js';
 import hljs from 'highlight.js/lib/core';
@@ -61,6 +61,7 @@ export class DisplayCodeButton extends Component {
       this.code,
       { language: 'javascript' }
     ).value;
+    const close = () => { this.open = false; }; // Consider: Provide/inherit instead?
     // console.log(highlightedCode);
     return wrapper(
       buttonIcon(
@@ -68,7 +69,7 @@ export class DisplayCodeButton extends Component {
         () => { this.open = true; console.log("open please... ") } 
       ),
       modal(
-        div(
+        dialogue(
           pre(
             code("codeBlock", 
               { 
@@ -79,15 +80,25 @@ export class DisplayCodeButton extends Component {
                 }
               }
             ),
+            {
+              style: {
+                overflowX: "auto", overflowY: "auto", 
+                width: 900, height: 600
+              },
+            }
           ),
-          {style: {overflowX: "hide", overflowY: "auto", width: 300, height: 200}}       
+          { close }
         ),
-        {
-          close: () => { this.open = false; }
-        }
+        { close }
       ).show(this.open)
     ) 
   }
 }
-
   
+
+
+function alert(...parameters) {
+  const properties = toPropertiesWithChildren(parameters);
+  const { severity, children } = properties;
+  return div({children})
+}

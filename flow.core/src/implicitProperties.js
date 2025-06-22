@@ -69,7 +69,8 @@ export function createTextNodesFromStringChildren(properties, keyPrefix) {
     } else if (child instanceof Component) {
       return child; 
     } else {
-      throw new Error("Dont know what to do with flow component child: " + child.toString());  
+      console.log(child)
+      throw new Error("Dont know what to do with component child above.");  
     }
   }); 
 }

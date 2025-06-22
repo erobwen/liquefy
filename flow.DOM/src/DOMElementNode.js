@@ -20,10 +20,13 @@ export function elementNode(...parameters) {
 
 // Note: There is a 1:1 relation between render context primitives, and flow component primitives. 
 
+const excluded = ["innerHTML"];
+
 function toLowerCase(object) {
   const result = {}
   for (let property in object) {
-    result[property.toLowerCase()] = object[property]
+    const newProperty = excluded.includes(property) ? property : property.toLowerCase();
+    result[newProperty] = object[property]
   }
   return result; 
 }
@@ -114,7 +117,9 @@ function defaultToPx(value) { // Note: According to ChatGTP there is no style pr
       } else {
         // Note, only change if we have a new value. Alow for animation kit to set the value to something else while this code is unaware.  
         if (this.unobservable.previouslySetAttributes[property] !== newValue) {
-          if (property === "class") {
+          if (property === "innerHTML") {
+            element.innerHTML = newValue;
+          } else if (property === "class") {
             // TODO: Investigate why we had to use the setAttribute function for it to work with "class", is it the same with more attributes?
             element.setAttribute("class", newValue)
           } else {

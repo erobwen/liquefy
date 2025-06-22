@@ -228,6 +228,7 @@ export function getWidthIncludingMargin(node) {
   ensureDomNodeChildrenInPlace() {// But do not change style for animated children!
     // log("ensureDomNodeChildrenInPlace " + this.toString());
     // Impose animation. CONSIDER: introduce this with more general mechanism?
+    if (this.attributes && this.attributes.innerHTML) return; 
     const node = this.domNode;
     if (!(node instanceof Element)) return;
     

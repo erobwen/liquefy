@@ -81,10 +81,13 @@ export function textInput(...parameters) {
 
 export function inputField(properties) {
   const type = extractProperty(properties, "type");
-  let labelText = extractProperty(properties, "labelText");
-  let getter = extractProperty(properties, "getter");
-  let setter = extractProperty(properties, "setter");
-  let getErrors = extractProperty(properties, "getErrors");
+  const labelText = extractProperty(properties, "labelText");
+  const getter = extractProperty(properties, "getter");
+  const setter = extractProperty(properties, "setter");
+  const getErrors = extractProperty(properties, "getErrors");  
+  const inputProperties = extractProperty(properties, "inputProperties");
+  const inputStyle = extractProperty(inputProperties, "style");
+
   addDefaultStyle(properties, {height: 28})
 
   let errors;
@@ -93,15 +96,7 @@ export function inputField(properties) {
     errors = getErrors();
   }
 
-  const inputAttributes = properties.inputProperties ? properties.inputProperties : {};
-  delete properties.inputProperties;
-  if (inputAttributes) {
-    if (type === "number") {
-      if (!inputAttributes.style) inputAttributes.style = {};
-      if (!inputAttributes.style.width) inputAttributes.style.width = "40px";
-    } 
-  }
-  const attributes = {
+  const inputAttributes = {
     onInput: callback(properties.key + ".oninput", event => setter(type === "checkbox" ? event.target.checked : event.target.value)),
     onClick: properties.onClick,
     value: getter(),
@@ -111,9 +106,11 @@ export function inputField(properties) {
       backgroundColor: errors ? "rgba(255, 240, 240, 255)" : "white",
       borderColor: "rgba(200, 200, 200, 20)", //errors ? "red" : 
       borderStyle: "solid",
-      borderWidth: "1px" 
+      borderWidth: "1px", 
+      ...(type === "number" ? { width: 40 } : {}),
+      ...inputStyle
     },
-    ...inputAttributes
+    ...inputProperties
   };
   
   const children = [
@@ -121,24 +118,35 @@ export function inputField(properties) {
       key: properties.key + ".input", 
       tagName: "input",
       componentTypeName: type + "InputField", 
-      attributes
+      attributes: inputAttributes
     })
   ]; 
-  const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: ""}}); 
+  const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: "", lineHeight: 20}}); 
   if (type === "checkbox") {
     children.push(labelChild);
   } else {
     children.unshift(filler());
     children.unshift(labelChild);
   }
-  
-  return row({style: {lineHeight: 40, alignItems: "stretch", padding: "4px", ...properties.style}, children, ...properties}, );
+  addDefaultStyle(
+    properties,
+    {
+      lineHeight: 28, 
+      // alignSelf: "center", 
+      alignItems: "stretch", 
+      padding: 4, ...properties.style
+    }
+  )
+  return row({
+    children, 
+    ...properties
+  });
 }
 
 export function button(...parameters) { 
   const properties = toButtonProperties(parameters)
 
-  addDefaultStyle(properties, {lineHeight: "28px", cursor: "pointer"}) //, display: "block"
+  addDefaultStyle(properties, {lineHeight: 28, cursor: "pointer"}) //, display: "block"
   // if (properties.disabled) properties.disabled = true; 
   
   // Inject debug printout in click.

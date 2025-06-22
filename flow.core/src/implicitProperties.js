@@ -11,6 +11,7 @@ export function extractExpectedProperty(object, property) {
 }
 
 export function extractProperty(object, property) {
+  if (!object) return;
   const result = object[property];
   delete object[property];
   return result; 

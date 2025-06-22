@@ -1,6 +1,11 @@
 import { Component } from "@liquefy/flow.core";
-import { div, code } from "@liquefy/flow.DOM";
+import { div, code, pre } from "@liquefy/flow.DOM";
+// import hljs from 'highlight.js';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
 
+// Then register the languages you need
+hljs.registerLanguage('javascript', javascript);
 
 import { wrapper, overlay, modal, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
 import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
@@ -52,6 +57,11 @@ export class DisplayCodeButton extends Component {
   // }
 
   render() {
+    const highlightedCode = hljs.highlight(
+      this.code,
+      { language: 'javascript' }
+    ).value;
+    // console.log(highlightedCode);
     return wrapper(
       buttonIcon(
         {icon: "code", style: {color: "green"}}, 
@@ -59,7 +69,17 @@ export class DisplayCodeButton extends Component {
       ),
       modal(
         div(
-          code("codeBlock", this.code, {class: "language-js hljs language-javascript"}),
+          pre(
+            code("codeBlock", 
+              { 
+                attributes: {
+                  style: { fontSize: 14},
+                  innerHTML: highlightedCode, 
+                  class: "language-js hljs language-javascript"
+                }
+              }
+            ),
+          ),
           {style: {overflowX: "hide", overflowY: "auto", width: 300, height: 200}}       
         ),
         {

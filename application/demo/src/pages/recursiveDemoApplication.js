@@ -1,7 +1,7 @@
 import { Component, model, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, ul, li, p } from "@liquefy/flow.DOM";
 
-import { filler, fitContainerStyle, column, row, portalContents } from "@liquefy/basic-ui";
+import { filler, fitContainerStyle, column, row, middle, portalContents } from "@liquefy/basic-ui";
 import { numberInputField, button, cardColumn } from "@liquefy/themed-ui";
 
 import { informationButton, displayCodeButton } from "../components/information";
@@ -141,7 +141,10 @@ export class Item extends Component {
 
     return row("item-row",  // row is a primitive flow that can be converted into a DOM element by the DomRenderContext module. However, a 1:1 mapping to HTML can also be possible, by using a Div flow for example. 
       text({ key: "item-text", text: "Depth " +  me.depth}),
-      numberInputField("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red"}}),
+      middle(
+        numberInputField("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red"}}),
+        {style: {overflow: "visible"}}
+      ),
       text(" Shared state: " + me.inherit("myModel").value), 
       {
         style: {gap: "20px", alignItems: "stretch", overflow: "visible", lineHeight: 40},

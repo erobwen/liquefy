@@ -16,8 +16,9 @@ export function overlay(...parameters) {
 export class Overlay extends Component {
   receive({children}) {
     if (children.length !== 1) throw new Error("Modal only accepts a single child!");
-    this.content = children[0];
-    children.length = 0;
+    this.children = children; 
+    // this.content = children[0];
+    // children.length = 0;
   }
 
   initialize() {
@@ -28,11 +29,11 @@ export class Overlay extends Component {
         const overlayFrame = this.inherit("overlayFrame");
         if (overlayFrame) {
           this.visibleOnFrame = overlayFrame;
-          overlayFrame.showOverlay(this.content);
+          overlayFrame.showOverlay(this.children[0]);
         }
       } else if (this.visibleOnFrame) {
         // Try to hide
-        this.visibleOnFrame.hideOverlay(this.content);
+        this.visibleOnFrame.hideOverlay(this.children[0]);
         this.visibleOnFrame = null;
       }
     });

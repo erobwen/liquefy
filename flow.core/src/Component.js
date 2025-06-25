@@ -373,6 +373,10 @@ export class Component {
     return this.getPrimitive(parentPrimitive);
   }
 
+  isRendered() {
+    return typeof this.buildRepeater !== "undefined";
+  }
+
   getPrimitive(parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (parentPrimitive && this.parentPrimitive && this.parentPrimitive !== parentPrimitive) console.warn("Changed parent primitive for " + this.toString());

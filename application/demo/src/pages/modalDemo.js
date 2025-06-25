@@ -1,11 +1,11 @@
 import { Component } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
-import { dialogue, fillerStyle, panel } from "@liquefy/basic-ui";
+import { alert, cardShadow3, dialogue, fillerStyle, panel } from "@liquefy/basic-ui";
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
 import { overflowVisibleStyle, modal } from "@liquefy/basic-ui";
 import { overlay } from "@liquefy/basic-ui";
-import { button } from "@liquefy/themed-ui";
+import { button, cardColumn } from "@liquefy/themed-ui";
 
 
 
@@ -24,37 +24,40 @@ export class ModalExample extends Component {
     const {width, height }  = this.bounds;
     const dialogIsModal = width < 800;
 
-    const dialogContent = text("Dialog content!");
+    const contentDialogue = dialogue(
+      text("A dialogue"), 
+      {
+        variant: "elevated",
+        close: () => { this.showDialog = false},
+        style: {padding: 15, height: 500, ...(dialogIsModal ? {width: 400} : {})}
+      }
+    )
 
     return row("row",
-      panel("base-panel",
-        column("base-column",
-          text("A hybrid modal dialog, that is only modal when there is not enough space."),
-          // row(
-            button("Open Dialog", ()=> {this.showDialog = true;}),
-            {style: overflowVisibleStyle}
-          // ), 
-          // modernButton({style: {width: "100px", height: "100px", backgroundColor: color}}),
+      cardColumn("selector",
+        alert("info", 
+          "A hybrid modal dialog, that is only modal when there is not enough space. Try resizeing the window when the dialog is open.", 
+          { 
+            severity: "info", style: {boxShadow: cardShadow3, ...(!dialogIsModal ? {width: width/2} : {})}
+          }
         ),
-        {style: fillerStyle}
+        centerMiddle(
+          button("Open Hybrid Modal Dialog", ()=> {this.showDialog = true;}),
+          {style: {...overflowVisibleStyle, ...fillerStyle}}
+        ), 
+        {
+          variant: "filled"
+        }
       ),
       div("dialog-panel",
-        panel(
-          column("column",
-            button("Close", () => this.showDialog = false), 
-            dialogContent.show(this.showDialog && !dialogIsModal),
-          ),
-        ).show(this.showDialog && !dialogIsModal),
-        {style: fillerStyle}
+        contentDialogue.show(this.showDialog && !dialogIsModal),
+        {style: {...fillerStyle, ...overflowVisibleStyle}}
       ).show(!dialogIsModal),
       modal("modal", 
-        dialogue(
-          dialogContent.show(this.showDialog && dialogIsModal), 
-          {close: () => { this.showDialog = false}}
-        ),
+        contentDialogue.show(this.showDialog && dialogIsModal),
         {close: () => { this.showDialog = false}}
       ).show(this.showDialog && dialogIsModal),
-      { style: fitContainerStyle }
+      { style: {...fitContainerStyle, ...overflowVisibleStyle, gap: 10}}
     );
   }
 }

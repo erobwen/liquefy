@@ -131,11 +131,13 @@ const topPortalContents = (topBarPortal) =>
   portalContents("information", 
     informationButton(
       column(
-        p("A change of 'Depth' or 'Shared state' forces a rebiuld of all components in the hierarchy."),
+        p("A simple recursive example, that demonstrates:"),
         ul(
-          li("Stable component identity and local state is demonstrated."), 
-          li("Minimal DOM node updates is demonstrated (watch element vierw in debugger).")
-        )
+          li("Minimal updates of the DOM while changes in depth forces complete re-render of all components (open debug console to see DOM elements flash upon change).  "), 
+          li("Stable component identity during rebuild, allowing for the preservation of local state."),
+          li("Component hierarchy inheritance, where all components inherit the same shared model.")
+        ),
+        { style: {width: 800}}
       )
     ),
     displayCodeButton({code: file}),

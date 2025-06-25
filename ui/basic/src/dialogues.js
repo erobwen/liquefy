@@ -34,19 +34,24 @@ class Popover extends Component {
   }
 
   render() {
-    const { children, reference, direction } = this;
+    const { children, reference } = this;
 
     if (children.length !== 1) throw new Error("Modal popover expects just one single child to get dimensions.");
     const popoverDimensions = children[0].getPrimitive().dimensions();
-  
-    if (direction !== "top") throw new Error("This component only supports 'top' as direction so far.")
+    console.log(popoverDimensions);
+    // if (!["top", "bottom"].includes(direction)) throw new Error("This component only supports 'top' as direction so far.")
   
     const referenceRect = reference.getPrimitive().reactiveBoundingClientRect(); 
+    const referenceRectMiddle = referenceRect.top + referenceRect.height / 2;
+    const windowHeightMiddle = window.innerHeight / 2;
     const xSpace = window.innerWidth - referenceRect.width;
     const referenceXFraction = (xSpace - referenceRect.left) / xSpace; // 1 = to the right, 0 = to the left.
     const abstractReferenceXFraction = Math.round(referenceXFraction * 3)/3;  
-  
-    const menuBottom = referenceRect.top;
+    const menuBottom = {
+      top:() => referenceRect.top, 
+      bottom:() => referenceRect.bottom + popoverDimensions.height, 
+    }[referenceRectMiddle < windowHeightMiddle ? "bottom" : "top"]();
+    
     const menuLeft = referenceRect.left - (popoverDimensions.width - referenceRect.width) 
       + (popoverDimensions.width - referenceRect.width) * referenceXFraction;
   
@@ -126,7 +131,7 @@ export const dialogue = (...parameters) => {
     {padding: 0, pointerEvents: "auto"}
   )
   
-  const {close, children, style} = addDefaultStyle(properties, {
+  const {close, children, style, variant="filled"} = addDefaultStyle(properties, {
     boxShadow: cardShadow4
   }); 
 
@@ -138,7 +143,7 @@ export const dialogue = (...parameters) => {
       ),
       children,
       {
-        variant: "filled",
+        variant,
         style
       }
     )

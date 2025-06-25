@@ -100,7 +100,7 @@ class ApplicationMenuFrame extends Component {
     );
 
     this.applicationContent.bounds = { 
-      width: menuIsModal ? this.bounds.width : this.bounds.width - menuWidth - 5, 
+      width: menuIsModal ? this.bounds.width : this.bounds.width - menuWidth - 10, 
       height: this.bounds.height - topApplicationBar.dimensions().height - 5
     };
 
@@ -108,7 +108,7 @@ class ApplicationMenuFrame extends Component {
       leftMenuDrawer.show(!menuIsModal),
       column("column",
         topApplicationBar,
-        filler(this.applicationContent, {style: {backgroundColor: "light-gray", paddingTop: "5px", paddingLeft: "5px", ...overflowVisibleStyle}}),
+        filler(this.applicationContent, {style: {backgroundColor: "light-gray", paddingTop: 5, paddingLeft: 5, paddingRight: 5, ...overflowVisibleStyle}}),
         // centerMiddle("content", toggleButton,{style: fillerStyle}),
         {style: {...fillerStyle, ...overflowVisibleStyle}}
       ),

@@ -1,25 +1,44 @@
 import { callback, Component } from "@liquefy/flow.core";
 import { div, code, pre } from "@liquefy/flow.DOM";
-// import hljs from 'highlight.js';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 
-// Then register the languages you need
-hljs.registerLanguage('javascript', javascript);
-
+import { alert, cardShadow3, popover } from "@liquefy/basic-ui";
 import { wrapper, overlay, modal, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
+
 import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
+
+hljs.registerLanguage('javascript', javascript);
 
 export function informationButton(...parameters) {
   return new InformationButton(...parameters)
 }
 
 export class InformationButton extends Component {
+  receive({children}) {
+    this.children = children;
+  }
+
+  initialize() {
+    this.open = false;
+  }
+
   render() {
-    return buttonIcon(
+    const button = buttonIcon("button",
       {icon: "information", style: {color: "blue"}}, 
       () => { this.open = true } 
-    ) 
+    )
+    return wrapper(
+      popover(
+        alert(this.children, {severity: "info", style: {boxShadow: cardShadow3}}), 
+        { 
+          direction: "bottom", 
+          reference: button,
+          close: () => { this.open = false }  
+        }
+      ).show(this.open),
+      button 
+    )
   }
 }
 
@@ -36,33 +55,12 @@ export class DisplayCodeButton extends Component {
     this.open = false;
   }
 
-  //   this.content = div(this.code)
-
-  //   this.visibleOnFrame = null;
-
-  //   this.ensure(() => {
-  //     if (this.open && this.isVisible) {
-  //       // Try to show
-  //       const overlayFrame = this.inherit("overlayFrame");
-  //       if (overlayFrame) {
-  //         this.visibleOnFrame = overlayFrame;
-  //         overlayFrame.showOverlay(this.content);
-  //       }
-  //     } else {
-  //       // Try to hide
-  //       this.visibleOnFrame.hideOverlay(this.content);
-  //       this.visibleOnFrame = null;
-  //     }
-  //   }) 
-  // }
-
   render() {
     const highlightedCode = hljs.highlight(
       this.code,
       { language: 'javascript' }
     ).value;
     const close = () => { this.open = false; }; // Consider: Provide/inherit instead?
-    // console.log(highlightedCode);
     return wrapper(
       buttonIcon(
         {icon: "code", style: {color: "green"}}, 
@@ -96,9 +94,3 @@ export class DisplayCodeButton extends Component {
 }
   
 
-
-function alert(...parameters) {
-  const properties = toPropertiesWithChildren(parameters);
-  const { severity, children } = properties;
-  return div({children})
-}

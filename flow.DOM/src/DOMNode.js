@@ -66,7 +66,7 @@ export function getWidthIncludingMargin(node) {
 
   onDispose() {
     const unobservable = this.unobservable; 
-    if (unobservable.resizeObserver) {
+    if (unobservable.resizeObserver && typeof(unobservable.resizeObserver.dissconnect) === "function") {
       unobservable.resizeObserver.dissconnect();
       unobservable.mutationObserver.dissconnect();
       window.removeEventListener('scroll', unobservable.updateBoundingClientRect, true);

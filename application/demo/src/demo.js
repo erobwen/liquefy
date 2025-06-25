@@ -1,5 +1,5 @@
 import { Component, transaction } from "@liquefy/flow.core";
-import { DOMRenderContext, text } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, p, ul, li } from "@liquefy/flow.DOM";
 
 import { button, assignGlobalTheme, listItem } from "@liquefy/themed-ui";
 
@@ -7,7 +7,7 @@ import {
   materialTheme 
 } from "@liquefy/ui-material";
 
-import { basicTheme, center, fillerStyle, fitContainerStyle, middle, rowStyle } from "@liquefy/basic-ui";
+import { basicTheme, center, fillerStyle, fitContainerStyle, middle, row, rowStyle } from "@liquefy/basic-ui";
 import { portalExit } from "@liquefy/basic-ui";
 import { column, columnStyle, filler } from "@liquefy/basic-ui";
 import { svgImage, wrapper } from "@liquefy/basic-ui";
@@ -23,6 +23,7 @@ import flowImage from "../public/flow.svg"
 
 import { applicationMenuFrame } from "./ApplicationMenuFrame"
 import { IntroductionPage } from "./pages/introductionPage";
+import { informationButton } from "./components/information";
 
 /**
  * Demo
@@ -102,15 +103,30 @@ export class Demo extends Component {
     }
     listItems.push(this.leftColumnPortal);
     listItems.push(filler());
-    listItems.push(button(
-      this.selectedTheme === basicTheme ? "Material Theme" : "Basic Theme", 
-      () => {
-        this.selectedTheme = (this.selectedTheme === basicTheme) ? materialTheme : basicTheme
-        assignGlobalTheme(
-          this.selectedTheme
+    listItems.push(
+      row(
+        button(
+          this.selectedTheme === basicTheme ? "Material Theme" : "Basic Theme", 
+          () => {
+            this.selectedTheme = (this.selectedTheme === basicTheme) ? materialTheme : basicTheme
+            assignGlobalTheme(
+              this.selectedTheme
+            )
+          }, { style: fillerStyle}
+        ),
+        informationButton(
+          column(
+            p("This is just to showcase the possibilities of reactive component themeing:"),
+            ul(
+              li("Because why not? "), 
+              li("When we switch theme, we not just change style of componets, we replace entire components!"),
+              li("Using the service locator pattern throughout an application, means anything can be configurable!")
+            ),
+            { style: {width: 800}}
+          )
         )
-      } 
-    ));
+      )
+  );
 
     return column(
       listItems,

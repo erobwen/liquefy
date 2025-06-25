@@ -16,9 +16,5 @@ export function buttonIcon(...parameters) {
   const properties = toButtonProperties(parameters)
   addDefaultStyle(properties, {width: 28, height: 28, lineHeight: 28, cursor: "pointer"}) //, display: "block"
   const { name, ...restOfProperties } = properties;
-  console.log("buttonIcon");
-  console.log(properties)
-  console.log(name);
-  console.log(restOfProperties);
   return centerMiddle(faIcon({name}), properties);
 }

@@ -7,6 +7,7 @@ import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle
 import { button } from "./BasicWidgets"
 import { wrapper, overflowVisibleStyle, filler } from "./Layout";
 import { overlay } from "./overlay";
+import { cardColumn } from "./card";
 
 
 
@@ -39,7 +40,6 @@ export const popover = (...parameters) => {
       pointerEvents: "auto", 
       backgroundColor: "rgba(0, 0, 0, 0)"
     }});
-  const domNode = background.getPrimitive().getDomNode();
 
   return overlay(
     zStack(
@@ -57,25 +57,7 @@ export const popover = (...parameters) => {
   )
 }
 
-
-
-const log = console.log;
-const loga = (action) => {
-  log("-----------" + action + "-----------");
-}
-
-
-const panelStyle = {
-  backgroundColor: "rgb(250, 250, 250)",
-  borderStyle: "solid", 
-  borderRadius: "5px",
-  borderWidth: "1px",
-  padding: "20px"
-}
-
 const shadeColor = "rgba(0, 0, 0, 0.4)";
-const transparentColor = "rgba(0, 0, 0, 0)";
-
 
 export const modal = (...parameters) => new Modal(...parameters);
 
@@ -87,11 +69,13 @@ export class Modal extends Component {
     this.backgroundColor = backgroundColor;
   }
 
+  initialize() {}
+
   render() {
     return ( 
       overlay(
         zStack("zStack",
-          wrapper("background", {
+          div("background", {
             onClick: () => { this.close() }, 
             style: {
               ...zStackElementStyle, 
@@ -102,8 +86,10 @@ export class Modal extends Component {
             }
           }),
           centerMiddle("centerMiddle",
-            this.content,
-            this.children,
+            wrapper("dialogueWrapper",              
+              this.content,
+              this.children,
+            ),
             {style: {...zStackElementStyle, height: "100%"}}
           ),
           {style: fitContainerStyle}
@@ -115,21 +101,21 @@ export class Modal extends Component {
 
 
 export const dialogue = (...parameters) => {
-  const properties = toPropertiesWithChildren(parameters);
-  addDefaultStyle(
-    properties, 
-    {...panelStyle, ...overflowVisibleStyle, padding: 0, pointerEvents: "auto"}
+  const properties = addDefaultStyle(
+    toPropertiesWithChildren(parameters), 
+    {padding: 0, pointerEvents: "auto"}
   )
   const {close, children, style} = properties; 
 
   return (
-    column("dialogue",
+    cardColumn("dialogue",
       row(
         filler(),
         button("Close", () => close())
       ),
       children,
       {
+        variant: "filled",
         style
       }
     )

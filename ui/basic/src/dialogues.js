@@ -4,10 +4,10 @@ import { toPropertiesWithChildren, Component } from "@liquefy/flow.core";
 import { div, addDefaultStyle } from "@liquefy/flow.DOM";
 
 import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "./Layout";
-import { button } from "./BasicWidgets"
+import { button, buttonIcon } from "./buttons"
 import { wrapper, overflowVisibleStyle, filler } from "./Layout";
 import { overlay } from "./overlay";
-import { cardColumn } from "./card";
+import { cardColumn, cardShadow4 } from "./card";
 
 
 
@@ -125,13 +125,16 @@ export const dialogue = (...parameters) => {
     toPropertiesWithChildren(parameters), 
     {padding: 0, pointerEvents: "auto"}
   )
-  const {close, children, style} = properties; 
+  
+  const {close, children, style} = addDefaultStyle(properties, {
+    boxShadow: cardShadow4
+  }); 
 
   return (
     cardColumn("dialogue",
       row(
         filler(),
-        button("Close", () => close())
+        buttonIcon({name: "close", onClick: () => close()})
       ),
       children,
       {

@@ -1,7 +1,34 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
 import { addDefaultStyle, div } from "@liquefy/flow.DOM";
 import { rowStyle, columnStyle } from "./Layout";
-import { borderStyle } from "../../modern";
+
+export const cardShadows = [
+   "",
+   "0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12)",
+   "0px 3px 1px -2px rgba(0, 0, 0, 0.2), 0px 2px 2px 0px rgba(0, 0, 0, 0.14), 0px 1px 5px 0px rgba(0, 0, 0, 0.12)",
+   "0px 3px 3px -2px rgba(0, 0, 0, 0.2), 0px 3px 4px 0px rgba(0, 0, 0, 0.14), 0px 1px 8px 0px rgba(0, 0, 0, 0.12)",
+   "0px 2px 4px -1px rgba(0, 0, 0, 0.2), 0px 4px 5px 0px rgba(0, 0, 0, 0.14), 0px 1px 10px 0px rgba(0, 0, 0, 0.12)",
+   "0px 3px 5px -1px rgba(0, 0, 0, 0.2), 0px 5px 8px 0px rgba(0, 0, 0, 0.14), 0px 1px 14px 0px rgba(0, 0, 0, 0.12)",
+   "0px 3px 5px -1px rgba(0, 0, 0, 0.2), 0px 6px 10px 0px rgba(0, 0, 0, 0.14), 0px 1px 18px 0px rgba(0, 0, 0, 0.12)"
+];
+
+export const cardShadow0 = cardShadows[0];
+export const cardShadow1 = cardShadows[1];
+export const cardShadow2 = cardShadows[2];
+export const cardShadow3 = cardShadows[3];
+export const cardShadow4 = cardShadows[4];
+export const cardShadow5 = cardShadows[5];
+export const cardShadow6 = cardShadows[6];
+
+
+function getBoxShadow({elevation}) {
+  if (!elevation) {
+    return cardShadow2;
+  } else {
+    if (typeof cardShadows[elevation] === "undefined") throw new Error("Invalid elevation!");
+    return cardShadows[elevation]
+  }
+}
 
 
 export const borderColors = [

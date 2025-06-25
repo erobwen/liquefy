@@ -143,24 +143,6 @@ export function inputField(properties) {
   });
 }
 
-export function button(...parameters) { 
-  const properties = toButtonProperties(parameters)
-
-  addDefaultStyle(properties, {lineHeight: 28, cursor: "pointer"}) //, display: "block"
-  // if (properties.disabled) properties.disabled = true; 
-  
-  // Inject debug printout in click.
-  // let result; 
-  // if (trace && properties.onClick) {
-  //   const onClick = properties.onClick;
-  //   properties.onClick = () => {
-  //     // console.log("clicked at: " + JSON.stringify(result.getPath()));
-  //     onClick();
-  //   }  
-  // }
-
-  return htmlButton(properties);
-};
 
 export const panel = (...parameters) => {
   const properties = toProperties(parameters);

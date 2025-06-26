@@ -157,5 +157,5 @@ export class OverlayFrame extends Component {
 
 function overlayFrameDiv(...parameters) {
   let properties = toProperties(parameters);
-  return elementNode({tagName: "div", componentTypeName: "modal-frame", ...properties});
+  return elementNode({tagName: "div", componentTypeName: "overlay-frame", ...properties});
 }

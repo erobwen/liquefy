@@ -3,6 +3,7 @@ import { toProperties, extractProperty } from "@liquefy/flow.core";
 import { RenderContext } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { updateDOMTime } from "../../flow.core/src/Flow";
+import { observePathChange } from "./pathobserver";
 
 // import { clearNode } from "./DOMNode";
 
@@ -34,6 +35,14 @@ export class DOMRenderContext extends RenderContext {
     if (this.animate) addDOMRenderContext(this);
     this.creator = creator;
     this.rootElement = rootElement;
+
+    this.cleanupPathObserver = observePathChange(newPath => {
+      // console.log("New path: " + newPath)
+      if (this.component) {
+        this.component.receiveProperty("path", newPath.split("/").filter(item => item.length > 0))
+      }
+    })
+
     if (fullWindow) {
       document.body.style.margin = "0px"; 
       document.body.style.width = "100%"; //window.innerWidth + "px"; 
@@ -70,8 +79,22 @@ export class DOMRenderContext extends RenderContext {
     return "[target]" + (this.component ? this.component.toString() : "null");
   }
 
+  // renderComponent(Component) {
+  //   super.render(new Component({
+  //     path: new URL(window.location.href).pathname.split("/"),
+  //     bounds: {width: window.innerWidth, height: window.innerHeight}
+  //   }))
+  // }
+
+  // DEPRECATED
   render(component) {
+    console.log("Render...")
+    // console.warn("DOMRenderContext.render is deprecated. Use renderComponent instead (will be renamed to render once all deprecations are removed)")
     component.bounds = {width: window.innerWidth, height: window.innerHeight}
+    component.receive({
+      bounds: {width: window.innerWidth, height: window.innerHeight},
+      path: window.location.pathname.split("/").filter(item => item.length > 0),
+    }) 
     super.render(component);
   }
 
@@ -89,6 +112,7 @@ export class DOMRenderContext extends RenderContext {
 
   dispose() {
     super.dispose();
+    this.cleanupPathObserver();
     if (this.animate) removeDOMRenderContext(this);
   }
 

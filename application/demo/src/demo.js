@@ -1,5 +1,5 @@
-import { Component, transaction } from "@liquefy/flow.core";
-import { DOMRenderContext, text, p, ul, li } from "@liquefy/flow.DOM";
+import { Component, logMark, transaction } from "@liquefy/flow.core";
+import { DOMRenderContext, text, p, ul, li, div } from "@liquefy/flow.DOM";
 
 import { button, assignGlobalTheme, listItem } from "@liquefy/themed-ui";
 
@@ -25,11 +25,21 @@ import { applicationMenuFrame } from "./ApplicationMenuFrame"
 import { IntroductionPage } from "./pages/introductionPage";
 import { informationButton } from "./components/information";
 
+
+
 /**
  * Demo
  */
 export class Demo extends Component {
+
+  receive({bounds, path}) {
+    this.bounds = bounds;
+    console.log(path);
+    this.path = path; 
+  }
+
   initialize() {
+    const { bounds, path } = this; 
     this.selectedTheme = materialTheme;
     assignGlobalTheme(this.selectedTheme);
 
@@ -40,25 +50,33 @@ export class Demo extends Component {
 
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [
-      new RecursiveExample({key: "recursiveDemo", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
-      new ReactiveForm({key: "reactiveForm", initialData, style: fitContainerStyle}),
-      new AnimationExample({key: "animationExample", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle}),
-      new ProgrammaticReactiveLayout({key: "programmaticReactiveLayout", name: "Programmatic Responsiveness", style: fitContainerStyle}),
-      new ModalExample({key: "modalExample", style: fitContainerStyle}),
-      new PortalExample({key: "portalExample", portal: this.leftColumnPortal, style: fitContainerStyle})
+      new RecursiveExample({key: "recursive-demo", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
+      new ReactiveForm({key: "reactive-form", initialData, style: fitContainerStyle}),
+      new AnimationExample({key: "animation-example", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle}),
+      new ProgrammaticReactiveLayout({key: "programmatic-reactive-layout", name: "Programmatic Responsiveness", style: fitContainerStyle}),
+      new ModalExample({key: "modal-example", style: fitContainerStyle}),
+      new PortalExample({key: "portal-example", portal: this.leftColumnPortal, style: fitContainerStyle})
     ];
     
     for (let item of this.items) {
       item.onEstablish();
     }
 
-    this.choosen = this.introduction;
-    // this.choosen = this.items.find(item => item.key === "recursiveDemo");
-    // this.choosen = this.items.find(item => item.key === "reactiveForm");
-    // this.choosen = this.items.find(item => item.key === "portalExample");
-    // this.choosen = this.items.find(item => item.key === "animationExample");
-    // this.choosen = this.items.find(item => item.key === "programmaticReactiveLayout");
-    // this.choosen = this.items.find(item => item.key === "modalExample");
+    this.ensure(() => {
+      if (this.path) {
+        logMark("PATH STATUS CHANGED!")
+        console.log(this.path);
+      }
+    });
+    // if (path)
+
+    // this.chosen = this.introduction;
+    // this.chosen = this.items.find(item => item.key === "recursiveDemo");
+    // this.chosen = this.items.find(item => item.key === "reactiveForm");
+    // this.chosen = this.items.find(item => item.key === "portalExample");
+    // this.chosen = this.items.find(item => item.key === "animationExample");
+    // this.chosen = this.items.find(item => item.key === "programmaticReactiveLayout");
+    // this.chosen = this.items.find(item => item.key === "modalExample");
   }
   
   terminate() {
@@ -69,7 +87,17 @@ export class Demo extends Component {
     this.leftColumnPortal.onDispose();
   }
 
-  buildMenu() {
+  chose(page) {
+    // inherit base path
+    // add page path
+    if (page === this.introduction) {
+      window.history.pushState({}, "", "/")
+    } else {
+      window.history.pushState({}, "", page.key)
+    }
+  }
+
+  buildMenu(chosen) {
     const listItems = [];
     listItems.push(
       center(
@@ -80,7 +108,7 @@ export class Demo extends Component {
             height: "200px",
             backgroundColor: "white"
           },
-          onClick: () => { this.choosen = this.introduction }
+          onClick: () => { this.chose(this.introduction) }
         }
       )
     );
@@ -93,11 +121,11 @@ export class Demo extends Component {
           onClick: () => { 
             transaction(() => {
               this.getChild("menuFrame").menuOpen = false;
-              this.choosen = item;
+              this.chose(item);
             })
           },
           rounded: true, 
-          active: this.choosen === item
+          active: item === chosen
         })
       )
     }
@@ -126,7 +154,7 @@ export class Demo extends Component {
           )
         )
       )
-  );
+    );
 
     return column(
       listItems,
@@ -149,11 +177,28 @@ export class Demo extends Component {
   }
 
   render() {
-    // return div("foobar");
+    // Investigate: Why is this being re-rendered by changes made from overlay-frame? It changes Demo.parentPrimitive that cause a re-render of Demo? 
+    const { path } = this; 
+    let chosen;
+    if (this.path.length === 0) {
+      chosen = this.introduction;
+    } else {
+      const pathFirst = path[0];
+      chosen = this.items.find(item => item.key === pathFirst);
+      if (chosen) { 
+        chosen.receiveProperty("path", path.slice(1))
+      } else {
+        setTimeout(() => {
+          this.chose(this.introduction); 
+        })
+        // return div(); 
+      }
+    }
+
     return applicationMenuFrame(
       "menuFrame", {
-        appplicationMenu: this.buildMenu(),
-        applicationContent: this.choosen,
+        appplicationMenu: this.buildMenu(chosen),
+        applicationContent: chosen,
         topPanelContent: [filler(), this.topBarPortal],
         bounds: this.bounds
       }
@@ -164,12 +209,12 @@ export class Demo extends Component {
     //   height: this.bounds.height - 64  
     // }
     // console.log(mainBounds);
-    // this.choosen.bounds = mainBounds;
+    // this.chosen.bounds = mainBounds;
     // return overlayFrame(
     //   layout(
     //     topAppBar(filler(), text("by Robert Renbris"), {style: {color: "white", backgroundColor: "rgb(var(--mdui-color-primary))"}}),
     //     navigationDrawer(this.buildMenu(), {open: true, style: {}}),
-    //     layoutMain(this.choosen),          
+    //     layoutMain(this.chosen),          
     //     {
     //       style: fitContainerStyle
     //     }

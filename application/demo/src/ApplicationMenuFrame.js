@@ -87,7 +87,7 @@ class ApplicationMenuFrame extends Component {
     const { menuIsModalOverride } = this;
     const menuIsModal = menuIsModalOverride !== null ? menuIsModalOverride : this.bounds.width < menuWidth * 3;
 
-    const overflowVisibleStyle = this.applicationContent.usesExternalAnimations ? { overflow: "visible"} : null;
+    const overflowVisibleStyle = this.applicationContent && this.applicationContent.usesExternalAnimations ? { overflow: "visible"} : null;
     const leftMenuDrawer = column("leftMenu", 
       this.appplicationMenu.show(!menuIsModal),
       {style: {zIndex: 2,boxShadow: cardShadow, ...overflowVisibleStyle}} //, animate: flyFromLeftAnimation
@@ -99,10 +99,12 @@ class ApplicationMenuFrame extends Component {
       {style: {height: menuIsModal ? "64px" : "40px", boxShadow: cardShadow, justifyContent: "space-between"}} //, animate: flyFromTopAnimation
     );
 
-    this.applicationContent.bounds = { 
-      width: menuIsModal ? this.bounds.width : this.bounds.width - menuWidth - 10, 
-      height: this.bounds.height - topApplicationBar.dimensions().height - 5
-    };
+    if (this.applicationContent) {
+      this.applicationContent.bounds = { 
+        width: menuIsModal ? this.bounds.width : this.bounds.width - menuWidth - 10, 
+        height: this.bounds.height - topApplicationBar.dimensions().height - 5
+      };
+    }
 
     return overlayFrame("overlayFrame",
       leftMenuDrawer.show(!menuIsModal),

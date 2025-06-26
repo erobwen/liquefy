@@ -92,6 +92,10 @@ export class Component {
     Object.assign(this, properties)
   }
 
+  receiveProperty(property, value) {
+    this[property] = value; 
+  }
+
   initialize() {
     // throw new Error("Not implemented yet");
     // Use this.ensure(action) to establish reactive relations here. 
@@ -245,10 +249,10 @@ export class Component {
     delete window.idToComponent[this.id];
     // Dispose created by repeater in call. 
     if (trace) log("Disposed:" + this.toString());
-    if (this.buildRepeater) {
-      this.buildRepeater.notifyDisposeToCreatedObjects();
-      this.buildRepeater.dispose();
-      this.buildRepeater.repeaterAction = () => {};
+    if (this.renderRepeater) {
+      this.renderRepeater.notifyDisposeToCreatedObjects();
+      this.renderRepeater.dispose();
+      this.renderRepeater.repeaterAction = () => {};
     }
     if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
     this.terminate();
@@ -317,13 +321,13 @@ export class Component {
 
   getChild(keyOrPath) {
     // TODO: Think this function through. 
-    // Also consider reactivity... Since we observe buildRepeater here, it will re-run if not built yet. 
+    // Also consider reactivity... Since we observe renderRepeater here, it will re-run if not built yet. 
     // Should we work according to creator hierarchy or primitive parent hierarchy?
     if (typeof keyOrPath === "string") {
       const key = keyOrPath;
-      if (typeof this.buildRepeater.buildIdObjectMap[key] === "undefined")
+      if (typeof this.renderRepeater.buildIdObjectMap[key] === "undefined")
         return null;
-      return this.buildRepeater.buildIdObjectMap[key];
+      return this.renderRepeater.buildIdObjectMap[key];
     } else {
       const path = keyOrPath;
       const child = this.getChild(path.shift());
@@ -374,7 +378,7 @@ export class Component {
   }
 
   isRendered() {
-    return typeof this.buildRepeater !== "undefined";
+    return typeof this.renderRepeater !== "undefined";
   }
 
   getPrimitive(parentPrimitive) {
@@ -391,9 +395,9 @@ export class Component {
     const me = this;
     const name = this.toString(); // For chrome debugger.
     finalize(me);
-    if (!me.buildRepeater) {
-      me.buildRepeater = repeat(
-        this.toString() + ".buildRepeater",
+    if (!me.renderRepeater) {
+      me.renderRepeater = repeat(
+        this.toString() + ".renderRepeater",
         (repeater) => {
           if (trace) console.group(repeater.causalityString());
           

@@ -97,9 +97,9 @@ function verifyTraveler(traveler, fellowTraveler) {
 
 function verifyAdress(adress) {
   let anyError = false; 
-  anyError = verifyFieldNotEmpty(adress, "adress", "adress") || anyError;
-  anyError = verifyFieldNotEmpty(adress, "zipCode", "zip code") || anyError;
-  anyError = verifyFieldNotEmpty(adress, "city", "city") || anyError;
+  anyError ||= verifyFieldNotEmpty(adress, "adress", "adress");
+  anyError ||= verifyFieldNotEmpty(adress, "zipCode", "zip code");
+  anyError ||= verifyFieldNotEmpty(adress, "city", "city");
   return anyError; 
 }
 

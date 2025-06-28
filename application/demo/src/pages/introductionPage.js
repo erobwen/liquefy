@@ -4,6 +4,10 @@ import { div, text, h1, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } fro
 
 import { portalContents, middle, fitContainerStyle } from "@liquefy/basic-ui";
 
+import file from './introductionPage?raw';
+import { displayCodeButton } from "../components/information";
+
+
 function blue(...parameters) {
   const properties = toPropertiesWithChildren(parameters)
   addDefaultStyle(properties, {color: "blue"})
@@ -52,7 +56,8 @@ export class IntroductionPage extends Component {
           p("Demonstrates the key features of flow, while showing how little code is needed to use them."),
           p("In addition, this demo also serves as a testbed for Flow. Right now there are no unit tests, so all features of this demo needs to be validated upon any changes to the framework."),
           portalContents(
-            middle(text("by Robert Renbris ")), 
+            middle(text("by Robert Renbris ")),
+            displayCodeButton({code: file}),
             {
               portalExit: this.topBarPortal
             }

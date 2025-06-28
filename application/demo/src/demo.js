@@ -91,9 +91,9 @@ export class Demo extends Component {
     // inherit base path
     // add page path
     if (page === this.introduction) {
-      window.history.pushState({}, "", "/")
+      window.history.pushState({}, "", "/liquefy/")
     } else {
-      window.history.pushState({}, "", page.key)
+      window.history.pushState({}, "", "/liquefy/" +page.key)
     }
   }
 
@@ -180,13 +180,13 @@ export class Demo extends Component {
     // Investigate: Why is this being re-rendered by changes made from overlay-frame? It changes Demo.parentPrimitive that cause a re-render of Demo? 
     const { path } = this; 
     let chosen;
-    if (this.path.length === 0) {
+    if (this.path.length === 1) {
       chosen = this.introduction;
     } else {
-      const pathFirst = path[0];
+      const pathFirst = path[1];
       chosen = this.items.find(item => item.key === pathFirst);
       if (chosen) { 
-        chosen.receiveProperty("path", path.slice(1))
+        chosen.receiveProperty("path", path.slice(2))
       } else {
         setTimeout(() => {
           this.chose(this.introduction); 

@@ -88,10 +88,10 @@ function verifyData(editData) {
 function verifyTraveler(traveler, fellowTraveler) {
   let anyError = false; 
   if (!fellowTraveler) {
-    anyError = verifyAdress(traveler.adress) || anyError;
+    anyError ||= verifyAdress(traveler.adress);
   }
-  anyError = verifyFieldNotEmpty(traveler, "name", "name") || anyError;
-  anyError = verifyFieldNotEmpty(traveler, "passportNumber", "passport number") || anyError;
+  anyError ||= verifyFieldNotEmpty(traveler, "name", "name");
+  anyError ||= verifyFieldNotEmpty(traveler, "passportNumber", "passport number");
   return anyError; 
 }
 

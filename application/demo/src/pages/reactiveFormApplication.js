@@ -5,7 +5,6 @@ import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/ba
 
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
 import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
-import { crossIcon, plusIcon, suitcaseIcon, icon } from "@liquefy/themed-ui";
 import { button, card, cardRow, cardColumn, textInput, buttonIcon } from "@liquefy/themed-ui";
 
 
@@ -130,7 +129,7 @@ export class SimpleDrawer extends Component {
     this.content = content;
  }
  render() {
-  const buttonIcon = this.isOpen ? icon({name: "keyboard_arrow_up"}) : icon({name: "keyboard_arrow_down"});
+  const buttonIcon = this.isOpen ? icon({name: "expand_less"}) : icon({name: "expand_more"});
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
     button(row(

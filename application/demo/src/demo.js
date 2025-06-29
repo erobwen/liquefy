@@ -34,7 +34,6 @@ export class Demo extends Component {
 
   receive({bounds, path}) {
     this.bounds = bounds;
-    console.log(path);
     this.path = path; 
   }
 
@@ -62,12 +61,6 @@ export class Demo extends Component {
       item.onEstablish();
     }
 
-    this.ensure(() => {
-      if (this.path) {
-        logMark("PATH STATUS CHANGED!")
-        console.log(this.path);
-      }
-    });
     // if (path)
 
     // this.chosen = this.introduction;

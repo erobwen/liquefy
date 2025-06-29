@@ -56,9 +56,6 @@ export const filler = (...parameters) => getThemedComponent("filler", toProperti
 export const row = (...parameters) => getThemedComponent("row", toProperties(parameters));
 export const listItem = (...parameters) => getThemedComponent("listItem", toProperties(parameters)); 
 export const column = (...parameters) => getThemedComponent("column", toProperties(parameters));
-export const crossIcon = (...parameters) => getThemedComponent("crossIcon", toProperties(parameters));
-export const plusIcon = (...parameters) => getThemedComponent("plusIcon", toProperties(parameters));
-export const suitcaseIcon = (...parameters) => getThemedComponent("suitcaseIcon", toProperties(parameters));
 export const icon = (...parameters) => getThemedComponent("icon", toProperties(parameters));
 export const button = (...parameters) => getThemedComponent("button", toButtonProperties(parameters));
 export const buttonIcon = (...parameters) => getThemedComponent("buttonIcon", toButtonProperties(parameters));

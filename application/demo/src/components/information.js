@@ -25,7 +25,7 @@ export class InformationButton extends Component {
 
   render() {
     const button = buttonIcon("button",
-      {icon: "information", style: {color: "blue"}}, 
+      {icon: "info", style: {color: "blue"}}, 
       () => { this.open = true } 
     )
     return wrapper(

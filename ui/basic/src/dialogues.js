@@ -139,7 +139,7 @@ export const dialogue = (...parameters) => {
     cardColumn("dialogue",
       row(
         filler(),
-        buttonIcon({name: "close", onClick: () => close()})
+        buttonIcon({icon: "close", onClick: () => close()})
       ),
       children,
       {

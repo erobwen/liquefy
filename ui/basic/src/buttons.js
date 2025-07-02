@@ -13,7 +13,7 @@ export function button(...parameters) {
 
 export function buttonIcon(...parameters) {
   const properties = toButtonProperties(parameters)
-  addDefaultStyle(properties, {width: 28, height: 28, lineHeight: 28, cursor: "pointer"}) //, display: "block"
+  addDefaultStyle(properties, {width: 40, height: 40, lineHeight: 40, cursor: "pointer"}) //, display: "block"
   const { icon, ...restOfProperties } = properties;
   return centerMiddle(iconComponent({name: icon}), restOfProperties);
 }

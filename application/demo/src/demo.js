@@ -43,7 +43,7 @@ export class Demo extends Component {
     assignGlobalTheme(this.selectedTheme);
 
     this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
-    this.topBarPortal = portalExit("topBarPortal", {style: {...rowStyle}});
+    this.topBarPortal = portalExit("topBarPortal", {style: {...rowStyle, alignItems: "center"}});
 
     this.introduction = new IntroductionPage("introductionPage", {topBarPortal: this.topBarPortal});
 

@@ -3,7 +3,7 @@
 // import { DOMElementNode } from '@liquefy/flow';
 // import { finalize, repeat, trace } from '@liquefy/flow';
 import { extractProperty, toProperties } from "@liquefy/flow.core";
-import { span } from '@liquefy/flow.DOM';
+import { span, addDefaultStyle } from '@liquefy/flow.DOM';
 
 import "./Icons.css";
 
@@ -21,9 +21,12 @@ import "./Icons.css";
 
 export function icon(...parameters) {
   const properties = toProperties(parameters);
-  console.log(`material name: ${properties.name}`)
+  // addDefaultStyle(properties, {
+  //   width: 24,
+  //   height: 24,
+  //   lineHeight: 24
+  // })
   properties.name = materialToFontAwesomeMap[properties.name]
-  console.log(`font awseome name: ${properties.name}`)
   return faIcon(properties); 
 }
 

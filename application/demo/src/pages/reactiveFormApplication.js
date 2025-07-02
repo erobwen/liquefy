@@ -4,7 +4,7 @@ import { DOMRenderContext, text, div, span, p, addDefaultStyle, zoomAnimation } 
 import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/basic-ui";
 
 import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
-import { checkboxInputField, numberInputField } from "@liquefy/themed-ui";
+import { checkboxInputField, numberInputField, icon } from "@liquefy/themed-ui";
 import { button, card, cardRow, cardColumn, textInput, buttonIcon } from "@liquefy/themed-ui";
 
 
@@ -134,6 +134,7 @@ export class SimpleDrawer extends Component {
   return column(
     button(row(
       span(buttonLabel, {style: {lineHeight: "24px", marginRight: "20px"}}), 
+      filler(),
       buttonIcon, 
       {style: {justifyContent: "space-between"}}), 
       () => this.toggleOpen(), 

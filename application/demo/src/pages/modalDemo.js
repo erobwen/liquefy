@@ -29,7 +29,7 @@ export class ModalExample extends Component {
       {
         variant: "elevated",
         close: () => { this.showDialog = false},
-        style: {padding: 10, height: 500, ...(dialogIsModal ? {width: 400} : {})}
+        style: {padding: 10, height: 500, ...(dialogIsModal ? {width: 500} : {})}
       }
     )
 

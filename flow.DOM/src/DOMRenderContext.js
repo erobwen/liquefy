@@ -1,9 +1,9 @@
 import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
 import { toProperties, extractProperty } from "@liquefy/flow.core";
-import { RenderContext } from "@liquefy/flow.core";
+import { RenderContext, model } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
-import { updateDOMTime } from "../../flow.core/src/Flow";
 import { observePathChange } from "./pathobserver";
+import { updateDOMTime } from "@liquefy/flow.core/src/Flow";
 
 // import { clearNode } from "./DOMNode";
 
@@ -30,6 +30,8 @@ export class DOMRenderContext extends RenderContext {
     const {creator=null, fullWindow=true} = configuration;
     super();
 
+    this.bounds = model({width: null, height: null})
+
     if (!this.key) this.key = configuration.key ? configuration.key : null;
     this.animate = typeof(configuration.animate) === "undefined" ? true : configuration.animate; 
     if (this.animate) addDOMRenderContext(this);
@@ -50,12 +52,16 @@ export class DOMRenderContext extends RenderContext {
       this.rootElement.style.width = "100%";
       this.rootElement.style.height = "100%";
       this.rootElement.style.overflow = "hidden";
+      this.bounds.width = window.innerWidth;
+      this.bounds.height = window.innerHeight;
       window.addEventListener("resize", () => {
         if (document.body.style.height != window.innerHeight + "px")
           document.body.style.height = window.innerHeight + "px";
           transaction(() => {
             if (this.component) {
               this.component.bounds = {width: window.innerWidth, height: window.innerHeight}
+              this.bounds.width = window.innerWidth;
+              this.bounds.height = window.innerHeight;
             }
           });
       });

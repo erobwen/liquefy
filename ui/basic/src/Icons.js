@@ -32,9 +32,9 @@ export function icon(...parameters) {
 
 export function faIcon(...parameters) {
   const properties = toProperties(parameters);
-  console.log(properties);
+  // console.log(properties);
   const name = extractProperty(properties, "name");
-  console.log(name);
+  // console.log(name);
   properties.class = "fa " + name;
   return span(properties)
   // return new DOMFaNode(properties);

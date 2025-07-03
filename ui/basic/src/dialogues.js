@@ -87,18 +87,83 @@ const shadeColor = "rgba(0, 0, 0, 0.4)";
 export const modal = (...parameters) => new Modal(...parameters);
 
 export class Modal extends Component {
-  receive({close, content, children, backgroundColor=shadeColor}) {
+  receive({fullScreenTreshold, dialogue, dialogueProperties, close, content, children, backgroundColor=shadeColor}) {
+    this.fullScreenTreshold = fullScreenTreshold;
     this.close = close; 
+    this.dialogue = dialogue; 
+    this.dialogueProperties = dialogueProperties; 
     this.content = content; 
     this.children = children;
     this.backgroundColor = backgroundColor;
+    
+    const sources = (dialogue ? 1 : 0) + (content ? 1 : 0) + (children ? 1 : 0)
+    if (sources > 1) {
+      throw new Error("Modal can only have one way to define the dialogue!")
+    }  
   }
 
-  initialize() {}
+  initialize() {
+    // this.ensure(() => {})
 
+  }
+  
   render() {
+    console.log("render modal");
+    // console.log(this.inherit("bounds"));
+    // console.log(this.inherit("target"));
+    // console.log(this.bounds);
+    // console.log(this.renderContext);
+    const isFullScreen = this.renderContext.bounds.width < this.fullScreenTreshold
+    console.log(this.fullScreenTreshold)
+    console.log(this.renderContext.bounds.width)
+    console.log(isFullScreen)
+    if (isFullScreen) {
+      return this.renderFullScreen();
+    } else {
+      return this.renderWindow()
+    }
+  }
+
+  renderFullScreen() {
+    let dialogue; 
+    if (this.dialogue) {
+      const properties = {
+        ...overrideStyle(
+          this.dialogueProperties,
+          {
+            width: "100%", 
+            height: "100%",
+            maxWidth: "default",
+            minWidth: 0,
+          } 
+        ),
+        close: this.close
+      }
+      console.log(properties)
+      dialogue = this.dialogue("dialogue", properties); 
+    }
+
+    return overlay("overlay", 
+      dialogue, 
+      this.children, 
+      this.content
+    );
+  }
+    
+  renderWindow() {
+    const dialogue = this.dialogue ? (
+      this.dialogue("dialogue", {
+        ...overrideStyle(
+          this.dialogueProperties, 
+          {}
+          // {width:Math.round(this.fullScreenTreshold*0.8), height: "80%"}
+        ), 
+        close: this.close
+      })      
+    ) : null;
+
     return ( 
-      overlay(
+      overlay("overlay",
         zStack("zStack",
           div("background", {
             onClick: () => { this.close() }, 
@@ -111,11 +176,12 @@ export class Modal extends Component {
             }
           }),
           centerMiddle("centerMiddle",
-            wrapper("dialogueWrapper",              
+            // wrapper("dialogueWrapper",              
+              dialogue,
               this.content,
               this.children,
-            ),
-            {style: {...zStackElementStyle, height: "100%"}}
+            // ),
+            {style: {...zStackElementStyle}}
           ),
           {style: fitContainerStyle}
         )
@@ -124,15 +190,21 @@ export class Modal extends Component {
   }
 }
 
+function overrideStyle(properties, style) {
+  return {...properties, style: {...style, ...properties.style}}
+}
 
 export const dialogue = (...parameters) => {
-  const properties = addDefaultStyle(
-    toPropertiesWithChildren(parameters), 
-    {padding: 0, pointerEvents: "auto"}
-  )
-  
+  const properties = toPropertiesWithChildren(parameters)
+
   const {close, children, style, variant="filled"} = addDefaultStyle(properties, {
-    boxShadow: cardShadow4
+    boxShadow: cardShadow4, 
+    padding: 0, 
+    pointerEvents: "auto",
+    maxWidth: 1000,
+    minWidth: 700,
+    height: "80%",
+    width: "80%", 
   }); 
 
   return (

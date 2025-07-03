@@ -3,7 +3,7 @@ import { div, code, pre } from "@liquefy/flow.DOM";
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 
-import { alert, cardShadow3, popover } from "@liquefy/basic-ui";
+import { alert, cardShadow3, fillerStyle, popover } from "@liquefy/basic-ui";
 import { wrapper, overlay, modal, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
 
 import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
@@ -64,31 +64,41 @@ export class DisplayCodeButton extends Component {
     return wrapper(
       buttonIcon(
         {icon: "code", style: {color: "green"}}, 
-        () => { this.open = true; console.log("open please... ") } 
+        () => { this.open = true; } 
       ),
-      modal(
-        dialogue(
-          pre(
+      modal({
+        dialogue, 
+        dialogueProperties: {
+          children: pre(
             code("codeBlock", 
               { 
                 attributes: {
-                  style: { fontSize: 14},
+                  style: { 
+                    overflow: "hidden",
+                    fontSize: 14, 
+                    padding: 15, 
+                    whitespace: "preserve", 
+                    display: "inline-block"
+                    // width: 12000,
+                    // overflowX: "hidden"
+                  },
                   innerHTML: highlightedCode, 
-                  class: "language-js hljs language-javascript"
+                  class: "language-js hljs language-javascript",
                 }
               }
             ),
             {
               style: {
-                overflowX: "auto", overflowY: "auto", 
-                width: 900, height: 600
+                ...fillerStyle, // Consider: How to inject this by container?
+                overflow: "auto", 
+                margin: 0,
               },
             }
-          ),
-          { close }
-        ),
-        { close }
-      ).show(this.open)
+          )
+        },
+        fullScreenTreshold: 900, 
+        close 
+      }).show(this.open)
     ) 
   }
 }

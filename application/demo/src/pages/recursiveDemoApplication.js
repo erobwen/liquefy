@@ -137,10 +137,10 @@ const topPortalContents = (topBarPortal) =>
           li("Stable component identity during rebuild, allowing for the preservation of local state."),
           li("Component hierarchy inheritance, where all components inherit the same shared model.")
         ),
-        { style: {width: 800}}
+        { style: {width: 800, whiteSpace: "normal"}}
       )
     ),
-    displayCodeButton({code: file}),
+    displayCodeButton({code: file, fileName: "src/pages/recursiveDemoApplication.js"}),
     {
       portal: topBarPortal
     }

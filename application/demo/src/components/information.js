@@ -47,8 +47,9 @@ export function displayCodeButton(...parameters) {
 }
 
 export class DisplayCodeButton extends Component {
-  receive({code}) {
+  receive({code, fileName}) {
     this.code = code;
+    this.fileName = fileName; 
   }
 
   initialize() {
@@ -69,6 +70,7 @@ export class DisplayCodeButton extends Component {
       modal({
         dialogue, 
         dialogueProperties: {
+          title: this.fileName,
           children: pre(
             code("codeBlock", 
               { 

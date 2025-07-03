@@ -1,16 +1,18 @@
 
 import { toPropertiesWithChildren, Component } from "@liquefy/flow.core";
 
-import { div, addDefaultStyle } from "@liquefy/flow.DOM";
+import { div, addDefaultStyle, text } from "@liquefy/flow.DOM";
 
-import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "./Layout";
+import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, rowStyle, zStack, zStackElementStyle } from "./Layout";
 import { button, buttonIcon } from "./buttons"
-import { wrapper, overflowVisibleStyle, filler } from "./Layout";
+import { wrapper, overflowVisibleStyle, filler, middle } from "./Layout";
 import { overlay } from "./overlay";
 import { cardColumn, cardShadow4 } from "./card";
 
 
-
+/**
+ * Popover
+ */
 export const popover = (...parameters) => new Popover(...parameters)
 
 class Popover extends Component {
@@ -59,8 +61,8 @@ class Popover extends Component {
       key: "background", 
       // onClick: () => { close(); }, 
       style: {
-        ...zStackElementStyle, 
         ...overflowVisibleStyle, 
+        ...zStackElementStyle, 
         transition: "background-color 1000ms linear", 
         pointerEvents: "auto", 
         backgroundColor: "rgba(0, 0, 0, 0)"
@@ -74,7 +76,7 @@ class Popover extends Component {
             children, 
             {style: {pointerEvents: "auto", position: "absolute", top: menuBottom - popoverDimensions.height, left: menuLeft}
           }),
-          {style: {...zStackElementStyle, ...overflowVisibleStyle, height: "100%"}}
+          {style: {...overflowVisibleStyle, ...zStackElementStyle}}
         ),
         {style: fitContainerStyle, ...overflowVisibleStyle}
       )
@@ -82,6 +84,10 @@ class Popover extends Component {
   }
 }
 
+
+/**
+ * Modal
+ */
 const shadeColor = "rgba(0, 0, 0, 0.4)";
 
 export const modal = (...parameters) => new Modal(...parameters);
@@ -194,14 +200,14 @@ export class Modal extends Component {
   }
 }
 
-function overrideStyle(properties, style) {
-  return {...properties, style: {...properties.style, ...style}}
-}
 
+/**
+ * Dialogue
+ */
 export const dialogue = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters)
 
-  const {close, children, style, variant="filled"} = addDefaultStyle(properties, {
+  const {close, children, style, title, variant="filled"} = addDefaultStyle(properties, {
     boxShadow: cardShadow4, 
     padding: 0, 
     pointerEvents: "auto"
@@ -210,7 +216,7 @@ export const dialogue = (...parameters) => {
   return (
     cardColumn("dialogue",
       row(
-        filler(),
+        filler(title ? middle(text(title), {style: {marginLeft: 10, color: "white"}}) : null, {style: rowStyle}),
         buttonIcon({icon: "close", onClick: () => close()})
       ),
       children,
@@ -221,68 +227,3 @@ export const dialogue = (...parameters) => {
     )
   );
 }
-
-const materialToFontAwesomeMap = {
-  "home": "fa-home",
-  "menu": "fa-bars",
-  "search": "fa-search",
-  "account_circle": "fa-user-circle",
-  "settings": "fa-cog",
-  "logout": "fa-sign-out-alt",
-  "login": "fa-sign-in-alt",
-  "person": "fa-user",
-  "people": "fa-users",
-  "email": "fa-envelope",
-  "phone": "fa-phone",
-  "favorite": "fa-heart",
-  "star": "fa-star",
-  "check": "fa-check",
-  "close": "fa-times",
-  "delete": "fa-trash",
-  "edit": "fa-edit",
-  "add": "fa-plus",
-  "remove": "fa-minus",
-  "arrow_back": "fa-arrow-left",
-  "arrow_forward": "fa-arrow-right",
-  "cloud": "fa-cloud",
-  "cloud_upload": "fa-cloud-upload-alt",
-  "cloud_download": "fa-cloud-download-alt",
-  "camera_alt": "fa-camera",
-  "photo": "fa-image",
-  "lock": "fa-lock",
-  "lock_open": "fa-lock-open",
-  "visibility": "fa-eye",
-  "visibility_off": "fa-eye-slash",
-  "warning": "fa-exclamation-triangle",
-  "info": "fa-info-circle",
-  "help": "fa-question-circle",
-  "shopping_cart": "fa-shopping-cart",
-  "attach_money": "fa-dollar-sign",
-  "event": "fa-calendar-alt",
-  "notifications": "fa-bell",
-  "language": "fa-globe",
-  "play_arrow": "fa-play",
-  "pause": "fa-pause",
-  "stop": "fa-stop",
-  "refresh": "fa-sync",
-  "location_on": "fa-map-marker-alt",
-  "directions_car": "fa-car",
-  "directions_bike": "fa-bicycle",
-  "directions_bus": "fa-bus",
-  "map": "fa-map",
-  "build": "fa-tools",
-  "school": "fa-graduation-cap",
-  "work": "fa-briefcase",
-  "flight": "fa-plane",
-  "print": "fa-print",
-  "access_time": "fa-clock",
-  "attach_file": "fa-paperclip",
-  "folder": "fa-folder",
-  "folder_open": "fa-folder-open",
-  "file_copy": "fa-copy",
-  "download": "fa-download",
-  "upload": "fa-upload",
-  "brightness_6": "fa-adjust",
-  "check_circle": "fa-check-circle",
-  "cancel": "fa-times-circle"
-};

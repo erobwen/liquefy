@@ -35,8 +35,16 @@ const colors = {
 
 export function alert(...parameters) {
   const properties = toPropertiesWithChildren(parameters);
+  addDefaultStyle(properties, {
+    whiteSpace: "normal",
+    height: "auto", 
+    gap: 10
+  })
+
   const { severity="warning", children, style } = properties;
-  
+
+  if (!style.backgroundColor) style.backgroundColor = backgroundColors[severity];
+ 
   // return card(
   //   filler(children, { style: { color: colors[severity]}}),
   //   addDefaultStyle({ style }, {
@@ -49,11 +57,6 @@ export function alert(...parameters) {
   return cardRow(
     icon({name: iconNames[severity], style: { fontSize: 40, margin: 10, color: iconColors[severity]}}),
     filler(children, { style: { color: colors[severity]}}),
-    addDefaultStyle({ style }, {
-      whiteSpace: "normal",
-      height: "auto", 
-      backgroundColor: backgroundColors[severity],
-      gap: 10
-    })
+    { style }
   )
 }

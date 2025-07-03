@@ -4,10 +4,7 @@ export function observePathChange(callback) {
 
   const notify = () => {
     const newPath = window.location.pathname;
-    console.log("notify..." + newPath)
-    console.log("current" + currentPath)
     if (newPath !== currentPath) {
-      console.log("different");
       currentPath = newPath;
       callback(newPath);
     }
@@ -16,7 +13,6 @@ export function observePathChange(callback) {
   // Patch pushState
   const originalPushState = history.pushState;
   history.pushState = function (...args) {
-    console.log("pushstate...");
     originalPushState.apply(this, args);
     notify();
   };
@@ -24,14 +20,12 @@ export function observePathChange(callback) {
   // Patch replaceState
   const originalReplaceState = history.replaceState;
   history.replaceState = function (...args) {
-    console.log("replace state...");
     originalReplaceState.apply(this, args);
     notify();
   };
 
   // Listen to popstate (back/forward)
   window.addEventListener('popstate', () => {
-    console.log("popstate...");
     notify();
   });
 

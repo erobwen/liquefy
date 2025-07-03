@@ -115,13 +115,12 @@ export class Item extends Component {
 
 
 /**
- * Start the demo
- */  
+ * Start as standalone (useful for reactive debugging etc.)
+ */ 
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
   new DOMRenderContext(document.getElementById("root")).render(root);
 }
-
 
 
 /**

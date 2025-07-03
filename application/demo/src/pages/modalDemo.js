@@ -1,5 +1,5 @@
-import { callback, Component } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, p, ul, li } from "@liquefy/flow.DOM";
+import { callback, Component, toProperties } from "@liquefy/flow.core";
+import { DOMRenderContext, text, div, p, ul, li, img } from "@liquefy/flow.DOM";
 import { button, cardColumn } from "@liquefy/themed-ui";
 
 import {
@@ -9,6 +9,8 @@ import {
 } from "@liquefy/basic-ui";
 import { displayCodeButton, informationButton } from "../components/information";
 import file from './modalDemo?raw';
+import dropPortrait from '../../public/drop-portrait.jpg';
+
 
 
 /**
@@ -26,24 +28,22 @@ export class ModalExample extends Component {
   }
 
   render() {
-    console.log("Rendering ModalExample");
     const { topBarPortal, bounds } = this;
     const { width }  = bounds;
     const dialogIsModal = width < 850;
 
     const contentDialogue = dialogue("dialogue",
-      text("A dialogue"), 
+      dialogueContent("A dialogue"), 
       {
         variant: "elevated",
         close: this.close,
-        style: {height: 500, ...(dialogIsModal ? {width: 500} : {})}
+        style: {...(dialogIsModal ? {width: 500} : {})}
       }
     )
 
     return row("row",
       topPortalContents(topBarPortal),
       cardColumn("selector",
-        
         alert("info", 
           "A hybrid modal dialog, that is only modal when there is not enough space. Try resizeing the window when the dialog is open.", 
           { 
@@ -79,7 +79,33 @@ export class ModalExample extends Component {
   
 
 /**
- * Start the demo
+ * Dialogue contents component
+ */
+export const dialogueContent = (...parameters) => new DialogueContent(...parameters);
+
+export class DialogueContent extends Component {
+  initialize() {
+    this.counter = 0;
+  }
+
+  render() {
+    const { counter } = this;
+    return column("dialogue-content",
+      img("img", {src: dropPortrait, style: {width: "100%"}}),
+      column(
+        p("Counter: ", text(counter)),
+        button("Increment Counter", () => { this.counter += 1; })
+      ),
+      {
+        style: {padding: 20, gap: 20}
+      }
+    );
+  }
+}
+
+
+/**
+ * Start as standalone (useful for reactive debugging etc.)
  */
 export function startModalDemo() {
   const root = new ModalStandaloneExample();

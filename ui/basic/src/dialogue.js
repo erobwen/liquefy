@@ -31,29 +31,32 @@ export class Dialogue extends Component {
     this.variant = variant;
   }
 
-  initialize() {
-    this.isFullScreen = false; // This will be set by parent during render, but not recieved upon construction. 
-  } 
+  // initialize() { // TODO: we get two calls to on-establish having this run twice. A quick fix is just to remove it. 
+  //   debugger; 
+  //   console.log("Initializing Dialogue", this);
+  //   this.isFullScreen = false; // This will be set by parent during render, but not recieved upon construction. 
+  // } 
 
   getTopBar() {
-    if (this.isFullScreen) {
+    const {isFullScreen, title, close} = this;
+    if (isFullScreen) {
        return row(
-        buttonIcon({icon: "arrow_back", onClick: () => this.close(), style: {width: 64, height: 64}}), 
-        filler(this.title ? middle(text(this.title), {style: {marginLeft: 10, color: "white"}}) : null, {style: rowStyle}),
+        buttonIcon({icon: "arrow_back", onClick: () => close(), style: {width: 64, height: 64}}), 
+        filler(title ? middle(text(title), {style: {marginLeft: 10, color: "white"}}) : null, {style: rowStyle}),
         {
           style: {height: 64}
         }
       );
     } else {
       return row(
-        filler(this.title ? middle(text(this.title), {style: {marginLeft: 10, color: "white"}}) : null, {style: rowStyle}),
-        buttonIcon({icon: "close", onClick: () => this.close()})
+        filler(title ? middle(text(title), {style: {marginLeft: 10, color: "white"}}) : null, {style: rowStyle}),
+        buttonIcon({icon: "close", onClick: () => close()})
       );
     }
   }
 
   render() {
-    const {close, children, style, variant} = this; 
+    const {children, style, variant} = this; 
     return (
       cardColumn("dialogue",
         this.getTopBar(),

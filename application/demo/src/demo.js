@@ -81,8 +81,7 @@ export class Demo extends Component {
   }
 
   chose(page) {
-    // inherit base path
-    // add page path
+    // Consider: For non root components, inherit base path and add.
     if (page === this.introduction) {
       window.history.pushState({}, "", "/liquefy/")
     } else {

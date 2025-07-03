@@ -82,9 +82,8 @@ export class PortalStandaloneExample extends Component {
 
 
 /**
- * Start the demo
+ * Start as standalone (useful for reactive debugging etc.)
  */
-  
 export function startPortalDemo() {
   const root = new PortalStandaloneExample();
   new DOMRenderContext(document.getElementById("root")).render(root);

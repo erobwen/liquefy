@@ -8,7 +8,7 @@ import {
 } from "@liquefy/ui-material";
 
 import { basicTheme, center, fillerStyle, fitContainerStyle, middle, row, rowStyle } from "@liquefy/basic-ui";
-import { portalExit } from "@liquefy/basic-ui";
+import { portal } from "@liquefy/basic-ui";
 import { column, columnStyle, filler } from "@liquefy/basic-ui";
 import { svgImage, wrapper } from "@liquefy/basic-ui";
 
@@ -42,8 +42,8 @@ export class Demo extends Component {
     this.selectedTheme = materialTheme;
     assignGlobalTheme(this.selectedTheme);
 
-    this.leftColumnPortal = portalExit({key: "portal", style: {...columnStyle, overflow: "visible"}});
-    this.topBarPortal = portalExit("topBarPortal", {style: {...rowStyle, alignItems: "center"}});
+    this.leftColumnPortal = portal({key: "portal", style: {...columnStyle, overflow: "visible"}});
+    this.topBarPortal = portal("topBarPortal", {style: {...rowStyle, alignItems: "center"}});
 
     this.introduction = new IntroductionPage("introductionPage", {topBarPortal: this.topBarPortal});
 

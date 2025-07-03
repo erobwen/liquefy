@@ -3,7 +3,7 @@ import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
 import { filler, column, row } from "@liquefy/basic-ui";
 import { button } from "@liquefy/basic-ui";
 import { portalContents } from "@liquefy/basic-ui";
-import { layoutBorderStyle, portalExit } from "@liquefy/basic-ui";
+import { layoutBorderStyle, portal } from "@liquefy/basic-ui";
 
 
 const log = console.log;
@@ -61,7 +61,7 @@ export class PortalExample extends Component {
         portalContents("portalContents",
           {
             // children: text("[portal active]"), Will create infinite loop! investigate! 
-            portalExit: this.portal, 
+            portal: this.portal, 
             children: portalChildren 
           })
           .show(this.showPortal),
@@ -73,7 +73,7 @@ export class PortalExample extends Component {
   
 export class PortalStandaloneExample extends Component {
   render() {
-    const portal = portalExit("portal", {style: {width: "300px", height: "300px", ...layoutBorderStyle}})
+    const portal = portal("portal", {style: {width: "300px", height: "300px", ...layoutBorderStyle}})
     // const portal = div("portal", {style: {width: "300px", height: "300px", ...layoutBorderStyle}});
     const example = new PortalExample("example", {portal});
     return row(div(example), filler(), div(portal)); 

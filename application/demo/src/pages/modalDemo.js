@@ -22,9 +22,10 @@ export class ModalExample extends Component {
 
   render() {
     const {width, height }  = this.bounds;
-    const dialogIsModal = width < 800;
+    const dialogIsModal = width < 850;
+    // console.log(dialogIsModal);
 
-    const contentDialogue = dialogue(
+    const contentDialogue = dialogue("dialogue",
       text("A dialogue"), 
       {
         variant: "elevated",
@@ -55,7 +56,10 @@ export class ModalExample extends Component {
       ).show(!dialogIsModal),
       modal("modal", 
         contentDialogue.show(this.showDialog && dialogIsModal),
-        {close: () => { this.showDialog = false}}
+        {
+          fullScreenTreshold: 550, 
+          close: () => { this.showDialog = false}
+        }
       ).show(this.showDialog && dialogIsModal),
       { style: {...fitContainerStyle, ...overflowVisibleStyle, gap: 10}}
     );

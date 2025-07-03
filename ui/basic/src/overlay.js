@@ -15,7 +15,7 @@ export function overlay(...parameters) {
 
 export class Overlay extends Component {
   receive({children}) {
-    if (children.length !== 1) throw new Error("Modal only accepts a single child!");
+    if (children && children.length > 1) throw new Error("Overlay accepts at most a single child!");
     this.children = children; 
     // this.content = children[0];
     // children.length = 0;
@@ -29,11 +29,11 @@ export class Overlay extends Component {
         const overlayFrame = this.inherit("overlayFrame");
         if (overlayFrame) {
           this.visibleOnFrame = overlayFrame;
-          overlayFrame.showOverlay(this.children[0]);
+          overlayFrame.showOverlay(this, this.children ? this.children[0] : null);
         }
       } else if (this.visibleOnFrame) {
         // Try to hide
-        this.visibleOnFrame.hideOverlay(this.children[0]);
+        this.visibleOnFrame.hideOverlay(this);
         this.visibleOnFrame = null;
       }
     });
@@ -51,6 +51,10 @@ export function overlayFrame(...parameters) {
   return result; 
 }
 
+
+/**
+ * Overlay frame
+ */
 export class OverlayFrame extends Component {
   receive({style, children, overlayContent}) {
     this.style = style; 
@@ -95,7 +99,8 @@ export class OverlayFrame extends Component {
     })
   }
 
-  showOverlay(overlayContent) {
+  showOverlay(contentProvider, overlayContent) {
+    this.assigningContentProvider = contentProvider
     this.assignedOverlayContent = overlayContent;
   }
   
@@ -104,8 +109,8 @@ export class OverlayFrame extends Component {
     this.assignedOverlayContent = null;
   }
   
-  hideOverlay(overlayContent) {
-    if (this.assignedOverlayContent === overlayContent) {
+  hideOverlay(contentProvider) {
+    if (this.assigningContentProvider === contentProvider) {
       this.assignedOverlayContent = null;
     }
   }

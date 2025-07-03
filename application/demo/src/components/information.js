@@ -77,10 +77,8 @@ export class DisplayCodeButton extends Component {
                     overflow: "hidden",
                     fontSize: 14, 
                     padding: 15, 
-                    whitespace: "preserve", 
+                    whiteSpace: "pre", 
                     display: "inline-block"
-                    // width: 12000,
-                    // overflowX: "hidden"
                   },
                   innerHTML: highlightedCode, 
                   class: "language-js hljs language-javascript",
@@ -94,7 +92,13 @@ export class DisplayCodeButton extends Component {
                 margin: 0,
               },
             }
-          )
+          ), 
+          style: {
+            maxWidth: 1000,
+            minWidth: 700,
+            height: "80%",
+            width: "80%", 
+          }
         },
         fullScreenTreshold: 900, 
         close 

@@ -11,12 +11,12 @@ import file from './recursiveDemoApplication?raw';
 export class RecursiveExample extends Component {
   
   receive({style, topBarPortal}) {
+    this.name = "Recursive Components"
     this.topBarPortal = topBarPortal;
     this.style = style; 
   }
 
   initialize() {
-    this.name = "Recursive Components"
     this.count = 1
     this.inheritedModel = model({
       value: 42 
@@ -142,7 +142,7 @@ const topPortalContents = (topBarPortal) =>
     ),
     displayCodeButton({code: file}),
     {
-      portalExit: topBarPortal
+      portal: topBarPortal
     }
   )
 

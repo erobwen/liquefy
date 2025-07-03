@@ -14,8 +14,8 @@ export const portalContents = (...parameters) =>
   new PortalContents(...parameters);
 
 export class PortalContents extends Component {
-  receive({children, portalExit}) {
-    this.portalExit = portalExit; 
+  receive({children, portal}) {
+    this.portal = portal; 
     this.portalChildren = children;
   }
 
@@ -23,11 +23,11 @@ export class PortalContents extends Component {
     this.ensureAtRenderTime(() => {
       if (this.isVisible) {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway. 
-        this.portalExit.children = this.portalChildren;
+        this.portal.children = this.portalChildren;
       } else {
         // Note that we need to check not to remove content put in place by other portals!
-        if (this.portalExit.children && this.portalExit.children === this.portalChildren) {
-          this.portalExit.children = null;
+        if (this.portal.children && this.portal.children === this.portalChildren) {
+          this.portal.children = null;
         }
       }
     });
@@ -38,23 +38,23 @@ export class PortalContents extends Component {
   }
 }
 
-export function portalExit(...parameters) {
-  // Return just a plain div (with portalExit debug info.)
+export function portal(...parameters) {
+  // Return just a plain div (with portal debug info.)
   return elementNode(
     { 
       tagName: "div", 
-      componentTypeName: "portalExit", 
+      componentTypeName: "portal", 
       ...toProperties(parameters), 
     }
   )
 }
 
 
-// export function portalExit(...parameters) {
-//   // Return just a plain div (with portalExit debug info.)
+// export function portal(...parameters) {
+//   // Return just a plain div (with portal debug info.)
 //   elementNode({
 //     tagName: "div", 
-//     componentTypeName: "portalExit", 
+//     componentTypeName: "portal", 
 //     attributes: toProperties(parameters), 
 //   });
 // }

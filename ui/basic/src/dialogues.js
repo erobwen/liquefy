@@ -38,7 +38,7 @@ class Popover extends Component {
 
     if (children.length !== 1) throw new Error("Modal popover expects just one single child to get dimensions.");
     const popoverDimensions = children[0].getPrimitive().dimensions();
-    console.log(popoverDimensions);
+    // console.log(popoverDimensions);
     // if (!["top", "bottom"].includes(direction)) throw new Error("This component only supports 'top' as direction so far.")
   
     const referenceRect = reference.getPrimitive().reactiveBoundingClientRect(); 
@@ -102,21 +102,17 @@ export class Modal extends Component {
     }  
   }
 
-  initialize() {
-    // this.ensure(() => {})
-
-  }
   
   render() {
-    console.log("render modal");
+    // console.log("render modal");
     // console.log(this.inherit("bounds"));
     // console.log(this.inherit("target"));
     // console.log(this.bounds);
     // console.log(this.renderContext);
     const isFullScreen = this.renderContext.bounds.width < this.fullScreenTreshold
-    console.log(this.fullScreenTreshold)
-    console.log(this.renderContext.bounds.width)
-    console.log(isFullScreen)
+    // console.log(this.fullScreenTreshold)
+    // console.log(this.renderContext.bounds.width)
+    // console.log(isFullScreen)
     if (isFullScreen) {
       return this.renderFullScreen();
     } else {
@@ -126,38 +122,46 @@ export class Modal extends Component {
 
   renderFullScreen() {
     let dialogue; 
+
     if (this.dialogue) {
       const properties = {
-        ...overrideStyle(
-          this.dialogueProperties,
-          {
-            width: "100%", 
-            height: "100%",
-            maxWidth: "default",
-            minWidth: 0,
-          } 
-        ),
+        ...this.dialogueProperties,
         close: this.close
       }
-      console.log(properties)
+      // console.log(properties)
       dialogue = this.dialogue("dialogue", properties); 
+    } else if (this.children) {
+      dialogue = this.children[0];
+    } else if (this.content) {
+      dialogue = this.content; 
     }
 
+    if (dialogue) {
+      dialogue.attributes = {
+        ...dialogue.attributes,
+        style: {
+          ...(dialogue.attributes ? dialogue.attributes.style : null),
+          width: "100%", 
+          height: "100%",
+          maxWidth: "default",
+          minWidth: 0,
+        }
+      }
+    }
+    
+    // console.log(dialogue);
+
     return overlay("overlay", 
-      dialogue, 
-      this.children, 
-      this.content
+      dialogue
+      // this.children, 
+      // this.content
     );
   }
     
   renderWindow() {
     const dialogue = this.dialogue ? (
       this.dialogue("dialogue", {
-        ...overrideStyle(
-          this.dialogueProperties, 
-          {}
-          // {width:Math.round(this.fullScreenTreshold*0.8), height: "80%"}
-        ), 
+        ...this.dialogueProperties, 
         close: this.close
       })      
     ) : null;
@@ -191,7 +195,7 @@ export class Modal extends Component {
 }
 
 function overrideStyle(properties, style) {
-  return {...properties, style: {...style, ...properties.style}}
+  return {...properties, style: {...properties.style, ...style}}
 }
 
 export const dialogue = (...parameters) => {
@@ -200,11 +204,7 @@ export const dialogue = (...parameters) => {
   const {close, children, style, variant="filled"} = addDefaultStyle(properties, {
     boxShadow: cardShadow4, 
     padding: 0, 
-    pointerEvents: "auto",
-    maxWidth: 1000,
-    minWidth: 700,
-    height: "80%",
-    width: "80%", 
+    pointerEvents: "auto"
   }); 
 
   return (

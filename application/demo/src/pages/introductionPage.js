@@ -59,7 +59,7 @@ export class IntroductionPage extends Component {
             middle(text("by Robert Renbris ")),
             displayCodeButton({code: file}),
             {
-              portalExit: this.topBarPortal
+              portal: this.topBarPortal
             }
           ), 
           {

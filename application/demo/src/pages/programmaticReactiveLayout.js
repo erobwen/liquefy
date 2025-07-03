@@ -31,38 +31,7 @@ export class ProgrammaticReactiveLayout extends Component {
     const controlPanelHeight = controlPanel.dimensions().height; 
 
     // Create bottom toolbar
-    const menuButton = buttonIcon("menuButton", 
-      () => { this.menuOpen = true; },
-      { icon: "more_horiz", style: {width: "40px"} }
-    )
-    let toolbarWidthLeft = this.bounds.width;
-    const toolbarContents = [];
-    const popupMenuContents = [];
-    
-    const tools = ["search", "home", "settings", "star", "key", "bolt"]
-    let toolCount = 0;
-    const totalTools = 20;
-    while(toolCount++ < totalTools) {
-      const isLast = toolCount === totalTools;
-      const nextWidget = buttonIcon("toolButton" + toolCount, 
-        () => { console.log("pushed tool")},
-        { icon: tools[toolCount % tools.length], style: {width: "40px"}}
-      )
-      const widgetWidth = nextWidget.dimensions().width;
-      if (widgetWidth + (isLast ? 0 : menuButton.dimensions().width) <= toolbarWidthLeft) {
-        toolbarWidthLeft -= widgetWidth;
-        toolbarContents.push(nextWidget)
-      } else {
-        if (toolbarContents[toolbarContents.length - 1] !== menuButton) {
-          toolbarContents.push(menuButton);
-          toolbarWidthLeft -= menuButton.dimensions().width
-        }
-        popupMenuContents.push(nextWidget)
-      }
-    }
-    const toolbar = row(toolbarContents);
-    const toolbarHeight = toolbar.dimensions().height;
-    const extraToolbar = row("extraMenu", popupMenuContents, {style: {backgroundColor: "#fef7ff", ...layoutBorderStyle}});
+    const { toolbarHeight, toolbar, extraToolbar, menuButton } = this.createToolbar();
 
     // Create grid of layouts
     const gridHeight = this.bounds.height - controlPanelHeight - toolbarHeight;
@@ -113,6 +82,42 @@ export class ProgrammaticReactiveLayout extends Component {
       ).show(this.menuOpen),
       {style: fitContainerStyle}
     );
+  }
+
+  createToolbar() {
+    const menuButton = buttonIcon("menuButton",
+      () => { this.menuOpen = true; },
+      { icon: "more_horiz", style: { width: "40px" } }
+    );
+    let toolbarWidthLeft = this.bounds.width;
+    const toolbarContents = [];
+    const popupMenuContents = [];
+
+    const tools = ["search", "home", "settings", "star", "key", "bolt"];
+    let toolCount = 0;
+    const totalTools = 20;
+    while (toolCount++ < totalTools) {
+      const isLast = toolCount === totalTools;
+      const nextWidget = buttonIcon("toolButton" + toolCount,
+        () => { console.log("pushed tool"); },
+        { icon: tools[toolCount % tools.length], style: { width: "40px" } }
+      );
+      const widgetWidth = nextWidget.dimensions().width;
+      if (widgetWidth + (isLast ? 0 : menuButton.dimensions().width) <= toolbarWidthLeft) {
+        toolbarWidthLeft -= widgetWidth;
+        toolbarContents.push(nextWidget);
+      } else {
+        if (toolbarContents[toolbarContents.length - 1] !== menuButton) {
+          toolbarContents.push(menuButton);
+          toolbarWidthLeft -= menuButton.dimensions().width;
+        }
+        popupMenuContents.push(nextWidget);
+      }
+    }
+    const toolbar = row(toolbarContents);
+    const toolbarHeight = toolbar.dimensions().height;
+    const extraToolbar = row("extraMenu", popupMenuContents, { style: { backgroundColor: "#fef7ff", ...layoutBorderStyle } });
+    return { toolbarHeight, toolbar, extraToolbar, menuButton };
   }
 }
 

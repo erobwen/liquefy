@@ -3,8 +3,8 @@ import { div, code, pre } from "@liquefy/flow.DOM";
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 
-import { alert, cardShadow3, fillerStyle, popover } from "@liquefy/basic-ui";
-import { wrapper, overlay, modal, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
+import { alert, cardShadow3, fillerStyle, modalContainer, popover } from "@liquefy/basic-ui";
+import { wrapper, overlay, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
 
 import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
 
@@ -67,7 +67,7 @@ export class DisplayCodeButton extends Component {
         {icon: "code", style: {color: "green"}}, 
         () => { this.open = true; } 
       ),
-      modal({
+      modalContainer({
         dialogue, 
         dialogueProperties: {
           title: this.fileName,

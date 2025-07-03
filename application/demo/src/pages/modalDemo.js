@@ -1,41 +1,49 @@
-import { Component } from "@liquefy/flow.core";
-import { toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div } from "@liquefy/flow.DOM";
-import { alert, cardShadow3, dialogue, fillerStyle, panel } from "@liquefy/basic-ui";
-import { centerMiddle, centerMiddleStyle, column, columnStyle, fitContainerStyle, row, zStack, zStackElementStyle } from "@liquefy/basic-ui";
-import { overflowVisibleStyle, modal } from "@liquefy/basic-ui";
-import { overlay } from "@liquefy/basic-ui";
+import { callback, Component } from "@liquefy/flow.core";
+import { DOMRenderContext, text, div, p, ul, li } from "@liquefy/flow.DOM";
 import { button, cardColumn } from "@liquefy/themed-ui";
 
+import {
+  alert, cardShadow3, dialogue, fillerStyle,
+  centerMiddle, column, fitContainerStyle, row,
+  overflowVisibleStyle, modalContainer, portalContents
+} from "@liquefy/basic-ui";
+import { displayCodeButton, informationButton } from "../components/information";
+import file from './modalDemo?raw';
 
 
 /**
- * Modal example
+ * Hybrid modal example
  */
 export class ModalExample extends Component {
-  // Lifecycle function build is run reactivley on any change, either in the model or in the view model. It reads data from anywhere in the model or view model, and the system automatically infers all dependencies.
-  receive({bounds}) {
+  receive({bounds, topBarPortal}) {
     this.bounds = bounds; 
-    // Object.assign(this, properties)
+    this.topBarPortal = topBarPortal;
     this.name = "Hybrid Modal Dialogs";
   }
 
+  initialize() {
+    this.close = callback("close", () => { this.showDialog = false; });
+  }
+
   render() {
-    const {width, height }  = this.bounds;
+    console.log("Rendering ModalExample");
+    const { topBarPortal, bounds } = this;
+    const { width }  = bounds;
     const dialogIsModal = width < 850;
-    // console.log(dialogIsModal);
 
     const contentDialogue = dialogue("dialogue",
       text("A dialogue"), 
       {
         variant: "elevated",
-        close: () => { this.showDialog = false},
-        style: {padding: 10, height: 500, ...(dialogIsModal ? {width: 500} : {})}
+        close: this.close,
+        style: {height: 500, ...(dialogIsModal ? {width: 500} : {})}
       }
     )
 
     return row("row",
+      topPortalContents(topBarPortal),
       cardColumn("selector",
+        
         alert("info", 
           "A hybrid modal dialog, that is only modal when there is not enough space. Try resizeing the window when the dialog is open.", 
           { 
@@ -50,30 +58,52 @@ export class ModalExample extends Component {
           variant: "filled"
         }
       ),
+
       div("dialog-panel",
         contentDialogue.show(this.showDialog && !dialogIsModal),
         {style: {...fillerStyle, ...overflowVisibleStyle}}
       ).show(!dialogIsModal),
-      modal("modal", 
+
+      modalContainer("modal", 
         contentDialogue.show(this.showDialog && dialogIsModal),
         {
           fullScreenTreshold: 550, 
           close: () => { this.showDialog = false}
         }
       ).show(this.showDialog && dialogIsModal),
+      
       { style: {...fitContainerStyle, ...overflowVisibleStyle, gap: 10}}
     );
   }
 }
   
 
-
-
 /**
  * Start the demo
  */
-  
 export function startModalDemo() {
   const root = new ModalStandaloneExample();
   new DOMRenderContext(document.getElementById("root")).render(root);
 }
+
+
+/**
+ * Top portal content
+ */
+const topPortalContents = (topBarPortal) =>
+  portalContents("information", 
+    informationButton(
+      column(
+        p("A demonstration of a hybrid modal dialog:"),
+        ul(
+          li("Note that the same dialogue content component instance is moved when dialogue transforms from modal/non modal.  "), 
+          li("This means state can be easily preserved."),
+        ),
+        { style: {width: 800, whiteSpace: "normal"}}
+      )
+    ),
+    displayCodeButton({code: file, fileName: "src/pages/modalDemo.js"}),
+    {
+      portal: topBarPortal
+    }
+  )

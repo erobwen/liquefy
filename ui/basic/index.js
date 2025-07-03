@@ -7,7 +7,9 @@ import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerSty
 import { overlay, Overlay, overlayFrame, OverlayFrame } from "./src/overlay";
 import { portalContents, PortalContents, portal } from "./src/Portals";
 import { card, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow } from "./src/card";
-import { popover, modal, Modal, dialogue } from "./src/dialogues";
+import { dialogue } from "./src/dialogue";
+import { modalContainer, ModalContainer } from "./src/modalContainer";
+import { popover } from "./src/popover";
 import { listItem } from "./src/listItem";
 
 export const basicTheme = {
@@ -20,7 +22,7 @@ export const basicTheme = {
     svgImage,
     layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
     overlay, Overlay, overlayFrame, OverlayFrame,
-    popover, modal, Modal, dialogue,
+    popover, modalContainer, ModalContainer, dialogue,
     listItem,
     portalContents, PortalContents, portal
   }
@@ -35,7 +37,7 @@ export { // Note: A copy paste of basicTheme.components, since we are not allowe
   svgImage,
   layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle,
   overlay, Overlay, overlayFrame, OverlayFrame,
-  popover, modal, Modal, dialogue,
+  popover, modalContainer, ModalContainer, dialogue,
   listItem,
   portalContents, PortalContents, portal
 };

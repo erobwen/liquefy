@@ -8,3 +8,7 @@ export function addDefaultStyle(properties, defaultStyle) {
   properties.style = Object.assign({}, defaultStyle, properties.style);
   return properties;
 }
+
+export function addDefault(style, defaultStyle) {
+  return {...defaultStyle, ...style};
+}

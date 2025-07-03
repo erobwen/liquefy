@@ -1,6 +1,3 @@
-import { configuration, model, setFlowConfiguration } from "@liquefy/flow.core";
-import { installDOMAnimation, resetDOMAnimation } from "@liquefy/flow.DOM";
-
 import { startRecursiveDemo } from "./src/pages/recursiveDemoApplication.js";
 import { startReactiveFormApplication } from "./src/pages/reactiveFormApplication.js";
 import { startDemo } from "./src/demo.js";
@@ -9,19 +6,15 @@ import { startProgrammaticReactiveLayout } from "./src/pages/programmaticReactiv
 import { startModalDemo } from "./src/pages/modalDemo.js";
 import { startPortalDemo } from "./src/pages/portalDemo.js";
 
-import { logMark } from "@liquefy/flow.core";
 import { basicTheme } from "@liquefy/basic-ui";
 import { assignGlobalTheme } from "@liquefy/themed-ui";
+
+import "./config.flow.js"
 
 assignGlobalTheme(basicTheme);
 
 // Setup flow 
-setFlowConfiguration({
-  traceReactivity: false,
-  warnWhenNoKey: false,
-  autoAssignProperties: true
-});
-installDOMAnimation();
+
 
 // if (module.hot) {
 //   module.hot.accept();

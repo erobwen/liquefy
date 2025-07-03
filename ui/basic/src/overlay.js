@@ -79,7 +79,7 @@ export class OverlayFrame extends Component {
     // Setup modal sub frame
     this.ensure(() => {
       if (this.assignedOverlayContent && this.receivedOverlayContent) {
-        throw new Error("Cannot both assign modal content and set it as a property for one single modal frame.")
+        throw new Error("Cannot both assign modal content and set it as a property for one single overlay frame.")
       } else {
         const overlayContent = this.assignedOverlayContent ? this.assignedOverlayContent : this.receivedOverlayContent 
          

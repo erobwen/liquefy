@@ -16,6 +16,7 @@ export const portalContents = (...parameters) =>
 export class PortalContents extends Component {
   receive({children, portal}) {
     this.portal = portal; 
+    if (!this.portal) throw new Error("PortalContents must be given a portal to render into!");
     this.portalChildren = children;
   }
 

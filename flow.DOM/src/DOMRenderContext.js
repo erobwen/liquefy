@@ -94,7 +94,7 @@ export class DOMRenderContext extends RenderContext {
 
   // DEPRECATED
   render(component) {
-    console.log("Render...")
+    // console.log("Render...")
     // console.warn("DOMRenderContext.render is deprecated. Use renderComponent instead (will be renamed to render once all deprecations are removed)")
     component.bounds = {width: window.innerWidth, height: window.innerHeight}
     component.receive({

@@ -51,10 +51,10 @@ export class Demo extends Component {
     this.items = [
       new RecursiveExample({key: "recursive-demo", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new ReactiveForm({key: "reactive-form", initialData, style: fitContainerStyle}),
-      new AnimationExample({key: "animation-example", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle}),
-      new ProgrammaticReactiveLayout({key: "programmatic-reactive-layout", name: "Programmatic Responsiveness", style: fitContainerStyle}),
-      new ModalExample({key: "modal-example", style: fitContainerStyle}),
-      new PortalExample({key: "portal-example", portal: this.leftColumnPortal, style: fitContainerStyle})
+      new AnimationExample({key: "animation-example", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle, topBarPortal: this.topBarPortal}),
+      new ProgrammaticReactiveLayout({key: "programmatic-reactive-layout", name: "Programmatic Responsiveness", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
+      new ModalExample({key: "modal-example", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
+      new PortalExample({key: "portal-example", portal: this.leftColumnPortal, style: fitContainerStyle, topBarPortal: this.topBarPortal})
     ];
     
     for (let item of this.items) {

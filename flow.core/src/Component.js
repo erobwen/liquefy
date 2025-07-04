@@ -31,7 +31,7 @@ export class Component {
   constructor(...parameters) {
     let properties = this.readParameters(parameters);
 
-    // log("Flow constructor: " + this.getComponentTypeName() + "." + properties.key);
+    // log("Component constructor: " + this.getComponentTypeName() + "." + properties.key);
     // For debug purposes, this place this property first in the list and makes it easier to identify flows when they are proxies in the debugger. 
     this._ = null; 
 
@@ -364,16 +364,16 @@ export class Component {
     }
   }
 
-  ensureBuiltRecursive(flowRenderContext, parentPrimitive) {
+  ensureBuiltRecursive(renderContext, parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
       if (peekParentPrimitive) {
-        // log("Flow.ensureBuiltRecursive");
+        // log("Component.ensureBuiltRecursive");
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
     } 
-    workOnPriorityLevel(renderComponentTime, () => this.getPrimitive().ensureBuiltRecursive(flowRenderContext, parentPrimitive));
+    workOnPriorityLevel(renderComponentTime, () => this.getPrimitive().ensureBuiltRecursive(renderContext, parentPrimitive));
     return this.getPrimitive(parentPrimitive);
   }
 
@@ -465,14 +465,14 @@ export class Component {
   }
 
   dimensions(contextNode) {
-    if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a flow without a key. The reason is that a call to dimensions from a parent build function will finalize the flow early, and without a key, causality cannot send proper onEstablish event to your flow component before it is built");
+    if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
     const primitive = this.getPrimitive();
     if (primitive instanceof Array) throw new Error("Dimensions not supported for fragmented components.");
     return primitive ? primitive.dimensions(contextNode) : null;
   }
 
   reactiveBoundingClientRect() {
-    if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a flow without a key. The reason is that a call to dimensions from a parent build function will finalize the flow early, and without a key, causality cannot send proper onEstablish event to your flow component before it is built");
+    if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
     const primitive = this.getPrimitive();
     if (primitive instanceof Array) throw new Error("reactiveBoundingClientRect not supported for fragmented components.");
     return primitive ? primitive.reactiveBoundingClientRect(contextNode) : null;
@@ -491,22 +491,21 @@ export class Component {
 
 /**
  * Build merge pattern matching
- * TODO: Rename: flow->component
  */
 
-function getShapeAnalysis(flow) {
+function getShapeAnalysis(component) {
   return {
-    allowMatch: (establishedFlow, newFlow) => {
-      // log(establishedFlow instanceof Flow);
-      // log(newFlow instanceof Flow);
-      // log(newFlow.getComponentTypeName() === establishedFlow.getComponentTypeName());
-      // log(newFlow.componentTypeName === establishedFlow.componentTypeName);
-      return (establishedFlow instanceof Component && newFlow instanceof Component
-        && (!newFlow.tagName || newFlow.tagName === establishedFlow.tagName)  
-        && (newFlow.getComponentTypeName() === establishedFlow.getComponentTypeName()) 
-        && (newFlow.componentTypeName === establishedFlow.componentTypeName));
+    allowMatch: (establishedComponent, newComponent) => {
+      // log(establishedComponent instanceof Component);
+      // log(newComponent instanceof Component);
+      // log(newComponent.getComponentTypeName() === establishedComponent.getComponentTypeName());
+      // log(newComponent.componentTypeName === establishedComponent.componentTypeName);
+      return (establishedComponent instanceof Component && newComponent instanceof Component
+        && (!newComponent.tagName || newComponent.tagName === establishedComponent.tagName)  
+        && (newComponent.getComponentTypeName() === establishedComponent.getComponentTypeName()) 
+        && (newComponent.componentTypeName === establishedComponent.componentTypeName));
     },
-    shapeRoot: () => flow.newBuild,
+    shapeRoot: () => component.newBuild,
     slotsIterator: function*(establishedObject, newObject, hasKey, childrenProperty=false) {
       if (establishedObject instanceof Array && newObject instanceof Array) {
         let newIndex = 0;

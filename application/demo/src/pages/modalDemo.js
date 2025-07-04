@@ -37,7 +37,7 @@ export class ModalExample extends Component {
       {
         variant: "elevated",
         close: this.close,
-        style: {...(dialogIsModal ? {width: 500} : {})}
+        style: {...(dialogIsModal ? {width: 500, height: 700} : fillerStyle)}
       }
     )
 
@@ -59,10 +59,7 @@ export class ModalExample extends Component {
         }
       ),
 
-      div("dialog-panel",
-        contentDialogue.show(this.showDialog && !dialogIsModal),
-        {style: {...fillerStyle, ...overflowVisibleStyle}}
-      ).show(!dialogIsModal),
+      contentDialogue.show(this.showDialog && !dialogIsModal),
 
       modalContainer("modal", 
         contentDialogue.show(this.showDialog && dialogIsModal),
@@ -72,7 +69,7 @@ export class ModalExample extends Component {
         }
       ).show(this.showDialog && dialogIsModal),
       
-      { style: {...fitContainerStyle, ...overflowVisibleStyle, gap: 10}}
+      { style: {...fitContainerStyle, ...overflowVisibleStyle, gap: 10, padding: 10} }
     );
   }
 }
@@ -91,13 +88,16 @@ export class DialogueContent extends Component {
   render() {
     const { counter } = this;
     return column("dialogue-content",
-      img("img", {src: dropPortrait, style: {width: "100%"}}),
+      centerMiddle(
+        img("img", {src: dropPortrait, style: {height: "100%"}}),
+        {style: fillerStyle}
+      ),
       column(
         p("Counter: ", text(counter)),
         button("Increment Counter", () => { this.counter += 1; })
       ),
       {
-        style: {padding: 20, gap: 20}
+        style: {padding: 20, gap: 20, ...fitContainerStyle}
       }
     );
   }

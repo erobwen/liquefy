@@ -19,7 +19,7 @@ import {
     collapse,
     collapseItem
 } from "./src/components";
-// import { icon } from "./src/icon";
+import { dialogue } from "./src/dialogue";
 
 export const materialTheme = {
   components: {
@@ -38,6 +38,7 @@ export const materialTheme = {
     langSelect,
     themeSelect,
     dropdown,
+    dialogue,
     list,
     listItem,
     collapse,
@@ -61,6 +62,7 @@ export {
   langSelect,
   themeSelect,
   dropdown,
+  dialogue,
   list,
   listItem,
   collapse,

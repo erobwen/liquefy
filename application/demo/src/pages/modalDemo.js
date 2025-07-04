@@ -1,9 +1,9 @@
 import { callback, Component, toProperties } from "@liquefy/flow.core";
 import { DOMRenderContext, text, div, p, ul, li, img } from "@liquefy/flow.DOM";
-import { button, cardColumn } from "@liquefy/themed-ui";
+import { button, cardColumn, dialogue } from "@liquefy/themed-ui";
 
 import {
-  alert, cardShadow3, dialogue, fillerStyle,
+  alert, cardShadow3, fillerStyle,
   centerMiddle, column, fitContainerStyle, row,
   overflowVisibleStyle, modalContainer, portalContents
 } from "@liquefy/basic-ui";
@@ -33,7 +33,7 @@ export class ModalExample extends Component {
     const dialogIsModal = width < 850;
 
     const contentDialogue = dialogue("dialogue",
-      dialogueContent("A dialogue"), 
+      dialogueContent("dialogue-content"), 
       {
         variant: "elevated",
         close: this.close,

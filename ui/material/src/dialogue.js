@@ -1,20 +1,21 @@
 import { Component } from "@liquefy/flow.core";
 import { text } from "@liquefy/flow.DOM";
 
-import { row, rowStyle, filler, middle } from "./Layout";
-import { buttonIcon } from "./buttons"
-import { cardColumn, cardShadow4 } from "./card";
+import { row, rowStyle, filler, middle, cardShadow4 } from "@liquefy/basic-ui";
+import { buttonIcon, cardColumn } from "./components"
 
 
 /**
  * Dialogue
  */
 export const dialogue = (...parameters) => {
-  return new Dialogue(...parameters);
+  return new ModernDialogue(...parameters);
 }
 
-export class Dialogue extends Component {
+// Note: Had to prefix name with Modern so that pattern matching wont match it with basic dialogue. How to prevent? 
+export class ModernDialogue extends Component {
   receive({close, children, style, title, variant="filled"}) {
+    console.log("material dialogue receive", {close, children, style, title, variant});
     this.close = close;
     this.children = children;
     this.style = {
@@ -47,13 +48,16 @@ export class Dialogue extends Component {
     } else {
       return row(
         filler(title ? middle(text(title), {style: {marginLeft: 10, color: "white"}}) : null, {style: rowStyle}),
-        buttonIcon({icon: "close", onClick: () => close()})
+        buttonIcon({icon: "close", onClick: () => close()}), {
+          style:{
+            height: 48 
+          }
+        }
       );
     }
   }
 
   render() {
-    console.log("basic dialogue render", {children: this.children, style: this.style, variant: this.variant});
     const {children, style, variant} = this; 
     return (
       cardColumn("dialogue",

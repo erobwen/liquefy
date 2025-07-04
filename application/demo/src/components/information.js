@@ -4,9 +4,9 @@ import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 
 import { alert, cardShadow3, fillerStyle, modalContainer, popover } from "@liquefy/basic-ui";
-import { wrapper, overlay, dialogue, fitContainerStyle } from "@liquefy/basic-ui";
+import { wrapper, overlay, fitContainerStyle } from "@liquefy/basic-ui";
 
-import { numberInputField, button, cardColumn, buttonIcon } from "@liquefy/themed-ui";
+import { numberInputField, button, dialogue, cardColumn, buttonIcon } from "@liquefy/themed-ui";
 
 hljs.registerLanguage('javascript', javascript);
 

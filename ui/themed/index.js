@@ -68,6 +68,7 @@ export const cardRow = (...parameters) => getThemedComponent("cardRow", toProper
 // Styles: 
 export const fillerStyle = (...parameters) => getThemedComponent("fillerStyle", toProperties(parameters));
 export const dialogue = (...parameters) => getThemedComponent("dialogue", toPropertiesWithChildren(parameters));
+export const alert = (...parameters) => getThemedComponent("alert", toPropertiesWithChildren(parameters));
 
 
 /**

@@ -20,6 +20,7 @@ import {
     collapseItem
 } from "./src/components";
 import { dialogue } from "./src/dialogue";
+import { alert } from "./src/alert";
 
 export const materialTheme = {
   components: {
@@ -38,11 +39,12 @@ export const materialTheme = {
     langSelect,
     themeSelect,
     dropdown,
-    dialogue,
     list,
     listItem,
     collapse,
-    collapseItem
+    collapseItem,
+    dialogue,
+    alert
   }
 }
 
@@ -62,11 +64,12 @@ export {
   langSelect,
   themeSelect,
   dropdown,
-  dialogue,
   list,
   listItem,
   collapse,
-  collapseItem
+  collapseItem,
+  dialogue,
+  alert
 }
 
 

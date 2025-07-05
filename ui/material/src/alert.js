@@ -1,14 +1,14 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
-import { addDefaultStyle } from "@liquefy/flow.DOM";
-import { card, cardRow } from "./card";
-import { icon } from "./Icons";
-import { centerMiddle, filler } from "./Layout";
+import { addDefaultStyle, text } from "@liquefy/flow.DOM";
+import { card, cardRow } from "./components";
+import { icon } from "./components";
+import { centerMiddle, filler, row } from "@liquefy/basic-ui";
 
 
 const iconNames = {
   "warning": "exclamation-triangle",
   "error": "exclamation-circle",
-  "info": "info-circle",
+  "info": "info", // Consider: "info-circle" did not work and gave a double glyph? Why did it work for basic-ui? 
   "success": "check-circle"
 }
 
@@ -46,7 +46,10 @@ export function alert(...parameters) {
   if (!style.backgroundColor) style.backgroundColor = backgroundColors[severity];
  
   return cardRow(
-    icon({name: iconNames[severity], style: { fontSize: 40, margin: 10, color: iconColors[severity]}}),
+    icon({
+      name: iconNames["info"], 
+      style: { fontSize: 40, margin: 10, color: iconColors[severity]}
+    }),
     filler(children, { style: { color: colors[severity]}}),
     { style }
   )

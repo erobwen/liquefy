@@ -71,7 +71,7 @@ export class IntroductionPage extends Component {
           ),
           h2("Repository"),
           a(text("https://github.com/erobwen/liquefy"), {href: "https://github.com/erobwen/liquefy"}),
-          portalContents(
+          portalContents("introductionPageInformation",
             middle(text("by Robert Renbris ")),
             displayCodeButton({code: file}),
             {

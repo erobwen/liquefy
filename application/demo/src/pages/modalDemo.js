@@ -117,7 +117,7 @@ export function startModalDemo() {
  * Top portal content
  */
 const topPortalContents = (topBarPortal) =>
-  portalContents("information", 
+  portalContents("modalDemoInformation", 
     informationButton(
       column(
         p("A demonstration of a hybrid modal dialog:"),

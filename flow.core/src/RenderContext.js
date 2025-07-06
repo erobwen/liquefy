@@ -5,12 +5,12 @@ import { renderComponentTime, workOnPriorityLevel } from "./Flow";
  * Implement any flow target that implements HTML Element Node and HTML Text Node. 
  * A flow target could implement just a subset of all HTML tags and attributes, but could instead be an approxiomation 
  */
-// export const flowRenderContexts = [];
+// export const renderContexts = [];
 
 export class RenderContext {
 	// constructor() {
 	//     super();
-	//     flowRenderContexts.push(this);
+	//     renderContexts.push(this);
 	// }
 	dispose() {}
 
@@ -41,7 +41,7 @@ export class RenderContext {
 	}
 	
 	// dispose() {
-	//     flowRenderContexts.splice(flowRenderContexts.indexOf(this), 1);
+	//     renderContexts.splice(renderContexts.indexOf(this), 1);
 	// }
 }
   

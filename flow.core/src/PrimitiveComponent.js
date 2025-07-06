@@ -46,11 +46,11 @@ export class PrimitiveComponent extends Component {
     return this;
   }
 
-  ensureBuiltRecursive(flowRenderContext, parentPrimitive) {
+  ensureBuiltRecursive(renderContext, parentPrimitive) {
     const name = this.toString(); // For chrome debugger
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
-    if (flowRenderContext) this.visibleOnRenderContext = flowRenderContext;
+    if (renderContext) this.visibleOnRenderContext = renderContext;
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
         // log("PrimitiveComponent.ensureBuiltRecursive");
@@ -70,10 +70,12 @@ export class PrimitiveComponent extends Component {
         if (this.parentPrimitive) {
           if (this.parentPrimitive.childPrimitives && this.parentPrimitive.childPrimitives.includes(this)) {
             this.visibleOnRenderContext = this.parentPrimitive.visibleOnRenderContext;
+            this.isVisible = !!this.visibleOnRenderContext
           } else {
             this.visibleOnRenderContext = null;
             this.previousParentPrimitive = this.parentPrimitive;
             this.parentPrimitive = null;
+            this.isVisible = !!this.visibleOnRenderContext
           }
         }
 
@@ -103,7 +105,7 @@ export class PrimitiveComponent extends Component {
 
         // Expand known children (do as much as possible before integration)
         for (let childPrimitive of this.childPrimitives) { 
-          childPrimitive.ensureBuiltRecursive(flowRenderContext, this);
+          childPrimitive.ensureBuiltRecursive(renderContext, this);
         }
       
         if (trace) console.groupEnd();

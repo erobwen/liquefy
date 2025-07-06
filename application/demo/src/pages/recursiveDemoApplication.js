@@ -127,7 +127,7 @@ export function startRecursiveDemo() {
  * Top portal content
  */
 const topPortalContents = (topBarPortal) =>
-  portalContents("information", 
+  portalContents("recursiveDemoInformation", 
     informationButton(
       column(
         p("A simple recursive example, that demonstrates:"),

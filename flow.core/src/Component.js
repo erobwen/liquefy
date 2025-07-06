@@ -382,7 +382,7 @@ export class Component {
   }
 
   getPrimitive(parentPrimitive) {
-    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
+    let peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (parentPrimitive && this.parentPrimitive && this.parentPrimitive !== parentPrimitive) console.warn("Changed parent primitive for " + this.toString());
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
@@ -391,6 +391,7 @@ export class Component {
       }
       this.parentPrimitive = parentPrimitive
     } 
+    peekParentPrimitive = withoutRecording(() => this.parentPrimitive)
     // log("getPrimitive")
     const me = this;
     const name = this.toString(); // For chrome debugger.
@@ -429,10 +430,10 @@ export class Component {
           if (!me.newBuild) {
             me.primitive = null; 
           } else if (!(me.newBuild instanceof Array)) {
-            me.primitive = me.newBuild.getPrimitive(this.parentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+            me.primitive = me.newBuild.getPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
           } else {
             me.primitive = me.newBuild
-              .map(fragment => fragment.getPrimitive(this.parentPrimitive))
+              .map(fragment => fragment.getPrimitive(peekParentPrimitive))
               .reduce((result, childPrimitive) => {
                 if (childPrimitive instanceof Array) {
                   childPrimitive.forEach(fragment => result.push(fragment));

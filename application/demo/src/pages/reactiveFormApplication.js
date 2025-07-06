@@ -370,7 +370,7 @@ export function startReactiveFormApplication() {
  * Top portal content
  */
 const topPortalContents = (topBarPortal) =>
-  portalContents("information", 
+  portalContents("reactiveFormInformation", 
     wrapper(
       checkboxInput("Animate", () => configuration.animation, (checked) => configuration.animation = checked ? zoomAnimation : null, 
       {style: naturalSizeStyle}),

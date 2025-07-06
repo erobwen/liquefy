@@ -38,14 +38,6 @@ class ApplicationMenuFrame extends Component {
     this.modalButton.onDispose();
   }
 
-  // closeMenu() {
-  //   this.menuOpen = false; 
-  // }
-
-  setApplicationContent(content) {
-    this.applicationContent = content;
-  } 
-
   buildModalMenuDrawer() {
     const background = div({
       key: "background", 

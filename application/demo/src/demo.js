@@ -46,6 +46,7 @@ export class Demo extends Component {
     this.topBarPortal = portal("topBarPortal", {style: {...rowStyle, alignItems: "center"}});
 
     this.introduction = new IntroductionPage("introductionPage", {topBarPortal: this.topBarPortal});
+    this.introduction.onEstablish();
 
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [

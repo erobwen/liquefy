@@ -8,7 +8,7 @@ import 'mdui';
 import { toProperties, getRenderContext, toPropertiesWithChildren } from "@liquefy/flow.core";
 import { toButtonProperties, toInputProperties, elementNode, addDefaultStyle } from "@liquefy/flow.DOM";
 
-import { toMduiInputProperties } from './implicitProperties';
+import { toMduiCheckboxProperties, toMduiInputProperties } from './implicitProperties';
 import "./components.css";
 import { rowStyle, columnStyle } from '@liquefy/basic-ui'
 
@@ -31,7 +31,14 @@ function taggedElement(tagName, properties) {
  */
 export const icon = (...parameters) => taggedElement("mdui-icon", toProperties(parameters));
 export const button = (...parameters) => taggedElement("mdui-button", toButtonProperties(parameters));
-export const input = (...parameters) => taggedElement("mdui-text-field", toMduiInputProperties(parameters));
+export const input = (...parameters) => {
+  const properties = toProperties(parameters);
+  if (properties.type === "checkbox") {
+    return taggedElement("mdui-checkbox", toMduiCheckboxProperties([properties]));
+  } else {
+    return taggedElement("mdui-text-field", toMduiInputProperties([properties]));  
+  }
+}
 export const card = (...parameters) => {
   const properties = toPropertiesWithChildren(parameters); 
   const {variant="elevated"} = properties;

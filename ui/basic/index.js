@@ -2,7 +2,6 @@ import { alert } from "./src/alert";
 import { basicWidgetTheme, label, panel } from "./src/BasicWidgets";
 import { 
   input, textInput, numberInput, checkboxInput, 
-  inputField, textInputField, checkboxInputField, numberInputField
 } from "./src/input";
 import { button, buttonIcon, } from "./src/buttons";
 import { icon } from "./src/Icons";
@@ -22,7 +21,6 @@ export const basicTheme = {
     card, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow,
     basicWidgetTheme, label, panel,
     input, textInput, numberInput, checkboxInput,
-    inputField, textInputField, checkboxInputField, numberInputField,
     button, buttonIcon, 
     icon,
     svgImage,
@@ -38,8 +36,7 @@ export { // Note: A copy paste of basicTheme.components, since we are not allowe
   alert,
   card, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow,
   basicWidgetTheme, label, 
-  input, textInput, numberInput, checkboxInput, 
-  inputField, textInputField, checkboxInputField, numberInputField, 
+  input, textInput, numberInput, checkboxInput,
   panel,
   button, buttonIcon, 
   icon,

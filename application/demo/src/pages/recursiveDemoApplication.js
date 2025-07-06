@@ -2,7 +2,7 @@ import { Component, model, toProperties, toPropertiesWithChildren } from "@lique
 import { DOMRenderContext, text, div, ul, li, p } from "@liquefy/flow.DOM";
 
 import { filler, fitContainerStyle, column, row, middle, portalContents } from "@liquefy/basic-ui";
-import { numberInputField, button, cardColumn } from "@liquefy/themed-ui";
+import { numberInput, button, cardColumn } from "@liquefy/themed-ui";
 
 import { informationButton, displayCodeButton } from "../components/information";
 
@@ -59,7 +59,7 @@ export class ControlRow extends Component {
         button("Less", () => {this.demoComponent.count--}),
         {style: {alignItems: "baseline", gap: 5}}
       ),
-      numberInputField("Shared state", this.inherit("inheritedModel"), "value", {variant: "outlined"}),
+      numberInput("Shared state", this.inherit("inheritedModel"), "value", {variant: "outlined", style: {height: 40}}),
       filler(),
       {style: {padding: 10, gap: 20, alignItems: "baseline"}} 
     )
@@ -102,7 +102,7 @@ export class Item extends Component {
     return row("itemRow",
       text({key: "depthText", text: "Depth " +  me.depth}),
       middle(
-        numberInputField("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red"}}),
+        numberInput("Local state", this, "value", {variant: "outlined", style: {"--mdui-text-field-label-floating-background": "red", height: 40}}),
         {style: {overflow: "visible"}}
       ),
       text({key: "sharedStateText", text: " Shared state: " + me.inherit("inheritedModel").value}), 
@@ -144,16 +144,3 @@ const topPortalContents = (topBarPortal) =>
       portal: topBarPortal
     }
   )
-
-  
-/**
- * This is a demo-application that showcases some of the principles of Flow. 
- * Please read the comments for a tour over what features exists and how they work.  
- * 
- * This simple program just demonstrates the recursive and state preserving capabilities 
- * of Flow. A number of components are created recursivley according to the "count" state.
- * And each component has its own state that can be toggled on/off. Note that the state of each individual 
- * component is maintained, while the whole recursive chain of components are re-built. 
- * Also, open and expand the view-elements debug panel in Chrome, to verify minimal updates
- * to the DOM when the UI is rebuilt.  
- */

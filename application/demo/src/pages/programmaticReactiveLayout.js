@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 
 import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
-import { basicWidgetTheme, numberInputField, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle } from "@liquefy/basic-ui";
+import { basicWidgetTheme, numberInput, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle } from "@liquefy/basic-ui";
 import { popover } from "@liquefy/basic-ui";
 
 import { buttonIcon } from "@liquefy/ui-material";
@@ -23,8 +23,8 @@ export class ProgrammaticReactiveLayout extends Component {
   render() {
     // Create control panel
     const controlPanel = column("control-panel",
-      row(numberInputField("Rows", this, "rows")),
-      row(numberInputField("Columns", this, "columns")),
+      row(numberInput("Rows", this, "rows")),
+      row(numberInput("Columns", this, "columns")),
       text("Try change the size of the browser window, and add/remove columns/rows. Try do this with css :-)"),
       {style: naturalSizeStyle}
     );

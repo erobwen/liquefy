@@ -53,12 +53,12 @@ export function findImplicitChildrenAndOnClick(properties) {
  */
 export const toInputProperties = (parameters) => {
   const properties = toProperties(parameters);
-  findImplicitInputFieldParameters(properties);
+  findImplicitInputParameters(properties);
   if (!properties.type) properties.type = "text";
   return properties; 
 }
 
-export function findImplicitInputFieldParameters(properties) {
+export function findImplicitInputParameters(properties) {
   const componentContent = extractProperty(properties, "componentContent");
   if (!componentContent) return properties;
   if (!componentContent.length === 4) throw new Error("An input field should have label text, getter and setter or object and property."); 

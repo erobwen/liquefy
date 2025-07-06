@@ -1,8 +1,8 @@
 import { Component, toPropertiesWithChildren } from "@liquefy/flow.core";
 
-import { div, text, h1, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } from "@liquefy/flow.DOM";
-
-import { portalContents, middle, fitContainerStyle } from "@liquefy/basic-ui";
+import { div, text, h1, a, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } from "@liquefy/flow.DOM";
+import { alert } from "@liquefy/themed-ui";
+import { portalContents, middle, fitContainerStyle, cardShadow3 } from "@liquefy/basic-ui";
 
 import file from './introductionPage?raw';
 import { displayCodeButton } from "../components/information";
@@ -28,9 +28,18 @@ export class IntroductionPage extends Component {
           p("Reactive front end framework, with an integrated state management system."),
           p(blue("Flow is radical, innovative and uses state of the art technology!")),
           p("The purpose of Flow is to make advanced user interface building so simple that anyone can do it!"),
+          alert(
+            p("This demo demonstrates the key features of flow, while showing how little code is needed to use them. See code by clicking the top left button."),
+            p("In addition, this demo also serves as a testbed for Flow. Right now there are no unit tests, so all features of this demo needs to be validated upon any changes to the framework."),
+            {severity: "info", style: {boxShadow: cardShadow3, marginTop: 10, marginBottom: 10}},
+          ),
+          alert(
+            p("This demo is a work in progress. Most features are working, but there are still a few glitches. "),
+            {severity: "warning", style: {boxShadow: cardShadow3}}
+          ),
           h2("Based on"),
           ul(
-            li(blue("Programmatic approach."), " User interface is generated using javascript expressions."),
+            li(blue("Programmatic approach."), " User interface is generated using javascript functions."),
             li(blue("Reactive approach."), " Everything is reactive, from styling to state management."),
             li(blue("Auto Observation"), " that relieves you of any need to declare data dependencies (similar to MobX)"),
             li(blue("Mutability freedom"), " allows you to refer to and change any state or component from anywhere while maintaining safe and efficient updates."),
@@ -52,9 +61,8 @@ export class IntroductionPage extends Component {
           ul(
             li("Is built around a DOM agnostic core providing ", blue("Reactive Object Composition"), " that could be used for other purposes, such as back end rendering or building a word processor or any other document generator."),
           ),
-          h2("This Demo"),
-          p("Demonstrates the key features of flow, while showing how little code is needed to use them."),
-          p("In addition, this demo also serves as a testbed for Flow. Right now there are no unit tests, so all features of this demo needs to be validated upon any changes to the framework."),
+          h2("Repository"),
+          a(text("https://github.com/erobwen/liquefy"), {href: "https://github.com/erobwen/liquefy"}),
           portalContents(
             middle(text("by Robert Renbris ")),
             displayCodeButton({code: file}),

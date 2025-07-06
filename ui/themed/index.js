@@ -74,13 +74,13 @@ export const alert = (...parameters) => getThemedComponent("alert", toProperties
 /**
  * Derrived components 
  */
-export function checkboxInputField(...parameters) {
+export function checkboxInput(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "checkbox";
   return input(properties);
 }
 
-export function numberInputField(...parameters) {
+export function numberInput(...parameters) {
   const properties = toInputProperties(parameters);
   properties.type = "number";
   return input(properties);

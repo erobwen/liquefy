@@ -109,7 +109,7 @@ const input = (...parameters) => {
 //     console.log(parameters);
 //     const properties = toProperties(parameters);
 //     console.log({...properties});
-//     findImplicitTextInputFieldParameters(properties);
+//     findImplicitTextInputParameters(properties);
 //     console.log({...properties});
 //     return properties; 
 //   }

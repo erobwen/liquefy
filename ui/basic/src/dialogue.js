@@ -53,7 +53,7 @@ export class Dialogue extends Component {
   }
 
   render() {
-    console.log("basic dialogue render", {children: this.children, style: this.style, variant: this.variant});
+    // console.log("basic dialogue render", {children: this.children, style: this.style, variant: this.variant});
     const {children, style, variant} = this; 
     return (
       cardColumn("dialogue",

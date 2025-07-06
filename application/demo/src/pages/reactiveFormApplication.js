@@ -1,30 +1,27 @@
 import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, div, li, ul, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.DOM";
+import { checkboxInput, numberInput, icon } from "@liquefy/themed-ui";
+import { button, card, textInput, buttonIcon } from "@liquefy/themed-ui";
 
-import { centerMiddle, columnStyle, middle, naturalSizeStyle } from "@liquefy/basic-ui";
+import { wrapper, column, filler, fillerStyle, row, centerMiddle, columnStyle, middle, naturalSizeStyle, portalContents } from "@liquefy/basic-ui";
 
-import { column, filler, fillerStyle, row } from "@liquefy/themed-ui";
-import { checkboxInputField, numberInputField, icon } from "@liquefy/themed-ui";
-import { button, card, cardRow, cardColumn, textInput, buttonIcon } from "@liquefy/themed-ui";
+import { informationButton, displayCodeButton } from "../components/information";
+import file from './reactiveFormApplication?raw';
 
-
-const log = console.log;
 
 /**
  * Configuration 
  */
 const configuration = model({animation: zoomAnimation}) 
 
+
 /**
  * Data model. 
  * Plain Javascript except call to "model()"
  */
-
 export const initialData = model({
   traveler: createInitialTraveler(),
-  fellowTravellers: [
-    // createTraveler(true, true)
-  ]
+  fellowTravellers: []
 }, true);
 
 function createInitialTraveler() {
@@ -74,7 +71,6 @@ function calculateCost(data) {
 /**
  * Travlers verifier. Plain Javascript, model verification. 
  */
-
 function verifyData(editData) {
   transaction(() => {
     let anyError = false; 
@@ -152,13 +148,11 @@ export class SimpleDrawer extends Component {
 /**
  * Components. Flow component definitions.
  */
-
 export class ReactiveForm extends Component {
-
-  receive(properties) {
-    Object.assign(this, properties)
-    const {initialData} = properties;
+  receive({style, topBarPortal, initialData}) {
     this.name = "Reactive Form";
+    this.topBarPortal = topBarPortal;
+    this.style = style; 
     this.editData = initialData;
   }
   
@@ -185,6 +179,7 @@ export class ReactiveForm extends Component {
 
     return (
       row(
+        topPortalContents(this.topBarPortal),
         div("scrollPanel",
           column(
             // Header       
@@ -192,14 +187,12 @@ export class ReactiveForm extends Component {
             div("Traveler Information " + travelerString(), {style: {fontSize: "15px"}}),
 
             // Traveler forms
-            // column(
             new TravelerForm({traveler, isFellowTraveller: false}),
 
             column({
               children: this.editData.fellowTravellers.map(traveler => new TravelerForm("id-" + traveler.causality.id, {traveler, isFellowTraveller: true})),
               style: { overflow: "visible", gap: "20px" } 
             }),
-            // ),
 
             // Add traveler button
             row(
@@ -231,8 +224,7 @@ export class ReactiveForm extends Component {
 
         // Model Data Display 
         column(
-          checkboxInputField("Animate", () => configuration.animation, (checked) => configuration.animation = checked ? zoomAnimation : null, 
-            {style: naturalSizeStyle}),
+          "Model Data",
           div(
             text(JSON.stringify(this.editData, null, 4)),
             {style: fillerStyle}
@@ -245,6 +237,10 @@ export class ReactiveForm extends Component {
   }
 }
 
+
+/**
+ * Traveler form. 
+ */
 export class TravelerForm extends Component {
   receive(properties) {
     Object.assign(this, {
@@ -261,8 +257,6 @@ export class TravelerForm extends Component {
   render() {
     const traveler = this.traveler;
     return card(
-      // Recommendation: Do ineritance first, to avoid diabling caches further down. Nooo... wait... setting the same value twice will not trigger anything! 
-
       // Remove button
       row(
         filler(),
@@ -280,8 +274,8 @@ export class TravelerForm extends Component {
       ),
 
       // Child info
-      checkboxInputField("Is Child", traveler, "isChild").show(this.isFellowTraveller),
-      numberInputField("Age", traveler, "age", {unit: "years", animate: configuration.animation}).show(traveler.isChild),
+      checkboxInput("Is Child", traveler, "isChild").show(this.isFellowTraveller),
+      numberInput("Age", traveler, "age", {unit: "years", animate: configuration.animation}).show(traveler.isChild),
       
       // Adress
       column(
@@ -336,6 +330,10 @@ export class TravelerForm extends Component {
   }
 }
 
+
+/**
+ * Luggage form.
+ */
 export class LuggageForm extends Component {
   receive({luggage}) {
     this.luggage = luggage;
@@ -345,7 +343,7 @@ export class LuggageForm extends Component {
     // return div({style: {height: "48px", backgroundColor: "green"}})
     return row(
       centerMiddle(icon({name: "luggage"}), {style: {width: "40px"}}),
-      numberInputField("Weight", this.luggage, "weight", {unit: "kg", style: {width: "150px"}}),
+      numberInput("Weight", this.luggage, "weight", {unit: "kg", style: {width: "150px"}}),
       filler(),
       middle(
         buttonIcon(
@@ -361,9 +359,35 @@ export class LuggageForm extends Component {
 /**
  * This is what you would typically do in index.js to start this app. 
  */
-
 export function startReactiveFormApplication() {
   new DOMRenderContext(document.getElementById("root")).render(
     new ReactiveForm({initialData})
   );
 }
+
+
+/**
+ * Top portal content
+ */
+const topPortalContents = (topBarPortal) =>
+  portalContents("information", 
+    wrapper(
+      checkboxInput("Animate", () => configuration.animation, (checked) => configuration.animation = checked ? zoomAnimation : null, 
+      {style: naturalSizeStyle}),
+      {style: {...naturalSizeStyle, width: 200}}
+    ),
+    informationButton(
+      column(
+        p("A reactive form example, that demonstrates:"),
+        ul(
+          li("How you can set up a rather complex form with many interdependencies, cost calculation and validation in just under 400 lines of code."), 
+          li("It also shows DOM transition animations in action. With a very simple setup, 'animatin: true', you get transitions animations when they appear/dissapear."), 
+        ),
+        { style: {width: 800, whiteSpace: "normal"}}
+      )
+    ),
+    displayCodeButton({code: file, fileName: "src/pages/reactiveFormApplication.js"}),
+    {
+      portal: topBarPortal
+    }
+  )

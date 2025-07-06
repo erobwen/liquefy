@@ -50,7 +50,7 @@ export class Demo extends Component {
     // Example of building static child-flow components in the setState. Remember to add them to onEstablish/onDispose
     this.items = [
       new RecursiveExample({key: "recursive-demo", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
-      new ReactiveForm({key: "reactive-form", initialData, style: fitContainerStyle}),
+      new ReactiveForm({key: "reactive-form", initialData, style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new AnimationExample({key: "animation-example", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new ProgrammaticReactiveLayout({key: "programmatic-reactive-layout", name: "Programmatic Responsiveness", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new ModalExample({key: "modal-example", style: fitContainerStyle, topBarPortal: this.topBarPortal}),

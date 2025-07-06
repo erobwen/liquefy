@@ -1,5 +1,5 @@
-import { toProperties, getRenderContext } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, addDefaultStyle } from "@liquefy/flow.DOM";
+import { toProperties, getRenderContext, extractProperty } from "@liquefy/flow.core";
+import { toButtonProperties, toInputProperties, addDefaultStyle, label, text } from "@liquefy/flow.DOM";
 
 
 /**
@@ -14,9 +14,9 @@ export function toMduiInputProperties(parameters) {
   const defaultStye = {
     height: 56
   }
-  if (type === "number" && variant === "outlined") {
+  if (type === "number") { //  && variant === "outlined"
     defaultStye.width = 120
-    defaultStye.height = 40
+    // defaultStye.height = 40
   }
   return {
     key,
@@ -32,3 +32,60 @@ export function toMduiInputProperties(parameters) {
     )
   }
 }
+
+
+export function toMduiCheckboxProperties(parameters) {
+  const properties = toInputProperties(parameters);
+  const {key, type, variant="filled", labelText, children, setter, getter, getErrors, ...restProperties} = properties;
+  // const defaultStye = {
+  //   height: 56
+  // }
+  const labelChild = label(text(labelText));  //, {style: {paddingRight: "4px", margin: "", lineHeight: 20}}
+  return {
+    key,
+    type,
+    onChange: (event) => setter(event.target.checked),
+    checked: getter(),
+    variant,
+    value: getter(),
+    children: [labelChild],
+    errors: getErrors ?  getErrors() : null,
+    // ...addDefaultStyle(
+      ...restProperties,
+      // defaultStye
+    // )
+  }
+}
+
+
+// export function findImplicitChildrenAndOnChange(properties) {
+//   const componentContent = extractProperty(properties, "componentContent");
+//   if (!componentContent) return properties;
+  
+//   let children = null;
+//   let onChange = null;
+//   for (let item of componentContent) {
+//     if (typeof item === "function") {
+//       if (onChange) throw new Error("Can only have one onChange function as flow content.");
+//       onChange = item; 
+//     } else {
+//       if (!children) children = [];
+//       children.push(item);
+//     }
+//   }
+//   if (onChange) {
+//     if (properties.onChange) {
+//       throw new Error("implicitly defined onChange already defined explicitly in properties.");
+//     }
+//     properties.onChange = onChange;
+//   }
+//   // if (!properties.onChange) throw new Error("Expected onChange defined as a property.");
+//   if (children) {
+//     if (properties.children) {
+//       throw new Error("implicitly defined children already defined explicitly in properties.");
+//     }
+//     properties.children = children;
+//   }
+//   createTextNodesFromStringChildren(properties, properties.key);
+//   return properties;
+// }

@@ -4,7 +4,7 @@ import { centerMiddle, column, fitContainerStyle } from "@liquefy/basic-ui";
 
 import { button, textInput } from "@liquefy/themed-ui";
 import { modernTheme } from "@liquefy/modern-ui";
-import { checkboxInputField } from "@liquefy/basic-ui";
+import { checkboxInput } from "@liquefy/basic-ui";
 import { applicationMenuFrame, fillerStyle, layoutBorderStyle } from "@liquefy/basic-ui";
 import { basicTheme } from "@liquefy/basic-ui";
 import { assignGlobalTheme } from "@liquefy/themed-ui";
@@ -30,7 +30,7 @@ class ThemeTest extends Component {
   render() {
     return applicationMenuFrame({
       appplicationMenu: column(
-        checkboxInputField("Modern Theme", this, "modernTheme"),
+        checkboxInput("Modern Theme", this, "modernTheme"),
         text("First"), 
         text("Second"), 
         text("Third"), 
@@ -51,7 +51,7 @@ class ThemeTest extends Component {
     // return div("Some Text");
     return centerMiddle(
       column(
-        checkboxInputField("Modern Theme", this, "modernTheme"),
+        checkboxInput("Modern Theme", this, "modernTheme"),
         button("test", "Test", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}}),
       ),
       {style: {...fitContainerStyle, padding: "20px"}}

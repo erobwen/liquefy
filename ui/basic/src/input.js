@@ -41,7 +41,7 @@ export function inputField(properties) {
   const getErrors = extractProperty(properties, "getErrors");  
   const inputProperties = extractProperty(properties, "inputProperties");
   const inputStyle = extractProperty(inputProperties, "style");
-  console.log("Type" + type);
+  // console.log("Type" + type);
 
   addDefaultStyle(properties, {height: 28})
 
@@ -67,13 +67,13 @@ export function inputField(properties) {
     },
     ...inputProperties
   };
-  console.log("Input attributes", inputAttributes);
+  // console.log("Input attributes", inputAttributes);
   
   const children = [
     elementNode({
       key: properties.key + ".input", 
       tagName: "input",
-      componentTypeName: type + "InputField", 
+      componentTypeName: type + "Input", 
       attributes: inputAttributes
     })
   ]; 
@@ -97,23 +97,5 @@ export function inputField(properties) {
     children, 
     ...properties
   });
-}
-
-export function textInputField(...parameters) {
-  const properties = toInputProperties(parameters);
-  properties.type = "text";
-  return inputField(properties);
-}
-
-export function checkboxInputField(...parameters) {
-  const properties = toInputProperties(parameters);
-  properties.type = "checkbox";
-  return inputField(properties);
-}
-
-export function numberInputField(...parameters) {
-  const properties = toInputProperties(parameters);
-  properties.type = "number";
-  return inputField(properties);
 }
 

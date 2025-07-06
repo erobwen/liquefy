@@ -15,7 +15,7 @@ export const dialogue = (...parameters) => {
 // Note: Had to prefix name with Modern so that pattern matching wont match it with basic dialogue. How to prevent? 
 export class ModernDialogue extends Component {
   receive({close, children, style, title, variant="filled"}) {
-    console.log("material dialogue receive", {close, children, style, title, variant});
+    // console.log("material dialogue receive", {close, children, style, title, variant});
     this.close = close;
     this.children = children;
     this.style = {

@@ -6,7 +6,7 @@ import javascript from 'highlight.js/lib/languages/javascript';
 import { cardShadow3, fillerStyle, modalContainer, popover } from "@liquefy/basic-ui";
 import { wrapper, overlay, fitContainerStyle } from "@liquefy/basic-ui";
 
-import { dialogue, buttonIcon, alert } from "@liquefy/themed-ui";
+import { dialogue, buttonIcon, alert, cardColumn, card } from "@liquefy/themed-ui";
 
 hljs.registerLanguage('javascript', javascript);
 
@@ -110,3 +110,45 @@ export class DisplayCodeButton extends Component {
 }
   
 
+export function codeDisplay(...parameters) {
+  return new CodeDisplay(...parameters);
+}
+
+export class CodeDisplay extends Component {
+  receive({code}) {
+    this.code = code;
+  }
+
+  render() {
+    const highlightedCode = hljs.highlight(
+      this.code,
+      { language: 'javascript' }
+    ).value;
+
+    return card(
+      code("codeBlock", 
+        { 
+          attributes: {
+            style: { 
+              overflow: "hidden",
+              fontSize: 14, 
+              padding: 15, 
+              whiteSpace: "pre", 
+              display: "inline-block"
+            },
+            innerHTML: highlightedCode, 
+            class: "language-js hljs language-javascript",
+          }
+        }
+      ),
+      {
+        style: {
+          whiteSpace: "pre",
+          ...fillerStyle, // Consider: How to inject this by container?
+          overflow: "auto", 
+          margin: 0,
+        },
+      }
+    )
+  }
+}

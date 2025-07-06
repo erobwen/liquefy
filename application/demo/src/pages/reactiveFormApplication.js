@@ -374,7 +374,7 @@ const topPortalContents = (topBarPortal) =>
     wrapper(
       checkboxInput("Animate", () => configuration.animation, (checked) => configuration.animation = checked ? zoomAnimation : null, 
       {style: naturalSizeStyle}),
-      {style: {...naturalSizeStyle, width: 200}}
+      {style: {...naturalSizeStyle, width: 150}}
     ),
     informationButton(
       column(

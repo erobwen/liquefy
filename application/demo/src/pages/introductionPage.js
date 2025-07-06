@@ -4,8 +4,10 @@ import { div, text, h1, a, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } 
 import { alert } from "@liquefy/themed-ui";
 import { portalContents, middle, fitContainerStyle, cardShadow3 } from "@liquefy/basic-ui";
 
+import { codeDisplay, displayCodeButton } from "../components/information";
+
 import file from './introductionPage?raw';
-import { displayCodeButton } from "../components/information";
+import helloWorldFile from './helloWorld?raw';
 
 
 function blue(...parameters) {
@@ -18,7 +20,7 @@ export class IntroductionPage extends Component {
   
   receive({topBarPortal}) {
     this.topBarPortal = topBarPortal;
-  } 
+  }
 
   render() {
     return (
@@ -29,7 +31,11 @@ export class IntroductionPage extends Component {
           p(blue("Flow is radical, innovative and uses state of the art technology!")),
           p("The purpose of Flow is to make advanced user interface building so simple that anyone can do it!"),
           alert(
-            p("This demo demonstrates the key features of flow, while showing how little code is needed to use them. See code by clicking the top left button."),
+            p("This demo demonstrates the key features of flow, while showing how little code is needed to use them."),
+            ul(
+              li("See code by clicking the top left button"),
+              li("Click information buttons to see information about what is shown.")
+            ),
             p("In addition, this demo also serves as a testbed for Flow. Right now there are no unit tests, so all features of this demo needs to be validated upon any changes to the framework."),
             {severity: "info", style: {boxShadow: cardShadow3, marginTop: 10, marginBottom: 10}},
           ),
@@ -37,6 +43,8 @@ export class IntroductionPage extends Component {
             p("This demo is a work in progress. Most features are working, but there are still a few glitches. "),
             {severity: "warning", style: {boxShadow: cardShadow3}}
           ),
+          h2("Hello World"),
+          codeDisplay({code: helloWorldFile}),
           h2("Based on"),
           ul(
             li(blue("Programmatic approach."), " User interface is generated using javascript functions."),

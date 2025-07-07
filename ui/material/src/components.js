@@ -54,6 +54,7 @@ export const card = (...parameters) => {
 function getCardStyle(variant) {
   if (variant === "elevated") {
     return {
+      boxSizing: "border-box",
       padding: "10px",
       borderRadius:  "0.75rem",
       // borderRadius: "var(--shape-corner)",
@@ -62,6 +63,7 @@ function getCardStyle(variant) {
     }
   } else if (variant === "filled") {
     return {
+      boxSizing: "border-box",
       padding: "10px",
       borderRadius:  "0.75rem",
       backgroundColor: "rgb(179 168 206)",
@@ -71,6 +73,7 @@ function getCardStyle(variant) {
     }
   } else if (variant === "outlined") {
     return {
+      boxSizing: "border-box",
       padding: "10px",
       borderRadius:  "0.75rem",
       border: ".0625rem solid rgb(var(--mdui-color-outline))"

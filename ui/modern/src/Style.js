@@ -13,7 +13,7 @@ export const panelStyle = {
 };
 
 export const borderStyle = {
-  boxShadow: "border-box",
+  boxSizing: "border-box",
   borderWidth: "1px",
   borderStyle: "solid",
   borderColor: "gray",

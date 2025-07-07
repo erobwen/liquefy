@@ -32,8 +32,7 @@ export class IntroductionPage extends Component {
         div(
           h1("Introduction to Flow"),
           p("Reactive front end framework, with an integrated state management system."),
-          p(blue("Flow is radical, innovative and uses state of the art auto-observation technology!")),
-          p("The purpose of Flow is to make advanced user interface building incredibly simple!"),
+          p(blue("The purpose of Flow is to make advanced user interface building incredibly simple!")),
           alert(
             p("This demo demonstrates the key features of flow, while showing how little code is needed to use them."),
             ul(
@@ -56,12 +55,14 @@ export class IntroductionPage extends Component {
             li(blue("Auto Observation"), " that relieves you of any need to declare data dependencies (similar to MobX)"),
             li(blue("Mutability freedom"), " allows you to refer to and change any state or component from anywhere while maintaining safe and efficient updates."),
           ),
-          h2("Notable features"),
+          h2("Technical features"),
           ul(
+            li("Uses ", blue("JSProxy"), " objects for 100% transparent data dependency tracking."),
             li("Provides ", blue("Minimal DOM Updates"), " for fine grained change response and efficiency."),
             li(blue("Component lifecycle control"), " allows you to control when components are created or disposed allowing for off-screen components that maintain their state and DOM elements."),
             li(blue("DOM transition animations"), " allows you to animate DOM-elements that move to another place in the DOM as well as appear or dissapear."),
-            li(blue("Component-time portals"), " allows you to populate portals instantly without having to render them first."),
+            li(blue("Component-time portals"), " allows you to populate portals instantly without having to go through a browser render cycle first."),
+            li(blue("Look ahead rendering"), " where a component being rendered can observe dimensions of children and make layout decisions based on that."),
           ),
           h2("Supports"),
           ul(

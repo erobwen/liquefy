@@ -76,6 +76,7 @@ export class DisplayCodeButton extends Component {
               { 
                 attributes: {
                   style: { 
+                    userSelect: "text",
                     overflow: "hidden",
                     fontSize: 14, 
                     padding: 15, 
@@ -133,6 +134,7 @@ export class CodeDisplay extends Component {
         { 
           attributes: {
             style: { 
+              userSelect: "text",
               overflow: "hidden",
               fontSize: 14, 
               padding: 15, 

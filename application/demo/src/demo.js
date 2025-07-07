@@ -43,7 +43,7 @@ export class Demo extends Component {
     this.selectedTheme = materialTheme;
     assignGlobalTheme(this.selectedTheme);
 
-    this.leftColumnPortal = portal({key: "portal", style: {...columnStyle, overflow: "visible"}});
+    this.leftColumnPortal = portal({key: "portal", style: {...columnStyle, ...fillerStyle, alignItems: "start", overflow: "visible"}});
     this.topBarPortal = portal("topBarPortal", {style: {...rowStyle, alignItems: "center"}});
 
     this.introduction = new IntroductionPage("introductionPage", {topBarPortal: this.topBarPortal});
@@ -131,7 +131,6 @@ export class Demo extends Component {
       )
     );
     listItems.push(this.leftColumnPortal);
-    listItems.push(filler());
     listItems.push(
       row(
         button(

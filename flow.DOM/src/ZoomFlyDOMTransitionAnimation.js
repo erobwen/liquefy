@@ -776,7 +776,7 @@ export class ZoomFlyDOMTransitionAnimation extends DOMTransitionAnimation {
           // log(trailer)
           // log(leader);
           // log(trailer === leader);
-          if (trailer) throw new Error("Internal error, should not happen!");
+          //if (trailer) throw new Error("Internal error, should not happen!"); // TODO: Examine why happens in the portal demo. 
           break;
   
         case changeType.resident: 

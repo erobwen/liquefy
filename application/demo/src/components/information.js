@@ -115,11 +115,14 @@ export function codeDisplay(...parameters) {
 }
 
 export class CodeDisplay extends Component {
-  receive({code}) {
+  receive({code, style}) {
     this.code = code;
+    this.style = style; 
   }
 
   render() {
+    const { style } = this;
+
     const highlightedCode = hljs.highlight(
       this.code,
       { language: 'javascript' }
@@ -146,7 +149,8 @@ export class CodeDisplay extends Component {
           whiteSpace: "pre",
           ...fillerStyle, // Consider: How to inject this by container?
           overflow: "auto", 
-          margin: 0,
+          margin: 0, 
+          ...style, // Allow to override the style.
         },
       }
     )

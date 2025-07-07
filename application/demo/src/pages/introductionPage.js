@@ -7,15 +7,19 @@ import { portalContents, middle, fitContainerStyle, cardShadow3 } from "@liquefy
 import { codeDisplay, displayCodeButton } from "../components/information";
 
 import file from './introductionPage?raw';
-import helloWorldFile from './helloWorld?raw';
+import helloWorldFile from './codeExamples/helloWorld.js?raw';
 
-
+// Styling
 function blue(...parameters) {
   const properties = toPropertiesWithChildren(parameters)
   addDefaultStyle(properties, {color: "blue"})
   return b(properties)
 }
 
+
+/**
+ * Introduction Page
+ */
 export class IntroductionPage extends Component {
   
   receive({topBarPortal}) {
@@ -28,8 +32,8 @@ export class IntroductionPage extends Component {
         div(
           h1("Introduction to Flow"),
           p("Reactive front end framework, with an integrated state management system."),
-          p(blue("Flow is radical, innovative and uses state of the art technology!")),
-          p("The purpose of Flow is to make advanced user interface building so simple that anyone can do it!"),
+          p(blue("Flow is radical, innovative and uses state of the art auto-observation technology!")),
+          p("The purpose of Flow is to make advanced user interface building incredibly simple!"),
           alert(
             p("This demo demonstrates the key features of flow, while showing how little code is needed to use them."),
             ul(
@@ -80,7 +84,6 @@ export class IntroductionPage extends Component {
           ), 
           {
             style: {
-              // overflowWrap: "auto", 
               margin: 30,
             }
           }
@@ -91,12 +94,9 @@ export class IntroductionPage extends Component {
             overflowX: "hidden",
             overflowY: "auto",
             whiteSpace: "normal"
-            // overflowWrap: "auto", 
           }
         }
       )
     )
   }
 }
-
-// middle()

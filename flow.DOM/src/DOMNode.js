@@ -17,7 +17,7 @@ export function aggregateToString(flow) {
   let scan = flow;
   while (scan) {
     // if (!(scan instanceof RenderContextPrimitive)) {
-      // Dont display flow target primitive.       
+      // Dont display render context primitive.       
       id.unshift(scan.toString());
     // }
     scan = scan.equivalentCreator;

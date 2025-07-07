@@ -20,7 +20,7 @@ class Hello extends Component {
   }
 }
 
-// Create an instance, and set as content of a flow target.
+// Create an instance, and set as content of a render context.
 new DOMRenderContext(document.getElementById("root")).render(
   new Hello({to: "World"})
 )

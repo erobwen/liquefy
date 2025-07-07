@@ -1,24 +1,23 @@
 
-import { observable, Component, transaction, toProperties } from "@liquefy/flow.core";
+import { model, Component, transaction, toProperties } from "@liquefy/flow.core";
 
-import { text, div, DOMRenderContext, standardAnimation, addDefaultStyle } from "@liquefy/flow.DOM";
+import { text, div, p, ul, li, DOMRenderContext, standardAnimation, addDefaultStyle } from "@liquefy/flow.DOM";
 
-import { button, column, filler, fillerStyle, naturalSizeStyle, row } from "@liquefy/basic-ui";
+import { column, filler, fillerStyle, naturalSizeStyle, portalContents, row } from "@liquefy/basic-ui";
 import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";
 import { SimpleAddRemoveAnimation } from "./animation/simpleAddRemoveAnimation";
 
-const log = console.log;
+import { button } from "@liquefy/themed-ui";
+import { codeDisplay, displayCodeButton, informationButton } from "../components/information";
 
-/**
- * Flow definitions
- */
+import file from './animationExample?raw';
+import moveComponentFile from './codeExamples/moveComponent?raw';
+
+// Style constants
 const smallSpace = "5px";
 const largeSpace = "20px";
-// const smallSpace = "0px";
-// const largeSpace = "0px";
 
-
-// A very simple model
+// Items
 const items = [
     "Foo", 
     "Fie",
@@ -29,6 +28,8 @@ const items = [
     "Fumbar"
 ];
 
+
+// Item panel
 const panel = (...parameters) => 
   column(
     addDefaultStyle(
@@ -59,19 +60,21 @@ function itemDisplay(item) {
 }
 
 
-// A very simple view component
+/**
+ * Animation Example
+ */
 export class AnimationExample extends Component {
-  receive(properties) {
-    Object.assign(this, properties)
-    const {items} = properties
-    this.name = "DOM Transition Animation"
+  receive({items, style, topBarPortal}) {
+    this.name = "DOM Transition Animation";
+    this.topBarPortal = topBarPortal;
+    this.style = style; 
     this.items = items; 
   }
 
   initialize() {
-    this.store = observable([...this.items]);
-    this.listA = observable([]);
-    this.listB = observable([]);
+    this.store = model([...this.items]);
+    this.listA = model([]);
+    this.listB = model([]);
     transaction(() => {
       let count = 0; 
       while (count-- > 0) addRandomly(removeOneRandom(this.store), this.listA);
@@ -90,27 +93,21 @@ export class AnimationExample extends Component {
   }
 
   render() {
-    // return (
-    //   column(  
-    //       column(
-    //         div({style: {width: "100px", height: "100px", borderWidth: "1px", borderStyle: "solid"}}),
-    //         // div({style: {marginTop: "-100px"}}), // Interesting, this can collapse the parent container... 
-    //         {style: {borderWidth: "1px", borderStyle: "solid"}}
-    //       ), 
-    //       filler()
-    //     )
-    // )  
-
     return column(
-
-      new SimpleMoveAnimation(),
-      new SimpleAddRemoveAnimation(),
+      topPortalContents(this.topBarPortal),
+      // new SimpleMoveAnimation(),
+      // new SimpleAddRemoveAnimation(),
       column(
         row(
-          button("Randomize", () => transaction(() => randomize(this.listA))),
-          button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
-          button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
-          button("Juggle", () => this.juggle()),
+          row(
+            button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
+            button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
+          ),
+          filler(),
+          row(
+            button("Randomize", () => transaction(() => randomize(this.listA))),
+            button("Juggle", () => this.juggle()),
+          ),
         ),
         column(
           filler(),
@@ -148,6 +145,7 @@ export class AnimationExample extends Component {
   }
 }
 
+
 /**
  * This is what you would typically do in index.js to start this app. 
  */
@@ -163,7 +161,6 @@ export function startAnimationExample() {
 /**
  * Random stuff
  */
-
 function removeOneRandom(list) {
   const index = Math.floor(Math.random()*(list.length))
   // const index = 0;
@@ -192,3 +189,26 @@ function addRandomly(item, list) {
   // const insertIndex = list.length;
   list.splice(insertIndex, 0, item);
 }
+
+
+/**
+ * Top portal content
+ */
+const topPortalContents = (topBarPortal) =>
+  portalContents("animationExampleInformation", 
+    informationButton(
+      column(
+        p("A demo of the DOM transition animation:"),
+        ul(
+          li("Try out: Add and remove, randomize and juggle"), 
+          li("These animations are triggered when a Flow component moves place in the component hierarchy from one place to another. Study the following simple example: "),
+        ),
+        codeDisplay({code: moveComponentFile, style: {height: 300, ...naturalSizeStyle, overflow: "auto"}}),
+        { style: {width: 800, whiteSpace: "normal"}}
+      )
+    ),
+    displayCodeButton({code: file, fileName: "src/pages/animationExample.js"}),
+    {
+      portal: topBarPortal
+    }
+  )

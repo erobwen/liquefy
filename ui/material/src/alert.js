@@ -6,7 +6,7 @@ import { centerMiddle, filler, row } from "@liquefy/basic-ui";
 
 
 const iconNames = {
-  "warning": "exclamation-triangle",
+  "warning": "warning",
   "error": "exclamation-circle",
   "info": "info", // Consider: "info-circle" did not work and gave a double glyph? Why did it work for basic-ui? 
   "success": "check-circle"
@@ -47,7 +47,7 @@ export function alert(...parameters) {
  
   return cardRow(
     icon({
-      name: iconNames["info"], 
+      name: iconNames[severity], 
       style: { fontSize: 40, margin: 10, color: iconColors[severity]}
     }),
     filler(children, { style: { color: colors[severity]}}),

@@ -2,8 +2,8 @@ import { Component } from "./Component";
 import { renderComponentTime, workOnPriorityLevel } from "./Flow";
 
 /**
- * Implement any flow target that implements HTML Element Node and HTML Text Node. 
- * A flow target could implement just a subset of all HTML tags and attributes, but could instead be an approxiomation 
+ * Implement any render context that implements HTML Element Node and HTML Text Node. 
+ * A render context could implement just a subset of all HTML tags and attributes, but could instead be an approxiomation 
  */
 // export const renderContexts = [];
 

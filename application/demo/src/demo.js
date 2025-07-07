@@ -62,8 +62,6 @@ export class Demo extends Component {
       item.onEstablish();
     }
 
-    // if (path)
-
     // this.chosen = this.introduction;
     // this.chosen = this.items.find(item => item.key === "recursiveDemo");
     // this.chosen = this.items.find(item => item.key === "reactiveForm");
@@ -122,6 +120,14 @@ export class Demo extends Component {
         })
       )
     }
+    listItems.push(
+      informationButton(
+        column(
+          p("Notice how fast it is to switch page, this is because components in Flow can live while off-screen, maintain state and even DOM elements."),
+          { style: {width: 800, whiteSpace: "normal"}}
+        )
+      )
+    );
     listItems.push(this.leftColumnPortal);
     listItems.push(filler());
     listItems.push(
@@ -155,7 +161,6 @@ export class Demo extends Component {
         key: "left-column", 
         style: {
           ...columnStyle,
-          // ...naturalSizeStyle, only in X direction!
           ...fillerStyle,
           height: "100%",
           width: "270px",
@@ -170,7 +175,6 @@ export class Demo extends Component {
   }
 
   render() {
-    // Investigate: Why is this being re-rendered by changes made from overlay-frame? It changes Demo.parentPrimitive that cause a re-render of Demo? 
     const { path } = this; 
     let chosen;
     if (this.path.length === 1) {
@@ -184,7 +188,6 @@ export class Demo extends Component {
         setTimeout(() => {
           this.chose(this.introduction); 
         })
-        // return div(); 
       }
     }
 
@@ -196,27 +199,6 @@ export class Demo extends Component {
         bounds: this.bounds
       }
     )
-
-    // const mainBounds = {
-    //   width: (this.bounds.width <= 855) ? this.bounds.width : this.bounds.width - 300,
-    //   height: this.bounds.height - 64  
-    // }
-    // console.log(mainBounds);
-    // this.chosen.bounds = mainBounds;
-    // return overlayFrame(
-    //   layout(
-    //     topAppBar(filler(), text("by Robert Renbris"), {style: {color: "white", backgroundColor: "rgb(var(--mdui-color-primary))"}}),
-    //     navigationDrawer(this.buildMenu(), {open: true, style: {}}),
-    //     layoutMain(this.chosen),          
-    //     {
-    //       style: fitContainerStyle
-    //     }
-    //   ), 
-    //   {
-    //     style: fitContainerStyle
-    //   },
-    // )
-
   }
 }
 

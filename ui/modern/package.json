@@ -1,7 +1,7 @@
 {
   "name": "@liquefy/modern-ui",
   "version": "1.0.0",
-  "description": "A modern widget collection for Flow.",
+  "description": "A modern widget collection for Flow. DEPRECATED use ui-material instead.",
   "type": "module",
   "module": "./index.js",
   "scripts": {
@@ -24,10 +24,7 @@
   "homepage": "https://github.com/erobwen/liquefy#readme",
   "peerDependencies": {
     "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.DOM": "file:../../flow.DOM",
+    "@liquefy/flow.dom": "file:../../flow.DOM",
     "@liquefy/basic-ui": "file:../basic"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

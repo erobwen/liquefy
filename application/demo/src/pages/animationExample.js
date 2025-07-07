@@ -1,7 +1,7 @@
 
 import { model, Component, transaction, toProperties } from "@liquefy/flow.core";
 
-import { text, div, p, ul, li, DOMRenderContext, standardAnimation, addDefaultStyle } from "@liquefy/flow.DOM";
+import { text, div, p, ul, li, DOMRenderContext, standardAnimation, addDefaultStyle } from "@liquefy/flow.dom";
 
 import { column, filler, fillerStyle, naturalSizeStyle, portalContents, row } from "@liquefy/basic-ui";
 import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";

@@ -1,5 +1,5 @@
 import { callback, Component } from "@liquefy/flow.core";
-import { div, code, pre } from "@liquefy/flow.DOM";
+import { div, code, pre } from "@liquefy/flow.dom";
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 

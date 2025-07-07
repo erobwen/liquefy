@@ -1,5 +1,5 @@
 import { Component, toProperties, log, logMark } from "@liquefy/flow.core"
-import { div, text } from "@liquefy/flow.DOM";
+import { div, text } from "@liquefy/flow.dom";
 
 import { centerMiddle, column, filler, fillerStyle, fitContainerStyle, row, rowStyle } from "@liquefy/basic-ui";
 import { overlayFrame, icon, zStackElementStyle, zStack, overflowVisibleStyle } from "@liquefy/basic-ui";

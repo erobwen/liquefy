@@ -1,5 +1,5 @@
 import { observable, deeplyObservable, repeat, Component, toProperties, getRenderContext } from "@liquefy/flow.core"
-import { div, text, DOMRenderContext, toInputProperties, elementNode, toButtonProperties } from "@liquefy/flow.DOM"
+import { div, text, DOMRenderContext, toInputProperties, elementNode, toButtonProperties } from "@liquefy/flow.dom"
 import "./materialExperiments.css";
 import { MdOutlinedIconButton, MdTextButton } from '@material/web/all.js';
 

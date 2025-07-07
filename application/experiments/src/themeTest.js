@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { text, DOMRenderContext } from "@liquefy/flow.DOM";
+import { text, DOMRenderContext } from "@liquefy/flow.dom";
 import { centerMiddle, column, fitContainerStyle } from "@liquefy/basic-ui";
 
 import { button } from "@liquefy/themed-ui";

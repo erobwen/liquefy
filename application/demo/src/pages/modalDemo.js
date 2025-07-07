@@ -1,5 +1,5 @@
 import { callback, Component, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, p, ul, li, img } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, div, p, ul, li, img } from "@liquefy/flow.dom";
 import { button, cardColumn, dialogue } from "@liquefy/themed-ui";
 
 import {

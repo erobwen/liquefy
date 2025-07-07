@@ -27,6 +27,6 @@
   "peerDependencies": {
     "@liquefy/causality": "file:../causality",
     "@liquefy/flow.core": "file:../flow.core",
-    "@liquefy/flow.DOM": "file:../flow.DOM"
+    "@liquefy/flow.dom": "file:../flow.DOM"
   }
 }

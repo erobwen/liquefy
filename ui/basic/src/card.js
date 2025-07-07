@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
-import { addDefaultStyle, div } from "@liquefy/flow.DOM";
+import { addDefaultStyle, div } from "@liquefy/flow.dom";
 import { rowStyle, columnStyle } from "./Layout";
 
 export const cardShadows = [

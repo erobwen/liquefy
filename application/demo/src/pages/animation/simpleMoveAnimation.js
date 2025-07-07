@@ -1,6 +1,6 @@
 
 import { Component, transaction } from "@liquefy/flow.core";
-import { div, DOMRenderContext } from "@liquefy/flow.DOM";
+import { div, DOMRenderContext } from "@liquefy/flow.dom";
 import { button as basicButton, column, filler, row, overflowVisibleStyle, layoutBorderStyle } from "@liquefy/basic-ui";
 
 

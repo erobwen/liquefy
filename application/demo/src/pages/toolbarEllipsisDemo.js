@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { p, DOMRenderContext } from "@liquefy/flow.DOM";
+import { p, DOMRenderContext } from "@liquefy/flow.dom";
 import { alert } from "@liquefy/themed-ui";
 
 import { filler, wrapper, column, row, layoutBorderStyle, portalContents, cardShadow3, popover } from "@liquefy/basic-ui";

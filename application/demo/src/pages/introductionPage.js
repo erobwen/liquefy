@@ -1,6 +1,6 @@
 import { Component, toPropertiesWithChildren } from "@liquefy/flow.core";
 
-import { div, text, h1, a, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } from "@liquefy/flow.DOM";
+import { div, text, h1, a, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } from "@liquefy/flow.dom";
 import { alert } from "@liquefy/themed-ui";
 import { portalContents, middle, fitContainerStyle, cardShadow3 } from "@liquefy/basic-ui";
 

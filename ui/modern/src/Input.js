@@ -1,5 +1,5 @@
 import { toProperties, Component } from "@liquefy/flow.core";
-import { findImplicitChildrenAndOnClick } from "@liquefy/flow.DOM";
+import { findImplicitChildrenAndOnClick } from "@liquefy/flow.dom";
 
 const log = console.log; 
 

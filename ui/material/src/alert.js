@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
-import { addDefaultStyle, text } from "@liquefy/flow.DOM";
+import { addDefaultStyle, text } from "@liquefy/flow.dom";
 import { card, cardRow } from "./components";
 import { icon } from "./components";
 import { centerMiddle, filler, row } from "@liquefy/basic-ui";

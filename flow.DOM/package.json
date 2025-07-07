@@ -1,5 +1,5 @@
 {
-  "name": "flow.DOM",
+  "name": "@liquefy/flow.dom",
   "keywords": [
     "Javascript",
     "Proxy",
@@ -26,7 +26,7 @@
 
   "peerDependencies": {
     "@liquefy/flow.core": "file:../flow.core",
-    "@liquefy/flow.DOMAnimation": "file:../flow.DOMAnimation"
+    "@liquefy/flow.domAnimation": "file:../flow.DOMAnimation"
   },
   "publishConfig": {
     "access": "public"

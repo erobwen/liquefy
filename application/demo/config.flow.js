@@ -1,5 +1,5 @@
 import { setFlowConfiguration } from "@liquefy/flow.core";
-import { installDOMAnimation } from "@liquefy/flow.DOM";
+import { installDOMAnimation } from "@liquefy/flow.dom";
 
 setFlowConfiguration({
   traceReactivity: false,

@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { div } from "@liquefy/flow.DOM";
+import { div } from "@liquefy/flow.dom";
 
 import { fitContainerStyle, overflowVisibleStyle, wrapper, zStack, zStackElementStyle } from "./Layout";
 import { overlay } from "./overlay";

@@ -1,6 +1,6 @@
 import { deepFreeze } from "@liquefy/flow.core";
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
-import { elementNode } from "@liquefy/flow.DOM";
+import { elementNode } from "@liquefy/flow.dom";
 
 const log = console.log;
 

@@ -24,7 +24,7 @@
   "homepage": "https://github.com/erobwen/liquefy#readme",
   "peerDependencies": {
     "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.DOM": "file:../../flow.DOM",
+    "@liquefy/flow.dom": "file:../../flow.DOM",
     "@liquefy/ui-themed": "file:../../ui/themed",
     "@liquefy/basic-ui": "file:../../ui/basic",
     "@liquefy/causality": "file:../../causality",

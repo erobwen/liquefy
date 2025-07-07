@@ -30,7 +30,7 @@
     "@liquefy/causality": "file:../../causality",
     "@liquefy/flow": "file:../../flow",
     "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.DOM": "file:../../flow.DOM",
+    "@liquefy/flow.dom": "file:../../flow.DOM",
     "@liquefy/themed-ui": "file:../../ui/themed",
     "@liquefy/ui-material": "file:../../ui/material",
     "highlight.js": "^11.11.1"

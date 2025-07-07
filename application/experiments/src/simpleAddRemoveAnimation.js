@@ -1,4 +1,4 @@
-import { div, text, DOMRenderContext } from "@liquefy/flow.DOM";
+import { div, text, DOMRenderContext } from "@liquefy/flow.dom";
 import { Component } from "@liquefy/flow.core";
 import { column, button } from "@liquefy/basic-ui";
 

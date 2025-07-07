@@ -1,7 +1,7 @@
 import { toProperties } from "@liquefy/flow.core";
 import { globalContext } from "@liquefy/flow.core";
 import { getCreator } from "@liquefy/flow.core";
-import { toInputProperties, addDefaultStyle, toButtonProperties } from "@liquefy/flow.DOM";
+import { toInputProperties, addDefaultStyle, toButtonProperties } from "@liquefy/flow.dom";
 import { toPropertiesWithChildren } from "../../flow.core/src/implicitProperties";
 // import { columnStyle } from "@liquefy/basic-ui";
 

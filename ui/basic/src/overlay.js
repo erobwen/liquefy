@@ -1,7 +1,7 @@
 import { Component, transaction, creators, getRenderContext } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 
-import { div, elementNode } from "@liquefy/flow.DOM";
+import { div, elementNode } from "@liquefy/flow.dom";
 import { logMark } from "@liquefy/flow.core";
 import { toPropertiesWithChildren } from "@liquefy/flow.core/src/implicitProperties";
 const log = console.log;

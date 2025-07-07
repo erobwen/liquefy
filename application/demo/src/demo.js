@@ -1,5 +1,5 @@
 import { Component, logMark, transaction } from "@liquefy/flow.core";
-import { DOMRenderContext, text, p, ul, li, div } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, p, ul, li, div } from "@liquefy/flow.dom";
 
 import { button, assignGlobalTheme, listItem } from "@liquefy/themed-ui";
 

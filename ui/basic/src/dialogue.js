@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { text } from "@liquefy/flow.DOM";
+import { text } from "@liquefy/flow.dom";
 
 import { row, rowStyle, filler, middle } from "./Layout";
 import { buttonIcon } from "./buttons"

@@ -1,5 +1,5 @@
 import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, li, ul, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.DOM";
+import { DOMRenderContext, text, div, li, ul, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.dom";
 import { checkboxInput, numberInput, icon } from "@liquefy/themed-ui";
 import { button, card, textInput, buttonIcon } from "@liquefy/themed-ui";
 

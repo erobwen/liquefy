@@ -23,7 +23,7 @@
   "dependencies": {
     "@liquefy/causality": "file:../../causality",
     "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.DOM": "file:../../flow.DOM",
+    "@liquefy/flow.dom": "file:../../flow.DOM",
     "@liquefy/themed-ui": "file:../../ui/themed",
     "@liquefy/basic-ui": "file:../../ui/basic",
     "@material/web": "^2.2.0",

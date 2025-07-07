@@ -6,7 +6,7 @@ import 'mdui/components/layout-main.js';
 import 'mdui/components/button-icon.js';
 import 'mdui';
 import { toProperties, getRenderContext, toPropertiesWithChildren } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties, elementNode, addDefaultStyle } from "@liquefy/flow.DOM";
+import { toButtonProperties, toInputProperties, elementNode, addDefaultStyle } from "@liquefy/flow.dom";
 
 import { toMduiCheckboxProperties, toMduiInputProperties } from './implicitProperties';
 import "./components.css";

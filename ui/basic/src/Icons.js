@@ -3,7 +3,7 @@
 // import { DOMElementNode } from '@liquefy/flow';
 // import { finalize, repeat, trace } from '@liquefy/flow';
 import { extractProperty, toProperties } from "@liquefy/flow.core";
-import { span, addDefaultStyle } from '@liquefy/flow.DOM';
+import { span, addDefaultStyle } from '@liquefy/flow.dom';
 
 import "./Icons.css";
 

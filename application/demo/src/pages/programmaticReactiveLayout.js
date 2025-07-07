@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/flow.core";
 
-import { text, div, p, ul, li, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.DOM";
+import { text, div, p, ul, li, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.dom";
 
 import { basicWidgetTheme, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle, portalContents } from "@liquefy/basic-ui";
 

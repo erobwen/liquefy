@@ -1,4 +1,4 @@
-import { button as htmlButton, addDefaultStyle, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.DOM";
+import { button as htmlButton, addDefaultStyle, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.dom";
 
 import { centerMiddle } from "./Layout.js";
 import { icon as iconComponent } from "./Icons.js";

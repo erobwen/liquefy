@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core"
-import { li, button, addDefaultStyle } from "@liquefy/flow.DOM"
+import { li, button, addDefaultStyle } from "@liquefy/flow.dom"
 
 
 export function listItem(...parameters) {

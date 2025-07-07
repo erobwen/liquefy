@@ -32,7 +32,8 @@ export class IntroductionPage extends Component {
         div(
           h1("Introduction to Flow"),
           p("Reactive front end framework, with an integrated state management system."),
-          p(blue("The purpose of Flow is to make advanced user interface building incredibly simple!")),
+          p(blue("The purpose of Flow is to make it very simple and fast to build advanced user interfaces that are data driven, generative and reactive.")),
+          p("This is achieved by providing automatic observation using JSProxies on a component level, and a reactive system for component composition."),
           alert(
             p("This demo demonstrates the key features of flow, while showing how little code is needed to use them."),
             ul(

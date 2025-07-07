@@ -125,7 +125,7 @@ export class Demo extends Component {
     listItems.push(
       informationButton(
         column(
-          p("Notice how fast it is to switch page, this is because components in Flow can live while off-screen, maintain state and even DOM elements."),
+          p("Page switching is relativley fast, be because components in Flow can live while off-screen, maintain state and DOM elements."),
           { style: {width: 800, whiteSpace: "normal"}}
         )
       )

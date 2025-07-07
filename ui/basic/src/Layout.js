@@ -33,7 +33,7 @@ export const flexContainerStyle = deepFreeze({
   display:"flex",
   alignItems: "stretch", 
   justifyContent: "flexStart",
-  whiteSpace: "pre",
+  whiteSpace: "normal",
   userSelect: "none",
 });
 

@@ -79,7 +79,7 @@ export class ProgrammaticReactiveLayout extends Component {
       topPortalContents(this.topBarPortal),
       controlPanel,
       column(rows, {style: fillerStyle}),
-      {style: fitContainerStyle}
+      {style: {...fitContainerStyle, whiteSpace: "pre", ...this.style}}
     );
   }
 }
@@ -135,6 +135,7 @@ export class StringDisplay extends Component {
       centerMiddle(
         text(fittedString), 
         {style: {
+          whiteSpace: "pre",
           overflow: "hidden",
           border: "1px solid",
           boxSizing: "border-box",
@@ -156,6 +157,7 @@ function scaledTextWithMaxFontSize(...parameters) {
         key: properties.key,
         children: text(properties.text),
         style: {
+          whiteSpace: "pre",
           ...fitContainerStyle,
           overflow: "hidden",
           fontSize: fontSize + "px",

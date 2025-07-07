@@ -227,7 +227,7 @@ export class ReactiveForm extends Component {
           "Model Data",
           div(
             text(JSON.stringify(this.editData, null, 4)),
-            {style: fillerStyle}
+            {style: {...fillerStyle, whiteSpace: "pre"}}
           ),
           {style: {borderLeft: "1px", borderLeftStyle: "solid", borderLeftColor: "lightgray", backgroundColor: "#eeeeee"}}
         ),

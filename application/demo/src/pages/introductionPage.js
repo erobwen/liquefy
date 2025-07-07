@@ -44,7 +44,7 @@ export class IntroductionPage extends Component {
             {severity: "info", style: {boxShadow: cardShadow3, marginTop: 10, marginBottom: 10}},
           ),
           alert(
-            p("This demo is a work in progress. Most features are working, but there might be glitches. "),
+            p("This demo is a work in progress. Most features are working, but there might be glitches. (for example the MDUI web-components are causing errors when Flow interacts with them while they are not ready.)"),
             {severity: "warning", style: {boxShadow: cardShadow3}}
           ),
           h2("Hello World"),

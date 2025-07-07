@@ -26,26 +26,6 @@ export class ToolbarEllipsisDemo extends Component {
   render() {
     const { topBarPortal, bounds, style } = this;
 
-    return column(
-      topPortalContents(topBarPortal),
-      wrapper(informationPanel()),
-      filler(),
-      new EllipsisToolbar({bounds}),
-      { style: { ...style, backgroundColor: "silver"} }
-    );
-  }
-}
-
-
-/**
- * Ellipsis Toolbar
- */
-export class EllipsisToolbar extends Component {
-  initialize() {
-    this.menuOpen = false;
-  }
-
-  render() {
     // Create an array of mock tools
     const toolIcons = ["search", "home", "settings", "star", "key", "bolt"];
     let toolCount = 0;
@@ -58,6 +38,32 @@ export class EllipsisToolbar extends Component {
       ));
     }
 
+    return column(
+      topPortalContents(topBarPortal),
+      wrapper(informationPanel()),
+      filler(),
+      new EllipsisToolbar(tools, {bounds}),
+      { style: { ...style, backgroundColor: "silver"} }
+    );
+  }
+}
+
+
+/**
+ * Ellipsis Toolbar
+ */
+export class EllipsisToolbar extends Component {
+  recieve({children}) {
+    this.children = children;
+  }
+
+  initialize() {
+    this.menuOpen = false;
+  }
+
+  render() {
+    const { children } = this;
+
     // Create ellipsis button
     const menuButton = buttonIcon("menuButton",
       () => { this.menuOpen = true; },
@@ -69,8 +75,8 @@ export class EllipsisToolbar extends Component {
     const toolbarContents = [];
     const popupMenuContents = [];
     let index = 0;
-    for (const tool of tools) {
-      const isLast = index === tools.length - 1;
+    for (const tool of children) {
+      const isLast = index === children.length - 1;
 
       const widgetWidth = tool.dimensions().width;
       const ellipsisButtonWidth = menuButton.dimensions().width;
@@ -136,7 +142,7 @@ function informationPanel() {
     column(
       p("Demonstrates the power of programmatic responsiveness. We can here see how a toolbar can adapt to the available space, and how it can show an ellipsis menu when there is not enough space for all tools."),
       p("This is not something that you would typically do with .css, container queries and breakpoints. If you ask AI to design this, it will give you a Javascript solution."),
-      { style: { width: 800, whiteSpace: "normal" } }
+      { style: { whiteSpace: "normal" } }
     ),
     {
       severity: "info",

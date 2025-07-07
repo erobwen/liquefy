@@ -82,65 +82,72 @@ export function getWidthIncludingMargin(node) {
 
   // TODO: Make this respond with observable dimensions, and set up DOM event listeners. 
   dimensions(contextNode) {
-    //TODO: Research a way to isolate the reflow used in dimensions to a wecomponent?
-    if (traceWarnings) console.warn("Calls to dimensions() could lead to performance issues as it forces a reflow to measure the size of a dom-node. Note that transition animations may use dimensions() for measuring the size of added nodes"); 
-    let domNode = this.ensureDomNodeBuilt();
-    let alreadyInContext;
-    if (contextNode) { 
-      alreadyInContext = domNode.parentNode === contextNode;
-      if (!alreadyInContext) {
-        // log("Deep cloing and appending child to context... ");
-        domNode = domNode.cloneNode(true);
-        contextNode.appendChild(domNode);
+    try {
+
+      //TODO: Research a way to isolate the reflow used in dimensions to a wecomponent?
+      if (traceWarnings) console.warn("Calls to dimensions() could lead to performance issues as it forces a reflow to measure the size of a dom-node. Note that transition animations may use dimensions() for measuring the size of added nodes"); 
+      let domNode = this.ensureDomNodeBuilt();
+      let alreadyInContext;
+      if (contextNode) { 
+        alreadyInContext = domNode.parentNode === contextNode;
+        if (!alreadyInContext) {
+          // log("Deep cloing and appending child to context... ");
+          domNode = domNode.cloneNode(true);
+          contextNode.appendChild(domNode);
+        } else {
+          // log("No need for cloning, node already in context")
+        }
       } else {
-        // log("No need for cloning, node already in context")
+        domNode = domNode.cloneNode(true);
+        domNode.style.position = "absolute"; 
+        domNode.style.top = "0";
+        domNode.style.left = "0";
+        if (domNode.style.width === "") {
+          domNode.style.width = "auto";
+        }
+        if (domNode.style.height === "") {
+          domNode.style.height = "auto";
+        }
+        document.body.appendChild(domNode); 
+        // Consider: Will this disconnect the dom node if done on an already placed domNode? 
+        // log("No context, deep cloing and appending child to document... ");
       }
-    } else {
-      domNode = domNode.cloneNode(true);
-      domNode.style.position = "absolute"; 
-      domNode.style.top = "0";
-      domNode.style.left = "0";
-      if (domNode.style.width === "") {
-        domNode.style.width = "auto";
-      }
-      if (domNode.style.height === "") {
-        domNode.style.height = "auto";
-      }
-      document.body.appendChild(domNode); 
-      // Consider: Will this disconnect the dom node if done on an already placed domNode? 
-      // log("No context, deep cloing and appending child to document... ");
-    }
+    
+      // domNode.offsetWidth 
+      const result = {
+        width: getWidthIncludingMargin(domNode), 
+        height: getHeightIncludingMargin(domNode),
   
-    // domNode.offsetWidth 
-    const result = {
-      width: getWidthIncludingMargin(domNode), 
-      height: getHeightIncludingMargin(domNode),
-
-      widthIncludingMargin: getWidthIncludingMargin(domNode), 
-      heightIncludingMargin: getHeightIncludingMargin(domNode),
-      
-      widthWithoutMargin: domNode.offsetWidth,
-      heightWithoutMargin: domNode.offsetHeight
-    }; 
-
-    // const original = this.ensureDomNodeBuilt()
-    // log("dimensions " + this.toString() + " : " +  result.width + " x " +  result.height);
-    // log(original);
-    // debugger;
-    // log("dimensions clone")
-    // log(domNode);
-    // log(domNode.offsetWidth);
-    // log(domNode.parentNode);
-    // log(domNode.parentNode.offsetWidth);
-
-    if (contextNode) {
-      if (!alreadyInContext) {
-        contextNode.removeChild(domNode);
+        widthIncludingMargin: getWidthIncludingMargin(domNode), 
+        heightIncludingMargin: getHeightIncludingMargin(domNode),
+        
+        widthWithoutMargin: domNode.offsetWidth,
+        heightWithoutMargin: domNode.offsetHeight
+      }; 
+  
+      // const original = this.ensureDomNodeBuilt()
+      // log("dimensions " + this.toString() + " : " +  result.width + " x " +  result.height);
+      // log(original);
+      // debugger;
+      // log("dimensions clone")
+      // log(domNode);
+      // log(domNode.offsetWidth);
+      // log(domNode.parentNode);
+      // log(domNode.parentNode.offsetWidth);
+  
+      if (contextNode) {
+        if (!alreadyInContext) {
+          contextNode.removeChild(domNode);
+        }
+      } else {
+        document.body.removeChild(domNode);
       }
-    } else {
-      document.body.removeChild(domNode);
+      return result; 
+    } catch (error) {
+      if (traceWarnings) console.warn("Error in dimensions: " + error.message);
+      // console.error(error);
+      return {width: 0, height: 0, widthIncludingMargin: 0, heightIncludingMargin: 0, widthWithoutMargin: 0, heightWithoutMargin: 0};
     }
-    return result; 
   }
   
   reactiveBoundingClientRect() {

@@ -1,13 +1,11 @@
 ![Logotype](/application/demo/public/flow.svg?raw=true "Logotype")
 
-By Robert Renbris
-
-#### Overview
+## Overview
 
 Flow is a generative front end framework based on Javascript-first principle and auto-observation state management (similar to MobX). Flow will allways do minimal updates to the actual DOM by the use of a synthetic dom. 
 
 
-#### Hello World
+## Hello World
 
 ```js
 import { Component } from "@liquefy/flow.core";
@@ -45,7 +43,7 @@ new DOMRenderContext(document.getElementById("root")).render(
 ```
 
 
-#### To run demo
+## To run demo
 
 There is a demo application that you can try out from this url: https://erobwen.github.io/liquefy/
 
@@ -54,17 +52,17 @@ There is a demo application that you can try out from this url: https://erobwen.
 In the top right corner of the screen is a button that allows you to show the code of whatever you see in the demo.
 
 
-#### Important!
-
-This is a multi-repo, containing multiple interdependent npm packages. 
-
-
-#### Coming soon
+## Coming soon
 
 Next step is to build and deploy the pakcages in this repository on npm.  
 
 
-#### Development (run demo in dev mode)
+## Important!
+
+This is a multi-repo, containing multiple interdependent npm packages. 
+
+
+## Development (run demo in dev mode)
 
 in the root directory: 
 
@@ -77,7 +75,7 @@ in application/demo:
 Demo is served at: http://localhost:5173/
 
 
-#### Previous Repository
+## Previous Repository
 
 This repository is a more mature version of the experiments from this repository https://github.com/erobwen/reactive-flow . 
 

@@ -4,9 +4,10 @@ import { text, div, p, ul, li, DOMRenderContext, toPropertiesWithImplicitSingleT
 
 import { basicWidgetTheme, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle, portalContents } from "@liquefy/basic-ui";
 
-import { numberInput } from "@liquefy/themed-ui";
+import { cardRow, numberInput } from "@liquefy/themed-ui";
 import { displayCodeButton, informationButton } from "../components/information";
 
+import waves from '../../public/surface.jpg';
 import file from './programmaticReactiveLayout?raw';
 
 
@@ -29,13 +30,13 @@ export class ProgrammaticReactiveLayout extends Component {
 
   render() {
     // Create control panel
-    const controlPanel = column("control-panel",
-      row(
-        numberInput("Rows", this, "rows"),
-        numberInput("Columns", this, "columns"),
-      ),
-      text("Try change the size of the browser window, and add/remove columns/rows. Try do this with css :-)"),
-      {style: naturalSizeStyle}
+    const controlPanel = cardRow("controlPannel",
+      numberInput("Rows", this, "rows"),
+      numberInput("Columns", this, "columns"),
+      {
+        style: {...naturalSizeStyle, gap: 10, padding: 10, marginBottom: 10},
+        variant: "filled"        
+      }
     );
     const controlPanelHeight = controlPanel.dimensions().height; 
 
@@ -98,10 +99,14 @@ export class BoundsDisplay extends Component {
     const text = "Bounds: " + Math.round(this.bounds.width) + " x " + Math.round(this.bounds.height);
     return (
       centerMiddle(
-        scaledTextWithMaxFontSize(
-          {text, width: this.bounds.width}
+        scaledTextWithMaxFontSize({
+          text, 
+          width: this.bounds.width, 
+          style: { backgroundColor: "rgba(255, 255, 255, 0.3)" } }
         ),
         {style: {
+          backgroundImage: `url(${waves})`,
+          backgroundSize: "tiled",
           overflow: "hidden",
           border: "1px solid",
           backgroundColor: "silver", 
@@ -240,7 +245,9 @@ const topPortalContents = (topBarPortal) =>
     informationButton(
       column(
         p("Demonstrates the principles of programmatic responsiveness."),
+        p("Try change the width of the window and see how the layout responds."),
         ul(
+          li("All components are aware of their pixel budget in terms of width/height and respond accordingly."),
           li("Programmaticly fitting a div of constant aspect ratio within a container."),
           li("Programmaticly fitting a text within a container, by dynamically calculating font size."),
         ),

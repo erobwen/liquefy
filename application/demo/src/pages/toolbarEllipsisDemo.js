@@ -7,6 +7,8 @@ import { popover } from "@liquefy/basic-ui";
 
 import { buttonIcon } from "@liquefy/ui-material";
 
+import { alert } from "@liquefy/themed-ui";
+
 import file from './toolbarEllipsisDemo?raw';
 import { displayCodeButton, informationButton } from "../components/information";
 
@@ -29,6 +31,7 @@ export class ToolbarEllipsisDemo extends Component {
 
     return column(
       topPortalContents(topBarPortal),
+      informationPanel(),
       filler(),
       new EllipsisToolbar({bounds}),
       { style: { ...style, backgroundColor: "silver"} }
@@ -36,13 +39,17 @@ export class ToolbarEllipsisDemo extends Component {
   }
 }
 
+
+/**
+ * Ellipsis Toolbar
+ */
 export class EllipsisToolbar extends Component {
   initialize() {
     this.menuOpen = false;
   }
 
   render() {
-    // Create an array of tools
+    // Create an array of mock tools
     const toolIcons = ["search", "home", "settings", "star", "key", "bolt"];
     let toolCount = 0;
     const totalTools = 20;
@@ -102,7 +109,6 @@ export class EllipsisToolbar extends Component {
 }
 
 
-
 /**
  * This is what you would typically do in index.js to start this app. 
  */
@@ -117,16 +123,34 @@ export function startToolbarEllipsisDemo() {
  * Top portal content
  */
 const topPortalContents = (topBarPortal) =>
-  portalContents("animationExampleInformation", 
-    informationButton(
-      column(
-        p("Demonstrates the power of programmatic responsiveness. We can here see how a toolbar can adapt to the available space, and how it can show an ellipsis menu when there is not enough space for all tools."),
-        p("This is not something that you would typically do with .css, container queries and breakpoints. If you ask AI to design this, it will give you a Javascript solution."),
-        { style: {width: 800, whiteSpace: "normal"}}
-      )
-    ),
+  portalContents("toolbarEllipsisDemoInformation", 
+    // informationButton(
+    //   column(
+    //     p("Demonstrates the power of programmatic responsiveness. We can here see how a toolbar can adapt to the available space, and how it can show an ellipsis menu when there is not enough space for all tools."),
+    //     p("This is not something that you would typically do with .css, container queries and breakpoints. If you ask AI to design this, it will give you a Javascript solution."),
+    //     { style: {width: 800, whiteSpace: "normal"}}
+    //   )
+    // ),
     displayCodeButton({code: file, fileName: "src/pages/toolbarEllipsisDemo.js"}),
     {
       portal: topBarPortal
     }
   )
+
+
+/**
+ * Information panel
+ */  
+function informationPanel() {
+  return alert(
+    column(
+      p("Demonstrates the power of programmatic responsiveness. We can here see how a toolbar can adapt to the available space, and how it can show an ellipsis menu when there is not enough space for all tools."),
+      p("This is not something that you would typically do with .css, container queries and breakpoints. If you ask AI to design this, it will give you a Javascript solution."),
+      { style: { width: 800, whiteSpace: "normal" } }
+    ),
+    {
+      severity: "info",
+      style: { margin: 10 }
+    }
+  );
+}

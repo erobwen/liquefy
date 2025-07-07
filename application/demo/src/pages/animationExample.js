@@ -102,11 +102,13 @@ export class AnimationExample extends Component {
           row(
             button("Add random", () => transaction(() => addRandomly(removeOneRandom(this.store), this.listA)), {disabled: this.store.length === 0}),
             button("Remove random", () => transaction(() => this.store.push(removeOneRandom(this.listA))), {disabled: this.listA.length === 0}),
+            { style: {gap: 5} }
           ),
           filler(),
           row(
             button("Randomize", () => transaction(() => randomize(this.listA))),
             button("Juggle", () => this.juggle()),
+            { style: {gap: 5} }
           ),
         ),
         column(

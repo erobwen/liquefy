@@ -1,16 +1,13 @@
 import { Component } from "@liquefy/flow.core";
-
-import { text, div, p, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.DOM";
-
-import { filler, basicWidgetTheme, numberInput, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle, portalContents, cardShadow3 } from "@liquefy/basic-ui";
-import { popover } from "@liquefy/basic-ui";
-
-import { buttonIcon } from "@liquefy/ui-material";
-
+import { p, DOMRenderContext } from "@liquefy/flow.DOM";
 import { alert } from "@liquefy/themed-ui";
 
+import { filler, wrapper, column, row, layoutBorderStyle, portalContents, cardShadow3, popover } from "@liquefy/basic-ui";
+import { buttonIcon } from "@liquefy/ui-material";
+
+import { displayCodeButton } from "../components/information";
+
 import file from './toolbarEllipsisDemo?raw';
-import { displayCodeButton, informationButton } from "../components/information";
 
 
 /**
@@ -31,7 +28,7 @@ export class ToolbarEllipsisDemo extends Component {
 
     return column(
       topPortalContents(topBarPortal),
-      informationPanel(),
+      wrapper(informationPanel()),
       filler(),
       new EllipsisToolbar({bounds}),
       { style: { ...style, backgroundColor: "silver"} }
@@ -123,14 +120,7 @@ export function startToolbarEllipsisDemo() {
  * Top portal content
  */
 const topPortalContents = (topBarPortal) =>
-  portalContents("toolbarEllipsisDemoInformation", 
-    // informationButton(
-    //   column(
-    //     p("Demonstrates the power of programmatic responsiveness. We can here see how a toolbar can adapt to the available space, and how it can show an ellipsis menu when there is not enough space for all tools."),
-    //     p("This is not something that you would typically do with .css, container queries and breakpoints. If you ask AI to design this, it will give you a Javascript solution."),
-    //     { style: {width: 800, whiteSpace: "normal"}}
-    //   )
-    // ),
+  portalContents("toolbarEllipsisDemoInformation",
     displayCodeButton({code: file, fileName: "src/pages/toolbarEllipsisDemo.js"}),
     {
       portal: topBarPortal

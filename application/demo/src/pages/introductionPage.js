@@ -44,7 +44,7 @@ export class IntroductionPage extends Component {
             {severity: "info", style: {boxShadow: cardShadow3, marginTop: 10, marginBottom: 10}},
           ),
           alert(
-            p("This demo is a work in progress. Most features are working, but there are still a few glitches. "),
+            p("This demo is a work in progress. Most features are working, but there might be glitches. "),
             {severity: "warning", style: {boxShadow: cardShadow3}}
           ),
           h2("Hello World"),

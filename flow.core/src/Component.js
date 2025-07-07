@@ -406,33 +406,33 @@ export class Component {
           creators.push(me);
 
           // Build and rebuild
-          me.newBuild = me.render(repeater);
-          if (typeof me.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
+          me.newRendering = me.render(repeater);
+          if (typeof me.newRendering === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
           repeater.finishRebuilding();
-          me.newBuild = repeater.establishedShapeRoot;
+          me.newRendering = repeater.establishedShapeRoot;
 
           // Establish relationship between equivalent child and this (its creator).
-          if (me.newBuild !== null) {
-            if (me.newBuild instanceof Array) {
-              for (let fragment of me.newBuild) {
+          if (me.newRendering !== null) {
+            if (me.newRendering instanceof Array) {
+              for (let fragment of me.newRendering) {
                 fragment.equivalentCreator = me;
               }
             } else {
-              me.newBuild.equivalentCreator = me;
+              me.newRendering.equivalentCreator = me;
             }
-            me.equivalentChild = me.newBuild;
+            me.equivalentChild = me.newRendering;
           }
           
           // Popping
           creators.pop();
          
-          // Recursive call
-          if (!me.newBuild) {
+          // Recursive call, to make sure we get a primitive. 
+          if (!me.newRendering) {
             me.primitive = null; 
-          } else if (!(me.newBuild instanceof Array)) {
-            me.primitive = me.newBuild.getPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+          } else if (!(me.newRendering instanceof Array)) {
+            me.primitive = me.newRendering.getPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
           } else {
-            me.primitive = me.newBuild
+            me.primitive = me.newRendering
               .map(fragment => fragment.getPrimitive(peekParentPrimitive))
               .reduce((result, childPrimitive) => {
                 if (childPrimitive instanceof Array) {
@@ -506,7 +506,7 @@ function getShapeAnalysis(component) {
         && (newComponent.getComponentTypeName() === establishedComponent.getComponentTypeName()) 
         && (newComponent.componentTypeName === establishedComponent.componentTypeName));
     },
-    shapeRoot: () => component.newBuild,
+    shapeRoot: () => component.newRendering,
     slotsIterator: function*(establishedObject, newObject, hasKey, childrenProperty=false) {
       if (establishedObject instanceof Array && newObject instanceof Array) {
         let newIndex = 0;

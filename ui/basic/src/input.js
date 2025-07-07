@@ -39,9 +39,13 @@ export function inputField(properties) {
   const getter = extractProperty(properties, "getter");
   const setter = extractProperty(properties, "setter");
   const getErrors = extractProperty(properties, "getErrors");  
-  const inputProperties = extractProperty(properties, "inputProperties");
-  const inputStyle = extractProperty(inputProperties, "style");
-  // console.log("Type" + type);
+  const style = properties.style;
+  addDefaultStyle(
+    properties,
+    {
+      alignItems: "stretch",      
+    }
+  )
 
   addDefaultStyle(properties, {height: 28})
 
@@ -58,14 +62,14 @@ export function inputField(properties) {
     checked: getter(),
     type,
     style: {
+      boxSizing: "border-box",
       backgroundColor: errors ? "rgba(255, 240, 240, 255)" : "white",
       borderColor: "rgba(200, 200, 200, 20)", //errors ? "red" : 
       borderStyle: "solid",
       borderWidth: "1px", 
       ...(type === "number" ? { width: 40 } : {}),
-      ...inputStyle
+      ...((style && style.height) ? { height: style.height } : { height: 28 }),
     },
-    ...inputProperties
   };
   // console.log("Input attributes", inputAttributes);
   
@@ -77,22 +81,23 @@ export function inputField(properties) {
       attributes: inputAttributes
     })
   ]; 
-  const labelChild = label(text(labelText), {style: {paddingRight: "4px", margin: "", lineHeight: 20}}); 
+  const labelChild = label(
+    text(labelText), 
+    {style: {
+      paddingRight: "4px", 
+      margin: "", 
+      ...((style && style.height) ? 
+        { height: style.height, lineHeight: style.height } 
+        : 
+        { height: 28, lineHeight: 28 }),
+    }}
+  ); 
   if (type === "checkbox") {
     children.push(labelChild);
   } else {
     children.unshift(filler());
     children.unshift(labelChild);
   }
-  addDefaultStyle(
-    properties,
-    {
-      lineHeight: 28, 
-      // alignSelf: "center", 
-      alignItems: "stretch", 
-      padding: 4, ...properties.style
-    }
-  )
   return row({
     children, 
     ...properties

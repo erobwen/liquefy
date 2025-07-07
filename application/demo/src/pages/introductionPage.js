@@ -78,7 +78,7 @@ export class IntroductionPage extends Component {
           a(text("https://github.com/erobwen/liquefy"), {href: "https://github.com/erobwen/liquefy"}),
           portalContents("introductionPageInformation",
             middle(text("by Robert Renbris ")),
-            displayCodeButton({code: file}),
+            displayCodeButton({code: file, fileName: "src/pages/introductionPage.js"}),
             {
               portal: this.topBarPortal
             }

@@ -46,14 +46,14 @@ export class PrimitiveComponent extends Component {
     return this;
   }
 
-  ensureBuiltRecursive(renderContext, parentPrimitive) {
+  connectAllPrimitives(renderContext, parentPrimitive) {
     const name = this.toString(); // For chrome debugger
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     if (renderContext) this.visibleOnRenderContext = renderContext;
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
-        // log("PrimitiveComponent.ensureBuiltRecursive");
+        // log("PrimitiveComponent.connectAllPrimitives");
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
         if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
       }
@@ -61,8 +61,8 @@ export class PrimitiveComponent extends Component {
     } 
 
     finalize(this); // Finalize might not work if no key was used, it might not call onEstablish.
-    if (!this.expandRepeater) {
-      this.expandRepeater = repeat(this.toString() + ".expandRepeater", repeater => {
+    if (!this.connectRepeater) {
+      this.connectRepeater = repeat(this.toString() + ".connectRepeater", repeater => {
         if (trace) console.group(repeater.causalityString());
         if (trace) console.log([...state.workOnPriorityLevel]);
 
@@ -105,7 +105,7 @@ export class PrimitiveComponent extends Component {
 
         // Expand known children (do as much as possible before integration)
         for (let childPrimitive of this.childPrimitives) { 
-          childPrimitive.ensureBuiltRecursive(renderContext, this);
+          childPrimitive.connectAllPrimitives(renderContext, this);
         }
       
         if (trace) console.groupEnd();

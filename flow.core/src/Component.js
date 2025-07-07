@@ -364,16 +364,16 @@ export class Component {
     }
   }
 
-  ensureBuiltRecursive(renderContext, parentPrimitive) {
+  connectAllPrimitives(renderContext, parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
       if (peekParentPrimitive) {
-        // log("Component.ensureBuiltRecursive");
+        // log("Component.connectAllPrimitives");
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
     } 
-    workOnPriorityLevel(renderComponentTime, () => this.getPrimitive().ensureBuiltRecursive(renderContext, parentPrimitive));
+    workOnPriorityLevel(renderComponentTime, () => this.getPrimitive().connectAllPrimitives(renderContext, parentPrimitive));
     return this.getPrimitive(parentPrimitive);
   }
 

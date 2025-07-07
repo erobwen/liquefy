@@ -20,7 +20,7 @@ export class RenderContext {
 		component.renderContext = this;
 		workOnPriorityLevel(renderComponentTime, () => {
 			component.ensureEstablished()
-			this.component.ensureBuiltRecursive(this)
+			this.component.connectAllPrimitives(this)
 		});
 		if (component.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();

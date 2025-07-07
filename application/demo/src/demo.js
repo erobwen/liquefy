@@ -24,6 +24,7 @@ import flowImage from "../public/flow.svg"
 import { applicationMenuFrame } from "./ApplicationMenuFrame"
 import { IntroductionPage } from "./pages/introductionPage";
 import { informationButton } from "./components/information";
+import { ToolbarEllipsisDemo } from "./pages/toolbarEllipsisDemo";
 
 
 
@@ -54,6 +55,7 @@ export class Demo extends Component {
       new ReactiveForm({key: "reactive-form", initialData, style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new AnimationExample({key: "animation-example", items: ["Foo", "Fie", "Fum", "Bar", "Foobar", "Fiebar", "Fumbar"], style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new ProgrammaticReactiveLayout({key: "programmatic-reactive-layout", name: "Programmatic Responsiveness", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
+      new ToolbarEllipsisDemo({key: "toolbar-ellipsis", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new ModalExample({key: "modal-example", style: fitContainerStyle, topBarPortal: this.topBarPortal}),
       new PortalExample({key: "portal-example", portal: this.leftColumnPortal, style: fitContainerStyle, topBarPortal: this.topBarPortal})
     ];

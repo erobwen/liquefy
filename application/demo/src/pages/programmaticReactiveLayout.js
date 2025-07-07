@@ -1,40 +1,46 @@
 import { Component } from "@liquefy/flow.core";
 
-import { text, div, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.DOM";
+import { text, div, p, ul, li, DOMRenderContext, toPropertiesWithImplicitSingleText, fitTextWithinWidth } from "@liquefy/flow.DOM";
 
-import { basicWidgetTheme, numberInput, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle } from "@liquefy/basic-ui";
-import { popover } from "@liquefy/basic-ui";
+import { basicWidgetTheme, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle, portalContents } from "@liquefy/basic-ui";
 
-import { buttonIcon } from "@liquefy/ui-material";
+import { numberInput } from "@liquefy/themed-ui";
+import { displayCodeButton, informationButton } from "../components/information";
 
+import file from './programmaticReactiveLayout?raw';
+
+
+/**
+ * Programmatic Reactive Layout
+ */
 export class ProgrammaticReactiveLayout extends Component {
   
-  receive({ bounds, name }) {
-    this.name = name; 
+  receive({ bounds, topBarPortal, style }) {
+    this.name = "Programmatic Reactive Layout"; 
     this.bounds = bounds; 
+    this.topBarPortal = topBarPortal;
+    this.style = style;
   } 
 
   initialize() {
     this.rows = 3; 
     this.columns = 3;
-    this.menuOpen = false;
   }
 
   render() {
     // Create control panel
     const controlPanel = column("control-panel",
-      row(numberInput("Rows", this, "rows")),
-      row(numberInput("Columns", this, "columns")),
+      row(
+        numberInput("Rows", this, "rows"),
+        numberInput("Columns", this, "columns"),
+      ),
       text("Try change the size of the browser window, and add/remove columns/rows. Try do this with css :-)"),
       {style: naturalSizeStyle}
     );
     const controlPanelHeight = controlPanel.dimensions().height; 
 
-    // Create bottom toolbar
-    const { toolbarHeight, toolbar, extraToolbar, menuButton } = this.createToolbar();
-
     // Create grid of layouts
-    const gridHeight = this.bounds.height - controlPanelHeight - toolbarHeight;
+    const gridHeight = this.bounds.height - controlPanelHeight;
     const gridWidth = this.bounds.width;
     const rows = [];
     let rowIndex = 0;
@@ -69,60 +75,18 @@ export class ProgrammaticReactiveLayout extends Component {
     } 
 
     return column(
+      topPortalContents(this.topBarPortal),
       controlPanel,
       column(rows, {style: fillerStyle}),
-      toolbar,
-      popover("extraToolbarMenu",
-        extraToolbar,
-        {
-          bounds: this.bounds,
-          reference: menuButton,
-          close: () => { this.menuOpen = false; }, 
-        }
-      ).show(this.menuOpen),
       {style: fitContainerStyle}
     );
-  }
-
-  createToolbar() {
-    const menuButton = buttonIcon("menuButton",
-      () => { this.menuOpen = true; },
-      { icon: "more_horiz", style: { width: "40px" } }
-    );
-    let toolbarWidthLeft = this.bounds.width;
-    const toolbarContents = [];
-    const popupMenuContents = [];
-
-    const tools = ["search", "home", "settings", "star", "key", "bolt"];
-    let toolCount = 0;
-    const totalTools = 20;
-    while (toolCount++ < totalTools) {
-      const isLast = toolCount === totalTools;
-      const nextWidget = buttonIcon("toolButton" + toolCount,
-        () => { console.log("pushed tool"); },
-        { icon: tools[toolCount % tools.length], style: { width: "40px" } }
-      );
-      const widgetWidth = nextWidget.dimensions().width;
-      if (widgetWidth + (isLast ? 0 : menuButton.dimensions().width) <= toolbarWidthLeft) {
-        toolbarWidthLeft -= widgetWidth;
-        toolbarContents.push(nextWidget);
-      } else {
-        if (toolbarContents[toolbarContents.length - 1] !== menuButton) {
-          toolbarContents.push(menuButton);
-          toolbarWidthLeft -= menuButton.dimensions().width;
-        }
-        popupMenuContents.push(nextWidget);
-      }
-    }
-    const toolbar = row(toolbarContents);
-    const toolbarHeight = toolbar.dimensions().height;
-    const extraToolbar = row("extraMenu", popupMenuContents, { style: { backgroundColor: "#fef7ff", ...layoutBorderStyle } });
-    return { toolbarHeight, toolbar, extraToolbar, menuButton };
   }
 }
 
 
-
+/**
+ * Bounds Display
+ */
 export class BoundsDisplay extends Component {
 
   receive({bounds, style}) {
@@ -150,6 +114,9 @@ export class BoundsDisplay extends Component {
 }
 
 
+/**
+ * String Display
+ */
 export class StringDisplay extends Component {
 
   receive({bounds, style}) {
@@ -195,6 +162,9 @@ function scaledTextWithMaxFontSize(...parameters) {
 }
 
 
+/**
+ * Fixed Aspect Ratio Display
+ */
 export class FixedAspectRatioDisplay extends Component {
 
   receive({bounds, style}) {
@@ -252,8 +222,6 @@ export class FixedAspectRatioDisplay extends Component {
 }
 
 
-
-
 /**
  * This is what you would typically do in index.js to start this app. 
  */
@@ -264,11 +232,23 @@ export function startProgrammaticReactiveLayout() {
 }
 
 
-function subtractWidth(bounds, width) {
-  return {width: bounds.width - width, height: bounds.height};
-}
-
-
-function subtractHeight(bounds, width) {
-  return {width: bounds.width - width, height: bounds.height};
-}
+/**
+ * Top portal content
+ */
+const topPortalContents = (topBarPortal) =>
+  portalContents("programmaticReactiveLayoutInformation", 
+    informationButton(
+      column(
+        p("Demonstrates the principles of programmatic responsiveness."),
+        ul(
+          li("Programmaticly fitting a div of constant aspect ratio within a container."),
+          li("Programmaticly fitting a text within a container, by dynamically calculating font size."),
+        ),
+        { style: {width: 800, whiteSpace: "normal"}}
+      )
+    ),
+    displayCodeButton({code: file, fileName: "src/pages/programmaticReactiveLayout.js"}),
+    {
+      portal: topBarPortal
+    }
+  )

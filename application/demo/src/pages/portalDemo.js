@@ -6,7 +6,15 @@ import { naturalSizeStyle, filler, column, row, centerMiddle, portalContents, la
 
 import { informationButton, displayCodeButton } from "../components/information";
 import file from './portalDemo?raw';
-import { borderStyle } from "@liquefy/basic-ui";
+
+export const borderStyle = {
+  boxSizing: "border-box",
+  borderWidth: "1px",
+  borderStyle: "solid",
+  borderColor: "gray",
+  borderRadius: "3px",
+}
+
 
 /**
  * Portal Example

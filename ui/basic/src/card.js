@@ -19,6 +19,7 @@ export const cardShadow3 = cardShadows[3];
 export const cardShadow4 = cardShadows[4];
 export const cardShadow5 = cardShadows[5];
 export const cardShadow6 = cardShadows[6];
+export const cardShadow = cardShadows[3]; // Default shadow for cards, can be overridden by elevation.
 
 
 function getBoxShadow({elevation}) {

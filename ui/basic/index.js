@@ -9,7 +9,7 @@ import { svgImage } from "./src/images";
 import { layoutBorderStyle, flexContainerStyle, rowStyle, columnStyle, centerStyle, middleStyle, centerMiddleStyle, naturalSizeStyle, fitContainerStyle, fillerStyle, wrapper, row, column, center, middle, centerMiddle, filler, zStackElementStyle, zStack, overflowVisibleStyle } from "./src/Layout";
 import { overlay, Overlay, overlayFrame, OverlayFrame } from "./src/overlay";
 import { portalContents, PortalContents, portal } from "./src/Portals";
-import { card, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow } from "./src/card";
+import { card, cardShadow, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow } from "./src/card";
 import { dialogue } from "./src/dialogue";
 import { modalContainer, ModalContainer } from "./src/modalContainer";
 import { popover } from "./src/popover";
@@ -18,7 +18,7 @@ import { listItem } from "./src/listItem";
 export const basicTheme = {
   components: {
     alert,
-    card, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow,
+    card, cardShadow, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow,
     basicWidgetTheme, label, panel,
     input, textInput, numberInput, checkboxInput,
     button, buttonIcon, 
@@ -34,7 +34,7 @@ export const basicTheme = {
 
 export { // Note: A copy paste of basicTheme.components, since we are not allowed to use spread operators for export. 
   alert,
-  card, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow,
+  card, cardShadow, cardShadow0, cardShadow1, cardShadow2, cardShadow3, cardShadow4, cardShadow5, cardShadow6, cardColumn, cardRow,
   basicWidgetTheme, label, 
   input, textInput, numberInput, checkboxInput,
   panel,

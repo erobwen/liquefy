@@ -73,7 +73,7 @@ export class IntroductionPage extends Component {
           ),
           h2("Bonus"),
           ul(
-            li("Is built around a DOM agnostic core providing ", blue("Reactive Object Composition"), " that could be used for other purposes, such as back end rendering or building a word processor or any other document generator."),
+            li("Is built around a DOM agnostic core providing ", blue("Reactive Component Composition"), " that could be used for other purposes, such as back end rendering or building a word processor or any other document generator."),
           ),
           h2("Repository"),
           a(text("https://github.com/erobwen/liquefy"), {href: "https://github.com/erobwen/liquefy"}),

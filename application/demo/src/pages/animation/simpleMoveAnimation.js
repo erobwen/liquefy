@@ -1,10 +1,8 @@
 
-import { observable, Component, repeat, transaction } from "@liquefy/flow.core";
-import { div, text, DOMRenderContext } from "@liquefy/flow.DOM";
-import { button as modernButton } from "@liquefy/modern-ui";
-import { button as basicButton, column, filler, fillerStyle, row, overflowVisibleStyle, layoutBorderStyle } from "@liquefy/basic-ui";
+import { Component, transaction } from "@liquefy/flow.core";
+import { div, DOMRenderContext } from "@liquefy/flow.DOM";
+import { button as basicButton, column, filler, row, overflowVisibleStyle, layoutBorderStyle } from "@liquefy/basic-ui";
 
-import { button } from "@liquefy/themed-ui";
 
 
 const log = console.log;

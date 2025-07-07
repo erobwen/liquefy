@@ -6,7 +6,7 @@ import { naturalSizeStyle, filler, column, row, centerMiddle, portalContents, la
 
 import { informationButton, displayCodeButton } from "../components/information";
 import file from './portalDemo?raw';
-import { borderStyle } from "@liquefy/modern-ui";
+import { borderStyle } from "@liquefy/basic-ui";
 
 /**
  * Portal Example

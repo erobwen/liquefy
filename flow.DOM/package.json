@@ -27,5 +27,8 @@
   "peerDependencies": {
     "@liquefy/flow.core": "file:../flow.core",
     "@liquefy/flow.DOMAnimation": "file:../flow.DOMAnimation"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

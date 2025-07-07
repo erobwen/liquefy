@@ -1,10 +1,8 @@
 
-import { observable, Component, repeat, transaction } from "@liquefy/flow.core";
-import { div, text, DOMRenderContext } from "@liquefy/flow.DOM";
-import { button as modernButton } from "@liquefy/modern-ui";
-import { button as basicButton, column, filler, fillerStyle, row, overflowVisibleStyle } from "@liquefy/basic-ui";
+import { Component, transaction } from "@liquefy/flow.core";
+import { div, DOMRenderContext } from "@liquefy/flow.DOM";
+import { button as basicButton, column, filler, row, overflowVisibleStyle } from "@liquefy/basic-ui";
 
-import { button } from "@liquefy/themed-ui";
 
 
 const log = console.log;
@@ -58,7 +56,7 @@ export class SimpleMoveAnimation extends Component {
     // const button = new modernButton(
     // const button = div("wrapper", this.button, {animate: true});
     // if (window.idToComponent[14]) console.log(window.idToComponent[14].animate);
-    const movingButton = modernButton(
+    const movingButton = basicButton(
       "button", this.text, 
       this.move.bind(this),
       {

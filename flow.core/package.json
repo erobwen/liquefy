@@ -25,5 +25,8 @@
   "homepage": "https://github.com/erobwen/liquefy#readme",
   "peerDependencies": {
     "@liquefy/causaility": "file:../causality"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

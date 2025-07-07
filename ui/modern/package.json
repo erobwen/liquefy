@@ -1,5 +1,5 @@
 {
-  "name": "@liquefy/ui-modern",
+  "name": "@liquefy/modern-ui",
   "version": "1.0.0",
   "description": "A modern widget collection for Flow.",
   "type": "module",
@@ -26,5 +26,8 @@
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.DOM": "file:../../flow.DOM",
     "@liquefy/basic-ui": "file:../basic"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -25,5 +25,8 @@
   "peerDependencies": {
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.DOM": "file:../../flow.DOM"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

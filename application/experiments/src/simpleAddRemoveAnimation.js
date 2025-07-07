@@ -1,7 +1,6 @@
 import { div, text, DOMRenderContext } from "@liquefy/flow.DOM";
 import { Component } from "@liquefy/flow.core";
-import { button } from "@liquefy/modern-ui";
-import { column } from "@liquefy/basic-ui";
+import { column, button } from "@liquefy/basic-ui";
 
 const log = console.log;
 

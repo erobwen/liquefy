@@ -4,7 +4,7 @@ import { div, text } from "@liquefy/flow.DOM";
 import { centerMiddle, column, filler, fillerStyle, fitContainerStyle, row, rowStyle } from "@liquefy/basic-ui";
 import { overlayFrame, icon, zStackElementStyle, zStack, overflowVisibleStyle } from "@liquefy/basic-ui";
 
-import { cardShadow } from "@liquefy/modern-ui";
+import { cardShadow } from "@liquefy/basic-ui";
 import { button, buttonIcon } from "@liquefy/ui-material";
 
 

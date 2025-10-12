@@ -111,7 +111,7 @@ export class PrimitiveComponent extends Component {
         if (trace) console.groupEnd();
       }, {priority: buildComponentTime});
     }
-    return this; 
+    // return this; 
   }
 
   *iteratePrimitiveChildren() {

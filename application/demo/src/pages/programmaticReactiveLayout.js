@@ -233,7 +233,7 @@ export class FixedAspectRatioDisplay extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startProgrammaticReactiveLayout() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("root")).setContent(
     new ProgrammaticReactiveLayout()
   );
 }

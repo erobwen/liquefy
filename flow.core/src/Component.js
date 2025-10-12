@@ -307,7 +307,7 @@ export class Component {
   }
 
   findChild(key) { // Note: did not work in some situations getChild worked.  
-    const primitive = this.getPrimitive();
+    const primitive = this.buildPrimitive();
     if (primitive instanceof Array) {
       for (let fragment of primitive) {
         const result = fragment.findKey();
@@ -364,24 +364,24 @@ export class Component {
     }
   }
 
-  connectAllPrimitives(renderContext, parentPrimitive) {
+  renderOnto(renderContext, parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
       if (peekParentPrimitive) {
-        // log("Component.connectAllPrimitives");
+        // log("Component.renderOnto");
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
       }
       this.parentPrimitive = parentPrimitive
     } 
-    workOnPriorityLevel(buildComponentTime, () => this.getPrimitive().connectAllPrimitives(renderContext, parentPrimitive));
-    return this.getPrimitive(parentPrimitive);
+    workOnPriorityLevel(buildComponentTime, () => this.buildPrimitive().renderOnto(renderContext, parentPrimitive));
+    // return this.buildPrimitive(parentPrimitive);
   }
 
   isBuilt() {
     return typeof this.buildRepeater !== "undefined";
   }
 
-  getPrimitive(parentPrimitive) {
+  buildPrimitive(parentPrimitive) {
     let peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (parentPrimitive && this.parentPrimitive && this.parentPrimitive !== parentPrimitive) console.warn("Changed parent primitive for " + this.toString());
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
@@ -430,10 +430,10 @@ export class Component {
           if (!me.newBuild) {
             me.primitive = null; 
           } else if (!(me.newBuild instanceof Array)) {
-            me.primitive = me.newBuild.getPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+            me.primitive = me.newBuild.buildPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
           } else {
             me.primitive = me.newBuild
-              .map(fragment => fragment.getPrimitive(peekParentPrimitive))
+              .map(fragment => fragment.buildPrimitive(peekParentPrimitive))
               .reduce((result, childPrimitive) => {
                 if (childPrimitive instanceof Array) {
                   childPrimitive.forEach(fragment => result.push(fragment));
@@ -467,14 +467,14 @@ export class Component {
 
   dimensions(contextNode) {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
-    const primitive = this.getPrimitive();
+    const primitive = this.buildPrimitive();
     if (primitive instanceof Array) throw new Error("Dimensions not supported for fragmented components.");
     return primitive ? primitive.dimensions(contextNode) : null;
   }
 
   reactiveBoundingClientRect() {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
-    const primitive = this.getPrimitive();
+    const primitive = this.buildPrimitive();
     if (primitive instanceof Array) throw new Error("reactiveBoundingClientRect not supported for fragmented components.");
     return primitive ? primitive.reactiveBoundingClientRect(contextNode) : null;
   }

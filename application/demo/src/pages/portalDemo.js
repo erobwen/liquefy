@@ -104,7 +104,7 @@ export class PortalStandaloneExample extends Component {
  */
 export function startPortalDemo() {
   const example = new PortalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).render(example);
+  new DOMRenderContext(document.getElementById("root")).setContent(example);
 }
 
 
@@ -117,7 +117,7 @@ const topPortalContents = (topBarPortal) =>
       column(
         p("A demo of the portal mechanism:"),
         ul(
-          li("Executes in component render time, meaning that a portal can be populated without it first having to render once and establish the dom node element."), 
+          li("Executes in component build time, meaning that a portal can be populated without it first having to render once and establish the dom node element."), 
           li("It works by a portalContents component setting the children of the portal compoennt if it is visible on screen, and removing its content if hidden. "),
           li("It works seemlessly with DOM transition animations, and you can have elements fly between portals. Just make sure to set overflow: visible on surrounding elements to not hide the flying dom node."),
         ),

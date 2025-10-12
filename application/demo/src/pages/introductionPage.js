@@ -62,7 +62,7 @@ export class IntroductionPage extends Component {
             li("Provides ", blue("Minimal DOM Updates"), " for fine grained change response and efficiency."),
             li(blue("Component lifecycle control"), " allows you to control when components are created or disposed allowing for off-screen components that maintain their state and DOM elements."),
             li(blue("DOM transition animations"), " allows you to animate DOM-elements that move to another place in the DOM as well as appear or dissapear."),
-            li(blue("Component-time portals"), " allows you to populate portals instantly without having to go through a browser render cycle first."),
+            li(blue("Component build time portals"), " allows you to populate portals instantly without having to go through a browser render cycle first."),
             li(blue("Look ahead rendering"), " where a component being rendered can observe dimensions of children and make layout decisions based on that."),
           ),
           h2("Supports"),

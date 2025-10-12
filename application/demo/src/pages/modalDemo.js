@@ -109,7 +109,7 @@ export class DialogueContent extends Component {
  */
 export function startModalDemo() {
   const root = new ModalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).render(root);
+  new DOMRenderContext(document.getElementById("root")).setContent(root);
 }
 
 

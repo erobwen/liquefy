@@ -258,8 +258,8 @@ export class ModernButton extends Component {
     
     if (this.children) {
       children = this.children;
-    } else if (this.render) {
-      children = this.build(); 
+    } else if (this.buildChildren) {
+      children = this.buildChildren(); 
     }
     
     return button("button",

@@ -14,15 +14,15 @@ export class RenderContext {
 	// }
 	dispose() {}
 
-	render(component) {
+	setContent(component) {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.component = component;
 		component.renderContext = this;
 		workOnPriorityLevel(buildComponentTime, () => {
 			component.ensureEstablished()
-			this.component.connectAllPrimitives(this)
+			this.component.renderOnto(this)
 		});
-		if (component.getPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
+		if (component.buildPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();
 	}
     

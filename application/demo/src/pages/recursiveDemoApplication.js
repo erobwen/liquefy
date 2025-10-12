@@ -119,7 +119,7 @@ export class Item extends Component {
  */ 
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMRenderContext(document.getElementById("root")).render(root);
+  new DOMRenderContext(document.getElementById("root")).setContent(root);
 }
 
 
@@ -132,7 +132,7 @@ const topPortalContents = (topBarPortal) =>
       column(
         p("A simple recursive example, that demonstrates:"),
         ul(
-          li("Minimal updates of the DOM while changes in depth forces complete re-render of all components (open debug console to see DOM elements flash upon change).  "), 
+          li("Minimal updates of the DOM while changes in depth forces complete re-build of all components (open debug console to see DOM elements flash upon change).  "), 
           li("Stable component identity during rebuild, allowing for the preservation of local state."),
           li("Component hierarchy inheritance, where all components inherit the same shared model.")
         ),

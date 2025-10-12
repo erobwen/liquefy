@@ -37,7 +37,7 @@ class Hello extends Component {
 }
 
 // Create an instance, and set as content of a render context.
-new DOMRenderContext(document.getElementById("root")).render(
+new DOMRenderContext(document.getElementById("root")).setContent(
   new Hello({to: "World"})
 )
 ```

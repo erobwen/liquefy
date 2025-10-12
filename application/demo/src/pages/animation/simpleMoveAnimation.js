@@ -105,5 +105,5 @@ export class SimpleMoveAnimation extends Component {
  */
 export function startSimpleMoveAnimation() {
   const simple = new SimpleMoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).render(simple)
+  new DOMRenderContext(document.getElementById("root")).setContent(simple)
 }

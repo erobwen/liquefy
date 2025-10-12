@@ -28,7 +28,7 @@ class HelloWorld extends @liquefy/flow.core.Component {
 }
 
 const application = new HelloWorld();
-new DOMRenderContext(document.getElementById("root")).render(application);
+new DOMRenderContext(document.getElementById("root")).setContent(application);
 ```
 
 This showcases the HTML-in-JS approach of Flow. Your DOM/document is reactivley and programmatically created by Javascript functions. 
@@ -61,7 +61,7 @@ class StateComponent extends @liquefy/flow.core.Component {
 }
 
 const application = new StateComponent();
-new DOMRenderContext(document.getElementById("root")).render(application);
+new DOMRenderContext(document.getElementById("root")).setContent(application);
 
 setTimeout(() => {
     globalState.value = 42

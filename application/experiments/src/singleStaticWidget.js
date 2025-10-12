@@ -39,5 +39,5 @@ export class SingleStaticWidget extends Component {
  */
 export function startSingleStaticWidget() {
   const singleWidget = new SingleStaticWidget()  
-  new DOMRenderContext(document.getElementById("root")).render(singleWidget)
+  new DOMRenderContext(document.getElementById("root")).setContent(singleWidget)
 }

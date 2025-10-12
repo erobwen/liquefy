@@ -64,5 +64,5 @@ class ThemeTest extends Component {
  */
 export function themeTest() {
   const test = new ThemeTest()  
-  new DOMRenderContext(document.getElementById("root")).render(test)
+  new DOMRenderContext(document.getElementById("root")).setContent(test)
 }

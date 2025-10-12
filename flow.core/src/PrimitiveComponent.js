@@ -30,7 +30,7 @@ export class PrimitiveComponent extends Component {
     return null;
   }
 
-  getPrimitive(parentPrimitive) {
+  buildPrimitive(parentPrimitive) {
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     // Setup parent primitive
@@ -46,14 +46,14 @@ export class PrimitiveComponent extends Component {
     return this;
   }
 
-  connectAllPrimitives(renderContext, parentPrimitive) {
+  renderOnto(renderContext, parentPrimitive) {
     const name = this.toString(); // For chrome debugger
     const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     if (renderContext) this.visibleOnRenderContext = renderContext;
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
       if (peekParentPrimitive) {
-        // log("PrimitiveComponent.connectAllPrimitives");
+        // log("PrimitiveComponent.renderOnto");
         if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
         if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
       }
@@ -105,7 +105,7 @@ export class PrimitiveComponent extends Component {
 
         // Expand known children (do as much as possible before integration)
         for (let childPrimitive of this.childPrimitives) { 
-          childPrimitive.connectAllPrimitives(renderContext, this);
+          childPrimitive.renderOnto(renderContext, this);
         }
       
         if (trace) console.groupEnd();
@@ -116,7 +116,7 @@ export class PrimitiveComponent extends Component {
 
   *iteratePrimitiveChildren() {
     for(let child of this.iterateChildren()) {
-      let primitive = child.getPrimitive(this);
+      let primitive = child.buildPrimitive(this);
       if (primitive instanceof Array) {
         for (let fragment of primitive) { 
           yield fragment; 

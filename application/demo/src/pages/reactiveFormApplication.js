@@ -360,7 +360,7 @@ export class LuggageForm extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startReactiveFormApplication() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("root")).setContent(
     new ReactiveForm({initialData})
   );
 }

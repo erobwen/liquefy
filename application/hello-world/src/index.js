@@ -36,9 +36,10 @@ class Hello extends Component {
         li("Performs minimal updates to the DOM on any change"),
         li("Very unrestrictive, easy to learn and use"),
         li("DOM transition animations"),
-        li("Single reactive render function for each component."),
+        li("You only need to implement a single reactive build function for each component."),
+        li("However, as an alternative you can choose to reactiveley render instead, creating your custom primitive components."),
         li("Resident components with custom lifecycle."),
-        li("Portals, populated in component render time for instant DOM population"),
+        li("Portals, populated in component build time for instant DOM rendering without flickering"),
         li("Property inheritance between components")
       ),
       div("Programmatic styling allows for programmatic adaptive and responsive design.", {style: {fontWeight: "bold", color: "blue", borderWidth: "1px", padding: "10px", borderStyle: "solid"}}),
@@ -60,6 +61,6 @@ class Hello extends Component {
 
 
 // Create an instance, and set as content of a render context.
-new DOMRenderContext(document.getElementById("root")).render(
+new DOMRenderContext(document.getElementById("root")).setContent(
   new Hello({to: "World"})
 )

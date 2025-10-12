@@ -86,14 +86,14 @@ export class DOMRenderContext extends RenderContext {
   }
 
   // buildComponent(Component) {
-  //   super.render(new Component({
+  //   super.setContent(new Component({
   //     path: new URL(window.location.href).pathname.split("/"),
   //     bounds: {width: window.innerWidth, height: window.innerHeight}
   //   }))
   // }
 
   // DEPRECATED
-  render(component) {
+  setContent(component) {
     // console.log("Render...")
     // console.warn("DOMRenderContext.render is deprecated. Use buildComponent instead (will be renamed to render once all deprecations are removed)")
     component.bounds = {width: window.innerWidth, height: window.innerHeight}
@@ -101,7 +101,7 @@ export class DOMRenderContext extends RenderContext {
       bounds: {width: window.innerWidth, height: window.innerHeight},
       path: window.location.pathname.split("/").filter(item => item.length > 0),
     }) 
-    super.render(component);
+    super.setContent(component);
   }
 
 	ensureContentInPlace() {
@@ -109,8 +109,8 @@ export class DOMRenderContext extends RenderContext {
 			if (trace) console.group(repeater.causalityString());
 
 			// clearNode(this.rootElement);
-			this.component.getPrimitive().givenDomNode = this.rootElement;
-			workOnPriorityLevel(updateDOMTime, () => this.component.getPrimitive().ensureDomNodeBuilt());
+			this.component.buildPrimitive().givenDomNode = this.rootElement;
+			workOnPriorityLevel(updateDOMTime, () => this.component.buildPrimitive().ensureDomNodeBuilt());
 			
 			if (trace) console.groupEnd();
 		}, {priority: updateDOMTime}); 
@@ -158,7 +158,7 @@ export class DOMRenderContext extends RenderContext {
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
   //   this.modalRenderContext = new DOMRenderContext(modalDiv, {creator: this});
-  //   this.modalRenderContext.render(this.modalFlow);
+  //   this.modalRenderContext.setContent(this.modalFlow);
 
   //   // Display modal component
   //   this.state.modalDiv = modalDiv;

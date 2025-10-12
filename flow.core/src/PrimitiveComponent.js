@@ -31,38 +31,38 @@ export class PrimitiveComponent extends Component {
   }
 
   buildPrimitive(parentPrimitive) {
-    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
+    // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
-    // Setup parent primitive
-    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
-      if (peekParentPrimitive) {
-        // log("PrimitiveComponent.getPrimitive");
-        // TODO: Should this really be a warning? Normal behavior?
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
-      }
+    // // Setup parent primitive
+    // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+    //   if (peekParentPrimitive) {
+    //     // log("PrimitiveComponent.getPrimitive");
+    //     // TODO: Should this really be a warning? Normal behavior?
+    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
+    //   }
       this.parentPrimitive = parentPrimitive
-    }
+    // }
 
     return this;
   }
 
   renderOnto(renderContext, parentPrimitive) {
     const name = this.toString(); // For chrome debugger
-    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
+    // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     if (renderContext) this.visibleOnRenderContext = renderContext;
-    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
-      if (peekParentPrimitive) {
-        // log("PrimitiveComponent.renderOnto");
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
-        if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
-      }
+    // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+    //   if (peekParentPrimitive) {
+    //     // log("PrimitiveComponent.renderOnto");
+    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
+    //     if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
+    //   }
       this.parentPrimitive = parentPrimitive
-    } 
+    // } 
 
     finalize(this); // Finalize might not work if no key was used, it might not call onEstablish.
-    if (!this.connectRepeater) {
-      this.connectRepeater = repeat(this.toString() + ".connectRepeater", repeater => {
+    if (!this.renderRepeater) {
+      this.renderRepeater = repeat(this.toString() + ".renderRepeater", repeater => {
         if (trace) console.group(repeater.causalityString());
         if (trace) console.log([...state.workOnPriorityLevel]);
 

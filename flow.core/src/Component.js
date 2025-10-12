@@ -365,14 +365,14 @@ export class Component {
   }
 
   renderOnto(renderContext, parentPrimitive) {
-    const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
-    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
-      if (peekParentPrimitive) {
-        // log("Component.renderOnto");
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
-      }
-      this.parentPrimitive = parentPrimitive
-    } 
+    // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
+    // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
+    //   if (peekParentPrimitive) {
+    //     // log("Component.renderOnto");
+    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
+    //   }
+    this.parentPrimitive = parentPrimitive
+    // } 
     workOnPriorityLevel(buildComponentTime, () => this.buildPrimitive().renderOnto(renderContext, parentPrimitive));
     // return this.buildPrimitive(parentPrimitive);
   }
@@ -382,6 +382,7 @@ export class Component {
   }
 
   buildPrimitive(parentPrimitive) {
+    // Note: Somehow peek parent primitive is needed in the recursive call... which is odd... need to think this through. 
     let peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (parentPrimitive && this.parentPrimitive && this.parentPrimitive !== parentPrimitive) console.warn("Changed parent primitive for " + this.toString());
     if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {

@@ -42,7 +42,7 @@ class MaterialExperiment extends Component {
  */
 export function materialExperiment() {
   const experiment = new MaterialExperiment()  
-  new DOMRenderContext(document.getElementById("root")).build(experiment)
+  new DOMRenderContext(document.getElementById("root")).render(experiment)
 }
 
 

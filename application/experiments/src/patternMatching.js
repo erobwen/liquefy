@@ -43,5 +43,5 @@ export class PatternMatching extends Component {
  */
  export function startPatternMatching() {
   const application = new PatternMatching({model});  
-  new DOMRenderContext(document.getElementById("root")).build(application)
+  new DOMRenderContext(document.getElementById("root")).render(application)
 }

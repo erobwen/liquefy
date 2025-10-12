@@ -27,7 +27,7 @@ export class SimpleApplicationMenu extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startSimpleApplicationMenu() {
-  new DOMRenderContext(document.getElementById("root")).build(
+  new DOMRenderContext(document.getElementById("root")).render(
     new SimpleApplicationMenu()
   );
 }

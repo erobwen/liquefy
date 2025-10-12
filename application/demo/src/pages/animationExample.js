@@ -154,7 +154,7 @@ export class AnimationExample extends Component {
 export function startAnimationExample() {
   new DOMRenderContext(
     document.getElementById("root")
-  ).build(
+  ).render(
     new AnimationExample({items})
   )
 }

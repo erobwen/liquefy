@@ -50,5 +50,5 @@ export const flexAutoStyle = {
  */
 export function startSimpleAddRemoveAnimation() {
   const simple = new SimpleAddRemoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).build(simple)
+  new DOMRenderContext(document.getElementById("root")).render(simple)
 }

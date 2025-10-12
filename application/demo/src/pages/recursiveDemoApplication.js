@@ -119,7 +119,7 @@ export class Item extends Component {
  */ 
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMRenderContext(document.getElementById("root")).build(root);
+  new DOMRenderContext(document.getElementById("root")).render(root);
 }
 
 

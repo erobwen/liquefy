@@ -14,7 +14,7 @@ export class RenderContext {
 	// }
 	dispose() {}
 
-	build(component) {
+	render(component) {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.component = component;
 		component.renderContext = this;

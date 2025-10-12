@@ -84,7 +84,7 @@ const myRow = component("myRow", (flow) => {
 export function startHelloWorld() {
   // Activate continous build/integration to DOMRenderContext.
   const helloWorld = new HelloWorld();
-  new DOMRenderContext(document.getElementById("root")).build(helloWorld);
+  new DOMRenderContext(document.getElementById("root")).render(helloWorld);
   asyncModifications(helloWorld);  
 }
 

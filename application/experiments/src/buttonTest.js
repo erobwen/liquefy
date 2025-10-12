@@ -27,5 +27,5 @@ class ButtonTest extends Component {
  */
 export function buttonTest() {
   const test = new ButtonTest()  
-  new DOMRenderContext(document.getElementById("root")).build(test)
+  new DOMRenderContext(document.getElementById("root")).render(test)
 }

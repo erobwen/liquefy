@@ -86,14 +86,14 @@ export class DOMRenderContext extends RenderContext {
   }
 
   // buildComponent(Component) {
-  //   super.build(new Component({
+  //   super.render(new Component({
   //     path: new URL(window.location.href).pathname.split("/"),
   //     bounds: {width: window.innerWidth, height: window.innerHeight}
   //   }))
   // }
 
   // DEPRECATED
-  build(component) {
+  render(component) {
     // console.log("Render...")
     // console.warn("DOMRenderContext.render is deprecated. Use buildComponent instead (will be renamed to render once all deprecations are removed)")
     component.bounds = {width: window.innerWidth, height: window.innerHeight}
@@ -101,7 +101,7 @@ export class DOMRenderContext extends RenderContext {
       bounds: {width: window.innerWidth, height: window.innerHeight},
       path: window.location.pathname.split("/").filter(item => item.length > 0),
     }) 
-    super.build(component);
+    super.render(component);
   }
 
 	ensureContentInPlace() {
@@ -158,7 +158,7 @@ export class DOMRenderContext extends RenderContext {
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
   //   this.modalRenderContext = new DOMRenderContext(modalDiv, {creator: this});
-  //   this.modalRenderContext.build(this.modalFlow);
+  //   this.modalRenderContext.render(this.modalFlow);
 
   //   // Display modal component
   //   this.state.modalDiv = modalDiv;

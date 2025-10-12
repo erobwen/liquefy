@@ -104,7 +104,7 @@ export class PortalStandaloneExample extends Component {
  */
 export function startPortalDemo() {
   const example = new PortalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).build(example);
+  new DOMRenderContext(document.getElementById("root")).render(example);
 }
 
 

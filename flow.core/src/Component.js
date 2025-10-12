@@ -365,6 +365,8 @@ export class Component {
   }
 
   renderOnto(renderContext, parentPrimitive) {
+    // Note: This is typically just called once from RenderContext for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
+
     // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
     //   if (peekParentPrimitive) {

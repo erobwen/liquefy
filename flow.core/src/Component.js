@@ -381,18 +381,8 @@ export class Component {
     return typeof this.buildRepeater !== "undefined";
   }
 
-  buildPrimitive(parentPrimitive) {
-    // Note: Somehow peek parent primitive is needed in the recursive call... which is odd... need to think this through. 
-    let peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
-    // if (parentPrimitive && this.parentPrimitive && this.parentPrimitive !== parentPrimitive) console.warn("Changed parent primitive for " + this.toString());
-    if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
-      if (peekParentPrimitive) {
-        // log("getPrimitive");
-        if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
-      }
-      this.parentPrimitive = parentPrimitive
-    } 
-    peekParentPrimitive = withoutRecording(() => this.parentPrimitive)
+  buildPrimitive() {
+
     // log("getPrimitive")
     const me = this;
     const name = this.toString(); // For chrome debugger.
@@ -431,10 +421,10 @@ export class Component {
           if (!me.newBuild) {
             me.primitive = null; 
           } else if (!(me.newBuild instanceof Array)) {
-            me.primitive = me.newBuild.buildPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+            me.primitive = me.newBuild.buildPrimitive()  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
           } else {
             me.primitive = me.newBuild
-              .map(fragment => fragment.buildPrimitive(peekParentPrimitive))
+              .map(fragment => fragment.buildPrimitive())
               .reduce((result, childPrimitive) => {
                 if (childPrimitive instanceof Array) {
                   childPrimitive.forEach(fragment => result.push(fragment));

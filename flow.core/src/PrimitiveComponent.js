@@ -30,7 +30,7 @@ export class PrimitiveComponent extends Component {
     return null;
   }
 
-  buildPrimitive(parentPrimitive) {
+  buildPrimitive() {
     // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     // // Setup parent primitive
@@ -40,7 +40,7 @@ export class PrimitiveComponent extends Component {
     //     // TODO: Should this really be a warning? Normal behavior?
     //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
     //   }
-      this.parentPrimitive = parentPrimitive
+      // this.parentPrimitive = parentPrimitive
     // }
 
     return this;
@@ -116,7 +116,7 @@ export class PrimitiveComponent extends Component {
 
   *iteratePrimitiveChildren() {
     for(let child of this.iterateChildren()) {
-      let primitive = child.buildPrimitive(this);
+      let primitive = child.buildPrimitive();
       if (primitive instanceof Array) {
         for (let fragment of primitive) { 
           yield fragment; 

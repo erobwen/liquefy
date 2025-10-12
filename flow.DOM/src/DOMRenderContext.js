@@ -109,8 +109,9 @@ export class DOMRenderContext extends RenderContext {
 			if (trace) console.group(repeater.causalityString());
 
 			// clearNode(this.rootElement);
-			this.component.buildPrimitive().givenDomNode = this.rootElement;
-			workOnPriorityLevel(updateDOMTime, () => this.component.buildPrimitive().ensureDomNodeBuilt());
+      let primitive = this.component.buildPrimitive();
+      primitive.givenDomNode = this.rootElement;
+			primitive.ensureDomNodeBuilt();
 			
 			if (trace) console.groupEnd();
 		}, {priority: updateDOMTime}); 

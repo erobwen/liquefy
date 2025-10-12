@@ -27,7 +27,7 @@ export class ModalExample extends Component {
     this.close = callback("close", () => { this.showDialog = false; });
   }
 
-  render() {
+  build() {
     const { topBarPortal, bounds } = this;
     const { width }  = bounds;
     const dialogIsModal = width < 850;
@@ -85,7 +85,7 @@ export class DialogueContent extends Component {
     this.counter = 0;
   }
 
-  render() {
+  build() {
     const { counter } = this;
     return column("dialogue-content",
       centerMiddle(
@@ -109,7 +109,7 @@ export class DialogueContent extends Component {
  */
 export function startModalDemo() {
   const root = new ModalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).render(root);
+  new DOMRenderContext(document.getElementById("root")).build(root);
 }
 
 

@@ -175,7 +175,7 @@ export class Demo extends Component {
     );
   }
 
-  render() {
+  build() {
     const { path } = this; 
     let chosen;
     if (this.path.length === 1) {
@@ -208,7 +208,7 @@ export class Demo extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startDemo() {
-  new DOMRenderContext(document.getElementById("application")).render(
+  new DOMRenderContext(document.getElementById("application")).build(
     new Demo()
   );
 }

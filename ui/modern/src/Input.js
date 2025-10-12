@@ -39,6 +39,6 @@ export class Input extends Component {
 
   setEventListeners() {}
   
-  render() {
+  build() {
   }
 }

@@ -20,7 +20,7 @@ class Popover extends Component {
 
   initialize() {
     this.ensure(() => {
-      if (this.isRendered()) {
+      if (this.isBuilt()) {
         const background = this.getChild("background");
         if (background && background.domNode) {
           background.domNode.addEventListener("mousedown", () => { this.close() }, true);
@@ -29,7 +29,7 @@ class Popover extends Component {
     })
   }
 
-  render() {
+  build() {
     const { children, reference } = this;
 
     if (children.length !== 1) throw new Error("Modal popover expects just one single child to get dimensions.");

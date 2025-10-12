@@ -12,7 +12,7 @@ const log = console.log;
  */
 
 export class SimpleApplicationMenu extends Component {
-  render() {
+  build() {
     // return text("Foo");
     return applicationMenuFrame({
       appplicationMenu: column(text("First"), text("Second"), text("Third"), {style: {width: "200px"}}),
@@ -27,7 +27,7 @@ export class SimpleApplicationMenu extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startSimpleApplicationMenu() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("root")).build(
     new SimpleApplicationMenu()
   );
 }

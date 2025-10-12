@@ -67,7 +67,7 @@ class ApplicationMenuFrame extends Component {
   }
 
 
-  render() {
+  build() {
     // console.log("RENDER");
     // console.log(this)
     const menuWidth = this.appplicationMenu.dimensions().width;

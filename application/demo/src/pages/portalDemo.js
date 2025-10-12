@@ -36,7 +36,7 @@ export class PortalExample extends Component {
     this.showFlyingTextInPortal = false; 
   }
 
-  render() {
+  build() {
     const textStyle = {fontSize: "16px", fontFamily: "sans-serif", color: "black", ...borderStyle, boxSize: "border-box", padding: 10, backgroundColor: "white"};
     const flyingText = div("flyingContent", text("flying text in portal"), {animate: true, style: textStyle}); 
     const staticText = div("staticContent", text("Static text in portal"), {animate: true, style: textStyle});
@@ -91,7 +91,7 @@ export class PortalExample extends Component {
  * Standalone example. 
  */
 export class PortalStandaloneExample extends Component {
-  render() {
+  build() {
     const portal = portal("portal", {style: {width: "300px", height: "300px", ...layoutBorderStyle}})
     const example = new PortalExample("example", {portal});
     return row(div(portal), filler(), div(example)); 
@@ -104,7 +104,7 @@ export class PortalStandaloneExample extends Component {
  */
 export function startPortalDemo() {
   const example = new PortalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).render(example);
+  new DOMRenderContext(document.getElementById("root")).build(example);
 }
 
 

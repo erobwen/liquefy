@@ -19,7 +19,7 @@ class ThemeTest extends Component {
   initialize() {
     this.pressed = true; 
     this.useMaterialTheme = false;
-    this.ensureAtRenderTime(() => {
+    this.ensureAtBuildTime(() => {
       this.button = button("Test1", ()=> { this.pressed = !this.pressed}, {pressed: this.pressed, style: {width: "100px"}});
     });
     this.ensure(() => {
@@ -27,7 +27,7 @@ class ThemeTest extends Component {
     }) 
   }
 
-  render() {
+  build() {
     return applicationMenuFrame({
       appplicationMenu: column(
         checkboxInput("Modern Theme", this, "modernTheme"),
@@ -64,5 +64,5 @@ class ThemeTest extends Component {
  */
 export function themeTest() {
   const test = new ThemeTest()  
-  new DOMRenderContext(document.getElementById("root")).render(test)
+  new DOMRenderContext(document.getElementById("root")).build(test)
 }

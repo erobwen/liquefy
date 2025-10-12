@@ -57,7 +57,7 @@ export class ModernDialogue extends Component {
     }
   }
 
-  render() {
+  build() {
     const {children, style, variant} = this; 
     return (
       cardColumn("dialogue",

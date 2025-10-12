@@ -13,7 +13,7 @@ class Hello extends Component {
     this.count = 1;
   }
 
-  render() {
+  build() {
     const { to, count } = this;
     return div(
       h1(`Hello ${to}`),
@@ -27,6 +27,6 @@ class Hello extends Component {
 }
 
 // Create an instance, and set as content of a render context.
-new DOMRenderContext(document.getElementById("root")).render(
+new DOMRenderContext(document.getElementById("root")).build(
   new Hello({to: "World"})
 )

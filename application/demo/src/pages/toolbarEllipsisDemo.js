@@ -23,7 +23,7 @@ export class ToolbarEllipsisDemo extends Component {
   } 
 
 
-  render() {
+  build() {
     const { topBarPortal, bounds, style } = this;
 
     // Create an array of mock tools
@@ -61,7 +61,7 @@ export class EllipsisToolbar extends Component {
     this.menuOpen = false;
   }
 
-  render() {
+  build() {
     const { children } = this;
 
     // Create ellipsis button
@@ -116,7 +116,7 @@ export class EllipsisToolbar extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startToolbarEllipsisDemo() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("root")).build(
     new ToolbarEllipsisDemo()
   );
 }

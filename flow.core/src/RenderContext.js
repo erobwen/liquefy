@@ -1,5 +1,5 @@
 import { Component } from "./Component";
-import { renderComponentTime, workOnPriorityLevel } from "./Flow";
+import { buildComponentTime, workOnPriorityLevel } from "./Flow";
 
 /**
  * Implement any render context that implements HTML Element Node and HTML Text Node. 
@@ -14,11 +14,11 @@ export class RenderContext {
 	// }
 	dispose() {}
 
-	render(component) {
+	build(component) {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.component = component;
 		component.renderContext = this;
-		workOnPriorityLevel(renderComponentTime, () => {
+		workOnPriorityLevel(buildComponentTime, () => {
 			component.ensureEstablished()
 			this.component.connectAllPrimitives(this)
 		});

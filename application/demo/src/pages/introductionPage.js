@@ -26,7 +26,7 @@ export class IntroductionPage extends Component {
     this.topBarPortal = topBarPortal;
   }
 
-  render() {
+  build() {
     return (
       div(
         div(

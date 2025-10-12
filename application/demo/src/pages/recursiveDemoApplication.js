@@ -29,7 +29,7 @@ export class RecursiveExample extends Component {
     };
   }
 
-  render() {
+  build() {
     const { style, count, topBarPortal } = this; 
     return (
       column("recursiveColumn",
@@ -51,7 +51,7 @@ export class ControlRow extends Component {
       this.demoComponent = demoComponent;
   }
       
-  render() {
+  build() {
     return row(
       text("Recursive Structure"),
       row(
@@ -72,7 +72,7 @@ export class List extends Component {
     this.count = count;
   }
 
-  render() {
+  build() {
     const children = [];
     children.push(new Item("first-item", {depth: this.count}));
     if (this.count < this.maxCount) {
@@ -96,7 +96,7 @@ export class Item extends Component {
     this.value = 42;
   }
  
-  render() {
+  build() {
     const me = this; 
 
     return row("itemRow",
@@ -119,7 +119,7 @@ export class Item extends Component {
  */ 
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMRenderContext(document.getElementById("root")).render(root);
+  new DOMRenderContext(document.getElementById("root")).build(root);
 }
 
 

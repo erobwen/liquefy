@@ -92,7 +92,7 @@ export class AnimationExample extends Component {
     });
   }
 
-  render() {
+  build() {
     return column(
       topPortalContents(this.topBarPortal),
       // new SimpleMoveAnimation(),
@@ -154,7 +154,7 @@ export class AnimationExample extends Component {
 export function startAnimationExample() {
   new DOMRenderContext(
     document.getElementById("root")
-  ).render(
+  ).build(
     new AnimationExample({items})
   )
 }

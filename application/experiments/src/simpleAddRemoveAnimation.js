@@ -24,7 +24,7 @@ export class SimpleAddRemoveAnimation extends Component {
 
   }
 
-  render() {
+  build() {
     return column(
       button("foo", "Foo", this.onClick.bind(this), {style: flexAutoStyle}),
       column(
@@ -50,5 +50,5 @@ export const flexAutoStyle = {
  */
 export function startSimpleAddRemoveAnimation() {
   const simple = new SimpleAddRemoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).render(simple)
+  new DOMRenderContext(document.getElementById("root")).build(simple)
 }

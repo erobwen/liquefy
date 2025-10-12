@@ -19,12 +19,12 @@ export const world = getWorld({
  * Priority levels, to make reactive updates happen in a certain rough order. 
  */
 export const updateModelTime = 0; // Default
-export const renderComponentTime = 1;
+export const buildComponentTime = 1;
 export const updateDOMTime = 2;
 
 const priorityLevels = {
   updateModel: 0,
-  renderComponent: 1,
+  buildComponent: 1,
   updateDOM: 2 
 }
 
@@ -118,7 +118,7 @@ window.ensure = world.repeat;
 
 
 // export const updateModelTime = 0; // Default
-// export const renderComponentTime = 1;
+// export const buildComponentTime = 1;
 // export const updateDOMTime = 2;
 
 
@@ -136,7 +136,7 @@ function onFinishedPriorityLevel(level, didActualWork) {
   // if (finishedAllLevels) log("no more repeaters...");
 
   // Finished re building flow with expanded primitives. Measure bounds and style before FLIP animation. 
-  if (level === renderComponentTime && didActualWork) {
+  if (level === buildComponentTime && didActualWork) {
     // log(configuration.onFinishRenderingComponentsCallbacks)
     configuration.onFinishRenderingComponentsCallbacks.forEach(callback => callback())
   }

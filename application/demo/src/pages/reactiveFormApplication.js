@@ -124,7 +124,7 @@ export class SimpleDrawer extends Component {
     this.toggleOpen = toggleOpen;
     this.content = content;
  }
- render() {
+ build() {
   const buttonIcon = this.isOpen ? icon({name: "expand_less"}) : icon({name: "expand_more"});
   const buttonLabel = this.isOpen ? this.closeButtonLabel : this.openButtonLabel; 
   return column(
@@ -168,7 +168,7 @@ export class ReactiveForm extends Component {
     });
   }
 
-  render() {
+  build() {
     const data = this.editData;
     const traveler = data.traveler;
 
@@ -254,7 +254,7 @@ export class TravelerForm extends Component {
     this.showLuggage = true; 
   }
   
-  render() {
+  build() {
     const traveler = this.traveler;
     return card(
       // Remove button
@@ -339,7 +339,7 @@ export class LuggageForm extends Component {
     this.luggage = luggage;
   }
 
-  render() {
+  build() {
     // return div({style: {height: "48px", backgroundColor: "green"}})
     return row(
       centerMiddle(icon({name: "luggage"}), {style: {width: "40px"}}),
@@ -360,7 +360,7 @@ export class LuggageForm extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startReactiveFormApplication() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("root")).build(
     new ReactiveForm({initialData})
   );
 }

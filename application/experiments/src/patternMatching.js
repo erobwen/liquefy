@@ -19,7 +19,7 @@ export class PatternMatching extends Component {
     this.state = 1;
   }
 
-  render() {
+  build() {
     const _readState = this.state; 
 
     return column(
@@ -43,5 +43,5 @@ export class PatternMatching extends Component {
  */
  export function startPatternMatching() {
   const application = new PatternMatching({model});  
-  new DOMRenderContext(document.getElementById("root")).render(application)
+  new DOMRenderContext(document.getElementById("root")).build(application)
 }

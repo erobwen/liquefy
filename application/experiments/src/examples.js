@@ -22,7 +22,7 @@ export class ExmapleFlow extends Component {
     this.expensiveResource.dispose();
   }
 
-  render() {
+  build() {
     return row(text(this.foo), text(this.bar));
   }
 }
@@ -41,7 +41,7 @@ export class MyComponent extends Component {
     this.count = count;
   }
   
-  render() {
+  build() {
     return ( 
       row("list-row", {}, 
         button("a", {onClick: () => {log("a clicked")}}),

@@ -1,6 +1,6 @@
 import { toProperties, findImplicitChildren, toPropertiesWithChildren } from "./implicitProperties.js";
 import { creators, getCreator, globalContext } from "./buildContext.js";
-import { renderComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
+import { buildComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
 const log = console.log;
 
 
@@ -105,7 +105,7 @@ export class Component {
     // throw new Error("Not implemented yet");
   }
 
-  render(_repeater) {
+  build(_repeater) {
     throw new Error("Not implemented yet");
   }
 
@@ -221,8 +221,8 @@ export class Component {
     unobservable.ensureRepeaters.push(repeat(description, wrappedAction, options));
   }
 
-  ensureAtRenderTime(action) {
-    this.ensure(action, {priority: renderComponentTime});
+  ensureAtBuildTime(action) {
+    this.ensure(action, {priority: buildComponentTime});
   }
 
 
@@ -249,10 +249,10 @@ export class Component {
     delete window.idToComponent[this.id];
     // Dispose created by repeater in call. 
     if (trace) log("Disposed:" + this.toString());
-    if (this.renderRepeater) {
-      this.renderRepeater.notifyDisposeToCreatedObjects();
-      this.renderRepeater.dispose();
-      this.renderRepeater.repeaterAction = () => {};
+    if (this.buildRepeater) {
+      this.buildRepeater.notifyDisposeToCreatedObjects();
+      this.buildRepeater.dispose();
+      this.buildRepeater.repeaterAction = () => {};
     }
     if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
     this.terminate();
@@ -321,13 +321,13 @@ export class Component {
 
   getChild(keyOrPath) {
     // TODO: Think this function through. 
-    // Also consider reactivity... Since we observe renderRepeater here, it will re-run if not built yet. 
+    // Also consider reactivity... Since we observe buildRepeater here, it will re-run if not built yet. 
     // Should we work according to creator hierarchy or primitive parent hierarchy?
     if (typeof keyOrPath === "string") {
       const key = keyOrPath;
-      if (typeof this.renderRepeater.buildIdObjectMap[key] === "undefined")
+      if (typeof this.buildRepeater.buildIdObjectMap[key] === "undefined")
         return null;
-      return this.renderRepeater.buildIdObjectMap[key];
+      return this.buildRepeater.buildIdObjectMap[key];
     } else {
       const path = keyOrPath;
       const child = this.getChild(path.shift());
@@ -373,12 +373,12 @@ export class Component {
       }
       this.parentPrimitive = parentPrimitive
     } 
-    workOnPriorityLevel(renderComponentTime, () => this.getPrimitive().connectAllPrimitives(renderContext, parentPrimitive));
+    workOnPriorityLevel(buildComponentTime, () => this.getPrimitive().connectAllPrimitives(renderContext, parentPrimitive));
     return this.getPrimitive(parentPrimitive);
   }
 
-  isRendered() {
-    return typeof this.renderRepeater !== "undefined";
+  isBuilt() {
+    return typeof this.buildRepeater !== "undefined";
   }
 
   getPrimitive(parentPrimitive) {
@@ -396,9 +396,9 @@ export class Component {
     const me = this;
     const name = this.toString(); // For chrome debugger.
     finalize(me);
-    if (!me.renderRepeater) {
-      me.renderRepeater = repeat(
-        this.toString() + ".renderRepeater",
+    if (!me.buildRepeater) {
+      me.buildRepeater = repeat(
+        this.toString() + ".buildRepeater",
         (repeater) => {
           if (trace) console.group(repeater.causalityString());
           
@@ -406,33 +406,33 @@ export class Component {
           creators.push(me);
 
           // Build and rebuild
-          me.newRendering = me.render(repeater);
-          if (typeof me.newRendering === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
+          me.newBuild = me.build(repeater);
+          if (typeof me.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
           repeater.finishRebuilding();
-          me.newRendering = repeater.establishedShapeRoot;
+          me.newBuild = repeater.establishedShapeRoot;
 
           // Establish relationship between equivalent child and this (its creator).
-          if (me.newRendering !== null) {
-            if (me.newRendering instanceof Array) {
-              for (let fragment of me.newRendering) {
+          if (me.newBuild !== null) {
+            if (me.newBuild instanceof Array) {
+              for (let fragment of me.newBuild) {
                 fragment.equivalentCreator = me;
               }
             } else {
-              me.newRendering.equivalentCreator = me;
+              me.newBuild.equivalentCreator = me;
             }
-            me.equivalentChild = me.newRendering;
+            me.equivalentChild = me.newBuild;
           }
           
           // Popping
           creators.pop();
          
           // Recursive call, to make sure we get a primitive. 
-          if (!me.newRendering) {
+          if (!me.newBuild) {
             me.primitive = null; 
-          } else if (!(me.newRendering instanceof Array)) {
-            me.primitive = me.newRendering.getPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+          } else if (!(me.newBuild instanceof Array)) {
+            me.primitive = me.newBuild.getPrimitive(peekParentPrimitive)  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
           } else {
-            me.primitive = me.newRendering
+            me.primitive = me.newBuild
               .map(fragment => fragment.getPrimitive(peekParentPrimitive))
               .reduce((result, childPrimitive) => {
                 if (childPrimitive instanceof Array) {
@@ -445,7 +445,7 @@ export class Component {
 
           if (trace) console.groupEnd();
         }, {
-          priority: renderComponentTime, 
+          priority: buildComponentTime, 
           rebuildShapeAnalysis: getShapeAnalysis(me)
         }
       );
@@ -506,7 +506,7 @@ function getShapeAnalysis(component) {
         && (newComponent.getComponentTypeName() === establishedComponent.getComponentTypeName()) 
         && (newComponent.componentTypeName === establishedComponent.componentTypeName));
     },
-    shapeRoot: () => component.newRendering,
+    shapeRoot: () => component.newBuild,
     slotsIterator: function*(establishedObject, newObject, hasKey, childrenProperty=false) {
       if (establishedObject instanceof Array && newObject instanceof Array) {
         let newIndex = 0;

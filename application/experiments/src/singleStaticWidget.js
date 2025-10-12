@@ -18,7 +18,7 @@ const log = console.log;
 export class SingleStaticWidget extends Component {
   initialize() {}
   
-  render() {
+  build() {
   
     const singleWidget = text("Hello");
 
@@ -39,5 +39,5 @@ export class SingleStaticWidget extends Component {
  */
 export function startSingleStaticWidget() {
   const singleWidget = new SingleStaticWidget()  
-  new DOMRenderContext(document.getElementById("root")).render(singleWidget)
+  new DOMRenderContext(document.getElementById("root")).build(singleWidget)
 }

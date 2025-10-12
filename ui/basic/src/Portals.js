@@ -21,7 +21,7 @@ export class PortalContents extends Component {
   }
 
   initialize() {
-    this.ensureAtRenderTime(() => {
+    this.ensureAtBuildTime(() => {
       if (this.isVisible) {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway.
         this.portal.children = this.portalChildren;
@@ -36,7 +36,7 @@ export class PortalContents extends Component {
     });
   }
 
-  render() {
+  build() {
     return div({style: {display: "none"}});
   }
 }

@@ -25,7 +25,7 @@ class Hello extends Component {
     delete window.hello
   }
 
-  render() {
+  build() {
     return div(
       h1(`Hello ${this.to}`),
       b("Welcome to Flow, the Javascript centered front end framework!"),
@@ -60,6 +60,6 @@ class Hello extends Component {
 
 
 // Create an instance, and set as content of a render context.
-new DOMRenderContext(document.getElementById("root")).render(
+new DOMRenderContext(document.getElementById("root")).build(
   new Hello({to: "World"})
 )

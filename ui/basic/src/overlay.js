@@ -39,7 +39,7 @@ export class Overlay extends Component {
     });
   }
 
-  render() {
+  build() {
     return div({style: {display: "none"}});
   }
 }
@@ -154,7 +154,7 @@ export class OverlayFrame extends Component {
     }
   }
 
-  render() {
+  build() {
     if (this.reallyDisposed) throw new Error("CANNOT REBUILD A DISPOSED ONE!!!");
     return new overlayFrameDiv({style: this.style, children: this.childrenWithPossibleModal});
   }

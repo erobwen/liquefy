@@ -51,7 +51,7 @@ export class SimpleMoveAnimation extends Component {
     // }, 2500);
   }
 
-  render() {
+  build() {
     // logMark("build simple animation ");
     // const button = new modernButton(
     // const button = div("wrapper", this.button, {animate: true});
@@ -105,5 +105,5 @@ export class SimpleMoveAnimation extends Component {
  */
 export function startSimpleMoveAnimation() {
   const simple = new SimpleMoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).render(simple)
+  new DOMRenderContext(document.getElementById("root")).build(simple)
 }

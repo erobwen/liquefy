@@ -24,7 +24,7 @@ export class HelloWorld extends Component {
     });
   }
 
-  render() {
+  build() {
     return column(
       button("Start", {onClick:() => {asyncModifications(this)}}),
       myRow(
@@ -54,7 +54,7 @@ class World extends Component {
     this.worldText = "";
   }
 
-  render() {
+  build() {
     return myRow(
       text(this.worldText),
       exclamationMark({
@@ -84,7 +84,7 @@ const myRow = component("myRow", (flow) => {
 export function startHelloWorld() {
   // Activate continous build/integration to DOMRenderContext.
   const helloWorld = new HelloWorld();
-  new DOMRenderContext(document.getElementById("root")).render(helloWorld);
+  new DOMRenderContext(document.getElementById("root")).build(helloWorld);
   asyncModifications(helloWorld);  
 }
 

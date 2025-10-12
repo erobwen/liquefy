@@ -11,7 +11,7 @@ export class MoveComponent extends Component {
     this.moveComponent = false; 
   }
 
-  render() {
+  build() {
     // animate: true below activates default animation on the text div. 
     const movedComponent = div("Some Text", {animate: true}); 
     return column(

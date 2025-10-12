@@ -23,7 +23,7 @@ export class InformationButton extends Component {
     this.open = false;
   }
 
-  render() {
+  build() {
     const button = buttonIcon("button",
       {icon: "info", style: {color: "blue"}}, 
       () => { this.open = true } 
@@ -56,7 +56,7 @@ export class DisplayCodeButton extends Component {
     this.open = false;
   }
 
-  render() {
+  build() {
     const highlightedCode = hljs.highlight(
       this.code,
       { language: 'javascript' }
@@ -121,7 +121,7 @@ export class CodeDisplay extends Component {
     this.style = style; 
   }
 
-  render() {
+  build() {
     const { style } = this;
 
     const highlightedCode = hljs.highlight(

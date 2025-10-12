@@ -248,7 +248,7 @@ export class ModernButton extends Component {
     }
   }
   
-  render() {
+  build() {
     // log("REBUILDING BUTTON")
     const {style, onClick, disabled} = this;
     if (onClick) {
@@ -259,7 +259,7 @@ export class ModernButton extends Component {
     if (this.children) {
       children = this.children;
     } else if (this.render) {
-      children = this.render(); 
+      children = this.build(); 
     }
     
     return button("button",

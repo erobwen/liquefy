@@ -31,7 +31,7 @@ export class ModalContainer extends Component {
     }  
   }
   
-  render() {
+  build() {
     const isFullScreen = this.renderContext.bounds.width < this.fullScreenTreshold;
     if (isFullScreen) {
       return this.renderFullScreen();

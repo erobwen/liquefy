@@ -24,7 +24,7 @@ repeat(() => {
 class MaterialExperiment extends Component {
   initialize() { }
 
-  render() {
+  build() {
     return (
       div(
         button("Button Text", () => {console.log("clicked me!")}),
@@ -42,7 +42,7 @@ class MaterialExperiment extends Component {
  */
 export function materialExperiment() {
   const experiment = new MaterialExperiment()  
-  new DOMRenderContext(document.getElementById("root")).render(experiment)
+  new DOMRenderContext(document.getElementById("root")).build(experiment)
 }
 
 
@@ -121,7 +121,7 @@ const input = (...parameters) => {
 //     this.attributes = attributes;
 //   }
 
-//   render() {
+//   build() {
 //     console.log(attributes);
 //     return getRenderContext().primitive({
 //       key: this.key + ".text", 

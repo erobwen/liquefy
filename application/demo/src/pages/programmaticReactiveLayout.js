@@ -28,7 +28,7 @@ export class ProgrammaticReactiveLayout extends Component {
     this.columns = 3;
   }
 
-  render() {
+  build() {
     // Create control panel
     const controlPanel = cardRow("controlPannel",
       numberInput("Rows", this, "rows"),
@@ -95,7 +95,7 @@ export class BoundsDisplay extends Component {
     this.style = style; 
   } 
     
-  render() {
+  build() {
     const text = "Bounds: " + Math.round(this.bounds.width) + " x " + Math.round(this.bounds.height);
     return (
       centerMiddle(
@@ -129,7 +129,7 @@ export class StringDisplay extends Component {
     this.style = style; 
   } 
   
-  render() {
+  build() {
     const fittedString = "Text that fit the width of container"// + this.key; 
     return (
       centerMiddle(
@@ -183,7 +183,7 @@ export class FixedAspectRatioDisplay extends Component {
     this.aspectRatio = (Math.random()*4 + 1) / (1 + (Math.random()*4));
   }
   
-  render() {
+  build() {
     const boundsAspectRatio = this.bounds.width / this.bounds.height; 
 
     let width; 
@@ -233,7 +233,7 @@ export class FixedAspectRatioDisplay extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startProgrammaticReactiveLayout() {
-  new DOMRenderContext(document.getElementById("root")).render(
+  new DOMRenderContext(document.getElementById("root")).build(
     new ProgrammaticReactiveLayout()
   );
 }

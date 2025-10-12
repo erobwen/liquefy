@@ -52,7 +52,7 @@ export class Dialogue extends Component {
     }
   }
 
-  render() {
+  build() {
     // console.log("basic dialogue render", {children: this.children, style: this.style, variant: this.variant});
     const {children, style, variant} = this; 
     return (

@@ -16,7 +16,7 @@ import file from './programmaticReactiveLayout?raw';
  */
 export class ProgrammaticReactiveLayout extends Component {
   
-  receive({ bounds, topBarPortal, style }) {
+  setProperties({ bounds, topBarPortal, style }) {
     this.name = "Programmatic Reactive Layout"; 
     this.bounds = bounds; 
     this.topBarPortal = topBarPortal;
@@ -90,7 +90,7 @@ export class ProgrammaticReactiveLayout extends Component {
  */
 export class BoundsDisplay extends Component {
 
-  receive({bounds, style}) {
+  setProperties({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
@@ -124,7 +124,7 @@ export class BoundsDisplay extends Component {
  */
 export class StringDisplay extends Component {
 
-  receive({bounds, style}) {
+  setProperties({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 
@@ -174,7 +174,7 @@ function scaledTextWithMaxFontSize(...parameters) {
  */
 export class FixedAspectRatioDisplay extends Component {
 
-  receive({bounds, style}) {
+  setProperties({bounds, style}) {
     this.bounds = bounds;
     this.style = style; 
   } 

@@ -17,7 +17,7 @@ const fenceBeam = (properties) => (
  */
 class Fence extends Component {
 
-  receive({position, ...defaultStateValues}) {
+  setProperties({position, ...defaultStateValues}) {
     this.position = position;
     this.defaultStateValues = Object.assign({elevation: 1}, defaultStateValues);
   }
@@ -60,7 +60,7 @@ const distributions = {
  */
 class HorizontalArray extends Component {
 
-  receive({children, ...defaultStateValues}) {
+  setProperties({children, ...defaultStateValues}) {
     this.defaultStateValues = Object.assign({
       type: distributions.usingSpacingFromStart
     }, defaultStateValues);

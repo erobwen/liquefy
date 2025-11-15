@@ -15,7 +15,7 @@ import file from './toolbarEllipsisDemo?raw';
  */
 export class ToolbarEllipsisDemo extends Component {
   
-  receive({ style, bounds, topBarPortal }) {
+  setProperties({ style, bounds, topBarPortal }) {
     this.name = "Toolbar Ellipsis"; 
     this.topBarPortal = topBarPortal;
     this.bounds = bounds; 

@@ -13,7 +13,7 @@ export function applicationMenuFrame(...parameters) {
 }
 
 class ApplicationMenuFrame extends Component {
-  receive({appplicationMenu, applicationContent, topPanelContent, bounds}) {
+  setProperties({appplicationMenu, applicationContent, topPanelContent, bounds}) {
     this.appplicationMenu = appplicationMenu;
     this.applicationContent = applicationContent;
     this.topPanelContent = topPanelContent;

@@ -161,7 +161,7 @@ To control rendering and rerendering of components it is important to know the l
 
 * **render**: The main function that reactivley renders the component and its child components based on parameters, state and data models. The render function will automatically re-run on any auto detected change. The render function should return whatever this component renders into, either other components or primitive components.
 
-* **setProperties**: This is where the properties are set on a component. This is where you can set default values for properties. Note that this object might be thrown away, so don´t do any expensive initialization in the setProperties function! Also, **do not** set any default value for local state! The parameter list contains just one standardized properties object.
+* **setProperties(**: This is where the properties are set on a component. This is where you can set default values for properties. Note that this object might be thrown away, so don´t do any expensive initialization in the setProperties( function! Also, **do not** set any default value for local state! The parameter list contains just one standardized properties object.
 
 * **setState**: a lifecycle function where we know the component will actually become established. This is the place where you sould set default values for local state, and obtain external resources such as data requests. No parameter list. 
 

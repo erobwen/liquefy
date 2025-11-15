@@ -14,7 +14,7 @@ export const dialogue = (...parameters) => {
 }
 
 export class Dialogue extends Component {
-  receive({close, children, style, title, variant="filled"}) {
+  setProperties({close, children, style, title, variant="filled"}) {
     this.close = close;
     this.children = children;
     this.style = {

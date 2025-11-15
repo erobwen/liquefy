@@ -53,7 +53,7 @@ export class Component {
     let me = observable(this, this.key);
 
     // Set properties through interface, set default values here.
-    me.receive(properties); 
+    me.setProperties(properties); 
         
     // Debug & warning
     me._ = me.toString(); 
@@ -88,7 +88,7 @@ export class Component {
     return toPropertiesWithChildren(parameters)
   }
 
-  receive(properties) {
+  setProperties(properties) {
     Object.assign(this, properties)
   }
 

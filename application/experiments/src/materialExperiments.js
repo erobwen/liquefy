@@ -114,7 +114,7 @@ const input = (...parameters) => {
 //     return properties; 
 //   }
 
-//   receive({labelText, setter, getter, ...attributes}) {
+//   setProperties({labelText, setter, getter, ...attributes}) {
 //     this.labelText = labelText; 
 //     this.setter = setter; 
 //     this.getter = getter;

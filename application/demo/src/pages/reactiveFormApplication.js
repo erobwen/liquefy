@@ -115,7 +115,7 @@ function verifyFieldNotEmpty(object, property, requestedDataMessage) {
 }
 
 export class SimpleDrawer extends Component {
-  receive(properties) {
+  setProperties(properties) {
     Object.assign(this, properties)
     const {openButtonLabel = "Open", closeButtonLabel = "Close", isOpen, toggleOpen, content} = properties
     this.openButtonLabel = openButtonLabel;
@@ -149,7 +149,7 @@ export class SimpleDrawer extends Component {
  * Components. Flow component definitions.
  */
 export class ReactiveForm extends Component {
-  receive({style, topBarPortal, initialData}) {
+  setProperties({style, topBarPortal, initialData}) {
     this.name = "Reactive Form";
     this.topBarPortal = topBarPortal;
     this.style = style; 
@@ -242,7 +242,7 @@ export class ReactiveForm extends Component {
  * Traveler form. 
  */
 export class TravelerForm extends Component {
-  receive(properties) {
+  setProperties(properties) {
     Object.assign(this, {
       traveler: null,
       isFellowTraveller: null,
@@ -335,7 +335,7 @@ export class TravelerForm extends Component {
  * Luggage form.
  */
 export class LuggageForm extends Component {
-  receive({luggage}) {
+  setProperties({luggage}) {
     this.luggage = luggage;
   }
 

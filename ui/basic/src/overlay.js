@@ -14,7 +14,7 @@ export function overlay(...parameters) {
 }
 
 export class Overlay extends Component {
-  receive({children}) {
+  setProperties({children}) {
     if (children && children.length > 1) throw new Error("Overlay accepts at most a single child!");
     this.children = children; 
     // this.content = children[0];
@@ -56,7 +56,7 @@ export function overlayFrame(...parameters) {
  * Overlay frame
  */
 export class OverlayFrame extends Component {
-  receive({style, children, overlayContent}) {
+  setProperties({style, children, overlayContent}) {
     this.style = style; 
     this.children = children;  
     this.overlayFrame = this;

@@ -15,7 +15,7 @@ export function informationButton(...parameters) {
 }
 
 export class InformationButton extends Component {
-  receive({children}) {
+  setProperties({children}) {
     this.children = children;
   }
 
@@ -47,7 +47,7 @@ export function displayCodeButton(...parameters) {
 }
 
 export class DisplayCodeButton extends Component {
-  receive({code, fileName}) {
+  setProperties({code, fileName}) {
     this.code = code;
     this.fileName = fileName; 
   }
@@ -116,7 +116,7 @@ export function codeDisplay(...parameters) {
 }
 
 export class CodeDisplay extends Component {
-  receive({code, style}) {
+  setProperties({code, style}) {
     this.code = code;
     this.style = style; 
   }

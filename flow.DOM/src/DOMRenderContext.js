@@ -97,7 +97,7 @@ export class DOMRenderContext extends RenderContext {
     // console.log("Render...")
     // console.warn("DOMRenderContext.render is deprecated. Use buildComponent instead (will be renamed to render once all deprecations are removed)")
     component.bounds = {width: window.innerWidth, height: window.innerHeight}
-    component.receive({
+    component.setProperties({
       bounds: {width: window.innerWidth, height: window.innerHeight},
       path: window.location.pathname.split("/").filter(item => item.length > 0),
     }) 

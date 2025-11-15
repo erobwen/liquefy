@@ -10,7 +10,7 @@ import { overlay } from "./overlay";
 export const popover = (...parameters) => new Popover(...parameters)
 
 class Popover extends Component {
-  receive(properties) {
+  setProperties(properties) {
     const {children, reference, close, direction="top" } = properties; 
     this.children = children;
     this.reference = reference;

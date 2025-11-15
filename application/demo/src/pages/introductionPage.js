@@ -22,7 +22,7 @@ function blue(...parameters) {
  */
 export class IntroductionPage extends Component {
   
-  receive({topBarPortal}) {
+  setProperties({topBarPortal}) {
     this.topBarPortal = topBarPortal;
   }
 

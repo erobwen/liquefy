@@ -14,7 +14,7 @@ const shadeColor = "rgba(0, 0, 0, 0.4)";
 export const modalContainer = (...parameters) => new ModalContainer(...parameters);
 
 export class ModalContainer extends Component {
-  receive({fullScreenTreshold, dialogue, dialogueProperties, close, content, children, backgroundColor=shadeColor}) {
+  setProperties({fullScreenTreshold, dialogue, dialogueProperties, close, content, children, backgroundColor=shadeColor}) {
     this.fullScreenTreshold = fullScreenTreshold;
     this.close = close; 
 

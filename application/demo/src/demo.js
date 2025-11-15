@@ -33,7 +33,7 @@ import { ToolbarEllipsisDemo } from "./pages/toolbarEllipsisDemo";
  */
 export class Demo extends Component {
 
-  receive({bounds, path}) {
+  setProperties({bounds, path}) {
     this.bounds = bounds;
     this.path = path; 
   }

@@ -20,7 +20,7 @@ export const borderStyle = {
  * Portal Example
  */
 export class PortalExample extends Component {
-  receive({style, portal, topBarPortal}) {    
+  setProperties({style, portal, topBarPortal}) {    
     // Properties
     this.portal = portal;
     this.topBarPortal = topBarPortal;

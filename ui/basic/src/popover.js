@@ -10,7 +10,7 @@ import { overlay } from "./overlay";
 export const popover = (...parameters) => new Popover(...parameters)
 
 class Popover extends Component {
-  receive(properties) {
+  setProperties(properties) {
     const {children, reference, close, direction="top" } = properties; 
     this.children = children;
     this.reference = reference;
@@ -33,8 +33,8 @@ class Popover extends Component {
     const { children, reference } = this;
 
     if (children.length !== 1) throw new Error("Modal popover expects just one single child to get dimensions.");
-    const popoverDimensions = children[0].buildPrimitive().dimensions();
-    const referenceRect = reference.buildPrimitive().reactiveBoundingClientRect(); 
+    const popoverDimensions = children[0].observeableBuild().dimensions();
+    const referenceRect = reference.observeableBuild().reactiveBoundingClientRect(); 
     const referenceRectMiddle = referenceRect.top + referenceRect.height / 2;
     const windowHeightMiddle = window.innerHeight / 2;
     const xSpace = window.innerWidth - referenceRect.width;

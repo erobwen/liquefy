@@ -6,4 +6,4 @@ setFlowConfiguration({
   warnWhenNoKey: false,
   autoAssignProperties: true
 });
-installDOMAnimation();
+// installDOMAnimation();

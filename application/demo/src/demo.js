@@ -33,7 +33,7 @@ import { ToolbarEllipsisDemo } from "./pages/toolbarEllipsisDemo";
  */
 export class Demo extends Component {
 
-  receive({bounds, path}) {
+  setProperties({bounds, path}) {
     this.bounds = bounds;
     this.path = path; 
   }
@@ -184,7 +184,7 @@ export class Demo extends Component {
       const pathFirst = path[1];
       chosen = this.items.find(item => item.key === pathFirst);
       if (chosen) { 
-        chosen.receiveProperty("path", path.slice(2))
+        chosen.setProperty("path", path.slice(2))
       } else {
         setTimeout(() => {
           this.chose(this.introduction); 

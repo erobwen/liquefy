@@ -10,7 +10,7 @@ export function input(...parameters) {
 
 export class Input extends Component {
 
-  receive(properties) {
+  setProperties(properties) {
     Object.assign(this, properties)
     const {style={}} = properties
     this.style = style;

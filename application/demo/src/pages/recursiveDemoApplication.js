@@ -10,7 +10,7 @@ import file from './recursiveDemoApplication?raw';
 
 export class RecursiveExample extends Component {
   
-  receive({style, topBarPortal}) {
+  setProperties({style, topBarPortal}) {
     this.name = "Recursive Components"
     this.topBarPortal = topBarPortal;
     this.style = style; 
@@ -47,7 +47,7 @@ export class RecursiveExample extends Component {
 } 
 
 export class ControlRow extends Component {
-  receive({demoComponent}) {
+  setProperties({demoComponent}) {
       this.demoComponent = demoComponent;
   }
       
@@ -67,7 +67,7 @@ export class ControlRow extends Component {
 }
 
 export class List extends Component {
-  receive({maxCount, count}) {
+  setProperties({maxCount, count}) {
     this.maxCount = maxCount;
     this.count = count;
   }
@@ -88,7 +88,7 @@ export class List extends Component {
 }
 
 export class Item extends Component {
-  receive({depth}) {
+  setProperties({depth}) {
     this.depth = depth;
   }
   

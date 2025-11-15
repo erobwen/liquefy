@@ -64,7 +64,7 @@ function itemDisplay(item) {
  * Animation Example
  */
 export class AnimationExample extends Component {
-  receive({items, style, topBarPortal}) {
+  setProperties({items, style, topBarPortal}) {
     this.name = "DOM Transition Animation";
     this.topBarPortal = topBarPortal;
     this.style = style; 

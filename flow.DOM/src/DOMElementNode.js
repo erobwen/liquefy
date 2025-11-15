@@ -46,7 +46,7 @@ function defaultToPx(value) { // Note: According to ChatGTP there is no style pr
  * DOM Element node primitive
  */
  export class DOMElementNode extends DOMNode {
-  receive(properties) {
+  setProperties(properties) {
     if (properties.__attributes_type__) {
       properties.type = properties.__attributes_type__;
     }

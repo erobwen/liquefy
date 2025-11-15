@@ -14,7 +14,7 @@ export function overlay(...parameters) {
 }
 
 export class Overlay extends Component {
-  receive({children}) {
+  setProperties({children}) {
     if (children && children.length > 1) throw new Error("Overlay accepts at most a single child!");
     this.children = children; 
     // this.content = children[0];
@@ -24,7 +24,7 @@ export class Overlay extends Component {
   initialize() {
     this.visibleOnFrame = null;
     this.ensure(() => {
-      if (this.isVisible) {
+      if (this.renders) {
         // Try to show
         const overlayFrame = this.inherit("overlayFrame");
         if (overlayFrame) {
@@ -56,7 +56,7 @@ export function overlayFrame(...parameters) {
  * Overlay frame
  */
 export class OverlayFrame extends Component {
-  receive({style, children, overlayContent}) {
+  setProperties({style, children, overlayContent}) {
     this.style = style; 
     this.children = children;  
     this.overlayFrame = this;
@@ -147,7 +147,7 @@ export class OverlayFrame extends Component {
         this.modalSubFrame.reallyDisposed = true;
         // This is to avoid the old sub frame holding on the the dialog, if we create a new one. 
         this.modalSubFrame.children = [];
-        this.modalSubFrame.buildPrimitive().children = [];  
+        this.modalSubFrame.observeableBuild().children = [];  
         // Note: This might need fixing.
         this.modalSubFrame.onDispose();
         this.modalSubFrame = null;

@@ -14,7 +14,7 @@ export const portalContents = (...parameters) =>
   new PortalContents(...parameters);
 
 export class PortalContents extends Component {
-  receive({children, portal}) {
+  setProperties({children, portal}) {
     this.portal = portal; 
     if (!this.portal) throw new Error("PortalContents must be given a portal to render into!");
     this.portalChildren = children;
@@ -22,7 +22,7 @@ export class PortalContents extends Component {
 
   initialize() {
     this.ensureAtBuildTime(() => {
-      if (this.isVisible) {
+      if (this.renders) {
         // Note: check if children already set will cause infinite loop. This is unnecessary since it is built in to causality anyway.
         this.portal.children = this.portalChildren;
       } else {

@@ -167,8 +167,8 @@ function createHorizontalMeasureContext(limit, parent) {
   return context;
 }
 
-function horizontalLogFitsWithinWidthLimit(entity, pattern, limit, parentContext) {    
-  let context = createHorizontalMeasureContext(limit, parentContext);
+function horizontalLogFitsWithinWidthLimit(entity, pattern, limit, renderContext) {    
+  let context = createHorizontalMeasureContext(limit, renderContext);
   logPattern(entity, pattern, context);
   return !context.terminated;
 }

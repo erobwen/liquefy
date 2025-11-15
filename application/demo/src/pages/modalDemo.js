@@ -17,7 +17,7 @@ import dropPortrait from '../../public/drop-portrait.jpg';
  * Hybrid modal example
  */
 export class ModalExample extends Component {
-  receive({bounds, topBarPortal}) {
+  setProperties({bounds, topBarPortal}) {
     this.bounds = bounds; 
     this.topBarPortal = topBarPortal;
     this.name = "Hybrid Modal Dialogs";

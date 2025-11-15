@@ -6,7 +6,7 @@ const foo = model({x: 234})
 
 
 class Hello extends Component {
-  receive(properties) {
+  setProperties(properties) {
     Object.assign(this, { to: "Developer" }, properties);
   }
 

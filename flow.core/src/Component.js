@@ -9,7 +9,7 @@ const log = console.log;
  */
 export class Component {
   theme;
-  renderContext; 
+  renderTarget; 
 
   get id() {
     return this.causality.id;
@@ -43,17 +43,15 @@ export class Component {
       delete properties.componentTypeName; 
     }
 
-    // this.componentDepth = this.creator ? this.creator.componentDepth + 1 : 0;
-    
     // Get and inherit certain things from creator.
     this.creator = getCreator(); // Note this can only be done in constructor!
-    this.inheritFromCreator();
+    this.inheritFromCreator(); // Deprecated: Get from render context instead. 
 
     // Create observable
     let me = observable(this, this.key);
 
     // Set properties through interface, set default values here.
-    me.receive(properties); 
+    me.setProperties(properties); 
         
     // Debug & warning
     me._ = me.toString(); 
@@ -76,10 +74,6 @@ export class Component {
     this.theme = theme; 
   }
 
-  setRenderContext(renderContext) {
-    this.renderContext = renderContext; 
-  }
-
 
   /**
    * Lifecycle methods
@@ -88,11 +82,11 @@ export class Component {
     return toPropertiesWithChildren(parameters)
   }
 
-  receive(properties) {
+  setProperties(properties) {
     Object.assign(this, properties)
   }
 
-  receiveProperty(property, value) {
+  setProperty(property, value) {
     this[property] = value; 
   }
 
@@ -128,7 +122,6 @@ export class Component {
 
   inheritFromCreator() {
     if (this.creator) {
-      this.setRenderContext(this.creator.renderContext);
       this.setTheme(this.creator.theme);
     }
   }
@@ -159,13 +152,13 @@ export class Component {
       return context[property] 
     } else if (this.equivalentCreator) {
       return this.equivalentCreator.inheritUncached(property); 
-    } else if (this.parentPrimitive) {
+    } else if (this.primitiveContainer) {
       // This is to ensure inheritance works over component compositions, so that children can inherit properties from parent in compositions like parent({children: child() }). 
-       return this.parentPrimitive.inheritUncached(property); 
+       return this.primitiveContainer.inheritUncached(property); 
     } else if (this.creator) {
       // This might be useful for maintaining inheritance while a child component is decoupled from the visible tree. 
-      // But it cannot be as the first option as inheritance would then skip over the parentPrimitive structure. 
-      // Note that a composed component might not have an equivalent creator, and if not visible it has no parentPrimitive.
+      // But it cannot be as the first option as inheritance would then skip over the primitiveContainer structure. 
+      // Note that a composed component might not have an equivalent creator, and if not visible it has no primitiveContainer.
       return this.creator.inheritUncached(property); 
     } else if (typeof(globalContext[property]) !== "undefined") {
       return globalContext[property];
@@ -177,12 +170,12 @@ export class Component {
   // inheritFromParentContainer(property) {
   //   if (this[property]) {
   //     return this[property];
-  //   } else if (this.parentPrimitive) {
-  //     const valueFromEquivalent = this.parentPrimitive.inheritFromEquivalentCreator(property);
+  //   } else if (this.primitiveContainer) {
+  //     const valueFromEquivalent = this.primitiveContainer.inheritFromEquivalentCreator(property);
   //     if (valueFromEquivalent) {
   //       return valueFromEquivalent;
   //     }
-  //     return this.parentPrimitive.inheritFromParentContainer(property)
+  //     return this.primitiveContainer.inheritFromParentContainer(property)
   //   } else {
   //     return null; 
   //   }
@@ -233,6 +226,7 @@ export class Component {
   onEstablish() {
     this.causality.established = true; 
     this.unobservable.established = true; 
+    this.renderContext = null;
     window.components[this.toString()] = this;
     window.idToComponent[this.id] = this;
     creators.push(this);
@@ -256,15 +250,6 @@ export class Component {
     }
     if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
     this.terminate();
-  }
-
-  onVisibilityWillChange(visibility) { // Deprecated? Just observe Component.isVisible instead. 
-    // log("onVisibilityWillChange: " + this.toString() + ".visibility = " + visibility);
-    // Called if the visibility is changed for this component. 
-    // Since Flow allows hidden component that maintain their state but are not disposed, 
-    // this is how you know if your component is visible.  
-    // Tips: It might be better do do a ensure and simply reading isVisible instead of 
-    // overloading this method. 
   }
 
 
@@ -307,7 +292,7 @@ export class Component {
   }
 
   findChild(key) { // Note: did not work in some situations getChild worked.  
-    const primitive = this.buildPrimitive();
+    const primitive = this.observeableBuild();
     if (primitive instanceof Array) {
       for (let fragment of primitive) {
         const result = fragment.findKey();
@@ -364,77 +349,144 @@ export class Component {
     }
   }
 
-  renderOnto(renderContext, parentPrimitive) {
-    // Note: This is typically just called once from RenderContext for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
-
-    // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
-    // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) { // Why not set to null? Something to do with animation?
-    //   if (peekParentPrimitive) {
-    //     // log("Component.renderOnto");
-    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
-    //   }
-    this.parentPrimitive = parentPrimitive
-    // } 
-    workOnPriorityLevel(buildComponentTime, () => this.buildPrimitive().renderOnto(renderContext, parentPrimitive));
-    // return this.buildPrimitive(parentPrimitive);
+  // Note: Important helper that sets up an observable renderContext property.
+  requireObserveable(context) {
+    if (isObservable(context)) {
+      // Verify we have no own context?
+      return context;
+    }
+    throw new Error("Must be an observeable object! Otherwise we cannot track changes to it.");
+    // let observeable = this.getRenderContext();
+    // Object.assign(observeable, context);
+    // return observeable; 
   }
+
+  /**
+   * Bounds
+   */
+  getBounds() {
+    if (this.renderContext) {
+      return this.renderContext.dimensions;
+    }
+  }
+
+  /**
+   * Render
+   * 
+    */
+
+     // Not a good idea to assign the whole render context. variables like firstPass will trigger re-render. Better to deconstruct it...
+      // IF it is an observeable, we can assign it. If not, we better deconstruct it. Assign it to an incoming object. 
+  
+  setContext(renderContext) {
+    if (!this.renderContext) {
+      this.renderContext = model({})
+    }
+    Object.assign(this.renderContext, context);
+    return this.renderContext;
+  }
+
+  observeableRender(renderContext) { finalize(this);
+
+    this.setContext(renderContext); // Consider: We will not get a new context if parent abandons us.... 
+
+    // Note what happens if reactive build returns something else, it means the parent render repeater has to invalidate...
+    // Could we make this invalidation more local?... have a small repeater here that just deals with change in the reactive build. 
+    if (!this.unobservable.renderRepeater) {
+      this.unobservable.renderRepeater = repeat(this.toString() + ".renderRepeater", repeater => {
+        if (trace) console.group(repeater.causalityString());
+
+        // Check if we are still rendering
+        this.verifyRenders(this.renderContext);
+
+        if (!this.renders) {
+          // Do not bother rendering if not visible.
+          this.renderResult = null; // What happens when off screen? Do we loose state or what? Render result can be null, but observeable build is not set to null automatically. 
+        } else {
+          // Build and then render what was built
+          let morePrimitiveComponent = this.observeableBuild(); 
+          this.renderResult = morePrimitiveComponent.observeableRender(this.peerRenderContext, this.renderContext);
+        }
+
+        if (trace) console.groupEnd();
+      },{
+        priority: buildComponentTime, 
+      })
+    }
+
+    return this.renderResult;
+  }
+
+  verifyRenders(renderContext) {
+    const {renderTarget, primitiveContainer} = renderContext;
+    
+    // Verify rendering. Parent may leave us be, so we need to verify in the panent data structure that we are still visible.
+    if (renderTarget !== null) {
+      this.rendersToTarget = renderTarget;
+    } else if (this.equivalentCreator) {
+      this.rendersToTarget = this.equivalentCreator.rendersToTarget
+    } else if (primitiveContainer) {
+      if (primitiveContainer.observeableStillAChild(this)) {
+        this.rendersToTarget = primitiveContainer.rendersToTarget;
+      } else {
+        this.rendersToTarget = null;
+      } 
+    }
+    this.renders = this.rendersToTarget !== null;
+
+    // Remember last container and target, for inheritance to work smootly while being non rendered.
+    this.lastPrimitiveContainer = primitiveContainer ?? this.lastPrimitiveContainer;
+    this.lastTarget = renderTarget ?? this.lastTarget;
+  }
+
+
+  // reactiveVerifyRenders(renderContext) {
+  //   if (!this.visibilityRepeater) {
+  //     this.visibilityRepeater = repeat(this.toString() + ".visibilityRepeater", () => {
+      
+  //       this.verifyRenders(renderContext);
+
+  //     }, {priority: buildComponentTime}); // Can be problematic. What if we render if we should not render. That could lead to placing rouge DOM nodes in an element for example.  
+  //   }
+  // }
 
   isBuilt() {
     return typeof this.buildRepeater !== "undefined";
   }
 
-  buildPrimitive() {
-
+  observeableBuild() {
     // log("getPrimitive")
-    const me = this;
     const name = this.toString(); // For chrome debugger.
-    finalize(me);
-    if (!me.buildRepeater) {
-      me.buildRepeater = repeat(
+    finalize(this);
+    if (!this.unobservable.buildRepeater) {
+      this.unobservable.buildRepeater = repeat(
         this.toString() + ".buildRepeater",
         (repeater) => {
           if (trace) console.group(repeater.causalityString());
-          
+
           // Pushing
-          creators.push(me);
+          creators.push(this);
 
           // Build and rebuild
-          me.newBuild = me.build(repeater);
-          if (typeof me.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
+          this.newBuild = this.build(repeater);
+          if (typeof this.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
           repeater.finishRebuilding();
-          me.newBuild = repeater.establishedShapeRoot;
+          this.newBuild = repeater.establishedShapeRoot;
 
           // Establish relationship between equivalent child and this (its creator).
-          if (me.newBuild !== null) {
-            if (me.newBuild instanceof Array) {
-              for (let fragment of me.newBuild) {
-                fragment.equivalentCreator = me;
+          if (this.newBuild !== null) {
+            if (this.newBuild instanceof Array) {
+              for (let fragment of this.newBuild) {
+                fragment.equivalentCreator = this;
               }
             } else {
-              me.newBuild.equivalentCreator = me;
+              this.newBuild.equivalentCreator = this;
             }
-            me.equivalentChild = me.newBuild;
+            this.equivalentChild = this.newBuild;
           }
           
           // Popping
           creators.pop();
-         
-          // Recursive call, to make sure we get a primitive. 
-          if (!me.newBuild) {
-            me.primitive = null; 
-          } else if (!(me.newBuild instanceof Array)) {
-            me.primitive = me.newBuild.buildPrimitive()  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
-          } else {
-            me.primitive = me.newBuild
-              .map(fragment => fragment.buildPrimitive())
-              .reduce((result, childPrimitive) => {
-                if (childPrimitive instanceof Array) {
-                  childPrimitive.forEach(fragment => result.push(fragment));
-                } else {
-                  result.push(childPrimitive);
-                }
-              }, []);
-          }
 
           if (trace) console.groupEnd();
         }, {
@@ -443,7 +495,7 @@ export class Component {
         }
       );
     }
-    return me.primitive;
+    return me.newBuild;
   }
   
   *iterateChildren() {
@@ -460,14 +512,14 @@ export class Component {
 
   dimensions(contextNode) {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
-    const primitive = this.buildPrimitive();
+    const primitive = this.observeableBuild();
     if (primitive instanceof Array) throw new Error("Dimensions not supported for fragmented components.");
     return primitive ? primitive.dimensions(contextNode) : null;
   }
 
   reactiveBoundingClientRect() {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
-    const primitive = this.buildPrimitive();
+    const primitive = this.observeableBuild();
     if (primitive instanceof Array) throw new Error("reactiveBoundingClientRect not supported for fragmented components.");
     return primitive ? primitive.reactiveBoundingClientRect(contextNode) : null;
   }

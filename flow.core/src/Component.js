@@ -375,8 +375,11 @@ export class Component {
     //   }
     this.parentPrimitive = parentPrimitive
     // } 
-    workOnPriorityLevel(buildComponentTime, () => this.buildPrimitive().renderOnto(renderContext, parentPrimitive));
-    // return this.buildPrimitive(parentPrimitive);
+    workOnPriorityLevel(buildComponentTime, () => {
+      const primitive = this.buildPrimitive();
+  		if (primitive instanceof Array) throw new Error("Cannot have fragments on the top level");
+      primitive.renderOnto(renderContext, parentPrimitive);
+    });
   }
 
   isBuilt() {

@@ -19,10 +19,9 @@ export class RenderContext {
 		this.component = component;
 		component.renderContext = this;
 		workOnPriorityLevel(buildComponentTime, () => {
-			component.ensureEstablished()
+			this.component.ensureEstablished()
 			this.component.renderOnto(this)
 		});
-		if (component.buildPrimitive() instanceof Array) throw new Error("Cannot have fragments on the top level");
 		this.ensureContentInPlace();
 	}
     

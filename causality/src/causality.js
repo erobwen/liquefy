@@ -636,8 +636,8 @@ function createWorld(configuration) {
 
   function getHandlerObject(target, key) {
     key = key.toString();
-    // if (key === "parentPrimitive") {
-    //   console.log("READING parentPrimitive");
+    // if (key === "renderParent") {
+    //   console.log("READING renderParent");
     //   // if (currentRepeater && currentRepeater.description === "[row:46].buildDOMRepeater") {
     //   //   debugger;
     //   // }

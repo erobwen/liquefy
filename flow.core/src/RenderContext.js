@@ -1,33 +1,39 @@
 import { Component } from "./Component";
-import { buildComponentTime, workOnPriorityLevel } from "./Flow";
+import { buildComponentTime, repeat, workOnPriorityLevel } from "./Flow";
 
 /**
  * Implement any render context that implements HTML Element Node and HTML Text Node. 
  * A render context could implement just a subset of all HTML tags and attributes, but could instead be an approxiomation 
  */
-// export const renderContexts = [];
+// export const renderTargets = [];
 
 export class RenderContext {
-	// constructor() {
-	//     super();
-	//     renderContexts.push(this);
-	// }
-	dispose() {}
+	constructor() {
+		this.component = null;
+		this.renderRepeater = repeat("RenderContext.renderRepeater", repeater => {
+			if (this.component) {
+				workOnPriorityLevel(buildComponentTime, () => {
+					this.component.ensureEstablished();
+				});
+				this.renderComponent();
+			}
+		});
+	}
+
+	renderComponent() {
+		throw Error("Not implemented yet");
+	}
+
+	dispose() {
+		if (this.renderRepeater) {
+			this.renderRepeater.dispose();
+			this.renderRepeater = null;
+		}
+	}
 
 	setContent(component) {
-		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
-		this.component = component;
-		component.renderContext = this;
-		workOnPriorityLevel(buildComponentTime, () => {
-			this.component.ensureEstablished()
-			this.component.renderOnto(this)
-		});
-		this.ensureContentInPlace();
-	}
-    
-	ensureContentInPlace() {
-		throw new Error("Not implemented yet!");
-	}
+		this.content = component;
+	}    
 
 	// General creation method, this is similar to a service locator in the service locator pattern. 
 	// The purpose of this method is to choose what PrimitiveComponent to create, given the properties object.
@@ -38,9 +44,5 @@ export class RenderContext {
 	primitive(properties) {
 		throw new Error("Not implemented yet!");
 	}
-	
-	// dispose() {
-	//     renderContexts.splice(renderContexts.indexOf(this), 1);
-	// }
 }
   

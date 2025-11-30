@@ -184,7 +184,7 @@ export class Demo extends Component {
       const pathFirst = path[1];
       chosen = this.items.find(item => item.key === pathFirst);
       if (chosen) { 
-        chosen.receiveProperty("path", path.slice(2))
+        chosen.setProperty("path", path.slice(2))
       } else {
         setTimeout(() => {
           this.chose(this.introduction); 

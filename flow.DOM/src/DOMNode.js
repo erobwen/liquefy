@@ -3,7 +3,7 @@ import { PrimitiveComponent } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
 import { standardAnimation } from "./ZoomFlyDOMTransitionAnimation";
-import { updateDOMTime } from "../../flow.core/src/Flow";
+import { updateTargetTime } from "../../flow.core/src/Flow";
 
 const log = console.log;
 
@@ -28,18 +28,45 @@ export function aggregateToString(flow) {
 // export const movedPrimitives = [];
 // window.moved = movedPrimitives;
 
-export function clearNode(node, attributes) {
+export function clearNode(node) {
   while (node.childNodes.length > 0) {
     node.removeChild(node.lastChild);
   }
-  // for (let attribute in attributes) {
-  //   if (attribute === "style") {
-  //     for () {
+}
 
-  //     }
-  //     node.style
-  //   }
-  // }
+
+function updateChildren(parent, newChildren) {
+  const oldChildren = Array.from(parent.childNodes);
+  const commonLength = Math.min(oldChildren.length, newChildren.length);
+
+  // Step 1: Update existing positions
+  for (let i = 0; i < commonLength; i++) {
+    const oldNode = oldChildren[i];
+    const newNode = newChildren[i];
+
+    if (oldNode !== newNode) {
+      parent.insertBefore(newNode, oldNode);
+    }
+  }
+
+  // Step 2: Append any new nodes
+  for (let i = commonLength; i < newChildren.length; i++) {
+    parent.appendChild(newChildren[i]);
+  }
+
+  // Step 3: Remove extra old nodes
+  for (let i = commonLength; i < oldChildren.length; i++) {
+    parent.removeChild(oldChildren[i]);
+  }
+}
+
+function removeSuccessors(container, node) {
+  let next = node.nextSibling;
+  while (next) {
+    const toRemove = next;
+    next = next.nextSibling;
+    container.removeChild(toRemove);
+  }
 }
 
 export function getHeightIncludingMargin(node) {
@@ -62,7 +89,47 @@ export function getWidthIncludingMargin(node) {
 /**
  * DOM Node
  */
- export class DOMNode extends PrimitiveComponent {
+export class DOMNode extends PrimitiveComponent {
+
+  observeableRender(renderContext) { finalize(this);
+
+    this.setContext(renderContext);
+ 
+    if (!this.renderDOMRepeater) {
+      //                       repeat(mostAbstractComponent(this).toString() + ".renderDOMRepeater", (repeater) => {
+      this.renderDOMRepeater = repeat("[" + aggregateToString(this) + "].renderDOMRepeater", (repeater) => {
+        // if (trace) console.group(repeater.causalityString());
+
+        this.verifyVisibility(this.renderContext.renderParent);
+        
+        const { renderTarget, givenDOMNode } = this.renderContext;
+        this.givenDOMNode = givenDOMNode;
+        let domNode = this.ensureDomNodeExists();
+        this.ensureDomNodeAttributesSet();
+
+        // Render first pass.
+        let childDOMNodes = [].concat(...this.children.map(
+          child => child.observeableRender({ firstPass: true, renderTarget, renderParent: this }).domNode
+        ));
+
+        // Update children, some domNodes are dummys.
+        updateChildren(domNode, childDOMNodes);
+
+        // More passes to complete incomplete children.
+        while (this.children.reduce((result, child) => result || child.nextRenderState.renderingDelayed, false)) {
+          // Render second pass. Note: Some children fully renders only on second pass, so they can measure their bounds.
+          this.children.map(child => child.observeableRender({ firstPass: false, renderTarget, renderParent: this }));
+        }
+
+        // Just return a DOM node. 
+        this.nextRenderState = { domNode };
+        // if (trace) console.groupEnd();  
+
+      }, {priority: updateTargetTime});
+    }
+
+    return this.nextRenderState;
+  }
 
   onDispose() {
     const unobservable = this.unobservable; 
@@ -153,7 +220,7 @@ export function getWidthIncludingMargin(node) {
   reactiveBoundingClientRect() {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a flow without a key. The reason is that a call to dimensions from a parent build function will finalize the flow early, and without a key, causality cannot send proper onEstablish event to your flow component before it is built");
     const unobservable = this.unobservable; 
-    const domNode = this.getDomNode();
+    const domNode = this.observeableDomNode();
 
     function updateBoundingClientRect() {
       // console.log("updateBoundingClientRect");
@@ -206,126 +273,22 @@ export function getWidthIncludingMargin(node) {
     return unobservable.boundingClientRect; 
   }
 
-  getDomNode() {
+  observeableDomNode() {
     this.ensureDomNodeBuilt();
     return this.domNode; 
   }
   
-  ensureDomNodeBuilt() {
-    finalize(this);
-    if (!this.buildDOMRepeater) {
-      // this.buildDOMRepeater = repeat(mostAbstractComponent(this).toString() + ".buildDOMRepeater", (repeater) => {
-      this.buildDOMRepeater = repeat("[" + aggregateToString(this) + "].buildDOMRepeater", (repeater) => {
-        // if (trace) console.group(repeater.causalityString());
-        
-        this.ensureDomNodeExists();
-        this.ensureDomNodeAttributesSet();
-        this.ensureDomNodeChildrenInPlace();
-        
-        // if (trace) console.groupEnd();  
-      }, {priority: updateDOMTime});
-    }
-    return this.domNode;
-  }
-
   createEmptyDomNode() {
     throw new Error("Not implemented yet!");
   }
 
-  ensureDomNodeChildrenInPlace() {// But do not change style for animated children!
-    // log("ensureDomNodeChildrenInPlace " + this.toString());
-    // Impose animation. CONSIDER: introduce this with more general mechanism?
-    if (this.attributes && this.attributes.innerHTML) return; 
-    const node = this.domNode;
-    if (!(node instanceof Element)) return;
-    
-    // Get new children list, this is the target
-    const newChildren = this.getPrimitiveChildren(node);
-    const newChildNodes = newChildren.map(child => child.ensureDomNodeBuilt()).filter(child => !!child);
-
-
-    // Nodes wrapped in a leader or trailer, should maintain their wrapper during this operation. 
-    // Note: trailer, leader and isControlledByAnimation is actually support for DOMAnimation, but this support is needed here. Consider ways to factor this out to flow.DOMAnimation if possible?
-    let index = 0;
-    while (index < newChildNodes.length) {
-      // log("scanning.....");
-      const child = newChildNodes[index];
-      // log(child.isControlledByAnimation);
-      if (child.leader && child.parentNode === child.leader && child.leader.parentNode === node) {
-        // logMark("wrapped in leader")
-        newChildNodes[index] = child.leader;
-      }
-      if (child.trailer && child.parentNode === child.trailer && child.trailer.parentNode === node) {
-        // logMark("wrapped in trailer")
-        newChildNodes[index] = child.trailer;
-      }
-      index++;
-    }
-        
-    // Recover other nodes
-    const recoveredNodes = [];
-    for(let existingChildNode of node.childNodes) {
-      if (existingChildNode.isControlledByAnimation) {
-        // Animation nodes are controlled by animations, leave them in.
-        recoveredNodes.push(existingChildNode);
-      } else {
-        // Keep nodes that are in new children list
-        if (newChildNodes.includes(existingChildNode)) {
-          recoveredNodes.push(existingChildNode);
-        } 
-      }
-    }
-
-    // Link recovered nodes to get their relative positions:
-    let anchor = null; 
-    recoveredNodes.forEach(node => {node.anchor = anchor; anchor = node; });
-
-    // Merge old with new
-    function insertAfter(array, reference, element) {
-      array.splice(array.indexOf(reference) + 1, 0, element);
-    }
-    recoveredNodes.forEach(node => {
-      if (!newChildNodes.includes(node)) {
-        let anchor = node.anchor;
-        while (!newChildNodes.includes(anchor) && anchor) anchor = anchor.anchor; // Maybe not necessary. 
-        if (!anchor) {
-          newChildNodes.unshift(node);
-        } else {
-          insertAfter(newChildNodes, anchor, node);
-        }
-      }
-    })
-
-    // Removing pass, will also rearrange moved elements.
-    index =  node.childNodes.length - 1;
-    while(index >= 0) {
-      const existingChildNode = node.childNodes[index];
-      // Consider: Do we need test for Element and Text ?
-      if ((existingChildNode instanceof Element || existingChildNode instanceof Text) && !newChildNodes.includes(existingChildNode)) {
-        node.removeChild(existingChildNode);
-      }
-      index--;
-    }
-
-    // Adding pass, will also rearrange moved elements
-    index = 0;
-    while(index < newChildNodes.length) {
-      const newChildNode = newChildNodes[index];
-      const existingChildNode = node.childNodes[index]; 
-      if (existingChildNode) {
-        const existingWrappedNode = node.childNodes[index];
-        if (newChildNode !== existingWrappedNode) {
-          node.insertBefore(newChildNode, existingChildNode);
-        }
-      } else {
-        node.appendChild(newChildNode);
-      }
-      index++;
-    }
-  }
 
   getChildNodes() {
     return this.getPrimitiveChildren().map(child => child.ensureDomNodeBuilt())
+  }
+
+  ensureDomNodesExists() {
+    return [this.ensureDomNodeExists()];
   }
 
   ensureDomNodeExists() { 
@@ -354,7 +317,7 @@ export function getWidthIncludingMargin(node) {
         }
 
         if (trace) log(this.domNode);
-      }, {priority: updateDOMTime});
+      }, {priority: updateTargetTime});
     }
     return this.domNode;
   }

@@ -124,6 +124,7 @@ import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMTransitionAni
 import { setAnimationTime, ZoomFlyDOMTransitionAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMTransitionAnimation"
 import { zoomAnimation } from "./ZoomDOMTransitionAnimation"
 
+import { flipAnimator } from "./FlipAnimator";
 
 export {
     // HTML tags
@@ -300,6 +301,9 @@ export {
 
     //DOMTransitionAnimation
     DOMTransitionAnimation,
+
+    // FlipAnimator
+    flipAnimator,
 
     // FlyDOMTransitionAnimation
     flyFromLeftAnimation, 

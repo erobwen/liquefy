@@ -1,5 +1,5 @@
 import { Component, logMark, transaction } from "@liquefy/flow.core";
-import { DOMRenderContext, text, p, ul, li, div } from "@liquefy/flow.dom";
+import { DOMRenderContext, text, p, ul, li, div, flipAnimator } from "@liquefy/flow.dom";
 
 import { button, assignGlobalTheme, listItem } from "@liquefy/themed-ui";
 
@@ -192,14 +192,14 @@ export class Demo extends Component {
       }
     }
 
-    return applicationMenuFrame(
+    return flipAnimator(applicationMenuFrame(
       "menuFrame", {
         appplicationMenu: this.buildMenu(chosen),
         applicationContent: chosen,
         topPanelContent: [filler(), this.topBarPortal],
         bounds: this.bounds
       }
-    )
+    ));
   }
 }
 

@@ -20,7 +20,7 @@ export const world = getWorld({
  */
 export const updateModelTime = 0; // Default
 export const buildComponentTime = 1;
-export const updateDOMTime = 2;
+export const updateTargetTime = 2;
 
 const priorityLevels = {
   updateModel: 0,
@@ -119,7 +119,7 @@ window.ensure = world.repeat;
 
 // export const updateModelTime = 0; // Default
 // export const buildComponentTime = 1;
-// export const updateDOMTime = 2;
+// export const updateTargetTime = 2;
 
 
 var lastTime = null;
@@ -144,7 +144,7 @@ function onFinishedPriorityLevel(level, didActualWork) {
   // Let flow rebuild the DOM, while not removing nodes of animated flows (they might move if inserted elsewhere)
 
   // Finished re building DOM, proceed with animations.  
-  if (level === updateDOMTime) {
+  if (level === updateTargetTime) {
     configuration.onFinishReBuildingDOMCallbacks.forEach(callback => callback())
   }
 }

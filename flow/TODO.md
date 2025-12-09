@@ -11,8 +11,8 @@ TODO: Test fragmented flows.
 TODO: Move back some functionality from unobservable to state?  
 CONSIDER What happens with a model built in the build function of a flow. Will it be re-created using shape analysis... it will be re-created and re set!... So you cant do it?
 CONSIDER use setState on primitive?
-INVESTIGATE: build repeater should not be dependent on parentPrimitive.
-INVESTIGATE: parentPrimitive in general. Is the current solution good?
+INVESTIGATE: build repeater should not be dependent on renderParent.
+INVESTIGATE: renderParent in general. Is the current solution good?
 INVESTIGATE: is dispose really doing its job. Investigate why the new modal implementation failed. 
 INVESTIGATE: Should we really dispose of a keyed component that is not used???... 
 

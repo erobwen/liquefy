@@ -50,6 +50,7 @@ class ApplicationMenuFrame extends Component {
         backgroundColor: "rgba(0, 0, 0, 0.2)"
       }});
     const domNode = background.buildPrimitive().getDomNode();
+    // const domNode = background.observeableBuild().getDomNode();
 
     return zStack(
       background,

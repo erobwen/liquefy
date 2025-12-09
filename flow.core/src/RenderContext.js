@@ -1,23 +1,47 @@
 import { Component } from "./Component";
-import { buildComponentTime, workOnPriorityLevel } from "./Flow";
+import { buildComponentTime, repeat, workOnPriorityLevel } from "./Flow";
 
 /**
  * Implement any render context that implements HTML Element Node and HTML Text Node. 
  * A render context could implement just a subset of all HTML tags and attributes, but could instead be an approxiomation 
  */
-// export const renderContexts = [];
+// export const renderTargets = [];
 
 export class RenderContext {
+
 	// constructor() {
-	//     super();
-	//     renderContexts.push(this);
+	// 	this.component = null;
+	// 	this.renderRepeater = repeat("RenderContext.renderRepeater", repeater => {
+	// 		if (this.component) {
+	// 			workOnPriorityLevel(buildComponentTime, () => {
+	// 				this.component.ensureEstablished();
+	// 			});
+	// 			this.renderComponent();
+	// 		}
+	// 	});
 	// }
+
+	// renderComponent() {
+	// 	throw Error("Not implemented yet");
+	// }
+
+	// dispose() {
+	// 	if (this.renderRepeater) {
+	// 		this.renderRepeater.dispose();
+	// 		this.renderRepeater = null;
+	// 	}
+	// }
+
+	// setContent(component) {
+	// 	this.content = component;
+	// }   
+	
 	dispose() {}
 
 	setContent(component) {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
 		this.component = component;
-		component.renderContext = this;
+		component.renderTarget = this;
 		workOnPriorityLevel(buildComponentTime, () => {
 			this.component.ensureEstablished()
 			this.component.renderOnto(this)
@@ -40,7 +64,7 @@ export class RenderContext {
 	}
 	
 	// dispose() {
-	//     renderContexts.splice(renderContexts.indexOf(this), 1);
+	//     renderTargets.splice(renderTargets.indexOf(this), 1);
 	// }
 }
   

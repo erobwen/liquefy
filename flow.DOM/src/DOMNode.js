@@ -3,7 +3,7 @@ import { PrimitiveComponent } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
 import { standardAnimation } from "./ZoomFlyDOMTransitionAnimation";
-import { updateDOMTime } from "../../flow.core/src/Flow";
+import { updateTargetTime } from "../../flow.core/src/Flow";
 
 const log = console.log;
 
@@ -28,18 +28,45 @@ export function aggregateToString(flow) {
 // export const movedPrimitives = [];
 // window.moved = movedPrimitives;
 
-export function clearNode(node, attributes) {
+export function clearNode(node) {
   while (node.childNodes.length > 0) {
     node.removeChild(node.lastChild);
   }
-  // for (let attribute in attributes) {
-  //   if (attribute === "style") {
-  //     for () {
+}
 
-  //     }
-  //     node.style
-  //   }
-  // }
+
+function updateChildren(parent, newChildren) {
+  const oldChildren = Array.from(parent.childNodes);
+  const commonLength = Math.min(oldChildren.length, newChildren.length);
+
+  // Step 1: Update existing positions
+  for (let i = 0; i < commonLength; i++) {
+    const oldNode = oldChildren[i];
+    const newNode = newChildren[i];
+
+    if (oldNode !== newNode) {
+      parent.insertBefore(newNode, oldNode);
+    }
+  }
+
+  // Step 2: Append any new nodes
+  for (let i = commonLength; i < newChildren.length; i++) {
+    parent.appendChild(newChildren[i]);
+  }
+
+  // Step 3: Remove extra old nodes
+  for (let i = commonLength; i < oldChildren.length; i++) {
+    parent.removeChild(oldChildren[i]);
+  }
+}
+
+function removeSuccessors(container, node) {
+  let next = node.nextSibling;
+  while (next) {
+    const toRemove = next;
+    next = next.nextSibling;
+    container.removeChild(toRemove);
+  }
 }
 
 export function getHeightIncludingMargin(node) {
@@ -62,7 +89,47 @@ export function getWidthIncludingMargin(node) {
 /**
  * DOM Node
  */
- export class DOMNode extends PrimitiveComponent {
+export class DOMNode extends PrimitiveComponent {
+
+  observeableRender(renderContext) { finalize(this);
+
+    this.setContext(renderContext);
+ 
+    if (!this.renderDOMRepeater) {
+      //                       repeat(mostAbstractComponent(this).toString() + ".renderDOMRepeater", (repeater) => {
+      this.renderDOMRepeater = repeat("[" + aggregateToString(this) + "].renderDOMRepeater", (repeater) => {
+        // if (trace) console.group(repeater.causalityString());
+
+        this.verifyVisibility(this.renderContext.renderParent);
+        
+        const { renderTarget, givenDOMNode } = this.renderContext;
+        this.givenDOMNode = givenDOMNode;
+        let domNode = this.ensureDomNodeExists();
+        this.ensureDomNodeAttributesSet();
+
+        // Render first pass.
+        let childDOMNodes = [].concat(...this.children.map(
+          child => child.observeableRender({ firstPass: true, renderTarget, renderParent: this }).domNode
+        ));
+
+        // Update children, some domNodes are dummys.
+        updateChildren(domNode, childDOMNodes);
+
+        // More passes to complete incomplete children.
+        while (this.children.reduce((result, child) => result || child.nextRenderState.renderingDelayed, false)) {
+          // Render second pass. Note: Some children fully renders only on second pass, so they can measure their bounds.
+          this.children.map(child => child.observeableRender({ firstPass: false, renderTarget, renderParent: this }));
+        }
+
+        // Just return a DOM node. 
+        this.nextRenderState = { domNode };
+        // if (trace) console.groupEnd();  
+
+      }, {priority: updateTargetTime});
+    }
+
+    return this.nextRenderState;
+  }
 
   onDispose() {
     const unobservable = this.unobservable; 
@@ -223,7 +290,7 @@ export function getWidthIncludingMargin(node) {
         this.ensureDomNodeChildrenInPlace();
         
         // if (trace) console.groupEnd();  
-      }, {priority: updateDOMTime});
+      }, {priority: updateTargetTime});
     }
     return this.domNode;
   }
@@ -328,6 +395,10 @@ export function getWidthIncludingMargin(node) {
     return this.getPrimitiveChildren().map(child => child.ensureDomNodeBuilt())
   }
 
+  ensureDomNodesExists() {
+    return [this.ensureDomNodeExists()];
+  }
+
   ensureDomNodeExists() { 
     if (!this.createElementRepeater) {
       this.createElementRepeater = repeat(mostAbstractComponent(this).toString() + ".createElementRepeater", (repeater) => {
@@ -354,7 +425,7 @@ export function getWidthIncludingMargin(node) {
         }
 
         if (trace) log(this.domNode);
-      }, {priority: updateDOMTime});
+      }, {priority: updateTargetTime});
     }
     return this.domNode;
   }

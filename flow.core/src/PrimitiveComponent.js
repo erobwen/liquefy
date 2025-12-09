@@ -10,7 +10,7 @@ const log = console.log;
  * locator pattern that make it possible for different RenderContext objects to have different sets of primitive
  * components. 
  */
-export class PrimitiveComponent extends Component {
+export class PrimitiveComponent extends Component { // Deprecated. To be deleted....
     
   findKey(key) {
     if (this.key === key) return this;
@@ -31,33 +31,33 @@ export class PrimitiveComponent extends Component {
   }
 
   buildPrimitive() {
-    // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
+    // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     // // Setup parent primitive
-    // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+    // if (renderParent && peekParentPrimitive !== renderParent) {
     //   if (peekParentPrimitive) {
     //     // log("PrimitiveComponent.getPrimitive");
     //     // TODO: Should this really be a warning? Normal behavior?
-    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
+    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + renderParent.toString());
     //   }
-      // this.parentPrimitive = parentPrimitive
+      // this.renderParent = renderParent
     // }
 
     return this;
   }
 
-  renderOnto(renderContext, parentPrimitive) {
+  renderOnto(renderTarget, renderParent) {
     const name = this.toString(); // For chrome debugger
-    // const peekParentPrimitive = withoutRecording(() => this.parentPrimitive); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
+    // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
-    if (renderContext) this.visibleOnRenderContext = renderContext;
-    // if (parentPrimitive && peekParentPrimitive !== parentPrimitive) {
+    if (renderTarget) this.visibleOnRenderContext = renderTarget;
+    // if (renderParent && peekParentPrimitive !== renderParent) {
     //   if (peekParentPrimitive) {
     //     // log("PrimitiveComponent.renderOnto");
-    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + parentPrimitive.toString());
-    //     if (parentPrimitive === this) throw new Error("What the fuck just happened. ");
+    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + renderParent.toString());
+    //     if (renderParent === this) throw new Error("What the fuck just happened. ");
     //   }
-      this.parentPrimitive = parentPrimitive
+      this.renderParent = renderParent
     // } 
 
     finalize(this); // Finalize might not work if no key was used, it might not call onEstablish.
@@ -67,14 +67,14 @@ export class PrimitiveComponent extends Component {
         if (trace) console.log([...state.workOnPriorityLevel]);
 
         // Check visibility
-        if (this.parentPrimitive) {
-          if (this.parentPrimitive.childPrimitives && this.parentPrimitive.childPrimitives.includes(this)) {
-            this.visibleOnRenderContext = this.parentPrimitive.visibleOnRenderContext;
+        if (this.renderParent) {
+          if (this.renderParent.childPrimitives && this.renderParent.childPrimitives.includes(this)) {
+            this.visibleOnRenderContext = this.renderParent.visibleOnRenderContext;
             this.isVisible = !!this.visibleOnRenderContext
           } else {
             this.visibleOnRenderContext = null;
-            this.previousParentPrimitive = this.parentPrimitive;
-            this.parentPrimitive = null;
+            this.previousParentPrimitive = this.renderParent;
+            this.renderParent = null;
             this.isVisible = !!this.visibleOnRenderContext
           }
         }
@@ -85,17 +85,17 @@ export class PrimitiveComponent extends Component {
           if (scan.visibleOnRenderContext === this.visibleOnRenderContext) {
             scan = null; 
           } else {
-            if (this.parentPrimitive && this.parentPrimitive !== scan.parentPrimitive) {
-              if (this.parentPrimitive) {
+            if (this.renderParent && this.renderParent !== scan.renderParent) {
+              if (this.renderParent) {
                 // log("PrimitiveComponent, scanning equivalent creators");
-                if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.parentPrimitive.toString() + " --> " + parentPrimitive.toString());
+                if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + this.renderParent.toString() + " --> " + renderParent.toString());
               }
-              scan.parentPrimitive = this.parentPrimitive
+              scan.renderParent = this.renderParent
             }         
-            scan.parentPrimitive = this.parentPrimitive; 
+            scan.renderParent = this.renderParent; 
             scan.visibleOnRenderContext = this.visibleOnRenderContext;
             scan.isVisible = !!this.visibleOnRenderContext
-            scan.onVisibilityWillChange(scan.isVisible);
+            // scan.onVisibilityWillChange(scan.isVisible);
             scan = scan.equivalentCreator;
           }
         }
@@ -105,7 +105,7 @@ export class PrimitiveComponent extends Component {
 
         // Expand known children (do as much as possible before integration)
         for (let childPrimitive of this.childPrimitives) { 
-          childPrimitive.renderOnto(renderContext, this);
+          childPrimitive.renderOnto(renderTarget, this);
         }
       
         if (trace) console.groupEnd();
@@ -142,8 +142,8 @@ export class PrimitiveComponent extends Component {
   inheritAnimation() {
     let result = this.inheritFromEquivalentCreator("animate"); 
   
-    if (!result && this.parentPrimitive) {
-      result = this.parentPrimitive.inheritFromEquivalentCreator("animateChildren");   
+    if (!result && this.renderParent) {
+      result = this.renderParent.inheritFromEquivalentCreator("animateChildren");   
     }      
     
     if (!result && this.previousParentPrimitive) {

@@ -12,7 +12,9 @@ export function getCreator() {
 
 export function getRenderContext() {
   const creator = getCreator();
-  return creator ? creator.renderContext : null;
+  // console.log("getRenderContext", creator.renderTarget);
+  // console.log("getRenderContext", creator._);
+  return creator ? creator.renderTarget : null;
 }
 
 // Compositional and creator inheritance.

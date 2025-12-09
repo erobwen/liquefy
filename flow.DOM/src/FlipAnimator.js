@@ -1,5 +1,8 @@
+import { configuration } from "@liquefy/flow.core";
 import { Component } from "@liquefy/flow.core";
 import { div } from "./HTMLTags";
+import { previousComponentChanges, componentChanges, onFinishRenderingComponents, onFinishReBuildingDOM, newComponentChanges } from "./DOMAnimation";
+import { getDomRenderContexts } from "./DOMRenderContext";
 
 /**
  * Dialogue
@@ -14,7 +17,18 @@ export class FlipAnimator extends Component {
     this.style = style;
   }
 
-  initialize() {} 
+  initialize() {
+    configuration.onFinishRenderingComponentsCallbacks.push(onFinishRenderingComponents);
+    configuration.onFinishReBuildingDOMCallbacks.push(onFinishReBuildingDOM);
+  } 
+
+
+  resetDOMAnimation() {
+    Object.assign(componentChanges, newComponentChanges());
+    previousComponentChanges = {}
+    counter = 0;
+    getDomRenderContexts().length = 0;
+  }
 
   build() {
     const {children, style} = this; 

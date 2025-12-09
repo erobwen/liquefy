@@ -56,7 +56,7 @@ export function logProperties(object, properties) {
  */
 export const componentChanges = newComponentChanges();
 
-function newComponentChanges() {
+export function newComponentChanges() {
   return ({
 
   number: 0,
@@ -204,7 +204,7 @@ export function onFinishRenderingComponents() {
 
   function analyzePrimitives(idPrimitiveMap, primitiveComponent) {
     idPrimitiveMap[primitiveComponent.id] = primitiveComponent;
-    idParentIdMap[primitiveComponent.id] = primitiveComponent.parentPrimitive;
+    idParentIdMap[primitiveComponent.id] = primitiveComponent.renderParent;
   
     for (let child of primitiveComponent.iteratePrimitiveChildren()) {
       analyzePrimitives(idPrimitiveMap, child);
@@ -257,7 +257,7 @@ export function onFinishRenderingComponents() {
   // Find removed nodes
   for (let id in previousComponentChanges.idPrimitiveMap) {
     const inPreviousMap = previousComponentChanges.idPrimitiveMap[id];
-    if (typeof(idPrimitiveMap[id]) === "undefined" && !inPreviousMap.parentPrimitive) { // Consider: Keep track of directly removed using inPreviousMap.parentPrimitive? 
+    if (typeof(idPrimitiveMap[id]) === "undefined" && !inPreviousMap.renderParent) { // Consider: Keep track of directly removed using inPreviousMap.renderParent? 
       componentChanges.globallyRemoved[id] = inPreviousMap;
     }
   }
@@ -268,14 +268,14 @@ export function onFinishRenderingComponents() {
         if (component.getAnimation()) {
 
           let stableFoundation = true; 
-          let scan = component.parentPrimitive;
+          let scan = component.renderParent;
           while(scan) {
           
             if (componentChanges.globallyAdded[scan.id] && (!scan.getAnimation() || !scan.getAnimation().allwaysStableFoundationEvenWhenAdded())) {
               stableFoundation = false; 
               break; 
             }
-            scan = scan.parentPrimitive;
+            scan = scan.renderParent;
           }
           if (stableFoundation || component.getAnimation().acceptUnstableFoundation(scan)) {
             result[component.id] = component;
@@ -583,13 +583,13 @@ export function parseMatrix(matrix) {
 //   }
   
 //   // Scan new component structure and find common ancestor for present component
-//   scan = component.parentPrimitive;
+//   scan = component.renderParent;
 //   while (scan) {
 //     if (scan.domNode && scan.domNode.originMark === originMark) {
 //       component.domNode.getAnimation()OriginNode = scan.domNode;
 //       break;
 //     }
-//     scan = scan.parentPrimitive;
+//     scan = scan.renderParent;
 //   }
   
 // standardAnimation.recordOriginalBoundsAndStyle(component.domNode.getAnimation()OriginNode);  

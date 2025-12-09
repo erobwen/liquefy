@@ -3,7 +3,7 @@ import { toProperties, extractProperty } from "@liquefy/flow.core";
 import { RenderContext, model } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { observePathChange } from "./pathobserver";
-import { updateDOMTime } from "@liquefy/flow.core/src/Flow";
+import { updateTargetTime } from "@liquefy/flow.core/src/Flow";
 
 // import { clearNode } from "./DOMNode";
 
@@ -41,7 +41,7 @@ export class DOMRenderContext extends RenderContext {
     this.cleanupPathObserver = observePathChange(newPath => {
       // console.log("New path: " + newPath)
       if (this.component) {
-        this.component.receiveProperty("path", newPath.split("/").filter(item => item.length > 0))
+        this.component.setProperty("path", newPath.split("/").filter(item => item.length > 0))
       }
     })
 
@@ -66,17 +66,6 @@ export class DOMRenderContext extends RenderContext {
           });
       });
     }
-    // setTimeout(()=> {
-    //   log("DIMENSIONS");
-    //   log(this.rootElement.offsetHeight);
-    //   log(this.rootElement.offsetWidth);
-    //   log("---")
-    //   log(this.rootElement.scrollHeight);
-    //   log(this.rootElement.scrollWidth);
-    // }, 0);
-    // this.state = observable({
-    //   modalDiv: null
-    // });
 
     return observable(this, this.key);
   }
@@ -85,13 +74,16 @@ export class DOMRenderContext extends RenderContext {
     return "[target]" + (this.component ? this.component.toString() : "null");
   }
 
-  // buildComponent(Component) {
-  //   super.setContent(new Component({
-  //     path: new URL(window.location.href).pathname.split("/"),
-  //     bounds: {width: window.innerWidth, height: window.innerHeight}
-  //   }))
-  // }
-
+  renderComponent() {
+    if (this.component) {
+      component.setProperties({
+        bounds: {width: window.innerWidth, height: window.innerHeight},
+        path: window.location.pathname.split("/").filter(item => item.length > 0),
+      })
+      this.component.observeableRender({renderTarget: this, givenDomNode: this.rootElement});
+    }
+  }
+  
   // DEPRECATED
   setContent(component) {
     // console.log("Render...")
@@ -114,7 +106,7 @@ export class DOMRenderContext extends RenderContext {
 			primitive.ensureDomNodeBuilt();
 			
 			if (trace) console.groupEnd();
-		}, {priority: updateDOMTime}); 
+		}, {priority: updateTargetTime}); 
 	}
 
   dispose() {

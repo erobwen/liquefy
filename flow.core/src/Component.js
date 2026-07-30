@@ -447,8 +447,44 @@ export class Component {
     return renderState;
   }
   
+  buildPrimitive2() {
+    const name = this.toString(); // For chrome debugger.
+    finalize(this);
+    if (!this.unobservable.buildPrimitiveRepeater) {
+      this.unobservable.buildPrimitiveRepeater = repeat(
+        this.toString() + ".buildRepeater",
+        (repeater) => {
+          if (trace) console.group(repeater.causalityString());
+          let morePrimitiveComponent = this.observeableBuild(repeater);
+          while (morePrimitiveComponent instanceof Component && !(morePrimitiveComponent instanceof PrimitiveComponent)) {
 
 
+          // if (!me.newBuild) {
+          //   me.primitive = null; 
+          // } else if (!(me.newBuild instanceof Array)) {
+          //   me.primitive = me.newBuild.buildPrimitive()  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+          // } else {
+          //   me.primitive = me.newBuild
+          //     .map(fragment => fragment.buildPrimitive())
+          //     .reduce((result, childPrimitive) => {
+          //       if (childPrimitive instanceof Array) {
+          //         childPrimitive.forEach(fragment => result.push(fragment));
+          //       } else {
+          //         result.push(childPrimitive);
+          //       }
+          //     }, []);
+          // }
+
+            morePrimitiveComponent = morePrimitiveComponent.observeableBuild(repeater);
+          }
+
+
+          this.primitive = morePrimitiveComponent;
+        }
+      );
+    }
+    return this.primitive;
+  }
 
   observeableBuild() {
     // log("getPrimitive")
@@ -517,7 +553,6 @@ export class Component {
   }
 
   buildPrimitive() {
-
     // log("getPrimitive")
     const me = this;
     const name = this.toString(); // For chrome debugger.

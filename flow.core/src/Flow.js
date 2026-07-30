@@ -1,4 +1,4 @@
-import getWorld from "@liquefy/causaility";
+import getWorld from "@liquefy/causality";
 const log = console.log;
 
 

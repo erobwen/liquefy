@@ -8,7 +8,7 @@
   "version": "1.0.0",
   "description": "A DOM implementation of flow.core",
   "type": "module",
-  "main": "./dist/flow.DOM.umd.csj",
+  "main": "./dist/flow.DOM.umd.cjs",
   "module": "./src/index.js",
   "scripts": {
     "build": "vite build"
@@ -25,8 +25,7 @@
   "license": "ISC",
 
   "peerDependencies": {
-    "@liquefy/flow.core": "file:../flow.core",
-    "@liquefy/flow.domAnimation": "file:../flow.DOMAnimation"
+    "@liquefy/flow.core": "file:../flow.core"
   },
   "publishConfig": {
     "access": "public"

@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "description": "A library for reactive programming based on Javascript proxies.",
   "type": "module",
-  "main": "./dist/causality.umd.csj",
+  "main": "./dist/causality.umd.cjs",
   "module": "./src/causality.js",
   "scripts": {
     "test": "mocha ./src/test",

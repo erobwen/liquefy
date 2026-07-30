@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "description": "A monorepo for liquefy products.",
     "scripts": {
-      "build": "cd causality && npm run build && cd ..&& cd flow && npm run build && cd ..",
+      "build": "cd causality && npm run build && cd .. && cd flow.core && npm run build && cd .. && cd flow.DOM && npm run build && cd .. && cd flow && npm run build && cd .. && cd ui/basic && npm run build && cd ../.. && cd ui/themed && npm run build && cd ../.. && cd ui/modern && npm run build && cd ../.. && cd ui/material && npm run build && cd ../..",
       "postinstall": "cd causality && npm install && cd .. && cd flow && npm install && cd .. && cd flow.core && npm install && cd .. && cd flow.DOM && npm install && cd .. && cd ui/basic && npm install && cd ../.. && cd ui/modern && npm install && cd ../.. && cd ui/themed && npm install && cd ../.. && cd ui/material && npm install && cd ../.. && cd application/demo && npm install && cd ../.. && cd application/hello-world && npm install && cd ../.. && cd application/experiments && npm install && cd ../.."
     },
     "repository": {

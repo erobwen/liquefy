@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "An abstract Reactive front end framework.",
   "type": "module",
-  "main": "./dist/flow.core.umd.csj",
+  "main": "./dist/flow.core.umd.cjs",
   "module": "./index.js",
   "scripts": {
     "build": "vite build"
@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
   "peerDependencies": {
-    "@liquefy/causaility": "file:../causality"
+    "@liquefy/causality": "file:../causality"
   },
   "publishConfig": {
     "access": "public"

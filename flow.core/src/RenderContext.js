@@ -40,17 +40,7 @@ export class RenderContext {
 
 	setContent(component) {
 		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
-		this.component = component;
-		component.renderTarget = this;
-		workOnPriorityLevel(buildComponentTime, () => {
-			this.component.ensureEstablished()
-			this.component.renderOnto(this)
-		});
-		this.ensureContentInPlace();
-	}
-    
-	ensureContentInPlace() {
-		throw new Error("Not implemented yet!");
+		component.renderOntoContext(this);
 	}
 
 	// General creation method, this is similar to a service locator in the service locator pattern. 

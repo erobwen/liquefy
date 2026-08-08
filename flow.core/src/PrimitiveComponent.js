@@ -46,14 +46,14 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
     return this;
   }
 
-  renderOnto(renderTarget, renderParent) {
+  setRenderTargetRecursivley(renderTarget, renderParent) {
     const name = this.toString(); // For chrome debugger
     // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     if (renderTarget) this.visibleOnRenderContext = renderTarget;
     // if (renderParent && peekParentPrimitive !== renderParent) {
     //   if (peekParentPrimitive) {
-    //     // log("PrimitiveComponent.renderOnto");
+    //     // log("PrimitiveComponent.setRenderTargetRecursivley");
     //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + renderParent.toString());
     //     if (renderParent === this) throw new Error("What the fuck just happened. ");
     //   }
@@ -105,7 +105,7 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
 
         // Expand known children (do as much as possible before integration)
         for (let childPrimitive of this.childPrimitives) { 
-          childPrimitive.renderOnto(renderTarget, this);
+          childPrimitive.setRenderTargetRecursivley(renderTarget, this);
         }
       
         if (trace) console.groupEnd();

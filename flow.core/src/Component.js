@@ -1,6 +1,6 @@
 import { toProperties, findImplicitChildren, toPropertiesWithChildren } from "./implicitProperties.js";
 import { creators, getCreator, globalContext } from "./buildContext.js";
-import { buildComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, withoutRecording, workOnPriorityLevel } from "./Flow.js";
+import { buildComponentTime, configuration, finalize, invalidateOnChange, isObservable, observable, repeat, trace, traceWarnings, updateTargetTime, withoutRecording, workOnPriorityLevel } from "./Flow.js";
 const log = console.log;
 
 
@@ -492,13 +492,43 @@ export class Component {
     return me.newBuild;
   }
 
-  renderOnto(renderTarget, renderParent) {
+  // Single entry point used by a RenderContext to mount this component onto it. 
+  // Encapsulates what used to be three separate calls orchestrated by the RenderContext:
+  // establishing the component, building/expanding the primitive tree (setRenderTargetRecursivley), and 
+  // ensuring the resulting content is in place (e.g. built into the DOM).
+  renderOntoContext(renderContext) {
+    renderContext.component = this;
+    this.renderTarget = renderContext;
+    workOnPriorityLevel(buildComponentTime, () => {
+      this.ensureEstablished();
+      this.setRenderTargetRecursivley(renderContext);
+    });
+    this.ensureContentInPlace(renderContext);
+  }
+
+  // Ensures the primitive built from this component is fully placed onto the given render context 
+  // (e.g. built into the DOM, in the case of a DOMRenderContext). This is set up as a repeater since 
+  // the built primitive can change over time (e.g. after a full rebuild that could not preserve the 
+  // previous primitive), and each new primitive needs to be placed in turn. 
+  ensureContentInPlace(renderContext) {
+    this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
+      if (trace) console.group(repeater.causalityString());
+
+      let primitive = this.buildPrimitive();
+      primitive.givenDomNode = renderContext.rootElement;
+      primitive.ensureDomNodeBuilt();
+
+      if (trace) console.groupEnd();
+    }, {priority: updateTargetTime});
+  }
+
+  setRenderTargetRecursivley(renderTarget, renderParent) {
     // Note: This is typically just called once from RenderContext for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
 
     // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (renderParent && peekParentPrimitive !== renderParent) { // Why not set to null? Something to do with animation?
     //   if (peekParentPrimitive) {
-    //     // log("Component.renderOnto");
+    //     // log("Component.setRenderTargetRecursivley");
     //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + renderParent.toString());
     //   }
     this.renderParent = renderParent
@@ -506,7 +536,7 @@ export class Component {
     workOnPriorityLevel(buildComponentTime, () => {
       const primitive = this.buildPrimitive();
   		if (primitive instanceof Array) throw new Error("Cannot have fragments on the top level");
-      primitive.renderOnto(renderTarget, renderParent);
+      primitive.setRenderTargetRecursivley(renderTarget, renderParent);
     });
   }
 

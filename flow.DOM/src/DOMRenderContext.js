@@ -1,9 +1,8 @@
-import { observable, transaction, repeat, trace, workOnPriorityLevel } from "@liquefy/flow.core";
+import { observable, transaction, workOnPriorityLevel } from "@liquefy/flow.core";
 import { toProperties, extractProperty } from "@liquefy/flow.core";
 import { RenderContext, model } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { observePathChange } from "./pathobserver";
-import { updateTargetTime } from "@liquefy/flow.core/src/Flow";
 
 // import { clearNode } from "./DOMNode";
 
@@ -95,19 +94,6 @@ export class DOMRenderContext extends RenderContext {
     }) 
     super.setContent(component);
   }
-
-	ensureContentInPlace() {
-		this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
-			if (trace) console.group(repeater.causalityString());
-
-			// clearNode(this.rootElement);
-      let primitive = this.component.buildPrimitive();
-      primitive.givenDomNode = this.rootElement;
-			primitive.ensureDomNodeBuilt();
-			
-			if (trace) console.groupEnd();
-		}, {priority: updateTargetTime}); 
-	}
 
   dispose() {
     super.dispose();

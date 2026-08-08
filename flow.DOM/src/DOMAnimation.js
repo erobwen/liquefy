@@ -1,6 +1,6 @@
 import { configuration, postponeInvalidations, continueInvalidations, traceAnimation, traceWarnings } from "@liquefy/flow.core";
 import { logAnimationFrameGroup, logAnimationSeparator } from "@liquefy/flow.core";
-import { getDomRenderContexts } from "./DOMRenderContext";
+import { getDomRenderTargets } from "./DOMRenderTarget";
 
 // import { inExperiment, inExperimentOnCount } from "..";
 
@@ -22,7 +22,7 @@ export function resetDOMAnimation() {
   Object.assign(componentChanges, newComponentChanges());
   previousComponentChanges = {}
   counter = 0;
-  getDomRenderContexts().length = 0;
+  getDomRenderTargets().length = 0;
 }
 
 
@@ -229,7 +229,7 @@ export function onFinishRenderingComponents() {
   //   }
   // }
   
-  for (let context of getDomRenderContexts()) {
+  for (let context of getDomRenderTargets()) {
     analyzePrimitives(idPrimitiveMap, context.component.buildEquivalentPrimitive());
     // componentChanges.structure = copyStructure(context.component.buildEquivalentPrimitive(), null) 
   }

@@ -1,5 +1,5 @@
 import { Component, logMark, transaction } from "@liquefy/flow.core";
-import { DOMRenderContext, text, p, ul, li, div, flipAnimator } from "@liquefy/flow.dom";
+import { DOMRenderTarget, text, p, ul, li, div, flipAnimator } from "@liquefy/flow.dom";
 
 import { button, assignGlobalTheme, listItem } from "@liquefy/themed-ui";
 
@@ -208,7 +208,7 @@ export class Demo extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startDemo() {
-  new DOMRenderContext(document.getElementById("application")).setContent(
+  new DOMRenderTarget(document.getElementById("application")).setContent(
     new Demo()
   );
 }

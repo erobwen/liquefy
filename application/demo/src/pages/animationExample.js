@@ -1,7 +1,7 @@
 
 import { model, Component, transaction, toProperties } from "@liquefy/flow.core";
 
-import { text, div, p, ul, li, DOMRenderContext, standardAnimation, addDefaultStyle } from "@liquefy/flow.dom";
+import { text, div, p, ul, li, DOMRenderTarget, standardAnimation, addDefaultStyle } from "@liquefy/flow.dom";
 
 import { column, filler, fillerStyle, naturalSizeStyle, portalContents, row } from "@liquefy/basic-ui";
 import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";
@@ -152,7 +152,7 @@ export class AnimationExample extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startAnimationExample() {
-  new DOMRenderContext(
+  new DOMRenderTarget(
     document.getElementById("root")
   ).setContent(
     new AnimationExample({items})

@@ -1,6 +1,6 @@
-import { extractProperty, toPropertiesWithChildren, getRenderContext, extractExpectedProperty } from "@liquefy/flow.core";
+import { extractProperty, toPropertiesWithChildren, getRenderTarget, extractExpectedProperty } from "@liquefy/flow.core";
 import { DOMNode } from "./DOMNode";  
-import { domNodeClassRegistry } from "./DOMRenderContext";
+import { domNodeClassRegistry } from "./DOMRenderTarget";
 import { findDomElementNodeProperties } from "./implicitProperties";
   
 const log = console.log;
@@ -14,7 +14,7 @@ export function elementNode(...parameters) {
   let properties = toPropertiesWithChildren(parameters);
   properties.__attributes_type__ = properties.type;
   // properties = findDomElementNodeProperties(properties);
-  return getRenderContext().primitive({...properties, type: "elementNode"});
+  return getRenderTarget().primitive({...properties, type: "elementNode"});
 }
 
 

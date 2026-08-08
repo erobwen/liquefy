@@ -9,7 +9,7 @@ Flow is a generative front end framework based on Javascript-first principle and
 
 ```js
 import { Component } from "@liquefy/flow.core";
-import { DOMRenderContext, div, h1, b } from "@liquefy/flow.dom";
+import { DOMRenderTarget, div, h1, b } from "@liquefy/flow.dom";
 import { button } from "@liquefy/ui-material"
 
 // A simple Hello World component
@@ -36,8 +36,8 @@ class Hello extends Component {
   }
 }
 
-// Create an instance, and set as content of a render context.
-new DOMRenderContext(document.getElementById("root")).setContent(
+// Create an instance, and set as content of a render target.
+new DOMRenderTarget(document.getElementById("root")).setContent(
   new Hello({to: "World"})
 )
 ```

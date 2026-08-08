@@ -1,5 +1,5 @@
 import { Component, transaction, model, callback, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, li, ul, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.dom";
+import { DOMRenderTarget, text, div, li, ul, span, p, addDefaultStyle, zoomAnimation } from "@liquefy/flow.dom";
 import { checkboxInput, numberInput, icon } from "@liquefy/themed-ui";
 import { button, card, textInput, buttonIcon } from "@liquefy/themed-ui";
 
@@ -360,7 +360,7 @@ export class LuggageForm extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startReactiveFormApplication() {
-  new DOMRenderContext(document.getElementById("root")).setContent(
+  new DOMRenderTarget(document.getElementById("root")).setContent(
     new ReactiveForm({initialData})
   );
 }

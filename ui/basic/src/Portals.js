@@ -1,5 +1,5 @@
 import { Component, withoutRecording } from "@liquefy/flow.core";
-import { getRenderContext } from "@liquefy/flow.core";
+import { getRenderTarget } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 
 import { text, div, elementNode } from "@liquefy/flow.dom";

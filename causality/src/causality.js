@@ -807,20 +807,20 @@ function createWorld(configuration) {
   }
 
 
-  function observable(createdRenderContext, buildId) {
-    if (typeof(createdRenderContext) === 'undefined') {
-      createdRenderContext = {};
+  function observable(target, buildId) { // created target
+    if (typeof(target) === 'undefined') {
+      target = {};
     }
-    if (typeof(createdRenderContext) !== "object") return createdRenderContext;
+    if (typeof(target) !== "object") return target;
     if (typeof(buildId) === 'undefined') {
       buildId = null;
     }
-    if (isObservable(createdRenderContext)) {
+    if (isObservable(target)) {
       throw new Error("Cannot observe an already observed object!");
     }
 
     let handler;
-    if (createdRenderContext instanceof Array) {
+    if (target instanceof Array) {
       handler = {
         _arrayObservers : null,
         // getPrototypeOf: function () {},
@@ -855,9 +855,9 @@ function createWorld(configuration) {
       };
     }
 
-    let proxy = new Proxy(createdRenderContext, handler);
+    let proxy = new Proxy(target, handler);
     
-    handler.target = createdRenderContext;
+    handler.target = target;
     handler.proxy = proxy;
 
     handler.meta = {
@@ -865,7 +865,7 @@ function createWorld(configuration) {
       id: "not yet", // Wait for rebuild analysis
       buildId : buildId,
       forwardTo : null,
-      target: createdRenderContext,
+      target: target,
       handler : handler,
       proxy : proxy,
 
@@ -1375,8 +1375,8 @@ function createWorld(configuration) {
       }
     }
 
-    function matchChildrenInEquivalentSlot(establishedObjectRenderContext, newObjectRenderContext) {
-      for (let [establishedSlot, newSlot] of shapeAnalysis.slotsIterator(establishedObjectRenderContext, newObjectRenderContext, object => (isObservable(object) && object[objectMetaProperty].buildId))) {
+    function matchChildrenInEquivalentSlot(establishedObjectTarget, newObjectTarget) {
+      for (let [establishedSlot, newSlot] of shapeAnalysis.slotsIterator(establishedObjectTarget, newObjectTarget, object => (isObservable(object) && object[objectMetaProperty].buildId))) {
         matchInEquivalentSlot(establishedSlot, newSlot);
       }
     }
@@ -1490,10 +1490,10 @@ function createWorld(configuration) {
         for (let id in repeater.idObjectShapeMap) {
           if (typeof(repeater.newIdObjectShapeMap[id]) === "undefined") {
             const object = repeater.idObjectShapeMap[id];
-            const objectRenderContext = object[objectMetaProperty].target;
-            // console.log("Dispose object: " + objectRenderContext.constructor.name + "." + object[objectMetaProperty].id)
+            const objectTarget = object[objectMetaProperty].target;
+            // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
             emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectRenderContext.onDispose) === "function") object.onDispose();
+            if (typeof(objectTarget.onDispose) === "function") object.onDispose();
           }
         }
       }
@@ -1519,10 +1519,10 @@ function createWorld(configuration) {
         for (let buildId in repeater.buildIdObjectMap) {
           if (typeof(repeater.newBuildIdObjectMap[buildId]) === "undefined") {
             const object = repeater.buildIdObjectMap[buildId];
-            const objectRenderContext = object[objectMetaProperty].target;
-            // console.log("Dispose object: " + objectRenderContext.constructor.name + "." + object[objectMetaProperty].id)
+            const objectTarget = object[objectMetaProperty].target;
+            // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
             emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectRenderContext.onDispose) === "function") objectRenderContext.onDispose();
+            if (typeof(objectTarget.onDispose) === "function") objectTarget.onDispose();
           }
         }
       }

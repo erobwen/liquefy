@@ -1,6 +1,6 @@
 import { Component } from "./Component.js";
 import { isObservable } from "./Flow.js";
-import { getRenderContext } from "./buildContext.js";
+import { getRenderTarget } from "./buildContext.js";
 
 
 export function extractExpectedProperty(object, property) {
@@ -65,7 +65,7 @@ export function createTextNodesFromStringChildren(properties, keyPrefix) {
     if (typeof child === "undefined" || child === null || child === false) {
       return child; 
     } else if (typeof child === "string" || typeof child === "number") {
-      return getRenderContext().primitive({type: "textNode", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, text: child});
+      return getRenderTarget().primitive({type: "textNode", key: keyPrefix ? keyPrefix + ".text-" + stamp++ : null, text: child});
     } else if (child instanceof Component) {
       return child; 
     } else {

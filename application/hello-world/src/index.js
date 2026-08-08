@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/flow.core";
-import { DOMRenderContext, div, h1, h2, span, b, ul, li, br } from "@liquefy/flow.dom";
+import { DOMRenderTarget, div, h1, h2, span, b, ul, li, br } from "@liquefy/flow.dom";
 import { button } from "@liquefy/ui-material"
 
 const foo = model({x: 234})
@@ -61,6 +61,6 @@ class Hello extends Component {
 
 
 // Create an instance, and set as content of a render context.
-new DOMRenderContext(document.getElementById("root")).setContent(
+new DOMRenderTarget(document.getElementById("root")).setContent(
   new Hello({to: "World"})
 )

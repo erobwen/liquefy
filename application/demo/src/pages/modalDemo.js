@@ -1,5 +1,5 @@
 import { callback, Component, toProperties } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, p, ul, li, img } from "@liquefy/flow.dom";
+import { DOMRenderTarget, text, div, p, ul, li, img } from "@liquefy/flow.dom";
 import { button, cardColumn, dialogue } from "@liquefy/themed-ui";
 
 import {
@@ -109,7 +109,7 @@ export class DialogueContent extends Component {
  */
 export function startModalDemo() {
   const root = new ModalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).setContent(root);
+  new DOMRenderTarget(document.getElementById("root")).setContent(root);
 }
 
 

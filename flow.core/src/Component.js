@@ -45,7 +45,7 @@ export class Component {
 
     // Get and inherit certain things from creator.
     this.creator = getCreator(); // Note this can only be done in constructor!
-    this.inheritFromCreator(); // Deprecated: Get from render context instead. 
+    this.inheritFromCreator(); // Deprecated: Get from render target instead. 
 
     // Create observable
     let me = observable(this, this.key);
@@ -366,7 +366,7 @@ export class Component {
       return context;
     }
     throw new Error("Must be an observeable object! Otherwise we cannot track changes to it.");
-    // let observeable = this.getRenderContext();
+    // let observeable = this.getRenderTarget();
     // Object.assign(observeable, context);
     // return observeable; 
   }
@@ -384,13 +384,13 @@ export class Component {
    * Render
    */
 
-  getRenderContext() {
+  getRenderTarget() {
     return this;
   }
 
   setContext(renderContext) {
     // Not a good idea to assign the whole render context. variables like firstPass will trigger re-render. Better to deconstruct it...
-    // IF it is an observeable, we can assign it. If not, we better deconstruct it. Assign it to an incoming object.     const context = getRenderContext()
+    // IF it is an observeable, we can assign it. If not, we better deconstruct it. Assign it to an incoming object.     const context = getRenderTarget()
     Object.assign(context, renderContext);
     return context;
   }
@@ -410,7 +410,7 @@ export class Component {
     if (!this.unobservable.renderRepeater) {
       this.unobservable.renderRepeater = repeat(this.toString() + ".renderRepeater", repeater => {
         if (trace) console.group(repeater.causalityString());
-        const renderContext = this.getRenderContext();
+        const renderContext = this.getRenderTarget();
 
         // Verify rendering. Parent may leave us be, so we need to verify in the panent data structure that we are still visible.
         const {renderParent, renderTarget} = renderContext;
@@ -492,22 +492,22 @@ export class Component {
     return me.newBuild;
   }
 
-  // Single entry point used by a RenderContext to mount this component onto it. 
-  // Encapsulates what used to be three separate calls orchestrated by the RenderContext:
+  // Single entry point used by a RenderTarget to mount this component onto it. 
+  // Encapsulates what used to be three separate calls orchestrated by the RenderTarget:
   // establishing the component, building/expanding the primitive tree (setRenderTargetRecursivley), and 
   // ensuring the resulting content is in place (e.g. built into the DOM).
-  reactiveRenderToContext(renderContext) {
-    this.setRenderTarget(renderContext);
+  reactiveRenderToContext(renderTarget) {
+    this.setRenderTarget(renderTarget);
 
     workOnPriorityLevel(buildComponentTime, () => {      
       this.ensureEstablished();
-      this.setRenderTargetRecursivley(renderContext);
+      this.setRenderTargetRecursivley(renderTarget);
     });
     this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
       if (trace) console.group(repeater.causalityString());
 
       let primitive = this.buildEquivalentPrimitive();
-      primitive.givenDomNode = renderContext.rootElement;
+      primitive.givenDomNode = renderTarget.rootElement;
       primitive.ensureDomNodeBuilt();
 
       if (trace) console.groupEnd();
@@ -515,7 +515,7 @@ export class Component {
   }
 
   setRenderTargetRecursivley(renderTarget, renderParent) {
-    // Note: This is typically just called once from RenderContext for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
+    // Note: This is typically just called once from RenderTarget for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
 
     // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
     // if (renderParent && peekParentPrimitive !== renderParent) { // Why not set to null? Something to do with animation?

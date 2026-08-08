@@ -1,4 +1,4 @@
-import { trace, callback, toProperties, getRenderContext, extractProperty } from "@liquefy/flow.core";
+import { trace, callback, toProperties, getRenderTarget, extractProperty } from "@liquefy/flow.core";
 import { elementNode, text, div, label as htmlLabel, button as htmlButton, addDefaultStyle, findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties } from "@liquefy/flow.dom";
 
 

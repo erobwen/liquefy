@@ -1,4 +1,4 @@
-import { div, text, DOMRenderContext } from "@liquefy/flow.dom";
+import { div, text, DOMRenderTarget } from "@liquefy/flow.dom";
 import { Component } from "@liquefy/flow.core";
 import { column, button } from "@liquefy/basic-ui";
 
@@ -50,5 +50,5 @@ export const flexAutoStyle = {
  */
 export function startSimpleAddRemoveAnimation() {
   const simple = new SimpleAddRemoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).setContent(simple)
+  new DOMRenderTarget(document.getElementById("root")).setContent(simple)
 }

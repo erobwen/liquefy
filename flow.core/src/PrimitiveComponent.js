@@ -6,8 +6,8 @@ const log = console.log;
 
 /**
  * A Primitive component corresponds to a single entity in the target. Such as a node in a web-browser.
- * A primitive component is typically created by the RenderContext.primitive() function that act as a service
- * locator pattern that make it possible for different RenderContext objects to have different sets of primitive
+ * A primitive component is typically created by the RenderTarget.primitive() function that act as a service
+ * locator pattern that make it possible for different RenderTarget objects to have different sets of primitive
  * components. 
  */
 export class PrimitiveComponent extends Component { // Deprecated. To be deleted....
@@ -50,7 +50,7 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
     const name = this.toString(); // For chrome debugger
     // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
-    if (renderTarget) this.visibleOnRenderContext = renderTarget;
+    if (renderTarget) this.visibleOnRenderTarget = renderTarget;
     // if (renderParent && peekParentPrimitive !== renderParent) {
     //   if (peekParentPrimitive) {
     //     // log("PrimitiveComponent.setRenderTargetRecursivley");
@@ -69,20 +69,20 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
         // Check visibility
         if (this.renderParent) {
           if (this.renderParent.childPrimitives && this.renderParent.childPrimitives.includes(this)) {
-            this.visibleOnRenderContext = this.renderParent.visibleOnRenderContext;
-            this.isVisible = !!this.visibleOnRenderContext
+            this.visibleOnRenderTarget = this.renderParent.visibleOnRenderTarget;
+            this.isVisible = !!this.visibleOnRenderTarget
           } else {
-            this.visibleOnRenderContext = null;
+            this.visibleOnRenderTarget = null;
             this.previousParentPrimitive = this.renderParent;
             this.renderParent = null;
-            this.isVisible = !!this.visibleOnRenderContext
+            this.isVisible = !!this.visibleOnRenderTarget
           }
         }
 
         // Populate portals and stuff
         let scan = this.equivalentCreator; 
         while(scan) {
-          if (scan.visibleOnRenderContext === this.visibleOnRenderContext) {
+          if (scan.visibleOnRenderTarget === this.visibleOnRenderTarget) {
             scan = null; 
           } else {
             if (this.renderParent && this.renderParent !== scan.renderParent) {
@@ -93,8 +93,8 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
               scan.renderParent = this.renderParent
             }         
             scan.renderParent = this.renderParent; 
-            scan.visibleOnRenderContext = this.visibleOnRenderContext;
-            scan.isVisible = !!this.visibleOnRenderContext
+            scan.visibleOnRenderTarget = this.visibleOnRenderTarget;
+            scan.isVisible = !!this.visibleOnRenderTarget
             // scan.onVisibilityWillChange(scan.isVisible);
             scan = scan.equivalentCreator;
           }

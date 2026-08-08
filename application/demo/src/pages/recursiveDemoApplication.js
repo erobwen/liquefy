@@ -1,5 +1,5 @@
 import { Component, model, toProperties, toPropertiesWithChildren } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, ul, li, p } from "@liquefy/flow.dom";
+import { DOMRenderTarget, text, div, ul, li, p } from "@liquefy/flow.dom";
 
 import { filler, fitContainerStyle, column, row, middle, portalContents } from "@liquefy/basic-ui";
 import { numberInput, button, cardColumn } from "@liquefy/themed-ui";
@@ -119,7 +119,7 @@ export class Item extends Component {
  */ 
 export function startRecursiveDemo() {
   const root = new RecursiveExample();
-  new DOMRenderContext(document.getElementById("root")).setContent(root);
+  new DOMRenderTarget(document.getElementById("root")).setContent(root);
 }
 
 

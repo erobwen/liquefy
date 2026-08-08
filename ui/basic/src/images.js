@@ -1,4 +1,4 @@
-import { toProperties, getRenderContext } from "@liquefy/flow.core";
+import { toProperties, getRenderTarget } from "@liquefy/flow.core";
 
 import { div, elementNode, addDefaultStyle } from "@liquefy/flow.dom";
 import { extractProperty } from "../../../flow.core/src/implicitProperties";

@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { DOMRenderContext, text, div, p, ul, li } from "@liquefy/flow.dom";
+import { DOMRenderTarget, text, div, p, ul, li } from "@liquefy/flow.dom";
 import { button, card, cardColumn, cardRow } from "@liquefy/themed-ui";
 
 import { naturalSizeStyle, filler, column, row, centerMiddle, portalContents, layoutBorderStyle, fillerStyle, portal, fitContainerStyle } from "@liquefy/basic-ui";
@@ -104,7 +104,7 @@ export class PortalStandaloneExample extends Component {
  */
 export function startPortalDemo() {
   const example = new PortalStandaloneExample();
-  new DOMRenderContext(document.getElementById("root")).setContent(example);
+  new DOMRenderTarget(document.getElementById("root")).setContent(example);
 }
 
 

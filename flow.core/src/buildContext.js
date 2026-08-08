@@ -10,10 +10,10 @@ export function getCreator() {
   return creators[creators.length - 1];
 }
 
-export function getRenderContext() {
+export function getRenderTarget() {
   const creator = getCreator();
-  // console.log("getRenderContext", creator.renderTarget);
-  // console.log("getRenderContext", creator._);
+  // console.log("getRenderTarget", creator.renderTarget);
+  // console.log("getRenderTarget", creator._);
   return creator ? creator.renderTarget : null;
 }
 

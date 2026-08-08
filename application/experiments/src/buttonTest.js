@@ -1,7 +1,7 @@
 import { text } from "../components/basic/BasicWidgets";
 import { centerMiddle, column, fitContainerStyle } from "../components/basic/Layout";
 import { modernButton } from "../components/modern/ModernButton";
-import { DOMRenderContext } from "../flow.DOM/DOMRenderContext";
+import { DOMRenderTarget } from "../flow.DOM/DOMRenderTarget";
 import { Component } from "../flow/Flow";
 
 const log = console.log;
@@ -27,5 +27,5 @@ class ButtonTest extends Component {
  */
 export function buttonTest() {
   const test = new ButtonTest()  
-  new DOMRenderContext(document.getElementById("root")).setContent(test)
+  new DOMRenderTarget(document.getElementById("root")).setContent(test)
 }

@@ -111,7 +111,7 @@ import {
 import { addDefaultStyle } from "./HTMLBuilding";
 import { DOMElementNode, elementNode } from "./DOMElementNode";
 import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, toPropertiesWithImplicitSingleText } from "./DOMTextNode"
-import { DOMRenderContext} from "./DOMRenderContext"
+import { DOMRenderTarget} from "./DOMRenderTarget"
 import { mostAbstractComponent, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
 import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
 import { findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties, findImplicitInputParameters, findDomElementNodeProperties } from "./implicitProperties";
@@ -243,8 +243,8 @@ export {
     elementNode, 
     DOMElementNode,
 
-    //DOMRenderContext
-    DOMRenderContext,
+    //DOMRenderTarget
+    DOMRenderTarget,
 
     //DOMNode
     mostAbstractComponent, 

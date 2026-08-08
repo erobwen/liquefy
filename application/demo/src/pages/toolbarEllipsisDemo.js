@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { p, DOMRenderContext } from "@liquefy/flow.dom";
+import { p, DOMRenderTarget } from "@liquefy/flow.dom";
 import { alert } from "@liquefy/themed-ui";
 
 import { filler, wrapper, column, row, layoutBorderStyle, portalContents, cardShadow3, popover } from "@liquefy/basic-ui";
@@ -116,7 +116,7 @@ export class EllipsisToolbar extends Component {
  * This is what you would typically do in index.js to start this app. 
  */
 export function startToolbarEllipsisDemo() {
-  new DOMRenderContext(document.getElementById("root")).setContent(
+  new DOMRenderTarget(document.getElementById("root")).setContent(
     new ToolbarEllipsisDemo()
   );
 }

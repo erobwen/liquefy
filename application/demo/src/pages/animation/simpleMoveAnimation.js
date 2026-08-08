@@ -1,6 +1,6 @@
 
 import { Component, transaction } from "@liquefy/flow.core";
-import { div, DOMRenderContext } from "@liquefy/flow.dom";
+import { div, DOMRenderTarget } from "@liquefy/flow.dom";
 import { button as basicButton, column, filler, row, overflowVisibleStyle, layoutBorderStyle } from "@liquefy/basic-ui";
 
 
@@ -105,5 +105,5 @@ export class SimpleMoveAnimation extends Component {
  */
 export function startSimpleMoveAnimation() {
   const simple = new SimpleMoveAnimation()  
-  new DOMRenderContext(document.getElementById("root")).setContent(simple)
+  new DOMRenderTarget(document.getElementById("root")).setContent(simple)
 }

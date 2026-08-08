@@ -1,6 +1,6 @@
 import { observable, transaction, workOnPriorityLevel } from "@liquefy/flow.core";
 import { toProperties, extractProperty } from "@liquefy/flow.core";
-import { RenderContext, model } from "@liquefy/flow.core";
+import { RenderTarget, model } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 import { observePathChange } from "./pathobserver";
 
@@ -9,21 +9,21 @@ import { observePathChange } from "./pathobserver";
 export const domNodeClassRegistry = {};
 const log = console.log;
 
-export function getDomRenderContexts() {
-  return domRenderContexts;
+export function getDomRenderTargets() {
+  return domRenderTargets;
 }
 
-export const domRenderContexts = [];
+export const domRenderTargets = [];
 
-export function addDOMRenderContext(target) {
-  domRenderContexts.push(target)
+export function addDOMRenderTarget(target) {
+  domRenderTargets.push(target)
 }
 
-export function removeDOMRenderContext(target) {
-  domRenderContexts.splice(domRenderContexts.indexOf(target), 1);
+export function removeDOMRenderTarget(target) {
+  domRenderTargets.splice(domRenderTargets.indexOf(target), 1);
 }
 
-export class DOMRenderContext extends RenderContext {
+export class DOMRenderTarget extends RenderTarget {
   constructor(rootElement, configuration={}){
     if (!rootElement) throw new Error("No root element!");
     const {creator=null, fullWindow=true} = configuration;
@@ -33,7 +33,7 @@ export class DOMRenderContext extends RenderContext {
 
     if (!this.key) this.key = configuration.key ? configuration.key : null;
     this.animate = typeof(configuration.animate) === "undefined" ? true : configuration.animate; 
-    if (this.animate) addDOMRenderContext(this);
+    if (this.animate) addDOMRenderTarget(this);
     this.creator = creator;
     this.rootElement = rootElement;
 
@@ -85,7 +85,7 @@ export class DOMRenderContext extends RenderContext {
   
   setContent(component) {
     // console.log("Render...")
-    // console.warn("DOMRenderContext.render is deprecated. Use buildComponent instead (will be renamed to render once all deprecations are removed)")
+    // console.warn("DOMRenderTarget.render is deprecated. Use buildComponent instead (will be renamed to render once all deprecations are removed)")
     component.bounds = {width: window.innerWidth, height: window.innerHeight}
     component.setProperties({
       bounds: {width: window.innerWidth, height: window.innerHeight},
@@ -98,7 +98,7 @@ export class DOMRenderContext extends RenderContext {
   dispose() {
     super.dispose();
     this.cleanupPathObserver();
-    if (this.animate) removeDOMRenderContext(this);
+    if (this.animate) removeDOMRenderTarget(this);
   }
 
   primitive(properties) {
@@ -136,8 +136,8 @@ export class DOMRenderContext extends RenderContext {
   //   this.modalFlow = component;
   //   this.modalFlowClose = close; 
   //   const modalDiv = this.setupModalDiv();
-  //   this.modalRenderContext = new DOMRenderContext(modalDiv, {creator: this});
-  //   this.modalRenderContext.setContent(this.modalFlow);
+  //   this.modalRenderTarget = new DOMRenderTarget(modalDiv, {creator: this});
+  //   this.modalRenderTarget.setContent(this.modalFlow);
 
   //   // Display modal component
   //   this.state.modalDiv = modalDiv;
@@ -148,8 +148,8 @@ export class DOMRenderContext extends RenderContext {
   //     // Remove new component target, hide modal panel
   //     this.modalFlow = null;
   //     this.modalFlowClose = null;
-  //     this.modalRenderContext.dispose();
-  //     this.modalRenderContext = null;
+  //     this.modalRenderTarget.dispose();
+  //     this.modalRenderTarget = null;
   //     this.state.modalDiv = null;
   //   }
   // }

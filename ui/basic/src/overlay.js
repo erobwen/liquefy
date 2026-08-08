@@ -1,4 +1,4 @@
-import { Component, transaction, creators, getRenderContext } from "@liquefy/flow.core";
+import { Component, transaction, creators, getRenderTarget } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 
 import { div, elementNode } from "@liquefy/flow.dom";

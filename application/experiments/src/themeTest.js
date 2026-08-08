@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/flow.core";
-import { text, DOMRenderContext } from "@liquefy/flow.dom";
+import { text, DOMRenderTarget } from "@liquefy/flow.dom";
 import { centerMiddle, column, fitContainerStyle } from "@liquefy/basic-ui";
 
 import { button } from "@liquefy/themed-ui";
@@ -64,5 +64,5 @@ class ThemeTest extends Component {
  */
 export function themeTest() {
   const test = new ThemeTest()  
-  new DOMRenderContext(document.getElementById("root")).setContent(test)
+  new DOMRenderTarget(document.getElementById("root")).setContent(test)
 }

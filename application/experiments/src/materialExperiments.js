@@ -1,5 +1,5 @@
-import { observable, deeplyObservable, repeat, Component, toProperties, getRenderContext } from "@liquefy/flow.core"
-import { div, text, DOMRenderContext, toInputProperties, elementNode, toButtonProperties } from "@liquefy/flow.dom"
+import { observable, deeplyObservable, repeat, Component, toProperties, getRenderTarget } from "@liquefy/flow.core"
+import { div, text, DOMRenderTarget, toInputProperties, elementNode, toButtonProperties } from "@liquefy/flow.dom"
 import "./materialExperiments.css";
 import { MdOutlinedIconButton, MdTextButton } from '@material/web/all.js';
 
@@ -42,7 +42,7 @@ class MaterialExperiment extends Component {
  */
 export function materialExperiment() {
   const experiment = new MaterialExperiment()  
-  new DOMRenderContext(document.getElementById("root")).setContent(experiment)
+  new DOMRenderTarget(document.getElementById("root")).setContent(experiment)
 }
 
 
@@ -123,7 +123,7 @@ const input = (...parameters) => {
 
 //   build() {
 //     console.log(attributes);
-//     return getRenderContext().primitive({
+//     return getRenderTarget().primitive({
 //       key: this.key + ".text", 
 //       type: "elementNode",
 //       tagName: "mdui-text-field", 

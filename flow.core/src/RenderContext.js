@@ -39,8 +39,9 @@ export class RenderContext {
 	dispose() {}
 
 	setContent(component) {
-		if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
-		component.renderOntoContext(this);
+		// if (!(component instanceof Component)) throw new Error("Flow target content must be a flow Component!");
+		this.component = component;
+		component.reactiveRenderToContext(this);
 	}
 
 	// General creation method, this is similar to a service locator in the service locator pattern. 

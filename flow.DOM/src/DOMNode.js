@@ -91,7 +91,7 @@ export function getWidthIncludingMargin(node) {
  */
 export class DOMNode extends PrimitiveComponent {
 
-  observeableRender(renderContext) { finalize(this);
+  reactiveRender(renderContext) { finalize(this);
 
     this.setContext(renderContext);
  
@@ -109,7 +109,7 @@ export class DOMNode extends PrimitiveComponent {
 
         // Render first pass.
         let childDOMNodes = [].concat(...this.children.map(
-          child => child.observeableRender({ firstPass: true, renderTarget, renderParent: this }).domNode
+          child => child.reactiveRender({ firstPass: true, renderTarget, renderParent: this }).domNode
         ));
 
         // Update children, some domNodes are dummys.
@@ -118,7 +118,7 @@ export class DOMNode extends PrimitiveComponent {
         // More passes to complete incomplete children.
         while (this.children.reduce((result, child) => result || child.nextRenderState.renderingDelayed, false)) {
           // Render second pass. Note: Some children fully renders only on second pass, so they can measure their bounds.
-          this.children.map(child => child.observeableRender({ firstPass: false, renderTarget, renderParent: this }));
+          this.children.map(child => child.reactiveRender({ firstPass: false, renderTarget, renderParent: this }));
         }
 
         // Just return a DOM node. 

@@ -49,8 +49,8 @@ class ApplicationMenuFrame extends Component {
         transition: "background-color 1000ms linear", 
         backgroundColor: "rgba(0, 0, 0, 0.2)"
       }});
-    const domNode = background.buildPrimitive().getDomNode();
-    // const domNode = background.observeableBuild().getDomNode();
+    const domNode = background.buildEquivalentPrimitive().getDomNode();
+    // const domNode = background.reactiveBuild().getDomNode();
 
     return zStack(
       background,

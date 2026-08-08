@@ -73,17 +73,16 @@ export class DOMRenderContext extends RenderContext {
     return "[target]" + (this.component ? this.component.toString() : "null");
   }
 
-  renderComponent() {
-    if (this.component) {
-      component.setProperties({
-        bounds: {width: window.innerWidth, height: window.innerHeight},
-        path: window.location.pathname.split("/").filter(item => item.length > 0),
-      })
-      this.component.observeableRender({renderTarget: this, givenDomNode: this.rootElement});
-    }
-  }
+  // renderComponent() {
+  //   if (this.component) {
+  //     component.setProperties({
+  //       bounds: {width: window.innerWidth, height: window.innerHeight},
+  //       path: window.location.pathname.split("/").filter(item => item.length > 0),
+  //     })
+  //     this.component.reactiveRender({renderTarget: this, givenDomNode: this.rootElement});
+  //   }
+  // }
   
-  // DEPRECATED
   setContent(component) {
     // console.log("Render...")
     // console.warn("DOMRenderContext.render is deprecated. Use buildComponent instead (will be renamed to render once all deprecations are removed)")
@@ -91,8 +90,9 @@ export class DOMRenderContext extends RenderContext {
     component.setProperties({
       bounds: {width: window.innerWidth, height: window.innerHeight},
       path: window.location.pathname.split("/").filter(item => item.length > 0),
-    }) 
-    super.setContent(component);
+    });
+    this.component = component;
+		component.reactiveRenderToContext(this);
   }
 
   dispose() {

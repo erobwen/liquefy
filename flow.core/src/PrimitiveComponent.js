@@ -30,7 +30,7 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
     return null;
   }
 
-  buildPrimitive() {
+  buildEquivalentPrimitive() {
     // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back! 
     
     // // Setup parent primitive
@@ -116,7 +116,7 @@ export class PrimitiveComponent extends Component { // Deprecated. To be deleted
 
   *iteratePrimitiveChildren() {
     for(let child of this.iterateChildren()) {
-      let primitive = child.buildPrimitive();
+      let primitive = child.buildEquivalentPrimitive();
       if (primitive instanceof Array) {
         for (let fragment of primitive) { 
           yield fragment; 

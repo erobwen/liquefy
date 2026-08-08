@@ -92,7 +92,7 @@ export class DOMRenderTarget extends RenderTarget {
       path: window.location.pathname.split("/").filter(item => item.length > 0),
     });
     this.component = component;
-		component.reactiveRenderToContext(this);
+		component.reactiveRenderToTarget(this);
   }
 
   dispose() {

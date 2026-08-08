@@ -99,12 +99,28 @@ export class Component {
     // Use this.ensure(action) to establish reactive relations here. 
   }
   
-  terminate() {
+  terminate() { // Override onDispose and call super instead of new name? 
     // throw new Error("Not implemented yet");
   }
 
+  // Build your component into an equivalent component. 
   build(_repeater) {
     throw new Error("Not implemented yet");
+  }
+
+  // Render your component into a render context. Default implementation is to build and then render what was built. 
+  render(renderContext) {
+    // Build and then render what was built
+    let morePrimitiveComponent = this.reactiveBuildEquivalent();
+    this.renderedChildren = (morePrimitiveComponent instanceof Array) ? [...morePrimitiveComponent] : [morePrimitiveComponent];
+    let {renderParent, renderState} = renderContext;
+    for (let fragment of this.renderedChildren) {
+      renderState = fragment.reactiveRender({
+        renderParent, // Note: "this" is compositionParent, not render parent! 
+        renderState, 
+      });
+    }
+    return renderState;
   }
 
 
@@ -228,6 +244,12 @@ export class Component {
    * Internal lifecycle functions
    */
 
+  ensureEstablished() {
+    if (!this.unobservable.established) {
+      this.onEstablish();
+    }
+  }
+
   onEstablish() {
     this.causality.established = true; 
     this.unobservable.established = true; 
@@ -302,7 +324,7 @@ export class Component {
   }
 
   findChild(key) { // Note: did not work in some situations getChild worked.  
-    const primitive = this.buildEquivalentPrimitive();
+    const primitive = this.reactiveBuildEquivalentPrimitive();
     if (primitive instanceof Array) {
       for (let fragment of primitive) {
         const result = fragment.findKey();
@@ -351,40 +373,51 @@ export class Component {
 
 
   /**
-   * Internal build functions
+   * Render to target
    */
-  ensureEstablished() {
-    if (!this.unobservable.established) {
-      this.onEstablish();
-    }
+
+  reactiveRenderToTarget(renderTarget) {
+    this.setRenderTarget(renderTarget);
+
+    workOnPriorityLevel(buildComponentTime, () => {      
+      this.ensureEstablished();
+      this.setRenderTargetRecursivley(renderTarget);
+    });
+    this.renderToTargetRepeater = repeat(this.toString() + ".renderToTargetRepeater", repeater => {
+      if (trace) console.group(repeater.causalityString());
+
+      let primitive = this.reactiveBuildEquivalentPrimitive();
+      primitive.givenDomNode = renderTarget.rootElement;
+      primitive.ensureDomNodeBuilt();
+
+      if (trace) console.groupEnd();
+    }, {priority: updateTargetTime});
   }
 
-  // Note: Important helper that sets up an observable renderContext property.
-  requireObserveable(context) {
-    if (isObservable(context)) {
-      // Verify we have no own context?
-      return context;
-    }
-    throw new Error("Must be an observeable object! Otherwise we cannot track changes to it.");
-    // let observeable = this.getRenderTarget();
-    // Object.assign(observeable, context);
-    // return observeable; 
+  setRenderTargetRecursivley(renderTarget, renderParent) {
+    // Note: This is typically just called once from RenderTarget for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
+
+    // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
+    // if (renderParent && peekParentPrimitive !== renderParent) { // Why not set to null? Something to do with animation?
+    //   if (peekParentPrimitive) {
+    //     // log("Component.setRenderTargetRecursivley");
+    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + renderParent.toString());
+    //   }
+    this.renderParent = renderParent
+    // } 
+    workOnPriorityLevel(buildComponentTime, () => {
+      const primitive = this.reactiveBuildEquivalentPrimitive();
+  		if (primitive instanceof Array) throw new Error("Cannot have fragments on the top level");
+      primitive.setRenderTargetRecursivley(renderTarget, renderParent);
+    });
   }
+
 
   /**
-   * Bounds
-   */
-  getBounds() {
-    if (this.renderTarget) {
-      return this.renderTarget.dimensions;
-    }
-  }
-
-  /**
-   * Render
+   * Render to context
    */
 
-  getRenderTarget() {
+  getRenderContext() {
     return this;
   }
 
@@ -400,9 +433,7 @@ export class Component {
   }
 
   reactiveRender(renderContext) { 
-    
     finalize(this);
-
     this.setContext(renderContext); // Consider: We will not get a new context if parent abandons us.... 
 
     // Note what happens if reactive build returns something else, it means the parent render repeater has to invalidate...
@@ -410,7 +441,7 @@ export class Component {
     if (!this.unobservable.renderRepeater) {
       this.unobservable.renderRepeater = repeat(this.toString() + ".renderRepeater", repeater => {
         if (trace) console.group(repeater.causalityString());
-        const renderContext = this.getRenderTarget();
+        const renderContext = this.getRenderContext();
 
         // Verify rendering. Parent may leave us be, so we need to verify in the panent data structure that we are still visible.
         const {renderParent, renderTarget} = renderContext;
@@ -433,22 +464,14 @@ export class Component {
 
     return this.nextRenderState;
   }
-
-  render(renderContext) {
-    // Build and then render what was built
-    let morePrimitiveComponent = this.reactiveBuild();
-    this.renderedChildren = (morePrimitiveComponent instanceof Array) ? [...morePrimitiveComponent] : [morePrimitiveComponent];
-    let {renderParent, renderState} = renderContext;
-    for (let fragment of this.renderedChildren) {
-      renderState = fragment.reactiveRender({
-        renderParent, // Note: "this" is compositionParent, not render parent! 
-        renderState, 
-      });
-    }
-    return renderState;
-  }
   
-  reactiveBuild() {
+
+  /**
+   * Build to equivalent or primitives
+   */
+
+  // Note: Never tried.
+  reactiveBuildEquivalent() {
     // log("getPrimitive")
     const name = this.toString(); // For chrome debugger.
     finalize(this);
@@ -492,51 +515,15 @@ export class Component {
     return me.newBuild;
   }
 
-  // Single entry point used by a RenderTarget to mount this component onto it. 
-  // Encapsulates what used to be three separate calls orchestrated by the RenderTarget:
-  // establishing the component, building/expanding the primitive tree (setRenderTargetRecursivley), and 
-  // ensuring the resulting content is in place (e.g. built into the DOM).
-  reactiveRenderToContext(renderTarget) {
-    this.setRenderTarget(renderTarget);
-
-    workOnPriorityLevel(buildComponentTime, () => {      
-      this.ensureEstablished();
-      this.setRenderTargetRecursivley(renderTarget);
-    });
-    this.contentPlacementRepeater = repeat(this.toString() + ".contentPlacementRepeater", repeater => {
-      if (trace) console.group(repeater.causalityString());
-
-      let primitive = this.buildEquivalentPrimitive();
-      primitive.givenDomNode = renderTarget.rootElement;
-      primitive.ensureDomNodeBuilt();
-
-      if (trace) console.groupEnd();
-    }, {priority: updateTargetTime});
+  getEquivalentPrimitive() { // Alias
+    return this.reactiveBuildEquivalentPrimitive();
   }
 
-  setRenderTargetRecursivley(renderTarget, renderParent) {
-    // Note: This is typically just called once from RenderTarget for the top most component that is typically not a primitive. It will typically build primitives, and the call will be made on those primitives directly. 
-
-    // const peekParentPrimitive = withoutRecording(() => this.renderParent); // It could be still the parent is expanding. We dont want parent dependent on child. This allows for change of parent without previous parent taking it back!
-    // if (renderParent && peekParentPrimitive !== renderParent) { // Why not set to null? Something to do with animation?
-    //   if (peekParentPrimitive) {
-    //     // log("Component.setRenderTargetRecursivley");
-    //     if (traceWarnings) console.warn("Changed parent primitive for " + this.toString() + ":" + peekParentPrimitive.toString() + " --> " + renderParent.toString());
-    //   }
-    this.renderParent = renderParent
-    // } 
-    workOnPriorityLevel(buildComponentTime, () => {
-      const primitive = this.buildEquivalentPrimitive();
-  		if (primitive instanceof Array) throw new Error("Cannot have fragments on the top level");
-      primitive.setRenderTargetRecursivley(renderTarget, renderParent);
-    });
-  }
-
-  isBuilt() {
+  isBuiltToPrimitive() {
     return typeof this.buildPrimitiveRepeater !== "undefined";
   }
 
-  buildEquivalentPrimitive() {
+  reactiveBuildEquivalentPrimitive() {
     // log("getPrimitive")
     const me = this;
     const name = this.toString(); // For chrome debugger.
@@ -575,10 +562,10 @@ export class Component {
           if (!me.newBuild) {
             me.primitive = null; 
           } else if (!(me.newBuild instanceof Array)) {
-            me.primitive = me.newBuild.buildEquivalentPrimitive()  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
+            me.primitive = me.newBuild.reactiveBuildEquivalentPrimitive()  // Use object if it changed from outside, but do not observe primitive as this is the role of the expanderRepeater! 
           } else {
             me.primitive = me.newBuild
-              .map(fragment => fragment.buildEquivalentPrimitive())
+              .map(fragment => fragment.reactiveBuildEquivalentPrimitive())
               .reduce((result, childPrimitive) => {
                 if (childPrimitive instanceof Array) {
                   childPrimitive.forEach(fragment => result.push(fragment));
@@ -612,14 +599,14 @@ export class Component {
 
   dimensions(contextNode) {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
-    const primitive = this.buildEquivalentPrimitive();
+    const primitive = this.getEquivalentPrimitive();
     if (primitive instanceof Array) throw new Error("Dimensions not supported for fragmented components.");
     return primitive ? primitive.dimensions(contextNode) : null;
   }
 
   reactiveBoundingClientRect() {
     if (!this.key && traceWarnings) console.warn("It is considered unsafe to use dimensions on a component without a key. The reason is that a call to dimensions from a parent build function will finalize the component early, and without a key, causality cannot send proper onEstablish event to your component component before it is built");
-    const primitive = this.buildEquivalentPrimitive();
+    const primitive = this.getEquivalentPrimitive();
     if (primitive instanceof Array) throw new Error("reactiveBoundingClientRect not supported for fragmented components.");
     return primitive ? primitive.reactiveBoundingClientRect(contextNode) : null;
   }

@@ -230,8 +230,8 @@ export function onFinishRenderingComponents() {
   // }
   
   for (let context of getDomRenderTargets()) {
-    analyzePrimitives(idPrimitiveMap, context.component.buildEquivalentPrimitive());
-    // componentChanges.structure = copyStructure(context.component.buildEquivalentPrimitive(), null) 
+    analyzePrimitives(idPrimitiveMap, context.component.getEquivalentPrimitive());
+    // componentChanges.structure = copyStructure(context.component.getEquivalentPrimitive(), null) 
   }
   // console.log(idParentIdMap);
 

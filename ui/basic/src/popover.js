@@ -20,7 +20,7 @@ class Popover extends Component {
 
   initialize() {
     this.ensure(() => {
-      if (this.isBuilt()) {
+      if (this.isBuiltToPrimitive()) {
         const background = this.getChild("background");
         if (background && background.domNode) {
           background.domNode.addEventListener("mousedown", () => { this.close() }, true);
@@ -33,8 +33,8 @@ class Popover extends Component {
     const { children, reference } = this;
 
     if (children.length !== 1) throw new Error("Modal popover expects just one single child to get dimensions.");
-    const popoverDimensions = children[0].buildEquivalentPrimitive().dimensions();
-    const referenceRect = reference.buildEquivalentPrimitive().reactiveBoundingClientRect(); 
+    const popoverDimensions = children[0].getEquivalentPrimitive().dimensions();
+    const referenceRect = reference.getEquivalentPrimitive().reactiveBoundingClientRect(); 
     const referenceRectMiddle = referenceRect.top + referenceRect.height / 2;
     const windowHeightMiddle = window.innerHeight / 2;
     const xSpace = window.innerWidth - referenceRect.width;

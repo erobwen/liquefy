@@ -147,7 +147,7 @@ export class OverlayFrame extends Component {
         this.modalSubFrame.reallyDisposed = true;
         // This is to avoid the old sub frame holding on the the dialog, if we create a new one. 
         this.modalSubFrame.children = [];
-        this.modalSubFrame.buildEquivalentPrimitive().children = [];  
+        this.modalSubFrame.getEquivalentPrimitive().children = [];  
         // Note: This might need fixing.
         this.modalSubFrame.onDispose();
         this.modalSubFrame = null;

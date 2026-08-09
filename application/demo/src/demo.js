@@ -73,7 +73,7 @@ export class Demo extends Component {
     // this.chosen = this.items.find(item => item.key === "modalExample");
   }
   
-  terminate() {
+  onDispose() {
     super.onDispose();
     for (let name in this.items) {
       this.items[name].onDispose();

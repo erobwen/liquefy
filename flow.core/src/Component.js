@@ -99,7 +99,8 @@ export class Component {
     // Use this.ensure(action) to establish reactive relations here. 
   }
   
-  terminate() { // Override onDispose and call super instead of new name? 
+  onDispose() {
+    super.onDispose();
     // throw new Error("Not implemented yet");
   }
 
@@ -281,7 +282,6 @@ export class Component {
       this.buildPrimitiveRepeater.repeaterAction = () => {};
     }
     if (this.ensureRepeaters) this.ensureRepeaters.map(repeater => repeater.dispose()); // Do you want a disposed repeater to nullify all its writed values? Probably not....
-    this.terminate();
   }
 
 

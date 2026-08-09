@@ -21,7 +21,8 @@ class Hello extends Component {
     })
   }
 
-  terminate() { // If needed
+  onDispose() { // If needed
+    super.onDispose();
     delete window.hello
   }
 

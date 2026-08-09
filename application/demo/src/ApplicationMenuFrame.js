@@ -34,7 +34,8 @@ class ApplicationMenuFrame extends Component {
     ).onEstablish()
   }
 
-  terminate() {
+  onDispose() {
+    super.onDispose();
     this.modalButton.onDispose();
   }
 

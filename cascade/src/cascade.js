@@ -306,7 +306,7 @@ function createWorld(configuration) {
 
   function updateContextState() {
     state.inActiveRecording = state.context !== null && state.context.isRecording && state.recordingPaused === 0;
-    state.inRepeater = (state.context && state.context.type === "repeater") ? state.context: null;
+    state.inRepeater = (state.context && state.context.type === "partial") ? state.context.repeater : null;
   }
 
   // function stackDescription() {
@@ -1516,23 +1516,59 @@ function createWorld(configuration) {
    **********************************/
 
 
+  // Every repeater's actual reads/writes are always registered one level
+  // down, on a "partial" - never directly on the repeater. For now a
+  // repeater only ever has a single partial, created fresh each refresh
+  // (see refresh()), so this is purely a shape change, not a behavior
+  // change: with only one partial, everything works exactly as before.
+  // This is preparation for a repeater's execution being sliced into
+  // several partials, interleaved with child repeaters it creates, each
+  // partial owning the reads/writes made between one child boundary and
+  // the next - see docs/plan-time-aware-timelines.md.
+  //
+  // A partial can never usefully run on its own - the repeater's code has
+  // to execute in one go - so invalidating a partial (something it read
+  // changed) delegates straight to invalidating its owning repeater.
+  function createPartial(repeater) {
+    return {
+      type: "partial",
+      id: state.observerId++,
+      description: repeater.description,
+      repeater: repeater,
+      sources: [],
+      writings: new Map(),
+      pendingWritings: new Map(),
+      get isRecording() {
+        return this.repeater.isRecording;
+      },
+      time() {
+        return this.repeater.time();
+      },
+      dispose() {
+        removeAllSources(this);
+      },
+      invalidateAction() {
+        this.repeater.invalidateAction();
+      },
+      causalityString() {
+        return "<partial of> " + this.repeater.causalityString();
+      },
+    };
+  }
+
   function defaultCreateRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding) {
     return {
       createdCount:0,
       createdTemporaryCount:0,
       removedCount:0,
-      isRecording: true,  
-      type: "repeater", 
+      isRecording: true,
+      type: "repeater",
       id: state.observerId++,
-      firstTime: true, 
+      firstTime: true,
       description: description,
-      sources : [],
-      // Writings this repeater currently has live across all timelines
-      // (Map from timeline to writing), and writings retracted at the
-      // start of this rerun awaiting reconciliation against a fresh write
-      // - see dispose()/refresh()/finalizeWritings.
-      writings: new Map(),
-      pendingWritings: new Map(),
+      // The partial currently holding this repeater's reads/writes - see
+      // createPartial() above and refresh() below.
+      currentPartial: null,
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -1569,7 +1605,8 @@ function createWorld(configuration) {
       },
       sourcesString() {
         let result = "";
-        for (let source of this.sources) {
+        if (!this.currentPartial) return result;
+        for (let source of this.currentPartial.sources) {
           while (source.parent) source = source.parent;
           result += source.handler.proxy.toString() + "." + source.key + "\n";
         }
@@ -1579,7 +1616,6 @@ function createWorld(configuration) {
         this.invalidateAction();
       },
       invalidateAction() {
-        removeAllSources(this);
         repeaterDirty(this);
         this.disposeChildren();
       },
@@ -1594,8 +1630,14 @@ function createWorld(configuration) {
       // },
       dispose() {
         detatchRepeater(this);
-        removeAllSources(this);
-        retractWritingsIntoPending(this);
+        // Always runs before a rerun (whether triggered through this
+        // repeater's own partial being invalidated, or an external
+        // restart()), so this is the one place that reliably cleans up
+        // the outgoing partial regardless of which path triggered it.
+        if (this.currentPartial) {
+          removeAllSources(this.currentPartial);
+          retractWritingsIntoPending(this.currentPartial);
+        }
         this.disposeChildren();
       },
       notifyDisposeToCreatedObjects() {
@@ -1638,21 +1680,35 @@ function createWorld(configuration) {
         const options = repeater.options;
         if (options.onRefresh) options.onRefresh(repeater);
         
-        repeater.finishedRebuilding = false; 
+        repeater.finishedRebuilding = false;
         repeater.createdCount = 0;
         repeater.createdTemporaryCount = 0;
-        repeater.removedCount = 0; 
+        repeater.removedCount = 0;
+
+        // Fresh partial for this run - see createPartial() above. Carry
+        // over whatever dispose() retracted from the previous partial into
+        // pendingWritings, so this run's writes can still reconcile
+        // against them (with a single partial per repeater, "the previous
+        // partial" and "this run's partial" are the same slot; once a
+        // repeater can have several partials this hand-off needs to match
+        // up by position/child-identity instead).
+        const previousPartial = repeater.currentPartial;
+        const partial = createPartial(repeater);
+        if (previousPartial) {
+          partial.pendingWritings = previousPartial.pendingWritings;
+        }
+        repeater.currentPartial = partial;
 
         // Recorded action (cause and/or effect)
-        repeater.isRecording = true; 
-        const activeContext = enterContext(repeater);
+        repeater.isRecording = true;
+        const activeContext = enterContext(partial);
         repeater.returnValue = repeater.repeaterAction(repeater);
         repeater.isRecording = false;
         updateContextState()
 
         // Anything retracted at the start of this rerun that never got
         // reconciled against a fresh write this run is genuinely gone now.
-        finalizeWritings(repeater);
+        finalizeWritings(partial);
 
         // Non recorded action (only effect)
         const { debounce=0, fireImmediately=true } = options; 
@@ -1923,7 +1979,7 @@ function createWorld(configuration) {
       
       if (state.inRepeater) {
         // console.group("reBuildShapeAnalysis");
-        const repeater = state.context;
+        const repeater = state.inRepeater;
         if (repeater.options.rebuildShapeAnalysis) {
           const {matchChildrenInEquivalentSlot} = reBuildShapeAnalysis(repeater);
           matchChildrenInEquivalentSlot(object[objectMetaProperty].target, temporaryObject[objectMetaProperty].target);
@@ -2005,8 +2061,8 @@ function createWorld(configuration) {
     
     // Activate!
     const repeater = createRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding);
-    if (state.context && state.context.type === "repeater" && (options.dependentOnParent || configuration.alwaysDependOnParentRepeater)) {
-      state.context.addChild(repeater);
+    if (state.context && state.context.type === "partial" && (options.dependentOnParent || configuration.alwaysDependOnParentRepeater)) {
+      state.context.repeater.addChild(repeater);
     }
     return repeater.refresh();
   }

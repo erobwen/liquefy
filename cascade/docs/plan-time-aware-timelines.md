@@ -221,8 +221,10 @@ requiring it to be solved head-on: if time is tree position, two repeaters
 that would otherwise collide on a flat number may simply occupy different,
 comparable positions in the tree instead of the same slot.
 
-Not designed in detail yet - new test cases will be built specifically
-against this once the shape of it is worked out.
+**Superseded by `docs/plan-partial-repeaters.md`**, which now carries the
+full design (partial-repeaters, `linkRepeater`, retracted vs. disposed) and
+tracks real implementation progress - this section is kept only for the
+history of how the idea first came up.
 
 ## Not pursued: supporting old-style mutable observables alongside timelines
 

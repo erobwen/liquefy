@@ -682,6 +682,13 @@ function createWorld(configuration) {
       handler: handler,
       first: writing,
       last: writing,
+      // Cache pointer at the writing a reader/writer at "the current time"
+      // should start from. With only ever one writing per timeline, this is
+      // always that same writing; once timelines hold real history, this is
+      // where we'd land directly instead of walking from `first` every time,
+      // only falling back to a next/previous walk (via seekWriting) when the
+      // cached writing turns out not to be valid for the requested time.
+      currentWriting: writing,
     };
   }
 
@@ -693,12 +700,21 @@ function createWorld(configuration) {
     return timeline;
   }
 
+  // Resolve the writing that is valid "now" for a timeline. For now this is
+  // just the cached pointer (there is only ever one writing); this is the
+  // single seam where later versions add real seeking (walking next/previous
+  // from currentWriting until a writing valid for the requested time is
+  // found, then updating currentWriting to match).
+  function seekWriting(timeline) {
+    return timeline.currentWriting;
+  }
+
   function getOrCreateTimelineWriting(handler, key) {
-    return getOrCreateTimeline(handler, key).first;
+    return seekWriting(getOrCreateTimeline(handler, key));
   }
 
   function getOrCreateEnumerationTimelineWriting(handler) {
-    return getOrCreateTimeline(handler, enumerationTimelineKey).first;
+    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey));
   }
 
   // Move an object literal's own data properties into timelines, leaving
@@ -718,6 +734,55 @@ function createWorld(configuration) {
       writing.value = descriptor.value;
       writing.set = true;
     });
+  }
+
+
+  /***************************************************************
+   *
+   *  Timeline read/write interface
+   *
+   *  A small wrapper API so internal bookkeeping code - like the rebuild
+   *  reference-translation step in finishRebuilding below - reads and
+   *  writes a handler's property values through here, instead of poking at
+   *  raw timeline writings (or, worse, a raw `target`) directly. Callers
+   *  that go through here don't need to know about currentWriting, seeking,
+   *  or any future caching - they just read or write "the value of this
+   *  property on this handler".
+   *
+   *  These are silent: they do not invalidate observers or emit change
+   *  events. They exist for patching up already-written values (e.g.
+   *  resolving a temporary object reference to its established
+   *  counterpart), not for performing a new observable write - use the
+   *  proxy itself (going through setHandlerObject) for that.
+   *
+   ***************************************************************/
+
+  function hasTimelineValue(handler, key) {
+    const timeline = handler.timelines[key];
+    return typeof(timeline) !== 'undefined' && seekWriting(timeline).set;
+  }
+
+  function readTimelineValue(handler, key) {
+    const timeline = handler.timelines[key];
+    if (typeof(timeline) === 'undefined') return undefined;
+    const writing = seekWriting(timeline);
+    return writing.set ? writing.value : undefined;
+  }
+
+  function writeTimelineValueSilently(handler, key, value) {
+    const writing = getOrCreateTimelineWriting(handler, key);
+    writing.value = value;
+    writing.set = true;
+  }
+
+  // All property keys (excluding the reserved enumeration timeline) that
+  // currently hold a value.
+  function timelineDataKeys(handler) {
+    const keys = [];
+    for (let key in handler.timelines) {
+      if (handler.timelines[key].first.set) keys.push(key);
+    }
+    return keys;
   }
 
 
@@ -757,9 +822,8 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
-    const timeline = this.timelines[key];
-    if (typeof(timeline) !== 'undefined' && timeline.first.set) {
-      return timeline.first.value;
+    if (hasTimelineValue(this, key)) {
+      return readTimelineValue(this, key);
     }
     return target[key];
   }
@@ -824,8 +888,7 @@ function createWorld(configuration) {
       return;
     }
 
-    const timeline = this.timelines[key];
-    const timelineHasValue = typeof(timeline) !== 'undefined' && timeline.first.set;
+    const timelineHasValue = hasTimelineValue(this, key);
 
     if (!timelineHasValue && !(key in target)) {
       return true;
@@ -833,9 +896,10 @@ function createWorld(configuration) {
 
     let previousValue;
     if (timelineHasValue) {
-      previousValue = timeline.first.value;
-      timeline.first.value = undefined;
-      timeline.first.set = false;
+      const writing = getOrCreateTimelineWriting(this, key);
+      previousValue = writing.value;
+      writing.value = undefined;
+      writing.set = false;
     } else {
       previousValue = target[key];
       delete target[key];
@@ -862,11 +926,9 @@ function createWorld(configuration) {
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this);
 
     let keys = Object.keys(target);
-    for (let timelineKey in this.timelines) {
-      if (this.timelines[timelineKey].first.set && keys.indexOf(timelineKey) === -1) {
-        keys.push(timelineKey);
-      }
-    }
+    timelineDataKeys(this).forEach(function(timelineKey) {
+      if (keys.indexOf(timelineKey) === -1) keys.push(timelineKey);
+    });
     return keys;
   }
 
@@ -882,8 +944,7 @@ function createWorld(configuration) {
     }
 
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
-    const timeline = this.timelines[key];
-    if (typeof(timeline) !== 'undefined' && timeline.first.set) return true;
+    if (hasTimelineValue(this, key)) return true;
     return key in target;
   }
 
@@ -916,10 +977,9 @@ function createWorld(configuration) {
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     if (typeof(descriptor) !== 'undefined') return descriptor;
-    const timeline = this.timelines[key];
-    if (typeof(timeline) !== 'undefined' && timeline.first.set) {
+    if (hasTimelineValue(this, key)) {
       return {
-        value: timeline.first.value,
+        value: readTimelineValue(this, key),
         writable: true,
         enumerable: true,
         configurable: true,
@@ -1576,29 +1636,37 @@ function createWorld(configuration) {
       // }
 
       // Translate references
-      // TODO(timelines): since observable() moves plain data properties off of
-      // `target` and into `handler.timelines`, this raw-target walk (and any
-      // user-supplied translateReferences(target, ...)) now only sees
-      // properties that were never virtualized (accessors, methods). Real
-      // data properties on `target` are gone, so reference translation for
-      // rebuildShapeAnalysis is currently broken/incomplete for ordinary
-      // object properties. Needs to walk the proxy (or timelines) instead
-      // of the raw target once this path is revisited.
+      // TODO(timelines): a user-supplied rebuildShapeAnalysis.translateReferences
+      // still receives the raw `target`, which no longer holds plain data
+      // properties for objects (they live in handler.timelines now) - only
+      // accessors/methods remain there. Its public contract would need to
+      // change (e.g. to receive read/write functions instead of a raw
+      // object) to see virtualized properties; left as-is for now since
+      // that's a user-facing API change, not an internal detail.
       for(let id in repeater.newIdObjectShapeMap) {
         let object = repeater.newIdObjectShapeMap[id];
         let target;
+        let handler;
         const temporaryObject = object[objectMetaProperty].forwardTo;
         if (temporaryObject) {
           target = temporaryObject[objectMetaProperty].target;
+          handler = temporaryObject[objectMetaProperty].handler;
         } else {
           target = object[objectMetaProperty].target;
+          handler = object[objectMetaProperty].handler;
         }
         if (repeater.options.rebuildShapeAnalysis.translateReferences) {
           repeater.options.rebuildShapeAnalysis.translateReferences(target, translateReference);
-        } else {
+        } else if (target instanceof Array) {
           for (let property in target) {
             target[property] = translateReference(target[property])
           }
+        } else {
+          // Go through the timeline read/write interface instead of the raw
+          // target - plain data properties live in handler.timelines now.
+          timelineDataKeys(handler).forEach(function(key) {
+            writeTimelineValueSilently(handler, key, translateReference(readTimelineValue(handler, key)));
+          });
         }
       }
 

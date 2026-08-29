@@ -667,9 +667,15 @@ function createWorld(configuration) {
    *
    ***************************************************************/
 
-  function createTimelineWriting(time) {
+  function createTimelineWriting(time, writer) {
     return {
       time: time,
+      // Which partial (or null, for external code) actually made this
+      // writing - the tie-breaker when two writings share the same
+      // declared `time` number (a parent and child defaulting to the same
+      // level, most commonly) - see comparePositions()/compareWriterOrder()
+      // below.
+      writer: typeof(writer) === 'undefined' ? null : writer,
       value: undefined,
       set: false,
       observers: null,
@@ -680,7 +686,7 @@ function createWorld(configuration) {
   }
 
   function createTimeline(handler, key) {
-    const writing = createTimelineWriting(0);
+    const writing = createTimelineWriting(0, null);
     const timeline = {
       key: key,
       handler: handler,
@@ -698,7 +704,7 @@ function createWorld(configuration) {
   // Every writing has been retracted - reinstate a fresh time-0 anchor so
   // there is always somewhere to hang a dependency for future reads.
   function reanchorEmptyTimeline(timeline) {
-    const writing = createTimelineWriting(0);
+    const writing = createTimelineWriting(0, null);
     writing.timeline = timeline;
     timeline.first = writing;
     timeline.last = writing;
@@ -715,25 +721,128 @@ function createWorld(configuration) {
     return timeline;
   }
 
-  // Resolve the writing valid for `time`: the writing with the largest
-  // `time <= requested`, walking from the cached `currentWriting` via
-  // `next`/`previous` and updating the cache to match. There is always at
-  // least a time-0 writing once the timeline exists, so this never needs
-  // to return null for a non-negative time - self-healing if every writing
-  // has been retracted since the timeline was last looked up (callers like
-  // hasTimelineValue/readTimelineValue look the timeline up directly,
-  // without going through getOrCreateTimeline first).
-  function seekWriting(timeline, time) {
+  /***************************************************************
+   *
+   *  Time as tree position
+   *
+   *  Repeaters form a forest: independent top-level repeaters each have a
+   *  flat declared `time` (stage1/stage2/etc.), but a repeater created *as
+   *  a child* has its own declared time entirely superseded by its
+   *  position in the tree - a parent's time is really an interval its
+   *  children subdivide. Two writings/positions are compared by their
+   *  declared `time` number first; only when those are equal (a parent and
+   *  child sharing a level, most commonly both defaulting to 0) does tree
+   *  position break the tie. "Stupid" by design for now: plain tree
+   *  traversal, no order-maintenance optimization - see
+   *  docs/plan-partial-repeaters.md.
+   *
+   ***************************************************************/
+
+  // Path from `writer` (a partial, or null for external) up to its
+  // top-level root, deepest first: [writer, writer's repeater, that
+  // repeater's parentRepeater, ...] up to a repeater with no parent.
+  function writerPathToRoot(writer) {
+    const path = [];
+    let node = writer;
+    while (node) {
+      path.push(node);
+      node = (node.type === "partial") ? node.repeater : node.parentRepeater;
+    }
+    return path;
+  }
+
+  // Which of `nodeA`/`nodeB` (both direct children - partials or repeaters -
+  // of `parentRepeater`) comes first in its children list. Checks both
+  // `children` and `pendingChildren`, since a node can transiently sit in
+  // either mid-reconciliation. If one of them isn't found in either list at
+  // all (a stale reference to a partial from an already-finalized past run
+  // of the same repeater - see findExactWriting), treats them as equal
+  // rather than guessing an order - only a node that's actually still
+  // somewhere in the tree can be sensibly ordered against another.
+  function compareSiblingOrder(parentRepeater, nodeA, nodeB) {
+    let foundA = false;
+    let foundB = false;
+    let list = parentRepeater.children.first;
+    while (list !== null) {
+      if (list === nodeA) { if (foundB) return 1; foundA = true; }
+      if (list === nodeB) { if (foundA) return -1; foundB = true; }
+      list = list.nextSibling;
+    }
+    list = parentRepeater.pendingChildren.first;
+    while (list !== null) {
+      if (list === nodeA) { if (foundB) return 1; foundA = true; }
+      if (list === nodeB) { if (foundA) return -1; foundB = true; }
+      list = list.nextSibling;
+    }
+    return 0;
+  }
+
+  // Order two writers sharing the same declared time. External (null)
+  // always sorts first, matching "external writes are initialization".
+  // Otherwise walks both writers' paths to their shared root, finds where
+  // they diverge, and compares sibling order at that point - or, if one
+  // writer's path is a prefix of the other's, the ancestor sorts first
+  // (whatever a parent wrote before creating a child precedes anything the
+  // child itself writes).
+  function compareWriterOrder(writerA, writerB) {
+    if (writerA === writerB) return 0;
+    if (writerA === null) return -1;
+    if (writerB === null) return 1;
+
+    const pathA = writerPathToRoot(writerA);
+    const pathB = writerPathToRoot(writerB);
+    let ia = pathA.length - 1;
+    let ib = pathB.length - 1;
+    if (pathA[ia] !== pathB[ib]) {
+      // Different root trees entirely - same declared time but otherwise
+      // unrelated (e.g. two independent top-level repeaters both at the
+      // same level - the "same-time writers" question, not solved here).
+      // Stable fallback so ordering is at least consistent.
+      return pathA[ia].id - pathB[ib].id;
+    }
+    while (ia >= 0 && ib >= 0 && pathA[ia] === pathB[ib]) {
+      ia--;
+      ib--;
+    }
+    if (ia < 0) return -1; // writerA's whole path was a prefix of writerB's - A is an ancestor of B
+    if (ib < 0) return 1;
+    return compareSiblingOrder(pathA[ia + 1], pathA[ia], pathB[ib]);
+  }
+
+  // Order (timeA, writerA) against (timeB, writerB): by declared time
+  // first, tree position only as a tie-breaker.
+  function comparePositions(timeA, writerA, timeB, writerB) {
+    if (timeA !== timeB) return timeA - timeB;
+    return compareWriterOrder(writerA, writerB);
+  }
+
+  // Resolve the writing valid for `time`/`writer`: the writing with the
+  // largest position `<= (time, writer)`, walking from the cached
+  // `currentWriting` via `next`/`previous` and updating the cache to
+  // match. There is always at least a time-0 writing once the timeline
+  // exists, so this never needs to return null - self-healing if every
+  // writing has been retracted since the timeline was last looked up
+  // (callers like hasTimelineValue/readTimelineValue look the timeline up
+  // directly, without going through getOrCreateTimeline first).
+  //
+  // `time === Infinity` (external reads - see currentReadTime()) skips the
+  // walk entirely: there's nothing to tie-break against infinity, it's
+  // always the timeline's latest writing, full stop.
+  function seekWriting(timeline, time, writer) {
+    if (typeof(writer) === 'undefined') writer = null;
     if (timeline.currentWriting === null) {
       reanchorEmptyTimeline(timeline);
     }
+    if (time === Infinity) {
+      return timeline.currentWriting = timeline.last;
+    }
     let writing = timeline.currentWriting;
-    if (writing.time <= time) {
-      while (writing.next !== null && writing.next.time <= time) {
+    if (comparePositions(writing.time, writing.writer, time, writer) <= 0) {
+      while (writing.next !== null && comparePositions(writing.next.time, writing.next.writer, time, writer) <= 0) {
         writing = writing.next;
       }
     } else {
-      while (writing.time > time) {
+      while (comparePositions(writing.time, writing.writer, time, writer) > 0) {
         writing = writing.previous;
       }
     }
@@ -741,16 +850,22 @@ function createWorld(configuration) {
     return writing;
   }
 
-  function findExactWriting(timeline, time) {
-    const writing = seekWriting(timeline, time);
-    return writing.time === time ? writing : null;
+  // Is there already a writing at exactly this position? Compares by tree
+  // position (comparePositions), not writer object identity - a leaf
+  // repeater's own single partial is a fresh object every rerun, but it
+  // occupies the same slot each time and must reconcile against its own
+  // previous writing, not accumulate a new one forever.
+  function findExactWriting(timeline, time, writer) {
+    const writing = seekWriting(timeline, time, writer);
+    return comparePositions(writing.time, writing.writer, time, writer) === 0 ? writing : null;
   }
 
   // Splice a writing (new or previously unlinked) into its timeline at its
-  // own `.time`, keeping writings ordered. Shared by insertion and by
-  // relinking a retracted writing that turned out to be reusable.
+  // own `.time`/`.writer` position, keeping writings ordered. Shared by
+  // insertion and by relinking a retracted writing that turned out to be
+  // reusable.
   function spliceWritingIntoTimeline(timeline, writing) {
-    const previous = seekWriting(timeline, writing.time);
+    const previous = seekWriting(timeline, writing.time, writing.writer);
     const next = previous.next;
     writing.previous = previous;
     writing.next = next;
@@ -763,8 +878,8 @@ function createWorld(configuration) {
     timeline.currentWriting = writing;
   }
 
-  function insertNewWriting(timeline, time) {
-    const writing = createTimelineWriting(time);
+  function insertNewWriting(timeline, time, writer) {
+    const writing = createTimelineWriting(time, writer);
     writing.timeline = timeline;
     spliceWritingIntoTimeline(timeline, writing);
     return writing;
@@ -774,9 +889,9 @@ function createWorld(configuration) {
     spliceWritingIntoTimeline(writing.timeline, writing);
   }
 
-  function getOrCreateExactWriting(handler, key, time) {
+  function getOrCreateExactWriting(handler, key, time, writer) {
     const timeline = getOrCreateTimeline(handler, key);
-    return findExactWriting(timeline, time) || insertNewWriting(timeline, time);
+    return findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
   }
 
   // Fully remove a writing from its timeline. Unlike marking a writing
@@ -803,17 +918,20 @@ function createWorld(configuration) {
     writing.next = null;
   }
 
-  function getOrCreateTimelineWriting(handler, key, time) {
-    return seekWriting(getOrCreateTimeline(handler, key), time);
+  function getOrCreateTimelineWriting(handler, key, time, writer) {
+    return seekWriting(getOrCreateTimeline(handler, key), time, writer);
   }
 
   function getOrCreateEnumerationTimelineWriting(handler) {
-    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey), 0);
+    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey), 0, null);
   }
 
   // Move an object literal's own data properties into timelines, leaving
   // accessor properties (getters/setters) and methods (function values,
-  // e.g. onChange/onDispose/onEstablish hooks) untouched on target.
+  // e.g. onChange/onDispose/onEstablish hooks) untouched on target. Always
+  // attributed to time 0/external, regardless of whether observable() was
+  // itself called from inside a repeater - these are the object's baseline
+  // starting values, not something the calling repeater computed.
   function moveTargetDataIntoTimelines(handler, target) {
     Object.keys(target).forEach(function(key) {
       const descriptor = Object.getOwnPropertyDescriptor(target, key);
@@ -824,7 +942,7 @@ function createWorld(configuration) {
         return;
       }
       delete target[key];
-      const writing = getOrCreateTimelineWriting(handler, key, 0);
+      const writing = getOrCreateTimelineWriting(handler, key, 0, null);
       writing.value = descriptor.value;
       writing.set = true;
     });
@@ -851,30 +969,30 @@ function createWorld(configuration) {
    *
    ***************************************************************/
 
-  function hasTimelineValue(handler, key, time) {
+  function hasTimelineValue(handler, key, time, writer) {
     const timeline = handler.timelines[key];
-    return typeof(timeline) !== 'undefined' && seekWriting(timeline, time).set;
+    return typeof(timeline) !== 'undefined' && seekWriting(timeline, time, writer).set;
   }
 
-  function readTimelineValue(handler, key, time) {
+  function readTimelineValue(handler, key, time, writer) {
     const timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') return undefined;
-    const writing = seekWriting(timeline, time);
+    const writing = seekWriting(timeline, time, writer);
     return writing.set ? writing.value : undefined;
   }
 
-  function writeTimelineValueSilently(handler, key, value, time) {
-    const writing = getOrCreateExactWriting(handler, key, time);
+  function writeTimelineValueSilently(handler, key, value, time, writer) {
+    const writing = getOrCreateExactWriting(handler, key, time, writer);
     writing.value = value;
     writing.set = true;
   }
 
   // All property keys (excluding the reserved enumeration timeline) that
-  // currently hold a value as of `time`.
-  function timelineDataKeys(handler, time) {
+  // currently hold a value as of `time`/`writer`.
+  function timelineDataKeys(handler, time, writer) {
     const keys = [];
     for (let key in handler.timelines) {
-      if (seekWriting(handler.timelines[key], time).set) keys.push(key);
+      if (seekWriting(handler.timelines[key], time, writer).set) keys.push(key);
     }
     return keys;
   }
@@ -896,6 +1014,15 @@ function createWorld(configuration) {
   function currentReadTime() {
     const context = state.context;
     return (context && typeof(context.time) === "function") ? context.time() : Infinity;
+  }
+
+  // The current partial, for tie-breaking writings that share the same
+  // declared time (see "Time as tree position" above) - null for external
+  // code or while inside an invalidator (which doesn't participate in the
+  // repeater tree).
+  function currentWriter() {
+    const context = state.context;
+    return (context && context.type === "partial") ? context : null;
   }
 
 
@@ -924,7 +1051,8 @@ function createWorld(configuration) {
     }
 
     const time = currentReadTime();
-    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time);
+    const writer = currentWriter();
+    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time, writer);
 
     let scan = target;
     while ( scan !== null && typeof(scan) !== 'undefined' ) {
@@ -936,8 +1064,8 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
-    if (hasTimelineValue(this, key, time)) {
-      return readTimelineValue(this, key, time);
+    if (hasTimelineValue(this, key, time, writer)) {
+      return readTimelineValue(this, key, time, writer);
     }
     return target[key];
   }
@@ -971,6 +1099,7 @@ function createWorld(configuration) {
     }
 
     const time = currentTime();
+    const writer = currentWriter();
     const timeline = getOrCreateTimeline(this, key);
     const context = state.context;
     const hasPendingWriting = !!(context && context.pendingWritings && context.pendingWritings.has(timeline));
@@ -983,7 +1112,7 @@ function createWorld(configuration) {
       // creating (and eagerly notifying about) a new one.
       writing = context.pendingWritings.get(timeline);
     } else {
-      writing = findExactWriting(timeline, time) || insertNewWriting(timeline, time);
+      writing = findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
     }
 
     const undefinedKey = !writing.set;
@@ -993,6 +1122,14 @@ function createWorld(configuration) {
     // retracted it), nothing observable changed.
     if (writing.set && sameAsPrevious(previousValue, value)) {
       if (hasPendingWriting) {
+        // The writing being reused still carries whatever writer created it
+        // originally, which may by now be fully orphaned (unreachable from
+        // any repeater's children/pendingChildren - see compareSiblingOrder)
+        // once its own partial has been replaced. An orphaned writer
+        // compares as "equal" to everything, which would send relinkWriting
+        // to the wrong spot - so re-attribute to the current, live writer
+        // (the one actually reconciling against it) before splicing back in.
+        writing.writer = writer;
         relinkWriting(writing);
         context.pendingWritings.delete(timeline);
         context.writings.set(timeline, writing);
@@ -1004,6 +1141,7 @@ function createWorld(configuration) {
     writing.set = true;
 
     if (hasPendingWriting) {
+      writing.writer = writer;
       relinkWriting(writing);
       context.pendingWritings.delete(timeline);
     }
@@ -1032,7 +1170,8 @@ function createWorld(configuration) {
     }
 
     const time = currentTime();
-    const timelineHasValue = hasTimelineValue(this, key, time);
+    const writer = currentWriter();
+    const timelineHasValue = hasTimelineValue(this, key, time, writer);
 
     if (!timelineHasValue && !(key in target)) {
       return true;
@@ -1040,7 +1179,7 @@ function createWorld(configuration) {
 
     let previousValue;
     if (timelineHasValue) {
-      const writing = getOrCreateTimelineWriting(this, key, time);
+      const writing = getOrCreateTimelineWriting(this, key, time, writer);
       previousValue = writing.value;
       writing.value = undefined;
       writing.set = false;
@@ -1049,7 +1188,7 @@ function createWorld(configuration) {
       delete target[key];
     }
 
-    invalidatePropertyObservers(this, key, time);
+    invalidatePropertyObservers(this, key, time, writer);
     invalidateEnumerateObservers(this, key);
     emitDeleteEvent(this, key, previousValue);
 
@@ -1070,7 +1209,7 @@ function createWorld(configuration) {
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this);
 
     let keys = Object.keys(target);
-    timelineDataKeys(this, currentReadTime()).forEach(function(timelineKey) {
+    timelineDataKeys(this, currentReadTime(), currentWriter()).forEach(function(timelineKey) {
       if (keys.indexOf(timelineKey) === -1) keys.push(timelineKey);
     });
     return keys;
@@ -1088,7 +1227,7 @@ function createWorld(configuration) {
     }
 
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
-    if (hasTimelineValue(this, key, currentReadTime())) return true;
+    if (hasTimelineValue(this, key, currentReadTime(), currentWriter())) return true;
     return key in target;
   }
 
@@ -1122,9 +1261,10 @@ function createWorld(configuration) {
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     if (typeof(descriptor) !== 'undefined') return descriptor;
     const time = currentReadTime();
-    if (hasTimelineValue(this, key, time)) {
+    const writer = currentWriter();
+    if (hasTimelineValue(this, key, time, writer)) {
       return {
-        value: readTimelineValue(this, key, time),
+        value: readTimelineValue(this, key, time, writer),
         writable: true,
         enumerable: true,
         configurable: true,
@@ -1409,7 +1549,7 @@ function createWorld(configuration) {
         break;
       }
       scannedContext = scannedContext.parent;
-    } 
+    }
 
     if (!observerActive) {
       // if( trace.contextMismatch && state.context && state.context.id ){
@@ -1603,6 +1743,43 @@ function createWorld(configuration) {
     node.nextSibling = null;
   }
 
+  // Create a fresh partial for `repeater`'s current position - either the
+  // very first one for this run, or the next one after a child boundary -
+  // reconciling it against whatever old partial occupies the same position
+  // in `repeater.pendingChildren` (the previous run's sequence, still fully
+  // intact: nothing about it is touched until the moment its replacement is
+  // actually created). Position is tracked simply as "the front of
+  // pendingChildren", consumed in order as the fresh run reaches each spot;
+  // the moment something doesn't line up, `repeater.reconciling` goes false
+  // and every later position in this run just creates fresh, unreconciled
+  // partials - finalizeChildren() sweeps up whatever's left once the run
+  // finishes, same as it always has.
+  function createNextPartial(repeater) {
+    const partial = createPartial(repeater);
+    if (repeater.reconciling) {
+      const oldPartial = repeater.pendingChildren.first;
+      if (oldPartial !== null && oldPartial.type === "partial") {
+        unlinkFromChildList(repeater.pendingChildren, oldPartial);
+        removeAllSources(oldPartial);
+        // Every writing this old partial made was already detached from
+        // its timeline back in dispose() - hand the map itself off rather
+        // than notifying anything yet. setHandlerObject reconciles each one
+        // as the new partial's writes actually happen, draining matches out
+        // of it; whatever's left when this partial closes (see
+        // attachToCurrentParent()/refresh()) never got a matching write and
+        // is genuinely gone.
+        partial.pendingWritings = oldPartial.writings;
+      } else {
+        repeater.reconciling = false;
+      }
+    }
+    partial.parentRepeater = repeater;
+    partial.listMembership = "confirmed";
+    repeater.currentPartial = partial;
+    appendToChildList(repeater.children, partial);
+    return partial;
+  }
+
   // Shared by repeat() (a brand new child) and linkRepeater() (an existing
   // one): attach `child` (a repeater or, internally, a partial) to whatever
   // repeater is currently executing, then close the current partial and
@@ -1616,23 +1793,32 @@ function createWorld(configuration) {
     }
     const parentRepeater = parentContext.repeater;
 
-    if (child.parentRepeater === parentRepeater && child.listMembership === "pending") {
-      // Reclaiming a child that was pending from the parent's previous
-      // run - pure bookkeeping, nothing about the child's own state
-      // (sources, writings, its own children) is touched at all.
+    if (parentRepeater.reconciling && parentRepeater.pendingChildren.first === child) {
+      // Structure still lines up with last time - pure bookkeeping, nothing
+      // about the child's own state (sources, writings, its own children)
+      // is touched at all.
       unlinkFromChildList(parentRepeater.pendingChildren, child);
+    } else {
+      if (child.parentRepeater === parentRepeater && child.listMembership === "pending") {
+        // A different child was relinked here than occupied this position
+        // last time (e.g. children reordered) - still reclaim it from
+        // wherever it sits, but positional correspondence for the rest of
+        // this run is no longer trustworthy.
+        unlinkFromChildList(parentRepeater.pendingChildren, child);
+      }
+      parentRepeater.reconciling = false;
     }
     child.parentRepeater = parentRepeater;
     child.listMembership = "confirmed";
     if (typeof(child.retracted) !== 'undefined') child.retracted = false;
     appendToChildList(parentRepeater.children, child);
 
+    // This partial's writes are complete now - anything it didn't reconcile
+    // against its own predecessor is genuinely gone.
+    finalizeWritings(parentContext);
+
     leaveContext(parentContext);
-    const partial = createPartial(parentRepeater);
-    partial.parentRepeater = parentRepeater;
-    partial.listMembership = "confirmed";
-    parentRepeater.currentPartial = partial;
-    appendToChildList(parentRepeater.children, partial);
+    const partial = createNextPartial(parentRepeater);
     enterContext(partial);
   }
 
@@ -1648,11 +1834,15 @@ function createWorld(configuration) {
       const next = node.nextSibling;
       node.previousSibling = null;
       node.nextSibling = null;
+      // Fully gone from the tree now - compareSiblingOrder relies on this
+      // (a stale writer reference it can't find anywhere compares as equal
+      // to whatever currently holds that position, rather than guessing).
+      node.listMembership = null;
       if (node.type === "partial") {
-        finalizeWritings(node);
+        removeAllSources(node);
+        retractAndFinalizeWritings(node);
       } else {
         node.dispose();
-        finalizeWritings(node.currentPartial);
         finalizeChildren(node);
         node.retracted = true;
       }
@@ -1693,6 +1883,12 @@ function createWorld(configuration) {
       // docs/plan-partial-repeaters.md.
       retracted: false,
       disposed: false,
+      // True from dispose() through the end of the next refresh(): the
+      // fresh run's partials/children still line up positionally with
+      // pendingChildren's front, so createNextPartial()/
+      // attachToCurrentParent() keep reconciling against it. Goes false
+      // the moment anything doesn't match, for the rest of that run.
+      reconciling: false,
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -1753,28 +1949,45 @@ function createWorld(configuration) {
       // },
       dispose() {
         detatchRepeater(this);
-        // Always runs before a rerun (whether triggered through this
-        // repeater's own partial being invalidated, or an external
-        // restart()), so this is the one place that reliably cleans up
-        // the outgoing partial regardless of which path triggered it.
-        if (this.currentPartial) {
-          removeAllSources(this.currentPartial);
-          retractWritingsIntoPending(this.currentPartial);
+        // Idempotent: a repeater already sitting dirty (e.g. through a
+        // legitimate dependency invalidation) can also be reached directly
+        // by its parent's finalizeChildren() in the very same rerun, if the
+        // parent never re-links it either. children is already empty in
+        // that case (the first dispose() moved it to pendingChildren) - so
+        // there's nothing further to move, and doing it again would
+        // overwrite pendingChildren with that emptiness, losing what the
+        // first call had just stashed there.
+        if (this.children.first !== null) {
+          // Move this run's whole partial/child sequence to pending. Which
+          // of it gets reused (relinked children, reconciled partials) is
+          // still worked out lazily, one at a time, as the fresh run
+          // actually reaches each position - see createNextPartial()/
+          // attachToCurrentParent(). But every partial's *writings* are
+          // detached from their timelines right now, unconditionally - a
+          // read that happens before this repeater actually reruns (another
+          // repeater interleaved via the dirty queue, or an ancestor's own
+          // later code - see renderOnto.js case 1) must not see this
+          // repeater's stale prior output; it needs to fall through to
+          // whatever's now below it. The writing objects themselves aren't
+          // touched otherwise - they stay right where they are, in each
+          // partial's own `writings`, ready to be handed off as
+          // pendingWritings to whichever new partial reconciles against
+          // that same position, or genuinely retracted and notified if none
+          // ever does - see createNextPartial()/finalizeChildren().
+          let node = this.children.first;
+          while (node !== null) {
+            node.listMembership = "pending";
+            if (node.type === "partial") {
+              node.writings.forEach(function(writing) {
+                unlinkWriting(writing);
+              });
+            }
+            node = node.nextSibling;
+          }
+          this.pendingChildren = this.children;
+          this.children = createChildList();
         }
-        // Move confirmed children/partials to pending - no disposal, no
-        // retraction of anything a child itself owns, just a cheap O(direct
-        // children) walk to flag each one so a reclaim (attachToCurrentParent)
-        // knows it needs unlinking from here. Individual entries get
-        // reconciled (relinked, free of charge) or finalized (genuinely
-        // retracted) as the fresh run proceeds and finishes - see
-        // attachToCurrentParent()/finalizeChildren().
-        let node = this.children.first;
-        while (node !== null) {
-          node.listMembership = "pending";
-          node = node.nextSibling;
-        }
-        this.pendingChildren = this.children;
-        this.children = createChildList();
+        this.currentPartial = null;
       },
       notifyDisposeToCreatedObjects() {
         if (this.idObjectShapeMap) {
@@ -1807,22 +2020,12 @@ function createWorld(configuration) {
         repeater.createdTemporaryCount = 0;
         repeater.removedCount = 0;
 
-        // Fresh partial for this run - see createPartial() above. Carry
-        // over whatever dispose() retracted from the previous partial into
-        // pendingWritings, so this run's writes can still reconcile
-        // against them (with a single partial per repeater, "the previous
-        // partial" and "this run's partial" are the same slot; once a
-        // repeater can have several partials this hand-off needs to match
-        // up by position/child-identity instead).
-        const previousPartial = repeater.currentPartial;
-        const partial = createPartial(repeater);
-        if (previousPartial) {
-          partial.pendingWritings = previousPartial.pendingWritings;
-        }
-        partial.parentRepeater = repeater;
-        partial.listMembership = "confirmed";
-        repeater.currentPartial = partial;
-        appendToChildList(repeater.children, partial);
+        // Reconciliation (if any) starts from the front of the previous
+        // run's still-fully-intact sequence, consumed one partial/child at
+        // a time as this run actually reaches each position - see
+        // createNextPartial()/attachToCurrentParent().
+        repeater.reconciling = repeater.pendingChildren.first !== null;
+        const partial = createNextPartial(repeater);
 
         // Recorded action (cause and/or effect)
         repeater.isRecording = true;
@@ -2003,8 +2206,9 @@ function createWorld(configuration) {
           // Go through the timeline read/write interface instead of the raw
           // target - plain data properties live in handler.timelines now.
           const time = currentTime();
-          timelineDataKeys(handler, time).forEach(function(key) {
-            writeTimelineValueSilently(handler, key, translateReference(readTimelineValue(handler, key, time)), time);
+          const writer = currentWriter();
+          timelineDataKeys(handler, time, writer).forEach(function(key) {
+            writeTimelineValueSilently(handler, key, translateReference(readTimelineValue(handler, key, time, writer)), time, writer);
           });
         }
       }
@@ -2224,7 +2428,7 @@ function createWorld(configuration) {
     enterTimeLevel(time);
     // disposeChildContexts(repeater);
     // disposeSingleChildContext(repeater);
-    
+
     const timeList = state.dirtyRepeaters;
 
     const list = timeList[time];
@@ -2264,19 +2468,6 @@ function createWorld(configuration) {
     repeater.previousDirty = null;
   }
 
-  // Detach a repeater's current writings from their timelines (so a fresh
-  // read during its rerun falls through instead of seeing its own stale
-  // prior output), stashing each one so a matching fresh write can
-  // reconcile against it instead of blindly creating a new writing and
-  // eagerly notifying about it - see setHandlerObject and finalizeWritings.
-  function retractWritingsIntoPending(repeater) {
-    repeater.writings.forEach(function(writing, timeline) {
-      unlinkWriting(writing);
-      repeater.pendingWritings.set(timeline, writing);
-    });
-    repeater.writings.clear();
-  }
-
   // Anything still pending after a rerun (or after a permanent dispose)
   // was never reconciled against a fresh write, so it's genuinely gone -
   // notify whoever was watching it.
@@ -2285,6 +2476,21 @@ function createWorld(configuration) {
       invalidateWritingObservers(writing, timeline.handler.proxy, timeline.key);
     });
     repeater.pendingWritings.clear();
+  }
+
+  // A partial that finalizeChildren() finds still sitting unconsumed in
+  // pendingChildren never got picked up by createNextPartial() (either its
+  // owning repeater is being permanently abandoned, not rerun, or the fresh
+  // run's structure diverged before reaching it). Its writings were already
+  // detached from their timelines back in dispose() (so they weren't
+  // sitting stale in between); nothing ever came along to reconcile against
+  // them, so notify and discard for real now, same as finalizeWritings().
+  function retractAndFinalizeWritings(partial) {
+    partial.writings.forEach(function(writing, timeline) {
+      invalidateWritingObservers(writing, timeline.handler.proxy, timeline.key);
+    });
+    partial.writings.clear();
+    finalizeWritings(partial);
   }
 
   function anyDirtyRepeater(start=0) {
@@ -2333,15 +2539,15 @@ function createWorld(configuration) {
           state.refreshingAllDirtyRepeaters = true;
           while (anyDirtyRepeater()) {
             let repeater = firstDirtyRepeater();
-            // currentRepeater = repeater; 
+            // currentRepeater = repeater;
             repeater.refresh();
             detatchRepeater(repeater);
             exitTimeLevel(repeater.time());
           }
-  
+
           state.refreshingAllDirtyRepeaters = false;
         }
-      }  
+      }
     }
   }
 

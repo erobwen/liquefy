@@ -164,10 +164,10 @@ export function defaultDependencyInterfaceCreator(causality) {
       recordDependency(observer, writing.observers);
     },
 
-    recordDependencyOnProperty: (observer, handler, key, time) => {
+    recordDependencyOnProperty: (observer, handler, key, time, writer) => {
       // Note: if key == toString this will break!!!
       if (key === "toString") return;
-      const writing = causality.getOrCreateTimelineWriting(handler, key, time);
+      const writing = causality.getOrCreateTimelineWriting(handler, key, time, writer);
       if (writing.observers === null) {
         writing.observers = createObserverSet("propertyDependees", key, handler);
       }
@@ -180,10 +180,10 @@ export function defaultDependencyInterfaceCreator(causality) {
       }
     },
 
-    invalidatePropertyObservers: (handler, key, time) => {
+    invalidatePropertyObservers: (handler, key, time, writer) => {
       const timeline = handler.timelines[key];
       if (typeof(timeline) === 'undefined') return;
-      const writing = causality.seekTimelineWriting(timeline, time);
+      const writing = causality.seekTimelineWriting(timeline, time, writer);
       if (writing.observers !== null) {
         invalidateObservers(writing.observers, handler.proxy, key);
       }

@@ -1,13 +1,12 @@
 # Plan: partial-repeaters, child repeaters, and renderOnto
 
-Status: **step 1 done** (every repeater always has a single default
-partial - see "Implementation progress" below). Everything past that
-(real child creation, `linkRepeater`, tree-based time, per-partial
-reconciliation on rerun) is designed but not yet built.
+Status: **implemented**. All of `src/test/renderOnto.js` passes (46/46 in
+the full suite), including tree-based time and per-partial reconciliation
+on rerun - see "Implementation progress" below for what was actually built
+and the real bugs it took to get there.
 
-Reference test: `src/test/renderOnto.js` - a draft, deliberately not
-runnable yet (`linkRepeater` doesn't exist). It's the concrete scenario
-this whole design is checked against.
+Reference test: `src/test/renderOnto.js` - the concrete scenario this
+whole design was checked against.
 
 ## Why: renderOnto
 
@@ -250,13 +249,120 @@ each new partial past the first currently starts with empty
 child don't yet get the same-value dedup across reruns. Worth confirming
 whether real workloads hit this before building it out.
 
-## Suggested next steps
+**Step 3 (done): `this.causality.unobservable` for component bookkeeping.**
+`renderOnto.js`'s `Leaf`/`Panel` originally stored their own repeater
+reference and render/rebuild counters as plain observable properties
+(`this.repeater`, `this.renderCount`, ...). That's the same shape that
+broke `meta_repeaters.js`: a component reading-then-conditionally-writing
+one of these can have the read fall through to nothing once retraction is
+involved, even though the component's own identity hasn't changed - the
+engine can't distinguish "pick up fresh data" from "leave my own prior
+bookkeeping alone" just from the fact that a property wasn't touched this
+run. Fixed by moving all of it onto a lazily-initialized `unobservable`
+getter backed by `this.causality.unobservable` (the reserved, non-proxied
+meta object, matching prior art already in `flow.core/src/Component.js`) -
+completely invisible to the reactive system, not just untracked by it.
 
-1. Tree-based time comparison (`writing.writer` instead of a plain
-   number) - needed before `renderOnto.js` can actually pass, since
-   Panel/Leaf never declare `{time: N}` and currently collide on flat
-   time 0.
-2. Per-partial `pendingWritings` hand-off for a repeater's second and
-   later partials (not just its first) - only if a real case needs it.
-3. Get `renderOnto.js` actually passing, fixing up any wrong assumptions
-   it turns out to have along the way.
+**Step 4 (done): tree-based time, replacing the flat number.** `writing.time`
+stays a plain number (declared `{time: N}` levels, unchanged), but ties on
+that number are now broken by `writing.writer` (the partial that made the
+writing, or `null` for external code) via tree-position comparison, not by
+insertion order. Key pieces in `cascade.js`:
+
+- `writerPathToRoot(writer)`: walks a writer up to its root, alternating
+  `partial.repeater` and `repeater.parentRepeater` - works uniformly for
+  either a partial or a bare repeater object, which matters because the
+  same comparison logic ends up needed for the dirty-repeater queue too
+  (see the "same-time reruns" bug below).
+- `compareSiblingOrder`/`compareWriterOrder`/`comparePositions`: find where
+  two writers' paths diverge and compare sibling order there (or "one path
+  is a prefix of the other" - an ancestor's writes always precede anything
+  its descendant writes). A writer no longer findable in either a parent's
+  `children` or `pendingChildren` (fully retracted, no tree position left
+  at all) compares as *equal* to everything, rather than guessing - see
+  the writer-reassignment bug below for why this matters.
+- `seekWriting`/`findExactWriting`/`spliceWritingIntoTimeline`: same shape
+  as before, just comparing via `comparePositions` instead of raw `<=`.
+  `time === Infinity` (external reads) still skips tree comparison
+  entirely - there's nothing to tie-break against infinity.
+
+**Step 5 (done): per-partial reconciliation on rerun**, closing the gap
+step 1 left open (only a repeater's *first* partial got a `pendingWritings`
+hand-off across reruns). The mechanism, matching the "writing-level, not
+partial-level" design discussed for this step: a repeater's previous
+sequence (`pendingChildren`, populated by `dispose()`) is walked from the
+front, one entry at a time, exactly as the fresh run reaches each position
+(`createNextPartial()` for partials, `attachToCurrentParent()` for a
+relinked child) - `repeater.reconciling` stays true only as long as what's
+actually being attached matches what's at the front of the old sequence;
+the moment it doesn't (structure changed), it goes false and everything
+from there on just creates fresh, unreconciled state, same as a first-ever
+run. Position is the correspondence key, not identity or a separate
+alignment pass - "the old partial in this exact slot" is compared against
+writing-by-writing the same way a single partial's own pendingWritings
+already worked, just repeated once per slot instead of once per repeater.
+
+Three real bugs found while getting this to actually settle correctly
+(each traced with temporary, since-removed instrumentation):
+
+- **Writer-reassignment on reconcile.** A reconciled writing kept
+  `.writer` pointing at the *old* partial that originally created it, on
+  the theory that this was harmless (noted, at the time, as "the owning
+  repeater's identity doesn't change across reruns"). That's true for a
+  single-partial repeater, but false once multiple partials of the *same*
+  repeater need distinguishing from each other - the old partial becomes
+  fully retracted (unreachable from any `children`/`pendingChildren` list)
+  the instant its replacement is created, so `compareSiblingOrder`'s "not
+  found anywhere, treat as equal" fallback made it compare as equal to
+  *everything*, sending `relinkWriting`'s splice to an arbitrary spot in
+  the timeline. Fixed by reassigning `writing.writer = writer` (the live,
+  current writer actually doing the reconciling) before relinking, in both
+  branches of `setHandlerObject` (value same and value different).
+- **Stale reads from a dirty-but-not-yet-refreshed sibling.** `dispose()`
+  used to only move a repeater's `children` to `pendingChildren` (matching
+  reconciliation), leaving each partial's writings live in their timelines
+  until whatever new partial ends up reconciling against them. That's
+  fine for the repeater that's about to rerun immediately, but a *sibling*
+  invalidated mid-cascade (e.g. a leaf whose upstream value just changed,
+  invalidating a parent's later read of it) sits dirty-but-unrefreshed for
+  a while (`linkRepeater` never forces execution) - and in the meantime,
+  anything else reading that same property still finds its *stale* value
+  fully linked, instead of falling through to whatever's actually below
+  it. Fixed by moving the unlink-from-timeline step back to `dispose()`
+  itself (unconditional, immediate), while keeping the *hand-off* (which
+  new partial gets to reconcile against which old one) lazy and positional
+  as designed - the two concerns don't have to happen at the same time.
+- **Non-idempotent `dispose()`.** A repeater invalidated once through a
+  real dependency (dirtied, queued) can *also* be reached a second time in
+  the very same pass by its parent's `finalizeChildren()`, if the parent
+  never re-links it either. The second `dispose()` call unconditionally
+  overwrote `pendingChildren` with the by-then-already-emptied `children`,
+  destroying what the first call had just stashed there (silently losing
+  writings that should have been retracted-and-notified). Fixed by making
+  `dispose()` a no-op past `detatchRepeater()` when `children` is already
+  empty - the reliable signal that a dispose has already run since the
+  last refresh.
+
+All three were invisible with only a single partial per repeater (or only
+one repeater sharing a property with one sibling); they only manifest once
+a repeater has multiple partials competing for tree position, or a sibling
+can be invalidated mid-cascade and read before it gets its own turn to
+refresh - both new possibilities this step introduced.
+
+## Status
+
+Done: single-default-partial (step 1), real child creation/`linkRepeater`/
+child-level reconciliation (step 2), `unobservable` bookkeeping (step 3),
+tree-based time (step 4), per-partial writing-level reconciliation on
+rerun (step 5). 46/46 tests pass, including all four `renderOnto.js`
+cases.
+
+Explicitly deferred, not needed by any concrete case yet:
+- Same-time writers from *different* root trees (two independent
+  top-level repeaters colliding on the same declared time and property) -
+  still just a stable `id`-based fallback, per
+  `docs/plan-time-aware-timelines.md`.
+- Order-maintenance-style fast comparison for tree position, if plain
+  tree-walking ever becomes a measured bottleneck.
+- `getResult`/`getInput` explicit time-override wrappers for external
+  code.

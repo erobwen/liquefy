@@ -1,5 +1,5 @@
 import mobx from "mobx"; 
-import { getWorld } from "../causality.js";
+import { getWorld } from "../cascade.js";
 const { observable } = getWorld()
 
 const log = console.log.bind(console);

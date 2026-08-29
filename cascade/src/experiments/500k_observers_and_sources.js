@@ -1,4 +1,4 @@
-import { getWorld } from "../causality.js";
+import { getWorld } from "../cascade.js";
 const { repeatOnChange, clearRepeaterLists } = getWorld()
 
 var x;

@@ -100,21 +100,21 @@ For example:
     
 Note that the only difference is that we added a unique build id for each created object in the data structure. This way causality will know what previously created object correspond to the objects created at each repetition.
 
-### Using repeat with priority
+### Using repeat with time
 
-When building a framework, such as a front end framework, it becomes apparent that some repeats should have higher priority than others. For example, if we have a rendering pipeline, that starts with model, view model and then ends with view. It would be highly innefficient if for every change in the model, we would update the view. Because say perhaps that there are 3 changes on the model level, that causes 9 changes in the view model level, that again causes 18 changes on the view itself. We want to finish all changes on the model level, before we start to work on the view model level, and we want to finish all changes on the view model, before we start to update the view. To do this, we need to prioritize repeaters. 
+When building a framework, such as a front end framework, it becomes apparent that some repeats should run at a later time than others. For example, if we have a rendering pipeline, that starts with model, view model and then ends with view. It would be highly innefficient if for every change in the model, we would update the view. Because say perhaps that there are 3 changes on the model level, that causes 9 changes in the view model level, that again causes 18 changes on the view itself. We want to finish all changes on the model level, before we start to work on the view model level, and we want to finish all changes on the view model, before we start to update the view. To do this, we need to stage repeaters into different times. 
 
 You want the update to propagate through your dependency network breadth first for minimal re-work.
 
 For example: 
 
     repeat(() => updateViewModel(), {
-        priority: 1
+        time: 1
     })
 
-To do this, causality has a limited number of priority levels to divide repeaters into. When you execute a repeat operation, you can set the priority of it. The implementation works with a short array, so you should not have more than 8 different priority levels in your application. 
+To do this, causality has a limited number of time levels to divide repeaters into. When you execute a repeat operation, you can set the time of it. The implementation works with a short array, so you should not have more than 8 different time levels in your application. 
 
-Also, in addition to using priority levels. causality internally uses a queue for repeater updates, and this by itself is a heuristic that makes it more likley for changes to propagate breadth first. But depending on your dependencies, reevaluation at some stage could potentially occur, so priority levels helps to enforce some degree of breadth first.  
+Also, in addition to using time levels. causality internally uses a queue for repeater updates, and this by itself is a heuristic that makes it more likley for changes to propagate breadth first. But depending on your dependencies, reevaluation at some stage could potentially occur, so time levels helps to enforce some degree of breadth first.  
 
 ### Separate cause and effect (MobX reaction)
 A repeater can mix cause and effect, and there are some preventive measures in place to prevent a repeater from activating itself. So, in many cases it is safe to use a repeater with a single action (comparable to autorun in MobX). However, there could be situations where you would like to distinguish more between cause and effect. To do that, a second argument for the repeater is an action that is not recorded. 

@@ -20,7 +20,7 @@ const defaultConfiguration = {
   warnOnNestedRepeater: true,
   alwaysDependOnParentRepeater: false,
 
-  priorityLevels: 4, 
+  timeLevels: 4, 
 
   objectMetaProperty: "causality",
   objectTimelinesProperty: "timelines",
@@ -80,10 +80,10 @@ function createWorld(configuration) {
 
     // Repeaters
     inRepeater: null,
-    dirtyRepeaters: [...Array(configuration.priorityLevels).keys()].map(() => ({first: null, last: null})),
+    dirtyRepeaters: [...Array(configuration.timeLevels).keys()].map(() => ({first: null, last: null})),
     refreshingAllDirtyRepeaters: false,
-    workOnPriorityLevel: [...Array(configuration.priorityLevels).keys()].map(() => 0),
-    revalidationLevelLock: -1,
+    workOnTimeLevel: [...Array(configuration.timeLevels).keys()].map(() => 0),
+    revalidationTimeLock: -1,
   };
 
   // Reserved key for each object handler's enumeration timeline (tracks
@@ -149,10 +149,10 @@ function createWorld(configuration) {
     // Libraries
     caching: createCachingFunction(observable),
 
-    // Priority levels 
-    enterPriorityLevel,
-    exitPriorityLevel,
-    workOnPriorityLevel
+    // Time levels 
+    enterTimeLevel,
+    exitTimeLevel,
+    workOnTimeLevel
   }; 
 
 
@@ -257,42 +257,42 @@ function createWorld(configuration) {
 
   /**********************************
    *
-   *   Priority Levels
+   *   Time Levels
    *
    **********************************/
 
-  function enterPriorityLevel(level) {
+  function enterTimeLevel(level) {
     if (typeof(level) !== "number") {
       const context = level; 
-      level = (typeof(context.priority) === "function") ? context.priority() : 0;
+      level = (typeof(context.time) === "function") ? context.time() : 0;
     }
-    state.workOnPriorityLevel[level]++
+    state.workOnTimeLevel[level]++
   } 
 
-  function exitPriorityLevel(level) {
+  function exitTimeLevel(level) {
     if (typeof(level) !== "number") {
       const context = level; 
-      level = (typeof(context.priority) === "function") ? context.priority() : 0;
+      level = (typeof(context.time) === "function") ? context.time() : 0;
     }
-    state.workOnPriorityLevel[level]--
+    state.workOnTimeLevel[level]--
 
-    // Handle finished priority levels. 
+    // Handle finished time levels. 
     let first = true;  
-    while (level < state.workOnPriorityLevel.length && state.workOnPriorityLevel[level] === 0) {
+    while (level < state.workOnTimeLevel.length && state.workOnTimeLevel[level] === 0) {
       // if (!first) logMark("No work on next level, signaling early finish.");
-      if (typeof(configuration.onFinishedPriorityLevel) === "function") {
-        configuration.onFinishedPriorityLevel(level, first);
+      if (typeof(configuration.onFinishedTimeLevel) === "function") {
+        configuration.onFinishedTimeLevel(level, first);
       }
-      state.revalidationLevelLock = level;
+      state.revalidationTimeLock = level;
       level++;
       first = false;  
     }
   } 
 
-  function workOnPriorityLevel(level, action) {
-    enterPriorityLevel(level);
+  function workOnTimeLevel(level, action) {
+    enterTimeLevel(level);
     action();
-    exitPriorityLevel(level);
+    exitTimeLevel(level);
   }
 
 
@@ -322,7 +322,7 @@ function createWorld(configuration) {
     enteredContext.parent = state.context;
     state.context = enteredContext;
     updateContextState();
-    enterPriorityLevel(enteredContext);
+    enterTimeLevel(enteredContext);
     return enteredContext;
   }
 
@@ -334,7 +334,7 @@ function createWorld(configuration) {
       throw new Error("Context missmatch");
     }
     updateContextState();
-    exitPriorityLevel(activeContext);
+    exitTimeLevel(activeContext);
   }
 
 
@@ -1247,7 +1247,7 @@ function createWorld(configuration) {
         }
         // blockSideEffects(function() {
         observer.invalidateAction();
-        exitPriorityLevel(observer);
+        exitTimeLevel(observer);
         // });
       }
       state.postponeRefreshRepeaters--;
@@ -1284,7 +1284,7 @@ function createWorld(configuration) {
       observer.dispose(); // Cannot be any more dirty than it already is!
 
       if (state.postponeInvalidation > 0) {
-        enterPriorityLevel(observer);
+        enterTimeLevel(observer);
         if (state.lastObserverToInvalidate !== null) {
           state.lastObserverToInvalidate.nextToNotify = observer;
         } else {
@@ -1400,8 +1400,8 @@ function createWorld(configuration) {
       finishRebuilding() {
           finishRebuilding(this);
       },
-      priority() {
-        return typeof(this.options.priority) !== "undefined" ? this.options.priority : 0; 
+      time() {
+        return typeof(this.options.time) !== "undefined" ? this.options.time : 0; 
       },
       causalityString() {
         const context = this.invalidatedInContext;
@@ -1865,14 +1865,14 @@ function createWorld(configuration) {
 
   function repeaterDirty(repeater) { // TODO: Add update block on this stage?
     repeater.dispose();
-    const priority = repeater.priority();
-    enterPriorityLevel(priority);
+    const time = repeater.time();
+    enterTimeLevel(time);
     // disposeChildContexts(repeater);
     // disposeSingleChildContext(repeater);
     
-    const priorityList = state.dirtyRepeaters;
+    const timeList = state.dirtyRepeaters;
 
-    const list = priorityList[priority];
+    const list = timeList[time];
     if (list.last === null) {
       list.last = repeater;
       list.first = repeater;
@@ -1891,8 +1891,8 @@ function createWorld(configuration) {
   }
 
   function detatchRepeater(repeater) {
-    const priority = repeater.priority(); // repeater
-    const list = state.dirtyRepeaters[priority];
+    const time = repeater.time(); // repeater
+    const list = state.dirtyRepeaters[time];
     if (list.last === repeater) {
       list.last = repeater.previousDirty;
     }
@@ -1910,37 +1910,37 @@ function createWorld(configuration) {
   }
 
   function anyDirtyRepeater(start=0) {
-    const priorityList = state.dirtyRepeaters; 
-    let priority = start; 
-    while(priority < priorityList.length) {
-      if (priorityList[priority].first !== null) {
+    const timeList = state.dirtyRepeaters; 
+    let time = start; 
+    while(time < timeList.length) {
+      if (timeList[time].first !== null) {
         return true; 
       }
-      priority++;
+      time++;
     }
     return false; 
   }
 
   function firstDirtyRepeater() {
-    const priorityList = state.dirtyRepeaters;
+    const timeList = state.dirtyRepeaters;
     
     // Find work in unlocked level
-    let priority = state.revalidationLevelLock + 1;
-    while (priority < priorityList.length) {
-      if (priorityList[priority].first) {
-        return priorityList[priority].first;
+    let time = state.revalidationTimeLock + 1;
+    while (time < timeList.length) {
+      if (timeList[time].first) {
+        return timeList[time].first;
       }
-      priority++;
+      time++;
     }
 
     // Nothing found, reset lock and start again! 
-    state.revalidationLevelLock = -1;
-    priority = state.revalidationLevelLock + 1;
-    while (priority < priorityList.length) {
-      if (priorityList[priority].first) {
-        return priorityList[priority].first;
+    state.revalidationTimeLock = -1;
+    time = state.revalidationTimeLock + 1;
+    while (time < timeList.length) {
+      if (timeList[time].first) {
+        return timeList[time].first;
       }
-      priority++;
+      time++;
     }
 
     return null; 
@@ -1958,7 +1958,7 @@ function createWorld(configuration) {
             // currentRepeater = repeater; 
             repeater.refresh();
             detatchRepeater(repeater);
-            exitPriorityLevel(repeater.priority());
+            exitTimeLevel(repeater.time());
           }
   
           state.refreshingAllDirtyRepeaters = false;

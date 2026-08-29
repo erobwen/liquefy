@@ -7,7 +7,7 @@ const engine = new CLIEngine({
   useEslintrc: true,
 });
 
-const results = engine.executeOnFiles(['./src/causality.js']).results;
+const results = engine.executeOnFiles(['./src/cascade.js']).results;
 
 describe('ESLint', function() {
   results.forEach((result) => generateTest(result));

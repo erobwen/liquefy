@@ -1,4 +1,4 @@
-import { getWorld } from "../causality.js";
+import { getWorld } from "../cascade.js";
 import assert from "assert";
 
 const { observable, repeat, withoutRecording } = getWorld();
@@ -17,7 +17,7 @@ describe("Pipeline observeable", function(){
       model.a += 10;
       console.log("1");
       withoutRecording(() => console.log(model));
-    }, {priority: 1});
+    }, {time: 1});
     assert.equal(reverseLog[0], "running stage1");
 
     let stage2 = repeat(() => {
@@ -25,7 +25,7 @@ describe("Pipeline observeable", function(){
       model.a += 20;
       console.log("2");
       withoutRecording(() => console.log(model));
-    }, {priority: 2});
+    }, {time: 2});
     console.log(reverseLog);
     // assert.equal(reverseLog[0], "running stage2");
 
@@ -34,7 +34,7 @@ describe("Pipeline observeable", function(){
     //   model.b += 20;
     //   console.log("3");
     //   withoutRecording(() => console.log(model));
-    // }, {priority: 3});
+    // }, {time: 3});
     // assert.equal(reverseLog[0], "running stage3");
 
     // let stage4 = repeat(() => {
@@ -42,7 +42,7 @@ describe("Pipeline observeable", function(){
     //   model.c += model.a + model.b;
     //   console.log("4");
     //   withoutRecording(() => console.log(model));
-    // }, {priority: 4});
+    // }, {time: 4});
     // assert.equal(reverseLog[0], "running stage4");
 
     // Initial output

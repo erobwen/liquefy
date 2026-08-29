@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     minify: true,
     lib: {
-      entry: resolve(__dirname, 'src/causality.js'),
+      entry: resolve(__dirname, 'src/cascade.js'),
       name: "@liquefy/causality"
     },
   }

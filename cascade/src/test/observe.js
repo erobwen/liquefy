@@ -1,4 +1,4 @@
-import { getWorld } from "../causality.js";
+import { getWorld } from "../cascade.js";
 import assert from "assert";
 const { observable, repeat } = getWorld();
 

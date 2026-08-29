@@ -142,6 +142,7 @@ function createWorld(configuration) {
     invalidateObserver,
     getOrCreateTimelineWriting,
     getOrCreateEnumerationTimelineWriting,
+    seekTimelineWriting: seekWriting,
     enumerationTimelineKey,
     proceedWithPostponedInvalidations, 
     nextObserverId: () => { return state.observerId++ },
@@ -177,6 +178,7 @@ function createWorld(configuration) {
   const invalidateArrayObservers = dependencyInterface.invalidateArrayObservers;
   const invalidateEnumerateObservers = dependencyInterface.invalidateEnumerateObservers;
   const invalidatePropertyObservers = dependencyInterface.invalidatePropertyObservers;
+  const invalidateWritingObservers = dependencyInterface.invalidateWritingObservers;
   const removeAllSources = dependencyInterface.removeAllSources;
 
   // Object log
@@ -644,10 +646,10 @@ function createWorld(configuration) {
    *
    *  Storage for plain object properties is virtualized: instead of
    *  living directly on `target`, each property's value lives in a
-   *  "writing" node on a per-property timeline (a linked list of
-   *  writings over time). For now every timeline only ever holds a
-   *  single writing (first === last, time === 0); this is here to
-   *  prepare for real multi-version timelines later.
+   *  "writing" node on a per-property timeline - a linked list of
+   *  writings ordered by time. A repeater/invalidator reads and writes
+   *  at its own declared `time` (0 by default); reading resolves to the
+   *  writing with the largest `time <= requested`.
    *
    *  A writing represents either a set (`set: true`, carrying a value,
    *  which may itself be `undefined`) or an unset (`set: false`) - i.e.
@@ -664,57 +666,138 @@ function createWorld(configuration) {
    *
    ***************************************************************/
 
-  function createTimelineWriting() {
+  function createTimelineWriting(time) {
     return {
-      time: 0,
+      time: time,
       value: undefined,
       set: false,
       observers: null,
+      timeline: null,
       next: null,
       previous: null,
     };
   }
 
   function createTimeline(handler, key) {
-    const writing = createTimelineWriting();
-    return {
+    const writing = createTimelineWriting(0);
+    const timeline = {
       key: key,
       handler: handler,
       first: writing,
       last: writing,
-      // Cache pointer at the writing a reader/writer at "the current time"
-      // should start from. With only ever one writing per timeline, this is
-      // always that same writing; once timelines hold real history, this is
-      // where we'd land directly instead of walking from `first` every time,
-      // only falling back to a next/previous walk (via seekWriting) when the
-      // cached writing turns out not to be valid for the requested time.
+      // Cache pointer at the writing a reader/writer should start seeking
+      // from - amortizes the common case where reads/writes at nearby
+      // times cluster together, instead of always walking from `first`.
       currentWriting: writing,
     };
+    writing.timeline = timeline;
+    return timeline;
   }
 
   function getOrCreateTimeline(handler, key) {
     let timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') {
       timeline = handler.timelines[key] = createTimeline(handler, key);
+    } else if (timeline.first === null) {
+      // Every writing has been retracted - reinstate a fresh time-0 anchor
+      // so there is always somewhere to hang a dependency for future reads.
+      const writing = createTimelineWriting(0);
+      writing.timeline = timeline;
+      timeline.first = writing;
+      timeline.last = writing;
+      timeline.currentWriting = writing;
     }
     return timeline;
   }
 
-  // Resolve the writing that is valid "now" for a timeline. For now this is
-  // just the cached pointer (there is only ever one writing); this is the
-  // single seam where later versions add real seeking (walking next/previous
-  // from currentWriting until a writing valid for the requested time is
-  // found, then updating currentWriting to match).
-  function seekWriting(timeline) {
-    return timeline.currentWriting;
+  // Resolve the writing valid for `time`: the writing with the largest
+  // `time <= requested`, walking from the cached `currentWriting` via
+  // `next`/`previous` and updating the cache to match. There is always at
+  // least a time-0 writing once the timeline exists, so this never needs
+  // to return null for a non-negative time.
+  function seekWriting(timeline, time) {
+    let writing = timeline.currentWriting;
+    if (writing.time <= time) {
+      while (writing.next !== null && writing.next.time <= time) {
+        writing = writing.next;
+      }
+    } else {
+      while (writing.time > time) {
+        writing = writing.previous;
+      }
+    }
+    timeline.currentWriting = writing;
+    return writing;
   }
 
-  function getOrCreateTimelineWriting(handler, key) {
-    return seekWriting(getOrCreateTimeline(handler, key));
+  function findExactWriting(timeline, time) {
+    const writing = seekWriting(timeline, time);
+    return writing.time === time ? writing : null;
+  }
+
+  // Splice a writing (new or previously unlinked) into its timeline at its
+  // own `.time`, keeping writings ordered. Shared by insertion and by
+  // relinking a retracted writing that turned out to be reusable.
+  function spliceWritingIntoTimeline(timeline, writing) {
+    const previous = seekWriting(timeline, writing.time);
+    const next = previous.next;
+    writing.previous = previous;
+    writing.next = next;
+    previous.next = writing;
+    if (next !== null) {
+      next.previous = writing;
+    } else {
+      timeline.last = writing;
+    }
+    timeline.currentWriting = writing;
+  }
+
+  function insertNewWriting(timeline, time) {
+    const writing = createTimelineWriting(time);
+    writing.timeline = timeline;
+    spliceWritingIntoTimeline(timeline, writing);
+    return writing;
+  }
+
+  function relinkWriting(writing) {
+    spliceWritingIntoTimeline(writing.timeline, writing);
+  }
+
+  function getOrCreateExactWriting(handler, key, time) {
+    const timeline = getOrCreateTimeline(handler, key);
+    return findExactWriting(timeline, time) || insertNewWriting(timeline, time);
+  }
+
+  // Fully remove a writing from its timeline. Unlike marking a writing
+  // unset, this makes reads transparently fall through to whatever writing
+  // is now nearest below it - retracting a writing (a repeater no longer
+  // has anything to say about this property) is not the same as asserting
+  // that the property has no value.
+  function unlinkWriting(writing) {
+    const timeline = writing.timeline;
+    if (writing.previous !== null) {
+      writing.previous.next = writing.next;
+    } else {
+      timeline.first = writing.next;
+    }
+    if (writing.next !== null) {
+      writing.next.previous = writing.previous;
+    } else {
+      timeline.last = writing.previous;
+    }
+    if (timeline.currentWriting === writing) {
+      timeline.currentWriting = writing.previous || writing.next || null;
+    }
+    writing.previous = null;
+    writing.next = null;
+  }
+
+  function getOrCreateTimelineWriting(handler, key, time) {
+    return seekWriting(getOrCreateTimeline(handler, key), time);
   }
 
   function getOrCreateEnumerationTimelineWriting(handler) {
-    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey));
+    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey), 0);
   }
 
   // Move an object literal's own data properties into timelines, leaving
@@ -730,7 +813,7 @@ function createWorld(configuration) {
         return;
       }
       delete target[key];
-      const writing = getOrCreateTimelineWriting(handler, key);
+      const writing = getOrCreateTimelineWriting(handler, key, 0);
       writing.value = descriptor.value;
       writing.set = true;
     });
@@ -747,7 +830,7 @@ function createWorld(configuration) {
    *  raw timeline writings (or, worse, a raw `target`) directly. Callers
    *  that go through here don't need to know about currentWriting, seeking,
    *  or any future caching - they just read or write "the value of this
-   *  property on this handler".
+   *  property on this handler" at a given time.
    *
    *  These are silent: they do not invalidate observers or emit change
    *  events. They exist for patching up already-written values (e.g.
@@ -757,32 +840,51 @@ function createWorld(configuration) {
    *
    ***************************************************************/
 
-  function hasTimelineValue(handler, key) {
+  function hasTimelineValue(handler, key, time) {
     const timeline = handler.timelines[key];
-    return typeof(timeline) !== 'undefined' && seekWriting(timeline).set;
+    return typeof(timeline) !== 'undefined' && seekWriting(timeline, time).set;
   }
 
-  function readTimelineValue(handler, key) {
+  function readTimelineValue(handler, key, time) {
     const timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') return undefined;
-    const writing = seekWriting(timeline);
+    const writing = seekWriting(timeline, time);
     return writing.set ? writing.value : undefined;
   }
 
-  function writeTimelineValueSilently(handler, key, value) {
-    const writing = getOrCreateTimelineWriting(handler, key);
+  function writeTimelineValueSilently(handler, key, value, time) {
+    const writing = getOrCreateExactWriting(handler, key, time);
     writing.value = value;
     writing.set = true;
   }
 
   // All property keys (excluding the reserved enumeration timeline) that
-  // currently hold a value.
-  function timelineDataKeys(handler) {
+  // currently hold a value as of `time`.
+  function timelineDataKeys(handler, time) {
     const keys = [];
     for (let key in handler.timelines) {
-      if (handler.timelines[key].first.set) keys.push(key);
+      if (seekWriting(handler.timelines[key], time).set) keys.push(key);
     }
     return keys;
+  }
+
+  // What time a write happens "at": the current context's own time if it
+  // declares one (a repeater/invalidator), else time 0 - external, outside-
+  // any-repeater writes always land at the baseline, feeding the pipeline
+  // as fresh input for time>0 repeaters to pick up.
+  function currentTime() {
+    const context = state.context;
+    return (context && typeof(context.time) === "function") ? context.time() : 0;
+  }
+
+  // What time a read happens "at": same as currentTime() inside a
+  // repeater/invalidator, but external reads (outside any repeater) see the
+  // latest writing rather than the baseline - the pipeline's fully-settled
+  // output, not its raw input. seekWriting naturally walks all the way to
+  // `last` for an unbounded time.
+  function currentReadTime() {
+    const context = state.context;
+    return (context && typeof(context.time) === "function") ? context.time() : Infinity;
   }
 
 
@@ -810,7 +912,8 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key);
+    const time = currentReadTime();
+    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time);
 
     let scan = target;
     while ( scan !== null && typeof(scan) !== 'undefined' ) {
@@ -822,8 +925,8 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
-    if (hasTimelineValue(this, key)) {
-      return readTimelineValue(this, key);
+    if (hasTimelineValue(this, key, time)) {
+      return readTimelineValue(this, key, time);
     }
     return target[key];
   }
@@ -856,19 +959,48 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
-    const writing = getOrCreateTimelineWriting(this, key);
+    const time = currentTime();
+    const timeline = getOrCreateTimeline(this, key);
+    const context = state.context;
+    const hasPendingWriting = !!(context && context.pendingWritings && context.pendingWritings.has(timeline));
+
+    let writing;
+    if (hasPendingWriting) {
+      // A writing this same repeater made last run, detached at the start
+      // of this rerun so fresh reads couldn't see it - reconcile against
+      // it now that we know the real new value, instead of blindly
+      // creating (and eagerly notifying about) a new one.
+      writing = context.pendingWritings.get(timeline);
+    } else {
+      writing = findExactWriting(timeline, time) || insertNewWriting(timeline, time);
+    }
+
     const undefinedKey = !writing.set;
     const previousValue = writing.value;
 
-    // If same value as already set, do nothing.
+    // If same value as already set (or as it was before this rerun
+    // retracted it), nothing observable changed.
     if (writing.set && sameAsPrevious(previousValue, value)) {
+      if (hasPendingWriting) {
+        relinkWriting(writing);
+        context.pendingWritings.delete(timeline);
+        context.writings.set(timeline, writing);
+      }
       return true;
     } // TODO: It would be even safer if we write protected non observable data structures that are assigned, if we are using mode: useNonObservablesAsValues
 
     writing.value = value;
     writing.set = true;
 
-    invalidatePropertyObservers(this, key);
+    if (hasPendingWriting) {
+      relinkWriting(writing);
+      context.pendingWritings.delete(timeline);
+    }
+    if (context && context.writings) {
+      context.writings.set(timeline, writing);
+    }
+
+    invalidateWritingObservers(writing, this.proxy, key);
     if (undefinedKey) invalidateEnumerateObservers(this, key);
 
     emitSetEvent(this, key, value, previousValue);
@@ -888,7 +1020,8 @@ function createWorld(configuration) {
       return;
     }
 
-    const timelineHasValue = hasTimelineValue(this, key);
+    const time = currentTime();
+    const timelineHasValue = hasTimelineValue(this, key, time);
 
     if (!timelineHasValue && !(key in target)) {
       return true;
@@ -896,7 +1029,7 @@ function createWorld(configuration) {
 
     let previousValue;
     if (timelineHasValue) {
-      const writing = getOrCreateTimelineWriting(this, key);
+      const writing = getOrCreateTimelineWriting(this, key, time);
       previousValue = writing.value;
       writing.value = undefined;
       writing.set = false;
@@ -905,7 +1038,7 @@ function createWorld(configuration) {
       delete target[key];
     }
 
-    invalidatePropertyObservers(this, key);
+    invalidatePropertyObservers(this, key, time);
     invalidateEnumerateObservers(this, key);
     emitDeleteEvent(this, key, previousValue);
 
@@ -926,7 +1059,7 @@ function createWorld(configuration) {
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this);
 
     let keys = Object.keys(target);
-    timelineDataKeys(this).forEach(function(timelineKey) {
+    timelineDataKeys(this, currentReadTime()).forEach(function(timelineKey) {
       if (keys.indexOf(timelineKey) === -1) keys.push(timelineKey);
     });
     return keys;
@@ -944,7 +1077,7 @@ function createWorld(configuration) {
     }
 
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
-    if (hasTimelineValue(this, key)) return true;
+    if (hasTimelineValue(this, key, currentReadTime())) return true;
     return key in target;
   }
 
@@ -977,9 +1110,10 @@ function createWorld(configuration) {
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     if (typeof(descriptor) !== 'undefined') return descriptor;
-    if (hasTimelineValue(this, key)) {
+    const time = currentReadTime();
+    if (hasTimelineValue(this, key, time)) {
       return {
-        value: readTimelineValue(this, key),
+        value: readTimelineValue(this, key, time),
         writable: true,
         enumerable: true,
         configurable: true,
@@ -1393,6 +1527,12 @@ function createWorld(configuration) {
       firstTime: true, 
       description: description,
       sources : [],
+      // Writings this repeater currently has live across all timelines
+      // (Map from timeline to writing), and writings retracted at the
+      // start of this rerun awaiting reconciliation against a fresh write
+      // - see dispose()/refresh()/finalizeWritings.
+      writings: new Map(),
+      pendingWritings: new Map(),
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -1455,6 +1595,7 @@ function createWorld(configuration) {
       dispose() {
         detatchRepeater(this);
         removeAllSources(this);
+        retractWritingsIntoPending(this);
         this.disposeChildren();
       },
       notifyDisposeToCreatedObjects() {
@@ -1476,9 +1617,12 @@ function createWorld(configuration) {
       },
       disposeChildren() {
         if (this.children) {
-          this.children.forEach(child => child.dispose());
-          this.children = null; 
-        }        
+          // Children being torn down permanently (not about to rerun
+          // themselves), so their retracted writings need to be finalized
+          // right here - nothing will call refresh() on them again to do it.
+          this.children.forEach(child => { child.dispose(); finalizeWritings(child); });
+          this.children = null;
+        }
       },
       addChild(child) {
         if (!this.children) this.children = [];
@@ -1503,8 +1647,12 @@ function createWorld(configuration) {
         repeater.isRecording = true; 
         const activeContext = enterContext(repeater);
         repeater.returnValue = repeater.repeaterAction(repeater);
-        repeater.isRecording = false; 
+        repeater.isRecording = false;
         updateContextState()
+
+        // Anything retracted at the start of this rerun that never got
+        // reconciled against a fresh write this run is genuinely gone now.
+        finalizeWritings(repeater);
 
         // Non recorded action (only effect)
         const { debounce=0, fireImmediately=true } = options; 
@@ -1664,8 +1812,9 @@ function createWorld(configuration) {
         } else {
           // Go through the timeline read/write interface instead of the raw
           // target - plain data properties live in handler.timelines now.
-          timelineDataKeys(handler).forEach(function(key) {
-            writeTimelineValueSilently(handler, key, translateReference(readTimelineValue(handler, key)));
+          const time = currentTime();
+          timelineDataKeys(handler, time).forEach(function(key) {
+            writeTimelineValueSilently(handler, key, translateReference(readTimelineValue(handler, key, time)), time);
           });
         }
       }
@@ -1907,6 +2056,29 @@ function createWorld(configuration) {
     }
     repeater.nextDirty = null;
     repeater.previousDirty = null;
+  }
+
+  // Detach a repeater's current writings from their timelines (so a fresh
+  // read during its rerun falls through instead of seeing its own stale
+  // prior output), stashing each one so a matching fresh write can
+  // reconcile against it instead of blindly creating a new writing and
+  // eagerly notifying about it - see setHandlerObject and finalizeWritings.
+  function retractWritingsIntoPending(repeater) {
+    repeater.writings.forEach(function(writing, timeline) {
+      unlinkWriting(writing);
+      repeater.pendingWritings.set(timeline, writing);
+    });
+    repeater.writings.clear();
+  }
+
+  // Anything still pending after a rerun (or after a permanent dispose)
+  // was never reconciled against a fresh write, so it's genuinely gone -
+  // notify whoever was watching it.
+  function finalizeWritings(repeater) {
+    repeater.pendingWritings.forEach(function(writing, timeline) {
+      invalidateWritingObservers(writing, timeline.handler.proxy, timeline.key);
+    });
+    repeater.pendingWritings.clear();
   }
 
   function anyDirtyRepeater(start=0) {

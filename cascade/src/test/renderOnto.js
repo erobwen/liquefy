@@ -176,6 +176,7 @@ describe("renderOnto", function () {
     // again. Distinct from "disposed", which means never running again.
     const target = observable({ spaceLeft: 100 });
     const external = observable({ marker: null }); // touched only by b, read by something entirely outside this parent/child tree
+    let retractedCount = 0;
 
     class TaggingLeaf extends Leaf {
       renderOnto(target) {
@@ -188,7 +189,7 @@ describe("renderOnto", function () {
             u.seenSpaceLeft = target.spaceLeft;
             target.spaceLeft -= this.claim;
             external.marker = this;
-          });
+          }, { onRetract: () => { retractedCount++; } });
         }
       }
     }
@@ -222,6 +223,12 @@ describe("renderOnto", function () {
     // Check that b is retracted but not disposed
     assert.ok(b.unobservable.repeater.retracted);
     assert.ok(!b.unobservable.repeater.disposed);
+
+    // options.onRetract is the escape hatch for cleaning up side effects
+    // the reactive system has no visibility into (e.g. a DOM node parented
+    // outside any observable) - fires exactly once, right when b actually
+    // gets retracted, not on every dispose()/rerun.
+    assert.equal(retractedCount, 1);
   });
 
 });

@@ -1845,6 +1845,13 @@ function createWorld(configuration) {
         node.dispose();
         finalizeChildren(node);
         node.retracted = true;
+        // Fires exactly once per genuine retraction (not on every dispose()
+        // - a rerun or a relink never reaches here). For side effects the
+        // reactive system doesn't know about (a DOM node parented outside
+        // any observable, a subscription, ...) that need cleaning up even
+        // though the repeater itself stays alive and re-linkable. If the
+        // repeater is later relinked and retracted again, this fires again.
+        if (node.options.onRetract) node.options.onRetract(node);
       }
       node = next;
     }

@@ -89,6 +89,13 @@ that data - even something entirely outside the parent/child tree - gets
 correctly notified. See `renderOnto.js`'s case 3 (`external.marker`, read by
 a third, unrelated repeater) for the concrete assertion.
 
+`options.onRetract(repeater)` fires exactly once each time a child actually
+reaches this state, from `finalizeChildren` - for side effects the reactive
+system has no visibility into at all (a DOM node parented outside any
+observable, an external subscription) that still need cleaning up even
+though the repeater itself stays alive and re-linkable. Not the same hook
+as `dispose()` running, which happens on every rerun, retraction or not.
+
 ## Rerun: partials get reused in place, not thrown away
 
 Naive approach (rejected): eagerly retract-and-dispose the whole

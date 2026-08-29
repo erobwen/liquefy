@@ -110,6 +110,7 @@ function createWorld(configuration) {
     create: observable, // observable alias
     invalidateOnChange,
     repeat,
+    linkRepeater,
     finalize,
 
     // Modifiers
@@ -694,18 +695,22 @@ function createWorld(configuration) {
     return timeline;
   }
 
+  // Every writing has been retracted - reinstate a fresh time-0 anchor so
+  // there is always somewhere to hang a dependency for future reads.
+  function reanchorEmptyTimeline(timeline) {
+    const writing = createTimelineWriting(0);
+    writing.timeline = timeline;
+    timeline.first = writing;
+    timeline.last = writing;
+    timeline.currentWriting = writing;
+  }
+
   function getOrCreateTimeline(handler, key) {
     let timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') {
       timeline = handler.timelines[key] = createTimeline(handler, key);
     } else if (timeline.first === null) {
-      // Every writing has been retracted - reinstate a fresh time-0 anchor
-      // so there is always somewhere to hang a dependency for future reads.
-      const writing = createTimelineWriting(0);
-      writing.timeline = timeline;
-      timeline.first = writing;
-      timeline.last = writing;
-      timeline.currentWriting = writing;
+      reanchorEmptyTimeline(timeline);
     }
     return timeline;
   }
@@ -714,8 +719,14 @@ function createWorld(configuration) {
   // `time <= requested`, walking from the cached `currentWriting` via
   // `next`/`previous` and updating the cache to match. There is always at
   // least a time-0 writing once the timeline exists, so this never needs
-  // to return null for a non-negative time.
+  // to return null for a non-negative time - self-healing if every writing
+  // has been retracted since the timeline was last looked up (callers like
+  // hasTimelineValue/readTimelineValue look the timeline up directly,
+  // without going through getOrCreateTimeline first).
   function seekWriting(timeline, time) {
+    if (timeline.currentWriting === null) {
+      reanchorEmptyTimeline(timeline);
+    }
     let writing = timeline.currentWriting;
     if (writing.time <= time) {
       while (writing.next !== null && writing.next.time <= time) {
@@ -1517,14 +1528,12 @@ function createWorld(configuration) {
 
 
   // Every repeater's actual reads/writes are always registered one level
-  // down, on a "partial" - never directly on the repeater. For now a
-  // repeater only ever has a single partial, created fresh each refresh
-  // (see refresh()), so this is purely a shape change, not a behavior
-  // change: with only one partial, everything works exactly as before.
-  // This is preparation for a repeater's execution being sliced into
-  // several partials, interleaved with child repeaters it creates, each
-  // partial owning the reads/writes made between one child boundary and
-  // the next - see docs/plan-time-aware-timelines.md.
+  // down, on a "partial" - never directly on the repeater. A repeater's
+  // execution is sliced into one partial per child-attachment point:
+  // creating or relinking a child closes the current partial and opens a
+  // fresh one, so each partial owns exactly the reads/writes made between
+  // one child boundary and the next. With no children created, there's
+  // just the one partial. See docs/plan-partial-repeaters.md.
   //
   // A partial can never usefully run on its own - the repeater's code has
   // to execute in one go - so invalidating a partial (something it read
@@ -1538,6 +1547,11 @@ function createWorld(configuration) {
       sources: [],
       writings: new Map(),
       pendingWritings: new Map(),
+      // Sibling pointers within the owning repeater's children/
+      // pendingChildren list (partials and real child repeaters share one
+      // list) - see createChildList()/attachToCurrentParent() below.
+      nextSibling: null,
+      previousSibling: null,
       get isRecording() {
         return this.repeater.isRecording;
       },
@@ -1556,6 +1570,97 @@ function createWorld(configuration) {
     };
   }
 
+  // A repeater's children (real child repeaters, interleaved with the
+  // partials that own the reads/writes between them) live in one ordered
+  // linked list - see createPartial() above.
+  function createChildList() {
+    return { first: null, last: null };
+  }
+
+  function appendToChildList(list, node) {
+    node.previousSibling = list.last;
+    node.nextSibling = null;
+    if (list.last !== null) {
+      list.last.nextSibling = node;
+    } else {
+      list.first = node;
+    }
+    list.last = node;
+  }
+
+  function unlinkFromChildList(list, node) {
+    if (node.previousSibling !== null) {
+      node.previousSibling.nextSibling = node.nextSibling;
+    } else {
+      list.first = node.nextSibling;
+    }
+    if (node.nextSibling !== null) {
+      node.nextSibling.previousSibling = node.previousSibling;
+    } else {
+      list.last = node.previousSibling;
+    }
+    node.previousSibling = null;
+    node.nextSibling = null;
+  }
+
+  // Shared by repeat() (a brand new child) and linkRepeater() (an existing
+  // one): attach `child` (a repeater or, internally, a partial) to whatever
+  // repeater is currently executing, then close the current partial and
+  // open a fresh one so subsequent code in the parent attributes its
+  // reads/writes to a new sub-position after this child. A no-op (besides
+  // returning) if there's no enclosing repeater to attach to.
+  function attachToCurrentParent(child) {
+    const parentContext = state.context;
+    if (!parentContext || parentContext.type !== "partial") {
+      return;
+    }
+    const parentRepeater = parentContext.repeater;
+
+    if (child.parentRepeater === parentRepeater && child.listMembership === "pending") {
+      // Reclaiming a child that was pending from the parent's previous
+      // run - pure bookkeeping, nothing about the child's own state
+      // (sources, writings, its own children) is touched at all.
+      unlinkFromChildList(parentRepeater.pendingChildren, child);
+    }
+    child.parentRepeater = parentRepeater;
+    child.listMembership = "confirmed";
+    if (typeof(child.retracted) !== 'undefined') child.retracted = false;
+    appendToChildList(parentRepeater.children, child);
+
+    leaveContext(parentContext);
+    const partial = createPartial(parentRepeater);
+    partial.parentRepeater = parentRepeater;
+    partial.listMembership = "confirmed";
+    parentRepeater.currentPartial = partial;
+    appendToChildList(parentRepeater.children, partial);
+    enterContext(partial);
+  }
+
+  // Anything still in `repeater.pendingChildren` was never reclaimed this
+  // run (a partial the parent's code no longer reaches, or a child never
+  // re-linked) - genuinely retract it now. A retracted child stays fully
+  // intact and re-linkable later (see the docs); it's its own children/
+  // pending-children that recurse here, since it isn't running again right
+  // now for anything to reconcile against.
+  function finalizeChildren(repeater) {
+    let node = repeater.pendingChildren.first;
+    while (node !== null) {
+      const next = node.nextSibling;
+      node.previousSibling = null;
+      node.nextSibling = null;
+      if (node.type === "partial") {
+        finalizeWritings(node);
+      } else {
+        node.dispose();
+        finalizeWritings(node.currentPartial);
+        finalizeChildren(node);
+        node.retracted = true;
+      }
+      node = next;
+    }
+    repeater.pendingChildren = createChildList();
+  }
+
   function defaultCreateRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding) {
     return {
       createdCount:0,
@@ -1569,6 +1674,25 @@ function createWorld(configuration) {
       // The partial currently holding this repeater's reads/writes - see
       // createPartial() above and refresh() below.
       currentPartial: null,
+      // This run's confirmed children (real child repeaters interleaved
+      // with the partials between them) and, transiently between dispose()
+      // and the end of the next refresh(), the previous run's sequence
+      // awaiting reconciliation - see attachToCurrentParent()/
+      // finalizeChildren() above.
+      children: createChildList(),
+      pendingChildren: createChildList(),
+      // Sibling pointers within a *parent's* children/pendingChildren list
+      // (unused while this repeater is top-level).
+      nextSibling: null,
+      previousSibling: null,
+      parentRepeater: null,
+      listMembership: null, // "confirmed" | "pending" | null (top-level)
+      // Retracted: this repeater's writings are gone and it's sitting
+      // unclaimed in some parent's pendingChildren, but it's still fully
+      // intact and re-linkable. Disposed: gone forever. See
+      // docs/plan-partial-repeaters.md.
+      retracted: false,
+      disposed: false,
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -1617,13 +1741,12 @@ function createWorld(configuration) {
       },
       invalidateAction() {
         repeaterDirty(this);
-        this.disposeChildren();
       },
       // disposeAllCreatedWithBuildId() {
-      //   // Dispose all created objects? 
+      //   // Dispose all created objects?
       //   if(this.buildIdObjectMap) {
       //     for (let key in this.buildIdObjectMap) {
-      //       const object = this.buildIdObjectMap[key]; 
+      //       const object = this.buildIdObjectMap[key];
       //       if (typeof(object.onDispose) === "function") object.onDispose();
       //     }
       //   }
@@ -1638,7 +1761,20 @@ function createWorld(configuration) {
           removeAllSources(this.currentPartial);
           retractWritingsIntoPending(this.currentPartial);
         }
-        this.disposeChildren();
+        // Move confirmed children/partials to pending - no disposal, no
+        // retraction of anything a child itself owns, just a cheap O(direct
+        // children) walk to flag each one so a reclaim (attachToCurrentParent)
+        // knows it needs unlinking from here. Individual entries get
+        // reconciled (relinked, free of charge) or finalized (genuinely
+        // retracted) as the fresh run proceeds and finishes - see
+        // attachToCurrentParent()/finalizeChildren().
+        let node = this.children.first;
+        while (node !== null) {
+          node.listMembership = "pending";
+          node = node.nextSibling;
+        }
+        this.pendingChildren = this.children;
+        this.children = createChildList();
       },
       notifyDisposeToCreatedObjects() {
         if (this.idObjectShapeMap) {
@@ -1657,25 +1793,11 @@ function createWorld(configuration) {
           }
         }
       },
-      disposeChildren() {
-        if (this.children) {
-          // Children being torn down permanently (not about to rerun
-          // themselves), so their retracted writings need to be finalized
-          // right here - nothing will call refresh() on them again to do it.
-          this.children.forEach(child => { child.dispose(); finalizeWritings(child); });
-          this.children = null;
-        }
-      },
-      addChild(child) {
-        if (!this.children) this.children = [];
-        this.children.push(child);
-      },
       nextDirty : null,
       previousDirty : null,
       lastRepeatTime: 0,
       waitOnNonRecordedAction: 0,
-      children: null,
-      refresh() {       
+      refresh() {
         const repeater = this; 
         const options = repeater.options;
         if (options.onRefresh) options.onRefresh(repeater);
@@ -1697,18 +1819,30 @@ function createWorld(configuration) {
         if (previousPartial) {
           partial.pendingWritings = previousPartial.pendingWritings;
         }
+        partial.parentRepeater = repeater;
+        partial.listMembership = "confirmed";
         repeater.currentPartial = partial;
+        appendToChildList(repeater.children, partial);
 
         // Recorded action (cause and/or effect)
         repeater.isRecording = true;
-        const activeContext = enterContext(partial);
+        enterContext(partial);
         repeater.returnValue = repeater.repeaterAction(repeater);
         repeater.isRecording = false;
         updateContextState()
 
+        // The action may have created/relinked children, which closes the
+        // current partial and opens new ones (see attachToCurrentParent) -
+        // so by now repeater.currentPartial may be a later partial than
+        // the one we entered above, not `partial` itself.
+        const finalPartial = repeater.currentPartial;
+
         // Anything retracted at the start of this rerun that never got
-        // reconciled against a fresh write this run is genuinely gone now.
-        finalizeWritings(partial);
+        // reconciled against a fresh write this run is genuinely gone now
+        // (this repeater's own writings), and likewise for any of its
+        // children never re-linked this run.
+        finalizeWritings(finalPartial);
+        finalizeChildren(repeater);
 
         // Non recorded action (only effect)
         const { debounce=0, fireImmediately=true } = options; 
@@ -1729,8 +1863,8 @@ function createWorld(configuration) {
         // Finish rebuilding
         finishRebuilding(this);
 
-        this.firstTime = false; 
-        leaveContext( activeContext );
+        this.firstTime = false;
+        leaveContext( finalPartial );
         return repeater;
       }
     }
@@ -2061,10 +2195,26 @@ function createWorld(configuration) {
     
     // Activate!
     const repeater = createRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding);
-    if (state.context && state.context.type === "partial" && (options.dependentOnParent || configuration.alwaysDependOnParentRepeater)) {
-      state.context.repeater.addChild(repeater);
-    }
-    return repeater.refresh();
+    const result = repeater.refresh();
+    // If created while nested inside another repeater's execution, this
+    // repeater automatically becomes its child - closing the parent's
+    // current partial and opening a fresh one for whatever parent code
+    // comes next. See attachToCurrentParent().
+    attachToCurrentParent(repeater);
+    return result;
+  }
+
+  // Reattach a previously-created repeater as a child of whichever
+  // repeater is currently executing - pure reattachment, never a trigger.
+  // If `oldRepeater` is currently invalid, cascade's normal dirty-queue
+  // machinery refreshes it on its own schedule, independent of when this
+  // is called; if it's clean, this is a no-op beyond the reattachment
+  // itself - no rerun, no state loss. Component/child identity (which old
+  // repeater corresponds to which new render call) is entirely the
+  // caller's responsibility - cascade only exposes this primitive.
+  function linkRepeater(oldRepeater) {
+    attachToCurrentParent(oldRepeater);
+    return oldRepeater;
   }
 
 

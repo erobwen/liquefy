@@ -23,6 +23,7 @@ const defaultConfiguration = {
   priorityLevels: 4, 
 
   objectMetaProperty: "causality",
+  objectTimelinesProperty: "timelines",
 
   useNonObservablesAsValues: false, 
   valueComparisonDepthLimit: 5, 
@@ -132,7 +133,8 @@ function createWorld(configuration) {
     state,
     enterContext,
     leaveContext,
-    invalidateObserver, 
+    invalidateObserver,
+    getOrCreateTimelineWriting,
     proceedWithPostponedInvalidations, 
     nextObserverId: () => { return state.observerId++ },
 
@@ -196,6 +198,7 @@ function createWorld(configuration) {
     requireInvalidatorName,
     warnOnNestedRepeater,
     objectMetaProperty,
+    objectTimelinesProperty,
     sendEventsToObjects,
     onEventGlobal,
     emitReBuildEvents,
@@ -629,6 +632,72 @@ function createWorld(configuration) {
 
   /***************************************************************
    *
+   *  Timelines
+   *
+   *  Storage for plain object properties is virtualized: instead of
+   *  living directly on `target`, each property's value lives in a
+   *  "writing" node on a per-property timeline (a linked list of
+   *  writings over time). For now every timeline only ever holds a
+   *  single writing (first === last, time === 0); this is here to
+   *  prepare for real multi-version timelines later.
+   *
+   ***************************************************************/
+
+  function createTimelineWriting() {
+    return {
+      time: 0,
+      value: undefined,
+      written: false,
+      observers: null,
+      next: null,
+      previous: null,
+    };
+  }
+
+  function createTimeline(handler, key) {
+    const writing = createTimelineWriting();
+    return {
+      key: key,
+      handler: handler,
+      first: writing,
+      last: writing,
+    };
+  }
+
+  function getOrCreateTimeline(handler, key) {
+    let timeline = handler.timelines[key];
+    if (typeof(timeline) === 'undefined') {
+      timeline = handler.timelines[key] = createTimeline(handler, key);
+    }
+    return timeline;
+  }
+
+  function getOrCreateTimelineWriting(handler, key) {
+    return getOrCreateTimeline(handler, key).first;
+  }
+
+  // Move an object literal's own data properties into timelines, leaving
+  // accessor properties (getters/setters) and methods (function values,
+  // e.g. onChange/onDispose/onEstablish hooks) untouched on target.
+  function moveTargetDataIntoTimelines(handler, target) {
+    Object.keys(target).forEach(function(key) {
+      const descriptor = Object.getOwnPropertyDescriptor(target, key);
+      if (typeof(descriptor.get) === 'function' || typeof(descriptor.set) === 'function') {
+        return;
+      }
+      if (typeof(descriptor.value) === 'function') {
+        return;
+      }
+      delete target[key];
+      const writing = getOrCreateTimelineWriting(handler, key);
+      writing.value = descriptor.value;
+      writing.written = true;
+    });
+  }
+
+
+  /***************************************************************
+   *
    *  Object Handlers
    *
    ***************************************************************/
@@ -639,35 +708,40 @@ function createWorld(configuration) {
 
     if (key === objectMetaProperty) {
       return this.meta;
+    } else if (key === objectTimelinesProperty) {
+      return this.timelines;
     } else if (this.meta.forwardTo !== null) {
       let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
       let result = forwardToHandler.get.apply(forwardToHandler, [forwardToHandler.target, key]);
       return result;
     }
-       
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead 
-      return cannotReadPropertyValue; 
+
+    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
+      return cannotReadPropertyValue;
     }
 
-    if (typeof(key) !== 'undefined') {
-      if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key);
-      // use? && (typeof(target[key]) === "undefined" || Object.prototype.hasOwnProperty.call(target, key))
+    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key);
 
-      let scan = target;
-      while ( scan !== null && typeof(scan) !== 'undefined' ) {
-        let descriptor = Object.getOwnPropertyDescriptor(scan, key);
-        if (typeof(descriptor) !== 'undefined' &&
-            typeof(descriptor.get) !== 'undefined') {
-          return descriptor.get.bind(this.meta.proxy)();
-        }
-        scan = Object.getPrototypeOf( scan );
+    let scan = target;
+    while ( scan !== null && typeof(scan) !== 'undefined' ) {
+      let descriptor = Object.getOwnPropertyDescriptor(scan, key);
+      if (typeof(descriptor) !== 'undefined' &&
+          typeof(descriptor.get) !== 'undefined') {
+        return descriptor.get.bind(this.meta.proxy)();
       }
-      return target[key];
+      scan = Object.getPrototypeOf( scan );
     }
+
+    const timeline = this.timelines[key];
+    if (typeof(timeline) !== 'undefined' && timeline.first.written) {
+      return timeline.first.value;
+    }
+    return target[key];
   }
 
   function setHandlerObject(target, key, value) {
     if (key === objectMetaProperty) throw new Error("Cannot set the dedicated meta property '" + objectMetaProperty + "'");
+    if (key === objectTimelinesProperty) throw new Error("Cannot set the dedicated timelines property '" + objectTimelinesProperty + "'");
 
     if (this.meta.forwardTo !== null) {
       let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
@@ -676,32 +750,40 @@ function createWorld(configuration) {
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
-    } 
+    }
 
-    let previousValue = target[key];
-
-    // If same value as already set, do nothing.
-    if (key in target) {
-      if (sameAsPrevious(previousValue, value)) {
+    // Respect real setters (and reject writes to getter-only properties),
+    // mirroring the getter lookup in getHandlerObject.
+    let scan = target;
+    while ( scan !== null && typeof(scan) !== 'undefined' ) {
+      let descriptor = Object.getOwnPropertyDescriptor(scan, key);
+      if (typeof(descriptor) !== 'undefined' && typeof(descriptor.set) === 'function') {
+        descriptor.set.call(this.meta.proxy, value);
         return true;
       }
+      if (typeof(descriptor) !== 'undefined' && typeof(descriptor.get) !== 'undefined') {
+        return false; // Getter without setter.
+      }
+      scan = Object.getPrototypeOf( scan );
+    }
+
+    const writing = getOrCreateTimelineWriting(this, key);
+    const undefinedKey = !writing.written;
+    const previousValue = writing.value;
+
+    // If same value as already set, do nothing.
+    if (writing.written && sameAsPrevious(previousValue, value)) {
+      return true;
     } // TODO: It would be even safer if we write protected non observable data structures that are assigned, if we are using mode: useNonObservablesAsValues
 
-    let undefinedKey = !(key in target);
-    target[key]      = value;
-    let resultValue  = target[key];
-    if( resultValue === value || (Number.isNaN(resultValue) &&
-                                  Number.isNaN(value)) ) {
-      // Write protected?
-      invalidatePropertyObservers(this, key);
-      if (undefinedKey) invalidateEnumerateObservers(this, key);
-    }
+    writing.value = value;
+    writing.written = true;
+
+    invalidatePropertyObservers(this, key);
+    if (undefinedKey) invalidateEnumerateObservers(this, key);
 
     emitSetEvent(this, key, value, previousValue);
 
-    if( resultValue !== value  && !(Number.isNaN(resultValue) &&
-                                    Number.isNaN(value))) return false;
-    // Write protected?
     return true;
   }
 
@@ -715,21 +797,30 @@ function createWorld(configuration) {
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
-    } 
+    }
 
-    if (!(key in target)) {
-      return true;
-    } else {
-      let previousValue = target[key];
-      delete target[key];
-      if(!( key in target )) { // Write protected?
-        invalidatePropertyObservers(this, key);
-        invalidateEnumerateObservers(this, key);
-        emitDeleteEvent(this, key, previousValue);
-      }
-      if( key in target ) return false; // Write protected?
+    const timeline = this.timelines[key];
+    const timelineHasValue = typeof(timeline) !== 'undefined' && timeline.first.written;
+
+    if (!timelineHasValue && !(key in target)) {
       return true;
     }
+
+    let previousValue;
+    if (timelineHasValue) {
+      previousValue = timeline.first.value;
+      timeline.first.value = undefined;
+      timeline.first.written = false;
+    } else {
+      previousValue = target[key];
+      delete target[key];
+    }
+
+    invalidatePropertyObservers(this, key);
+    invalidateEnumerateObservers(this, key);
+    emitDeleteEvent(this, key, previousValue);
+
+    return true;
   }
 
   function ownKeysHandlerObject(target, key) { // Not inherited?
@@ -739,14 +830,18 @@ function createWorld(configuration) {
         forwardToHandler, [forwardToHandler.target, key]);
     }
 
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead 
+    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
       return cannotReadPropertyValue;
     }
- 
+
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this);
 
     let keys = Object.keys(target);
-    // keys.push('id');
+    for (let timelineKey in this.timelines) {
+      if (this.timelines[timelineKey].first.written && keys.indexOf(timelineKey) === -1) {
+        keys.push(timelineKey);
+      }
+    }
     return keys;
   }
 
@@ -757,11 +852,13 @@ function createWorld(configuration) {
         forwardToHandler, [forwardToHandler.target, key]);
     }
 
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead 
+    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
       return cannotReadPropertyValue;
     }
- 
+
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
+    const timeline = this.timelines[key];
+    if (typeof(timeline) !== 'undefined' && timeline.first.written) return true;
     return key in target;
   }
 
@@ -792,7 +889,18 @@ function createWorld(configuration) {
     }
  
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
-    return Object.getOwnPropertyDescriptor(target, key);
+    const descriptor = Object.getOwnPropertyDescriptor(target, key);
+    if (typeof(descriptor) !== 'undefined') return descriptor;
+    const timeline = this.timelines[key];
+    if (typeof(timeline) !== 'undefined' && timeline.first.written) {
+      return {
+        value: timeline.first.value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      };
+    }
+    return undefined;
   }
 
 
@@ -839,6 +947,7 @@ function createWorld(configuration) {
       };
     } else {
       handler = {
+        timelines : {},
         // getPrototypeOf: function () {},
         // setPrototypeOf: function () {},
         // isExtensible: function () {},
@@ -856,7 +965,7 @@ function createWorld(configuration) {
     }
 
     let proxy = new Proxy(target, handler);
-    
+
     handler.target = target;
     handler.proxy = proxy;
 
@@ -869,9 +978,13 @@ function createWorld(configuration) {
       handler : handler,
       proxy : proxy,
 
-      // Here to avoid prevent events being sent to objects being rebuilt. 
-      isBeingRebuilt: false, 
+      // Here to avoid prevent events being sent to objects being rebuilt.
+      isBeingRebuilt: false,
     };
+
+    if (!(target instanceof Array)) {
+      moveTargetDataIntoTimelines(handler, target);
+    }
 
     if (state.inRepeater !== null) {
       const repeater = state.inRepeater;
@@ -1022,8 +1135,8 @@ function createWorld(configuration) {
       onEventGlobal(event);
     }
 
-    if (sendEventsToObjects && typeof(handler.target.onChange) === 'function') { // Consider. Put on queue and fire on end of reaction? onReactionEnd onTransactionEnd 
-      handler.target.onChange(event);
+    if (sendEventsToObjects && typeof(handler.target.onChange) === 'function') { // Consider. Put on queue and fire on end of reaction? onReactionEnd onTransactionEnd
+      handler.proxy.onChange(event);
     }
   }
 
@@ -1466,7 +1579,7 @@ function createWorld(configuration) {
         if (temporaryObject) {
           temporaryObject[objectMetaProperty].copyTo = null;
           object[objectMetaProperty].forwardTo = null;
-          mergeInto(object, temporaryObject[objectMetaProperty].target);
+          mergeInto(object, temporaryObject);
 
           // Send recreate event
           if (object[objectMetaProperty].pendingCreationEvent) {
@@ -1507,7 +1620,7 @@ function createWorld(configuration) {
           created[objectMetaProperty].forwardTo = null;
           // created[objectMetaProperty].isBeingRebuilt = false; // Consider? Should this be done on 
           temporaryObject[objectMetaProperty].isBeingRebuilt = false; 
-          mergeInto(created, temporaryObject[objectMetaProperty].target);
+          mergeInto(created, temporaryObject);
         } else {
           // Send establish event
           sendOnEstablishedEvent(created)
@@ -1522,12 +1635,12 @@ function createWorld(configuration) {
             const objectTarget = object[objectMetaProperty].target;
             // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
             emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectTarget.onDispose) === "function") objectTarget.onDispose();
+            if (typeof(objectTarget.onDispose) === "function") object.onDispose();
           }
         }
       }
     }
-    
+
     // Set new buildId map
     repeater.buildIdObjectMap = repeater.newBuildIdObjectMap;
     repeater.newBuildIdObjectMap = {};
@@ -1571,7 +1684,7 @@ function createWorld(configuration) {
       // A re-build, push changes to established object.
       object[objectMetaProperty].forwardTo = null;
       temporaryObject[objectMetaProperty].isBeingRebuilt = false; 
-      mergeInto(object, temporaryObject[objectMetaProperty].target);
+      mergeInto(object, temporaryObject);
 
       
 

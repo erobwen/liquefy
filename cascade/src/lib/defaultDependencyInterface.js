@@ -163,16 +163,14 @@ export function defaultDependencyInterfaceCreator(causality) {
       recordDependency(observer, handler._enumerateObservers);
     },
 
-    recordDependencyOnProperty: (observer, handler, key) => {   
+    recordDependencyOnProperty: (observer, handler, key) => {
       // Note: if key == toString this will break!!!
       if (key === "toString") return;
-      if (typeof(handler._propertyObservers) ===  'undefined') {
-        handler._propertyObservers = {};
+      const writing = causality.getOrCreateTimelineWriting(handler, key);
+      if (writing.observers === null) {
+        writing.observers = createObserverSet("propertyDependees", key, handler);
       }
-      if (typeof(handler._propertyObservers[key]) ===  'undefined') {
-        handler._propertyObservers[key] = createObserverSet("propertyDependees", key, handler);
-      }
-      recordDependency(observer, handler._propertyObservers[key], key);
+      recordDependency(observer, writing.observers, key);
     },
 
     invalidateArrayObservers: (handler, key) => {  
@@ -182,9 +180,9 @@ export function defaultDependencyInterfaceCreator(causality) {
     },
 
     invalidatePropertyObservers: (handler, key) => {
-      if (typeof(handler._propertyObservers) !== 'undefined' &&
-          typeof(handler._propertyObservers[key]) !== 'undefined') {
-        invalidateObservers(handler._propertyObservers[key], handler.proxy, key);
+      const timeline = handler.timelines[key];
+      if (typeof(timeline) !== 'undefined' && timeline.first.observers !== null) {
+        invalidateObservers(timeline.first.observers, handler.proxy, key);
       }
     },
 

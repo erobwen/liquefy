@@ -86,6 +86,12 @@ function createWorld(configuration) {
     revalidationLevelLock: -1,
   };
 
+  // Reserved key for each object handler's enumeration timeline (tracks
+  // "who enumerated this object's keys", invalidated when a property is
+  // defined or removed). A Symbol so it can never collide with a real
+  // property name inside handler.timelines.
+  const enumerationTimelineKey = Symbol("timelines.enumeration");
+
 
   /************************************************************************
    *
@@ -135,6 +141,8 @@ function createWorld(configuration) {
     leaveContext,
     invalidateObserver,
     getOrCreateTimelineWriting,
+    getOrCreateEnumerationTimelineWriting,
+    enumerationTimelineKey,
     proceedWithPostponedInvalidations, 
     nextObserverId: () => { return state.observerId++ },
 
@@ -641,13 +649,26 @@ function createWorld(configuration) {
    *  single writing (first === last, time === 0); this is here to
    *  prepare for real multi-version timelines later.
    *
+   *  A writing represents either a set (`set: true`, carrying a value,
+   *  which may itself be `undefined`) or an unset (`set: false`) - i.e.
+   *  "no value" is a distinct writing kind, not just an absent/missing
+   *  value, so that an explicit `obj.a = undefined` can be told apart
+   *  from `obj.a` never having been assigned, or having been deleted.
+   *
+   *  Besides one timeline per property, each handler also gets a single
+   *  reserved enumeration timeline (keyed by `enumerationTimelineKey`, a
+   *  Symbol so it can never collide with a real property name) whose
+   *  writing only ever carries observers, never a value - it exists
+   *  purely to track "who enumerated this object's keys" so they can be
+   *  invalidated when a property is defined or removed.
+   *
    ***************************************************************/
 
   function createTimelineWriting() {
     return {
       time: 0,
       value: undefined,
-      written: false,
+      set: false,
       observers: null,
       next: null,
       previous: null,
@@ -676,6 +697,10 @@ function createWorld(configuration) {
     return getOrCreateTimeline(handler, key).first;
   }
 
+  function getOrCreateEnumerationTimelineWriting(handler) {
+    return getOrCreateTimeline(handler, enumerationTimelineKey).first;
+  }
+
   // Move an object literal's own data properties into timelines, leaving
   // accessor properties (getters/setters) and methods (function values,
   // e.g. onChange/onDispose/onEstablish hooks) untouched on target.
@@ -691,7 +716,7 @@ function createWorld(configuration) {
       delete target[key];
       const writing = getOrCreateTimelineWriting(handler, key);
       writing.value = descriptor.value;
-      writing.written = true;
+      writing.set = true;
     });
   }
 
@@ -733,7 +758,7 @@ function createWorld(configuration) {
     }
 
     const timeline = this.timelines[key];
-    if (typeof(timeline) !== 'undefined' && timeline.first.written) {
+    if (typeof(timeline) !== 'undefined' && timeline.first.set) {
       return timeline.first.value;
     }
     return target[key];
@@ -768,16 +793,16 @@ function createWorld(configuration) {
     }
 
     const writing = getOrCreateTimelineWriting(this, key);
-    const undefinedKey = !writing.written;
+    const undefinedKey = !writing.set;
     const previousValue = writing.value;
 
     // If same value as already set, do nothing.
-    if (writing.written && sameAsPrevious(previousValue, value)) {
+    if (writing.set && sameAsPrevious(previousValue, value)) {
       return true;
     } // TODO: It would be even safer if we write protected non observable data structures that are assigned, if we are using mode: useNonObservablesAsValues
 
     writing.value = value;
-    writing.written = true;
+    writing.set = true;
 
     invalidatePropertyObservers(this, key);
     if (undefinedKey) invalidateEnumerateObservers(this, key);
@@ -800,7 +825,7 @@ function createWorld(configuration) {
     }
 
     const timeline = this.timelines[key];
-    const timelineHasValue = typeof(timeline) !== 'undefined' && timeline.first.written;
+    const timelineHasValue = typeof(timeline) !== 'undefined' && timeline.first.set;
 
     if (!timelineHasValue && !(key in target)) {
       return true;
@@ -810,7 +835,7 @@ function createWorld(configuration) {
     if (timelineHasValue) {
       previousValue = timeline.first.value;
       timeline.first.value = undefined;
-      timeline.first.written = false;
+      timeline.first.set = false;
     } else {
       previousValue = target[key];
       delete target[key];
@@ -838,7 +863,7 @@ function createWorld(configuration) {
 
     let keys = Object.keys(target);
     for (let timelineKey in this.timelines) {
-      if (this.timelines[timelineKey].first.written && keys.indexOf(timelineKey) === -1) {
+      if (this.timelines[timelineKey].first.set && keys.indexOf(timelineKey) === -1) {
         keys.push(timelineKey);
       }
     }
@@ -858,7 +883,7 @@ function createWorld(configuration) {
 
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
     const timeline = this.timelines[key];
-    if (typeof(timeline) !== 'undefined' && timeline.first.written) return true;
+    if (typeof(timeline) !== 'undefined' && timeline.first.set) return true;
     return key in target;
   }
 
@@ -892,7 +917,7 @@ function createWorld(configuration) {
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     if (typeof(descriptor) !== 'undefined') return descriptor;
     const timeline = this.timelines[key];
-    if (typeof(timeline) !== 'undefined' && timeline.first.written) {
+    if (typeof(timeline) !== 'undefined' && timeline.first.set) {
       return {
         value: timeline.first.value,
         writable: true,
@@ -1551,10 +1576,18 @@ function createWorld(configuration) {
       // }
 
       // Translate references
+      // TODO(timelines): since observable() moves plain data properties off of
+      // `target` and into `handler.timelines`, this raw-target walk (and any
+      // user-supplied translateReferences(target, ...)) now only sees
+      // properties that were never virtualized (accessors, methods). Real
+      // data properties on `target` are gone, so reference translation for
+      // rebuildShapeAnalysis is currently broken/incomplete for ordinary
+      // object properties. Needs to walk the proxy (or timelines) instead
+      // of the raw target once this path is revisited.
       for(let id in repeater.newIdObjectShapeMap) {
         let object = repeater.newIdObjectShapeMap[id];
         let target;
-        const temporaryObject = object[objectMetaProperty].forwardTo; 
+        const temporaryObject = object[objectMetaProperty].forwardTo;
         if (temporaryObject) {
           target = temporaryObject[objectMetaProperty].target;
         } else {

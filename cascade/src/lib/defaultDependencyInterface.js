@@ -157,10 +157,11 @@ export function defaultDependencyInterfaceCreator(causality) {
     },
 
     recordDependencyOnEnumeration: (observer, handler) => {
-      if (typeof(handler._enumerateObservers) === 'undefined') {
-        handler._enumerateObservers = createObserverSet("enumerationDependees", handler);
+      const writing = causality.getOrCreateEnumerationTimelineWriting(handler);
+      if (writing.observers === null) {
+        writing.observers = createObserverSet("enumerationDependees", handler);
       }
-      recordDependency(observer, handler._enumerateObservers);
+      recordDependency(observer, writing.observers);
     },
 
     recordDependencyOnProperty: (observer, handler, key) => {
@@ -187,10 +188,11 @@ export function defaultDependencyInterfaceCreator(causality) {
     },
 
     invalidateEnumerateObservers: (handler, key) => {
-      if (typeof(handler._enumerateObservers) !== 'undefined') {
-        invalidateObservers(handler._enumerateObservers, handler.proxy, key);
+      const timeline = handler.timelines[causality.enumerationTimelineKey];
+      if (typeof(timeline) !== 'undefined' && timeline.first.observers !== null) {
+        invalidateObservers(timeline.first.observers, handler.proxy, key);
       }
-    }, 
+    },
 
     removeAllSources: (observer) => {
       const observerId = observer.id;

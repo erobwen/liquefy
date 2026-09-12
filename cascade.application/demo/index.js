@@ -8,9 +8,19 @@ import { DOMTarget, DOMComponent } from "@liquefy/cascade.dom";
  * down to what's below it via a RenderContext (usableWidth/usableHeight),
  * rather than building an abstract tree first and reconciling bounds in a
  * second pass (see flow.application/demo/src/ApplicationMenuFrame.js for
- * the shape being replicated, and cascade.DOM/src/test/menuFrame.js for
- * the jsdom-based proof of the same mechanism).
+ * the shape being replicated, and cascade.DOM/src/test/menuFrame.js /
+ * menuFrameModal.js for the jsdom-based proof of the same mechanisms).
+ *
+ * The menu also replicates ApplicationMenuFrame's responsive breakpoint:
+ * docked as a side panel when there's enough width, or hidden behind a
+ * hamburger toggle and shown as an overlay when the window is narrow.
+ * Crossing that breakpoint is a genuinely structural change - the menu is
+ * a docked child one moment, entirely un-rendered (retracted, including
+ * its real DOM element - see DOMComponent.onRetract()) the next - not
+ * just a CSS visibility toggle.
  */
+
+const MENU_WIDTH = 220;
 
 class Toolbar extends DOMComponent {
   renderElement(context, existingElement) {
@@ -30,8 +40,19 @@ class Menu extends DOMComponent {
     el.className = "menu";
     el.textContent = "Menu";
     el.style.cssText =
-      "width: 220px; box-sizing: border-box; padding: 16px; " +
-      "background: #34495e; color: white; flex: none;";
+      "width: " + MENU_WIDTH + "px; box-sizing: border-box; padding: 16px; " +
+      "background: #34495e; color: white; height: 100%;";
+    if (context.menuIsOverlay) {
+      el.style.position = "absolute";
+      el.style.top = "0";
+      el.style.left = "0";
+      el.style.zIndex = "10";
+      el.style.boxShadow = "2px 0 8px rgba(0,0,0,0.3)";
+    } else {
+      el.style.position = "static";
+      el.style.boxShadow = "none";
+      el.style.flex = "none";
+    }
     return el;
   }
 }
@@ -51,18 +72,37 @@ class WorkArea extends DOMComponent {
   }
 }
 
+class HamburgerButton extends DOMComponent {
+  constructor(onClick) {
+    super();
+    this.onClick = onClick;
+  }
+
+  renderElement(context, existingElement) {
+    const el = existingElement || context.target.appendElement("button");
+    el.textContent = "☰";
+    el.style.cssText =
+      "position: absolute; top: 8px; left: 8px; z-index: 20; width: 32px; height: 32px; " +
+      "border: none; border-radius: 4px; background: #2c3e50; color: white; cursor: pointer;";
+    el.onclick = this.onClick;
+    return el;
+  }
+}
+
 class MenuFrame extends DOMComponent {
   constructor(menu, workArea) {
     super();
     this.menu = menu;
     this.workArea = workArea;
+    this.menuOpen = false;
+    this.hamburger = new HamburgerButton(() => { this.menuOpen = !this.menuOpen; });
   }
 
   renderElement(context, existingElement) {
     const u = this.unobservable;
     const el = existingElement || context.target.appendElement("div");
     el.className = "menu-frame";
-    el.style.cssText = "display: flex; flex-direction: row; box-sizing: border-box;";
+    el.style.cssText = "position: relative; display: flex; flex-direction: row; box-sizing: border-box; overflow: hidden;";
     el.style.width = context.usableWidth + "px";
     el.style.height = context.usableHeight + "px";
 
@@ -70,17 +110,30 @@ class MenuFrame extends DOMComponent {
       u.innerContext = new RenderContext(DOMTarget.forElement(el));
     }
 
-    this.menu.renderOnto(u.innerContext);
+    // Real measurement drives the breakpoint decision, same as everywhere
+    // else in this demo - not a CSS media query.
+    const menuIsModal = context.usableWidth < MENU_WIDTH * 3;
+    u.innerContext.menuIsOverlay = menuIsModal;
 
-    // Real measurement of the menu's actual rendered width, right now, in
-    // this browser - the work area gets exactly what's left, the same
-    // way the content area got what was left after the toolbar's height
-    // in the simpler version of this demo.
-    const menuWidth = this.menu.unobservable.element.getBoundingClientRect().width;
-    u.innerContext.usableWidth = context.usableWidth - menuWidth;
-    u.innerContext.usableHeight = context.usableHeight;
-
-    this.workArea.renderOnto(u.innerContext);
+    if (menuIsModal) {
+      this.hamburger.renderOnto(u.innerContext);
+      u.innerContext.usableWidth = context.usableWidth;
+      u.innerContext.usableHeight = context.usableHeight;
+      this.workArea.renderOnto(u.innerContext);
+      if (this.menuOpen) {
+        this.menu.renderOnto(u.innerContext);
+      }
+      // else: not rendered at all this pass - retracted (real DOM element
+      // removed too) if it was previously docked or previously open.
+    } else {
+      // Hamburger not needed docked - never rendered, or retracted if it
+      // was previously rendered while modal.
+      this.menu.renderOnto(u.innerContext);
+      const menuWidth = this.menu.unobservable.element.getBoundingClientRect().width;
+      u.innerContext.usableWidth = context.usableWidth - menuWidth;
+      u.innerContext.usableHeight = context.usableHeight;
+      this.workArea.renderOnto(u.innerContext);
+    }
 
     return el;
   }
@@ -131,7 +184,9 @@ mainFrame.renderOnto(context);
 // usableWidth/usableHeight into the same persistent context objects, and
 // only whichever descendants actually depend on a value that changed
 // rerun and re-render - ordinary reactive invalidation, not a special
-// "notify children" call.
+// "notify children" call. This is also what drives the modal/docked
+// breakpoint - shrink the window below 660px to see the menu retract
+// behind the hamburger button, then grow it back to see it dock again.
 window.addEventListener("resize", () => {
   mainFrame.unobservable.repeater.restart();
 });

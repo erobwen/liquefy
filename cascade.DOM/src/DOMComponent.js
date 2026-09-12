@@ -32,4 +32,24 @@ export class DOMComponent extends Component {
   renderElement(context, existingElement) {
     throw new Error(this.constructor.name + " must implement renderElement(context, existingElement)");
   }
+
+  // Cascade's own retraction (see Component.onRetract()) cleans up
+  // reactive state - writings, timelines - but has no idea a real DOM
+  // node exists at all. Without this, a component that stops being
+  // renderOnto()'d (e.g. crossing a responsive breakpoint - see
+  // cascade.DOM/src/test/menuFrameModal.js) would be correctly retracted
+  // on the reactive side while its element just sits there, orphaned,
+  // still fully attached to the DOM.
+  onRetract() {
+    if (this.unobservable.element) this.unobservable.element.remove();
+  }
+
+  // The other half: if this component is renderOnto()'d again later
+  // (crossing back over the same breakpoint, say), relinking reuses the
+  // existing repeater without rerunning render() - so nothing else would
+  // ever put the element back. Put it back at the current position, the
+  // same way appendElement would for a brand new one.
+  onReattach(context) {
+    if (this.unobservable.element) context.target.reattachElement(this.unobservable.element);
+  }
 }

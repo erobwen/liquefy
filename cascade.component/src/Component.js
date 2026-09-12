@@ -133,9 +133,51 @@ export class Component {
   renderOnto(context) {
     const u = this.unobservable;
     if (u.repeater) {
+      // A repeater that was genuinely retracted (not renderOnto()'d some
+      // prior run) stays fully intact and re-linkable - see
+      // docs/plan-partial-repeaters.md - but relinking never re-executes
+      // render(), so nothing else will redo whatever onRetract() undid.
+      const wasRetracted = u.repeater.retracted;
       linkRepeater(u.repeater);
+      if (wasRetracted) {
+        // onReattach() is one missing half - the one moment to redo
+        // whatever onRetract() undid, caught here before the retracted
+        // flag itself gets cleared by the relink above.
+        this.onReattach(context);
+        // The other half: retraction clears this component's own read
+        // dependencies entirely (removeAllSources, as part of the same
+        // retraction that called onRetract()). Anything it used to depend
+        // on could easily have changed while it wasn't watching - "just
+        // relink, assume nothing changed" is only valid for a repeater
+        // that was never actually retracted in between. So force a real
+        // rerun rather than trust stale results computed against
+        // whatever those dependencies happened to be last time.
+        u.repeater.restart();
+      }
     } else {
-      u.repeater = repeat(() => this.render(context));
+      u.repeater = repeat(() => this.render(context), { onRetract: () => this.onRetract() });
     }
   }
+
+  // Override: called each time this component's repeater is genuinely
+  // retracted - simply not renderOnto()'d some run (see the
+  // retract/reconcile discussion in docs/plan-partial-repeaters.md,
+  // cascade.reactive). Clean up whatever side effect the reactive system
+  // itself has no visibility into (a real DOM node parented outside any
+  // observable, a subscription, ...) - see cascade.DOM's DOMComponent for
+  // the concrete case (removing its own element). No-op by default: a
+  // component with no such side effects doesn't need to override this.
+  // If it's later renderOnto()'d again, retraction being fully reversible
+  // is exactly the point (see onReattach() below) - this can fire more
+  // than once over a component's lifetime.
+  onRetract() {}
+
+  // Override: the other half of onRetract() - called when this component
+  // is renderOnto()'d again after having been retracted, right as it's
+  // relinked (never on an ordinary rerun or a first-ever render). Redo
+  // whatever onRetract() undid - see cascade.DOM's DOMComponent, which
+  // re-inserts its own element (removed by onRetract()) since relinking
+  // itself never re-executes render() to do it another way. No-op by
+  // default.
+  onReattach(context) {}
 }

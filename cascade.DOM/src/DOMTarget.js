@@ -33,10 +33,19 @@ export class DOMTarget {
   // renders next (later in tree order) sees it. Returns the new element.
   appendElement(tagName) {
     const newElement = document.createElement(tagName);
-    const referenceNode = this.lastChild ? this.lastChild.nextSibling : this.element.firstChild;
-    this.element.insertBefore(newElement, referenceNode);
-    this.lastChild = newElement;
+    this.reattachElement(newElement);
     return newElement;
+  }
+
+  // Same positioning as appendElement, but for an *existing* element
+  // rather than a fresh one - see DOMComponent.onReattach(): a component
+  // relinked after being retracted needs its own previously-removed
+  // element put back, without rerunning render() (relinking never does)
+  // to create a new one.
+  reattachElement(element) {
+    const referenceNode = this.lastChild ? this.lastChild.nextSibling : this.element.firstChild;
+    this.element.insertBefore(element, referenceNode);
+    this.lastChild = element;
   }
 
   // A target for rendering into a specific real element - typically a

@@ -29,7 +29,7 @@
     "@liquefy/causality": "file:../../causality",
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/basic-ui": "file:../../ui/basic",
-    "@liquefy/ui-material": "file:../../ui/material"
+    "@liquefy/basic-ui": "file:../../flow.ui/basic",
+    "@liquefy/ui-material": "file:../../flow.ui/material"
   }
 }

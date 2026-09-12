@@ -26,13 +26,13 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
-    "@liquefy/basic-ui": "file:../../ui/basic",
+    "@liquefy/basic-ui": "file:../../flow.ui/basic",
     "@liquefy/causality": "file:../../causality",
     "@liquefy/flow": "file:../../flow",
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/themed-ui": "file:../../ui/themed",
-    "@liquefy/ui-material": "file:../../ui/material",
+    "@liquefy/themed-ui": "file:../../flow.ui/themed",
+    "@liquefy/ui-material": "file:../../flow.ui/material",
     "highlight.js": "^11.11.1"
   }
 }

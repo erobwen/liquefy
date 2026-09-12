@@ -25,7 +25,7 @@
   "peerDependencies": {
     "@liquefy/flow.core": "file:../../flow.core",
     "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/basic-ui": "file:../../ui/basic",
+    "@liquefy/basic-ui": "file:../../flow.ui/basic",
     "@liquefy/causality": "file:../../causality",
     "@liquefy/flow": "file:../../flow",
     "@material/web": "^2.2.0",

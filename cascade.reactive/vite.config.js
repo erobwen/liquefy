@@ -5,10 +5,10 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [],
   build: {
-    minify: false,
+    minify: true,
     lib: {
-      entry: resolve(__dirname, 'index.js'),
-      name: "cascade"
-    }
+      entry: resolve(__dirname, 'src/cascade.js'),
+      name: "@liquefy/cascade.reactive"
+    },
   }
 })

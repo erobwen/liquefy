@@ -1,0 +1,29 @@
+{
+  "name": "@liquefy/cascade-demo",
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "version": "1.0.0",
+  "description": "A real-browser benchmark for cascade.component/cascade.DOM's real-time renderOnto model: a toolbar and a main frame, measured for real and passed down to a content area.",
+  "type": "module",
+  "module": "./index.js",
+  "scripts": {
+    "start": "vite --debug",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erobwen/liquefy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "devDependencies": {
+    "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "@liquefy/cascade.reactive": "file:../../cascade.reactive",
+    "@liquefy/cascade.component": "file:../../cascade.component",
+    "@liquefy/cascade.dom": "file:../../cascade.DOM"
+  }
+}

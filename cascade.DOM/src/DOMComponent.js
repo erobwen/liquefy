@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 
 /**
- * DOMComponent: a cascade.component Component whose render(target) owns
+ * DOMComponent: a cascade.component Component whose render(context) owns
  * exactly one real DOM element, reused (not recreated) across reruns.
  *
  * A rerun's own reactive reads/writes get reconciled automatically by
@@ -18,15 +18,18 @@ import { Component } from "@liquefy/cascade.component";
  * usual case) or make a new one (e.g. its tag needs to change).
  */
 export class DOMComponent extends Component {
-  render(target) {
+  render(context) {
     const u = this.unobservable;
-    u.element = this.renderElement(target, u.element || null);
+    u.element = this.renderElement(context, u.element || null);
   }
 
   // Override: reuse `existingElement` (patching it in place) if given, or
-  // create one via target.appendElement(tagName) if not - either way,
-  // configure and return it.
-  renderElement(target, existingElement) {
-    throw new Error(this.constructor.name + " must implement renderElement(target, existingElement)");
+  // create one via context.target.appendElement(tagName) if not - either
+  // way, configure and return it. `context` is whatever was passed to
+  // renderOnto() - typically a RenderContext, so context.target is the
+  // DOMTarget to manipulate and any other fields (e.g. spaceLeft) are
+  // situational information from the parent, if it chose to pass any.
+  renderElement(context, existingElement) {
+    throw new Error(this.constructor.name + " must implement renderElement(context, existingElement)");
   }
 }

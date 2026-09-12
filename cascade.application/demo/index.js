@@ -2,12 +2,14 @@ import { RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget, DOMComponent } from "@liquefy/cascade.dom";
 
 /**
- * Benchmark for the real-time renderOnto model: the main frame renders the
- * toolbar, takes a real getBoundingClientRect() measurement of the actual
- * rendered DOM, and hands the remaining space down to the content area via
- * a RenderContext - the exact scenario cascade.DOM's own (jsdom-based,
- * simulated-measurement) test proves abstractly. This is the same thing,
- * with a real browser actually doing the layout.
+ * Benchmark for the real-time renderOnto model, replicating flow's own
+ * demo app one piece at a time: a top toolbar, a left menu, and a main
+ * work area - each level measuring the real DOM and handing usable space
+ * down to what's below it via a RenderContext (usableWidth/usableHeight),
+ * rather than building an abstract tree first and reconciling bounds in a
+ * second pass (see flow.application/demo/src/ApplicationMenuFrame.js for
+ * the shape being replicated, and cascade.DOM/src/test/menuFrame.js for
+ * the jsdom-based proof of the same mechanism).
  */
 
 class Toolbar extends DOMComponent {
@@ -22,23 +24,73 @@ class Toolbar extends DOMComponent {
   }
 }
 
-class ContentArea extends DOMComponent {
+class Menu extends DOMComponent {
   renderElement(context, existingElement) {
     const el = existingElement || context.target.appendElement("div");
-    el.className = "content";
+    el.className = "menu";
+    el.textContent = "Menu";
+    el.style.cssText =
+      "width: 220px; box-sizing: border-box; padding: 16px; " +
+      "background: #34495e; color: white; flex: none;";
+    return el;
+  }
+}
+
+class WorkArea extends DOMComponent {
+  renderElement(context, existingElement) {
+    const el = existingElement || context.target.appendElement("div");
+    el.className = "work-area";
     el.style.cssText =
       "box-sizing: border-box; padding: 16px; background: #ecf0f1; overflow: auto;";
-    el.style.height = context.spaceLeft + "px";
-    el.textContent = "Space left for content, measured for real: " + Math.round(context.spaceLeft) + "px. Resize the window to see it update.";
+    el.style.width = context.usableWidth + "px";
+    el.style.height = context.usableHeight + "px";
+    el.textContent =
+      "Usable area, measured for real: " + Math.round(context.usableWidth) +
+      " x " + Math.round(context.usableHeight) + "px. Resize the window to see it update.";
+    return el;
+  }
+}
+
+class MenuFrame extends DOMComponent {
+  constructor(menu, workArea) {
+    super();
+    this.menu = menu;
+    this.workArea = workArea;
+  }
+
+  renderElement(context, existingElement) {
+    const u = this.unobservable;
+    const el = existingElement || context.target.appendElement("div");
+    el.className = "menu-frame";
+    el.style.cssText = "display: flex; flex-direction: row; box-sizing: border-box;";
+    el.style.width = context.usableWidth + "px";
+    el.style.height = context.usableHeight + "px";
+
+    if (!u.innerContext) {
+      u.innerContext = new RenderContext(DOMTarget.forElement(el));
+    }
+
+    this.menu.renderOnto(u.innerContext);
+
+    // Real measurement of the menu's actual rendered width, right now, in
+    // this browser - the work area gets exactly what's left, the same
+    // way the content area got what was left after the toolbar's height
+    // in the simpler version of this demo.
+    const menuWidth = this.menu.unobservable.element.getBoundingClientRect().width;
+    u.innerContext.usableWidth = context.usableWidth - menuWidth;
+    u.innerContext.usableHeight = context.usableHeight;
+
+    this.workArea.renderOnto(u.innerContext);
+
     return el;
   }
 }
 
 class MainFrame extends DOMComponent {
-  constructor(toolbar, contentArea) {
+  constructor(toolbar, menuFrame) {
     super();
     this.toolbar = toolbar;
-    this.contentArea = contentArea;
+    this.menuFrame = menuFrame;
   }
 
   renderElement(context, existingElement) {
@@ -58,15 +110,12 @@ class MainFrame extends DOMComponent {
 
     this.toolbar.renderOnto(u.innerContext);
 
-    // Real measurement - this is the whole point of rendering directly
-    // onto the real DOM instead of building an abstract tree first: the
-    // toolbar's actual rendered height, right now, in this browser, at
-    // this window size.
     const toolbarHeight = this.toolbar.unobservable.element.getBoundingClientRect().height;
-    const totalHeight = el.getBoundingClientRect().height;
-    u.innerContext.spaceLeft = totalHeight - toolbarHeight;
+    const totalRect = el.getBoundingClientRect();
+    u.innerContext.usableWidth = totalRect.width;
+    u.innerContext.usableHeight = totalRect.height - toolbarHeight;
 
-    this.contentArea.renderOnto(u.innerContext);
+    this.menuFrame.renderOnto(u.innerContext);
 
     return el;
   }
@@ -74,13 +123,14 @@ class MainFrame extends DOMComponent {
 
 const target = new DOMTarget(document.getElementById("application"));
 const context = new RenderContext(target);
-const mainFrame = new MainFrame(new Toolbar(), new ContentArea());
+const mainFrame = new MainFrame(new Toolbar(), new MenuFrame(new Menu(), new WorkArea()));
 mainFrame.renderOnto(context);
 
 // Proves the reactivity is real, not just a one-time snapshot: resizing
-// the window re-measures, writes a (likely) different spaceLeft into the
-// same persistent context object, and the content area reruns and
-// re-renders on its own - an ordinary reactive invalidation, not a special
+// the window re-measures at every level, writes a (likely) different
+// usableWidth/usableHeight into the same persistent context objects, and
+// only whichever descendants actually depend on a value that changed
+// rerun and re-render - ordinary reactive invalidation, not a special
 // "notify children" call.
 window.addEventListener("resize", () => {
   mainFrame.unobservable.repeater.restart();

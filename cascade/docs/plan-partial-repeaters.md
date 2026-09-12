@@ -123,16 +123,11 @@ if they come from different root trees, compare root `time` numbers as
 today; if they share a root, walk down to find where the trees diverge and
 compare position there.
 
-For now: "a really stupid solution" for time comparison - tree traversal,
-no optimization. A `writing.time` plain number is no longer sufficient;
-writings need to reference the repeater/partial that actually wrote them
-(`writing.writer` or similar), with comparison done via that reference
-rather than numeric `<=`. Not implemented yet - step 1 only introduced
-partials that inherit their repeater's own flat time unchanged.
-
-Future optimization (explicitly deferred): a chain across all leaves with
-assigned comparison values for fast order-maintenance-style comparison,
-once tree traversal actually becomes a bottleneck.
+Originally built as "a really stupid solution" - plain O(depth) tree
+traversal on every comparison, no optimization, on the theory that
+correctness should land before speed. **Since replaced** (see "Step 6"
+below) by O(1)-comparable order numbers, once the tree-walk version was
+working and it was clear what shape the optimization needed to fit.
 
 ## Open question carried over: same-time writers
 
@@ -356,20 +351,88 @@ a repeater has multiple partials competing for tree position, or a sibling
 can be invalidated mid-cascade and read before it gets its own turn to
 refresh - both new possibilities this step introduced.
 
+**Step 6 (done): O(1) tree-position comparison, replacing the tree walk.**
+`writerPathToRoot`/`compareSiblingOrder` (the O(depth) traversal from step
+4) are gone; `compareWriterOrder` now compares two partials via a single
+`orderNumber` subtraction. This is the classic order-maintenance problem
+(Dietz & Sleator's "maintaining order in a list", simplified by Bender et
+al.) applied to repeater execution order:
+
+- Every root repeater owns a `chainHead` (`count`, `first`/`last`,
+  `executionCursor`), inherited once by every descendant at creation time
+  (`repeat()`, before its first `refresh()` - too early for the existing
+  `attachToCurrentParent()` assignment, which only runs after) and never
+  reassigned after that.
+- Every partial gets an `orderNumber` plus `orderNext`/`orderPrevious` -
+  its own chain-list pointers, distinct from the structural
+  `nextSibling`/`previousSibling` used for reconciliation.
+- A **reconciled** partial (the common case - a rerun without structural
+  change) inherits its predecessor's exact chain slot
+  (`inheritOrderChainNode`): no renumbering, no count change, just a
+  reference swap, the same shape as the `writing.writer` reassignment from
+  step 5. A **genuinely new** partial gets inserted
+  (`insertPartialIntoChain`) immediately after `chainHead.executionCursor`
+  - correct with no search at all, because execution within one root tree
+  is always synchronous and depth-first, so "whatever ran right before
+  this" really is the right predecessor. `attachToCurrentParent()` also
+  advances the cursor to a child's `rightmostPartial` whenever it attaches
+  that child, whether or not the child itself just reran - needed because
+  `rightmostPartial` (unlike `currentPartial`) is never nulled by
+  `dispose()`, so it stays correct through the dispose-to-refresh gap.
+- Insertion between two existing neighbors uses a small spacer step
+  (large while the chain is nearly empty, shrinking in coarse tiers as
+  `count / MAXINT` rises - `chainSpacerFor`), falling back to bisection.
+  If that leaves adjacent order numbers with no gap, `releaseChainPressure`
+  (a pressure-release "blast") widens a window around the new partial -
+  expanding whichever side has the smaller delta, stopping once the window
+  is at most half-full or `configuration.chainBlastRadius` nodes have been
+  visited - and spreads that window evenly across the interval it spans.
+  If the forward side runs off the real end of the chain, its bound
+  becomes `MAXINT` instead of a real neighbor, which satisfies the density
+  condition immediately - so a dense region eventually vents into the
+  huge unused range past the current tail, without needing a special case
+  for it. `removePartialFromChain` is the exact inverse, called when a
+  partial is genuinely retracted, freeing its number for reuse.
+- Capacity: `Partials * 2 + 1 = MAXINT` (`Number.MAX_SAFE_INTEGER`, not
+  BigInt - already far beyond any realistic count) is the densest possible
+  packing that still leaves one free slot between every neighbor;
+  `insertPartialIntoChain` throws rather than silently violate that if
+  it's ever actually reached.
+- Cross-tree comparison (two writers with different `chainHead`s) has no
+  real relative position at all - falls back to a stable id assigned to
+  each `chainHead` at creation, same spirit as the old root-id fallback,
+  just keyed off the chain instead of walking to find the root.
+
+Verified with a dedicated stress test
+(`src/test/partial-chain-order.js`): a parent repeatedly inserts a
+brand-new child immediately before a fixed, never-moving anchor, forcing
+the gap before that anchor to bisect smaller each time until it triggers
+a blast - with `chainBlastRadius` set deliberately tiny (4) to make this
+cheap to trigger. Each inserted child records what it read at the moment
+it was created (never rerun after, only relinked), so a corrupted order
+would show up as some child seeing the wrong predecessor's value. 24
+insertions triggered 12 blasts in that run; every child still saw exactly
+what it should have.
+
 ## Status
 
 Done: single-default-partial (step 1), real child creation/`linkRepeater`/
 child-level reconciliation (step 2), `unobservable` bookkeeping (step 3),
-tree-based time (step 4), per-partial writing-level reconciliation on
-rerun (step 5). 46/46 tests pass, including all four `renderOnto.js`
-cases.
+tree-based time via O(depth) tree-walk (step 4, since superseded),
+per-partial writing-level reconciliation on rerun (step 5), O(1)
+order-number comparison replacing the tree-walk (step 6). 47/47 tests
+pass, including all four `renderOnto.js` cases and the dedicated
+partial-chain-order stress test.
 
 Explicitly deferred, not needed by any concrete case yet:
 - Same-time writers from *different* root trees (two independent
   top-level repeaters colliding on the same declared time and property) -
-  still just a stable `id`-based fallback, per
+  still just a stable id-based fallback (now the two chains' own ids,
+  rather than the root repeaters' ids), per
   `docs/plan-time-aware-timelines.md`.
-- Order-maintenance-style fast comparison for tree position, if plain
-  tree-walking ever becomes a measured bottleneck.
+- A level-dependent density threshold for pressure release (the tighter
+  bound from the order-maintenance literature) instead of the current
+  fixed 1/2 - only worth adding if a real workload shows the simpler
+  version relabeling too often.
 - `getResult`/`getInput` explicit time-override wrappers for external
   code.

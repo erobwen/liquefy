@@ -20,7 +20,13 @@ const defaultConfiguration = {
   warnOnNestedRepeater: true,
   alwaysDependOnParentRepeater: false,
 
-  timeLevels: 4, 
+  timeLevels: 4,
+
+  // How many neighbors a partial-chain pressure-release blast will visit
+  // (see releaseChainPressure() / docs/plan-partial-repeaters.md) before
+  // giving up on reaching the ideal density and just redistributing
+  // whatever it's collected so far.
+  chainBlastRadius: 10,
 
   objectMetaProperty: "causality",
   objectTimelinesProperty: "timelines",
@@ -723,7 +729,7 @@ function createWorld(configuration) {
 
   /***************************************************************
    *
-   *  Time as tree position
+   *  Time as tree position - via O(1)-comparable order numbers
    *
    *  Repeaters form a forest: independent top-level repeaters each have a
    *  flat declared `time` (stage1/stage2/etc.), but a repeater created *as
@@ -732,81 +738,226 @@ function createWorld(configuration) {
    *  children subdivide. Two writings/positions are compared by their
    *  declared `time` number first; only when those are equal (a parent and
    *  child sharing a level, most commonly both defaulting to 0) does tree
-   *  position break the tie. "Stupid" by design for now: plain tree
-   *  traversal, no order-maintenance optimization - see
-   *  docs/plan-partial-repeaters.md.
+   *  position break the tie.
+   *
+   *  Tree position used to mean literally walking each writer up to its
+   *  root and comparing paths - correct, but O(depth) per comparison, on
+   *  every read/write. Instead, every partial gets a single `orderNumber`
+   *  within its root repeater's "partial chain" - a total order maintained
+   *  incrementally as partials are created, so any two partials sharing a
+   *  chain compare in O(1) via plain subtraction. This is the classic
+   *  order-maintenance problem (Dietz & Sleator's "maintaining order in a
+   *  list", simplified by Bender et al.) applied to repeater execution
+   *  order instead of a plain list - see docs/plan-partial-repeaters.md.
    *
    ***************************************************************/
 
-  // Path from `writer` (a partial, or null for external) up to its
-  // top-level root, deepest first: [writer, writer's repeater, that
-  // repeater's parentRepeater, ...] up to a repeater with no parent.
-  function writerPathToRoot(writer) {
-    const path = [];
-    let node = writer;
-    while (node) {
-      path.push(node);
-      node = (node.type === "partial") ? node.repeater : node.parentRepeater;
-    }
-    return path;
+  // Every root repeater (no parent) owns one of these; every repeater
+  // inherits its root's chainHead once, at creation time, and keeps it for
+  // life - see repeat(). `id` is a stable, arbitrary tiebreaker for the
+  // rare case of comparing writers from two entirely different root trees,
+  // which have no real relative position at all beyond "consistently one
+  // way or the other" (the "same-time writers" question from
+  // docs/plan-time-aware-timelines.md - not solved here, just kept stable).
+  function createChainHead() {
+    return {
+      id: state.observerId++,
+      count: 0,          // live partials currently occupying a chain slot
+      first: null,        // lowest orderNumber
+      last: null,          // highest orderNumber
+      // The most recently activated partial anywhere in this chain - an
+      // O(1) predecessor for the next brand-new insertion, valid because
+      // execution within one root tree is always synchronous and
+      // depth-first (see createNextPartial()/attachToCurrentParent()).
+      executionCursor: null,
+    };
   }
 
-  // Which of `nodeA`/`nodeB` (both direct children - partials or repeaters -
-  // of `parentRepeater`) comes first in its children list. Checks both
-  // `children` and `pendingChildren`, since a node can transiently sit in
-  // either mid-reconciliation. If one of them isn't found in either list at
-  // all (a stale reference to a partial from an already-finalized past run
-  // of the same repeater - see findExactWriting), treats them as equal
-  // rather than guessing an order - only a node that's actually still
-  // somewhere in the tree can be sensibly ordered against another.
-  function compareSiblingOrder(parentRepeater, nodeA, nodeB) {
-    let foundA = false;
-    let foundB = false;
-    let list = parentRepeater.children.first;
-    while (list !== null) {
-      if (list === nodeA) { if (foundB) return 1; foundA = true; }
-      if (list === nodeB) { if (foundA) return -1; foundB = true; }
-      list = list.nextSibling;
-    }
-    list = parentRepeater.pendingChildren.first;
-    while (list !== null) {
-      if (list === nodeA) { if (foundB) return 1; foundA = true; }
-      if (list === nodeB) { if (foundA) return -1; foundB = true; }
-      list = list.nextSibling;
-    }
-    return 0;
+  // Plain JS numbers throughout, not BigInt - Number.MAX_SAFE_INTEGER is
+  // already far beyond any realistic partial count, and keeps every
+  // comparison a native subtraction.
+  const chainOrderMaxInt = Number.MAX_SAFE_INTEGER;
+  // Partials * 2 + 1 = MAXINT: the densest possible packing (every other
+  // number used) still leaves exactly one free slot between neighbors.
+  // Not expected to ever actually be reached - insertPartialIntoChain()
+  // throws rather than silently violating the invariant if it somehow is.
+  const chainMaxPartials = Math.floor((chainOrderMaxInt - 1) / 2);
+
+  // Step used for an ordinary (non-blast) insertion - large while a chain
+  // has hardly been touched, shrinking as it fills up. Coarse, fixed tiers
+  // rather than a tuned continuous curve - there's no real workload yet to
+  // calibrate one against.
+  function chainSpacerFor(chainHead) {
+    const pressure = chainHead.count / chainOrderMaxInt;
+    if (pressure < 0.25) return 65536;
+    if (pressure < 0.75) return 256;
+    return 1;
   }
 
-  // Order two writers sharing the same declared time. External (null)
-  // always sorts first, matching "external writes are initialization".
-  // Otherwise walks both writers' paths to their shared root, finds where
-  // they diverge, and compares sibling order at that point - or, if one
-  // writer's path is a prefix of the other's, the ancestor sorts first
-  // (whatever a parent wrote before creating a child precedes anything the
-  // child itself writes).
+  // Insert a brand-new partial (never previously in any chain) into
+  // `chainHead`, positioned immediately after whatever partial was most
+  // recently active there. Correct because execution within one root tree
+  // is always synchronous and depth-first: "whatever ran right before
+  // this" really is the correct predecessor, no search needed. A partial
+  // being *reconciled* against an old one never calls this - it just
+  // inherits the old one's chain node directly, see createNextPartial().
+  function insertPartialIntoChain(chainHead, partial) {
+    if (chainHead.count >= chainMaxPartials) {
+      throw new Error("Partial chain exhausted its order-number space (" + chainMaxPartials + " live partials)");
+    }
+    const predecessor = chainHead.executionCursor;
+    const successor = predecessor !== null ? predecessor.orderNext : null;
+
+    let orderNumber;
+    if (predecessor === null) {
+      orderNumber = 0; // first partial ever in this chain
+    } else if (successor === null) {
+      orderNumber = predecessor.orderNumber + chainSpacerFor(chainHead); // appending at the tail
+    } else {
+      const spacer = chainSpacerFor(chainHead);
+      const candidate = predecessor.orderNumber + spacer;
+      orderNumber = candidate < successor.orderNumber
+        ? candidate
+        : Math.floor((predecessor.orderNumber + successor.orderNumber) / 2);
+    }
+
+    partial.orderNumber = orderNumber;
+    partial.orderPrevious = predecessor;
+    partial.orderNext = successor;
+    if (predecessor !== null) predecessor.orderNext = partial; else chainHead.first = partial;
+    if (successor !== null) successor.orderPrevious = partial; else chainHead.last = partial;
+    chainHead.count++;
+    chainHead.executionCursor = partial;
+
+    // Only inserting *between* two existing neighbors can leave no room to
+    // insert anything else there later - an append always still has the
+    // entire rest of the number space open ahead of it.
+    if (successor !== null &&
+        ((orderNumber - predecessor.orderNumber) <= 1 || (successor.orderNumber - orderNumber) <= 1)) {
+      releaseChainPressure(chainHead, partial);
+    }
+  }
+
+  // Widen the gaps around `center` (just inserted, with no room left on at
+  // least one side) by collecting a window of its order-chain neighbors and
+  // spreading them evenly across the interval they currently span. Expands
+  // whichever side currently has the smaller delta, so the window grows
+  // roughly symmetrically; stops once the window is at most half-full
+  // (density <= 1/2 - the standard order-maintenance threshold) or after
+  // `chainBlastRadius` nodes, whichever comes first.
+  //
+  // If the forward side ever runs off the real end of the chain, its
+  // "successor" becomes the open space all the way up to MAXINT - which
+  // satisfies the density condition immediately, spreading that whole
+  // window generously into previously untouched territory. Concretely: the
+  // chain grows conservatively left-to-right at first (small, fixed steps),
+  // and the first blast whose search happens to reach the tail vents a
+  // whole neighborhood of pressure out into that huge unused range at once
+  // - permanently, if edits stay roughly local the way they do in a
+  // document (this falls out of the rule above for free, no special case).
+  function releaseChainPressure(chainHead, center) {
+    const x = center.orderNumber;
+    const radius = configuration.chainBlastRadius;
+
+    let backwardEdge = center;
+    let forwardEdge = center;
+    let deltaBackward = 0;
+    let deltaForward = 0;
+    let visited = 1;
+    let forwardExhausted = false;
+    let backwardExhausted = false;
+
+    function stepForward() {
+      if (forwardEdge.orderNext === null) {
+        deltaForward = chainOrderMaxInt - x;
+        forwardExhausted = true;
+        return;
+      }
+      forwardEdge = forwardEdge.orderNext;
+      deltaForward = forwardEdge.orderNumber - x;
+      visited++;
+    }
+
+    function stepBackward() {
+      if (backwardEdge.orderPrevious === null) {
+        backwardExhausted = true;
+        return;
+      }
+      backwardEdge = backwardEdge.orderPrevious;
+      deltaBackward = x - backwardEdge.orderNumber;
+      visited++;
+    }
+
+    stepForward(); // always start by expanding forward
+
+    while (
+      !(forwardExhausted && backwardExhausted) &&
+      visited < radius &&
+      visited / (deltaForward + deltaBackward) > 0.5
+    ) {
+      if (backwardExhausted) stepForward();
+      else if (forwardExhausted) stepBackward();
+      else if (deltaForward > deltaBackward) stepBackward();
+      else stepForward();
+    }
+
+    const rangeStart = backwardEdge.orderNumber;
+    const rangeEnd = forwardExhausted ? chainOrderMaxInt : forwardEdge.orderNumber;
+
+    const collected = [];
+    for (let node = backwardEdge; ; node = node.orderNext) {
+      collected.push(node);
+      if (node === forwardEdge) break;
+    }
+    const gapCount = collected.length - 1;
+    if (gapCount <= 0) return; // nothing to spread out (shouldn't happen - center always has a real successor when this is called)
+    const step = (rangeEnd - rangeStart) / gapCount;
+    for (let i = 0; i < collected.length; i++) {
+      collected[i].orderNumber = Math.round(rangeStart + i * step);
+    }
+  }
+
+  // Reassign `newPartial` the exact chain slot `oldPartial` occupied (same
+  // orderNumber, same neighbors) - the reconciliation counterpart to
+  // insertPartialIntoChain(): no count change, no renumbering, just a
+  // reference swap, the same shape as writing.writer reassignment on a
+  // reconciled property write.
+  function inheritOrderChainNode(chainHead, newPartial, oldPartial) {
+    newPartial.orderNumber = oldPartial.orderNumber;
+    newPartial.orderPrevious = oldPartial.orderPrevious;
+    newPartial.orderNext = oldPartial.orderNext;
+    if (newPartial.orderPrevious !== null) newPartial.orderPrevious.orderNext = newPartial; else chainHead.first = newPartial;
+    if (newPartial.orderNext !== null) newPartial.orderNext.orderPrevious = newPartial; else chainHead.last = newPartial;
+    chainHead.executionCursor = newPartial;
+  }
+
+  // Remove a genuinely retracted partial's slot from its chain for good -
+  // its number becomes free for reuse by whatever eventually falls between
+  // its old neighbors. See finalizeChildren()/retractAndFinalizeWritings().
+  function removePartialFromChain(chainHead, partial) {
+    if (partial.orderPrevious !== null) partial.orderPrevious.orderNext = partial.orderNext; else chainHead.first = partial.orderNext;
+    if (partial.orderNext !== null) partial.orderNext.orderPrevious = partial.orderPrevious; else chainHead.last = partial.orderPrevious;
+    if (chainHead.executionCursor === partial) chainHead.executionCursor = partial.orderPrevious || partial.orderNext || null;
+    partial.orderPrevious = null;
+    partial.orderNext = null;
+    chainHead.count--;
+  }
+
+  // Order two writers (partials, or null for external code): O(1) via
+  // orderNumber when they share a chain (the common case - same root
+  // tree). Different root trees have no real relative position; fall back
+  // to a stable, arbitrary-but-consistent comparison via each chain's own
+  // id so ordering is at least deterministic.
   function compareWriterOrder(writerA, writerB) {
     if (writerA === writerB) return 0;
     if (writerA === null) return -1;
     if (writerB === null) return 1;
-
-    const pathA = writerPathToRoot(writerA);
-    const pathB = writerPathToRoot(writerB);
-    let ia = pathA.length - 1;
-    let ib = pathB.length - 1;
-    if (pathA[ia] !== pathB[ib]) {
-      // Different root trees entirely - same declared time but otherwise
-      // unrelated (e.g. two independent top-level repeaters both at the
-      // same level - the "same-time writers" question, not solved here).
-      // Stable fallback so ordering is at least consistent.
-      return pathA[ia].id - pathB[ib].id;
+    const chainA = writerA.repeater.chainHead;
+    const chainB = writerB.repeater.chainHead;
+    if (chainA === chainB) {
+      return writerA.orderNumber - writerB.orderNumber;
     }
-    while (ia >= 0 && ib >= 0 && pathA[ia] === pathB[ib]) {
-      ia--;
-      ib--;
-    }
-    if (ia < 0) return -1; // writerA's whole path was a prefix of writerB's - A is an ancestor of B
-    if (ib < 0) return 1;
-    return compareSiblingOrder(pathA[ia + 1], pathA[ia], pathB[ib]);
+    return chainA.id - chainB.id;
   }
 
   // Order (timeA, writerA) against (timeB, writerB): by declared time
@@ -1123,11 +1274,11 @@ function createWorld(configuration) {
     if (writing.set && sameAsPrevious(previousValue, value)) {
       if (hasPendingWriting) {
         // The writing being reused still carries whatever writer created it
-        // originally, which may by now be fully orphaned (unreachable from
-        // any repeater's children/pendingChildren - see compareSiblingOrder)
-        // once its own partial has been replaced. An orphaned writer
-        // compares as "equal" to everything, which would send relinkWriting
-        // to the wrong spot - so re-attribute to the current, live writer
+        // originally - an old partial that, once its replacement exists,
+        // is no longer in any chain (see "Time as tree position" above) and
+        // so never gets its own orderNumber updated by a later pressure-
+        // release blast in that region. Comparing against it would then use
+        // a stale position - so re-attribute to the current, live writer
         // (the one actually reconciling against it) before splicing back in.
         writing.writer = writer;
         relinkWriting(writing);
@@ -1692,6 +1843,14 @@ function createWorld(configuration) {
       // list) - see createChildList()/attachToCurrentParent() below.
       nextSibling: null,
       previousSibling: null,
+      // This partial's position in its root repeater's partial chain (see
+      // "Time as tree position" above) - orderNumber compares in O(1);
+      // orderNext/orderPrevious are this chain's own linked-list pointers,
+      // distinct from nextSibling/previousSibling above (which are purely
+      // structural, per-parent creation order, used for reconciliation).
+      orderNumber: null,
+      orderNext: null,
+      orderPrevious: null,
       get isRecording() {
         return this.repeater.isRecording;
       },
@@ -1756,6 +1915,7 @@ function createWorld(configuration) {
   // finishes, same as it always has.
   function createNextPartial(repeater) {
     const partial = createPartial(repeater);
+    let reconciled = false;
     if (repeater.reconciling) {
       const oldPartial = repeater.pendingChildren.first;
       if (oldPartial !== null && oldPartial.type === "partial") {
@@ -1769,10 +1929,19 @@ function createWorld(configuration) {
         // attachToCurrentParent()/refresh()) never got a matching write and
         // is genuinely gone.
         partial.pendingWritings = oldPartial.writings;
+        // Same position as last time - inherit its exact chain slot
+        // (orderNumber and neighbors) rather than inserting a new one, the
+        // same "reuse in place" shape as the writings hand-off just above.
+        inheritOrderChainNode(repeater.chainHead, partial, oldPartial);
+        reconciled = true;
       } else {
         repeater.reconciling = false;
       }
     }
+    if (!reconciled) {
+      insertPartialIntoChain(repeater.chainHead, partial);
+    }
+    repeater.rightmostPartial = partial;
     partial.parentRepeater = repeater;
     partial.listMembership = "confirmed";
     repeater.currentPartial = partial;
@@ -1813,6 +1982,17 @@ function createWorld(configuration) {
     if (typeof(child.retracted) !== 'undefined') child.retracted = false;
     appendToChildList(parentRepeater.children, child);
 
+    // Whatever comes next in the parent's own sequence belongs immediately
+    // after this whole child subtree in chain order - advance the cursor to
+    // the child's own rightmost partial (always its last partial overall,
+    // regardless of nesting, since a repeater's own final partial is by
+    // construction the last thing anywhere in its subtree). Needed even
+    // when the child itself didn't just rerun (a clean relink, or one that
+    // reran independently earlier via the dirty queue): either way,
+    // rightmostPartial (unlike currentPartial) is never nulled out, so it
+    // always reflects the child's true current position here.
+    parentRepeater.chainHead.executionCursor = child.rightmostPartial;
+
     // This partial's writes are complete now - anything it didn't reconcile
     // against its own predecessor is genuinely gone.
     finalizeWritings(parentContext);
@@ -1834,9 +2014,10 @@ function createWorld(configuration) {
       const next = node.nextSibling;
       node.previousSibling = null;
       node.nextSibling = null;
-      // Fully gone from the tree now - compareSiblingOrder relies on this
-      // (a stale writer reference it can't find anywhere compares as equal
-      // to whatever currently holds that position, rather than guessing).
+      // Fully gone from the tree now, not just unlinked from this list -
+      // so a later relink attempt (attachToCurrentParent's `listMembership
+      // === "pending"` check) can't mistake it for still being reclaimable
+      // from here.
       node.listMembership = null;
       if (node.type === "partial") {
         removeAllSources(node);
@@ -1869,8 +2050,22 @@ function createWorld(configuration) {
       firstTime: true,
       description: description,
       // The partial currently holding this repeater's reads/writes - see
-      // createPartial() above and refresh() below.
+      // createPartial() above and refresh() below. Nulled by dispose() at
+      // the start of every rerun (see there for why).
       currentPartial: null,
+      // Same idea, but never nulled - always this repeater's own most
+      // recent partial, even mid-dispose/mid-rerun. By construction it's
+      // also the rightmost partial in this repeater's *entire* subtree
+      // (a repeater's own final partial is always the last thing anywhere
+      // below it), so attachToCurrentParent() uses it, unconditionally, to
+      // advance the parent's chain cursor past a child it's attaching -
+      // whether or not that child actually reran just now.
+      rightmostPartial: null,
+      // Which root repeater's partial chain this repeater's own partials
+      // get their orderNumber from - see "Time as tree position" above.
+      // Set once, at creation (repeat()), from the parent active at that
+      // moment (or a fresh chain if there is none); never reassigned after.
+      chainHead: null,
       // This run's confirmed children (real child repeaters interleaved
       // with the partials between them) and, transiently between dispose()
       // and the end of the next refresh(), the previous run's sequence
@@ -2406,6 +2601,14 @@ function createWorld(configuration) {
     
     // Activate!
     const repeater = createRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding);
+    // Establish chain membership *before* the first refresh() - attachToCurrentParent()
+    // below sets parentRepeater too, but it only runs after refresh() returns,
+    // too late for createNextPartial() to have a chainHead to insert this
+    // repeater's very first partial into. The parent (if any) is exactly
+    // whichever partial is currently executing right now.
+    const parentContext = (state.context && state.context.type === "partial") ? state.context : null;
+    repeater.parentRepeater = parentContext ? parentContext.repeater : null;
+    repeater.chainHead = repeater.parentRepeater ? repeater.parentRepeater.chainHead : createChainHead();
     const result = repeater.refresh();
     // If created while nested inside another repeater's execution, this
     // repeater automatically becomes its child - closing the parent's
@@ -2498,6 +2701,10 @@ function createWorld(configuration) {
     });
     partial.writings.clear();
     finalizeWritings(partial);
+    // This partial's chain slot is genuinely done for too - free it up for
+    // reuse by whatever eventually falls between its old neighbors, rather
+    // than leaving it permanently spent.
+    removePartialFromChain(partial.repeater.chainHead, partial);
   }
 
   function anyDirtyRepeater(start=0) {

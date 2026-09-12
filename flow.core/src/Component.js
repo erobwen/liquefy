@@ -109,20 +109,26 @@ export class Component {
     throw new Error("Not implemented yet");
   }
 
-  // Render your component into a render context. Default implementation is to build and then render what was built. 
-  render(renderContext) {
-    // Build and then render what was built
-    let morePrimitiveComponent = this.reactiveBuildEquivalent();
-    this.renderedChildren = (morePrimitiveComponent instanceof Array) ? [...morePrimitiveComponent] : [morePrimitiveComponent];
-    let {renderParent, renderState} = renderContext;
-    for (let fragment of this.renderedChildren) {
-      renderState = fragment.reactiveRender({
-        renderParent, // Note: "this" is compositionParent, not render parent! 
-        renderState, 
-      });
-    }
-    return renderState;
-  }
+  // Render your component into a render context. Default implementation is to build and then render what was built.
+  // Dead code: confirmed unreachable (reactiveBuildEquivalent() below has no
+  // other caller, and nothing calls .render() except reactiveRender()'s own
+  // repeater body, which itself only ever runs on a subclass that overrides
+  // reactiveRender() directly - see DOMNode.js). Commented out for reference
+  // rather than deleted, per discussion about the upcoming cascade.component
+  // renderOnto work.
+  // render(renderContext) {
+  //   // Build and then render what was built
+  //   let morePrimitiveComponent = this.reactiveBuildEquivalent();
+  //   this.renderedChildren = (morePrimitiveComponent instanceof Array) ? [...morePrimitiveComponent] : [morePrimitiveComponent];
+  //   let {renderParent, renderState} = renderContext;
+  //   for (let fragment of this.renderedChildren) {
+  //     renderState = fragment.reactiveRender({
+  //       renderParent, // Note: "this" is compositionParent, not render parent!
+  //       renderState,
+  //     });
+  //   }
+  //   return renderState;
+  // }
 
 
   /**
@@ -471,49 +477,57 @@ export class Component {
    */
 
   // Note: Never tried.
-  reactiveBuildEquivalent() {
-    // log("getPrimitive")
-    const name = this.toString(); // For chrome debugger.
-    finalize(this);
-    if (!this.unobservable.buildRepeater) {
-      this.unobservable.buildRepeater = repeat(
-        this.toString() + ".buildRepeater",
-        (repeater) => {
-          if (trace) console.group(repeater.causalityString());
-
-          // Pushing
-          creators.push(this);
-
-          // Build and rebuild
-          this.newBuild = this.build(repeater);
-          if (typeof this.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
-          repeater.finishRebuilding();
-          this.newBuild = repeater.establishedShapeRoot;
-
-          // Establish relationship between equivalent child and this (its creator).
-          if (this.newBuild !== null) {
-            if (this.newBuild instanceof Array) {
-              for (let fragment of this.newBuild) {
-                fragment.equivalentCreator = this;
-              }
-            } else {
-              this.newBuild.equivalentCreator = this;
-            }
-            this.equivalentChild = this.newBuild;
-          }
-
-          // Popping
-          creators.pop();
-
-          if (trace) console.groupEnd();
-        }, {
-          priority: buildComponentTime, 
-          rebuildShapeAnalysis: getShapeAnalysis(me)
-        }
-      );
-    }
-    return me.newBuild;
-  }
+  // Dead code, confirmed: only caller was render() above (also commented
+  // out) - nothing else in flow.core/flow.DOM/flow.application calls
+  // .reactiveBuildEquivalent(). Also references an undeclared `me` (should
+  // be `this`, c.f. reactiveBuildEquivalentPrimitive() below which gets this
+  // right) - would have thrown immediately if ever actually invoked, which
+  // is itself evidence for "never tried". Commented out for reference
+  // rather than deleted, per discussion about the upcoming cascade.component
+  // renderOnto work.
+  // reactiveBuildEquivalent() {
+  //   // log("getPrimitive")
+  //   const name = this.toString(); // For chrome debugger.
+  //   finalize(this);
+  //   if (!this.unobservable.buildRepeater) {
+  //     this.unobservable.buildRepeater = repeat(
+  //       this.toString() + ".buildRepeater",
+  //       (repeater) => {
+  //         if (trace) console.group(repeater.causalityString());
+  //
+  //         // Pushing
+  //         creators.push(this);
+  //
+  //         // Build and rebuild
+  //         this.newBuild = this.build(repeater);
+  //         if (typeof this.newBuild === "undefined") throw new Error("Build function has to return something! Return null if you dont wish your component to display. ")
+  //         repeater.finishRebuilding();
+  //         this.newBuild = repeater.establishedShapeRoot;
+  //
+  //         // Establish relationship between equivalent child and this (its creator).
+  //         if (this.newBuild !== null) {
+  //           if (this.newBuild instanceof Array) {
+  //             for (let fragment of this.newBuild) {
+  //               fragment.equivalentCreator = this;
+  //             }
+  //           } else {
+  //             this.newBuild.equivalentCreator = this;
+  //           }
+  //           this.equivalentChild = this.newBuild;
+  //         }
+  //
+  //         // Popping
+  //         creators.pop();
+  //
+  //         if (trace) console.groupEnd();
+  //       }, {
+  //         priority: buildComponentTime,
+  //         rebuildShapeAnalysis: getShapeAnalysis(me)
+  //       }
+  //     );
+  //   }
+  //   return me.newBuild;
+  // }
 
   getEquivalentPrimitive() { // Alias
     return this.reactiveBuildEquivalentPrimitive();

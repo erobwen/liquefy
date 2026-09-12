@@ -2642,13 +2642,27 @@ function createWorld(configuration) {
     const timeList = state.dirtyRepeaters;
 
     const list = timeList[time];
-    if (list.last === null) {
-      list.last = repeater;
-      list.first = repeater;
-    } else {
-      list.last.nextDirty = repeater;
-      repeater.previousDirty = list.last;
-      list.last = repeater;
+    // A repeater can easily end up invalidated more than once before it
+    // actually gets refreshed - e.g. two of its own partials (see
+    // repeat()'s own comment on partials opening/closing around each
+    // child call) each independently depending on the same property that
+    // just got written. That's a normal shape, not a signal to queue this
+    // repeater into the dirty list a second time: doing so would splice
+    // it in right after itself (list.last.nextDirty = repeater, when
+    // repeater already IS list.last), corrupting the list into a
+    // self-referencing loop that detatchRepeater can never fully unlink -
+    // leaving it looking dirty forever after and refreshing it an extra,
+    // spurious time once real reactive machinery reaches it in that state.
+    const alreadyQueued = list.first === repeater || repeater.nextDirty !== null || repeater.previousDirty !== null;
+    if (!alreadyQueued) {
+      if (list.last === null) {
+        list.last = repeater;
+        list.first = repeater;
+      } else {
+        list.last.nextDirty = repeater;
+        repeater.previousDirty = list.last;
+        list.last = repeater;
+      }
     }
 
     refreshAllDirtyRepeaters();

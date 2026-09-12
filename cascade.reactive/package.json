@@ -5,6 +5,12 @@
   "type": "module",
   "main": "./dist/cascade.reactive.umd.cjs",
   "module": "./src/cascade.js",
+  "exports": {
+    ".": {
+      "import": "./src/cascade.js",
+      "require": "./dist/cascade.reactive.umd.cjs"
+    }
+  },
   "scripts": {
     "test": "mocha ./src/test",
     "build": "vite build"

@@ -6,6 +6,7 @@
   "main": "./index.js",
   "module": "./index.js",
   "scripts": {
+    "test": "mocha ./src/test",
     "build": "vite build"
   },
   "repository": {
@@ -25,6 +26,9 @@
   "homepage": "https://github.com/erobwen/liquefy#readme",
   "peerDependencies": {
     "@liquefy/cascade.reactive": "file:../cascade.reactive"
+  },
+  "devDependencies": {
+    "mocha": "^10.8.2"
   },
   "publishConfig": {
     "access": "public"

@@ -195,6 +195,7 @@ function createWorld(configuration) {
   const invalidateEnumerateObservers = dependencyInterface.invalidateEnumerateObservers;
   const invalidatePropertyObservers = dependencyInterface.invalidatePropertyObservers;
   const invalidateWritingObservers = dependencyInterface.invalidateWritingObservers;
+  const migrateOvertakenPropertyObservers = dependencyInterface.migrateOvertakenPropertyObservers;
   const removeAllSources = dependencyInterface.removeAllSources;
 
   // Object log
@@ -1207,6 +1208,74 @@ function createWorld(configuration) {
     spliceWritingIntoTimeline(writing.timeline, writing);
   }
 
+  // A writing's "effective" value for comparison purposes - whatever a
+  // fresh read of it would see right now (see hasTimelineValue/
+  // readTimelineValue), not necessarily what's already committed to
+  // `.value`/`.set` (a stale writing mid-reuse only has its real answer in
+  // nextValue until its owning partial closes - see
+  // finalizeTouchedStaleWritings()).
+  function writingEffectiveValue(writing) {
+    if (writing.hasNextValue) return { set: true, value: writing.nextValue };
+    return { set: writing.set, value: writing.value };
+  }
+
+  function writingsHaveSameEffectiveValue(a, b) {
+    const ea = writingEffectiveValue(a);
+    const eb = writingEffectiveValue(b);
+    if (ea.set !== eb.set) return false;
+    if (!ea.set) return true;
+    return sameAsPrevious(ea.value, eb.value);
+  }
+
+  // A writing that just landed at `writing.previous`'s immediate successor
+  // position (whether freshly inserted, or a stale writing just reused at
+  // a new position - see setHandlerObject's own two call sites) may have
+  // "overtaken" some of writing.previous's existing readers: a reader
+  // whose own read position is at-or-after `writing`'s position resolved
+  // to `writing.previous` only because `writing` didn't exist yet at read
+  // time (see migrateOvertakenPropertyObservers's own comment for why only
+  // the immediate predecessor's observers can ever be affected). Left
+  // uncorrected, that reader's dependency stays pinned to `writing.previous`
+  // forever - it never learns `writing` is now the closer, correct answer,
+  // so a later write to `writing` alone (never touching `writing.previous`
+  // again) would silently fail to reach it.
+  //
+  // Strictly-after (`> 0`), not at-or-after: a recorded entry whose
+  // position *equals* writing's own can only be writing's own writer
+  // reading this same timeline earlier in its own execution, then writing
+  // it later in that same run (the ordinary read-then-write shape every
+  // leaf repeater in renderOnto.js uses) - two distinct writers can never
+  // compare equal (the order-chain invariant gives every live partial a
+  // unique orderNumber; the one case that isn't ruled out that way,
+  // writer===null for two different external writes, can't reach here in
+  // the first place, since two external writes to the same property always
+  // land on the very same already-exact-matching writing - see
+  // setHandlerObject's `justInserted` comment). Migrating a self-entry
+  // would mean invalidating - mid-execution - the very writer that just
+  // produced this value, for a dependency that was never actually stale.
+  //
+  // Known limitation of this first cut: for a stale writing being reused
+  // (see setHandlerObject's `writing.stale` branch), this runs once per
+  // touch, using whatever value is current *at that touch* - unlike the
+  // writing's own before/after comparison (deferred to
+  // finalizeTouchedStaleWritings so a set/unset/set within one partial
+  // settles once), a migrated reader's invalidation decision is not itself
+  // flap-protected across multiple touches of the same writing within one
+  // partial. Narrow in practice (it only matters if such a property is
+  // also written more than once by the same partial in the same run), and
+  // left as a follow-up rather than solved here.
+  function migrateOvertakenObserversFor(writing) {
+    const previous = writing.previous;
+    if (previous === null || previous.observers === null) return;
+    const notifyMigrated = !writingsHaveSameEffectiveValue(previous, writing);
+    migrateOvertakenPropertyObservers(
+      previous,
+      writing,
+      (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, writing.time, writing.writer) > 0,
+      notifyMigrated
+    );
+  }
+
   function getOrCreateExactWriting(handler, key, time, writer) {
     const timeline = getOrCreateTimeline(handler, key);
     return findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
@@ -1437,6 +1506,13 @@ function createWorld(configuration) {
     // source below - those each only ever get consulted once per (this
     // repeater, this timeline, this occurrence) per run.
     let writing = context && context.writings ? context.writings.get(timeline) : undefined;
+    // Whether `writing` was spliced into the timeline at a brand-new
+    // position by *this very call* (as opposed to an ordinary rewrite of
+    // an already-existing writing at the same position) - see
+    // migrateOvertakenObserversFor()'s own comment for why that matters:
+    // only a genuinely fresh splice can possibly overtake an existing
+    // reader of whatever writing used to be its immediate predecessor.
+    let justInserted = false;
 
     if (typeof(writing) === 'undefined') {
       const repeater = writer !== null ? writer.repeater : null;
@@ -1463,7 +1539,11 @@ function createWorld(configuration) {
         if (context.touchedStaleWritings === null) context.touchedStaleWritings = [];
         context.touchedStaleWritings.push(writing);
       } else {
-        writing = findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
+        writing = findExactWriting(timeline, time, writer);
+        if (writing === null) {
+          writing = insertNewWriting(timeline, time, writer);
+          justInserted = true;
+        }
       }
     }
 
@@ -1482,6 +1562,7 @@ function createWorld(configuration) {
       writing.nextValue = value;
       writing.writer = writer;
       relinkWriting(writing);
+      migrateOvertakenObserversFor(writing);
       if (context && context.writings) {
         context.writings.set(timeline, writing);
       }
@@ -1504,6 +1585,15 @@ function createWorld(configuration) {
     }
 
     invalidateWritingObservers(writing, this.proxy, key);
+    // Deliberately after invalidateWritingObservers, not before: a brand
+    // new writing always fires its own (pre-migration, empty) observers
+    // unconditionally on this first write, regardless of value - if a
+    // migrated reader were already sitting in there when that ran, it
+    // would get invalidated for free even when its actual value didn't
+    // change, defeating the whole point of migrateOvertakenObserversFor's
+    // own value comparison. Migrating afterward keeps that decision
+    // entirely independent of "is this writing's very first notification."
+    if (justInserted) migrateOvertakenObserversFor(writing);
     if (undefinedKey) invalidateEnumerateObservers(this, key);
 
     emitSetEvent(this, key, value, previousValue);

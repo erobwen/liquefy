@@ -28,6 +28,15 @@ const defaultConfiguration = {
   // whatever it's collected so far.
   chainBlastRadius: 10,
 
+  // Dev-time-only safety net for the O(1) order-number chain (see
+  // compareWriterOrder()/structuralCompareWriterOrder()): also compute
+  // writer order via the older, structural parent/sibling walk (O(depth),
+  // never optimized, but doesn't depend on the order-number bookkeeping
+  // being correct) and throw if the two disagree. Off by default - it's
+  // a real O(depth) tree walk on every comparison, not something to pay
+  // for outside development.
+  verifyChainOrderStructurally: false,
+
   objectMetaProperty: "causality",
   objectTimelinesProperty: "timelines",
 
@@ -688,6 +697,30 @@ function createWorld(configuration) {
       timeline: null,
       next: null,
       previous: null,
+      // Whether this writing is currently spliced into its timeline's own
+      // linked list - see unlinkWriting()/spliceWritingIntoTimeline(). Kept
+      // as an explicit flag rather than inferred from previous/next being
+      // null, since a writing that's the sole entry in its timeline has
+      // both null while still genuinely linked.
+      linked: false,
+      // Owning-repeater staleness (see repeater.dispose() and
+      // finalizeTouchedStaleWritings()/finalizeStaleWritings()): true
+      // while this writing is this repeater's own prior output, unlinked
+      // from its timeline (same as any other invalidated writing - a
+      // repeater's prior output is invisible to everyone the instant it's
+      // known to be stale, not just to itself) but held onto, not
+      // discarded, in case this repeater's current rerun writes this same
+      // property again - reused (same object, relinked) instead of always
+      // creating a fresh one. nextValue/hasNextValue buffer whatever this
+      // run's own write(s) to the same property produce, within the one
+      // partial that claimed it - deliberately not compared against
+      // `value` (or notified) until that partial closes, so a property
+      // set, unset, and set again within one partial's own execution
+      // settles once against the real before/after, not once per
+      // intermediate write.
+      stale: false,
+      hasNextValue: false,
+      nextValue: undefined,
     };
   }
 
@@ -704,6 +737,7 @@ function createWorld(configuration) {
       currentWriting: writing,
     };
     writing.timeline = timeline;
+    writing.linked = true;
     return timeline;
   }
 
@@ -715,6 +749,7 @@ function createWorld(configuration) {
     timeline.first = writing;
     timeline.last = writing;
     timeline.currentWriting = writing;
+    writing.linked = true;
   }
 
   function getOrCreateTimeline(handler, key) {
@@ -933,7 +968,7 @@ function createWorld(configuration) {
 
   // Remove a genuinely retracted partial's slot from its chain for good -
   // its number becomes free for reuse by whatever eventually falls between
-  // its old neighbors. See finalizeChildren()/retractAndFinalizeWritings().
+  // its old neighbors. See finalizeChildren()/retractPartialChainSlot().
   function removePartialFromChain(chainHead, partial) {
     if (partial.orderPrevious !== null) partial.orderPrevious.orderNext = partial.orderNext; else chainHead.first = partial.orderNext;
     if (partial.orderNext !== null) partial.orderNext.orderPrevious = partial.orderPrevious; else chainHead.last = partial.orderPrevious;
@@ -941,6 +976,32 @@ function createWorld(configuration) {
     partial.orderPrevious = null;
     partial.orderNext = null;
     chainHead.count--;
+  }
+
+  // Reposition an *already-live* chain member to reflect "right here,
+  // right now", rather than wherever it happened to land whenever it was
+  // last positioned - needed by attachToCurrentParent() once a parent's
+  // reconciliation has broken (see there): a relinked-but-not-rerun
+  // child's own rightmostPartial otherwise keeps whatever orderNumber it
+  // was assigned the last time it actually ran, which can be arbitrarily
+  // far behind (this chain is shared and grows for the app's whole
+  // lifetime, not reset per run) the *current* run's real execution
+  // order. Left uncorrected, a sibling's fresh write positioned right
+  // after this child (via insertPartialIntoChain's own
+  // "immediately after executionCursor" rule) can end up with a *larger*
+  // orderNumber than this child's own stale one - so when this child
+  // later reads that value, seekWriting's "largest writing at time <= my
+  // own position" rule silently treats the fresh write as not-yet-
+  // happened from this child's (stale) vantage point, even though it
+  // already ran. Plain remove-then-insert: removePartialFromChain
+  // unlinks it (rolling back executionCursor first, if this partial
+  // happened to be sitting there), then insertPartialIntoChain re-adds
+  // it as if fresh, immediately after wherever execution actually is
+  // now - count is left correct since one decrements and the other
+  // increments it back.
+  function movePartialToCurrentPosition(chainHead, partial) {
+    removePartialFromChain(chainHead, partial);
+    insertPartialIntoChain(chainHead, partial);
   }
 
   // Order two writers (partials, or null for external code): O(1) via
@@ -954,10 +1015,92 @@ function createWorld(configuration) {
     if (writerB === null) return 1;
     const chainA = writerA.repeater.chainHead;
     const chainB = writerB.repeater.chainHead;
-    if (chainA === chainB) {
-      return writerA.orderNumber - writerB.orderNumber;
+    const result = chainA === chainB
+      ? writerA.orderNumber - writerB.orderNumber
+      : chainA.id - chainB.id;
+
+    if (configuration.verifyChainOrderStructurally) {
+      verifyAgainstStructuralOrder(writerA, writerB, result);
     }
-    return chainA.id - chainB.id;
+
+    return result;
+  }
+
+  // Walk a writer (a partial, or a bare top-level repeater) up to its
+  // root purely via structural parent/sibling pointers (parentRepeater,
+  // previousSibling/nextSibling on the *confirmed* children list) -
+  // completely independent of orderNumber/chainHead bookkeeping. Used
+  // only by the dev-time shadow verifier below; not on any hot path.
+  function structuralWriterPath(writer) {
+    const path = [];
+    let node = writer;
+    while (node) {
+      path.push(node);
+      node = node.parentRepeater;
+    }
+    return path; // [writer, its owning repeater's parent, ..., root]
+  }
+
+  // Which of two known siblings (both directly in parentRepeater's own
+  // *confirmed* children list, for whatever run last attached them) comes
+  // first - a plain O(siblings) linear scan, since this list has no
+  // O(1) order primitive of its own (that's the whole reason the
+  // order-number chain exists). Returns null if either isn't found there
+  // (e.g. retracted) - "can't tell structurally", not "equal".
+  function structuralCompareSiblings(parentRepeater, a, b) {
+    let node = parentRepeater.children.first;
+    while (node !== null) {
+      if (node === a) return -1;
+      if (node === b) return 1;
+      node = node.nextSibling;
+    }
+    return null;
+  }
+
+  // The pre-order-number algorithm this project used to compare writer
+  // execution order, kept only as an independent, structurally-derived
+  // cross-check (see configuration.verifyChainOrderStructurally) - O(depth
+  // + siblings-at-the-divergence-point), never optimized, and correct by
+  // construction since it never depends on any order-number bookkeeping
+  // being right. Returns -1/0/1, or null when it genuinely can't tell
+  // (different roots entirely, or one/both writers no longer structurally
+  // findable - e.g. retracted - in which case there's nothing to check
+  // compareWriterOrder's own answer against).
+  function structuralCompareWriterOrder(writerA, writerB) {
+    if (writerA === writerB) return 0;
+    if (writerA === null) return -1;
+    if (writerB === null) return 1;
+    const pathA = structuralWriterPath(writerA);
+    const pathB = structuralWriterPath(writerB);
+    let ia = pathA.length - 1;
+    let ib = pathB.length - 1;
+    if (pathA[ia] !== pathB[ib]) return null; // different roots - no relation to check
+    while (ia >= 0 && ib >= 0 && pathA[ia] === pathB[ib]) {
+      ia--;
+      ib--;
+    }
+    if (ia < 0 || ib < 0) {
+      // One path is a prefix of the other - an ancestor's own writes
+      // always precede anything its descendant writes.
+      return ia < 0 ? -1 : 1;
+    }
+    const commonParent = pathA[ia + 1];
+    return structuralCompareSiblings(commonParent, pathA[ia], pathB[ib]);
+  }
+
+  function verifyAgainstStructuralOrder(writerA, writerB, orderNumberResult) {
+    const structural = structuralCompareWriterOrder(writerA, writerB);
+    if (structural === null) return; // can't independently verify this pair right now
+    const orderSign = Math.sign(orderNumberResult);
+    const structuralSign = Math.sign(structural);
+    if (orderSign !== structuralSign) {
+      throw new Error(
+        "Order-number chain disagrees with structural writer order: orderNumber comparison said " +
+        orderSign + ", structural (parent/sibling) comparison said " + structuralSign +
+        " for writers " + (writerA.causalityString ? writerA.causalityString() : String(writerA)) +
+        " vs " + (writerB.causalityString ? writerB.causalityString() : String(writerB))
+      );
+    }
   }
 
   // Order (timeA, writerA) against (timeB, writerB): by declared time
@@ -979,6 +1122,16 @@ function createWorld(configuration) {
   // `time === Infinity` (external reads - see currentReadTime()) skips the
   // walk entirely: there's nothing to tie-break against infinity, it's
   // always the timeline's latest writing, full stop.
+  //
+  // No special-casing needed here for a repeater's own stale writings
+  // (see repeater.dispose()/finalizeStaleWritings()) - those are unlinked
+  // from the timeline the moment they're marked stale (same "reruns must
+  // fully retract, not merely unset" invariant as always: a repeater's
+  // prior output must not be visible to *anyone* - not just itself - the
+  // instant it's known to be invalidated, even before the repeater gets a
+  // chance to actually rerun and confirm or replace it), so an ordinary
+  // walk already skips straight past them to whatever's genuinely still
+  // current underneath.
   function seekWriting(timeline, time, writer) {
     if (typeof(writer) === 'undefined') writer = null;
     if (timeline.currentWriting === null) {
@@ -1027,6 +1180,7 @@ function createWorld(configuration) {
       timeline.last = writing;
     }
     timeline.currentWriting = writing;
+    writing.linked = true;
   }
 
   function insertNewWriting(timeline, time, writer) {
@@ -1036,7 +1190,20 @@ function createWorld(configuration) {
     return writing;
   }
 
+  // Re-splice a writing at wherever its (possibly just-reassigned) writer
+  // now positions it. A stale writing being reused across a rerun (see
+  // repeater.dispose()/finalizeStaleWritings()) was unlinked the moment it
+  // was marked stale, so the common case here is a genuinely-unlinked
+  // writing needing nothing more than a fresh splice - but a *second*
+  // write to the same property within one run (see setHandlerObject's own
+  // context.writings check) finds it already relinked from the first
+  // touch, so this still needs to detach it from wherever it currently
+  // sits before re-inserting it, the same as an ordinary already-linked
+  // writing being moved would.
   function relinkWriting(writing) {
+    if (writing.linked) {
+      unlinkWriting(writing);
+    }
     spliceWritingIntoTimeline(writing.timeline, writing);
   }
 
@@ -1067,6 +1234,7 @@ function createWorld(configuration) {
     }
     writing.previous = null;
     writing.next = null;
+    writing.linked = false;
   }
 
   function getOrCreateTimelineWriting(handler, key, time, writer) {
@@ -1122,13 +1290,21 @@ function createWorld(configuration) {
 
   function hasTimelineValue(handler, key, time, writer) {
     const timeline = handler.timelines[key];
-    return typeof(timeline) !== 'undefined' && seekWriting(timeline, time, writer).set;
+    if (typeof(timeline) === 'undefined') return false;
+    const writing = seekWriting(timeline, time, writer);
+    // hasNextValue - a buffered, not-yet-finalized write from this run
+    // (see finalizeStaleWritings()) - is this property's real current
+    // value regardless of who's asking; only the *notification* of
+    // whether it net-changed from before is deferred, not its visibility
+    // to a fresh read.
+    return writing.hasNextValue || writing.set;
   }
 
   function readTimelineValue(handler, key, time, writer) {
     const timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') return undefined;
     const writing = seekWriting(timeline, time, writer);
+    if (writing.hasNextValue) return writing.nextValue;
     return writing.set ? writing.value : undefined;
   }
 
@@ -1253,49 +1429,76 @@ function createWorld(configuration) {
     const writer = currentWriter();
     const timeline = getOrCreateTimeline(this, key);
     const context = state.context;
-    const hasPendingWriting = !!(context && context.pendingWritings && context.pendingWritings.has(timeline));
 
-    let writing;
-    if (hasPendingWriting) {
-      // A writing this same repeater made last run, detached at the start
-      // of this rerun so fresh reads couldn't see it - reconcile against
-      // it now that we know the real new value, instead of blindly
-      // creating (and eagerly notifying about) a new one.
-      writing = context.pendingWritings.get(timeline);
-    } else {
-      writing = findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
+    // Did this exact partial already write this exact timeline earlier in
+    // this same run (a plain repeated write, no child boundary in
+    // between - "only the last one counts")? Reuse whatever it already
+    // resolved to, rather than re-consulting either reconciliation
+    // source below - those each only ever get consulted once per (this
+    // repeater, this timeline, this occurrence) per run.
+    let writing = context && context.writings ? context.writings.get(timeline) : undefined;
+
+    if (typeof(writing) === 'undefined') {
+      const repeater = writer !== null ? writer.repeater : null;
+      const staleQueue = repeater !== null && repeater.staleWritings !== null
+        ? repeater.staleWritings.get(timeline)
+        : undefined;
+      if (staleQueue && staleQueue.length > 0) {
+        // Reconciling against this exact repeater's own prior writing for
+        // this exact property (see repeater.dispose()) - by timeline
+        // identity, not position, so this still works even when this
+        // repeater's own structure changed enough since last run to break
+        // positional reconciliation (see docs/plan-partial-repeaters.md).
+        // A queue, not a single writing, because this same repeater can
+        // write the very same property more than once in one run, from
+        // different partials (the padding/spaceLeft "before"/"between"/
+        // "after" pattern) - each occurrence must reconcile against its
+        // own corresponding occurrence from last run, consumed in the
+        // same order both times (see repeater.dispose()'s own comment).
+        writing = staleQueue.shift();
+        if (staleQueue.length === 0) repeater.staleWritings.delete(timeline);
+        // Finalized (compared, reused-or-notified) the moment *this*
+        // partial closes, not deferred to the whole repeater's run - see
+        // createPartial()'s own comment on touchedStaleWritings for why.
+        if (context.touchedStaleWritings === null) context.touchedStaleWritings = [];
+        context.touchedStaleWritings.push(writing);
+      } else {
+        writing = findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
+      }
+    }
+
+    if (writing.stale) {
+      // Still mid-reconciliation for this repeater's current run -
+      // deliberately *not* compared against the old value or notified yet,
+      // only buffered into nextValue. A property this repeater sets,
+      // unsets, and sets again within one run must settle once, when the
+      // whole run finishes (see finalizeStaleWritings()), against the real
+      // before/after - not once per intermediate write. The writer/
+      // position *do* need to move now, though, on every touch - not
+      // deferred - so any later same-run read (of this exact writing,
+      // whether by this repeater itself or a child reading what it just
+      // established) resolves correctly via ordinary position comparison.
+      writing.hasNextValue = true;
+      writing.nextValue = value;
+      writing.writer = writer;
+      relinkWriting(writing);
+      if (context && context.writings) {
+        context.writings.set(timeline, writing);
+      }
+      return true;
     }
 
     const undefinedKey = !writing.set;
     const previousValue = writing.value;
 
-    // If same value as already set (or as it was before this rerun
-    // retracted it), nothing observable changed.
+    // If same value as already set, nothing observable changed.
     if (writing.set && sameAsPrevious(previousValue, value)) {
-      if (hasPendingWriting) {
-        // The writing being reused still carries whatever writer created it
-        // originally - an old partial that, once its replacement exists,
-        // is no longer in any chain (see "Time as tree position" above) and
-        // so never gets its own orderNumber updated by a later pressure-
-        // release blast in that region. Comparing against it would then use
-        // a stale position - so re-attribute to the current, live writer
-        // (the one actually reconciling against it) before splicing back in.
-        writing.writer = writer;
-        relinkWriting(writing);
-        context.pendingWritings.delete(timeline);
-        context.writings.set(timeline, writing);
-      }
       return true;
     } // TODO: It would be even safer if we write protected non observable data structures that are assigned, if we are using mode: useNonObservablesAsValues
 
     writing.value = value;
     writing.set = true;
 
-    if (hasPendingWriting) {
-      writing.writer = writer;
-      relinkWriting(writing);
-      context.pendingWritings.delete(timeline);
-    }
     if (context && context.writings) {
       context.writings.set(timeline, writing);
     }
@@ -1836,8 +2039,24 @@ function createWorld(configuration) {
       description: repeater.description,
       repeater: repeater,
       sources: [],
+      // Writings this partial itself produced, last run - see
+      // repeater.dispose() (which collects these, across all of a
+      // repeater's own partials, into the repeater-level staleWritings
+      // map) and finalizeStaleWritings().
       writings: new Map(),
-      pendingWritings: new Map(),
+      // Stale writings (see repeater.dispose()/finalizeStaleWritings())
+      // this specific partial has claimed and buffered a nextValue for so
+      // far - finalized (compared, reused-or-notified) the moment *this*
+      // partial closes (see attachToCurrentParent()/refresh()), not
+      // deferred until the whole repeater's run finishes. That scoping
+      // matters: a repeater's later partial's own reads (or an entirely
+      // different repeater's, interleaved via the dirty queue) may depend
+      // on what an *earlier* partial of this same repeater just wrote,
+      // and need to see that notification in real time, in the same
+      // relative order the old writes themselves happened in - not have
+      // it batched up behind everything the rest of this run's later
+      // partials also happen to touch.
+      touchedStaleWritings: null,
       // Sibling pointers within the owning repeater's children/
       // pendingChildren list (partials and real child repeaters share one
       // list) - see createChildList()/attachToCurrentParent() below.
@@ -1921,17 +2140,13 @@ function createWorld(configuration) {
       if (oldPartial !== null && oldPartial.type === "partial") {
         unlinkFromChildList(repeater.pendingChildren, oldPartial);
         removeAllSources(oldPartial);
-        // Every writing this old partial made was already detached from
-        // its timeline back in dispose() - hand the map itself off rather
-        // than notifying anything yet. setHandlerObject reconciles each one
-        // as the new partial's writes actually happen, draining matches out
-        // of it; whatever's left when this partial closes (see
-        // attachToCurrentParent()/refresh()) never got a matching write and
-        // is genuinely gone.
-        partial.pendingWritings = oldPartial.writings;
+        // Writings reconcile at the *repeater* level now, by timeline
+        // identity, not per-partial-slot by position - see
+        // repeater.dispose()/finalizeStaleWritings() - so there's no
+        // writings hand-off to do here anymore; only the chain slot
+        // itself is positional.
         // Same position as last time - inherit its exact chain slot
-        // (orderNumber and neighbors) rather than inserting a new one, the
-        // same "reuse in place" shape as the writings hand-off just above.
+        // (orderNumber and neighbors) rather than inserting a new one.
         inheritOrderChainNode(repeater.chainHead, partial, oldPartial);
         reconciled = true;
       } else {
@@ -1976,6 +2191,16 @@ function createWorld(configuration) {
         unlinkFromChildList(parentRepeater.pendingChildren, child);
       }
       parentRepeater.reconciling = false;
+      // Once reconciliation has broken, this child's own rightmostPartial
+      // can no longer be trusted to already reflect "right here, right
+      // now" the way it does in the reconciled fast path (there, nothing
+      // about the sequence changed, so its old position was still
+      // correct) - see movePartialToCurrentPosition()'s own comment for
+      // the concrete failure this causes if left uncorrected (a sibling's
+      // fresh write can silently become invisible to this child later).
+      if (child.rightmostPartial) {
+        movePartialToCurrentPosition(parentRepeater.chainHead, child.rightmostPartial);
+      }
     }
     child.parentRepeater = parentRepeater;
     child.listMembership = "confirmed";
@@ -1993,9 +2218,12 @@ function createWorld(configuration) {
     // always reflects the child's true current position here.
     parentRepeater.chainHead.executionCursor = child.rightmostPartial;
 
-    // This partial's writes are complete now - anything it didn't reconcile
-    // against its own predecessor is genuinely gone.
-    finalizeWritings(parentContext);
+    // This partial's writes are complete now - any of them reconciled
+    // against this repeater's own stale prior writings (see
+    // repeater.dispose()) settle here, synchronously, not deferred until
+    // the whole repeater's run finishes - see
+    // finalizeTouchedStaleWritings()'s own comment for why.
+    finalizeTouchedStaleWritings(parentContext);
 
     leaveContext(parentContext);
     const partial = createNextPartial(parentRepeater);
@@ -2021,10 +2249,14 @@ function createWorld(configuration) {
       node.listMembership = null;
       if (node.type === "partial") {
         removeAllSources(node);
-        retractAndFinalizeWritings(node);
+        retractPartialChainSlot(node);
       } else {
         node.dispose();
         finalizeChildren(node);
+        // node itself is never running again to reclaim any of its own
+        // staleWritings via a fresh write - what's left there (nothing
+        // was ever claimed, since it never reran) is genuinely gone.
+        finalizeStaleWritings(node);
         node.retracted = true;
         // Fires exactly once per genuine retraction (not on every dispose()
         // - a rerun or a relink never reaches here). For side effects the
@@ -2091,6 +2323,24 @@ function createWorld(configuration) {
       // attachToCurrentParent() keep reconciling against it. Goes false
       // the moment anything doesn't match, for the rest of that run.
       reconciling: false,
+      // This repeater's own writings from its previous run, keyed by
+      // timeline (each a FIFO queue, not a single writing - see
+      // dispose()'s own comment on why: this same repeater can easily
+      // write the very same property more than once in one run, from
+      // different partials), from the moment dispose() marks them stale
+      // until each is either claimed this run (moved into
+      // touchedStaleWritings below) or left here to be genuinely
+      // abandoned once this repeater's current run finishes (see
+      // finalizeStaleWritings()). Timeline-identity-keyed, not
+      // position-keyed - this is what lets a rerun whose own structure
+      // changed enough to break positional reconciliation still recognize
+      // "I already have a writing for this exact property" instead of
+      // always creating a fresh one (and always notifying, even when
+      // nothing really changed). Lazily created (most repeaters never
+      // write anything of their own). Never shared with another repeater -
+      // see finalizeStaleWritings()'s note on why writings can't be reused
+      // across repeaters.
+      staleWritings: null,
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -2164,24 +2414,54 @@ function createWorld(configuration) {
           // of it gets reused (relinked children, reconciled partials) is
           // still worked out lazily, one at a time, as the fresh run
           // actually reaches each position - see createNextPartial()/
-          // attachToCurrentParent(). But every partial's *writings* are
-          // detached from their timelines right now, unconditionally - a
-          // read that happens before this repeater actually reruns (another
-          // repeater interleaved via the dirty queue, or an ancestor's own
-          // later code - see renderOnto.js case 1) must not see this
-          // repeater's stale prior output; it needs to fall through to
-          // whatever's now below it. The writing objects themselves aren't
-          // touched otherwise - they stay right where they are, in each
-          // partial's own `writings`, ready to be handed off as
-          // pendingWritings to whichever new partial reconciles against
-          // that same position, or genuinely retracted and notified if none
-          // ever does - see createNextPartial()/finalizeChildren().
+          // attachToCurrentParent(). Every partial's *writings* are
+          // unlinked from their timelines right now, unconditionally - a
+          // read that happens before this repeater actually reruns
+          // (another repeater interleaved via the dirty queue, or an
+          // ancestor's own later code - see renderOnto.js case 1) must not
+          // see this repeater's stale prior output; it needs to fall
+          // through to whatever's now below it, same as always - this
+          // repeater doesn't get to keep asserting a value it's already
+          // known to be reconsidering, even before it's had its own chance
+          // to rerun and confirm or replace it.
+          //
+          // The writing objects themselves aren't discarded, though -
+          // marked stale and collected into this.staleWritings, keyed by
+          // timeline rather than position, ready to be reused (same
+          // object, relinked at its new position) the moment this
+          // repeater's own fresh run writes that same property again -
+          // see setHandlerObject()/finalizeStaleWritings(). That's what
+          // lets a rerun whose structure changed enough since last time to
+          // break positional reconciliation still recognize "I already
+          // have a writing for this exact property" instead of always
+          // creating a fresh one (and always notifying, even when nothing
+          // really changed) - the actual gap this whole mechanism exists
+          // to close. A *queue* per timeline, not a single writing:
+          // this same repeater can easily write the same property more
+          // than once in one run, at different positions (the classic
+          // padding/spaceLeft pattern - "before", "between", and "after" a
+          // child, all writes to the very same property, from three
+          // different partials of this one repeater) - each needs to
+          // reconcile against its own corresponding occurrence from last
+          // run, not all three collapsing onto whichever one dispose()
+          // happened to visit last. children.first is walked in the same
+          // order every run (structural, creation order), so appending
+          // here and consuming FIFO in setHandlerObject lines up the Nth
+          // write this run with the Nth write last run.
           let node = this.children.first;
           while (node !== null) {
             node.listMembership = "pending";
             if (node.type === "partial") {
-              node.writings.forEach(function(writing) {
+              node.writings.forEach((writing, timeline) => {
                 unlinkWriting(writing);
+                writing.stale = true;
+                if (this.staleWritings === null) this.staleWritings = new Map();
+                let queue = this.staleWritings.get(timeline);
+                if (typeof(queue) === 'undefined') {
+                  queue = [];
+                  this.staleWritings.set(timeline, queue);
+                }
+                queue.push(writing);
               });
             }
             node = node.nextSibling;
@@ -2242,11 +2522,16 @@ function createWorld(configuration) {
         // the one we entered above, not `partial` itself.
         const finalPartial = repeater.currentPartial;
 
-        // Anything retracted at the start of this rerun that never got
-        // reconciled against a fresh write this run is genuinely gone now
+        // The final partial's own claimed stale writings (see
+        // attachToCurrentParent for every earlier partial's own writings -
+        // this repeater's own final one never went through there).
+        finalizeTouchedStaleWritings(finalPartial);
+
+        // Anything marked stale at the start of this rerun (see dispose())
+        // that no partial of this run ever claimed is genuinely gone now
         // (this repeater's own writings), and likewise for any of its
         // children never re-linked this run.
-        finalizeWritings(finalPartial);
+        finalizeStaleWritings(repeater);
         finalizeChildren(repeater);
 
         // Non recorded action (only effect)
@@ -2692,33 +2977,84 @@ function createWorld(configuration) {
     repeater.previousDirty = null;
   }
 
-  // Anything still pending after a rerun (or after a permanent dispose)
-  // was never reconciled against a fresh write, so it's genuinely gone -
-  // notify whoever was watching it.
-  function finalizeWritings(repeater) {
-    repeater.pendingWritings.forEach(function(writing, timeline) {
-      invalidateWritingObservers(writing, timeline.handler.proxy, timeline.key);
-    });
-    repeater.pendingWritings.clear();
-  }
-
   // A partial that finalizeChildren() finds still sitting unconsumed in
   // pendingChildren never got picked up by createNextPartial() (either its
   // owning repeater is being permanently abandoned, not rerun, or the fresh
-  // run's structure diverged before reaching it). Its writings were already
-  // detached from their timelines back in dispose() (so they weren't
-  // sitting stale in between); nothing ever came along to reconcile against
-  // them, so notify and discard for real now, same as finalizeWritings().
-  function retractAndFinalizeWritings(partial) {
-    partial.writings.forEach(function(writing, timeline) {
-      invalidateWritingObservers(writing, timeline.handler.proxy, timeline.key);
-    });
-    partial.writings.clear();
-    finalizeWritings(partial);
-    // This partial's chain slot is genuinely done for too - free it up for
-    // reuse by whatever eventually falls between its old neighbors, rather
-    // than leaving it permanently spent.
+  // run's structure diverged before reaching it) - its position in the
+  // chain is genuinely done for good, so free it up for reuse by whatever
+  // eventually falls between its old neighbors, rather than leaving it
+  // permanently spent. Its *writings* are a separate, repeater-scoped
+  // concern now - see finalizeStaleWritings(), which handles every one of
+  // this partial's own writings (along with every other partial this same
+  // repeater ever produced) uniformly, regardless of which specific
+  // partial-slot produced them or whether that slot itself got reconciled
+  // this run.
+  function retractPartialChainSlot(partial) {
     removePartialFromChain(partial.repeater.chainHead, partial);
+  }
+
+  // Genuinely retract a writing that turned out to have nothing further
+  // to say (never claimed by any write this run) - already unlinked from
+  // its timeline since dispose() (see there), so just notify and clear
+  // its bookkeeping.
+  function abandonStaleWriting(writing) {
+    invalidateWritingObservers(writing, writing.timeline.handler.proxy, writing.timeline.key);
+    writing.stale = false;
+    writing.hasNextValue = false;
+    writing.nextValue = undefined;
+  }
+
+  // Called whenever a partial closes (see attachToCurrentParent(), and
+  // refresh() for a repeater's own final partial) - resolve every stale
+  // writing THIS SPECIFIC PARTIAL claimed this run (see setHandlerObject's
+  // staleWritings-queue lookup) into "reused, no real change" or
+  // "genuinely changed, notify": the buffered nextValue is the real
+  // answer, compared now - for the first and only time - against what it
+  // was before this run (not once per intermediate write within this same
+  // partial - see setHandlerObject's own comment on why that matters: a
+  // property this partial sets, unsets, and sets again must settle once,
+  // not flap).
+  //
+  // Deliberately scoped to *this partial*, not deferred to the whole
+  // repeater's run finishing (createPartial()'s own comment on
+  // touchedStaleWritings has the reasoning): whoever reads what this
+  // partial just wrote - a later partial of this same repeater, a child
+  // repeater, anyone interleaved via the dirty queue - needs to see that
+  // notification in real time, synchronously, the moment this partial's
+  // own code finishes, the same as an ordinary (non-stale) write already
+  // does.
+  function finalizeTouchedStaleWritings(partial) {
+    if (partial.touchedStaleWritings === null) return;
+    partial.touchedStaleWritings.forEach(function(writing) {
+      writing.stale = false;
+      if (!sameAsPrevious(writing.value, writing.nextValue)) {
+        writing.value = writing.nextValue;
+        invalidateWritingObservers(writing, writing.timeline.handler.proxy, writing.timeline.key);
+      }
+      writing.hasNextValue = false;
+      writing.nextValue = undefined;
+    });
+    partial.touchedStaleWritings = null;
+  }
+
+  // Once this repeater's whole run finishes (see refresh()) - or, if it's
+  // being permanently retracted (never getting another run at all) -
+  // anything still left in staleWritings' queues was never claimed by any
+  // write from any of this run's partials (every partial that could have
+  // claimed it has already closed - see finalizeTouchedStaleWritings()
+  // for whatever *was* claimed, already resolved by the time this runs):
+  // it's really gone. Timeline-identity-keyed throughout (queued per
+  // timeline, not positional), and strictly scoped to writings this exact
+  // repeater itself produced - a writing is never reused across repeater
+  // boundaries (see the A-writes-x/B-writes-x discussion this design came
+  // out of: neither direction is safe, since whichever of two repeaters
+  // runs first can't yet know what the other is about to do).
+  function finalizeStaleWritings(repeater) {
+    if (repeater.staleWritings === null) return;
+    repeater.staleWritings.forEach(function(queue) {
+      queue.forEach(abandonStaleWriting);
+    });
+    repeater.staleWritings = null;
   }
 
   function anyDirtyRepeater(start=0) {

@@ -151,25 +151,27 @@ describe("DOMTargetElement", function () {
     }
   });
 
-  it("a shared child kept at a stable call position survives a branch whose *other* children vary in count/identity", function () {
+  it("a shared child sees a sibling's fresh write even after a branch swap breaks positional reconciliation", function () {
     // Found via cascade.application/demo's real menu/work-area breakpoint:
-    // a parent whose two branches call a *shared* child (workArea) at
-    // *different* relative positions - one branch calls it right after an
-    // "extra" child (hamburger) that the other branch doesn't call at all -
-    // corrupts that shared child's own reconciliation the moment the
-    // branch flips. cascade.reactive reconciles a rerun against the
-    // previous one by position (see
+    // hamburger occupies the position right before a shared write while
+    // narrow; menu (a *different*, independently pre-existing repeater -
+    // opened once already, not created fresh here) occupies that same
+    // position while wide. cascade.reactive reconciles a rerun against
+    // the previous one by *position* (see
     // cascade.reactive/docs/plan-partial-repeaters.md's "Rerun: partials
-    // get reused in place"); a *different* child occupying the position
-    // the shared one used to occupy breaks reconciliation for everything
-    // from that point on (repeater.reconciling goes false), so the shared
-    // child's own dependency on the parent's just-written context field
-    // gets orphaned instead of updated in place - it reads `undefined` on
-    // the very next render instead of the fresh value. The fix demonstrated
-    // here: call the shared child (workArea) at the *same* relative
-    // position in both branches - only the extra, branch-specific child
-    // (hamburger) moves - which keeps its own reconciliation intact no
-    // matter how many extra children come after it.
+    // get reused in place"); a different child at that position breaks
+    // reconciliation for the rest of this run (repeater.reconciling goes
+    // false). workArea sits right after the write, unaffected in
+    // principle - but this used to leave its own dependency on that
+    // write orphaned instead of updated in place (it read stale/undefined
+    // values instead of the fresh one) because its own chain position,
+    // last set whenever it actually ran, could easily end up numerically
+    // *behind* the freshly-inserted write it needed to see. Fixed at the
+    // cascade.reactive engine level (attachToCurrentParent's
+    // movePartialToCurrentPosition) - see
+    // cascade.reactive/src/test/reconciliation-position-staleness.js for
+    // the isolated engine-level test; this is the same shape one layer up,
+    // through real Component/DOMTargetElement usage.
     class Hamburger extends Component {
       render(context) {
         const u = this.unobservable;
@@ -177,6 +179,13 @@ describe("DOMTargetElement", function () {
       }
       onRetract() { this.unobservable.el.element.remove(); }
       onReattach(context) { context.target.element.appendChild(this.unobservable.el.element); }
+    }
+
+    class Menu extends Component {
+      render(context) {
+        const u = this.unobservable;
+        if (!u.el) u.el = context.target.createChild("div");
+      }
     }
 
     class WorkArea extends Component {
@@ -188,11 +197,13 @@ describe("DOMTargetElement", function () {
     }
 
     class Frame extends Component {
-      constructor(hamburger, workArea) {
+      constructor(hamburger, menu, workArea) {
         super();
         this.hamburger = hamburger;
+        this.menu = menu;
         this.workArea = workArea;
         this.narrow = true;
+        this.menuOpen = false;
       }
 
       render(context) {
@@ -201,15 +212,17 @@ describe("DOMTargetElement", function () {
         if (!u.innerContext) u.innerContext = new RenderContext(u.innerTarget);
 
         postponeInvalidations();
-        u.innerContext.usableWidth = this.narrow ? 500 : 1000;
-
-        // workArea always called first, at the same position in both
-        // branches - the fix. hamburger (present only while narrow) is
-        // called after it, so its own varying position/absence can never
-        // disturb workArea's reconciliation.
-        this.workArea.renderOnto(u.innerContext);
         if (this.narrow) {
           this.hamburger.renderOnto(u.innerContext);
+          u.innerContext.usableWidth = 500;
+          this.workArea.renderOnto(u.innerContext);
+          if (this.menuOpen) {
+            this.menu.renderOnto(u.innerContext);
+          }
+        } else {
+          this.menu.renderOnto(u.innerContext); // occupies hamburger's old position
+          u.innerContext.usableWidth = 1000;
+          this.workArea.renderOnto(u.innerContext);
         }
         continueInvalidations();
       }
@@ -218,7 +231,7 @@ describe("DOMTargetElement", function () {
     const root = DOMTargetElement.forElement(container);
     const context = new RenderContext(root);
     const workArea = new WorkArea();
-    const frame = new Frame(new Hamburger(), workArea);
+    const frame = new Frame(new Hamburger(), new Menu(), workArea);
     frame.renderOnto(context);
 
     function workAreaWidth() {
@@ -227,10 +240,26 @@ describe("DOMTargetElement", function () {
 
     assert.equal(workAreaWidth(), "500");
 
-    for (let i = 0; i < 3; i++) {
-      frame.narrow = !frame.narrow;
-      frame.unobservable.repeater.restart();
-      assert.equal(workAreaWidth(), frame.narrow ? "500" : "1000", `pass ${i}: narrow=${frame.narrow}`);
-    }
+    // Open the menu while still narrow - it's now a real, independently
+    // pre-existing repeater, not something the docked branch below would
+    // create fresh.
+    frame.menuOpen = true;
+    frame.unobservable.repeater.restart();
+
+    // Cross the breakpoint: hamburger gets retracted, menu (already
+    // alive) takes over its old position - the exact divergence that
+    // breaks positional reconciliation.
+    frame.narrow = false;
+    frame.unobservable.repeater.restart();
+    assert.equal(workAreaWidth(), "1000", "workArea must see the fresh write, not fall through to a stale/missing value");
+
+    // And it must keep working on subsequent round trips too.
+    frame.narrow = true;
+    frame.unobservable.repeater.restart();
+    assert.equal(workAreaWidth(), "500");
+
+    frame.narrow = false;
+    frame.unobservable.repeater.restart();
+    assert.equal(workAreaWidth(), "1000");
   });
 });

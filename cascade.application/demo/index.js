@@ -165,38 +165,14 @@ class MenuFrame extends Component {
     // them) are in, so children only ever see a fully-consistent context.
     postponeInvalidations();
     u.innerContext.menuIsOverlay = menuIsModal;
-    // Menu's width is a fixed CSS constant (never actually measured, or
-    // needs to be) - using it directly here, rather than measuring
-    // menu's own element, avoids a real hazard: that element can be
-    // sitting retracted-and-detached from a previous pass until
-    // menu.renderOnto() (below) reattaches it, so measuring it beforehand
-    // can silently read 0, and measuring it afterward would force
-    // menu.renderOnto() to run before workArea - see the position
-    // comment below for why that specifically breaks things.
+    // Menu's width is a fixed CSS constant, so this doesn't need an
+    // actual measurement of menu's own element.
     u.innerContext.usableWidth = menuIsModal ? context.usableWidth : context.usableWidth - MENU_WIDTH;
     u.innerContext.usableHeight = context.usableHeight;
 
-    // workArea is always attached here, in the very same relative
-    // position regardless of which branch below runs - this matters
-    // structurally, not just stylistically: cascade.reactive reconciles
-    // a rerun against the previous one by *position* (see
-    // docs/plan-partial-repeaters.md's "Rerun: partials get reused in
-    // place"), and the previous code called hamburger before workArea
-    // while modal but menu before workArea while docked - two different
-    // children occupying the same slot the moment the branch flips. That
-    // positional mismatch breaks reconciliation for everything from that
-    // point on (repeater.reconciling goes false), which left workArea's
-    // own dependency on the writes just above orphaned instead of
-    // updated in place - the concrete symptom was workArea reading
-    // context.usableWidth as undefined right after a docked/modal
-    // transition. Keeping workArea's own position fixed sidesteps the
-    // whole class of bug; hamburger/menu (whichever ends up varying
-    // between branches) can safely move since nothing downstream depends
-    // on writes made after them.
-    this.workArea.renderOnto(u.innerContext);
-
     if (menuIsModal) {
       this.hamburger.renderOnto(u.innerContext);
+      this.workArea.renderOnto(u.innerContext);
       if (this.menuOpen) {
         this.menu.renderOnto(u.innerContext);
       }
@@ -206,13 +182,12 @@ class MenuFrame extends Component {
       // Hamburger not needed docked - never rendered, or retracted if it
       // was previously rendered while modal.
       this.menu.renderOnto(u.innerContext);
+      this.workArea.renderOnto(u.innerContext);
       // A reused element is only ever inserted once, at creation (or
       // re-inserted somewhere on reattachment after a real retraction -
-      // see Menu.onReattach) - an ordinary rerun never repositions it, and
-      // (as of the workArea reordering above) call order and visual order
-      // are no longer even the same thing. So the desired *visual* order
-      // is always explicitly reasserted here, every render, via
-      // insertChild - see DOMTargetElement.
+      // see Menu.onReattach) - an ordinary rerun never repositions it. So
+      // the desired *visual* order is always explicitly reasserted here,
+      // every render, via insertChild - see DOMTargetElement.
       u.el.insertChild(this.menu.unobservable.el, null);
     }
     continueInvalidations();

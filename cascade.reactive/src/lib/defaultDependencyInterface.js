@@ -76,6 +76,12 @@ export function defaultDependencyInterfaceCreator(causality) {
         observer,
         time: typeof(time) === 'undefined' ? null : time,
         writer: typeof(writer) === 'undefined' ? null : writer,
+        // Set by cascade.js (flagRepeaterEntry) when this entry is found
+        // overtaken by a closer writing but the change can't yet be acted
+        // on (see resolveFlaggedRepeater) - guards against the same entry
+        // being flagged twice over by a second, even-closer writing before
+        // the first flag is ever resolved.
+        flagged: false,
       };
 
       // Note dependency in repeater itself (for cleaning up)
@@ -233,42 +239,56 @@ export function defaultDependencyInterfaceCreator(causality) {
     // ordinary writing-scoped invalidation (invalidateWritingObservers
     // above) ever touches a writing other than the one actually being
     // written, so a reader attached to `previousWriting` never learns that
-    // `newWriting` is now the one it should really be depending on. Only
-    // `previousWriting`'s own observers can possibly be affected here -
-    // any reader attached to an even-earlier writing must have its own
+    // a closer writing is now the one it should really be depending on.
+    // Only `previousWriting`'s own observers can possibly be affected here
+    // - any reader attached to an even-earlier writing must have its own
     // read position strictly before `previousWriting`'s (otherwise it
     // would have resolved to `previousWriting` instead), which is in turn
-    // before `newWriting`'s position, so it's unaffected by construction.
+    // before the new writing's position, so it's unaffected by
+    // construction.
     //
-    // `isOvertaken(time, writer)` decides, per recorded entry, whether that
-    // entry's own read position is at-or-after `newWriting`'s position
-    // (comparePositions lives in cascade.js, not here - passed in rather
-    // than duplicated). `notifyMigrated` is a single boolean, not a
-    // per-entry decision: every migrated entry shares the same real
-    // before/after transition (whatever `previousWriting` used to resolve
-    // to, now versus `newWriting`), so cascade.js computes it once, from
-    // the two writings' effective values, before calling this.
-    migrateOvertakenPropertyObservers: (previousWriting, newWriting, isOvertaken, notifyMigrated) => {
-      if (previousWriting.observers === null) return;
-      const overtaken = collectObserverEntries(previousWriting.observers)
-        .filter(({ entry }) => isOvertaken(entry.time, entry.writer));
-      if (overtaken.length === 0) return;
+    // Just the *finding*, not the decision of what to do about it - see
+    // cascade.js's migrateOvertakenObserversFor for why that decision
+    // (repoint silently now vs. flag for a deferred recheck later) isn't
+    // made here: it needs writingsHaveSameEffectiveValue and (for the
+    // deferred case) the repeater-flagging bookkeeping, neither of which
+    // this module knows about. `isOvertaken(time, writer)` decides, per
+    // recorded entry, whether that entry's own read position is strictly
+    // after the new writing's (comparePositions lives in cascade.js, not
+    // here - passed in rather than duplicated).
+    collectOvertakenPropertyObservers: (previousWriting, isOvertaken) => {
+      if (previousWriting.observers === null) return [];
+      return collectObserverEntries(previousWriting.observers)
+        .filter(({ entry }) => isOvertaken(entry.time, entry.writer))
+        .map(({ entry }) => entry);
+    },
 
-      if (newWriting.observers === null) {
-        newWriting.observers = createObserverSet(
+    // Move one specific, already-found entry (from collectOvertakenPropertyObservers
+    // above, or a flag record being resolved later) off `previousWriting`
+    // and onto `freshWriting` - the entry's own {time, writer} travel with
+    // it unchanged, only which writing's observers it's parked on changes.
+    // Re-scans `previousWriting.observers` for the exact entry (by
+    // reference) rather than requiring the caller to also track which
+    // chunk it lives in - cheap, since it's bounded by however many
+    // readers `previousWriting` currently has, not a system-wide search.
+    // Returns false if the entry wasn't found there anymore (e.g. it was
+    // independently cleared by a real invalidation in between) - the
+    // caller has nothing further to do in that case.
+    relocatePropertyObserverEntry: (previousWriting, freshWriting, targetEntry) => {
+      if (previousWriting.observers === null) return false;
+      const found = collectObserverEntries(previousWriting.observers)
+        .find(({ entry }) => entry === targetEntry);
+      if (!found) return false;
+      removeFromObserverSet(found.id, found.owner);
+      if (freshWriting.observers === null) {
+        freshWriting.observers = createObserverSet(
           previousWriting.observers.description,
           previousWriting.observers.key,
           previousWriting.observers.handler
         );
       }
-
-      overtaken.forEach(({ id, entry, owner }) => {
-        removeFromObserverSet(id, owner);
-        recordDependency(entry.observer, newWriting.observers, previousWriting.observers.key, entry.time, entry.writer);
-        if (notifyMigrated) {
-          invalidateObserver(entry.observer, newWriting.timeline.handler.proxy, newWriting.timeline.key);
-        }
-      });
+      recordDependency(targetEntry.observer, freshWriting.observers, previousWriting.observers.key, targetEntry.time, targetEntry.writer);
+      return true;
     },
 
     invalidateEnumerateObservers: (handler, key) => {

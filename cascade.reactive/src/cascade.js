@@ -99,6 +99,13 @@ function createWorld(configuration) {
     refreshingAllDirtyRepeaters: false,
     workOnTimeLevel: [...Array(configuration.timeLevels).keys()].map(() => 0),
     revalidationTimeLock: -1,
+
+    // Repeaters carrying at least one flagged (not-yet-resolved,
+    // possibly-overtaken) dependency - see flagRepeaterEntry()/
+    // resolveFlaggedRepeater(). One list per time level, same shape as
+    // dirtyRepeaters, so exitTimeLevel() can drain exactly the flags at
+    // the level it's trying to settle before locking it.
+    flaggedRepeaters: [...Array(configuration.timeLevels).keys()].map(() => ({first: null, last: null})),
   };
 
   // Reserved key for each object handler's enumeration timeline (tracks
@@ -195,7 +202,8 @@ function createWorld(configuration) {
   const invalidateEnumerateObservers = dependencyInterface.invalidateEnumerateObservers;
   const invalidatePropertyObservers = dependencyInterface.invalidatePropertyObservers;
   const invalidateWritingObservers = dependencyInterface.invalidateWritingObservers;
-  const migrateOvertakenPropertyObservers = dependencyInterface.migrateOvertakenPropertyObservers;
+  const collectOvertakenPropertyObservers = dependencyInterface.collectOvertakenPropertyObservers;
+  const relocatePropertyObserverEntry = dependencyInterface.relocatePropertyObserverEntry;
   const removeAllSources = dependencyInterface.removeAllSources;
 
   // Object log
@@ -295,18 +303,41 @@ function createWorld(configuration) {
     }
     state.workOnTimeLevel[level]--
 
-    // Handle finished time levels. 
-    let first = true;  
+    // Handle finished time levels.
+    let first = true;
     while (level < state.workOnTimeLevel.length && state.workOnTimeLevel[level] === 0) {
+      // A level reaching zero active work means its ordinary dirty queue
+      // (state.dirtyRepeaters[level]) is already empty too - repeaterDirty
+      // itself does the matching enterTimeLevel, so anything still queued
+      // there would keep this counter above zero. But something at this
+      // level might still be sitting *flagged* (see
+      // migrateOvertakenObserversFor's partial branch) - a dependency this
+      // level found possibly-overtaken but deliberately left unresolved,
+      // betting that the wavefront reaching it naturally (via linkRepeater)
+      // would resolve it first. If nothing ever did (its own parent never
+      // happened to relink it this wave), this is the backstop: resolve it
+      // now, before declaring the level settled - not resolving it here
+      // would let something rely on a dependency this level itself never
+      // finished checking.
+      resolveFlaggedRepeatersAtLevel(level);
+      if (state.workOnTimeLevel[level] !== 0) {
+        // Resolving a flag turned out to need a real invalidation, which
+        // (via repeaterDirty's own enterTimeLevel) means this level isn't
+        // actually settled after all - that repeater's own eventual
+        // refresh() will itself re-enter/exit this level and re-attempt
+        // the lock once it's done, so there's nothing further to do here
+        // right now.
+        break;
+      }
       // if (!first) logMark("No work on next level, signaling early finish.");
       if (typeof(configuration.onFinishedTimeLevel) === "function") {
         configuration.onFinishedTimeLevel(level, first);
       }
       state.revalidationTimeLock = level;
       level++;
-      first = false;  
+      first = false;
     }
-  } 
+  }
 
   function workOnTimeLevel(level, action) {
     enterTimeLevel(level);
@@ -1231,9 +1262,9 @@ function createWorld(configuration) {
   // position (whether freshly inserted, or a stale writing just reused at
   // a new position - see setHandlerObject's own two call sites) may have
   // "overtaken" some of writing.previous's existing readers: a reader
-  // whose own read position is at-or-after `writing`'s position resolved
-  // to `writing.previous` only because `writing` didn't exist yet at read
-  // time (see migrateOvertakenPropertyObservers's own comment for why only
+  // whose own read position is after `writing`'s position resolved to
+  // `writing.previous` only because `writing` didn't exist yet at read
+  // time (see collectOvertakenPropertyObservers's own comment for why only
   // the immediate predecessor's observers can ever be affected). Left
   // uncorrected, that reader's dependency stays pinned to `writing.previous`
   // forever - it never learns `writing` is now the closer, correct answer,
@@ -1250,30 +1281,60 @@ function createWorld(configuration) {
   // writer===null for two different external writes, can't reach here in
   // the first place, since two external writes to the same property always
   // land on the very same already-exact-matching writing - see
-  // setHandlerObject's `justInserted` comment). Migrating a self-entry
-  // would mean invalidating - mid-execution - the very writer that just
-  // produced this value, for a dependency that was never actually stale.
+  // setHandlerObject's `justInserted` comment). Treating a self-entry as
+  // overtaken would mean invalidating - mid-execution - the very writer
+  // that just produced this value, for a dependency that was never
+  // actually stale.
   //
-  // Known limitation of this first cut: for a stale writing being reused
-  // (see setHandlerObject's `writing.stale` branch), this runs once per
-  // touch, using whatever value is current *at that touch* - unlike the
-  // writing's own before/after comparison (deferred to
-  // finalizeTouchedStaleWritings so a set/unset/set within one partial
-  // settles once), a migrated reader's invalidation decision is not itself
-  // flap-protected across multiple touches of the same writing within one
-  // partial. Narrow in practice (it only matters if such a property is
-  // also written more than once by the same partial in the same run), and
-  // left as a follow-up rather than solved here.
+  // What happens to an overtaken entry depends on whether it belongs to a
+  // repeater's partial (a genuine member of the tree-ordered, wavefront-
+  // sensitive world) or not (an invalidator, whose `time === Infinity`
+  // read - see currentReadTime - means it always wants "whatever's latest,
+  // right now" and was never part of any tree-position ordering to begin
+  // with - see invalidateOnChange's own doc comment that it "cannot modify
+  // model", i.e. it deliberately sits outside the repeater tree):
+  //
+  //  - Same effective value either way: always just repoint, silently, no
+  //    matter which kind of entry it is - nothing observable changes, and
+  //    any *later* writing that further supersedes this one gets its own
+  //    independent chance to notice and re-check, since the entry simply
+  //    follows wherever it's currently parked.
+  //  - Different value, invalidator entry: repoint AND invalidate right
+  //    now, same as this always worked - an invalidator has no notion of
+  //    "the wavefront hasn't reached it yet" to wait for.
+  //  - Different value, partial (repeater-tree) entry: do NOT repoint or
+  //    invalidate yet - flag it instead (flagRepeaterEntry) and leave it
+  //    exactly where it is. A's change might still be undone by B before
+  //    execution ever actually reaches this reader (see the A/B/C
+  //    discussion this came out of) - repointing or invalidating this
+  //    early would be exactly "invalidation traveling faster than the
+  //    computation front". Left parked on `previous`, the entry stays
+  //    correctly, automatically covered by `previous`'s own ordinary
+  //    invalidation too: if `previous` itself later genuinely changes
+  //    before the flag is ever resolved, that fires directly, for real,
+  //    bypassing the flag entirely - exactly as it should.
   function migrateOvertakenObserversFor(writing) {
     const previous = writing.previous;
-    if (previous === null || previous.observers === null) return;
-    const notifyMigrated = !writingsHaveSameEffectiveValue(previous, writing);
-    migrateOvertakenPropertyObservers(
+    if (previous === null) return;
+    const overtaken = collectOvertakenPropertyObservers(
       previous,
-      writing,
-      (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, writing.time, writing.writer) > 0,
-      notifyMigrated
+      (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, writing.time, writing.writer) > 0
     );
+    if (overtaken.length === 0) return;
+    const sameValue = writingsHaveSameEffectiveValue(previous, writing);
+    overtaken.forEach((entry) => {
+      if (entry.flagged) return; // already pending a deferred recheck - let that recheck re-seek fresh rather than layering another guess on top
+      if (sameValue) {
+        relocatePropertyObserverEntry(previous, writing, entry);
+        return;
+      }
+      if (entry.observer.type === "partial") {
+        flagRepeaterEntry(entry.observer.repeater, entry, previous);
+      } else {
+        relocatePropertyObserverEntry(previous, writing, entry);
+        invalidateObserver(entry.observer, writing.timeline.handler.proxy, writing.timeline.key);
+      }
+    });
   }
 
   function getOrCreateExactWriting(handler, key, time, writer) {
@@ -2431,6 +2492,23 @@ function createWorld(configuration) {
       // see finalizeStaleWritings()'s note on why writings can't be reused
       // across repeaters.
       staleWritings: null,
+      // Dependencies of this repeater's own (still-live, not-yet-rerun)
+      // partials that migrateOvertakenObserversFor found possibly
+      // overtaken by a closer writing, but couldn't yet resolve for real -
+      // see flagRepeaterEntry()/resolveFlaggedRepeater(). Each entry is
+      // {entry, previousWriting}: `entry` is the very same {observer,
+      // time, writer, flagged} object still sitting in
+      // `previousWriting.observers` (untouched - see
+      // migrateOvertakenObserversFor's own comment on why leaving it
+      // there is exactly what keeps it covered by previousWriting's own
+      // ordinary invalidation in the meantime). Lazily created; null means
+      // "nothing pending".
+      flagRecords: null,
+      // This repeater's own membership in state.flaggedRepeaters[time()] -
+      // a doubly linked list, same shape as nextDirty/previousDirty below,
+      // maintained only while flagRecords is non-empty.
+      nextFlagged: null,
+      previousFlagged: null,
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -2994,18 +3072,36 @@ function createWorld(configuration) {
   }
 
   // Reattach a previously-created repeater as a child of whichever
-  // repeater is currently executing - pure reattachment, never a trigger.
-  // If `oldRepeater` is currently invalid, cascade's normal dirty-queue
-  // machinery refreshes it on its own schedule, independent of when this
-  // is called; if it's clean, this is a no-op beyond the reattachment
-  // itself - no rerun, no state loss. Component/child identity (which old
-  // repeater corresponds to which new render call) is entirely the
-  // caller's responsibility - cascade only exposes this primitive.
+  // repeater is currently executing - pure reattachment, never a trigger
+  // *of its own* - but it is the natural checkpoint for resolving whatever
+  // this repeater has been flagged with (see flagRepeaterEntry): if
+  // nothing else has re-examined it first, this is the moment execution
+  // was always going to reach it anyway, so any deferred "might be
+  // overtaken" check gets settled for real right here, before deciding
+  // whether relinking it is really just a clean, no-op reattachment.
+  // If `oldRepeater` is (now, or already) genuinely invalid, cascade's
+  // normal dirty-queue machinery refreshes it on its own schedule,
+  // independent of when this is called; if it's clean, this is a no-op
+  // beyond the reattachment itself - no rerun, no state loss. Component/
+  // child identity (which old repeater corresponds to which new render
+  // call) is entirely the caller's responsibility - cascade only exposes
+  // this primitive.
   function linkRepeater(oldRepeater) {
+    if (oldRepeater.flagRecords !== null && oldRepeater.flagRecords.length > 0) {
+      resolveFlaggedRepeater(oldRepeater);
+    }
     attachToCurrentParent(oldRepeater);
     return oldRepeater;
   }
 
+  // Whether `repeater` is already sitting in its own time level's dirty
+  // list - shared by repeaterDirty (deciding whether to enqueue again) and
+  // resolveFlaggedRepeater (deciding whether a flag is already moot
+  // because a real invalidation beat it there).
+  function isRepeaterQueuedDirty(repeater) {
+    const list = state.dirtyRepeaters[repeater.time()];
+    return list.first === repeater || repeater.nextDirty !== null || repeater.previousDirty !== null;
+  }
 
   function repeaterDirty(repeater) { // TODO: Add update block on this stage?
     repeater.dispose();
@@ -3028,7 +3124,7 @@ function createWorld(configuration) {
     // self-referencing loop that detatchRepeater can never fully unlink -
     // leaving it looking dirty forever after and refreshing it an extra,
     // spurious time once real reactive machinery reaches it in that state.
-    const alreadyQueued = list.first === repeater || repeater.nextDirty !== null || repeater.previousDirty !== null;
+    const alreadyQueued = isRepeaterQueuedDirty(repeater);
     if (!alreadyQueued) {
       if (list.last === null) {
         list.last = repeater;
@@ -3065,6 +3161,115 @@ function createWorld(configuration) {
     }
     repeater.nextDirty = null;
     repeater.previousDirty = null;
+  }
+
+  /***************************************************************
+   *
+   *  Flagged repeaters - a possibly-overtaken dependency whose
+   *  resolution is deliberately deferred (see
+   *  migrateOvertakenObserversFor's partial branch) until execution
+   *  actually reaches the repeater it belongs to, rather than acted on
+   *  the instant it's discovered. "Flagged" sits between "clean" and
+   *  "invalid": known to *maybe* need reevaluation, but not promoted to
+   *  invalid (queued, guaranteed to rerun) until it's actually
+   *  re-examined and found to matter.
+   *
+   ***************************************************************/
+
+  // Record that `entry` (still sitting, untouched, in
+  // `previousWriting.observers`) might belong on a closer writing instead
+  // - found overtaken, but with a value that genuinely differed at
+  // discovery time, so acting on it immediately would risk exactly the
+  // "invalidation travels faster than the computation front" problem: the
+  // change that overtook it might yet be undone by something between here
+  // and wherever `entry`'s own repeater actually gets reached. Idempotent
+  // per entry (guarded by entry.flagged) - a second, even-closer writing
+  // appearing before this is ever resolved just leaves it flagged once,
+  // to be resolved fresh (against whatever's authoritative *then*) rather
+  // than layered with a second, redundant guess now.
+  function flagRepeaterEntry(repeater, entry, previousWriting) {
+    entry.flagged = true;
+    const wasEmpty = repeater.flagRecords === null || repeater.flagRecords.length === 0;
+    if (repeater.flagRecords === null) repeater.flagRecords = [];
+    repeater.flagRecords.push({ entry, previousWriting });
+    if (wasEmpty) {
+      const list = state.flaggedRepeaters[repeater.time()];
+      repeater.previousFlagged = list.last;
+      repeater.nextFlagged = null;
+      if (list.last !== null) list.last.nextFlagged = repeater; else list.first = repeater;
+      list.last = repeater;
+    }
+  }
+
+  function detachFlaggedRepeater(repeater) {
+    const list = state.flaggedRepeaters[repeater.time()];
+    if (list.last === repeater) list.last = repeater.previousFlagged;
+    if (list.first === repeater) list.first = repeater.nextFlagged;
+    if (repeater.nextFlagged !== null) repeater.nextFlagged.previousFlagged = repeater.previousFlagged;
+    if (repeater.previousFlagged !== null) repeater.previousFlagged.nextFlagged = repeater.nextFlagged;
+    repeater.nextFlagged = null;
+    repeater.previousFlagged = null;
+  }
+
+  // Actually settle every flag record `repeater` is currently carrying -
+  // called either opportunistically (linkRepeater reaching it naturally)
+  // or as exitTimeLevel's own backstop sweep, right before it would
+  // otherwise lock a level that still has unresolved flags in it. Two
+  // *live* reads, taken at this same moment, are all that's needed per
+  // record - not any snapshot of history: `previousWriting`'s own current
+  // value (still accurate, since nothing genuinely changed it without
+  // going through its own ordinary invalidation - see
+  // migrateOvertakenObserversFor's own reasoning) versus an entirely fresh
+  // resolution of the same (timeline, time, writer) position, walked from
+  // scratch against whatever's linked right now. A mutated-in-place
+  // writing along the way is never a problem, because neither side of
+  // this comparison depends on any intermediate state that could have
+  // been overwritten - see the flagged-list design discussion this came
+  // out of.
+  function resolveFlaggedRepeater(repeater) {
+    const records = repeater.flagRecords;
+    if (records === null || records.length === 0) return;
+    repeater.flagRecords = null;
+    detachFlaggedRepeater(repeater);
+
+    // Already disposed/retracted, or already independently queued for a
+    // real rerun (e.g. some *other* dependency of this same repeater was
+    // invalidated for real in the meantime) - either way, a full refresh
+    // is coming (or already happened) and will re-derive every one of
+    // this repeater's dependencies from scratch, discarding whatever these
+    // stale entries were parked on. Nothing further to do beyond clearing
+    // the per-entry flag so a future overtake can consider them again.
+    if (repeater.disposed || repeater.retracted || isRepeaterQueuedDirty(repeater)) {
+      records.forEach(({ entry }) => { entry.flagged = false; });
+      return;
+    }
+
+    records.forEach(({ entry, previousWriting }) => {
+      entry.flagged = false;
+      const fresh = seekWriting(previousWriting.timeline, entry.time, entry.writer);
+      if (fresh === previousWriting) return; // nothing actually closer is linked anymore (e.g. it was itself retracted) - previousWriting is still the right answer, nothing to do
+      const changed = !writingsHaveSameEffectiveValue(previousWriting, fresh);
+      relocatePropertyObserverEntry(previousWriting, fresh, entry);
+      if (changed) {
+        invalidateObserver(entry.observer, fresh.timeline.handler.proxy, fresh.timeline.key);
+      }
+    });
+  }
+
+  // The backstop for exitTimeLevel(): resolve every repeater still
+  // carrying a flag at `level`, right before that level would otherwise
+  // be declared settled. Covers the case linkRepeater's own opportunistic
+  // check can't: a flagged repeater whose parent never happens to relink
+  // it again this wave (nothing else about that parent changed) - nothing
+  // is *incorrect* while such a flag sits unresolved (its own output
+  // hasn't changed), but it must not survive past the point where
+  // anything downstream could rely on it, which is exactly the point
+  // exitTimeLevel is about to declare has arrived.
+  function resolveFlaggedRepeatersAtLevel(level) {
+    const list = state.flaggedRepeaters[level];
+    while (list.first !== null) {
+      resolveFlaggedRepeater(list.first);
+    }
   }
 
   // A partial that finalizeChildren() finds still sitting unconsumed in

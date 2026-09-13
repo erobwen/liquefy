@@ -123,14 +123,19 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
   });
 
   it("when the migrated value happens not to change, the migration itself does not force an extra notification", function () {
-    // Same shape, but with b.claim === 0 - the migrated dependency's
-    // value doesn't change *because of the migration itself* (only
-    // because b's own writing separately changed value from what it used
-    // to be, same as any ordinary invalidation) - see
-    // migrateOvertakenObserversFor's own `notifyMigrated` computation in
-    // cascade.js, which compares the migrated-from and migrated-to
-    // writings' own values before deciding to notify on the migration's
-    // own account.
+    // Same shape, but with b.claim === 0. Panel's "after" write ends up
+    // flagged against b's own writing twice over the course of this
+    // scenario (see settleOvertakenObservers's own `sameValue` check in
+    // cascade.js): once when panel's own "between" write is retired (b
+    // reads it, so it can't be reused in place - see retireWritingOnto)
+    // and once when b itself finally reruns and its writing's value
+    // genuinely changes from what it used to be. Both times, panel's
+    // flagged dependency is compared fresh, on its own account, against
+    // whatever's actually authoritative right then - with b.claim === 0,
+    // b's own final output happens to already match what panel's
+    // "between" write settled on, so that second comparison resolves as
+    // "no real change" and panel's flag clears without ever promoting to
+    // a third rebuild.
     const target = observable({ spaceLeft: 100 });
     const a = new Leaf(20);
     const b = new Leaf(0);
@@ -144,7 +149,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     // not), without needing to cross-reference renderOnto.js to see why
     // the numbers land where they do.
     assert.equal(target.spaceLeft, 55);
-    assert.equal(panel.unobservable.rebuildCount, 3);
+    assert.equal(panel.unobservable.rebuildCount, 2);
   });
 
 });

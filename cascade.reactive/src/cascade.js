@@ -103,8 +103,10 @@ function createWorld(configuration) {
     // Repeaters carrying at least one flagged (not-yet-resolved,
     // possibly-overtaken) dependency - see flagRepeaterEntry()/
     // resolveFlaggedRepeater(). One list per time level, same shape as
-    // dirtyRepeaters, so exitTimeLevel() can drain exactly the flags at
-    // the level it's trying to settle before locking it.
+    // dirtyRepeaters, so lower-time-level flags can be resolved before
+    // higher ones - see refreshAllDirtyRepeaters()'s own two-phase loop,
+    // which is what actually drains these (not exitTimeLevel - see its
+    // own comment on why that fires too often to be the right point).
     flaggedRepeaters: [...Array(configuration.timeLevels).keys()].map(() => ({first: null, last: null})),
   };
 
@@ -306,29 +308,6 @@ function createWorld(configuration) {
     // Handle finished time levels.
     let first = true;
     while (level < state.workOnTimeLevel.length && state.workOnTimeLevel[level] === 0) {
-      // A level reaching zero active work means its ordinary dirty queue
-      // (state.dirtyRepeaters[level]) is already empty too - repeaterDirty
-      // itself does the matching enterTimeLevel, so anything still queued
-      // there would keep this counter above zero. But something at this
-      // level might still be sitting *flagged* (see
-      // migrateOvertakenObserversFor's partial branch) - a dependency this
-      // level found possibly-overtaken but deliberately left unresolved,
-      // betting that the wavefront reaching it naturally (via linkRepeater)
-      // would resolve it first. If nothing ever did (its own parent never
-      // happened to relink it this wave), this is the backstop: resolve it
-      // now, before declaring the level settled - not resolving it here
-      // would let something rely on a dependency this level itself never
-      // finished checking.
-      resolveFlaggedRepeatersAtLevel(level);
-      if (state.workOnTimeLevel[level] !== 0) {
-        // Resolving a flag turned out to need a real invalidation, which
-        // (via repeaterDirty's own enterTimeLevel) means this level isn't
-        // actually settled after all - that repeater's own eventual
-        // refresh() will itself re-enter/exit this level and re-attempt
-        // the lock once it's done, so there's nothing further to do here
-        // right now.
-        break;
-      }
       // if (!first) logMark("No work on next level, signaling early finish.");
       if (typeof(configuration.onFinishedTimeLevel) === "function") {
         configuration.onFinishedTimeLevel(level, first);
@@ -1286,23 +1265,62 @@ function createWorld(configuration) {
   // that just produced this value, for a dependency that was never
   // actually stale.
   //
-  // What happens to an overtaken entry depends on whether it belongs to a
-  // repeater's partial (a genuine member of the tree-ordered, wavefront-
-  // sensitive world) or not (an invalidator, whose `time === Infinity`
-  // read - see currentReadTime - means it always wants "whatever's latest,
-  // right now" and was never part of any tree-position ordering to begin
-  // with - see invalidateOnChange's own doc comment that it "cannot modify
-  // model", i.e. it deliberately sits outside the repeater tree):
+  // Whether deferring `entry`'s invalidation (flagging it, rather than
+  // firing it right away) could ever matter - i.e. whether `entry` is a
+  // genuine member of the *same* wavefront-ordered tree as whatever is
+  // causing this settlement (`referenceWriter`). It isn't enough for
+  // `entry` to belong to a repeater's partial at all: two repeaters with
+  // no shared chainHead (see "Time as tree position" above) have no
+  // execution sequence connecting them - nothing about "wait, something
+  // between here and there might still undo this" applies, because there
+  // is no "in between" for unrelated trees, only compareWriterOrder's own
+  // arbitrary-but-stable chain-id tiebreak. Deferring such an entry
+  // wouldn't be unsafe, just pointless complexity with no payoff - so it's
+  // grouped with invalidators (see below) as "eager", not "deferred".
+  // `referenceWriter === null` (an external, non-repeater write) means
+  // there's no tree at all on the writing side either, so nothing gets
+  // deferred relative to it.
+  function entryNeedsDeferredTreatment(entry, referenceWriter) {
+    return entry.observer.type === "partial"
+      && referenceWriter !== null
+      && entry.observer.repeater.chainHead === referenceWriter.repeater.chainHead;
+  }
+
+  // Whether a stale writing about to be reused (see setHandlerObject's
+  // staleQueue branch) actually needs to be retired instead - i.e.
+  // whether it currently has *any* observer that entryNeedsDeferredTreatment
+  // would defer. If not - no observers at all, or every current observer
+  // is eager-eligible (an invalidator, or same-time legacy code in an
+  // unrelated chain) - reusing it in place is exactly as safe as it
+  // always was: finalizeTouchedStaleWritings' own eager notify-if-
+  // different is the right treatment for all of them anyway, so there's
+  // no reason to pay for a fresh writing object and a retire/settle pass
+  // just to arrive at the same outcome. `writer` is the same reference
+  // the candidate's own `.writer` is about to be reassigned to (see the
+  // `writing.stale` branch just below), so checking against it here
+  // rather than the candidate's own (about-to-be-stale) writer gives the
+  // right answer for what it's *becoming*, not what it used to be.
+  function staleWritingNeedsRetirement(candidate, writer) {
+    if (candidate.observers === null) return false;
+    return collectOvertakenPropertyObservers(candidate, () => true)
+      .some((entry) => entryNeedsDeferredTreatment(entry, writer));
+  }
+
+  // What happens to an overtaken entry:
   //
   //  - Same effective value either way: always just repoint, silently, no
   //    matter which kind of entry it is - nothing observable changes, and
   //    any *later* writing that further supersedes this one gets its own
   //    independent chance to notice and re-check, since the entry simply
   //    follows wherever it's currently parked.
-  //  - Different value, invalidator entry: repoint AND invalidate right
-  //    now, same as this always worked - an invalidator has no notion of
-  //    "the wavefront hasn't reached it yet" to wait for.
-  //  - Different value, partial (repeater-tree) entry: do NOT repoint or
+  //  - Different value, not eligible for deferred treatment (see
+  //    entryNeedsDeferredTreatment - an invalidator, whose `time ===
+  //    Infinity` read means it always wants "whatever's latest, right
+  //    now" and was never part of any tree-position ordering to begin
+  //    with; or a partial from an entirely unrelated chain): repoint AND
+  //    invalidate right now, same as this always worked - neither has any
+  //    notion of "the wavefront hasn't reached it yet" to wait for.
+  //  - Different value, same-tree partial entry: do NOT repoint or
   //    invalidate yet - flag it instead (flagRepeaterEntry) and leave it
   //    exactly where it is. A's change might still be undone by B before
   //    execution ever actually reaches this reader (see the A/B/C
@@ -1313,6 +1331,31 @@ function createWorld(configuration) {
   //    invalidation too: if `previous` itself later genuinely changes
   //    before the flag is ever resolved, that fires directly, for real,
   //    bypassing the flag entirely - exactly as it should.
+  //
+  // Shared by migrateOvertakenObserversFor (an existing dependency
+  // overtaken by a closer writing) and retireWritingOnto (a stale writing
+  // that couldn't safely be reused, so a fresh writing takes its place at
+  // the same slot instead) - to `oldWriting`'s own observers, the two
+  // situations look identical: some other writing (`newWriting`) is now
+  // the correct answer instead of `oldWriting`.
+  function settleOvertakenObservers(oldWriting, newWriting, entries) {
+    if (entries.length === 0) return;
+    const sameValue = writingsHaveSameEffectiveValue(oldWriting, newWriting);
+    entries.forEach((entry) => {
+      if (entry.flagged) return; // already pending a deferred recheck - let that recheck re-seek fresh rather than layering another guess on top
+      if (sameValue) {
+        relocatePropertyObserverEntry(oldWriting, newWriting, entry);
+        return;
+      }
+      if (entryNeedsDeferredTreatment(entry, newWriting.writer)) {
+        flagRepeaterEntry(entry.observer.repeater, entry, oldWriting);
+      } else {
+        relocatePropertyObserverEntry(oldWriting, newWriting, entry);
+        invalidateObserver(entry.observer, newWriting.timeline.handler.proxy, newWriting.timeline.key);
+      }
+    });
+  }
+
   function migrateOvertakenObserversFor(writing) {
     const previous = writing.previous;
     if (previous === null) return;
@@ -1320,21 +1363,27 @@ function createWorld(configuration) {
       previous,
       (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, writing.time, writing.writer) > 0
     );
-    if (overtaken.length === 0) return;
-    const sameValue = writingsHaveSameEffectiveValue(previous, writing);
-    overtaken.forEach((entry) => {
-      if (entry.flagged) return; // already pending a deferred recheck - let that recheck re-seek fresh rather than layering another guess on top
-      if (sameValue) {
-        relocatePropertyObserverEntry(previous, writing, entry);
-        return;
-      }
-      if (entry.observer.type === "partial") {
-        flagRepeaterEntry(entry.observer.repeater, entry, previous);
-      } else {
-        relocatePropertyObserverEntry(previous, writing, entry);
-        invalidateObserver(entry.observer, writing.timeline.handler.proxy, writing.timeline.key);
-      }
-    });
+    settleOvertakenObservers(previous, writing, overtaken);
+  }
+
+  // A stale writing this repeater could have reused (see setHandlerObject's
+  // staleQueue branch) but didn't, because it still had live observers -
+  // reusing it would have meant mutating its `.value` in place and then
+  // having to decide, immediately and unconditionally, whether to notify
+  // them (see finalizeTouchedStaleWritings) - exactly the eager treatment
+  // a tree-ordered (partial-type) observer must never get. So the old
+  // writing was abandoned outright instead (unlinked, its own `.value`
+  // frozen exactly as it was) and `newWriting` was inserted fresh at that
+  // same slot. Every one of `oldWriting`'s observers - unconditionally,
+  // not just ones positioned after `newWriting` - needs to move onto
+  // `newWriting` now that it's the real answer for that slot; there's no
+  // positional filter here the way migrateOvertakenObserversFor has, since
+  // `oldWriting` isn't being *overtaken from some positions on*, it's
+  // being fully retired.
+  function retireWritingOnto(oldWriting, newWriting) {
+    if (oldWriting.observers === null) return;
+    const allEntries = collectOvertakenPropertyObservers(oldWriting, () => true);
+    settleOvertakenObservers(oldWriting, newWriting, allEntries);
   }
 
   function getOrCreateExactWriting(handler, key, time, writer) {
@@ -1574,6 +1623,11 @@ function createWorld(configuration) {
     // only a genuinely fresh splice can possibly overtake an existing
     // reader of whatever writing used to be its immediate predecessor.
     let justInserted = false;
+    // Set when a stale writing existed for this (repeater, timeline)
+    // occurrence but couldn't safely be reused (see the staleQueue branch
+    // below) - resolved once the fresh writing this call falls through to
+    // creating has its own final value, via retireWritingOnto().
+    let retiredWriting = null;
 
     if (typeof(writing) === 'undefined') {
       const repeater = writer !== null ? writer.repeater : null;
@@ -1592,14 +1646,40 @@ function createWorld(configuration) {
         // "after" pattern) - each occurrence must reconcile against its
         // own corresponding occurrence from last run, consumed in the
         // same order both times (see repeater.dispose()'s own comment).
-        writing = staleQueue.shift();
+        const candidate = staleQueue.shift();
         if (staleQueue.length === 0) repeater.staleWritings.delete(timeline);
-        // Finalized (compared, reused-or-notified) the moment *this*
-        // partial closes, not deferred to the whole repeater's run - see
-        // createPartial()'s own comment on touchedStaleWritings for why.
-        if (context.touchedStaleWritings === null) context.touchedStaleWritings = [];
-        context.touchedStaleWritings.push(writing);
-      } else {
+        if (staleWritingNeedsRetirement(candidate, writer)) {
+          // Reuse would mutate this exact object's `.value` in place, and
+          // that mutation must decide - immediately, unconditionally - to
+          // notify its current observers if the value differs (see
+          // finalizeTouchedStaleWritings). That's fine for an observer
+          // staleWritingNeedsRetirement() judged eager-eligible (an
+          // invalidator, or a same-time legacy dependent from an entirely
+          // different chain - see entryNeedsDeferredTreatment), but never
+          // for a genuine same-tree (partial-type) observer, which needs
+          // the same flagged, deferred-until-the-wavefront-arrives
+          // treatment migrateOvertakenObserversFor already gives a
+          // dependency overtaken by a closer writing. So: don't reuse this
+          // occurrence at all. Abandon it outright - its own `.value`
+          // stays frozen exactly as it is, a safe, stable reference for
+          // whichever of its observers must defer their own comparison -
+          // and fall straight through to an ordinary fresh insertion
+          // below, as if this repeater had never written this property
+          // before. retireWritingOnto() (called once the fresh writing's
+          // own value is known) settles its former observers exactly like
+          // any other retired writing's.
+          retiredWriting = candidate;
+        } else {
+          writing = candidate;
+          // Finalized (compared, reused-or-notified) the moment *this*
+          // partial closes, not deferred to the whole repeater's run -
+          // see createPartial()'s own comment on touchedStaleWritings for
+          // why.
+          if (context.touchedStaleWritings === null) context.touchedStaleWritings = [];
+          context.touchedStaleWritings.push(writing);
+        }
+      }
+      if (typeof(writing) === 'undefined') {
         writing = findExactWriting(timeline, time, writer);
         if (writing === null) {
           writing = insertNewWriting(timeline, time, writer);
@@ -1619,11 +1699,13 @@ function createWorld(configuration) {
       // deferred - so any later same-run read (of this exact writing,
       // whether by this repeater itself or a child reading what it just
       // established) resolves correctly via ordinary position comparison.
+      // migrateOvertakenObserversFor() is *not* called here, deliberately
+      // - see finalizeTouchedStaleWritings()'s own comment on why it has
+      // to wait until this writing's own before/after is settled first.
       writing.hasNextValue = true;
       writing.nextValue = value;
       writing.writer = writer;
       relinkWriting(writing);
-      migrateOvertakenObserversFor(writing);
       if (context && context.writings) {
         context.writings.set(timeline, writing);
       }
@@ -1655,6 +1737,12 @@ function createWorld(configuration) {
     // own value comparison. Migrating afterward keeps that decision
     // entirely independent of "is this writing's very first notification."
     if (justInserted) migrateOvertakenObserversFor(writing);
+    // Same reasoning, for a stale writing this run couldn't safely reuse
+    // (see the staleQueue branch above) - `writing` is always freshly
+    // inserted whenever `retiredWriting` is set, so this always runs
+    // alongside the migration above, against a different (and possibly
+    // entirely absent) predecessor.
+    if (retiredWriting !== null) retireWritingOnto(retiredWriting, writing);
     if (undefinedKey) invalidateEnumerateObservers(this, key);
 
     emitSetEvent(this, key, value, previousValue);
@@ -3213,8 +3301,8 @@ function createWorld(configuration) {
 
   // Actually settle every flag record `repeater` is currently carrying -
   // called either opportunistically (linkRepeater reaching it naturally)
-  // or as exitTimeLevel's own backstop sweep, right before it would
-  // otherwise lock a level that still has unresolved flags in it. Two
+  // or from refreshAllDirtyRepeaters' own backstop sweep, once the
+  // ordinary dirty queue has fully, genuinely drained. Two
   // *live* reads, taken at this same moment, are all that's needed per
   // record - not any snapshot of history: `previousWriting`'s own current
   // value (still accurate, since nothing genuinely changed it without
@@ -3246,7 +3334,18 @@ function createWorld(configuration) {
 
     records.forEach(({ entry, previousWriting }) => {
       entry.flagged = false;
-      const fresh = seekWriting(previousWriting.timeline, entry.time, entry.writer);
+      let fresh = seekWriting(previousWriting.timeline, entry.time, entry.writer);
+      // A read and a later write to the same property, from within the
+      // very same partial, share the identical (time, writer) position -
+      // so if this reader also happens to write this same property later
+      // in its own execution (the ordinary read-then-write shape - see
+      // renderOnto.js), seekWriting can resolve straight to *that*,
+      // rather than to whatever was actually linked at the moment this
+      // reader read. That write didn't exist yet at read time; what this
+      // reader actually saw is whatever's immediately before it.
+      if (fresh.writer === entry.writer && fresh.previous !== null) {
+        fresh = fresh.previous;
+      }
       if (fresh === previousWriting) return; // nothing actually closer is linked anymore (e.g. it was itself retracted) - previousWriting is still the right answer, nothing to do
       const changed = !writingsHaveSameEffectiveValue(previousWriting, fresh);
       relocatePropertyObserverEntry(previousWriting, fresh, entry);
@@ -3254,22 +3353,6 @@ function createWorld(configuration) {
         invalidateObserver(entry.observer, fresh.timeline.handler.proxy, fresh.timeline.key);
       }
     });
-  }
-
-  // The backstop for exitTimeLevel(): resolve every repeater still
-  // carrying a flag at `level`, right before that level would otherwise
-  // be declared settled. Covers the case linkRepeater's own opportunistic
-  // check can't: a flagged repeater whose parent never happens to relink
-  // it again this wave (nothing else about that parent changed) - nothing
-  // is *incorrect* while such a flag sits unresolved (its own output
-  // hasn't changed), but it must not survive past the point where
-  // anything downstream could rely on it, which is exactly the point
-  // exitTimeLevel is about to declare has arrived.
-  function resolveFlaggedRepeatersAtLevel(level) {
-    const list = state.flaggedRepeaters[level];
-    while (list.first !== null) {
-      resolveFlaggedRepeater(list.first);
-    }
   }
 
   // A partial that finalizeChildren() finds still sitting unconsumed in
@@ -3290,10 +3373,29 @@ function createWorld(configuration) {
 
   // Genuinely retract a writing that turned out to have nothing further
   // to say (never claimed by any write this run) - already unlinked from
-  // its timeline since dispose() (see there), so just notify and clear
-  // its bookkeeping.
+  // its timeline since dispose() (see there). Unlike
+  // migrateOvertakenObserversFor/retireWritingOnto, there's no single
+  // "newWriting" to hand observers off to here - whatever's now
+  // authoritative for each one depends on that entry's own (time, writer),
+  // which can differ observer to observer, so a partial (tree) observer is
+  // simply flagged against this now-permanently-retired `writing` (exactly
+  // as an overtaken one would be) and left for resolveFlaggedRepeater to
+  // seek fresh, on its own, whenever it's actually reached - `writing`
+  // itself is done changing forever at this point, so its `.value` stays
+  // a safe, stable reference for that later comparison. A non-partial
+  // (invalidator) observer has no such wavefront to wait for, so it's
+  // still notified immediately, same as always.
   function abandonStaleWriting(writing) {
-    invalidateWritingObservers(writing, writing.timeline.handler.proxy, writing.timeline.key);
+    if (writing.observers !== null) {
+      collectOvertakenPropertyObservers(writing, () => true).forEach((entry) => {
+        if (entry.flagged) return;
+        if (entryNeedsDeferredTreatment(entry, writing.writer)) {
+          flagRepeaterEntry(entry.observer.repeater, entry, writing);
+        } else {
+          invalidateObserver(entry.observer, writing.timeline.handler.proxy, writing.timeline.key);
+        }
+      });
+    }
     writing.stale = false;
     writing.hasNextValue = false;
     writing.nextValue = undefined;
@@ -3328,6 +3430,18 @@ function createWorld(configuration) {
       }
       writing.hasNextValue = false;
       writing.nextValue = undefined;
+      // Deliberately after the notify-if-different above, not before (see
+      // setHandlerObject's own `justInserted` ordering comment for the
+      // same reasoning, one level removed): a reader migrated onto
+      // `writing` here got its own independent, correct "did anything
+      // change from *my* perspective" verdict at migration time, compared
+      // against whatever `writing.previous` was - that's unrelated to
+      // whether `writing` itself just changed from *its own* prior value
+      // (the comparison just above). Migrating first would let a reader
+      // migration judged as "no real change" get swept up anyway by
+      // writing's own unrelated before/after check, the moment it lands
+      // in `writing.observers`.
+      migrateOvertakenObserversFor(writing);
     });
     partial.touchedStaleWritings = null;
   }
@@ -3391,17 +3505,58 @@ function createWorld(configuration) {
 
   // let currentRepeater= null; 
 
+  // Whether any repeater, at any time level, is still carrying an
+  // unresolved flag (see flagRepeaterEntry()) - state.flaggedRepeaters is
+  // one list per level, same shape as state.dirtyRepeaters.
+  function anyFlaggedRepeaterAnywhere() {
+    return state.flaggedRepeaters.some((list) => list.first !== null);
+  }
+
+  // Resolve exactly one flagged repeater - the lowest time level with
+  // anything flagged, FIFO within that level - and report whether there
+  // was one to resolve. Deliberately one at a time, not a drain-the-whole-
+  // list loop: resolving a flag can itself produce a real invalidation
+  // (see resolveFlaggedRepeater), and refreshAllDirtyRepeaters' own loop
+  // needs the chance to fully drain that before this function considers
+  // any *further* flag - otherwise a later flag could get resolved against
+  // a timeline that's about to change again because of the very
+  // invalidation the earlier flag just triggered.
+  function resolveOneFlaggedRepeaterAnywhere() {
+    for (let level = 0; level < state.flaggedRepeaters.length; level++) {
+      const list = state.flaggedRepeaters[level];
+      if (list.first !== null) {
+        resolveFlaggedRepeater(list.first);
+        return true;
+      }
+    }
+    return false;
+  }
+
   function refreshAllDirtyRepeaters() {
     if (state.postponeRefreshRepeaters === 0) {
       if (!state.refreshingAllDirtyRepeaters) {
-        if (anyDirtyRepeater()) {
+        if (anyDirtyRepeater() || anyFlaggedRepeaterAnywhere()) {
           state.refreshingAllDirtyRepeaters = true;
-          while (anyDirtyRepeater()) {
-            let repeater = firstDirtyRepeater();
-            // currentRepeater = repeater;
-            repeater.refresh();
-            detatchRepeater(repeater);
-            exitTimeLevel(repeater.time());
+          // Two-phase, repeated until both are exhausted: drain the
+          // ordinary dirty queue completely first (exactly as before),
+          // THEN - only once nothing anywhere is actively mid-refresh, the
+          // one point that's actually safe (see flagRepeaterEntry's own
+          // comment on why this can't just be folded into exitTimeLevel:
+          // that fires at every partial boundary, including transient
+          // dips mid-refresh, not only when the whole cascade has truly
+          // settled) - resolve one flag. If that produced a real
+          // invalidation, go drain the dirty queue again before resolving
+          // any further flags.
+          let madeProgress = true;
+          while (madeProgress) {
+            while (anyDirtyRepeater()) {
+              let repeater = firstDirtyRepeater();
+              // currentRepeater = repeater;
+              repeater.refresh();
+              detatchRepeater(repeater);
+              exitTimeLevel(repeater.time());
+            }
+            madeProgress = resolveOneFlaggedRepeaterAnywhere();
           }
 
           state.refreshingAllDirtyRepeaters = false;

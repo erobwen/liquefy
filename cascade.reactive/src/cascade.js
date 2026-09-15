@@ -95,19 +95,31 @@ function createWorld(configuration) {
 
     // Repeaters
     inRepeater: null,
-    dirtyRepeaters: [...Array(configuration.timeLevels).keys()].map(() => ({first: null, last: null})),
     refreshingAllDirtyRepeaters: false,
     workOnTimeLevel: [...Array(configuration.timeLevels).keys()].map(() => 0),
     revalidationTimeLock: -1,
 
-    // Repeaters carrying at least one flagged (not-yet-resolved,
-    // possibly-overtaken) dependency - see flagRepeaterEntry()/
-    // resolveFlaggedRepeater(). One list per time level, same shape as
-    // dirtyRepeaters, so lower-time-level flags can be resolved before
-    // higher ones - see refreshAllDirtyRepeaters()'s own two-phase loop,
-    // which is what actually drains these (not exitTimeLevel - see its
-    // own comment on why that fires too often to be the right point).
-    flaggedRepeaters: [...Array(configuration.timeLevels).keys()].map(() => ({first: null, last: null})),
+    // The repeater work scheduler - see "Repeater scheduling: pipelines,
+    // wavefronts, parking" below for the full design. One {active, parked}
+    // pair of FIFOs per time level, holding *pipelines* (chainHeads), not
+    // individual repeaters - a chainHead's own internal heap/parkedPartials
+    // (see createChainHead()) is where the actual repeaters needing
+    // attention live.
+    workQueue: [...Array(configuration.timeLevels).keys()].map(() => ({
+      active: { first: null, last: null },
+      parked: { first: null, last: null },
+    })),
+    // Separate from revalidationTimeLock above (which belongs to the
+    // older, general context-enter/exit bookkeeping - see enterTimeLevel/
+    // exitTimeLevel - and is left alone here specifically so this new
+    // scheduler's own lock can't be perturbed by that unrelated
+    // machinery, the same bug class already found and fixed once this
+    // session when the two were briefly conflated).
+    workQueueTimeLock: -1,
+    // The chainHead currently being drained by drainActivePipeline(), if
+    // any - see scheduleWork()'s own use of it to detect "is new work
+    // arriving for the very pipeline I'm mid-processing".
+    activePipeline: null,
   };
 
   // Reserved key for each object handler's enumeration timeline (tracks
@@ -805,7 +817,7 @@ function createWorld(configuration) {
   // which have no real relative position at all beyond "consistently one
   // way or the other" (the "same-time writers" question from
   // docs/plan-time-aware-timelines.md - not solved here, just kept stable).
-  function createChainHead() {
+  function createChainHead(rootRepeater) {
     return {
       id: state.observerId++,
       count: 0,          // live partials currently occupying a chain slot
@@ -816,6 +828,40 @@ function createWorld(configuration) {
       // execution within one root tree is always synchronous and
       // depth-first (see createNextPartial()/attachToCurrentParent()).
       executionCursor: null,
+
+      // This pipeline's one, single time level - set once, here, from its
+      // root repeater's own declared time (or 0), and never changed after.
+      // Every repeater sharing this chainHead uses it - see repeater.time()
+      // - since a pipeline was decided to always execute within exactly
+      // one time level (nothing forces a nested repeater to ever declare a
+      // different one; if something legitimately needs to run at an
+      // earlier/later level, that's a *different* pipeline, owned by
+      // whatever component requested it, not a child of this one).
+      time: typeof(rootRepeater.options.time) !== "undefined" ? rootRepeater.options.time : 0,
+      rootRepeater: rootRepeater,
+
+      // This pipeline's own work, this wave - see "Repeater scheduling"
+      // below for the full design. heap: repeaters needing attention,
+      // sorted by repeater.firstPartial's live orderNumber (see
+      // heapInsert/heapPopMin) - never the root repeater itself, which is
+      // always earlier than anything that could be in here and is checked
+      // directly instead (see drainActivePipeline). parkedPartials:
+      // repeaters that arrived behind this pipeline's own wavefront,
+      // waiting for the next wave (see scheduleWork). wavefront: the
+      // firstPartial of the last-processed repeater this active session -
+      // only meaningful while this chainHead === state.activePipeline.
+      heap: [],
+      parkedPartials: [],
+      wavefront: null,
+
+      // This chainHead's own membership in state.workQueue[time] - which
+      // of its two lists (if either) it's currently sitting in, plus the
+      // FIFO linkage within that list. null while fully idle (and while
+      // this chainHead === state.activePipeline, mid-drain - see
+      // ensurePipelineActiveOrParked()).
+      queueMembership: null,
+      nextQueued: null,
+      previousQueued: null,
     };
   }
 
@@ -2496,6 +2542,14 @@ function createWorld(configuration) {
         // staleWritings via a fresh write - what's left there (nothing
         // was ever claimed, since it never reran) is genuinely gone.
         finalizeStaleWritings(node);
+        // Pure hygiene, not a correctness requirement - a disposed/
+        // retracted repeater found sitting in a heap is already
+        // unconditionally discarded regardless of workStatus (see
+        // drainActivePipeline()), but there's no reason to leave a
+        // dangling workStatus/flagRecords around on something that will
+        // never run again either.
+        node.workStatus = null;
+        node.flagRecords = null;
         node.retracted = true;
         // Fires exactly once per genuine retraction (not on every dispose()
         // - a rerun or a relink never reaches here). For side effects the
@@ -2532,6 +2586,20 @@ function createWorld(configuration) {
       // advance the parent's chain cursor past a child it's attaching -
       // whether or not that child actually reran just now.
       rightmostPartial: null,
+      // This repeater's own *first* partial of its current/latest run -
+      // set fresh every refresh() (see there), never left pointing at a
+      // stale object across reruns. The position used for this repeater's
+      // own heap entry (see "Repeater scheduling" below) - has to be the
+      // first partial, not rightmostPartial: a child's first partial is
+      // always created strictly after its parent's own first partial
+      // begins (the parent's own action is what creates the child), so
+      // first-partial ordering guarantees a parent's heap entry always
+      // sorts before any of its descendants' - exactly what makes the
+      // lazy-pruning discard in drainActivePipeline() correct.
+      // rightmostPartial has the opposite property (by construction it's
+      // always >= any descendant's), so it would sort a parent *after*
+      // its own children - the wrong direction.
+      firstPartial: null,
       // Which root repeater's partial chain this repeater's own partials
       // get their orderNumber from - see "Time as tree position" above.
       // Set once, at creation (repeat()), from the parent active at that
@@ -2592,11 +2660,20 @@ function createWorld(configuration) {
       // ordinary invalidation in the meantime). Lazily created; null means
       // "nothing pending".
       flagRecords: null,
-      // This repeater's own membership in state.flaggedRepeaters[time()] -
-      // a doubly linked list, same shape as nextDirty/previousDirty below,
-      // maintained only while flagRecords is non-empty.
-      nextFlagged: null,
-      previousFlagged: null,
+      // null | 'invalid' | 'flagged' - see "Repeater scheduling" above.
+      // 'invalid' always wins over 'flagged' and is never downgraded back
+      // (see flagRepeaterEntry()). Cleared (back to null) the moment
+      // processRepeater() actually acts on it.
+      workStatus: null,
+      // Two separate dedup flags, for the two different places a repeater
+      // can be waiting in the scheduler - see scheduleWork(). A root
+      // repeater (parentRepeater === null) only ever uses inATimeBucket;
+      // inHeap stays false for it forever, since a root never enters a
+      // heap (see drainActivePipeline() - it's always checked directly
+      // instead, being unconditionally the earliest position in its own
+      // pipeline). A nested repeater only ever uses inHeap.
+      inHeap: false,
+      inATimeBucket: false,
       nextToNotify: null,
       repeaterAction : modifyRepeaterAction(repeaterAction, options),
       nonRecordedAction: repeaterNonRecordingAction,
@@ -2605,7 +2682,13 @@ function createWorld(configuration) {
           finishRebuilding(this);
       },
       time() {
-        return typeof(this.options.time) !== "undefined" ? this.options.time : 0; 
+        // Every repeater sharing one chainHead executes at exactly the
+        // same, single time level - see createChainHead()'s own comment
+        // on why. This delegates rather than re-reading this.options.time
+        // directly so a nested repeater's own options.time (which should
+        // never legitimately differ, but isn't otherwise prevented from
+        // being set) can't silently desync it from its pipeline.
+        return this.chainHead.time;
       },
       causalityString() {
         const context = this.invalidatedInContext;
@@ -2644,7 +2727,7 @@ function createWorld(configuration) {
         this.invalidateAction();
       },
       invalidateAction() {
-        repeaterDirty(this);
+        invalidateRepeater(this);
       },
       // disposeAllCreatedWithBuildId() {
       //   // Dispose all created objects?
@@ -2656,7 +2739,12 @@ function createWorld(configuration) {
       //   }
       // },
       dispose() {
-        detatchRepeater(this);
+        // No explicit removal from the scheduler needed here (unlike the
+        // old detatchRepeater() this replaced) - workStatus/inHeap/
+        // inATimeBucket are what track "is this repeater scheduled" now,
+        // not list membership toggled from inside dispose(), and a
+        // disposed-or-retracted repeater found sitting in a heap gets
+        // discarded for free at pop time (see drainActivePipeline()).
         // Idempotent: a repeater already sitting dirty (e.g. through a
         // legitimate dependency invalidation) can also be reached directly
         // by its parent's finalizeChildren() in the very same rerun, if the
@@ -2744,8 +2832,6 @@ function createWorld(configuration) {
           }
         }
       },
-      nextDirty : null,
-      previousDirty : null,
       lastRepeatTime: 0,
       waitOnNonRecordedAction: 0,
       refresh() {
@@ -2764,6 +2850,9 @@ function createWorld(configuration) {
         // createNextPartial()/attachToCurrentParent().
         repeater.reconciling = repeater.pendingChildren.first !== null;
         const partial = createNextPartial(repeater);
+        // Set fresh every run, not just once - see firstPartial's own
+        // comment on why a stale reference across reruns would be wrong.
+        repeater.firstPartial = partial;
 
         // Recorded action (cause and/or effect)
         repeater.isRecording = true;
@@ -3149,7 +3238,7 @@ function createWorld(configuration) {
     // whichever partial is currently executing right now.
     const parentContext = (state.context && state.context.type === "partial") ? state.context : null;
     repeater.parentRepeater = parentContext ? parentContext.repeater : null;
-    repeater.chainHead = repeater.parentRepeater ? repeater.parentRepeater.chainHead : createChainHead();
+    repeater.chainHead = repeater.parentRepeater ? repeater.parentRepeater.chainHead : createChainHead(repeater);
     const result = repeater.refresh();
     // If created while nested inside another repeater's execution, this
     // repeater automatically becomes its child - closing the parent's
@@ -3161,108 +3250,209 @@ function createWorld(configuration) {
 
   // Reattach a previously-created repeater as a child of whichever
   // repeater is currently executing - pure reattachment, never a trigger
-  // *of its own* - but it is the natural checkpoint for resolving whatever
-  // this repeater has been flagged with (see flagRepeaterEntry): if
-  // nothing else has re-examined it first, this is the moment execution
-  // was always going to reach it anyway, so any deferred "might be
-  // overtaken" check gets settled for real right here, before deciding
-  // whether relinking it is really just a clean, no-op reattachment.
-  // If `oldRepeater` is (now, or already) genuinely invalid, cascade's
-  // normal dirty-queue machinery refreshes it on its own schedule,
-  // independent of when this is called; if it's clean, this is a no-op
-  // beyond the reattachment itself - no rerun, no state loss. Component/
-  // child identity (which old repeater corresponds to which new render
-  // call) is entirely the caller's responsibility - cascade only exposes
-  // this primitive.
+  // of its own, and (unlike in an earlier version of this function) never
+  // a checkpoint for resolving anything either: whether oldRepeater is
+  // dirty, flagged, or clean, that's settled entirely by
+  // drainActivePipeline()'s own position-ordered walk of its pipeline's
+  // heap, not by however a parent's own execution happens to reach it.
+  // That walk already guarantees a repeater is always processed relative
+  // to everything else at the correct position - a child's firstPartial
+  // is always later than its parent's (the parent's own execution is what
+  // creates the child), so the heap alone puts every repeater in the
+  // right order without linkRepeater needing to do anything about it. If
+  // oldRepeater is (now, or already) dirty or flagged, cascade's own
+  // scheduler refreshes/resolves it on its own schedule, independent of
+  // when this is called; if it's clean, this is a no-op beyond the
+  // reattachment itself - no rerun, no state loss. Component/child
+  // identity (which old repeater corresponds to which new render call) is
+  // entirely the caller's responsibility - cascade only exposes this
+  // primitive.
+  // Pure reattachment as far as a genuinely *invalid* oldRepeater is
+  // concerned - cascade's own scheduler refreshes it on its own schedule
+  // (via the heap), independent of when this is called, exactly as
+  // documented below. But a merely *flagged* one is different: this is
+  // the wavefront genuinely arriving at oldRepeater's own position (its
+  // parent's execution reaching this exact call is what "the wavefront
+  // reaches here" means), and it may be the *only* place that arrival is
+  // ever detected - draining the heap only happens after the whole
+  // *root's* refresh() already returns, which is too late if the parent's
+  // own later code (right after this call) needs to see the effect of
+  // resolving oldRepeater's flag (see renderOnto.js's case 1: the
+  // "after" write needs a flagged sibling's writing already retracted,
+  // not still linked, and that can only happen if the flag is resolved
+  // right here, inline, not deferred to the heap). So a flagged
+  // oldRepeater is resolved on the spot, via the same processRepeater()
+  // the heap itself uses - if that finds a genuine change, it calls
+  // invalidateRepeater() (dispose() runs immediately; the repeater's own
+  // *refresh* is left for the heap to pick up later, same as ever - see
+  // scheduleWork()'s own inHeap dedup, which naturally lets this happen
+  // without double-scheduling).
   function linkRepeater(oldRepeater) {
-    if (oldRepeater.flagRecords !== null && oldRepeater.flagRecords.length > 0) {
-      resolveFlaggedRepeater(oldRepeater);
+    if (oldRepeater.workStatus === 'flagged') {
+      processRepeater(oldRepeater);
     }
     attachToCurrentParent(oldRepeater);
     return oldRepeater;
   }
 
-  // Whether `repeater` is already sitting in its own time level's dirty
-  // list - shared by repeaterDirty (deciding whether to enqueue again) and
-  // resolveFlaggedRepeater (deciding whether a flag is already moot
-  // because a real invalidation beat it there).
-  function isRepeaterQueuedDirty(repeater) {
-    const list = state.dirtyRepeaters[repeater.time()];
-    return list.first === repeater || repeater.nextDirty !== null || repeater.previousDirty !== null;
-  }
-
-  function repeaterDirty(repeater) { // TODO: Add update block on this stage?
-    repeater.dispose();
-    const time = repeater.time();
-    enterTimeLevel(time);
-    // disposeChildContexts(repeater);
-    // disposeSingleChildContext(repeater);
-
-    const timeList = state.dirtyRepeaters;
-
-    const list = timeList[time];
-    // A repeater can easily end up invalidated more than once before it
-    // actually gets refreshed - e.g. two of its own partials (see
-    // repeat()'s own comment on partials opening/closing around each
-    // child call) each independently depending on the same property that
-    // just got written. That's a normal shape, not a signal to queue this
-    // repeater into the dirty list a second time: doing so would splice
-    // it in right after itself (list.last.nextDirty = repeater, when
-    // repeater already IS list.last), corrupting the list into a
-    // self-referencing loop that detatchRepeater can never fully unlink -
-    // leaving it looking dirty forever after and refreshing it an extra,
-    // spurious time once real reactive machinery reaches it in that state.
-    const alreadyQueued = isRepeaterQueuedDirty(repeater);
-    if (!alreadyQueued) {
-      if (list.last === null) {
-        list.last = repeater;
-        list.first = repeater;
-      } else {
-        list.last.nextDirty = repeater;
-        repeater.previousDirty = list.last;
-        list.last = repeater;
-      }
-    }
-
-    refreshAllDirtyRepeaters();
-  }
-  
-  function clearRepeaterLists() {
-    state.observerId = 0;
-    state.dirtyRepeaters.map(list => {list.first = null; list.last = null;});
-  }
-
-  function detatchRepeater(repeater) {
-    const time = repeater.time(); // repeater
-    const list = state.dirtyRepeaters[time];
-    if (list.last === repeater) {
-      list.last = repeater.previousDirty;
-    }
-    if (list.first === repeater) {
-      list.first = repeater.nextDirty;
-    }
-    if (repeater.nextDirty) {
-      repeater.nextDirty.previousDirty = repeater.previousDirty;
-    }
-    if (repeater.previousDirty) {
-      repeater.previousDirty.nextDirty = repeater.nextDirty;
-    }
-    repeater.nextDirty = null;
-    repeater.previousDirty = null;
-  }
-
   /***************************************************************
    *
-   *  Flagged repeaters - a possibly-overtaken dependency whose
-   *  resolution is deliberately deferred (see
-   *  migrateOvertakenObserversFor's partial branch) until execution
-   *  actually reaches the repeater it belongs to, rather than acted on
-   *  the instant it's discovered. "Flagged" sits between "clean" and
-   *  "invalid": known to *maybe* need reevaluation, but not promoted to
-   *  invalid (queued, guaranteed to rerun) until it's actually
-   *  re-examined and found to matter.
+   *  Repeater scheduling: pipelines, wavefronts, parking
+   *
+   *  A "pipeline" is one root repeater's whole tree - everything sharing
+   *  its chainHead - always executing within exactly one time level (see
+   *  createChainHead()). state.workQueue holds one {active, parked} pair
+   *  of FIFOs per level; the unit sitting in those FIFOs is a *pipeline*
+   *  (its chainHead), not an individual repeater - "a pipeline is really
+   *  just an invalidated repeater from the outside". A pipeline's own
+   *  internal work - which of its repeaters actually need attention - is
+   *  tracked on the chainHead itself: `heap` (position-ordered, by each
+   *  repeater's firstPartial), `parkedPartials` (repeaters that arrived
+   *  behind this pipeline's own wavefront this wave, waiting for the
+   *  next), and `wavefront` (how far this pipeline has gotten, this
+   *  active session).
+   *
+   *  Only repeaters ever occupy a heap/parkedPartials slot - a partial
+   *  can never usefully run on its own, so a flagged *reading* (tracked
+   *  per-entry, on repeater.flagRecords) always resolves to "does the
+   *  whole owning repeater need to rerun", never to running a partial in
+   *  isolation. And the pipeline's own root repeater never occupies a
+   *  heap slot either - nothing can have an earlier position than the
+   *  thing that created everything else in its own tree, so
+   *  drainActivePipeline() checks it directly, unconditionally, before
+   *  ever touching the heap.
+   *
+   *  Each repeater carries workStatus (null | 'invalid' | 'flagged') -
+   *  'invalid' always wins and is never downgraded back to 'flagged' (see
+   *  flagRepeaterEntry()) - plus two separate dedup flags for the two
+   *  different places a repeater can be waiting: inHeap for a nested
+   *  repeater sitting in its chainHead's heap, inATimeBucket for a root
+   *  repeater whose chainHead is sitting in a workQueue bucket. A root
+   *  repeater's own inHeap stays false forever - it never enters a heap -
+   *  so anything that needs "is this repeater already scheduled" has to
+   *  ask the right one of the two, not assume either applies uniformly.
+   *
+   *  "Behind the wavefront" - see scheduleWork() - covers two distinct
+   *  cases with the same rule: new work discovered *within* the pipeline
+   *  currently being drained, at or before wherever it's already gotten
+   *  to (the back-reference case: something later just wrote to
+   *  something earlier); and new work arriving for a pipeline that's
+   *  merely sitting *parked* (its own heap emptied this wave, but it's
+   *  still waiting on leftover parkedPartials) - even if the new work is
+   *  entirely unrelated to why it was parked, it still waits for the same
+   *  next wave, no early reactivation. Either way it goes into
+   *  parkedPartials, not the heap - waves move strictly forward, and
+   *  nothing is allowed to make one backtrack.
    *
    ***************************************************************/
+
+  // A stand-in for a real heap, given how small a pipeline's own pending
+  // work is expected to be in practice - a plain array kept sorted by
+  // each repeater's firstPartial, compared live via compareWriterOrder
+  // (never a cached order number - see createChainHead()'s own comment on
+  // why that matters once releaseChainPressure can renumber neighbors out
+  // from under a stored value). Worth revisiting with an actual heap if a
+  // pipeline's own heap ever turns out to hold enough repeaters at once
+  // for the O(n) insert/pop here to matter.
+  function heapInsert(heap, repeater) {
+    let i = heap.length;
+    while (i > 0 && compareWriterOrder(heap[i - 1].firstPartial, repeater.firstPartial) > 0) {
+      i--;
+    }
+    heap.splice(i, 0, repeater);
+  }
+
+  function heapPopMin(heap) {
+    return heap.shift();
+  }
+
+  function appendToLevelList(chainHead, level, which) {
+    const list = state.workQueue[level][which];
+    chainHead.previousQueued = list.last;
+    chainHead.nextQueued = null;
+    if (list.last !== null) list.last.nextQueued = chainHead; else list.first = chainHead;
+    list.last = chainHead;
+  }
+
+  function unlinkFromLevelList(chainHead, level, which) {
+    const list = state.workQueue[level][which];
+    if (list.first === chainHead) list.first = chainHead.nextQueued;
+    if (list.last === chainHead) list.last = chainHead.previousQueued;
+    if (chainHead.nextQueued !== null) chainHead.nextQueued.previousQueued = chainHead.previousQueued;
+    if (chainHead.previousQueued !== null) chainHead.previousQueued.nextQueued = chainHead.nextQueued;
+    chainHead.nextQueued = null;
+    chainHead.previousQueued = null;
+  }
+
+  // Ensure chainHead is correctly placed in its own level's outer
+  // bucket - active if its level is still ahead of the lock, parked if
+  // the sweep has already moved past it (see the module comment above on
+  // why a level that's been passed never reopens this wave). A no-op if
+  // it's already exactly where it belongs, so callers never need to
+  // check queueMembership themselves first. Never touches anything while
+  // this chainHead is the one currently being drained - see
+  // drainActivePipeline(), which owns placing it once its session ends.
+  function ensurePipelineActiveOrParked(chainHead) {
+    if (chainHead === state.activePipeline) return;
+    const wantParked = chainHead.time <= state.workQueueTimeLock;
+    const want = wantParked ? 'parked' : 'active';
+    if (chainHead.queueMembership === want) return;
+    if (chainHead.queueMembership !== null) {
+      unlinkFromLevelList(chainHead, chainHead.time, chainHead.queueMembership);
+    }
+    appendToLevelList(chainHead, chainHead.time, want);
+    chainHead.queueMembership = want;
+  }
+
+  // The single place any repeater - root or nested, newly invalid or
+  // newly flagged - gets placed into the scheduler. Never decides *what*
+  // kind of work it is (see invalidateRepeater()/flagRepeaterEntry(),
+  // which set workStatus before calling this); purely about *where* it
+  // goes.
+  function scheduleWork(repeater) {
+    const chainHead = repeater.chainHead;
+    if (repeater.parentRepeater === null) {
+      if (repeater.inATimeBucket) return;
+      repeater.inATimeBucket = true;
+      ensurePipelineActiveOrParked(chainHead);
+      return;
+    }
+    if (repeater.inHeap) return;
+    repeater.inHeap = true;
+    ensurePipelineActiveOrParked(chainHead);
+    const behindWavefront =
+      chainHead === state.activePipeline
+        ? compareWriterOrder(repeater.firstPartial, chainHead.wavefront) <= 0
+        : chainHead.time <= state.workQueueTimeLock;
+    if (behindWavefront) {
+      chainHead.parkedPartials.push(repeater);
+    } else {
+      heapInsert(chainHead.heap, repeater);
+    }
+  }
+
+  // The genuine-invalidation entry point - replaces the old
+  // repeaterDirty(). 'invalid' always wins over 'flagged' and is never
+  // downgraded back (see flagRepeaterEntry()).
+  function invalidateRepeater(repeater) {
+    repeater.dispose();
+    repeater.flagRecords = null;
+    repeater.workStatus = 'invalid';
+    scheduleWork(repeater);
+    refreshAllDirtyRepeaters();
+  }
+
+  function clearRepeaterLists() {
+    state.observerId = 0;
+    state.workQueue.forEach((levelBuckets) => {
+      levelBuckets.active.first = null;
+      levelBuckets.active.last = null;
+      levelBuckets.parked.first = null;
+      levelBuckets.parked.last = null;
+    });
+    state.workQueueTimeLock = -1;
+    state.activePipeline = null;
+  }
 
   // Record that `entry` (still sitting, untouched, in
   // `previousWriting.observers`) might belong on a closer writing instead
@@ -3277,60 +3467,40 @@ function createWorld(configuration) {
   // than layered with a second, redundant guess now.
   function flagRepeaterEntry(repeater, entry, previousWriting) {
     entry.flagged = true;
-    const wasEmpty = repeater.flagRecords === null || repeater.flagRecords.length === 0;
     if (repeater.flagRecords === null) repeater.flagRecords = [];
     repeater.flagRecords.push({ entry, previousWriting });
-    if (wasEmpty) {
-      const list = state.flaggedRepeaters[repeater.time()];
-      repeater.previousFlagged = list.last;
-      repeater.nextFlagged = null;
-      if (list.last !== null) list.last.nextFlagged = repeater; else list.first = repeater;
-      list.last = repeater;
+    if (repeater.workStatus === null) {
+      repeater.workStatus = 'flagged';
+      scheduleWork(repeater);
     }
+    // else: already 'invalid' or already 'flagged' - either way already
+    // scheduled, flagRecords just grew, nothing more to place.
   }
 
-  function detachFlaggedRepeater(repeater) {
-    const list = state.flaggedRepeaters[repeater.time()];
-    if (list.last === repeater) list.last = repeater.previousFlagged;
-    if (list.first === repeater) list.first = repeater.nextFlagged;
-    if (repeater.nextFlagged !== null) repeater.nextFlagged.previousFlagged = repeater.previousFlagged;
-    if (repeater.previousFlagged !== null) repeater.previousFlagged.nextFlagged = repeater.nextFlagged;
-    repeater.nextFlagged = null;
-    repeater.previousFlagged = null;
-  }
-
-  // Actually settle every flag record `repeater` is currently carrying -
-  // called either opportunistically (linkRepeater reaching it naturally)
-  // or from refreshAllDirtyRepeaters' own backstop sweep, once the
-  // ordinary dirty queue has fully, genuinely drained. Two
-  // *live* reads, taken at this same moment, are all that's needed per
-  // record - not any snapshot of history: `previousWriting`'s own current
-  // value (still accurate, since nothing genuinely changed it without
-  // going through its own ordinary invalidation - see
-  // migrateOvertakenObserversFor's own reasoning) versus an entirely fresh
-  // resolution of the same (timeline, time, writer) position, walked from
-  // scratch against whatever's linked right now. A mutated-in-place
-  // writing along the way is never a problem, because neither side of
-  // this comparison depends on any intermediate state that could have
-  // been overwritten - see the flagged-list design discussion this came
-  // out of.
+  // Actually settle every flag record `repeater` is currently carrying.
+  // Called only from processRepeater() - reached either opportunistically,
+  // via linkRepeater() the instant its parent's own execution arrives at
+  // repeater's position, or later via drainActivePipeline()'s own
+  // position-ordered walk of its pipeline's heap - which has already
+  // confirmed repeater.workStatus === 'flagged', meaning nothing has
+  // invalidated this repeater for real since it was flagged
+  // (invalidateRepeater() always wins over a mere flag and is never
+  // itself downgraded - see flagRepeaterEntry()), so every record here is
+  // still live and worth actually checking. Two *live* reads, taken at
+  // this same moment, are all that's needed per record - not any snapshot
+  // of history: `previousWriting`'s own current value (still accurate,
+  // since nothing genuinely changed it without going through its own
+  // ordinary invalidation - see migrateOvertakenObserversFor's own
+  // reasoning) versus an entirely fresh resolution of the same (timeline,
+  // time, writer) position, walked from scratch against whatever's linked
+  // right now. A mutated-in-place writing along the way is never a
+  // problem, because neither side of this comparison depends on any
+  // intermediate state that could have been overwritten - see the
+  // flagged-list design discussion this came out of.
   function resolveFlaggedRepeater(repeater) {
     const records = repeater.flagRecords;
-    if (records === null || records.length === 0) return;
     repeater.flagRecords = null;
-    detachFlaggedRepeater(repeater);
-
-    // Already disposed/retracted, or already independently queued for a
-    // real rerun (e.g. some *other* dependency of this same repeater was
-    // invalidated for real in the meantime) - either way, a full refresh
-    // is coming (or already happened) and will re-derive every one of
-    // this repeater's dependencies from scratch, discarding whatever these
-    // stale entries were parked on. Nothing further to do beyond clearing
-    // the per-entry flag so a future overtake can consider them again.
-    if (repeater.disposed || repeater.retracted || isRepeaterQueuedDirty(repeater)) {
-      records.forEach(({ entry }) => { entry.flagged = false; });
-      return;
-    }
+    if (records === null || records.length === 0) return;
 
     records.forEach(({ entry, previousWriting }) => {
       entry.flagged = false;
@@ -3350,7 +3520,13 @@ function createWorld(configuration) {
       const changed = !writingsHaveSameEffectiveValue(previousWriting, fresh);
       relocatePropertyObserverEntry(previousWriting, fresh, entry);
       if (changed) {
-        invalidateObserver(entry.observer, fresh.timeline.handler.proxy, fresh.timeline.key);
+        // Direct, not via invalidateObserver(entry.observer, ...) - we're
+        // already holding the repeater itself, and workStatus is the one
+        // thing that actually needs setting; calling invalidateRepeater()
+        // more than once in this loop (if several records all turn out
+        // changed) is harmless - dispose() and scheduleWork() are both
+        // idempotent.
+        invalidateRepeater(repeater);
       }
     });
   }
@@ -3466,99 +3642,134 @@ function createWorld(configuration) {
     repeater.staleWritings = null;
   }
 
-  function anyDirtyRepeater(start=0) {
-    const timeList = state.dirtyRepeaters; 
-    let time = start; 
-    while(time < timeList.length) {
-      if (timeList[time].first !== null) {
-        return true; 
-      }
-      time++;
+  // Dispatch a popped/checked repeater according to whatever it actually
+  // needs, clearing workStatus before acting (so a re-entrant
+  // invalidateRepeater() call from inside resolveFlaggedRepeater - it
+  // found a genuine change - schedules cleanly against a null status,
+  // rather than finding one already set and silently no-opping).
+  function processRepeater(repeater) {
+    if (repeater.workStatus === 'invalid') {
+      repeater.workStatus = null;
+      repeater.refresh();
+    } else if (repeater.workStatus === 'flagged') {
+      repeater.workStatus = null;
+      resolveFlaggedRepeater(repeater);
     }
-    return false; 
   }
 
-  function firstDirtyRepeater() {
-    const timeList = state.dirtyRepeaters;
-    
-    // Find work in unlocked level
-    let time = state.revalidationTimeLock + 1;
-    while (time < timeList.length) {
-      if (timeList[time].first) {
-        return timeList[time].first;
-      }
-      time++;
+  // Drain the pipeline currently sitting in state.activePipeline (see
+  // findNextPipeline(), which extracts it from its outer bucket before
+  // handing it over): the root repeater first, unconditionally and
+  // directly - nothing can have an earlier position than the thing that
+  // created everything else in its own tree, so there's no need to pay
+  // for a heap comparison to know it goes first - then the heap itself,
+  // strictly in position order, advancing chainHead.wavefront as it goes
+  // so scheduleWork() can correctly tell newly-arising work apart into
+  // "ahead, process it this wave" vs "behind, park it for the next".
+  function drainActivePipeline() {
+    const chainHead = state.activePipeline;
+    chainHead.wavefront = null;
+    const root = chainHead.rootRepeater;
+
+    // A loop, not a single check: resolving a flagged root can itself
+    // turn up a genuine change, which calls invalidateRepeater() (from
+    // inside resolveFlaggedRepeater) and sets workStatus back to
+    // 'invalid' - that still has to actually run this session, not just
+    // get left set and parked for yet another wave. wavefront is
+    // deliberately left untouched here (not reset to reflect the root) -
+    // the root is always position-zero, so it never advances the
+    // wavefront; only real heap items do, below.
+    while (root.workStatus !== null) {
+      root.inATimeBucket = false;
+      processRepeater(root);
     }
 
-    // Nothing found, reset lock and start again! 
-    state.revalidationTimeLock = -1;
-    time = state.revalidationTimeLock + 1;
-    while (time < timeList.length) {
-      if (timeList[time].first) {
-        return timeList[time].first;
-      }
-      time++;
+    while (chainHead.heap.length > 0) {
+      const repeater = heapPopMin(chainHead.heap);
+      repeater.inHeap = false;
+      if (repeater.disposed || repeater.retracted) continue; // gone since it was queued
+      if (repeater.workStatus === null) continue; // the lazy-pruning discard - an ancestor's own refresh already reached and handled it
+      chainHead.wavefront = repeater.firstPartial;
+      processRepeater(repeater);
     }
 
-    return null; 
+    state.activePipeline = null;
+    // Whatever's still pending - root re-flagged/re-invalidated mid-drain
+    // (a back-reference targeting the root itself, which never goes
+    // through parkedPartials - see scheduleWork()'s own root branch), or
+    // genuine parkedPartials content - means this pipeline isn't done for
+    // this wave; park it (unconditionally - not ensurePipelineActiveOrParked's
+    // lock-relative decision, which would be wrong here: this pipeline's
+    // own level is still the current, not-yet-locked one, so that
+    // function would put it right back in `active`, findable again within
+    // the very same wave).
+    const rootStillPending = root.workStatus !== null;
+    if (chainHead.parkedPartials.length > 0 || rootStillPending) {
+      appendToLevelList(chainHead, chainHead.time, 'parked');
+      chainHead.queueMembership = 'parked';
+    }
   }
 
-  // let currentRepeater= null; 
-
-  // Whether any repeater, at any time level, is still carrying an
-  // unresolved flag (see flagRepeaterEntry()) - state.flaggedRepeaters is
-  // one list per level, same shape as state.dirtyRepeaters.
-  function anyFlaggedRepeaterAnywhere() {
-    return state.flaggedRepeaters.some((list) => list.first !== null);
+  // Whether any pipeline, at any level, has anything pending at all -
+  // active or merely parked. Used only to decide whether
+  // refreshAllDirtyRepeaters() has anything to do in the first place.
+  function anyWorkQueued() {
+    return state.workQueue.some((levelBuckets) => levelBuckets.active.first !== null || levelBuckets.parked.first !== null);
   }
 
-  // Resolve exactly one flagged repeater - the lowest time level with
-  // anything flagged, FIFO within that level - and report whether there
-  // was one to resolve. Deliberately one at a time, not a drain-the-whole-
-  // list loop: resolving a flag can itself produce a real invalidation
-  // (see resolveFlaggedRepeater), and refreshAllDirtyRepeaters' own loop
-  // needs the chance to fully drain that before this function considers
-  // any *further* flag - otherwise a later flag could get resolved against
-  // a timeline that's about to change again because of the very
-  // invalidation the earlier flag just triggered.
-  function resolveOneFlaggedRepeaterAnywhere() {
-    for (let level = 0; level < state.flaggedRepeaters.length; level++) {
-      const list = state.flaggedRepeaters[level];
-      if (list.first !== null) {
-        resolveFlaggedRepeater(list.first);
-        return true;
+  // Find the next pipeline to drain: the earliest still-unlocked level
+  // with anything actionable, FIFO within that level - locking levels as
+  // it passes them, exactly like the old firstDirtyRepeater() did.
+  // Reaching the end with nothing actionable doesn't necessarily mean
+  // idle, though - some levels may hold parked-only pipelines (their own
+  // heap emptied this wave, but parkedPartials didn't) - so before giving
+  // up, fold every one of those back into action (parkedPartials -> heap,
+  // moved from parked into active) and start a fresh wave
+  // (workQueueTimeLock reset to -1) if that produced anything. Only once
+  // that turns up nothing either is this genuinely idle.
+  function findNextPipeline() {
+    let level = state.workQueueTimeLock + 1;
+    while (level < state.workQueue.length) {
+      if (state.workQueue[level].active.first !== null) {
+        return state.workQueue[level].active.first;
+      }
+      state.workQueueTimeLock = level;
+      level++;
+    }
+
+    let foldedAny = false;
+    for (let l = 0; l < state.workQueue.length; l++) {
+      let node = state.workQueue[l].parked.first;
+      while (node !== null) {
+        const next = node.nextQueued;
+        unlinkFromLevelList(node, l, 'parked');
+        node.parkedPartials.forEach((r) => heapInsert(node.heap, r));
+        node.parkedPartials = [];
+        appendToLevelList(node, l, 'active');
+        node.queueMembership = 'active';
+        foldedAny = true;
+        node = next;
       }
     }
-    return false;
+    if (foldedAny) {
+      state.workQueueTimeLock = -1;
+      return findNextPipeline();
+    }
+    return null;
   }
 
   function refreshAllDirtyRepeaters() {
     if (state.postponeRefreshRepeaters === 0) {
       if (!state.refreshingAllDirtyRepeaters) {
-        if (anyDirtyRepeater() || anyFlaggedRepeaterAnywhere()) {
+        if (anyWorkQueued()) {
           state.refreshingAllDirtyRepeaters = true;
-          // Two-phase, repeated until both are exhausted: drain the
-          // ordinary dirty queue completely first (exactly as before),
-          // THEN - only once nothing anywhere is actively mid-refresh, the
-          // one point that's actually safe (see flagRepeaterEntry's own
-          // comment on why this can't just be folded into exitTimeLevel:
-          // that fires at every partial boundary, including transient
-          // dips mid-refresh, not only when the whole cascade has truly
-          // settled) - resolve one flag. If that produced a real
-          // invalidation, go drain the dirty queue again before resolving
-          // any further flags.
-          let madeProgress = true;
-          while (madeProgress) {
-            while (anyDirtyRepeater()) {
-              let repeater = firstDirtyRepeater();
-              // currentRepeater = repeater;
-              repeater.refresh();
-              detatchRepeater(repeater);
-              exitTimeLevel(repeater.time());
-            }
-            madeProgress = resolveOneFlaggedRepeaterAnywhere();
+          let chainHead;
+          while ((chainHead = findNextPipeline()) !== null) {
+            unlinkFromLevelList(chainHead, chainHead.time, 'active');
+            chainHead.queueMembership = null;
+            state.activePipeline = chainHead;
+            drainActivePipeline();
           }
-
           state.refreshingAllDirtyRepeaters = false;
         }
       }

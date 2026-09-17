@@ -120,6 +120,16 @@ function createWorld(configuration) {
     // any - see scheduleWork()'s own use of it to detect "is new work
     // arriving for the very pipeline I'm mid-processing".
     activePipeline: null,
+
+    // flush() (see below) - recursion-safe, like recordingPaused/
+    // blockInvalidation above. While > 0, an invalidation/flagging that
+    // would otherwise park (waiting for the next wave) instead retreats
+    // the wave - see ensurePipelineActiveOrParked()/scheduleWork().
+    flushing: 0,
+    // Set by either kind of retreat (the outer workQueueTimeLock, or a
+    // pipeline's own internal wavefront) - checked once, right after every
+    // processRepeater() call, never mid-refresh - see checkWaveRetreat().
+    waveRetreated: false,
   };
 
   // Reserved key for each object handler's enumeration timeline (tracks
@@ -152,6 +162,7 @@ function createWorld(configuration) {
     // Modifiers
     withoutRecording,
     withoutReactions: withoutReactionsDo,
+    flush,
 
     // Transaction
     doWhileInvalidationsPostponed: postponeInvalidationsAndDo,
@@ -294,7 +305,25 @@ function createWorld(configuration) {
     callback();
     state.blockInvalidation--;
   }
-  
+
+  // Give the application control over wave direction: while flushing > 0,
+  // an invalidation/flagging that would normally park (waiting for the
+  // next wave to come back around) instead moves the wave itself
+  // backward, so it's picked up again within this same wave - see
+  // ensurePipelineActiveOrParked()/scheduleWork()/checkWaveRetreat() under
+  // "Repeater scheduling" below. Lets a modal dialog whose frame already
+  // rendered add content back into it without waiting a frame, or a
+  // view-model correct an invalid selection at the model level and have
+  // everything downstream re-derive immediately - at the caller's own
+  // risk of an infinite oscillation, same as any other loop whose
+  // termination depends on the logic inside it eventually settling.
+  function flush(callback) {
+    state.flushing++;
+    const result = callback();
+    state.flushing--;
+    return result;
+  }
+
 
   /**********************************
    *
@@ -3344,6 +3373,14 @@ function createWorld(configuration) {
    *  parkedPartials, not the heap - waves move strictly forward, and
    *  nothing is allowed to make one backtrack.
    *
+   *  ...except flush() (see there), the one deliberate escape hatch: while
+   *  state.flushing > 0, exactly this kind of "would park" case instead
+   *  retreats the wave - the outer workQueueTimeLock, or a pipeline's own
+   *  wavefront - and sets state.waveRetreated, which checkWaveRetreat()
+   *  inspects once, right after every processRepeater() call (never
+   *  mid-refresh), to hand the pipeline currently being drained back in a
+   *  resumable state if the retreat reached past it.
+   *
    ***************************************************************/
 
   // A stand-in for a real heap, given how small a pipeline's own pending
@@ -3384,6 +3421,17 @@ function createWorld(configuration) {
     chainHead.previousQueued = null;
   }
 
+  // Like appendToLevelList, but at the front - used only to give a
+  // flush()-abandoned pipeline priority to resume ahead of whatever else
+  // is already waiting at its level (see checkWaveRetreat()).
+  function prependToLevelList(chainHead, level, which) {
+    const list = state.workQueue[level][which];
+    chainHead.previousQueued = null;
+    chainHead.nextQueued = list.first;
+    if (list.first !== null) list.first.previousQueued = chainHead; else list.last = chainHead;
+    list.first = chainHead;
+  }
+
   // Ensure chainHead is correctly placed in its own level's outer
   // bucket - active if its level is still ahead of the lock, parked if
   // the sweep has already moved past it (see the module comment above on
@@ -3392,8 +3440,19 @@ function createWorld(configuration) {
   // check queueMembership themselves first. Never touches anything while
   // this chainHead is the one currently being drained - see
   // drainActivePipeline(), which owns placing it once its session ends.
+  //
+  // flush(): if the lock has already passed this chainHead's own level,
+  // that would normally mean parking - but with flushing > 0, the
+  // application has asked for this wave to reach back instead, so the
+  // lock itself retreats to just before this level, and waveRetreated is
+  // set for checkWaveRetreat() to notice, between repeaters, that
+  // whatever's currently being drained needs to be set aside for this.
   function ensurePipelineActiveOrParked(chainHead) {
     if (chainHead === state.activePipeline) return;
+    if (state.flushing > 0 && chainHead.time <= state.workQueueTimeLock) {
+      state.workQueueTimeLock = chainHead.time - 1;
+      state.waveRetreated = true;
+    }
     const wantParked = chainHead.time <= state.workQueueTimeLock;
     const want = wantParked ? 'parked' : 'active';
     if (chainHead.queueMembership === want) return;
@@ -3420,11 +3479,20 @@ function createWorld(configuration) {
     if (repeater.inHeap) return;
     repeater.inHeap = true;
     ensurePipelineActiveOrParked(chainHead);
-    const behindWavefront =
-      chainHead === state.activePipeline
-        ? compareWriterOrder(repeater.firstPartial, chainHead.wavefront) <= 0
-        : chainHead.time <= state.workQueueTimeLock;
-    if (behindWavefront) {
+    const withinActivePipeline = chainHead === state.activePipeline;
+    const behindWavefront = withinActivePipeline
+      ? compareWriterOrder(repeater.firstPartial, chainHead.wavefront) <= 0
+      : chainHead.time <= state.workQueueTimeLock;
+    // flush(): a back-reference within the pipeline currently being
+    // drained would normally park until the next wave - reprocess it
+    // within this same wave instead. No need to actually move
+    // chainHead.wavefront back for this: heapInsert already places the
+    // repeater at its correct position, so the heap-loop's next pop picks
+    // it up in order regardless of where wavefront currently sits.
+    if (behindWavefront && withinActivePipeline && state.flushing > 0) {
+      state.waveRetreated = true;
+      heapInsert(chainHead.heap, repeater);
+    } else if (behindWavefront) {
       chainHead.parkedPartials.push(repeater);
     } else {
       heapInsert(chainHead.heap, repeater);
@@ -3452,6 +3520,7 @@ function createWorld(configuration) {
     });
     state.workQueueTimeLock = -1;
     state.activePipeline = null;
+    state.waveRetreated = false;
   }
 
   // Record that `entry` (still sitting, untouched, in
@@ -3657,6 +3726,41 @@ function createWorld(configuration) {
     }
   }
 
+  // flush(): called right after every processRepeater() - not mid-refresh,
+  // even one that itself recursively revalidates whole subtrees of
+  // children; that's never interrupted - to notice a wave retreat and, if
+  // it actually reached back past the pipeline currently being drained,
+  // hand that pipeline back in a fresh, resumable state rather than
+  // continuing to drain it against what's now a stale premise.
+  //
+  // Nothing here presumes anything in this pipeline was actually wrong -
+  // only that some earlier-level work needs to run first. Whatever that
+  // rerun changes will mark exactly what needs attention through the
+  // ordinary invalidation/migration/flagging path, same as ever; this
+  // pipeline's own already-completed work is left untouched, not
+  // discarded. heap/parkedPartials already hold exactly the repeaters
+  // known to need it, so folding parkedPartials into heap and handing the
+  // whole pipeline back - at the front of its own level's bucket, so it
+  // resumes before anything else waiting there - is all that's needed.
+  //
+  // While draining pipeline at time L, workQueueTimeLock sits at L - 1 as
+  // a matter of course (see findNextPipeline() - it never locks the level
+  // it hands back). So "did the wave actually retreat past this
+  // pipeline", not merely "is the lock currently behind it" (always true,
+  // harmlessly), is workQueueTimeLock < chainHead.time - 1.
+  function checkWaveRetreat(chainHead) {
+    if (!state.waveRetreated) return false;
+    state.waveRetreated = false;
+    if (state.workQueueTimeLock >= chainHead.time - 1) return false;
+    chainHead.parkedPartials.forEach((r) => heapInsert(chainHead.heap, r));
+    chainHead.parkedPartials = [];
+    chainHead.wavefront = null;
+    state.activePipeline = null;
+    prependToLevelList(chainHead, chainHead.time, 'active');
+    chainHead.queueMembership = 'active';
+    return true;
+  }
+
   // Drain the pipeline currently sitting in state.activePipeline (see
   // findNextPipeline(), which extracts it from its outer bucket before
   // handing it over): the root repeater first, unconditionally and
@@ -3682,6 +3786,7 @@ function createWorld(configuration) {
     while (root.workStatus !== null) {
       root.inATimeBucket = false;
       processRepeater(root);
+      if (checkWaveRetreat(chainHead)) return;
     }
 
     while (chainHead.heap.length > 0) {
@@ -3691,6 +3796,7 @@ function createWorld(configuration) {
       if (repeater.workStatus === null) continue; // the lazy-pruning discard - an ancestor's own refresh already reached and handled it
       chainHead.wavefront = repeater.firstPartial;
       processRepeater(repeater);
+      if (checkWaveRetreat(chainHead)) return;
     }
 
     state.activePipeline = null;
@@ -3770,6 +3876,14 @@ function createWorld(configuration) {
             state.activePipeline = chainHead;
             drainActivePipeline();
           }
+          // Genuinely idle - nothing left anywhere, active or parked (see
+          // findNextPipeline()). Without this, the lock would stay
+          // wherever it last advanced to, and a later, completely fresh
+          // invalidation at an earlier level would be wrongly treated as
+          // "already passed" (wantParked) by ensurePipelineActiveOrParked
+          // - found while working through when a flush() retreat is even
+          // real vs. just the ordinary L-1 resting position.
+          state.workQueueTimeLock = -1;
           state.refreshingAllDirtyRepeaters = false;
         }
       }

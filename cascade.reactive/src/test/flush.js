@@ -19,11 +19,15 @@ import assert from "assert";
 // to a plain property can never, by construction, reach an earlier reader
 // - flush() only changes *scheduling*, not that invariant, and shouldn't:
 // rewriting a write's own effective position would be a much bigger,
-// separate change. Array/enumeration dependencies have no such gate -
-// invalidateArrayObservers notifies every registered observer
-// unconditionally - which is exactly what lets these two scenarios (a
-// portal's content, a corrected model selection) actually reach back at
-// all, with or without a shared chainHead.
+// separate change (see accessInitialValues() in access-initial-values.js,
+// which does exactly that, deliberately, by writing as though genuinely
+// external). Arrays still have no position gate at all today
+// (invalidateArrayObservers notifies every registered observer
+// unconditionally, regardless of where it sits) - which is what actually
+// lets these two scenarios reach back, not a principled feature of its
+// own; see docs/plan-array-timelines.md for why that's still open.
+// Enumeration (key composition) used to have the same gap and has since
+// been fixed to be position-aware too - see enumeration-timeline.js.
 const { observable, repeat, flush } = getWorld({ name: "flush", timeLevels: 3 });
 
 describe("flush() (retreat the wave instead of parking, while flushing)", function () {

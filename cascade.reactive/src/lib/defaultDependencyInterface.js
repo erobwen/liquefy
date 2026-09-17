@@ -193,12 +193,12 @@ export function defaultDependencyInterfaceCreator(causality) {
       recordDependency(observer, handler._arrayObservers);//object
     },
 
-    recordDependencyOnEnumeration: (observer, handler) => {
-      const writing = causality.getOrCreateEnumerationTimelineWriting(handler);
+    recordDependencyOnEnumeration: (observer, handler, time, writer) => {
+      const writing = causality.getOrCreateEnumerationTimelineWriting(handler, time, writer);
       if (writing.observers === null) {
         writing.observers = createObserverSet("enumerationDependees", handler);
       }
-      recordDependency(observer, writing.observers);
+      recordDependency(observer, writing.observers, undefined, time, writer);
     },
 
     recordDependencyOnProperty: (observer, handler, key, time, writer) => {
@@ -291,11 +291,15 @@ export function defaultDependencyInterfaceCreator(causality) {
       return true;
     },
 
-    invalidateEnumerateObservers: (handler, key) => {
+    // Only invalidate readers positioned after this key add/remove (see
+    // invalidateDownstreamEnumerationObservers in cascade.js) - before
+    // this, every reader at every position shared one fixed writing, so
+    // any key add/remove invalidated all of them regardless of where they
+    // sat in the pipeline.
+    invalidateEnumerateObservers: (handler, key, time, writer) => {
       const timeline = handler.timelines[causality.enumerationTimelineKey];
-      if (typeof(timeline) !== 'undefined' && timeline.first.observers !== null) {
-        invalidateObservers(timeline.first.observers, handler.proxy, key);
-      }
+      if (typeof(timeline) === 'undefined') return;
+      causality.invalidateDownstreamEnumerationObservers(timeline.first, time, writer, handler.proxy, key);
     },
 
     removeAllSources: (observer) => {

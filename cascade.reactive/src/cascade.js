@@ -163,6 +163,7 @@ function createWorld(configuration) {
     withoutRecording,
     withoutReactions: withoutReactionsDo,
     flush,
+    accessInitialValues,
 
     // Transaction
     doWhileInvalidationsPostponed: postponeInvalidationsAndDo,
@@ -190,6 +191,7 @@ function createWorld(configuration) {
     invalidateObserver,
     getOrCreateTimelineWriting,
     getOrCreateEnumerationTimelineWriting,
+    invalidateDownstreamEnumerationObservers,
     seekTimelineWriting: seekWriting,
     enumerationTimelineKey,
     proceedWithPostponedInvalidations, 
@@ -321,6 +323,37 @@ function createWorld(configuration) {
     state.flushing++;
     const result = callback();
     state.flushing--;
+    return result;
+  }
+
+  // Read/write as though genuinely outside any repeater, regardless of
+  // what's actually executing - currentTime()/currentReadTime()/
+  // currentWriter() all derive purely from state.context, so nulling it
+  // for the callback's duration reuses the exact same "write lands at the
+  // baseline (time 0, writer null), read sees the latest" behavior
+  // external code already gets for free (see currentTime()'s own
+  // comment), rather than needing any new invalidation path. A write here
+  // to a property that already has a baseline writing (every observable's
+  // construction writes one - see moveTargetDataIntoTimelines) reuses that
+  // exact writing rather than splicing in a new one, so it goes through
+  // the same unconditional, eager invalidateWritingObservers every
+  // ordinary rewrite-in-place already gets - not migrateOvertakenObserversFor,
+  // and so not subject to entryNeedsDeferredTreatment's same-chain
+  // deferral either: this isn't overtaking a reader positioned after it,
+  // it's rewriting the exact slot that reader already depends on.
+  //
+  // This only affects *where* a write lands, not *when* the resulting
+  // invalidation is processed relative to the current wave - compose with
+  // flush() (accessInitialValues(() => flush(() => ...)), either order)
+  // when the correction also needs to settle within the same wave, rather
+  // than waiting for the next one.
+  function accessInitialValues(callback) {
+    const savedContext = state.context;
+    state.context = null;
+    updateContextState();
+    const result = callback();
+    state.context = savedContext;
+    updateContextState();
     return result;
   }
 
@@ -1466,6 +1499,32 @@ function createWorld(configuration) {
     return findExactWriting(timeline, time, writer) || insertNewWriting(timeline, time, writer);
   }
 
+  // Enumeration doesn't get its own multi-writing, spliced timeline the
+  // way properties do (see docs/plan-array-timelines.md - that's a bigger,
+  // separate undertaking, and a repeater's own enumeration writing would
+  // need the same staleWritings-style reconciliation across reruns that
+  // properties get via dispose(); without it, old reruns' writings would
+  // just accumulate, pointing at partials no longer in the live
+  // order-number chain - exactly what an earlier attempt at this ran into,
+  // caught by the structural order verifier). There's still just the one,
+  // permanently reused writing per handler - but instead of firing every
+  // one of its observers unconditionally on any key add/remove, this only
+  // fires the ones positioned strictly *after* the change (comparePositions
+  // > 0), leaving readers that already ran before it untouched. Always
+  // eager, never flagged: flagging only pays off when there's a genuinely
+  // fresher writing to defer resolution against later (see
+  // resolveFlaggedRepeater's own live re-seek) - with a single writing
+  // that's never replaced, that resolution would always trivially resolve
+  // back to itself and never detect a real change.
+  function invalidateDownstreamEnumerationObservers(writing, time, writer, proxy, key) {
+    if (writing.observers === null) return;
+    const downstream = collectOvertakenPropertyObservers(
+      writing,
+      (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, time, writer) > 0
+    );
+    downstream.forEach((entry) => invalidateObserver(entry.observer, proxy, key));
+  }
+
   // Fully remove a writing from its timeline. Unlike marking a writing
   // unset, this makes reads transparently fall through to whatever writing
   // is now nearest below it - retracting a writing (a repeater no longer
@@ -1495,8 +1554,8 @@ function createWorld(configuration) {
     return seekWriting(getOrCreateTimeline(handler, key), time, writer);
   }
 
-  function getOrCreateEnumerationTimelineWriting(handler) {
-    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey), 0, null);
+  function getOrCreateEnumerationTimelineWriting(handler, time, writer) {
+    return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey), time, writer);
   }
 
   // Move an object literal's own data properties into timelines, leaving
@@ -1818,7 +1877,7 @@ function createWorld(configuration) {
     // alongside the migration above, against a different (and possibly
     // entirely absent) predecessor.
     if (retiredWriting !== null) retireWritingOnto(retiredWriting, writing);
-    if (undefinedKey) invalidateEnumerateObservers(this, key);
+    if (undefinedKey) invalidateEnumerateObservers(this, key, time, writer);
 
     emitSetEvent(this, key, value, previousValue);
 
@@ -1857,7 +1916,7 @@ function createWorld(configuration) {
     }
 
     invalidatePropertyObservers(this, key, time, writer);
-    invalidateEnumerateObservers(this, key);
+    invalidateEnumerateObservers(this, key, time, writer);
     emitDeleteEvent(this, key, previousValue);
 
     return true;
@@ -1874,10 +1933,12 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this);
+    const time = currentReadTime();
+    const writer = currentWriter();
+    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer);
 
     let keys = Object.keys(target);
-    timelineDataKeys(this, currentReadTime(), currentWriter()).forEach(function(timelineKey) {
+    timelineDataKeys(this, time, writer).forEach(function(timelineKey) {
       if (keys.indexOf(timelineKey) === -1) keys.push(timelineKey);
     });
     return keys;
@@ -1894,8 +1955,10 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
-    if (hasTimelineValue(this, key, currentReadTime(), currentWriter())) return true;
+    const time = currentReadTime();
+    const writer = currentWriter();
+    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer)
+    if (hasTimelineValue(this, key, time, writer)) return true;
     return key in target;
   }
 
@@ -1909,8 +1972,8 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
- 
-    invalidateEnumerateObservers(this, "define property");
+
+    invalidateEnumerateObservers(this, "define property", currentTime(), currentWriter());
     return Reflect.defineProperty(target, key, descriptor);
   }
 
@@ -1921,15 +1984,15 @@ function createWorld(configuration) {
         .apply(forwardToHandler, [forwardToHandler.target, key]);
     }
 
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead 
+    if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
       return cannotReadPropertyValue;
     }
- 
-    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this)
-    const descriptor = Object.getOwnPropertyDescriptor(target, key);
-    if (typeof(descriptor) !== 'undefined') return descriptor;
+
     const time = currentReadTime();
     const writer = currentWriter();
+    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer)
+    const descriptor = Object.getOwnPropertyDescriptor(target, key);
+    if (typeof(descriptor) !== 'undefined') return descriptor;
     if (hasTimelineValue(this, key, time, writer)) {
       return {
         value: readTimelineValue(this, key, time, writer),

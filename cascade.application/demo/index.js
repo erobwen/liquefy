@@ -1,5 +1,7 @@
 import { RenderContext, Component, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { DOMTargetElement } from "@liquefy/cascade.dom";
+import { IntroductionPage } from "./src/pages/IntroductionPage.js";
+import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
 
 /**
  * Benchmark for the real-time renderOnto model, replicating flow's own
@@ -47,13 +49,34 @@ class Toolbar extends Component {
   }
 }
 
+// Menu now replicates demo.js's own buildMenu(): a real, clickable list
+// of pages instead of a static label, reading straight from the shared
+// menuFrame that owns `pages`/`chosen` (see MenuFrame below) - the same
+// "shared object both siblings read/write" shape usableWidth/usableHeight
+// already use, just owned one level further down.
 class Menu extends Component {
+  constructor(menuFrame) {
+    super();
+    this.menuFrame = menuFrame;
+  }
+
   render(context) {
     const u = this.unobservable;
-    if (!u.el) u.el = context.target.createChild("div");
+    const { menuFrame } = this;
+    if (!u.el) {
+      u.el = context.target.createChild("div");
+      u.el.element.className = "menu";
+      // Each item's element is created once and reused across reruns -
+      // the page list itself never changes at runtime here, only which
+      // one is active, so there's nothing to reconcile.
+      u.itemEls = menuFrame.pages.map((page) => {
+        const itemEl = u.el.createChild("div");
+        itemEl.element.textContent = page.title;
+        itemEl.element.onclick = () => menuFrame.choose(page.key);
+        return itemEl;
+      });
+    }
     const el = u.el.element;
-    el.className = "menu";
-    el.textContent = "Menu";
     el.style.cssText =
       "width: " + MENU_WIDTH + "px; box-sizing: border-box; padding: 16px; " +
       "background: #34495e; color: white; height: 100%;";
@@ -68,6 +91,13 @@ class Menu extends Component {
       el.style.boxShadow = "none";
       el.style.flex = "none";
     }
+
+    menuFrame.pages.forEach((page, index) => {
+      const active = page.key === menuFrame.chosen;
+      u.itemEls[index].element.style.cssText =
+        "padding: 10px 12px; margin-bottom: 4px; border-radius: 4px; cursor: pointer;" +
+        (active ? " background: rgba(255,255,255,0.2); font-weight: bold;" : "");
+    });
   }
 
   // Retracted (not rendered at all) when modal and closed - remove the
@@ -85,7 +115,16 @@ class Menu extends Component {
   }
 }
 
+// WorkArea now renders whichever page is chosen (see MenuFrame), instead
+// of a fixed placeholder - demo.js's own `applicationContent`/`chosen`
+// role, just via a plain shared reference instead of a build()/key-based
+// tree.
 class WorkArea extends Component {
+  constructor(menuFrame) {
+    super();
+    this.menuFrame = menuFrame;
+  }
+
   render(context) {
     const u = this.unobservable;
     if (!u.el) u.el = context.target.createChild("div");
@@ -95,9 +134,21 @@ class WorkArea extends Component {
       "box-sizing: border-box; padding: 16px; background: #ecf0f1; overflow: auto;";
     el.style.width = context.usableWidth + "px";
     el.style.height = context.usableHeight + "px";
-    el.textContent =
-      "Usable area, measured for real: " + Math.round(context.usableWidth) +
-      " x " + Math.round(context.usableHeight) + "px. Resize the window to see it update.";
+
+    if (!u.innerContext) {
+      u.innerContext = new RenderContext(u.el);
+    }
+    postponeInvalidations();
+    u.innerContext.usableWidth = context.usableWidth - 32; // minus this element's own padding
+    u.innerContext.usableHeight = context.usableHeight - 32;
+    continueInvalidations();
+
+    const page = this.menuFrame.pages.find((candidate) => candidate.key === this.menuFrame.chosen);
+    page.component.renderOnto(u.innerContext);
+    // Every other page simply isn't renderOnto()'d this pass - genuinely
+    // retracted (its own real element removed too, see each page's own
+    // onRetract), not just hidden, exactly like Menu/HamburgerButton
+    // above when the modal breakpoint drops them.
   }
 }
 
@@ -128,12 +179,28 @@ class HamburgerButton extends Component {
 }
 
 class MenuFrame extends Component {
-  constructor(menu, workArea) {
+  constructor() {
     super();
-    this.menu = menu;
-    this.workArea = workArea;
     this.menuOpen = false;
+    // demo.js's own `this.items`/`chosen` - a plain, shared reference
+    // both Menu and WorkArea read (and Menu writes, via choose()) rather
+    // than a build()/key-based child tree, matching this whole demo's
+    // hardcoded-child-reference style.
+    this.pages = [
+      { key: "introduction", title: "Introduction", component: new IntroductionPage() },
+      { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
+    ];
+    this.chosen = this.pages[0].key;
+    this.menu = new Menu(this);
+    this.workArea = new WorkArea(this);
     this.hamburger = new HamburgerButton(() => { this.menuOpen = !this.menuOpen; });
+  }
+
+  // demo.js's own chose(), plus closing the modal drawer on selection -
+  // matching the flow demo's onClick, which also sets menuOpen = false.
+  choose(key) {
+    this.chosen = key;
+    this.menuOpen = false;
   }
 
   render(context) {
@@ -171,7 +238,15 @@ class MenuFrame extends Component {
     u.innerContext.usableHeight = context.usableHeight;
 
     if (menuIsModal) {
-      this.hamburger.renderOnto(u.innerContext);
+      if (!this.menuOpen) {
+        this.hamburger.renderOnto(u.innerContext);
+        // else: not rendered while the overlay is open - retracted (real
+        // DOM element removed) if it was previously shown. Matches
+        // ApplicationMenuFrame's own modalButton.show(menuIsModal &&
+        // !menuOpen) - without this, the button (z-index 20, to sit
+        // above the docked menu) also sits above the *overlay* menu and
+        // visually overlaps its first item.
+      }
       this.workArea.renderOnto(u.innerContext);
       if (this.menuOpen) {
         this.menu.renderOnto(u.innerContext);
@@ -237,7 +312,7 @@ class MainFrame extends Component {
 
 const root = DOMTargetElement.forElement(document.getElementById("application"));
 const context = new RenderContext(root);
-const mainFrame = new MainFrame(new Toolbar(), new MenuFrame(new Menu(), new WorkArea()));
+const mainFrame = new MainFrame(new Toolbar(), new MenuFrame());
 mainFrame.renderOnto(context);
 
 // Proves the reactivity is real, not just a one-time snapshot: resizing

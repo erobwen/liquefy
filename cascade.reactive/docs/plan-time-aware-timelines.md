@@ -5,6 +5,18 @@ principle" test passes, including the cyclic-invalidation case below. This
 doc is now a record of the design (and the two real bugs it exposed) rather
 than a proposal.
 
+**Note:** the mechanism described below (`repeater.writings`/
+`pendingWritings`, `retractWritingsIntoPending`/`finalizeWritings`,
+`repeaterDirty()`) has since been substantially extended and renamed -
+`repeater.staleWritings`, `finalizeStaleWritings`/
+`finalizeTouchedStaleWritings`, `invalidateRepeater()` are the current
+names for these same ideas, plus a real mechanism for *when* it's actually
+safe to notify a reader across a broken reconciliation (this doc's own
+same-value dedup wasn't sufficient on its own - see
+`docs/plan-flagged-scheduling.md`). Left unedited below as a historical
+record of how retraction/detach-then-reconcile were first built; not
+accurate as a description of the current API surface.
+
 ## Motivating example
 
 `src/test/pipeline-observeable.js`'s "Main principle" test - a staged
@@ -179,7 +191,10 @@ earlier in this thread.
 
 **Superseded by "repeater trees for time" below** - see that section for the
 direction this is actually heading, and for why `meta_repeaters.js` was
-removed rather than fixed.
+removed rather than fixed. Superseded again, more fully, by
+`docs/plan-flagged-scheduling.md` - the actual resolution turned out to be
+about *when* it's safe to notify a farther/overtaken reader at all, not
+just about giving same-time writers distinct tree positions.
 
 ## Repeater trees for time (supersedes ad hoc property-based memoization)
 

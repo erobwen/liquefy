@@ -51,15 +51,21 @@ execute in one go, so **invalidating a partial delegates straight to
 invalidating its repeater** (`partial.invalidateAction()` calls
 `repeater.invalidateAction()`).
 
-## `linkRepeater`: pure reattachment, never a trigger
+## `linkRepeater`: pure reattachment for invalid repeaters, but not for flagged ones
 
 `linkRepeater(oldRepeater)` puts a previously-created repeater back into its
-parent's child list at the current position. It never itself forces
-execution:
-- If the repeater is already invalid (something it reads changed), cascade's
-  normal dirty-queue machinery refreshes it on its own schedule, independent
-  of when `linkRepeater` happens to be called.
-- If it's clean, linking is a no-op - no rerun, no state loss.
+parent's child list at the current position. For a genuinely *invalid*
+repeater (something it reads changed for real), it never forces execution -
+cascade's own scheduler refreshes it on its own schedule, independent of
+when `linkRepeater` happens to be called. If it's clean, linking is a no-op -
+no rerun, no state loss.
+
+**Update:** this was originally true without exception, but no longer is -
+a repeater that's merely *flagged* (see `docs/plan-flagged-scheduling.md`)
+gets resolved right here, inline, the moment `linkRepeater` reaches it.
+That doc's own "`linkRepeater`'s opportunistic check" section has the full
+reasoning for why a flagged repeater specifically can't wait for the
+scheduler's own later turn the way an invalid one can.
 
 Component/child identity (which old repeater corresponds to which new
 render call - i.e. React-style keys) is entirely the caller's
@@ -134,7 +140,18 @@ working and it was clear what shape the optimization needed to fit.
 Two different repeaters at the same declared time, both touching the same
 property - likely reframed rather than solved head-on once time is tree
 position (see `docs/plan-time-aware-timelines.md`'s "Same-time writers"
-section for the original discussion). Not revisited in detail yet.
+section for the original discussion).
+
+**Resolved, but not the way originally expected.** The real problem this
+was gesturing at turned out to be more general than "same declared time" -
+it's "a reader whose dependency resolves to the wrong writing, and figuring
+out when it's actually safe to tell it so." `docs/plan-flagged-scheduling.md`
+covers the full mechanism (migration, flagging, the pipeline scheduler).
+Two different repeaters genuinely sharing the same declared time *and* no
+tree relationship at all (different root trees entirely) still fall back to
+the older, simpler stable-id tiebreak - deliberately excluded from the new
+deferred/flagged treatment, since there's no wavefront connecting unrelated
+trees for deferral to mean anything.
 
 ## Implementation progress
 
@@ -425,14 +442,24 @@ pass, including all four `renderOnto.js` cases and the dedicated
 partial-chain-order stress test.
 
 Explicitly deferred, not needed by any concrete case yet:
-- Same-time writers from *different* root trees (two independent
-  top-level repeaters colliding on the same declared time and property) -
-  still just a stable id-based fallback (now the two chains' own ids,
-  rather than the root repeaters' ids), per
-  `docs/plan-time-aware-timelines.md`.
+- Same-time writers from *different, unrelated* root trees (two
+  independent top-level repeaters colliding on the same declared time and
+  property, with no tree relationship at all) - still just a stable
+  id-based fallback (the two chains' own ids). Same-time writers *within*
+  or across a real tree relationship is a solved, separate story now -
+  see `docs/plan-flagged-scheduling.md`.
 - A level-dependent density threshold for pressure release (the tighter
   bound from the order-maintenance literature) instead of the current
   fixed 1/2 - only worth adding if a real workload shows the simpler
   version relabeling too often.
 - `getResult`/`getInput` explicit time-override wrappers for external
   code.
+
+**Since this doc was written**, a substantial amount of further work
+landed on top of everything below - excessive-invalidation avoidance
+across a broken reconciliation, deferred ("flagged") invalidation for
+tree-ordered readers, and a full pipeline/heap/wavefront scheduler
+replacing the flat dirty-repeater queue this doc's own step 6 still
+describes. See `docs/plan-flagged-scheduling.md` for all of that; nothing
+below this point has been rewritten to match it, since it remains an
+accurate record of how the order-number chain itself was built.

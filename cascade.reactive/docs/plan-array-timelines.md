@@ -167,6 +167,27 @@ Each step should be independently testable against the existing array test
 suite (`array.js`, `array-splices.js`) before moving to the next, same as
 the object migration was done test-suite-green the whole way through.
 
+**A cautionary note from doing this for enumeration** (`docs/plan-flagged-scheduling.md`
+covers it in full): step 3's own "mirroring exactly what we did for
+`_enumerateObservers`" undersells it - that earlier move only changed
+*storage* (a flat set into `handler.timelines[enumerationTimelineKey]`),
+not semantics; every reader still shared one fixed, permanently-reused
+writing, so any key add/remove still invalidated everyone regardless of
+position. Giving *that* real position semantics (only readers positioned
+after a change get invalidated) was attempted the same way this plan
+proposes for arrays - splice a fresh writing per position, migrate
+overtaken observers - and it broke the dev-time structural order verifier:
+a repeater's own writing on this reserved timeline never went through the
+`dispose()`/`staleWritings` cleanup its *property* writings get across
+reruns, so old reruns' writings just accumulated, pointing at partials no
+longer in the live order-number chain. The fix that shipped instead keeps
+one writing (unchanged storage) and is merely *selective*, by position,
+about which of its own observers get invalidated - real multi-version
+history was set aside as the bigger, separate problem it actually is.
+Whatever this plan eventually does for the elements timeline needs its
+own answer to that same reconciliation-across-reruns question - it's not
+free just because the object property machinery already solved it.
+
 ## Explicitly out of scope for this plan
 
 - Per-index/per-region dependency granularity (see above).

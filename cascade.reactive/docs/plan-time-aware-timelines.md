@@ -85,6 +85,14 @@ recording is skipped (`state.inActiveRecording` is false), so this doesn't
 change what a repeater's own reads resolve to - only bare, non-reactive
 reads/writes from outside any repeater are affected.
 
+**Reused later:** `accessInitialValues()` (see
+`docs/plan-flagged-scheduling.md`) deliberately triggers this exact
+asymmetry from *inside* a repeater - nulling `state.context` for a
+callback's duration makes `currentTime()`/`currentReadTime()` fall through
+to these same "external" branches regardless of what's actually executing,
+letting a write land at the time-0 baseline even when called from deep
+inside some other pipeline's own refresh.
+
 ## Reruns must fully retract, not merely unset
 
 The hard part: a repeater's *previous* run's writings must not be visible to

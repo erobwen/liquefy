@@ -2,11 +2,19 @@
 
 Status: **implemented.** `src/test/flagged-repeaters.js`,
 `writing-reuse-guard.js`, `writing-reuse-optimization.js`,
-`migrate-overtaken-observers.js`, and `multi-pipeline-isolation.js` cover
-the mechanisms below; the full suite (68 tests in cascade.reactive, plus
+`migrate-overtaken-observers.js`, `multi-pipeline-isolation.js`,
+`flush.js`, `access-initial-values.js`, and `enumeration-timeline.js` cover
+the mechanisms below; the full suite (73 tests in cascade.reactive, plus
 5 in cascade.component and 18 in cascade.DOM) passes, and the demo app's
 own real-browser behavior was re-verified against this design (see
 "Status" at the end).
+
+This now covers three layers, built in this order: the pipeline scheduler
+itself (migration, flagging, `workStatus`, pipelines/wavefronts/parking);
+`flush()`, letting the application deliberately retreat a wave instead of
+parking; and `accessInitialValues()` plus a fix to enumeration's own
+dependency tracking, both about *reaching backward through position*
+rather than through scheduling.
 
 This doc picks up where `docs/plan-partial-repeaters.md` leaves off. That
 doc's own "Open question carried over: same-time writers" section is
@@ -336,14 +344,204 @@ finished moving. Fixed by moving the sweep entirely out of
 shared with the older, general-purpose `state.revalidationTimeLock`, for
 exactly this reason.
 
+## `flush()`: giving the application control over wave direction
+
+Everything above assumes waves move strictly forward - "nothing is
+allowed to make one backtrack" (see "Parking, at two levels"). Two
+concrete cases need exactly that, deliberately: a modal dialog whose
+frame already finished rendering this wave, where a later component opens
+a portal and needs to add content back into it without waiting a frame
+for it to appear; and a selector that discovers the model handed it an
+invalid value and needs to correct the model and have everything forward
+of it re-derive, in the same frame, rather than flash the invalid state
+first. `flush(callback)` is the escape hatch: a recursion-safe counter
+(`state.flushing`, same style as `recordingPaused`/`blockInvalidation`)
+that, while `> 0`, turns "would park until the next wave" into "retreat
+the wave and pick it up within this one instead."
+
+A single global `state.waveRetreated` flag records that a retreat
+happened, set by either of two distinct places:
+
+- **`ensurePipelineActiveOrParked`**, for a chainHead *other* than the one
+  currently being drained: instead of parking it (its own level already
+  passed), `state.workQueueTimeLock` retreats to `chainHead.time - 1` and
+  the chainHead is placed into `active` as usual.
+- **`scheduleWork`**, for a back-reference *within* the pipeline
+  currently being drained: instead of `chainHead.parkedPartials`, the
+  repeater goes straight into `chainHead.heap`. Nothing needs to move
+  `chainHead.wavefront` back explicitly for this - `heapInsert` already
+  places the repeater at its correct position, so the ongoing heap-loop's
+  next pop naturally reaches it in order, and popping it is what updates
+  `wavefront` to reflect the new, retreated position anyway.
+
+`checkWaveRetreat(chainHead)`, called once right after *every*
+`processRepeater()` call in both of `drainActivePipeline`'s loops (never
+mid-refresh - a repeater's own refresh, even one that recursively
+revalidates whole subtrees of its own children, is never interrupted),
+is where the flag actually gets acted on. While draining a pipeline at
+time `L`, `state.workQueueTimeLock` sits at `L - 1` as a matter of
+routine (see "Draining" above - `findNextPipeline` never locks the level
+it hands back) - so the real question isn't "is the lock currently behind
+this pipeline" (always true, harmlessly), it's whether the lock fell
+*further* back than that: `workQueueTimeLock < chainHead.time - 1`.
+
+- If not - the retreat stayed within, or exactly at, this pipeline's own
+  level - nothing more to do; the heap-insertion above already handles it
+  correctly on its own.
+- If so, the wave moved to before this whole pipeline's level. This
+  session is abandoned: `parkedPartials` folds into `heap` (ready for next
+  time, wavefront concept reset), and the whole chainHead is requeued at
+  the *front* of its own level's `active` bucket (`prependToLevelList`,
+  new alongside `appendToLevelList`) - so it resumes ahead of anything
+  else waiting there, rather than going to the back of the line.
+
+**A correction found in review, worth keeping explicit**: the abandon
+branch does *not* dispose or reinvalidate anything. An earlier version
+called `invalidateRepeater(root)` here, on the reasoning that the whole
+pipeline's last run was now "stale" - but retreating past a pipeline only
+means some earlier-level work needs to run first, not that anything in
+this pipeline was actually wrong. Whatever the earlier-level rerun
+produces will mark exactly what needs attention through the ordinary
+invalidation/migration/flagging path, same as always; forcing a redo
+pre-empts that and throws away correct work, exactly the kind of needless
+recompute this whole design otherwise exists to avoid.
+
+`flush()` only changes *when* a resulting invalidation is processed
+relative to the current wave - it does not change *where* a write lands.
+See `accessInitialValues()` below for that other half.
+
+**Infinite oscillation** is an accepted, unguarded risk, same as an
+ordinary `while` loop in application code: nothing stops a developer from
+writing a `flush()` that keeps correcting in both directions forever.
+Staying converging is the caller's responsibility.
+
+## A second bug found along the way: the lock never resetting on idle
+
+Tracing through when a retreat is genuine (as opposed to just the
+ordinary `L - 1` resting position above) surfaced a separate,
+pre-existing bug, unrelated to `flush()` itself: `findNextPipeline`'s
+forward walk locks every level it passes without finding anything, but
+nothing ever reset `state.workQueueTimeLock` back to `-1` once the system
+genuinely went idle (its own fold-in branch only resets it when something
+was actually parked to fold). So a wave that settled without ever parking
+anything left the lock stuck at whatever level it last advanced to - and
+a later, completely unrelated invalidation at an earlier level would then
+be wrongly treated as `wantParked`, since nothing had told the lock the
+old wave was over. Fixed by having `refreshAllDirtyRepeaters` reset the
+lock to `-1` right before it reports idle.
+
+## `accessInitialValues()`: reaching backward through position
+
+`flush()` controls *when* something is processed; it deliberately leaves
+*where a write lands* untouched, because "time as tree position" is
+fundamental, not a scheduling detail - `migrateOvertakenObserversFor`
+only ever migrates an observer positioned *after* a new writing, never
+one positioned before it, so a later-positioned (or later-time-level)
+write to a plain property can never, by construction, reach an earlier
+reader. Yet the motivating portal/selector cases genuinely need exactly
+that. The resolution turns out to already exist, half-built:
+`docs/plan-time-aware-timelines.md`'s "External reads and writes are
+asymmetric" section - external (outside any repeater) writes already land
+at the time-0 baseline, external reads already see the pipeline's latest
+output. `accessInitialValues(callback)` just makes that behavior
+reachable *from inside* a repeater: it nulls `state.context` for the
+callback's duration, so `currentTime()`/`currentReadTime()`/`currentWriter()`
+- which derive purely from `state.context` - all fall through to their own
+"outside any repeater" branches, regardless of what's actually executing.
+
+No new invalidation path is needed as a result. A write inside the
+callback to a property that already has a baseline writing (every
+observable's construction writes one via `moveTargetDataIntoTimelines`)
+*reuses* that exact writing rather than splicing a new one - so it goes
+through the same unconditional, already-eager `invalidateWritingObservers`
+every ordinary rewrite-in-place already gets, not
+`migrateOvertakenObserversFor`, and so isn't subject to
+`entryNeedsDeferredTreatment`'s same-chain deferral either: this isn't
+overtaking a reader positioned after it, it's rewriting the exact slot
+that reader already depends on.
+
+`accessInitialValues()` and `flush()` are deliberately independent,
+composable primitives - `accessInitialValues(() => flush(() => ...))` or
+the reverse order, whichever reads better at the call site - rather than
+one trying to do both jobs, matching the existing
+`postponeInvalidations`/`doWhileInvalidationsPostponed` pattern of
+separate, stackable modifiers.
+
+**Open, not yet resolved**: this is on solid ground for genuinely global
+objects and for correcting a pipeline-local object's own baseline slot
+from elsewhere - but *ownership* of that slot, for an object *created*
+inside a pipeline, isn't reasoned through yet. It happens to work today
+because a component's constructor never touches these values in the
+first place (an interesting parallel to the rebuild framework's own
+`onEstablish` lifecycle hook, which exists for exactly the same reason -
+state set in a constructor would be overwritten the moment a freshly
+constructed object gets merged into an already-established one), but what
+happens to a baseline writing "owned" by a repeater that vanishes on its
+own next rerun is an open question. A competing alternative - never write
+backward at all, and instead let a component spawn additional,
+forward-positioned repeaters on demand (dynamic child creation, not time
+travel) whenever it needs to react to something like a portal request -
+is also on the table. Both possibilities are being left open pending an
+actual attempt at building the modal/portal case that motivated this.
+
+## Enumeration: the same forward-only rule, for key composition
+
+`recordDependencyOnEnumeration` never recorded a reader's own
+`(time, writer)`, and `getOrCreateEnumerationTimelineWriting` always
+sought the fixed `(0, null)` position regardless of who was asking - so
+every reader, at every position, shared one single writing, and
+`invalidateEnumerateObservers` simply fired all of them, unconditionally,
+on any key add/remove. A key added by a *later* repeater could reach a
+reader positioned *before* it - the same backward-reach bug class this
+whole design otherwise prevents for plain properties, just via a
+different (unconditional) dependency.
+
+**First attempt, reverted**: mirror the property-timeline treatment
+exactly - splice a fresh writing at the write's own position, migrate
+whichever of the predecessor's observers are overtaken
+(`migrateOvertakenObserversFor`, already fully generic despite living
+under a property-sounding name - reused as-is). This broke the dev-time
+structural order verifier (`structural-order-verifier.js`): a repeater's
+own writing on this reserved timeline never goes through the
+`dispose()`/`staleWritings` cleanup its *property* writings get across
+reruns, so writings from old reruns just accumulated, pointing at
+partials no longer in the live order-number chain - comparing a live
+writer against one of those produced disagreeing orderNumber-vs-structural
+results. Giving enumeration real multi-version history needs the same
+reconciliation-across-reruns machinery properties get; that's a bigger,
+separate undertaking, explicitly not pursued here (see the note added to
+`docs/plan-array-timelines.md`, which has the identical gap for arrays).
+
+**What shipped instead**: keep the single, permanently-reused writing per
+handler (no storage change at all), but make invalidation *selective*
+about which of its own observers actually fire -
+`invalidateDownstreamEnumerationObservers` (cascade.js) only invalidates
+entries positioned strictly after the change (`comparePositions(...) > 0`,
+via the already-generic `collectOvertakenPropertyObservers`), leaving
+upstream readers registered, untouched. Always eager, never flagged:
+flagging only pays off when there's a genuinely fresher writing to defer
+resolution against later (`resolveFlaggedRepeater`'s own live re-seek) -
+with a single writing that's never replaced, that resolution would always
+trivially resolve back to itself and never detect a real change.
+
+Arrays (`invalidateArrayObservers`) still have no position gate of any
+kind today - left explicitly open, same reasoning, tracked in
+`docs/plan-array-timelines.md`.
+
 ## Status
 
 Done: migration (a farther dependency correctly catches up to a closer
 writing), flagging (deferred, not eager, invalidation for tree-ordered
 readers), the writing-reuse guard (reuse only when nothing needs
 deferred treatment), `linkRepeater`'s opportunistic inline resolution,
-and the full pipeline/heap/wavefront/parking scheduler replacing the old
-flat dirty/flagged lists. Verified against the real demo app
+the full pipeline/heap/wavefront/parking scheduler replacing the old
+flat dirty/flagged lists, `flush()` (deliberate wave retreat, with
+`checkWaveRetreat`'s still-inside-vs-before-this-pipeline split and the
+lock-reset-on-idle fix that came with it), `accessInitialValues()`
+(reaching backward through position rather than scheduling, reusing the
+existing external-write baseline), and enumeration's own dependency
+tracking made position-aware (downstream-only invalidation on key
+add/remove). Verified against the real demo app
 (`cascade.application/demo`) in an actual browser, including the
 original reconciliation-breaking scenario (menu/hamburger breakpoint
 under resize) that motivated this whole line of work.
@@ -370,3 +568,18 @@ Explicitly deferred, not needed by any concrete case yet:
   deferred/flagged treatment (`entryNeedsDeferredTreatment`'s own
   same-chain check), since there is no wavefront connecting unrelated
   trees for deferral to mean anything.
+- **Ownership of a backward-written baseline slot for an object created
+  *inside* a pipeline** (see `accessInitialValues()` above) - works today
+  for global objects and for correcting an existing pipeline-local
+  object's own slot, but what happens to that slot across the owning
+  repeater's own future reruns isn't resolved. Left open alongside its own
+  competing alternative (dynamic, forward-positioned child repeaters
+  instead of writing backward at all), pending an actual attempt at the
+  modal/portal case that motivated both.
+- **Real multi-version history for the enumeration timeline** (and the
+  identical gap for arrays - see `docs/plan-array-timelines.md`). What
+  shipped is downstream-only *invalidation*, not a real per-position
+  reconstruction of "what the key set looked like as of here" - giving
+  either one genuine multi-writing history needs the same
+  reconciliation-across-reruns machinery properties get via
+  `dispose()`/`staleWritings`, not yet built for either.

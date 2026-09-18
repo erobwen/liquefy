@@ -13,7 +13,15 @@ export class DOMTextNode extends DOMNodeComponent {
   }
 
   renderElement(context, existingElement) {
-    const node = existingElement || document.createTextNode("");
+    // DOMTarget has no dedicated "append a text node" of its own (only
+    // appendElement, which always creates via document.createElement) -
+    // reattachElement is the generic insertion primitive underneath both,
+    // so it's the right call for a freshly-created Text node too.
+    let node = existingElement;
+    if (!node) {
+      node = document.createTextNode("");
+      context.target.reattachElement(node);
+    }
     if (node.data !== String(this.text)) {
       node.data = String(this.text);
     }

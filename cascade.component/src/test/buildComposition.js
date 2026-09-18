@@ -87,3 +87,61 @@ describe("build()-based composition with key reconciliation", function () {
   });
 
 });
+
+// A real bug found while migrating a demo page (see
+// cascade.application/demo/src/pages/IntroductionPage.js): a build()-based
+// component that gets retracted (simply not renderOnto()'d for a run or
+// more - e.g. swapped out of a page switcher, or crossing a responsive
+// breakpoint) and later renderOnto()'d again threw when its own
+// build()-composed content was rendered, because reactiveBuildEquivalent()
+// handed back `undefined` instead of the rebuilt tree.
+describe("build()-based composition surviving retraction (reactiveBuildEquivalent() itself, not just render())", function () {
+
+  class Leaf extends Component {
+    render(target) {
+      // Deliberately not delegating to Component's own default render()
+      // (which would renderOnto() the result) - this test is specifically
+      // about what reactiveBuildEquivalent() itself hands back, not about
+      // rendering a further tree underneath it.
+      this.unobservable.lastEquivalent = this.reactiveBuildEquivalent();
+    }
+
+    build() {
+      const count = (this.unobservable.buildCount || 0) + 1;
+      this.unobservable.buildCount = count;
+      return { marker: "built-" + count };
+    }
+  }
+
+  class Parent extends Component {
+    constructor(key, showLeaf) {
+      super(key);
+      this.showLeaf = showLeaf;
+      this.leaf = new Leaf();
+    }
+
+    render(target) {
+      if (this.showLeaf) this.leaf.renderOnto(target);
+      // else: leaf simply isn't renderOnto()'d this pass - retracted,
+      // buildRepeater included (it's a child of leaf's own render-repeater).
+    }
+  }
+
+  it("buildRepeater's own retraction is recovered from, not just the outer render-repeater's", function () {
+    const target = observable({});
+    const parent = new Parent("parent", true);
+    parent.renderOnto(target);
+
+    assert.deepEqual(parent.leaf.unobservable.lastEquivalent, { marker: "built-1" });
+
+    parent.showLeaf = false; // leaf (and its own buildRepeater) retracted
+    parent.showLeaf = true; // renderOnto()'d again - relinked and reattached
+
+    assert.deepEqual(
+      parent.leaf.unobservable.lastEquivalent,
+      { marker: "built-2" },
+      "build() must actually rerun once reattached after a real retraction, not hand back undefined from a writing that retraction already unlinked"
+    );
+  });
+
+});

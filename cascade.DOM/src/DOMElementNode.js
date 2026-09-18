@@ -1,4 +1,4 @@
-import { extractProperty } from "@liquefy/cascade.component";
+import { extractProperty, RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { DOMTarget } from "./DOMTarget.js";
 import { DOMTextNode } from "./DOMTextNode.js";
@@ -50,7 +50,10 @@ export class DOMElementNode extends DOMNodeComponent {
   }
 
   renderElement(context, existingElement) {
-    const element = existingElement || document.createElement(this.tagName);
+    // context.target.appendElement (not a bare document.createElement) -
+    // that's what actually inserts the new element into the real DOM, at
+    // the right position (see DOMTarget's own lastChild tracking).
+    const element = existingElement || context.target.appendElement(this.tagName);
     this.applyAttributes(element);
     return element;
   }
@@ -118,8 +121,11 @@ export class DOMElementNode extends DOMNodeComponent {
   render(context) {
     super.render(context);
     const u = this.unobservable;
-    if (!u.childTarget) {
-      u.childTarget = DOMTarget.forElement(u.element);
+    if (!u.childContext) {
+      // A RenderContext, not the bare DOMTarget - renderElement() (this
+      // class's own, and anything else's) reads context.target, exactly
+      // like the context this component itself was handed.
+      u.childContext = new RenderContext(DOMTarget.forElement(u.element));
     }
     (this.children || []).forEach((child) => {
       // A loose string/number child (see cascade.component's own
@@ -129,7 +135,7 @@ export class DOMElementNode extends DOMNodeComponent {
       const childComponent = (typeof(child) === "string" || typeof(child) === "number")
         ? new DOMTextNode({ text: child })
         : child;
-      childComponent.renderOnto(u.childTarget);
+      childComponent.renderOnto(u.childContext);
     });
   }
 }

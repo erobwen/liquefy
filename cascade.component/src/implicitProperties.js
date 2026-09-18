@@ -152,5 +152,17 @@ function buildPropertiesObject(arglist) {
   return properties;
 }
 
+// A real gotcha, faithfully ported rather than fixed: a single loose
+// string/number argument (nothing else loose alongside it) is *always*
+// read as an implicit key when it qualifies here, never as content -
+// `li("first")` ends up keyed "first" with no children at all, not a
+// paragraph containing the word "first". Only matters when nothing else
+// loose accompanies it (multiple loose items always mean content, never
+// a key - see buildPropertiesObject's own `content.length === 0` check
+// after shifting a would-be key off). Sidestep it by wrapping in
+// cascade.DOM's own `text(...)` (an observable component instance is
+// never mistaken for key content, see DOMTextNode.js) whenever the loose
+// string is genuinely meant to be a text child, not an identity - see
+// cascade.DOM/src/test/domElementNode.js for a concrete case this bit.
 const canBeKey = (content) =>
   (typeof(content) === "string" && /[a-z]/.test(content[0])) || typeof(content) === "number";

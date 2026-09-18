@@ -122,7 +122,30 @@ export class Component {
   // the rebuild to invalidate.
   reactiveBuildEquivalent() {
     const u = this.unobservable;
-    if (!u.buildRepeater) {
+    // A retracted buildRepeater is treated the same as "doesn't exist
+    // yet," not relinked - buildRepeater is a child of whatever repeater
+    // called reactiveBuildEquivalent() (typically this component's own
+    // render-repeater), so it gets retracted right along with it: this
+    // component simply not being renderOnto()'d for a run or more (e.g.
+    // swapped out of a page switcher, or crossing a responsive
+    // breakpoint) retracts the whole subtree underneath, buildRepeater
+    // included. Retraction unlinks its own writings (including its write
+    // to `this.newBuild` below - an ordinary observable property, not on
+    // `unobservable`), so relinking it would hand back whatever newBuild
+    // falls through to once that write is gone - undefined, on a
+    // component whose build() has never run any other way - and
+    // renderOnto()'s own restart() (used below for exactly this same
+    // "was retracted" situation) only *schedules* a rerun, deferred until
+    // the current, already-in-progress refresh cycle gets back around to
+    // it - fine there, since nothing needs the result synchronously, only
+    // whatever DOM side effect eventually lands, but wrong here, since
+    // the very next line hands `this.newBuild` straight to this method's
+    // own caller, which uses it immediately. A fresh repeat() call sidesteps
+    // both problems at once, the same already-proven-correct way this
+    // method's very first-ever call already works: a brand new repeater's
+    // first pass always runs synchronously, outside the scheduler
+    // entirely (see repeat()).
+    if (!u.buildRepeater || u.buildRepeater.retracted) {
       u.buildRepeater = repeat(() => {
         this.newBuild = this.build();
       });

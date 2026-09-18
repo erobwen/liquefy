@@ -268,6 +268,11 @@ export class Component {
     const equivalent = this.reactiveBuildEquivalent();
     const children = equivalent instanceof Array ? equivalent : [equivalent];
     for (const child of children) {
+      // null/undefined/false - typically another component's own
+      // show(false) result (see that method's own doc) - simply isn't
+      // renderOnto()'d this pass, same as build() no longer returning it
+      // at all.
+      if (child === null || typeof(child) === "undefined" || child === false) continue;
       child.renderOnto(context);
     }
   }
@@ -346,4 +351,18 @@ export class Component {
   // itself never re-executes render() to do it another way. No-op by
   // default.
   onReattach(context) {}
+
+  // Ported from flow.core's Component.js verbatim - a conditional-
+  // inclusion helper for a build() result: `parent(a, b.show(cond), c)`
+  // includes `b` only if `cond` is true, `null` (dropped - see the
+  // default render()'s own `equivalent instanceof Array` handling, and
+  // implicitProperties.js's own null/undefined-skipping) otherwise. Not
+  // to be confused with a component-specific "showing" concept some
+  // subclass might define on itself (see cascade.ui's own Overlay,
+  // which - like everything else here - inherits this too, but under a
+  // different, narrower name for its own thing, precisely to avoid
+  // colliding with this one).
+  show(value) {
+    return value ? this : null;
+  }
 }

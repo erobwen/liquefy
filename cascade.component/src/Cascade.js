@@ -22,5 +22,7 @@ export const {
   invalidateOnChange,
   postponeInvalidations,
   continueInvalidations,
+  flush,
+  accessInitialValues,
   state,
 } = world;

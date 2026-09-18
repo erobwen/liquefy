@@ -128,6 +128,12 @@ export class DOMElementNode extends DOMNodeComponent {
       u.childContext = new RenderContext(DOMTarget.forElement(u.element));
     }
     (this.children || []).forEach((child) => {
+      // null/undefined/false - typically Component.show(false)'s own
+      // "don't include me at all" result (see its own doc) - simply
+      // isn't renderOnto()'d this pass, same as any other child that
+      // stops appearing in the children array; if it was previously
+      // shown, that alone is what retracts it.
+      if (child === null || typeof(child) === "undefined" || child === false) return;
       // A loose string/number child (see cascade.component's own
       // toPropertiesWithChildren, which deliberately leaves these as-is -
       // this is the DOM-specific other half of that: what a plain string

@@ -19,3 +19,4 @@ export const li = (...parameters) => taggedElement("li", toPropertiesWithChildre
 export const a = (...parameters) => taggedElement("a", toPropertiesWithChildren(parameters));
 export const b = (...parameters) => taggedElement("b", toPropertiesWithChildren(parameters));
 export const span = (...parameters) => taggedElement("span", toPropertiesWithChildren(parameters));
+export const button = (...parameters) => taggedElement("button", toPropertiesWithChildren(parameters));

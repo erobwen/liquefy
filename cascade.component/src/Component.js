@@ -245,6 +245,54 @@ export class Component {
       });
     } else {
       linkRepeater(u.buildRepeater);
+      // linkRepeater() only guarantees that a *flagged* buildRepeater's
+      // disposal (retiring its own stale writings, including whatever it
+      // last wrote to `this.newBuild`) happens inline, right here - not
+      // that its *refresh* does too. A flagged repeater found to need a
+      // genuine rerun has that rerun deliberately left for the heap to
+      // pick up later, same as any other scheduled work (see
+      // linkRepeater's own comment) - fine for a caller that only needs
+      // the disposal to have already happened, but wrong here: the very
+      // next line hands `this.newBuild` straight to this method's own
+      // caller, which needs a *fresh* value right now (e.g. a component
+      // that measures, writes an input, then builds/renders off the
+      // result, all synchronously in tree order - see
+      // cascade.application/demo's ApplicationMenuFrame), not whenever
+      // the heap gets back around to it. So finish the job here instead,
+      // exactly the way processRepeater()'s own 'invalid' branch does
+      // (clear workStatus, then refresh) - drainActivePipeline()'s own
+      // heap loop already discards a repeater it later pops whose
+      // workStatus has gone back to null in the meantime ("an ancestor's
+      // own refresh already reached and handled it"), so this can never
+      // cause buildRepeater to run twice.
+      //
+      // This is also what keeps reconciliation correct for whatever
+      // build() constructs, not just the *value* returned here - a
+      // subtler reason this can't be sidestepped by calling build()
+      // directly, without a repeater at all (an earlier, now-abandoned
+      // attempt at exactly that - see git history). Reconciling a keyed
+      // child (observable(target, buildId)) sets the *established*
+      // object's own forwardTo to point at the freshly-constructed,
+      // about-to-be-discarded one; every read of anything but its
+      // causality/timelines meta (see getHandlerObject) is transparently
+      // redirected through forwardTo until finishRebuilding() clears it -
+      // which only happens once the repeater that did the constructing
+      // finishes its own refresh(). Building without any repeater at all
+      // means that never happens until *this* component's own enclosing
+      // render-repeater finishes - which is too late if this method's own
+      // result gets renderOnto()'d before then, in the same call: reading
+      // .unobservable on a component still mid-forwardTo hits its
+      // temporary, about-to-be-discarded twin's own (empty) unobservable
+      // bag instead of the established one's, so renderOnto() finds no
+      // repeater there and creates a redundant new one instead of
+      // relinking the real one. buildRepeater's own refresh() completing
+      // synchronously, right here, is what guarantees finishRebuilding()
+      // has already run - and forwardTo already cleared - before this
+      // method's own caller ever gets the result back.
+      if (u.buildRepeater.workStatus === 'invalid') {
+        u.buildRepeater.workStatus = null;
+        u.buildRepeater.refresh();
+      }
     }
     return this.newBuild;
   }

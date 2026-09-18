@@ -528,6 +528,120 @@ Arrays (`invalidateArrayObservers`) still have no position gate of any
 kind today - left explicitly open, same reasoning, tracked in
 `docs/plan-array-timelines.md`.
 
+## `reactiveBuildEquivalent()`: a nested buildRepeater whose own caller
+## needs its result synchronously
+
+Found building `cascade.application/demo`'s `ApplicationMenuFrame` -
+a component whose `render()` is overridden directly (real
+`getBoundingClientRect()` measurement, ordering-sensitive) rather than
+using the default build()-then-renderOnto() flow, but which still needs
+`build()`'s own key-based reconciliation for the declarative tree it
+composes underneath. `linkRepeater(u.buildRepeater)` only guarantees a
+*flagged* buildRepeater's disposal happens inline, right there - a
+genuine rerun it finds has that rerun deliberately left for the heap to
+pick up later (see `linkRepeater`'s own comment, above). Fine for a
+caller that only needs the disposal to have happened before its own next
+write (`renderOnto.js`'s original motivating case) - wrong for
+`reactiveBuildEquivalent()`'s own very next line, which hands
+`this.newBuild` straight to its caller, used immediately.
+
+**First attempt**: skip the separate buildRepeater entirely - call
+`build()` directly, inline, reconciling naturally against the *caller's
+own* repeater/partial instead (a `buildOnce()` method, briefly added to
+`Component.js`). This does dodge the deferred-refresh problem (no
+separate repeater to ever fall out of order with the scheduler's own
+walk) - but breaks something subtler: reconciling a keyed child sets the
+*established* object's own `forwardTo` to point at the freshly
+constructed, about-to-be-discarded twin (see `observable()`'s own build-
+identity branch); every read of anything but that object's own
+causality/timelines meta is transparently redirected through `forwardTo`
+until `finishRebuilding()` clears it - which only happens once whichever
+repeater did the constructing finishes its own `refresh()`. Building
+without any repeater at all means that never happens until the *caller's
+own* enclosing render-repeater finishes - too late if `build()`'s result
+gets `renderOnto()`'d before then, in the same call: reading
+`.unobservable` on a component still mid-`forwardTo` hits its temporary
+twin's own, empty `unobservable` bag instead of the established one's, so
+`renderOnto()` finds no repeater there and silently creates a redundant
+new one instead of relinking the real one - orphaning that component's
+whole previously-established subtree, with no exception anywhere.
+Reverted; `buildOnce()` no longer exists.
+
+**What shipped instead**: keep the separate buildRepeater (so
+`finishRebuilding()` still runs promptly, before this method's own caller
+ever sees the result) but force its refresh to complete synchronously
+when `linkRepeater()` leaves it merely disposed-and-scheduled rather than
+actually rerun (`if (workStatus === 'invalid') { workStatus = null;
+refresh(); }`, mirroring `processRepeater()`'s own 'invalid' branch
+exactly). `drainActivePipeline()`'s own heap loop already discards a
+repeater it later pops whose `workStatus` has gone back to `null` in the
+meantime, so this can never cause buildRepeater to run twice. See
+`cascade.component/src/Component.js`'s own `reactiveBuildEquivalent()`.
+
+## Retraction losing a race against a stale, already-queued rerun
+
+A second, related but distinct bug, found the same way (real browser
+verification of `ApplicationMenuFrame`, this time crossing the modal/
+docked breakpoint under resize): a component's own property, written
+once at construction time and never touched again, read back as
+`undefined` on a rerun - not because anything wrote a new, wrong value,
+but because nothing did.
+
+The shape: a child component is constructed inside an ancestor's own
+`build()` (so the write to the child's property - e.g.
+`MenuList.setProperties()`'s plain `this.frame = frame`, or
+`DOMElementNode.setProperties()`'s `this.attributes = ...` - lands
+positioned within *that ancestor's own buildRepeater's partial*, not the
+child's), and the child is also conditionally dropped from the tree
+entirely on some later rerun (a docked drawer that stops being built at
+all once a responsive breakpoint flips to modal, say). When the ancestor
+disposes for that rerun, `dispose()` unlinks *all* of its own prior run's
+writings - the child's property write included, since it was positioned
+there regardless of which object it was actually setting a property on.
+That unlinking is itself a genuine invalidation of whatever depended on
+the writing - here, the dropped child's own (still fully live, not yet
+retracted) buildRepeater or render-repeater, which read that property
+last time. It gets scheduled, same as any other invalidation.
+
+Real retraction - which would stop that scheduled rerun from ever
+mattering - only happens once whatever renders the child's siblings next
+(a `DOMElementNode`'s own `children` loop, say) actually reruns and
+notices the child wasn't relinked this time. But that rerun is a
+*separate*, independent piece of scheduled work from the child's own
+stale invalidation above - nothing orders one before the other beyond
+where each happens to land in tree position, and the child's own
+inherited invalidation, having been scheduled first (as a direct
+consequence of the ancestor's own dispose(), which runs before the
+ancestor's build() even starts producing the new tree the retraction
+would come from), routinely reaches the heap - and gets processed - well
+before the retraction that should have preempted it. The child's stale
+buildRepeater or render-repeater refreshes anyway, reading back
+`undefined` for whatever property depended on the now-unlinked writing,
+with no exception at the write site to explain it - reproduced in
+isolation (no real DOM at all) in under 10 lines, confirmed independent
+of the `reactiveBuildEquivalent()` fix above (reproduces identically with
+or without it).
+
+**Fix**: write the property via `accessInitialValues()` instead of a
+plain assignment, wherever a component's own property is set once, at
+construction, from data the constructing repeater merely happens to be
+holding rather than data the constructing repeater's own timeline
+genuinely owns. That positions the write at the baseline (time 0, writer
+null) instead of wherever `build()` happens to be executing - not tied to
+the constructing repeater's own partial at all, so disposing that
+repeater can never unlink it. Applied at every site this actually bit:
+`cascade.application/demo/src/ApplicationMenuFrame.js`'s `MenuList` (its
+own `frame` reference) and, since the same shape is inherent to any
+component whose properties are set via a plain `setProperties()` from
+data the caller's own build() is just passing through, generalized to
+`cascade.DOM/src/DOMElementNode.js` (`tagName`/`children`/`attributes`)
+and `cascade.DOM/src/DOMTextNode.js` (`text`) - not yet generalized to
+`Component.js`'s own *default* `setProperties()` (`Object.assign`), which
+would make this the standing behavior for every component using the
+default convention rather than something each call site opts into; left
+as a deliberate, narrower fix pending a decision on that broader change
+(see "Explicitly deferred" below).
+
 ## Status
 
 Done: migration (a farther dependency correctly catches up to a closer
@@ -539,14 +653,37 @@ flat dirty/flagged lists, `flush()` (deliberate wave retreat, with
 `checkWaveRetreat`'s still-inside-vs-before-this-pipeline split and the
 lock-reset-on-idle fix that came with it), `accessInitialValues()`
 (reaching backward through position rather than scheduling, reusing the
-existing external-write baseline), and enumeration's own dependency
-tracking made position-aware (downstream-only invalidation on key
-add/remove). Verified against the real demo app
+existing external-write baseline), enumeration's own dependency tracking
+made position-aware (downstream-only invalidation on key add/remove),
+`reactiveBuildEquivalent()`'s own deferred-refresh fix (force a flagged-
+then-genuinely-invalid buildRepeater's refresh to complete synchronously
+rather than leaving it for the heap), and the retraction-vs-stale-queued-
+rerun race (a dropped child's own inherited invalidation reaching the
+heap before the retraction that should have preempted it - fixed at each
+concrete site via `accessInitialValues()`, not in the scheduler itself;
+see both sections above). Verified against the real demo app
 (`cascade.application/demo`) in an actual browser, including the
 original reconciliation-breaking scenario (menu/hamburger breakpoint
 under resize) that motivated this whole line of work.
 
 Explicitly deferred, not needed by any concrete case yet:
+- **Generalizing the retraction-vs-stale-queued-rerun fix to
+  `Component.js`'s own *default* `setProperties()`.** Found and fixed at
+  three concrete call sites (see above) by opting each one into
+  `accessInitialValues()` individually; every one of them was a plain
+  `this.x = x` assignment of a property set once, at construction, from
+  data merely passed through by the caller's own build() - which is
+  arguably true of *every* component using the default, unoverridden
+  `setProperties()` (`Object.assign(this, properties)`), suggesting the
+  default itself could make this the standing behavior instead. Not
+  pursued without a case-by-case understanding of what would change for
+  a component that legitimately *does* want the constructing repeater's
+  own position (e.g. one relying on flagged, same-chain resolution for
+  a property genuinely owned by that position) - see `accessInitialValues()`'s
+  own related open question below, and the "reachable" cases this bug's
+  own two sections above found (a construction-time reference and a
+  build()-time attributes/tagName/children bag) may not exhaust the
+  shapes a wider change would need to consider safe.
 - **Inter-wave event yielding.** Waves currently run fully synchronously,
   looping immediately from one to the next within the same call stack if
   parked work remains. A genuinely deep cascade could block the thread

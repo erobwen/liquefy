@@ -1,0 +1,56 @@
+import { RenderContext } from "@liquefy/cascade.component";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
+import { DOMTargetElement } from "./DOMTargetElement.js";
+
+/**
+ * The other direction from DOMElementNode's own bridge (DOMTargetElement.js's
+ * class comment): that one lets an ordinary Component call
+ * context.target.createChild(...) directly from render(), without ever
+ * becoming a DOMNodeComponent. This one is for the opposite situation - an
+ * existing DOMTargetElement-based component (createChild/insertChild,
+ * cascade.application/demo's own frame-level style, predating
+ * OverlayFrame/build()) needs to be rendered as an ordinary child inside a
+ * build()-composed, DOMTarget-based tree (appendElement/reattachElement -
+ * what DOMElementNode/OverlayFrame need, and the two target kinds don't
+ * share a method name by accident - see DOMTarget.js/DOMTargetElement.js).
+ *
+ * One real element, owned the ordinary DOMNodeComponent way (via whatever
+ * *outer* target this bridge itself was renderOnto()'d with), with a
+ * fresh, cached DOMTargetElement/RenderContext wrapping it underneath for
+ * `child` to render into - "each level owns its own context for what's
+ * below it", same shape as everywhere else in this demo, just bridging
+ * target kinds instead of just field values (compare
+ * IntroductionPage.js's own render(), which bridges the same two kinds in
+ * the other direction).
+ */
+export function bridgeToDOMTargetElement(...parameters) {
+  return new DOMTargetElementBridge(...parameters);
+}
+
+export class DOMTargetElementBridge extends DOMNodeComponent {
+  setProperties({ child, style, context }) {
+    this.child = child;
+    this.style = style || null;
+    // Extra fields to copy onto the inner, DOMTargetElement-based
+    // RenderContext each render - e.g. usableWidth/usableHeight/
+    // menuIsOverlay, the situational fields this demo's own frame
+    // components already expect from their parent (see index.js).
+    this.contextExtra = context || null;
+  }
+
+  renderElement(context, existingElement) {
+    const element = existingElement || context.target.appendElement("div");
+    if (this.style) Object.assign(element.style, this.style);
+    return element;
+  }
+
+  render(context) {
+    super.render(context);
+    const u = this.unobservable;
+    if (!u.innerContext) {
+      u.innerContext = new RenderContext(DOMTargetElement.forElement(u.element));
+    }
+    if (this.contextExtra) Object.assign(u.innerContext, this.contextExtra);
+    this.child.renderOnto(u.innerContext);
+  }
+}

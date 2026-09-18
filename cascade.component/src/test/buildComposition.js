@@ -132,14 +132,14 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
     const parent = new Parent("parent", true);
     parent.renderOnto(target);
 
-    assert.deepEqual(parent.leaf.unobservable.lastEquivalent, { marker: "built-1" });
+    assert.equal(parent.leaf.unobservable.lastEquivalent.marker, "built-1");
 
     parent.showLeaf = false; // leaf (and its own buildRepeater) retracted
     parent.showLeaf = true; // renderOnto()'d again - relinked and reattached
 
-    assert.deepEqual(
-      parent.leaf.unobservable.lastEquivalent,
-      { marker: "built-2" },
+    assert.equal(
+      parent.leaf.unobservable.lastEquivalent.marker,
+      "built-2",
       "build() must actually rerun once reattached after a real retraction, not hand back undefined from a writing that retraction already unlinked"
     );
   });

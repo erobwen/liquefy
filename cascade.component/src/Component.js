@@ -2,6 +2,37 @@ import { observable, repeat, linkRepeater } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 
 /**
+ * Two separate stacks, both ported from flow.core's Component.js
+ * (`creators`, plus the render-time half its own DOMNode/PrimitiveComponent
+ * machinery tracked as `renderParent`) - see inherit() below for why both
+ * exist rather than just one. Module-level, not on `state`: nothing
+ * outside this file ever needs to read either stack directly, only
+ * whichever single component happens to be on top when a constructor or
+ * renderOnto() call is in progress - see getCreator()/getRenderParent().
+ */
+const creators = [];
+export function getCreator() {
+  return creators.length > 0 ? creators[creators.length - 1] : null;
+}
+
+const renderStack = [];
+function getRenderParent() {
+  return renderStack.length > 0 ? renderStack[renderStack.length - 1] : null;
+}
+
+// Ties a build()-composed child back to whoever's build() call produced
+// it - see reactiveBuildEquivalent() below, and inherit()'s own use of
+// `equivalentCreator`. `built` is whatever build() returned - a single
+// component, an array of them, or null/undefined (nothing to tie back).
+function assignEquivalentCreator(built, creator) {
+  if (!built) return;
+  const children = built instanceof Array ? built : [built];
+  children.forEach((child) => {
+    if (child) child.equivalentCreator = creator;
+  });
+}
+
+/**
  * Component - the cascade.component base class.
  *
  * This is deliberately NOT flow.core's Component (build an abstract
@@ -69,6 +100,13 @@ export class Component {
   // properties" case this always was.
   constructor(...parameters) {
     const properties = toPropertiesWithChildren(parameters);
+    // Captured once, here, exactly like flow.core's own Component - see
+    // inherit() below for what it's for. Deliberately *not* a stack push/
+    // pop around this constructor itself: flow's own creator is "whoever
+    // was executing its own build()/lifecycle callback when `new X()` ran",
+    // not "whoever constructed me" in general - see reactiveBuildEquivalent(),
+    // the actual push/pop site, and its own comment on why.
+    this.creator = getCreator();
     this.key = extractProperty(properties, "key") || null;
     const me = observable(this, this.key);
     me.setProperties(properties);
@@ -81,6 +119,54 @@ export class Component {
   // can rename/validate/derive fields instead of accepting them verbatim.
   setProperties(properties) {
     Object.assign(this, properties);
+  }
+
+  // Override to hand inherit() (below) a different object to check for
+  // "do I provide this myself" - default is flow.core's own: this
+  // component's own fields directly, so a component "provides" a value
+  // for some property just by having a same-named field (see e.g. a
+  // ModalFrame-style component setting `this.modalFrame = this;` in its
+  // own setProperties() - inherit("modalFrame") then finds it here,
+  // before ever walking further up).
+  provide() {
+    return this;
+  }
+
+  // Ported from flow.core's Component.js (inheritUncached there) - walk
+  // three separate hierarchies, in this exact order, until one of them
+  // provides `property`:
+  //
+  //  1. This component itself (provide(), above) - the nearest possible
+  //     answer always wins, which is what makes a recursive structure
+  //     (a frame inside a frame inside a frame) resolve correctly: each
+  //     one provides itself, so a lookup starting from deep inside stops
+  //     at the *closest* one, never skipping past it to an outer one.
+  //  2. equivalentCreator - whoever's build() produced this component
+  //     (see reactiveBuildEquivalent() below).
+  //  3. renderParent - whoever actually renderOnto()'d this component as
+  //     a child (see renderOnto() below) - checked *after*
+  //     equivalentCreator, not before, for the same reason flow's own
+  //     version does: a component composed via a hardcoded child
+  //     reference (never returned from anyone's build()) has no
+  //     equivalentCreator at all, so this is what actually reaches it.
+  //  4. creator - whoever was executing its own build() (or, once one
+  //     exists, another lifecycle callback) when this component was
+  //     constructed (see the constructor above) - a fallback for
+  //     anything constructed but never actually built or rendered as a
+  //     child of anyone (e.g. stored on a field and never returned from
+  //     build() at all).
+  //
+  // No caching layer (flow's own inheritCached/invalidateOnChange) -
+  // every read here already goes through cascade's own dependency
+  // tracking directly, so a plain, uncached walk is still fully
+  // reactive; add caching only if this ever turns out to be a hot path.
+  inherit(property) {
+    const providedValue = this.provide()[property];
+    if (typeof(providedValue) !== "undefined") return providedValue;
+    if (this.equivalentCreator) return this.equivalentCreator.inherit(property);
+    if (this.renderParent) return this.renderParent.inherit(property);
+    if (this.creator) return this.creator.inherit(property);
+    return undefined;
   }
 
   // Override to compose this component from children - the alternative
@@ -147,7 +233,15 @@ export class Component {
     // entirely (see repeat()).
     if (!u.buildRepeater || u.buildRepeater.retracted) {
       u.buildRepeater = repeat(() => {
+        // Pushed/popped around build() specifically (not this whole
+        // method, and not the constructor - see inherit()'s own comment
+        // on creator) - matches flow.core's own creator-stack push site
+        // exactly: a component constructed directly inside another's
+        // build() call captures that component as its creator.
+        creators.push(this);
         this.newBuild = this.build();
+        creators.pop();
+        assignEquivalentCreator(this.newBuild, this);
       });
     } else {
       linkRepeater(u.buildRepeater);
@@ -180,6 +274,16 @@ export class Component {
 
   renderOnto(context) {
     const u = this.unobservable;
+    // Whoever's calling renderOnto() on me, right now - see inherit()'s
+    // own comment on why this (not equivalentCreator) is the one that
+    // actually, reliably reaches a hardcoded-child-reference component.
+    // Captured synchronously, right here - correct regardless of whether
+    // render() itself ends up running synchronously below or is deferred
+    // (see the restart() call further down, and reactiveBuildEquivalent()'s
+    // own comment on why a retracted repeater's rerun isn't always
+    // immediate): this parent/child relationship doesn't change just
+    // because the actual execution is scheduled for slightly later.
+    this.renderParent = getRenderParent();
     if (u.repeater) {
       // A repeater that was genuinely retracted (not renderOnto()'d some
       // prior run) stays fully intact and re-linkable - see
@@ -203,7 +307,21 @@ export class Component {
         u.repeater.restart();
       }
     } else {
-      u.repeater = repeat(() => this.render(context), { onRetract: () => this.onRetract() });
+      // renderStack push/pop lives *inside* this callback, not wrapped
+      // around the renderOnto() call above - the callback is what
+      // actually runs render(), every time it runs, whether that's this
+      // very first, synchronous pass or a later rerun (restart(), or an
+      // ordinary reactive invalidation) that the scheduler may or may
+      // not defer. Wrapping the outer call instead would pop this
+      // component back off the stack before a deferred rerun ever
+      // reaches it, leaving any child renderOnto()'d during that rerun
+      // looking at whatever unrelated component happens to be on top at
+      // that later moment.
+      u.repeater = repeat(() => {
+        renderStack.push(this);
+        this.render(context);
+        renderStack.pop();
+      }, { onRetract: () => this.onRetract() });
     }
   }
 

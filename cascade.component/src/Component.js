@@ -1,4 +1,5 @@
 import { observable, repeat, linkRepeater } from "./Cascade.js";
+import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 
 /**
  * Component - the cascade.component base class.
@@ -42,8 +43,18 @@ export class Component {
     return {};
   }
 
-  // `key`, if given, is this component's *build identity* - see build()/
-  // reactiveBuildEquivalent() below. It's cascade.reactive's own
+  // Accepts flow.core's own mixed argument-list convention (see
+  // implicitProperties.js, ported from flow.core/src/implicitProperties.js):
+  // a leading loose string/number becomes the implicit key, other loose
+  // arguments become implicit children, and a trailing plain object
+  // becomes the properties bag - `div("someText", {style: ...}, childA)`
+  // rather than a fixed parameter list. This is the actual prerequisite
+  // for pulling a simple flow component over mostly unchanged: build()/
+  // render() delegation (below) doesn't help on its own if the
+  // constructor call site itself can't be parsed.
+  //
+  // `key`, once resolved, is this component's *build identity* - see
+  // build()/reactiveBuildEquivalent() below. It's cascade.reactive's own
   // observable(target, buildId) mechanism (already fully built - see
   // cascade.reactive/src/test/rebuild.js): constructing a component with a
   // key that matches one from the enclosing repeater's *previous* run
@@ -53,9 +64,23 @@ export class Component {
   // completely untouched). A component with no key is never reconciled
   // this way; that's the hardcoded-child-reference style (see
   // cascade.component/src/test/toolbarMainFrame.js), still fully
-  // supported as an alternative to build()/keys.
-  constructor(key) {
-    return observable(this, key);
+  // supported as an alternative to build()/keys - calling `super()` with
+  // no arguments at all resolves to the exact same "no key, no
+  // properties" case this always was.
+  constructor(...parameters) {
+    const properties = toPropertiesWithChildren(parameters);
+    this.key = extractProperty(properties, "key") || null;
+    const me = observable(this, this.key);
+    me.setProperties(properties);
+    return me;
+  }
+
+  // Override to interpret the properties bag resolved above - default is
+  // flow.core's own convention, a plain assign (every property becomes an
+  // observable field with that exact name). A subclass overriding this
+  // can rename/validate/derive fields instead of accepting them verbatim.
+  setProperties(properties) {
+    Object.assign(this, properties);
   }
 
   // Override to compose this component from children - the alternative

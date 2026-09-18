@@ -108,35 +108,25 @@ export class OverlayFrame extends Component {
     }
     const overlayContent = this.assignedOverlayContent || this.receivedOverlayContent;
 
-    const u = this.unobservable;
-    if (!overlayContent) {
-      u.modalSubFrame = null;
-    } else if (u.modalSubFrame) {
-      u.modalSubFrame.setStaticContent(overlayContent);
-    } else {
-      // Note: no `overlayContent.overlayFrame = u.modalSubFrame` assignment
-      // here, unlike flow's own version - not omitted by oversight. Once
-      // overlayContent is rendered underneath u.modalSubFrame below (via
-      // the div() this method returns, and DOMElementNode's own children
-      // rendering), inherit()'s ordinary renderParent/equivalentCreator
-      // walk already reaches u.modalSubFrame on its own - cascade renders
-      // directly, in one pass, so "who's actually nested under whom" is
-      // simply true by construction, not something that needs restating.
-      u.modalSubFrame = new OverlayFrame(overlayContent, {
+    // const u = this.unobservable;
+
+    const children = [...this.staticContent];
+
+    if (overlayContent) {
+      children.push(new OverlayFrame(overlayContent, {
         key: "modalSubFrame",
         style: {
           position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
           pointerEvents: "none",
         },
-      });
+      }));
     }
 
-    const children = u.modalSubFrame ? [...this.staticContent, u.modalSubFrame] : this.staticContent;
     // A stable key - this frame's own real element (and everything
     // reconciled underneath it) must survive across rebuilds triggered
     // by a modal opening/closing, not be torn down and recreated every
     // single time (see the constructor's own docs on why a key is what
     // makes build()-composed reconciliation possible at all).
-    return div({ key: "frame", style: { position: "relative", ...this.style }, children });
+    return div({ class: "overlay-frame", key: "frame", style: { position: "relative", ...this.style }, children });
   }
 }

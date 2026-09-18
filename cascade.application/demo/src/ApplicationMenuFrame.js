@@ -52,9 +52,17 @@ const TOP_BAR_HEIGHT = 48;
 export class ApplicationMenuFrame extends Component {
   setProperties({ pages }) {
     this.pages = pages;
-    this.chosen = pages[0].key;
-    this.menuOpen = false;
+    this.chosen = pages[0].key; //TODO: REMOVE! 
+    this.menuOpen = false; // TODO: REMOVE! 
+    // TODO: Generate warning if state is assigned during constructor!
+    // Properties are always assigned by parent. 
   }
+
+  // TODO
+  // initialize() {
+  //   this.chosen = pages[0].key;
+  //   this.menuOpen = false; 
+  // }
 
   choose(key) {
     this.chosen = key;
@@ -66,6 +74,7 @@ export class ApplicationMenuFrame extends Component {
   }
 
   render(context) {
+    console.log("RENDER");
     const u = this.unobservable;
     if (!u.el) u.el = context.target.createChild("div");
     const el = u.el.element;
@@ -79,11 +88,18 @@ export class ApplicationMenuFrame extends Component {
     // Plain observable properties, not RenderContext fields - build()
     // (called below) reads `this.X` directly, not a context argument (see
     // Component.build()'s own signature - it takes none).
-    postponeInvalidations();
-    this.menuIsModal = menuIsModal;
-    this.workAreaWidth = (menuIsModal ? totalRect.width : totalRect.width - MENU_WIDTH) - 32;
-    this.workAreaHeight = totalRect.height - TOP_BAR_HEIGHT - 32;
-    continueInvalidations();
+    // postponeInvalidations();
+    accessInitialValues(() => {
+      this.menuIsModal = menuIsModal;
+      // console.log(this.menuIsModal);
+      if (!this.menuIsModal) {
+        this.menuOpen = false; 
+        // console.log(this.menuOpen);
+      }
+      this.workAreaWidth = (menuIsModal ? totalRect.width : totalRect.width - MENU_WIDTH) - 32;
+      this.workAreaHeight = totalRect.height - TOP_BAR_HEIGHT - 32;
+    });
+    // continueInvalidations();
 
     const equivalent = this.reactiveBuildEquivalent();
     equivalent.renderOnto(u.innerContext);
@@ -153,9 +169,11 @@ export class ApplicationMenuFrame extends Component {
     // at all - matches flow.application's own ApplicationMenuFrame,
     // which sets this on both for the same reason.
     return div(
-      { key: "modalDrawer", style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto" } },
+      { key: "modalDrawer", class: "modal-drawer", style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto" } },
       div({
         key: "backdrop",
+        class: "Foo",
+        className: "backdrop",
         onclick: () => { this.menuOpen = false; },
         style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.3)" },
       }),

@@ -146,7 +146,7 @@ export class Component {
   // build()-based composition style. Override render() directly instead
   // (skipping build() entirely) for the hardcoded-child-reference style,
   // or to interleave custom work (measurement, etc.) between children -
-  // see cascade.DOM's DOMComponent-based demos for exactly that.
+  // see cascade.DOM's DOMNodeComponent-based demos for exactly that.
   render(context) {
     const equivalent = this.reactiveBuildEquivalent();
     const children = equivalent instanceof Array ? equivalent : [equivalent];
@@ -189,7 +189,7 @@ export class Component {
   // retract/reconcile discussion in docs/plan-partial-repeaters.md,
   // cascade.reactive). Clean up whatever side effect the reactive system
   // itself has no visibility into (a real DOM node parented outside any
-  // observable, a subscription, ...) - see cascade.DOM's DOMComponent for
+  // observable, a subscription, ...) - see cascade.DOM's DOMNodeComponent for
   // the concrete case (removing its own element). No-op by default: a
   // component with no such side effects doesn't need to override this.
   // If it's later renderOnto()'d again, retraction being fully reversible
@@ -200,7 +200,7 @@ export class Component {
   // Override: the other half of onRetract() - called when this component
   // is renderOnto()'d again after having been retracted, right as it's
   // relinked (never on an ordinary rerun or a first-ever render). Redo
-  // whatever onRetract() undid - see cascade.DOM's DOMComponent, which
+  // whatever onRetract() undid - see cascade.DOM's DOMNodeComponent, which
   // re-inserts its own element (removed by onRetract()) since relinking
   // itself never re-executes render() to do it another way. No-op by
   // default.

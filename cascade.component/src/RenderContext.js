@@ -17,7 +17,7 @@ import { observable } from "./Cascade.js";
  * across a parent's reruns - create it once (lazily, on first render,
  * typically cached on `this.unobservable`) and write new values into its
  * fields on later renders, the same way a target itself has to persist
- * (see cascade.DOM's DOMComponent and the innerTarget it caches). Handing
+ * (see cascade.DOM's DOMNodeComponent and the innerTarget it caches). Handing
  * an *existing* (relinked, not rerun) child a brand new context object
  * every render does nothing: relinking never re-executes render(), so it
  * cannot see a new argument at all - only a live property write on an

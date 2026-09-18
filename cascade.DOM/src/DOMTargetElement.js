@@ -3,23 +3,23 @@ import { observable } from "@liquefy/cascade.component";
 /**
  * DOMTargetElement: one real DOM element, wrapped so a component can build
  * a whole subtree of real elements directly inside render(context) -
- * without needing to be a DOMComponent at all. This is what makes
- * DOMComponent no longer the central, load-bearing primitive it was in
+ * without needing to be a DOMNodeComponent at all. This is what makes
+ * DOMNodeComponent no longer the central, load-bearing primitive it was in
  * flow.core (where everything had to expand into a primitive component to
  * ever touch the real DOM): an ordinary Component can call
  * context.target.createChild(...) straight from render(), get back
  * further DOMTargetElements, and keep going - "a fake DOM, built out of
  * observables" over the real one, always reachable via .element.
- * DOMComponent still exists for the common "I own exactly one element,
+ * DOMNodeComponent still exists for the common "I own exactly one element,
  * patch it in place" shape (and will remain the shape FlipAnimationContainer
  * needs later), but it's now just one way to use this, not the only way.
  *
  * Ownership is direct and simple, not tracked by any shared list:
  * whoever calls createChild() owns the DOMTargetElement it returns, the
- * same way a DOMComponent already owns its own single element - cache it
+ * same way a DOMNodeComponent already owns its own single element - cache it
  * (typically on `this.unobservable`) and keep calling methods on that same
  * instance across reruns, rather than creating a fresh one every time. A
- * DOMComponent ends up owning exactly one; an ordinary Component render()
+ * DOMNodeComponent ends up owning exactly one; an ordinary Component render()
  * can create and own as many as it needs.
  *
  * This is deliberately *not* built on DOMTarget's own `lastChild` - a

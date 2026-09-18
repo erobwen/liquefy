@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
-import { DOMComponent } from "../DOMComponent.js";
+import { DOMNodeComponent } from "../DOMNodeComponent.js";
 
 // Side-by-side sibling of the toolbar/main-frame demo: a menu claims a
 // fixed share of the frame's *width* (rather than the toolbar's height),
@@ -29,7 +29,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
     seenUsableHeight = undefined;
   });
 
-  class Menu extends DOMComponent {
+  class Menu extends DOMNodeComponent {
     renderElement(context, existingElement) {
       const el = existingElement || context.target.appendElement("div");
       el.className = "menu";
@@ -37,7 +37,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
     }
   }
 
-  class WorkArea extends DOMComponent {
+  class WorkArea extends DOMNodeComponent {
     renderElement(context, existingElement) {
       workAreaRenderCount++;
       seenUsableWidth = context.usableWidth;
@@ -48,7 +48,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
     }
   }
 
-  class MenuFrame extends DOMComponent {
+  class MenuFrame extends DOMNodeComponent {
     constructor(menu, workArea) {
       super();
       this.menu = menu;

@@ -38,7 +38,7 @@ export class DOMTarget {
   }
 
   // Same positioning as appendElement, but for an *existing* element
-  // rather than a fresh one - see DOMComponent.onReattach(): a component
+  // rather than a fresh one - see DOMNodeComponent.onReattach(): a component
   // relinked after being retracted needs its own previously-removed
   // element put back, without rerunning render() (relinking never does)
   // to create a new one.

@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 
 /**
- * DOMComponent: a cascade.component Component whose render(context) owns
+ * DOMNodeComponent: a cascade.component Component whose render(context) owns
  * exactly one real DOM element, reused (not recreated) across reruns.
  *
  * A rerun's own reactive reads/writes get reconciled automatically by
@@ -17,7 +17,7 @@ import { Component } from "@liquefy/cascade.component";
  * itself whether to reuse it (patch attributes/content in place - the
  * usual case) or make a new one (e.g. its tag needs to change).
  */
-export class DOMComponent extends Component {
+export class DOMNodeComponent extends Component {
   render(context) {
     const u = this.unobservable;
     u.element = this.renderElement(context, u.element || null);

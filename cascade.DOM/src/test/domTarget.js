@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
-import { DOMComponent } from "../DOMComponent.js";
+import { DOMNodeComponent } from "../DOMNodeComponent.js";
 
 // Same toolbar/main-frame shape as cascade.component's own vertical-slice
 // test, but rendering real DOM elements this time - proving the mechanism
@@ -18,7 +18,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     container = document.createElement("div");
   });
 
-  class Toolbar extends DOMComponent {
+  class Toolbar extends DOMNodeComponent {
     constructor(label) {
       super();
       this.label = label;
@@ -32,7 +32,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     }
   }
 
-  class ContentArea extends DOMComponent {
+  class ContentArea extends DOMNodeComponent {
     renderElement(context, existingElement) {
       const el = existingElement || context.target.appendElement("div");
       el.className = "content";
@@ -40,7 +40,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     }
   }
 
-  class MainFrame extends DOMComponent {
+  class MainFrame extends DOMNodeComponent {
     constructor(toolbar, contentArea) {
       super();
       this.toolbar = toolbar;
@@ -126,7 +126,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
 
     let seenSpaceLeft;
     let renderCount = 0;
-    class MeasuringContentArea extends DOMComponent {
+    class MeasuringContentArea extends DOMNodeComponent {
       renderElement(childContext, existingElement) {
         renderCount++;
         seenSpaceLeft = childContext.spaceLeft;
@@ -137,7 +137,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     }
     const contentArea = new MeasuringContentArea();
 
-    class MeasuringMainFrame extends DOMComponent {
+    class MeasuringMainFrame extends DOMNodeComponent {
       constructor(toolbar, contentArea) {
         super();
         this.toolbar = toolbar;

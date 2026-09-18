@@ -12,7 +12,7 @@ import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayo
  * second pass (see flow.application/demo/src/ApplicationMenuFrame.js for
  * the shape being replicated).
  *
- * Built on plain Component + DOMTargetElement rather than DOMComponent +
+ * Built on plain Component + DOMTargetElement rather than DOMNodeComponent +
  * DOMTarget - each component owns the DOMTargetElement(s) it creates
  * directly (see cascade.DOM/src/DOMTargetElement.js), instead of every
  * sibling sharing one DOMTarget's single observable `lastChild`. That
@@ -101,7 +101,7 @@ class Menu extends Component {
   }
 
   // Retracted (not rendered at all) when modal and closed - remove the
-  // real element, same responsibility DOMComponent's own onRetract had.
+  // real element, same responsibility DOMNodeComponent's own onRetract had.
   onRetract() {
     this.unobservable.el.element.remove();
   }

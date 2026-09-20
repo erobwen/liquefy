@@ -3052,8 +3052,34 @@ function createWorld(configuration) {
 
         // Recorded action (cause and/or effect)
         repeater.isRecording = true;
+        const contextBeforeThisRun = state.context;
         enterContext(partial);
-        repeater.returnValue = repeater.repeaterAction(repeater);
+        try {
+          repeater.returnValue = repeater.repeaterAction(repeater);
+        } catch (error) {
+          // Contain the damage: state.context is a single, module-level
+          // pointer, not scoped to this repeater or this call - left
+          // pointing into this run's own (now-abandoned) context tree,
+          // every read/write anywhere in the process afterward would be
+          // mis-attributed to this defunct position, corrupting completely
+          // unrelated components' own reconciliation (a component's
+          // render() or build() throwing is the common real-world trigger -
+          // see cascade.DOM/src/test/domNodeComponent.js). Unwind back to
+          // wherever this repeater's own context was entered from, the
+          // same as the success path eventually does (just immediately,
+          // not after finalizeTouchedStaleWritings/finalizeChildren/
+          // finishRebuilding below, none of which are safe to run against
+          // a run that didn't finish - so this repeater's own
+          // reconciliation state is left genuinely incomplete; only the
+          // *rest of the process* is protected from it). Re-throws the
+          // original error - this does not make a throwing repeaterAction
+          // recoverable, only contained.
+          repeater.isRecording = false;
+          while (state.context !== null && state.context !== contextBeforeThisRun) {
+            leaveContext(state.context);
+          }
+          throw error;
+        }
         repeater.isRecording = false;
         updateContextState()
 

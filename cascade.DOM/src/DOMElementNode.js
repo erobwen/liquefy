@@ -1,5 +1,5 @@
 import { extractProperty, RenderContext } from "@liquefy/cascade.component";
-import { DOMNodeComponent } from "./DOMNodeComponent.js";
+import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMTarget } from "./DOMTarget.js";
 import { DOMTextNode } from "./DOMTextNode.js";
 
@@ -18,14 +18,14 @@ function defaultToPx(value) { // no style property is ever meant to be a bare nu
  * top-level properties directly, the shape every call in
  * flow.application/demo/src/pages/introductionPage.js already uses.
  *
- * Rebuilt on top of DOMNodeComponent's render()/renderElement() rather
+ * Rebuilt on top of DOMNodeRenderComponent's render()/renderElement() rather
  * than flow's separate build-then-render pass. `children` are rendered
- * directly here (see render() below) - a plain DOMNodeComponent (e.g. a
+ * directly here (see render() below) - a plain DOMNodeRenderComponent (e.g. a
  * component that owns one element but composes no others) has no generic
  * notion of children at all, so that's this class's own addition, not
  * the base's.
  */
-export class DOMElementNode extends DOMNodeComponent {
+export class DOMElementNode extends DOMNodeRenderComponent {
   // All three are *properties*, not state (see cascade.component/README.md):
   // they come from the build() call constructing this node and are meant
   // to change on every rebuild - applyAttributes() diffs them for exactly

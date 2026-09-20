@@ -38,13 +38,40 @@ export class DOMTarget {
   }
 
   // Same positioning as appendElement, but for an *existing* element
-  // rather than a fresh one - see DOMNodeComponent.onReattach(): a component
+  // rather than a fresh one - see DOMNodeRenderComponent.onReattach(): a component
   // relinked after being retracted needs its own previously-removed
   // element put back, without rerunning render() (relinking never does)
-  // to create a new one.
+  // to create a new one. Also called on every render of a *reused* element
+  // (see DOMElementNode.renderElement()'s own comment) purely to keep
+  // target.lastChild's write positioned correctly - which, for the very
+  // common case where nothing structurally changed, means `element` is
+  // already exactly where it belongs. Real DOM elements don't need to be
+  // told twice: skip the actual insertBefore then, so an unrelated rerun
+  // elsewhere in the tree doesn't touch every untouched sibling's real
+  // node on its way past - insertBefore() always performs a real move
+  // (firing mutation records DevTools' Elements panel flashes on, stealing
+  // focus, restarting CSS transitions/animations) even when the node ends
+  // up exactly where it already was.
   reattachElement(element) {
     const referenceNode = this.lastChild ? this.lastChild.nextSibling : this.element.firstChild;
-    this.element.insertBefore(element, referenceNode);
+    // Two ways "already exactly where it belongs" shows up: the ordinary
+    // one (element.nextSibling is already referenceNode), and the
+    // degenerate one where element *is* referenceNode - which happens
+    // whenever element is (still) the very first live child accounted for
+    // here (lastChild reads back null - nothing precedes it - so
+    // referenceNode falls through to this.element.firstChild, which, if
+    // element hasn't actually moved, is element itself). insertBefore(x, x)
+    // is a real DOM call whose spec-defined result is "no change" - so is
+    // this - but without checking for it explicitly, element.nextSibling
+    // (never equal to element itself) always looks like a mismatch, forcing
+    // a needless real move on every single "first child reconfirms its own
+    // position" render, which is the common case for a subtree's own root
+    // element and the first item of any list.
+    const alreadyPositioned = element.parentNode === this.element &&
+      (element === referenceNode || element.nextSibling === referenceNode);
+    if (!alreadyPositioned) {
+      this.element.insertBefore(element, referenceNode);
+    }
     this.lastChild = element;
   }
 

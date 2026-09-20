@@ -290,4 +290,75 @@ describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", functio
     assert.equal(level1El.children[0].textContent, "Depth 1 shared 2");
     assert.equal(level1El.children[1].textContent, "Depth 2 shared 2");
   });
+
+  it("adding a level does not move any real node that was already correctly positioned", function () {
+    // Robert, watching the real RecursiveDemo in DevTools: adding a level
+    // showed changes all the way down to the root, not just the one new
+    // node - because every existing Level/Item's own maxDepth property
+    // changes too (same shared value, rewritten at every depth), so every
+    // one of them reruns and, per the test above, reconfirms its element's
+    // position every time it reruns - which used to always mean a real
+    // insertBefore(), even into the exact spot the element already
+    // occupied. Real insertBefore() is never a true no-op: it fires
+    // mutation records (what makes DevTools' Elements panel flash), can
+    // restart a CSS transition, and can steal focus - so growing the chain
+    // should move only the brand-new node, not reconfirm-move everything
+    // above it too.
+    class Leaf extends Component {
+      setProperties({ depth }) {
+        this.depth = depth;
+      }
+      build() {
+        return div({ key: "leaf" }, textNode({ key: "depthLabel", text: "Depth " + this.depth }));
+      }
+    }
+
+    class Level extends Component {
+      setProperties({ depth, maxDepth }) {
+        this.depth = depth;
+        this.maxDepth = maxDepth;
+      }
+      build() {
+        const children = [new Leaf({ key: "leaf", depth: this.depth })];
+        if (this.depth < this.maxDepth) {
+          children.push(new Level({ key: "rest", depth: this.depth + 1, maxDepth: this.maxDepth }));
+        }
+        return div({ key: "level" }, children);
+      }
+    }
+
+    class Chain extends Component {
+      initializeState() {
+        return { maxDepth: 3 };
+      }
+      build() {
+        return new Level({ key: "root", depth: 1, maxDepth: this.maxDepth });
+      }
+      render(context) {
+        this.reactiveBuildEquivalent().renderOnto(context);
+      }
+    }
+
+    const chain = new Chain();
+    chain.renderOnto(new RenderContext(new DOMTarget(container)));
+
+    let moveCount = 0;
+    const NodePrototype = document.defaultView.Node.prototype;
+    const originalInsertBefore = NodePrototype.insertBefore;
+    NodePrototype.insertBefore = function (...args) {
+      moveCount++;
+      return originalInsertBefore.apply(this, args);
+    };
+    try {
+      chain.maxDepth = 4; // every existing Level/Leaf reruns (maxDepth changed for all of them), one brand-new Level+Leaf pair joins at the end
+    } finally {
+      NodePrototype.insertBefore = originalInsertBefore;
+    }
+
+    // Exactly the three brand-new real nodes (the new Level's own div, its
+    // Leaf's div, and that Leaf's own text node) ever needed to move -
+    // nothing pre-existing did, even though every pre-existing Level's own
+    // div did reconfirm its position this same rerun.
+    assert.equal(moveCount, 3);
+  });
 });

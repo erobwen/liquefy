@@ -3,11 +3,11 @@ import assert from "assert";
 import { Component, RenderContext, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { DOMTargetElement } from "../DOMTargetElement.js";
 
-// DOMTargetElement is the alternative to DOMNodeComponent's "everything must
+// DOMTargetElement is the alternative to DOMNodeRenderComponent's "everything must
 // expand into one primitive component to touch the real DOM" model - an
 // ordinary Component can build a whole subtree of real elements directly
 // in render(context) by calling context.target.createChild(...) and
-// keeping the result, without ever being a DOMNodeComponent itself. See the
+// keeping the result, without ever being a DOMNodeRenderComponent itself. See the
 // class's own comment in ../DOMTargetElement.js for why this doesn't use
 // DOMTarget's shared, observable `lastChild` - ownership (whoever calls
 // createChild keeps the result and reuses it) sidesteps that whole class
@@ -49,7 +49,7 @@ describe("DOMTargetElement", function () {
     assert.equal(container.children[0], b.element); // literally the same node, not a new one
   });
 
-  it("an ordinary Component (not DOMNodeComponent) can build and own several DOMTargetElements directly in render()", function () {
+  it("an ordinary Component (not DOMNodeRenderComponent) can build and own several DOMTargetElements directly in render()", function () {
     class Row extends Component {
       render(context) {
         const u = this.unobservable;

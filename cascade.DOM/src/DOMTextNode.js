@@ -1,13 +1,13 @@
 import { extractProperty } from "@liquefy/cascade.component";
-import { DOMNodeComponent } from "./DOMNodeComponent.js";
+import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 
 /**
  * A real Text node, ported from flow.DOM/src/DOMTextNode.js's own role -
  * what a loose string/number child (see DOMElementNode's own children
- * handling) gets wrapped into, so it's a real DOMNodeComponent like any
+ * handling) gets wrapped into, so it's a real DOMNodeRenderComponent like any
  * other child, not a bare JS value renderOnto() can't call anything on.
  */
-export class DOMTextNode extends DOMNodeComponent {
+export class DOMTextNode extends DOMNodeRenderComponent {
   setProperties(properties) {
     this.text = extractProperty(properties, "text");
   }

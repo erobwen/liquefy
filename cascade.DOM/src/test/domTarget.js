@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
-import { DOMNodeComponent } from "../DOMNodeComponent.js";
+import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 
 // Same toolbar/main-frame shape as cascade.component's own vertical-slice
 // test, but rendering real DOM elements this time - proving the mechanism
@@ -18,7 +18,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     container = document.createElement("div");
   });
 
-  class Toolbar extends DOMNodeComponent {
+  class Toolbar extends DOMNodeRenderComponent {
     constructor(label) {
       super();
       this.label = label;
@@ -32,7 +32,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     }
   }
 
-  class ContentArea extends DOMNodeComponent {
+  class ContentArea extends DOMNodeRenderComponent {
     renderElement(context, existingElement) {
       const el = existingElement || context.target.appendElement("div");
       el.className = "content";
@@ -40,7 +40,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     }
   }
 
-  class MainFrame extends DOMNodeComponent {
+  class MainFrame extends DOMNodeRenderComponent {
     constructor(toolbar, contentArea) {
       super();
       this.toolbar = toolbar;
@@ -126,7 +126,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
 
     let seenSpaceLeft;
     let renderCount = 0;
-    class MeasuringContentArea extends DOMNodeComponent {
+    class MeasuringContentArea extends DOMNodeRenderComponent {
       renderElement(childContext, existingElement) {
         renderCount++;
         seenSpaceLeft = childContext.spaceLeft;
@@ -137,7 +137,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     }
     const contentArea = new MeasuringContentArea();
 
-    class MeasuringMainFrame extends DOMNodeComponent {
+    class MeasuringMainFrame extends DOMNodeRenderComponent {
       constructor(toolbar, contentArea) {
         super();
         this.toolbar = toolbar;
@@ -180,6 +180,39 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     mainFrame.unobservable.repeater.restart();
     assert.equal(seenSpaceLeft, 250);
     assert.equal(renderCount, 2);
+  });
+
+  it("reattachElement is a plain, idempotent reposition primitive: a no-op move is skipped, a real one still happens", function () {
+    // Direct check of the primitive itself (see domElementNode.js's own
+    // "a sibling added after an unrelated rerun still lands after it, not
+    // before" for the end-to-end version, through real components): calling
+    // reattachElement again for an element that's already exactly where
+    // target.lastChild says it belongs must not touch the real DOM at all;
+    // calling it for one that genuinely needs to move still must.
+    const target = new DOMTarget(container);
+    const a = document.createElement("div");
+    const b = document.createElement("div");
+    target.reattachElement(a);
+    target.reattachElement(b);
+    assert.deepEqual(Array.from(container.children), [a, b]);
+
+    let moveCount = 0;
+    const originalInsertBefore = container.insertBefore.bind(container);
+    container.insertBefore = (...args) => { moveCount++; return originalInsertBefore(...args); };
+
+    // b is already target.lastChild, already last - reconfirming it (the
+    // way a rerun that reuses its element, but didn't move it, still does
+    // every time - see DOMElementNode.renderElement()'s own comment) must
+    // not move it again.
+    target.reattachElement(b);
+    assert.equal(moveCount, 0, "b was already exactly where it belongs");
+    assert.deepEqual(Array.from(container.children), [a, b]);
+
+    // A real reorder still works, and still moves exactly the node that
+    // needs it.
+    target.reattachElement(a); // a moves to right after b
+    assert.equal(moveCount, 1);
+    assert.deepEqual(Array.from(container.children), [b, a]);
   });
 
 });

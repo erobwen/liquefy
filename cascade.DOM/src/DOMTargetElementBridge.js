@@ -1,12 +1,12 @@
 import { RenderContext } from "@liquefy/cascade.component";
-import { DOMNodeComponent } from "./DOMNodeComponent.js";
+import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMTargetElement } from "./DOMTargetElement.js";
 
 /**
  * The other direction from DOMElementNode's own bridge (DOMTargetElement.js's
  * class comment): that one lets an ordinary Component call
  * context.target.createChild(...) directly from render(), without ever
- * becoming a DOMNodeComponent. This one is for the opposite situation - an
+ * becoming a DOMNodeRenderComponent. This one is for the opposite situation - an
  * existing DOMTargetElement-based component (createChild/insertChild,
  * cascade.application/demo's own frame-level style, predating
  * OverlayFrame/build()) needs to be rendered as an ordinary child inside a
@@ -14,7 +14,7 @@ import { DOMTargetElement } from "./DOMTargetElement.js";
  * what DOMElementNode/OverlayFrame need, and the two target kinds don't
  * share a method name by accident - see DOMTarget.js/DOMTargetElement.js).
  *
- * One real element, owned the ordinary DOMNodeComponent way (via whatever
+ * One real element, owned the ordinary DOMNodeRenderComponent way (via whatever
  * *outer* target this bridge itself was renderOnto()'d with), with a
  * fresh, cached DOMTargetElement/RenderContext wrapping it underneath for
  * `child` to render into - "each level owns its own context for what's
@@ -27,7 +27,7 @@ export function bridgeToDOMTargetElement(...parameters) {
   return new DOMTargetElementBridge(...parameters);
 }
 
-export class DOMTargetElementBridge extends DOMNodeComponent {
+export class DOMTargetElementBridge extends DOMNodeRenderComponent {
   setProperties({ child, style, context }) {
     this.child = child;
     this.style = style || null;

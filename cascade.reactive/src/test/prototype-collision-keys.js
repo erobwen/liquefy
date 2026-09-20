@@ -3,7 +3,7 @@ import assert from "assert";
 
 // A real bug found via cascade.component's Component.toString() (added so
 // a real DOM element's own id attribute can carry debug identity - see
-// cascade.DOM's DOMNodeComponent.js): reading a property whose name
+// cascade.DOM's DOMNodeRenderComponent.js): reading a property whose name
 // collides with one of Object.prototype's own member names ("toString",
 // "valueOf", "hasOwnProperty", "constructor", ...) on a freshly-observed
 // object crashed, because a handler's own `timelines` map (from property

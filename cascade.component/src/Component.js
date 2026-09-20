@@ -291,8 +291,17 @@ export class Component {
         // exactly: a component constructed directly inside another's
         // build() call captures that component as its creator.
         creators.push(this);
-        this.newBuild = this.build();
-        creators.pop();
+        try {
+          this.newBuild = this.build();
+        } finally {
+          // Same reasoning as renderStack's own push/pop in renderOnto()
+          // below - `creators` is a single, module-level stack shared by
+          // every component in the process, so a build() that throws
+          // without this would leave a stale entry on it, corrupting
+          // inherit()'s own creator walk for every component built
+          // afterward.
+          creators.pop();
+        }
         assignEquivalentCreator(this.newBuild, this);
       });
     } else {
@@ -363,7 +372,7 @@ export class Component {
   // build()-based composition style. Override render() directly instead
   // (skipping build() entirely) for the hardcoded-child-reference style,
   // or to interleave custom work (measurement, etc.) between children -
-  // see cascade.DOM's DOMNodeComponent-based demos for exactly that.
+  // see cascade.DOM's DOMNodeRenderComponent-based demos for exactly that.
   render(context) {
     const equivalent = this.reactiveBuildEquivalent();
     const children = equivalent instanceof Array ? equivalent : [equivalent];
@@ -424,8 +433,22 @@ export class Component {
       // that later moment.
       u.repeater = repeat(() => {
         renderStack.push(this);
-        this.render(context);
-        renderStack.pop();
+        try {
+          this.render(context);
+        } finally {
+          // Must run even if render() throws - renderStack is a single,
+          // module-level stack shared by every component in the process,
+          // not scoped to this repeater or this world, so a render() that
+          // throws without this would leave a stale entry on it forever,
+          // corrupting getRenderParent() for every component rendered
+          // afterward, in any test or any part of the app, for the rest of
+          // the process. Found via a DOMNodeComponent test that
+          // deliberately throws from render() (see
+          // cascade.DOM/src/test/domNodeComponent.js) to check its own
+          // build()-result guard - that alone was enough to break unrelated
+          // later tests in the same run.
+          renderStack.pop();
+        }
       }, { onRetract: () => this.onRetract() });
     }
   }
@@ -435,7 +458,7 @@ export class Component {
   // retract/reconcile discussion in docs/plan-partial-repeaters.md,
   // cascade.reactive). Clean up whatever side effect the reactive system
   // itself has no visibility into (a real DOM node parented outside any
-  // observable, a subscription, ...) - see cascade.DOM's DOMNodeComponent for
+  // observable, a subscription, ...) - see cascade.DOM's DOMNodeRenderComponent for
   // the concrete case (removing its own element). No-op by default: a
   // component with no such side effects doesn't need to override this.
   // If it's later renderOnto()'d again, retraction being fully reversible
@@ -446,7 +469,7 @@ export class Component {
   // Override: the other half of onRetract() - called when this component
   // is renderOnto()'d again after having been retracted, right as it's
   // relinked (never on an ordinary rerun or a first-ever render). Redo
-  // whatever onRetract() undid - see cascade.DOM's DOMNodeComponent, which
+  // whatever onRetract() undid - see cascade.DOM's DOMNodeRenderComponent, which
   // re-inserts its own element (removed by onRetract()) since relinking
   // itself never re-executes render() to do it another way. No-op by
   // default.

@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
-import { DOMNodeComponent } from "../DOMNodeComponent.js";
+import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 
 // Responsive breakpoint behavior from flow's ApplicationMenuFrame, scoped
 // down: the menu docks as a side panel when there's enough width, or goes
@@ -26,7 +26,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     container = document.createElement("div");
   });
 
-  class Menu extends DOMNodeComponent {
+  class Menu extends DOMNodeRenderComponent {
     renderElement(context, existingElement) {
       const el = existingElement || context.target.appendElement("div");
       el.className = "menu";
@@ -35,7 +35,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     }
   }
 
-  class WorkArea extends DOMNodeComponent {
+  class WorkArea extends DOMNodeRenderComponent {
     renderElement(context, existingElement) {
       const el = existingElement || context.target.appendElement("div");
       el.className = "work-area";
@@ -44,7 +44,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     }
   }
 
-  class MenuFrame extends DOMNodeComponent {
+  class MenuFrame extends DOMNodeRenderComponent {
     constructor(menu, workArea) {
       super();
       this.menu = menu;

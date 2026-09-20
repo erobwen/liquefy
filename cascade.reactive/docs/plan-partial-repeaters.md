@@ -401,9 +401,15 @@ al.) applied to repeater execution order:
   `count / MAXINT` rises - `chainSpacerFor`), falling back to bisection.
   If that leaves adjacent order numbers with no gap, `releaseChainPressure`
   (a pressure-release "blast") widens a window around the new partial -
-  expanding whichever side has the smaller delta, stopping once the window
-  is at most half-full or `configuration.chainBlastRadius` nodes have been
-  visited - and spreads that window evenly across the interval it spans.
+  expanding whichever side has the smaller delta, stopping only once the
+  window is at most half-full - and spreads that window evenly across the
+  interval it spans. There is no cap on how far the window may grow: an
+  earlier `chainBlastRadius` cap made the blast a no-op whenever the
+  capped window was already denser than its span allowed, which under deep
+  nesting (a new subtree inserted at the same spot every time, with the
+  ancestors' trailing partials right behind it, so the window never reaches
+  the tail) let two live partials end up sharing one order number - see
+  `src/test/nested-chain-pressure.js`.
   If the forward side runs off the real end of the chain, its bound
   becomes `MAXINT` instead of a real neighbor, which satisfies the density
   condition immediately - so a dense region eventually vents into the
@@ -424,12 +430,12 @@ Verified with a dedicated stress test
 (`src/test/partial-chain-order.js`): a parent repeatedly inserts a
 brand-new child immediately before a fixed, never-moving anchor, forcing
 the gap before that anchor to bisect smaller each time until it triggers
-a blast - with `chainBlastRadius` set deliberately tiny (4) to make this
-cheap to trigger. Each inserted child records what it read at the moment
-it was created (never rerun after, only relinked), so a corrupted order
-would show up as some child seeing the wrong predecessor's value. 24
-insertions triggered 12 blasts in that run; every child still saw exactly
-what it should have.
+a blast. Each inserted child records what it read at the moment it was
+created (never rerun after, only relinked), so a corrupted order would
+show up as some child seeing the wrong predecessor's value. The nested
+counterpart (`src/test/nested-chain-pressure.js`) does the same one
+subtree-level at a time, with `verifyChainOrderStructurally` on, and
+checks that every live partial's number is unique afterwards.
 
 ## Status
 

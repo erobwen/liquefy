@@ -181,14 +181,14 @@ describe("partial chain order - insert/remove position and timing coverage", fun
   });
 
   it("pressure release happens synchronously right after the insertion that triggers it, not deferred to a later one", function () {
-    // A blastRadius of 1 makes the very *first* squeeze-triggering
-    // insertion also the one that must immediately widen the gap -
-    // if release were somehow deferred, the very next insertion into
-    // the same now-tiny gap would either throw (space exhausted) or
-    // silently produce a non-monotonic order number.
+    // Bisecting the initial 65536 spacer runs out of room after about
+    // sixteen insertions into the same gap; the one that squeezes it shut
+    // must immediately widen it again - if release were somehow deferred,
+    // the very next insertion into the same now-tiny gap would either
+    // throw (space exhausted) or silently produce a non-monotonic order
+    // number. Twenty insertions comfortably crosses that point.
     const { repeat, linkRepeater } = getWorld({
       name: "chain-hardening-pressure-timing-" + Math.random(),
-      chainBlastRadius: 1,
     });
 
     const middles = [];
@@ -209,12 +209,12 @@ describe("partial chain order - insert/remove position and timing coverage", fun
     // therefore its own immediate pressure-release check, if the gap is
     // tight) happens on its own `parent.restart()` call, right next to
     // the previous one, with nothing else running in between.
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 20; i++) {
       pendingCount = i;
       parent.restart();
     }
 
-    assert.equal(middles.length, 10);
+    assert.equal(middles.length, 20);
     for (let i = 1; i < middles.length; i++) {
       assert.ok(
         orderOf(middles[i]) > orderOf(middles[i - 1]),

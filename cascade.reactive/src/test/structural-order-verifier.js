@@ -91,7 +91,6 @@ describe("structural order verifier (dev-time cross-check)", function () {
   it("agrees with the order-number chain across many pressure-release blasts", function () {
     const { observable, repeat, linkRepeater } = getWorld({
       name: "structural-verifier-pressure-" + Math.random(),
-      chainBlastRadius: 4,
       verifyChainOrderStructurally: true,
     });
 

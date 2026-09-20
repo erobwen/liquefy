@@ -22,12 +22,6 @@ const defaultConfiguration = {
 
   timeLevels: 4,
 
-  // How many neighbors a partial-chain pressure-release blast will visit
-  // (see releaseChainPressure() / docs/plan-partial-repeaters.md) before
-  // giving up on reaching the ideal density and just redistributing
-  // whatever it's collected so far.
-  chainBlastRadius: 10,
-
   // Dev-time-only safety net for the O(1) order-number chain (see
   // compareWriterOrder()/structuralCompareWriterOrder()): also compute
   // writer order via the older, structural parent/sibling walk (O(depth),
@@ -1043,9 +1037,23 @@ function createWorld(configuration) {
   // least one side) by collecting a window of its order-chain neighbors and
   // spreading them evenly across the interval they currently span. Expands
   // whichever side currently has the smaller delta, so the window grows
-  // roughly symmetrically; stops once the window is at most half-full
-  // (density <= 1/2 - the standard order-maintenance threshold) or after
-  // `chainBlastRadius` nodes, whichever comes first.
+  // roughly symmetrically, and keeps going until the window is at most
+  // half-full (density <= 1/2 - the standard order-maintenance threshold).
+  // Only then does respreading actually create room: with density <= 1/2
+  // the step between neighbors comes out > 2, so every number in the
+  // window is distinct afterwards. There is deliberately no cap on how many
+  // nodes the search may visit - an earlier version stopped after a fixed
+  // count and respread whatever it had, which is a no-op when those nodes
+  // were already too dense for their span. That was fine for the flat
+  // "squeeze siblings in before one anchor at the tail" shape (the window
+  // reaches the chain's end and vents, see below), but not for a deeply
+  // nested one: inserting a whole new subtree at the same spot every time,
+  // with a stack of ancestors' trailing partials sitting right behind it,
+  // the window never reached the tail, the numbers kept collapsing, and
+  // two live partials eventually shared one - at which point two different
+  // writers' writings reconcile onto each other as the same position (see
+  // test/nested-chain-pressure.js, and cascade.application/demo's
+  // RecursiveDemo where it surfaced as swapped DOM children).
   //
   // If the forward side ever runs off the real end of the chain, its
   // "successor" becomes the open space all the way up to MAXINT - which
@@ -1058,7 +1066,6 @@ function createWorld(configuration) {
   // document (this falls out of the rule above for free, no special case).
   function releaseChainPressure(chainHead, center) {
     const x = center.orderNumber;
-    const radius = configuration.chainBlastRadius;
 
     let backwardEdge = center;
     let forwardEdge = center;
@@ -1093,7 +1100,6 @@ function createWorld(configuration) {
 
     while (
       !(forwardExhausted && backwardExhausted) &&
-      visited < radius &&
       visited / (deltaForward + deltaBackward) > 0.5
     ) {
       if (backwardExhausted) stepForward();

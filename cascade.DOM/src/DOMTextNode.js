@@ -20,8 +20,11 @@ export class DOMTextNode extends DOMNodeComponent {
     let node = existingElement;
     if (!node) {
       node = document.createTextNode("");
-      context.target.reattachElement(node);
     }
+    // Reconfirm position every render, not just on fresh creation - see
+    // DOMElementNode.renderElement()'s own comment for why a reused node
+    // still needs this.
+    context.target.reattachElement(node);
     if (node.data !== String(this.text)) {
       node.data = String(this.text);
     }

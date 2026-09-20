@@ -3,15 +3,14 @@ import assert from "assert";
 
 // Stress test for the partial-chain order numbers (see
 // docs/plan-partial-repeaters.md, "Time as tree position"): forces many
-// insertions into the *same* shrinking gap (a small blastRadius makes this
-// easy to trigger without needing an unrealistic number of repeaters), and
-// checks that tree-order comparisons stay correct across several
-// pressure-release blasts, not just that nothing throws.
+// insertions into the *same* shrinking gap (the initial 65536 spacer
+// bisects down to nothing in about sixteen of them), and checks that
+// tree-order comparisons stay correct across the pressure-release blast(s)
+// that forces, not just that nothing throws.
 describe("partial chain order (pressure release)", function () {
   it("keeps tree-order comparisons correct across many insertions that force pressure-release blasts", function () {
     const { observable, repeat, linkRepeater } = getWorld({
       name: "partial-chain-order",
-      chainBlastRadius: 4, // deliberately tiny, so a handful of insertions already forces a blast
     });
 
     const target = observable({ value: 0 });

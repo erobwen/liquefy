@@ -223,4 +223,71 @@ describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", functio
       assert.equal(leaf.childNodes[1].data, "Shared: 2");
     });
   });
+
+  it("a sibling added after an unrelated rerun still lands after it, not before", function () {
+    // Found via cascade.application/demo's RecursiveDemo: touch a value
+    // every Leaf inherits (rerunning each Leaf's build(), reusing its
+    // existing real element throughout, per the test above), then add a
+    // *new* Level as a later sibling of the existing one. Without
+    // DOMElementNode.renderElement() reconfirming a reused element's
+    // position on every render (not just on creation), the existing
+    // Level's earlier write to target.lastChild gets silently retracted
+    // the moment its own repeater is invalidated for that rerun - it never
+    // gets rewritten, since reusing an element skips appendElement - so
+    // the new sibling's own insertion reads target.lastChild as the
+    // baseline (null) and lands *before* the existing one instead of
+    // after it.
+    class Leaf extends Component {
+      setProperties({ depth, shared }) {
+        this.depth = depth;
+        this.shared = shared;
+      }
+      build() {
+        return div({ key: "leaf" }, textNode({ key: "sharedLabel", text: "Depth " + this.depth + " shared " + this.shared }));
+      }
+    }
+
+    class Level extends Component {
+      setProperties({ depth, maxDepth, shared }) {
+        this.depth = depth;
+        this.maxDepth = maxDepth;
+        this.shared = shared;
+      }
+      build() {
+        const children = [new Leaf({ key: "leaf", depth: this.depth, shared: this.shared })];
+        if (this.depth < this.maxDepth) {
+          children.push(new Level({ key: "rest", depth: this.depth + 1, maxDepth: this.maxDepth, shared: this.shared }));
+        }
+        return div({ key: "level" }, children);
+      }
+    }
+
+    class Chain extends Component {
+      initializeState() {
+        return { maxDepth: 1, shared: 1 };
+      }
+      build() {
+        return new Level({ key: "root", depth: 1, maxDepth: this.maxDepth, shared: this.shared });
+      }
+      render(context) {
+        this.reactiveBuildEquivalent().renderOnto(context);
+      }
+    }
+
+    const chain = new Chain();
+    chain.renderOnto(new RenderContext(new DOMTarget(container)));
+
+    const level1El = container.children[0];
+    const leaf1El = level1El.children[0];
+
+    chain.shared = 2; // Leaf reruns, reusing its existing element - no structural change yet
+    assert.equal(level1El.children[0], leaf1El, "leaf keeps its identity across the unrelated rerun");
+
+    chain.maxDepth = 2; // a brand new Level joins as leaf1's sibling, right after it
+
+    assert.equal(level1El.children.length, 2);
+    assert.equal(level1El.children[0], leaf1El, "the pre-existing leaf must still come first");
+    assert.equal(level1El.children[0].textContent, "Depth 1 shared 2");
+    assert.equal(level1El.children[1].textContent, "Depth 2 shared 2");
+  });
 });

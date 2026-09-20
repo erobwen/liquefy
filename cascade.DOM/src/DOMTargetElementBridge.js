@@ -40,6 +40,9 @@ export class DOMTargetElementBridge extends DOMNodeComponent {
 
   renderElement(context, existingElement) {
     const element = existingElement || context.target.appendElement("div");
+    // Same as DOMElementNode.renderElement(): a reused element reconfirms
+    // its position every render (see there for why).
+    if (existingElement) context.target.reattachElement(existingElement);
     if (this.style) Object.assign(element.style, this.style);
     return element;
   }

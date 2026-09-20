@@ -3,7 +3,7 @@ import assert from "assert";
 import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
 import { div, h1, p, ul, li } from "../HTMLTags.js";
-import { text as textNode } from "../DOMTextNode.js";
+import { text as textNode, DOMTextNode } from "../DOMTextNode.js";
 
 // Exercises the tag-builder layer (HTMLTags -> taggedElement ->
 // DOMElementNode/DOMTextNode) the way a real component actually uses it:
@@ -99,5 +99,128 @@ describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", functio
     assert.equal(container.children[0], rootDivBefore, "the root div's own element identity must survive a rerun");
     assert.equal(container.children[0].children[2], ulElBefore, "an unrelated sibling's element must survive too");
     assert.equal(container.children[0].children[0].textContent, "Hello again");
+  });
+
+  // text()'s own dual signature (see DOMTextNode.js) - `text("value")`
+  // (unkeyed, used above) vs `text({key, text})`/`text("value", {key})`
+  // (keyed) - and why the keyed form matters: found while building
+  // cascade.application/demo's RecursiveDemo, whose whole point is
+  // demonstrating minimal DOM updates through a chain of components that
+  // *all* rerun their own build() on every change. A loose string child
+  // (DOMElementNode.render()'s own auto-wrap) is always a fresh, unkeyed
+  // DOMTextNode - reconciled by nothing, so a real DOM Text node gets
+  // recreated on every single rerun of whatever renders it, even when the
+  // text itself doesn't actually change. A keyed text() node instead
+  // reconciles to the same DOMTextNode instance (and so the same real
+  // Text node) across reruns, mutating `.data` in place only when the
+  // content genuinely differs - the same story DOMElementNode's own keyed
+  // elements already have, just for a leaf text node instead of a tag.
+  it("text({key, text}) reconciles to the same real Text node across a rerun, mutating its data in place - unlike an unkeyed loose string child", function () {
+    class KeyedPage extends Component {
+      initializeState() {
+        return { count: 1 };
+      }
+      build() {
+        return div(
+          { key: "root" },
+          textNode({ key: "counter", text: "Count: " + this.count }),
+        );
+      }
+    }
+
+    const page = new KeyedPage();
+    page.renderOnto(new RenderContext(new DOMTarget(container)));
+
+    const rootEl = container.children[0];
+    const textNodeBefore = rootEl.childNodes[0];
+    assert.equal(textNodeBefore.data, "Count: 1");
+
+    page.count = 2; // rerun - build() reconstructs a fresh text({key:"counter",...}) call every time
+
+    assert.equal(rootEl.childNodes.length, 1, "must not append a second Text node alongside the old one");
+    assert.equal(rootEl.childNodes[0], textNodeBefore, "the same real Text node, mutated in place - not a new one");
+    assert.equal(textNodeBefore.data, "Count: 2");
+  });
+
+  // The actual "minimal updates" story, end to end: a chain of components
+  // each rebuilding in full (RecursiveDemo's own List/Item shape,
+  // scaled down) - every level's build() reruns on every change, but
+  // only the one real DOM node whose content actually differs is ever
+  // touched; everything else (including every other level's own wrapper
+  // element and unrelated leaf) keeps its exact real DOM identity.
+  it("a chain of components that all rebuild in full still leaves every unaffected real DOM node - element or text - untouched", function () {
+    class Leaf extends Component {
+      setProperties({ depth, shared }) {
+        this.depth = depth;
+        this.shared = shared;
+      }
+      build() {
+        return div(
+          { key: "leaf" },
+          textNode({ key: "depthLabel", text: "Depth " + this.depth }), // never changes once constructed
+          textNode({ key: "sharedLabel", text: "Shared: " + this.shared }), // changes whenever `shared` does
+        );
+      }
+    }
+
+    class Level extends Component {
+      setProperties({ depth, maxDepth, shared }) {
+        this.depth = depth;
+        this.maxDepth = maxDepth;
+        this.shared = shared;
+      }
+      build() {
+        const children = [new Leaf({ key: "leaf", depth: this.depth, shared: this.shared })];
+        if (this.depth < this.maxDepth) {
+          children.push(new Level({ key: "rest", depth: this.depth + 1, maxDepth: this.maxDepth, shared: this.shared }));
+        }
+        return div({ key: "level" }, children);
+      }
+    }
+
+    class Chain extends Component {
+      initializeState() {
+        return { shared: 1 };
+      }
+      build() {
+        return new Level({ key: "root", depth: 1, maxDepth: 3, shared: this.shared });
+      }
+      render(context) {
+        this.reactiveBuildEquivalent().renderOnto(context);
+      }
+    }
+
+    const chain = new Chain();
+    chain.renderOnto(new RenderContext(new DOMTarget(container)));
+
+    // Walk down: level(1) > [leaf(1), level(2) > [leaf(2), level(3) > [leaf(3)]]]
+    const level1El = container.children[0];
+    const leaf1El = level1El.children[0];
+    const level2El = level1El.children[1];
+    const leaf2El = level2El.children[0];
+    const level3El = level2El.children[1];
+    const leaf3El = level3El.children[0];
+
+    const sharedTextsBefore = [leaf1El, leaf2El, leaf3El].map((leaf) => leaf.childNodes[1]);
+    const depthTextsBefore = [leaf1El, leaf2El, leaf3El].map((leaf) => leaf.childNodes[0]);
+    sharedTextsBefore.forEach((node) => assert.equal(node.data, "Shared: 1"));
+
+    chain.shared = 2; // every Level and every Leaf's own build() reruns, all the way down
+
+    // Every element and every depth-label Text node kept its own identity...
+    assert.equal(container.children[0], level1El);
+    assert.equal(level1El.children[0], leaf1El);
+    assert.equal(level1El.children[1], level2El);
+    assert.equal(level2El.children[0], leaf2El);
+    assert.equal(level2El.children[1], level3El);
+    assert.equal(level3El.children[0], leaf3El);
+    [leaf1El, leaf2El, leaf3El].forEach((leaf, i) => assert.equal(leaf.childNodes[0], depthTextsBefore[i]));
+
+    // ...and the one thing that actually changed - each leaf's own shared-value
+    // text - was mutated in place, same Text node, new data, at every level.
+    [leaf1El, leaf2El, leaf3El].forEach((leaf, i) => {
+      assert.equal(leaf.childNodes[1], sharedTextsBefore[i], "the shared-value Text node must be reused, not recreated");
+      assert.equal(leaf.childNodes[1].data, "Shared: 2");
+    });
   });
 });

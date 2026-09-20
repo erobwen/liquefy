@@ -20,3 +20,4 @@ export const a = (...parameters) => taggedElement("a", toPropertiesWithChildren(
 export const b = (...parameters) => taggedElement("b", toPropertiesWithChildren(parameters));
 export const span = (...parameters) => taggedElement("span", toPropertiesWithChildren(parameters));
 export const button = (...parameters) => taggedElement("button", toPropertiesWithChildren(parameters));
+export const input = (...parameters) => taggedElement("input", toPropertiesWithChildren(parameters));

@@ -29,11 +29,29 @@ export class DOMTextNode extends DOMNodeComponent {
   }
 }
 
-// Matches flow.DOM's own `text(...)` name - used explicitly wherever a
-// bare string can't be passed directly (e.g. as the sole child of a tag
-// call that itself takes other loose arguments), as opposed to a loose
-// string/number child being auto-wrapped implicitly (see DOMElementNode's
-// own render()).
-export function text(value) {
-  return new DOMTextNode({ text: value });
+// Matches flow.DOM's own `text(...)` name and argument shape (see
+// flow.DOM/src/DOMTextNode.js's own getTextNodeProperties) - used
+// explicitly wherever a bare string can't be passed directly (e.g. as the
+// sole child of a tag call that itself takes other loose arguments), as
+// opposed to a loose string/number child being auto-wrapped implicitly
+// (see DOMElementNode's own render()) - or, as of this second form,
+// wherever a *keyed* text node is needed: a loose string/number child is
+// always wrapped fresh, unkeyed, on every parent rerun (see
+// DOMElementNode.render()'s own comment), so a component whose own text
+// content changes independently of everything else around it - without a
+// key, a real DOM Text node it could otherwise just mutate in place gets
+// torn down and recreated instead. `text("value")` for the common,
+// unkeyed case (unchanged); `text({key: "...", text: "value"})` or
+// `text("value", {key: "..."})` for a keyed one.
+export function text(...parameters) {
+  let value;
+  if (typeof(parameters[0]) === "string" || typeof(parameters[0]) === "number") {
+    value = parameters.shift() + "";
+  }
+  const properties = typeof(parameters[0]) === "object" && parameters[0] !== null ? parameters.shift() : {};
+  if (typeof(properties.text) !== "undefined" && typeof(value) !== "undefined") {
+    throw new Error("text(): cannot have both a loose value and a 'text' property.");
+  }
+  if (typeof(value) !== "undefined") properties.text = value;
+  return new DOMTextNode(properties);
 }

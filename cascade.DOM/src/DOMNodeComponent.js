@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, aggregateToString } from "@liquefy/cascade.component";
 
 /**
  * DOMNodeComponent: a cascade.component Component whose render(context) owns
@@ -20,7 +20,22 @@ import { Component } from "@liquefy/cascade.component";
 export class DOMNodeComponent extends Component {
   render(context) {
     const u = this.unobservable;
+    const wasFresh = !u.element;
     u.element = this.renderElement(context, u.element || null);
+    // Ported from flow.DOM's own DOMNode.js (ensureDomNodeExists()'s
+    // domNode.id = aggregateToString(this)) - a real DOM element's own
+    // debug identity: open DevTools, click an element, read its id, and
+    // aggregateToString() (see cascade.component/src/Component.js) hands
+    // back exactly which component (and which component built it, and
+    // which built *that*, ...) produced it, matched straight against the
+    // source. Only on a freshly-created element (nodeType 1 - excludes
+    // DOMTextNode's own Text nodes, which have no id/class to set at
+    // all) - reusing an existing one never touches it again, same as
+    // flow's own version never re-derives it on a later rerun either.
+    // Unconditional, no debug-mode flag, matching flow's own choice.
+    if (wasFresh && u.element && u.element.nodeType === 1) {
+      u.element.id = aggregateToString(this);
+    }
   }
 
   // Override: reuse `existingElement` (patching it in place) if given, or

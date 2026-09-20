@@ -2106,7 +2106,21 @@ function createWorld(configuration) {
       };
     } else {
       handler = {
-        timelines : {},
+        // Object.create(null), not {} - this is used as a map from
+        // property key to timeline (see hasTimelineValue/getOrCreateTimeline),
+        // checked via `typeof timelines[key] === 'undefined'`. A plain {}
+        // has its own prototype chain, so a key that collides with one of
+        // Object.prototype's own member names ("toString", "valueOf",
+        // "hasOwnProperty", "constructor", ...) resolves to *that*
+        // built-in function instead of undefined - hasTimelineValue's own
+        // check never catches it, and whatever called seekWriting with it
+        // crashes reading .time off a function that obviously has no such
+        // property. Never triggered before a real, user-defined
+        // toString() existed on any observable's own prototype (see
+        // cascade.component's Component.toString()) for anyone to ever
+        // actually read - this file's own timelines lookup was already
+        // this fragile, just never exercised.
+        timelines : Object.create(null),
         // getPrototypeOf: function () {},
         // setPrototypeOf: function () {},
         // isExtensible: function () {},

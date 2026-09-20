@@ -18,6 +18,21 @@ If a component is created by its creator the following needs to hold.
 
 WARNING: There is a danger in combining both these methods. If a component is created during the creatprs build call, it will be registered in the rebuild process, and even if the creator keeps track of a reference to the component, the rebuild system might depose it. 
 
+## A dropped keyed child is gone forever
+
+We do not keep keyed instances around indefinitely. If a build() call does not construct a given key on some run, that key's slot is gone - permanently, not just for that one run. If the same key is constructed again on some later run, there is nothing left to reconcile against: it is built as a brand new instance, with fresh `initializeState()` defaults, not the one that was there before. This is expected, not a bug - a build() that conditionally guards a child's construction with an `if` is choosing, deliberately, to let that child's identity (and state) lapse whenever the condition is false.
+
+If a UI genuinely needs to keep a keyed child alive - visible or not - across such a toggle, there are two ways:
+
+1. **Build the child in initialization and take full control of its own lifecycle** - the second pattern from "Building Sub Components" above: hold it on a property or an unobservable, own its own render/retract calls directly, and never let its construction be guarded by an `if` inside anyone's build().
+2. **Keep it keyed, but hidden, using `.show()`.** Instead of guarding a keyed child's *construction* with an `if`, build it unconditionally every run and use `.show(condition)` on the result to control whether it's actually included in what build() returns:
+   ```js
+   buildMySubComponent().show(condition)
+   ```
+   Since it's constructed every run regardless of `condition`, its build identity is always present in `newBuildIdObjectMap` - it never drops out, so it's never gone. `.show(false)` only removes it from *this run's returned tree* (see `Component.show()`), which is a render-level decision, not a build-identity one.
+
+This is also why `cascade.application/demo`'s own RecursiveDemo page loses a deeper level's local state when you decrease the level count and then increase it again past where it was - that level's own key genuinely dropped out of its parent's build() for at least one run. That's the correct, intended behavior for the pattern that demo uses (a plain `if` guarding construction), not something the demo works around.
+
 ## Component state and properties
 
 The component properties are given by its context during construction, and could change during re-building. They are similar to the arguments of a function call. 

@@ -1,5 +1,6 @@
-import { Component, RenderContext } from "@liquefy/cascade.component";
-import { DOMTarget, div, button, input, text } from "@liquefy/cascade.dom";
+import { Component } from "@liquefy/cascade.component";
+import { div, button, input, text } from "@liquefy/cascade.dom";
+import { Page } from "./Page.js";
 
 /**
  * Recursive Demo - ported from
@@ -39,7 +40,7 @@ import { DOMTarget, div, button, input, text } from "@liquefy/cascade.dom";
  *    build() reruns for unrelated reasons (a sibling level being added or
  *    removed further down the chain, say).
  */
-export class RecursiveDemo extends Component {
+export class RecursiveDemo extends Page {
   // The number of levels (More/Less), and the value every Item shares -
   // both changed only by the user (the buttons, the shared-value input's
   // own oninput handler), never reset by a rebuild.
@@ -59,27 +60,6 @@ export class RecursiveDemo extends Component {
       new ControlRow({ key: "controlRow", demo: this }),
       new ListLevel({ key: "rootList", maxDepth: this.levels, depth: 1 }),
     );
-  }
-
-  // Bridges DOMTargetElement (what WorkArea hands every page - see
-  // ApplicationMenuFrame.js) to the DOMTarget build()'s tag functions
-  // need - same boundary IntroductionPage.js's own render() crosses, see
-  // its comment for why.
-  render(context) {
-    const u = this.unobservable;
-    if (!u.el) u.el = context.target.createChild("div");
-    if (!u.innerContext) {
-      u.innerContext = new RenderContext(DOMTarget.forElement(u.el.element));
-    }
-    this.reactiveBuildEquivalent().renderOnto(u.innerContext);
-  }
-
-  onRetract() {
-    this.unobservable.el.element.remove();
-  }
-
-  onReattach(context) {
-    context.target.element.appendChild(this.unobservable.el.element);
   }
 }
 

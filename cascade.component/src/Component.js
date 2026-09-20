@@ -1,4 +1,4 @@
-import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater } from "./Cascade.js";
+import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, withoutRecording } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 
 /**
@@ -222,6 +222,13 @@ export class Component {
   // one - see reactiveBuildEquivalent() and the constructor's `key` docs
   // above. Not implemented by default; a component overrides this OR
   // render() (see the default render() below), not both.
+  //
+  // A keyed child's identity (and state) survives only as long as its own
+  // key keeps being constructed, run after run - a key that drops out for
+  // even one run is gone for good, not just for that run (see
+  // README.md's own "A dropped keyed child is gone forever"). Guard a
+  // child's *visibility*, not its construction, with .show(condition) to
+  // keep it alive while hidden instead.
   build() {
     throw new Error(this.constructor.name + " must implement build() or render(context)");
   }
@@ -474,4 +481,55 @@ export class Component {
   show(value) {
     return value ? this : null;
   }
+
+  // Ported from flow.core's Component.js verbatim (getComponentTypeName()/
+  // toString()) - a debug identity string, "ClassName:id(key)": `id` is
+  // `this.causality.id` (see cascade.reactive's own observable(), the
+  // same auto-incrementing counter every observable object gets, so this
+  // is unique across the whole app, not just within one component type),
+  // `key` is this component's own build identity if it has one. See
+  // aggregateToString() below for what actually uses this.
+  getComponentTypeName() {
+    let result;
+    withoutRecording(() => {
+      result = this.componentTypeName ? this.componentTypeName : this.constructor.name;
+    });
+    return result;
+  }
+
+  toString() {
+    // withoutRecording() - matching flow.core's own Component.js exactly:
+    // this is a pure debug read, called from arbitrary places (here, from
+    // the middle of another component's own render(), via
+    // aggregateToString() below) that must never leave behind a reactive
+    // dependency of its own - `key`/`componentTypeName` aren't meant to
+    // invalidate whoever merely asked this component to describe itself.
+    let result;
+    withoutRecording(() => {
+      result = this.getComponentTypeName() + ":" + this.causality.id + (this.key ? "(" + this.key + ")" : "");
+    });
+    return result;
+  }
+}
+
+// Ported from flow.DOM's own DOMNode.js (aggregateToString()) - walks
+// equivalentCreator (whoever's build() produced this component - see
+// reactiveBuildEquivalent() above) from `component` up to the root,
+// joining each one's own toString() with " | ". cascade.DOM writes this
+// onto a freshly-created real element's own `id` attribute (see
+// DOMElementNode.js) - unconditionally, no debug-mode flag, matching
+// flow's own choice: open DevTools, click an element, read its id, and
+// you have exactly which component (and which component built it, and
+// which built *that*, ...) produced it, matched straight against the
+// source - the same round-trip flow's own version gives for free.
+export function aggregateToString(component) {
+  const parts = [];
+  withoutRecording(() => {
+    let scan = component;
+    while (scan) {
+      parts.unshift(scan.toString());
+      scan = scan.equivalentCreator;
+    }
+  });
+  return parts.join(" | ");
 }

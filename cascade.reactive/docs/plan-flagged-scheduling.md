@@ -622,25 +622,69 @@ isolation (no real DOM at all) in under 10 lines, confirmed independent
 of the `reactiveBuildEquivalent()` fix above (reproduces identically with
 or without it).
 
-**Fix**: write the property via `accessInitialValues()` instead of a
-plain assignment, wherever a component's own property is set once, at
-construction, from data the constructing repeater merely happens to be
-holding rather than data the constructing repeater's own timeline
-genuinely owns. That positions the write at the baseline (time 0, writer
-null) instead of wherever `build()` happens to be executing - not tied to
-the constructing repeater's own partial at all, so disposing that
-repeater can never unlink it. Applied at every site this actually bit:
-`cascade.application/demo/src/ApplicationMenuFrame.js`'s `MenuList` (its
-own `frame` reference) and, since the same shape is inherent to any
-component whose properties are set via a plain `setProperties()` from
-data the caller's own build() is just passing through, generalized to
-`cascade.DOM/src/DOMElementNode.js` (`tagName`/`children`/`attributes`)
-and `cascade.DOM/src/DOMTextNode.js` (`text`) - not yet generalized to
-`Component.js`'s own *default* `setProperties()` (`Object.assign`), which
-would make this the standing behavior for every component using the
-default convention rather than something each call site opts into; left
-as a deliberate, narrower fix pending a decision on that broader change
-(see "Explicitly deferred" below).
+**First fix (since replaced)**: write the affected property via
+`accessInitialValues()` so it lands at the baseline and the constructing
+repeater's `dispose()` can't unlink it. It worked, at three sites
+(`MenuList.frame`, `DOMElementNode`'s `tagName`/`children`/`attributes`,
+`DOMTextNode.text`) - but for the wrong reason: those are all
+*properties*, meant to change on every rebuild, and repositioning them
+only made the stale rerun harmless, it didn't stop it. The actual defect
+is the race itself.
+
+**What shipped instead**: `retractRepeater()` (cascade.js), the body
+`finalizeChildren()` always used for a child it no longer relinks, now
+callable on its own and idempotent - and `finishRebuilding()`'s existing
+dispose-event branch (a buildId absent from the new run's map) is where
+it gets called, via `Component.onDispose()`: the moment a keyed
+component's build identity is known to have vanished, its render-repeater
+is retracted (cascading to its buildRepeater and everything rendered
+underneath), *before* the heap ever gets to any stale rerun of it. With
+`reactiveBuildEquivalent()`'s synchronous refresh above, that
+`finishRebuilding()` runs inside the parent's own `render()`, ahead of
+the heap loop - so the scheduler's own `if (repeater.retracted) continue`
+check finally sees the flag in time. All three `accessInitialValues()`
+workarounds reverted to plain property writes. Still open: an *unkeyed*
+child (no buildId, so no dispose event) dropped the same way has no such
+hook and keeps the original race - see "Explicitly deferred".
+
+## State properties: `declareState()`
+
+The other half of the same investigation, and the actual invariant it
+was groping for (see `cascade.component/README.md`, "Component state and
+properties"): some of a component's properties aren't properties at all.
+A *property* comes from the constructing context on every rebuild, like a
+function argument. *State* is established once and thereafter changes
+only through the user (an event handler) or an event that causes - and a
+rebuild must never reset it. `OverlayFrame.assignedOverlayContent` was
+already being hand-positioned at the baseline via `accessInitialValues()`
+for exactly this reason, without a name for it.
+
+`declareState(object, {name: default, ...})` marks the names as state on
+the object's meta (`stateProperties`) and writes the defaults at the
+baseline (time 0, writer null), like construction data. Two enforced
+consequences:
+
+- `setHandlerObject()` throws on a state write while `state.inRepeater`
+  is set. A write inside `accessInitialValues()` passes - `state.context`
+  is null there - which makes it the sanctioned way to write state from
+  inside a pipeline (`Component.setState(values)` wraps it, and rejects
+  undeclared names). An event handler, outside any repeater, just
+  assigns.
+- `mergeInto()` (lib/utility.js) skips state when a rebuild copies a
+  reconciled twin's properties onto the established object. This is the
+  *only* gate: during a rebuild the constructed object is a throwaway
+  whose writes already go to the twin (setHandlerObject's `forwardTo`
+  redirect), so a constructor writes its defaults unconditionally, with
+  no need to detect a rebuild - deliberately, since rebuild-ness isn't
+  reliably knowable at construction time once pattern matching is
+  involved. `declareState()` registers the names on the twin's meta too,
+  so the write guard reads the same on both sides.
+
+`Component.initializeState()` returns the defaults; the constructor calls
+`declareState(me, me.initializeState())` right after `setProperties()`,
+so a default may derive from a property.
+
+## Status
 
 ## Status
 
@@ -657,33 +701,32 @@ existing external-write baseline), enumeration's own dependency tracking
 made position-aware (downstream-only invalidation on key add/remove),
 `reactiveBuildEquivalent()`'s own deferred-refresh fix (force a flagged-
 then-genuinely-invalid buildRepeater's refresh to complete synchronously
-rather than leaving it for the heap), and the retraction-vs-stale-queued-
+rather than leaving it for the heap), the retraction-vs-stale-queued-
 rerun race (a dropped child's own inherited invalidation reaching the
-heap before the retraction that should have preempted it - fixed at each
-concrete site via `accessInitialValues()`, not in the scheduler itself;
-see both sections above). Verified against the real demo app
+heap before the retraction that should have preempted it - fixed by
+`retractRepeater()` on dispose, via `Component.onDispose()`), and state
+properties (`declareState()`: a write guard in `setHandlerObject()` and a
+`mergeInto()` exemption, surfaced as `Component.initializeState()`/
+`setState()`). Verified against the real demo app
 (`cascade.application/demo`) in an actual browser, including the
 original reconciliation-breaking scenario (menu/hamburger breakpoint
 under resize) that motivated this whole line of work.
 
 Explicitly deferred, not needed by any concrete case yet:
-- **Generalizing the retraction-vs-stale-queued-rerun fix to
-  `Component.js`'s own *default* `setProperties()`.** Found and fixed at
-  three concrete call sites (see above) by opting each one into
-  `accessInitialValues()` individually; every one of them was a plain
-  `this.x = x` assignment of a property set once, at construction, from
-  data merely passed through by the caller's own build() - which is
-  arguably true of *every* component using the default, unoverridden
-  `setProperties()` (`Object.assign(this, properties)`), suggesting the
-  default itself could make this the standing behavior instead. Not
-  pursued without a case-by-case understanding of what would change for
-  a component that legitimately *does* want the constructing repeater's
-  own position (e.g. one relying on flagged, same-chain resolution for
-  a property genuinely owned by that position) - see `accessInitialValues()`'s
-  own related open question below, and the "reachable" cases this bug's
-  own two sections above found (a construction-time reference and a
-  build()-time attributes/tagName/children bag) may not exhaust the
-  shapes a wider change would need to consider safe.
+- **Retraction-on-dispose for *unkeyed* children.** `retractRepeater()`
+  reaches a dropped child through `finishRebuilding()`'s dispose event,
+  which only fires for a buildId that vanished from the map - an unkeyed
+  component (e.g. an `h1(...)` without a key inside some `build()`) is
+  never in that map, so if its constructing repeater disposes and drops
+  it in the same rerun, the original race (a stale, already-queued rerun
+  of it processed before whoever rendered it reruns and retracts it) is
+  still possible. Not seen in practice yet: an unkeyed child is
+  reconstructed fresh on every rebuild anyway, and the shape only bites
+  when the *same* rerun both invalidates the old one and stops rendering
+  it. The shape-analysis (`rebuildShapeAnalysis`) branch of
+  `finishRebuilding()` has its own dispose loop over unkeyed objects that
+  could carry the same hook, if that ever becomes the mechanism
+  components use.
 - **Inter-wave event yielding.** Waves currently run fully synchronously,
   looping immediately from one to the next within the same call stack if
   parked work remains. A genuinely deep cascade could block the thread

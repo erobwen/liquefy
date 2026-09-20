@@ -104,7 +104,10 @@ describe("DOMTargetElement", function () {
         super();
         this.first = first;
         this.second = second;
-        this.firstOnTop = true;
+      }
+
+      initializeState() {
+        return { firstOnTop: true };
       }
 
       render(context) {
@@ -202,8 +205,10 @@ describe("DOMTargetElement", function () {
         this.hamburger = hamburger;
         this.menu = menu;
         this.workArea = workArea;
-        this.narrow = true;
-        this.menuOpen = false;
+      }
+
+      initializeState() {
+        return { narrow: true, menuOpen: false };
       }
 
       render(context) {

@@ -1,4 +1,4 @@
-import { observable, repeat, linkRepeater } from "./Cascade.js";
+import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 
 /**
@@ -74,6 +74,45 @@ export class Component {
     return {};
   }
 
+  // Declare state (see README.md, "Component state and properties").
+  // Returns an object that will determine what will become state properties
+  // for this component, with their defaults - for example {x: 42}. Runs in
+  // the constructor right after setProperties(), so a default may derive
+  // from a property (`{ chosen: this.pages[0].key }`). State variables are
+  // set up so that they can only be written at initialization time, or
+  // from outside any repeater (an event handler), or deliberately via
+  // setState() below - a plain write from any repeater in the pipeline
+  // throws. And a rebuild never resets them: whatever this returns for the
+  // throwaway twin constructed during a rebuild is simply not copied onto
+  // the established object (see cascade.reactive's declareState()).
+  // Properties, by contrast, are re-set from the constructing context on
+  // every rebuild - like a function's arguments. Components without state
+  // leave this alone.
+  initializeState() {
+    return {};
+  }
+
+  // Write state from a place that isn't already at initial time - e.g.
+  // from inside another component's render() (see cascade.ui's
+  // OverlayFrame.showOverlay(), called from Overlay.render()). An event
+  // handler running outside any repeater can just assign the property
+  // directly; this is the equivalent for everywhere else, wrapping
+  // accessInitialValues() so the write lands at the baseline position the
+  // state property already lives at. Only declared state may be written
+  // this way - anything else is a property, and a property written back
+  // in time would be a bug hiding, not a feature.
+  setState(values) {
+    const declared = this.causality.stateProperties;
+    for (const key in values) {
+      if (!declared || !declared.has(key)) {
+        throw new Error("setState(): '" + key + "' is not a state property of this component - declare it in initializeState().");
+      }
+    }
+    accessInitialValues(() => {
+      for (const key in values) this[key] = values[key];
+    });
+  }
+
   // Accepts flow.core's own mixed argument-list convention (see
   // implicitProperties.js, ported from flow.core/src/implicitProperties.js):
   // a leading loose string/number becomes the implicit key, other loose
@@ -110,6 +149,12 @@ export class Component {
     this.key = extractProperty(properties, "key") || null;
     const me = observable(this, this.key);
     me.setProperties(properties);
+    // Unconditionally - no attempt to detect a rebuild here. During one,
+    // `me` is the established object but its writes are redirected to the
+    // throwaway twin (see cascade.reactive's setHandlerObject/forwardTo),
+    // and mergeInto() then skips state when copying the twin back - so
+    // the gate lives there, in one place, not in every constructor.
+    declareState(me, me.initializeState());
     return me;
   }
 
@@ -399,6 +444,22 @@ export class Component {
   // itself never re-executes render() to do it another way. No-op by
   // default.
   onReattach(context) {}
+
+  // Called by cascade.reactive (see finishRebuilding()) when this
+  // component's build identity is gone: whoever's build() constructed it
+  // with a key has rerun without constructing that key again, so this
+  // component is dropped from the tree for good. Retract its own repeater
+  // right here (cascading to its buildRepeater and everything rendered
+  // underneath) rather than waiting for whatever renders it to rerun and
+  // notice it wasn't relinked - that can come *after* a stale rerun of
+  // this component, already queued by the very disposal that dropped it,
+  // gets processed against properties that disposal has since unlinked
+  // (see cascade.reactive's retractRepeater() for the full shape). A
+  // subclass overriding this for its own cleanup must call super.onDispose().
+  onDispose() {
+    const u = this.unobservable;
+    if (u.repeater) retractRepeater(u.repeater);
+  }
 
   // Ported from flow.core's Component.js verbatim - a conditional-
   // inclusion helper for a build() result: `parent(a, b.show(cond), c)`

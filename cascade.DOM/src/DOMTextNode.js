@@ -1,4 +1,4 @@
-import { extractProperty, accessInitialValues } from "@liquefy/cascade.component";
+import { extractProperty } from "@liquefy/cascade.component";
 import { DOMNodeComponent } from "./DOMNodeComponent.js";
 
 /**
@@ -9,15 +9,7 @@ import { DOMNodeComponent } from "./DOMNodeComponent.js";
  */
 export class DOMTextNode extends DOMNodeComponent {
   setProperties(properties) {
-    // accessInitialValues() - see DOMElementNode.js's own setProperties()
-    // for why: a plain write here would be positioned within whichever
-    // repeater happens to be constructing this node right now, so
-    // disposing that repeater (e.g. an ancestor rebuilding while this
-    // exact node is also being dropped from the tree) could unlink it
-    // before a still-queued, stale rerun of this node's own render()
-    // reads it back.
-    const text = extractProperty(properties, "text");
-    accessInitialValues(() => { this.text = text; });
+    this.text = extractProperty(properties, "text");
   }
 
   renderElement(context, existingElement) {

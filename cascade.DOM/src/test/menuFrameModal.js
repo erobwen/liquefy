@@ -49,7 +49,10 @@ describe("MenuFrame modal/docked breakpoint", function () {
       super();
       this.menu = menu;
       this.workArea = workArea;
-      this.menuOpen = false;
+    }
+
+    initializeState() {
+      return { menuOpen: false };
     }
 
     renderElement(context, existingElement) {

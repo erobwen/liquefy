@@ -37,7 +37,15 @@ const logg = (string) => {
  *
  ************************************************************************/
 
+// Copy a freshly-constructed twin's (source) properties onto the
+// established object (target) it was reconciled with during a rebuild.
+// State properties (see declareState() in cascade.js) are deliberately
+// skipped: they belong to the established object's own life, not to
+// whatever this rebuild happened to construct - copying them would reset
+// them to their defaults on every rebuild.
 export function mergeInto(target, source) {
+  const stateProperties = target.causality.stateProperties || null;
+  const isState = (property) => stateProperties !== null && stateProperties.has(property);
   if (source instanceof Array) {
     let splices = differentialSplices(target.causality.target, source.causality.target);
     splices.forEach(function(splice) {
@@ -48,12 +56,13 @@ export function mergeInto(target, source) {
       target.splice.apply(target, spliceArguments);
     });
     for (let property in source) {
-      if (isNaN(property)) {
+      if (isNaN(property) && !isState(property)) {
         target[property] = source[property];
       }
     }
   } else {
     for (let property in source) {
+      if (isState(property)) continue;
       target[property] = source[property];
     }
   }

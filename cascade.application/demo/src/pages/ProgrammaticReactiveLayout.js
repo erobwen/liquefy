@@ -14,10 +14,10 @@ import { Component } from "@liquefy/cascade.component";
  * own, so there's nothing individual identity would buy here.
  */
 export class ProgrammaticReactiveLayout extends Component {
-  constructor() {
-    super();
-    this.rows = 3;
-    this.columns = 3;
+  // The user's chosen grid size - state, changed only from the number
+  // fields' input handlers (see createNumberField below).
+  initializeState() {
+    return { rows: 3, columns: 3 };
   }
 
   render(context) {

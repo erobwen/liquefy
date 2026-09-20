@@ -1,4 +1,4 @@
-import { extractProperty, RenderContext, accessInitialValues } from "@liquefy/cascade.component";
+import { extractProperty, RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { DOMTarget } from "./DOMTarget.js";
 import { DOMTextNode } from "./DOMTextNode.js";
@@ -26,10 +26,17 @@ function defaultToPx(value) { // no style property is ever meant to be a bare nu
  * the base's.
  */
 export class DOMElementNode extends DOMNodeComponent {
+  // All three are *properties*, not state (see cascade.component/README.md):
+  // they come from the build() call constructing this node and are meant
+  // to change on every rebuild - applyAttributes() diffs them for exactly
+  // that reason. (A dropped node's stale, still-queued rerun reading them
+  // back as undefined was a real bug here once - fixed where it belongs,
+  // by retracting a dropped component the moment its build identity
+  // vanishes, see Component.onDispose(), not by repositioning these writes.)
   setProperties(properties) {
-    const tagName = extractProperty(properties, "tagName");
-    if (!tagName) throw new Error("DOMElementNode requires a tagName.");
-    const children = extractProperty(properties, "children") || null;
+    this.tagName = extractProperty(properties, "tagName");
+    if (!this.tagName) throw new Error("DOMElementNode requires a tagName.");
+    this.children = extractProperty(properties, "children") || null;
 
     // Real element properties are lowercase (element.onclick, not
     // element.onClick - the latter is silently a no-op, not a stylistic
@@ -39,31 +46,7 @@ export class DOMElementNode extends DOMNodeComponent {
     for (const key in properties) {
       attributes[key.toLowerCase()] = properties[key];
     }
-
-    // accessInitialValues(), not plain writes - a real bug found via
-    // cascade.application/demo's ApplicationMenuFrame/OverlayFrame: a
-    // plain write here lands positioned within whichever repeater
-    // happens to be executing this call's own enclosing build() right
-    // now. If that repeater is later disposed (e.g. an ancestor rebuilds
-    // for an unrelated reason) while this exact DOMElementNode is *also*
-    // being dropped from the tree in that same rebuild, retraction (which
-    // would normally stop it from running again) only actually happens
-    // once whatever renders this node's own children next notices it
-    // wasn't relinked - which can run *after* a stale, already-queued
-    // rerun of this node's own render() (invalidated by the disposal
-    // itself unlinking these very writings) already fires with
-    // tagName/children/attributes read back as undefined. See
-    // Component.js's own reactiveBuildEquivalent() doc, and this bug's
-    // own trail in cascade.application/demo's ApplicationMenuFrame
-    // (MenuList's `frame` property, the same fix, found first).
-    // accessInitialValues() writes at the baseline position instead - not
-    // tied to whichever repeater happens to be constructing this node,
-    // so disposing that repeater can never unlink it.
-    accessInitialValues(() => {
-      this.tagName = tagName;
-      this.children = children;
-      this.attributes = attributes;
-    });
+    this.attributes = attributes;
   }
 
   initialUnobservables() {

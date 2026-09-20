@@ -30,6 +30,7 @@ describe("build()-based composition with key reconciliation", function () {
     }
 
     onDispose() {
+      super.onDispose();
       this.unobservable.disposed = true;
     }
   }

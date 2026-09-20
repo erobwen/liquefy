@@ -164,6 +164,8 @@ function createWorld(configuration) {
     withoutReactions: withoutReactionsDo,
     flush,
     accessInitialValues,
+    declareState,
+    retractRepeater,
 
     // Transaction
     doWhileInvalidationsPostponed: postponeInvalidationsAndDo,
@@ -355,6 +357,51 @@ function createWorld(configuration) {
     state.context = savedContext;
     updateContextState();
     return result;
+  }
+
+  // Declare some of an observable's properties as *state*, as opposed to
+  // ordinary properties (see cascade.component/README.md, "Component state
+  // and properties"): initialized exactly once, when the object is
+  // established, and thereafter changed only from outside any repeater
+  // (an event handler reacting to the user) or deliberately, at initial
+  // time (accessInitialValues()) - never as a side effect of some repeater
+  // in the pipeline recomputing. Two things follow, both enforced here:
+  //
+  //  1. setHandlerObject() throws on a write to a state property while a
+  //     repeater is executing (state.inRepeater !== null). A write inside
+  //     accessInitialValues() passes - that's the sanctioned way to write
+  //     state from inside a pipeline, exactly what its name says.
+  //  2. mergeInto() (lib/utility.js) skips state properties when a rebuild
+  //     copies a freshly-constructed twin's properties onto the established
+  //     object it was reconciled with (see finishRebuilding()) - so a
+  //     rebuild can never reset state back to its defaults. This is the one
+  //     place the distinction is gated: during a rebuild the constructed
+  //     object is a throwaway anyway (setHandlerObject redirects its writes
+  //     there via forwardTo), so a constructor is free to write defaults
+  //     unconditionally without knowing whether it's a rebuild - it simply
+  //     doesn't get copied back.
+  //
+  // The defaults are written at the baseline position (time 0, writer
+  // null), same as an object literal's own construction data (see
+  // moveTargetDataIntoTimelines) - deliberately *not* positioned within
+  // whatever repeater happens to be constructing the object, so disposing
+  // that repeater later can never unlink them.
+  function declareState(object, defaults) {
+    if (!isObservable(object)) throw new Error("declareState() expects an observable object.");
+    const meta = object[objectMetaProperty];
+    const register = (someMeta) => {
+      if (!someMeta.stateProperties) someMeta.stateProperties = new Set();
+      Object.keys(defaults).forEach((key) => someMeta.stateProperties.add(key));
+    };
+    register(meta);
+    // While being rebuilt, writes to `object` land on its temporary twin
+    // (see setHandlerObject's forwardTo redirect) - register there too, so
+    // the write guard below treats both sides consistently.
+    if (meta.forwardTo !== null) register(meta.forwardTo[objectMetaProperty]);
+    accessInitialValues(() => {
+      Object.keys(defaults).forEach((key) => { object[key] = defaults[key]; });
+    });
+    return object;
   }
 
 
@@ -1719,6 +1766,17 @@ function createWorld(configuration) {
       return forwardToHandler.set.apply(forwardToHandler, [forwardToHandler.target, key, value]);
     }
 
+    // State properties (see declareState()) may only be written outside
+    // any repeater - from an event handler, or at initial time via
+    // accessInitialValues(), which nulls state.context and so passes here.
+    if (this.meta.stateProperties && this.meta.stateProperties.has(key) && state.inRepeater !== null) {
+      throw new Error(
+        "Cannot write state property '" + key + "' from inside a repeater. " +
+        "State is written at initialization (declareState/initializeState), from an event handler outside any repeater, " +
+        "or deliberately at initial time via accessInitialValues()/setState()."
+      );
+    }
+
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
@@ -2628,32 +2686,58 @@ function createWorld(configuration) {
         removeAllSources(node);
         retractPartialChainSlot(node);
       } else {
-        node.dispose();
-        finalizeChildren(node);
-        // node itself is never running again to reclaim any of its own
-        // staleWritings via a fresh write - what's left there (nothing
-        // was ever claimed, since it never reran) is genuinely gone.
-        finalizeStaleWritings(node);
-        // Pure hygiene, not a correctness requirement - a disposed/
-        // retracted repeater found sitting in a heap is already
-        // unconditionally discarded regardless of workStatus (see
-        // drainActivePipeline()), but there's no reason to leave a
-        // dangling workStatus/flagRecords around on something that will
-        // never run again either.
-        node.workStatus = null;
-        node.flagRecords = null;
-        node.retracted = true;
-        // Fires exactly once per genuine retraction (not on every dispose()
-        // - a rerun or a relink never reaches here). For side effects the
-        // reactive system doesn't know about (a DOM node parented outside
-        // any observable, a subscription, ...) that need cleaning up even
-        // though the repeater itself stays alive and re-linkable. If the
-        // repeater is later relinked and retracted again, this fires again.
-        if (node.options.onRetract) node.options.onRetract(node);
+        // May already be retracted - see retractRepeater() below: a child
+        // retracted early, on its own, stays in its parent's confirmed
+        // children list until the parent's own next rerun brings it here,
+        // where it just needs unlinking (done above), nothing more.
+        retractRepeater(node);
       }
       node = next;
     }
     repeater.pendingChildren = createChildList();
+  }
+
+  // Genuinely retract a repeater: it is not running again unless something
+  // relinks it (see linkRepeater()/Component.renderOnto()'s wasRetracted
+  // path). The normal route here is finalizeChildren() above - a child
+  // simply not relinked during its parent's rerun. Exposed on its own
+  // because that route can lose a race: the parent's own dispose() at the
+  // start of that rerun unlinks all of its prior run's writings, and a
+  // child that depended on one of them (a property written into it at
+  // construction, say) is thereby invalidated and scheduled *before* the
+  // rerun even gets as far as noticing the child is gone. If the child is
+  // also being dropped from the tree in this same rerun, finalizeChildren
+  // only ever reaches it once whatever renders it next actually reruns -
+  // which the heap can easily get to *after* the child's own stale,
+  // already-scheduled rerun. Retracting it here instead, the moment its
+  // build identity is known to have vanished (see finishRebuilding()'s
+  // dispose-event branch, and Component.onDispose()), is what makes the
+  // scheduler's own `if (repeater.retracted) continue` check actually
+  // catch it in time. Idempotent - retracting twice is a no-op.
+  function retractRepeater(node) {
+    if (node.retracted) return;
+    node.dispose();
+    finalizeChildren(node);
+    // node itself is never running again to reclaim any of its own
+    // staleWritings via a fresh write - what's left there (nothing
+    // was ever claimed, since it never reran) is genuinely gone.
+    finalizeStaleWritings(node);
+    // Pure hygiene, not a correctness requirement - a disposed/
+    // retracted repeater found sitting in a heap is already
+    // unconditionally discarded regardless of workStatus (see
+    // drainActivePipeline()), but there's no reason to leave a
+    // dangling workStatus/flagRecords around on something that will
+    // never run again either.
+    node.workStatus = null;
+    node.flagRecords = null;
+    node.retracted = true;
+    // Fires exactly once per genuine retraction (not on every dispose()
+    // - a rerun or a relink never reaches here). For side effects the
+    // reactive system doesn't know about (a DOM node parented outside
+    // any observable, a subscription, ...) that need cleaning up even
+    // though the repeater itself stays alive and re-linkable. If the
+    // repeater is later relinked and retracted again, this fires again.
+    if (node.options.onRetract) node.options.onRetract(node);
   }
 
   function defaultCreateRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding) {

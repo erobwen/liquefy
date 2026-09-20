@@ -31,10 +31,8 @@ describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", functio
   });
 
   class Page extends Component {
-    constructor() {
-      super();
-      this.heading = "Hello";
-      this.highlighted = false;
+    initializeState() {
+      return { heading: "Hello", highlighted: false };
     }
 
     build() {

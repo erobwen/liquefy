@@ -1,4 +1,4 @@
-import { Component, flush, accessInitialValues } from "@liquefy/cascade.component";
+import { Component, flush } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 
 /**
@@ -41,22 +41,25 @@ export class OverlayFrame extends Component {
     // instead, for a frame that's dedicated to one specific modal rather
     // than a general, shared one any Overlay can find via inherit().
     this.receivedOverlayContent = overlayContent || null;
-    // This first write matters more than it looks: it's what establishes
-    // `assignedOverlayContent`'s own *baseline* writing at (time 0,
-    // writer null) - accessInitialValues()'s own position - rather than
-    // wherever this constructor happens to be running (typically
-    // whatever repeater is inside build() constructing this frame).
-    // showOverlay()/hideOverlay() below write through accessInitialValues()
-    // too, specifically so they land on and reuse *this exact* writing,
-    // not a fresh one spliced in ahead of it that could never actually
-    // reach a reader positioned after it (see their own comment).
-    accessInitialValues(() => { this.assignedOverlayContent = null; });
     // Provides itself for inherit("overlayFrame") - see Component.provide().
     this.overlayFrame = this;
   }
 
+  // What some Overlay has currently assigned to this frame is *state* (see
+  // cascade.component/README.md): established as nothing, then changed
+  // only through showOverlay()/hideOverlay() below - and, crucially, never
+  // reset by a rebuild, even though this frame is reconstructed (and
+  // reconciled by key) every time whoever builds it reruns. Declaring it
+  // here is also what positions it at the baseline (time 0, writer null),
+  // which is exactly where setState() in show/hideOverlay writes it back
+  // to - the same writing, reused, not a fresh one spliced in ahead of a
+  // reader that could never actually reach it (see their comment).
+  initializeState() {
+    return { assignedOverlayContent: null };
+  }
+
   initialUnobservables() {
-    return { modalSubFrame: null, assigningContentProvider: null };
+    return { assigningContentProvider: null };
   }
 
   // Called by an Overlay component (via inherit("overlayFrame")) when it
@@ -76,20 +79,22 @@ export class OverlayFrame extends Component {
   // flush()/accessInitialValues() were built for (a modal whose frame
   // already rendered needing new content added back into it, in the same
   // frame, without flicker - see docs/plan-flagged-scheduling.md).
-  // accessInitialValues() makes the write land at the baseline position
-  // (before everything), reusing the exact writing set up in setProperties
-  // above rather than splicing a new one in ahead of it that could never
-  // reach OverlayFrame's own reader either way - and flush() makes sure
-  // the resulting rebuild happens within this same wave rather than
-  // waiting for the next one.
+  // setState() (Component.js) makes the write land at the baseline
+  // position (before everything), reusing the exact writing
+  // initializeState() above set up rather than splicing a new one in
+  // ahead of it that could never reach OverlayFrame's own reader either
+  // way - it's also the only way a state property *may* be written from
+  // inside a repeater at all - and flush() makes sure the resulting
+  // rebuild happens within this same wave rather than waiting for the
+  // next one.
   showOverlay(contentProvider, overlayContent) {
     this.unobservable.assigningContentProvider = contentProvider;
-    flush(() => accessInitialValues(() => { this.assignedOverlayContent = overlayContent; }));
+    flush(() => this.setState({ assignedOverlayContent: overlayContent }));
   }
 
   hideOverlay(contentProvider) {
     if (this.unobservable.assigningContentProvider === contentProvider) {
-      flush(() => accessInitialValues(() => { this.assignedOverlayContent = null; }));
+      flush(() => this.setState({ assignedOverlayContent: null }));
     }
   }
 

@@ -3,3 +3,46 @@
 Placeholder. This will be the component model for the Cascade generation of
 the framework - the corresponding piece to `flow.core`, built on
 `cascade.reactive` instead of `causality`. Not implemented yet.
+
+# Invariants
+
+## Building Sub Components
+
+A component is created either on the top level or as a child of another component. 
+
+If a component is created by its creator the following needs to hold. 
+
+1. Either the component is created in the creators build function. Then either a key is used, or pattern matching is used to create a stable object identity during rebuild. 
+
+2. A component can be created in the creators initialization function, or using some other way by a reactive mechanism. Such a component could be kept track of using a property or an unobserveable property, and the creator is in charge of the lifecycle.  
+
+WARNING: There is a danger in combining both these methods. If a component is created during the creatprs build call, it will be registered in the rebuild process, and even if the creator keeps track of a reference to the component, the rebuild system might depose it. 
+
+## Component state and properties
+
+The component properties are given by its context during construction, and could change during re-building. They are similar to the arguments of a function call. 
+
+The component state howerver, is only initialized once upon component establishment, and is thereafter only changed by user interactions that directly manipulate the state, and in some cases indirect events that are also caused by user interaction.
+
+## State declaration
+
+It is important that state is not overwritten during re-creation. In Flow, there was a weak convention based idea that the constructor of a component should never touch the component state associated object properties. This led to the awkward idea that the constructor could not even add default values or declare them in some way. 
+
+In cascade we will introduce a more robust mechanism. We will have a separate function called initializeState() that each component can override to define its state properties. This one will be run in the constructor after the call to "me.setProperties(properties)"; The function will return an object whose properties will determine the state properties of this component, containing names and default values (that could be based off other component properties).
+
+The key point is that a state property should only ever be possible to write in initialization time. Writing it by some later pipeline repeater should result in error. For this purpose, we need a cascade.reactive mechanism for doing so. 
+
+## State during rebuild
+
+State handling during re-build is the most tricky. Because then a new object will be created, sometimes borrowing the object identity of the first object during rebuld (using the forward mechanism), and then at the end of rebuild the properties of the newly created object is copied to the existing object while giving back the object identity. It is important that state properties are NOT copied back to the existing object, as that would reset them to  a default value. 
+
+So already in cascade.reactive there needs to be an awarance of state properties, that behaves differently than other properties. First during assignment in the pipeline, and also during property copying rebuild.  
+
+## Implementation
+
+- `Component.initializeState()` - override it to return `{name: default, ...}`. It runs in the constructor right after `setProperties()`, so a default may derive from a property. The constructor hands the result to cascade.reactive's `declareState(object, defaults)`, which marks the names as state on the object's meta and writes the defaults at the baseline position (time 0, no writer) - like construction data, not tied to whichever repeater happened to be constructing the component.
+- Writing a state property from inside a repeater throws (`setHandlerObject` in cascade.reactive). Event handlers run outside any repeater and can just assign. From anywhere else, use `Component.setState({name: value})` - it wraps `accessInitialValues()`, so the write lands on the baseline writing the state already lives at, and it rejects names that were never declared.
+- During rebuild, `mergeInto()` (cascade.reactive/src/lib/utility.js) skips state properties when copying the throwaway object's properties onto the established one. That is the only gate - the constructor never tries to detect a rebuild, it just writes its defaults (they go to the throwaway, and are not copied back).
+- A dropped sub component (its key no longer constructed by the creator's build) is retracted immediately, in `Component.onDispose()` via `retractRepeater()`, so no already-queued stale rerun of it can run first. A component overriding `onDispose()` must call `super.onDispose()`.
+
+Three kinds of fields, then: *properties* (re-set from the constructing context on every rebuild), *state* (established once, changed by the user, exempt from rebuild copying), and *unobservables* (`this.unobservable`, plain non-reactive bookkeeping).

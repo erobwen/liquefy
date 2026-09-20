@@ -1,4 +1,4 @@
-import { Component, RenderContext, postponeInvalidations, continueInvalidations, accessInitialValues } from "@liquefy/cascade.component";
+import { Component, RenderContext, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, button, DOMTarget, bridgeToDOMTargetElement } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
 
@@ -52,17 +52,18 @@ const TOP_BAR_HEIGHT = 48;
 export class ApplicationMenuFrame extends Component {
   setProperties({ pages }) {
     this.pages = pages;
-    this.chosen = pages[0].key; //TODO: REMOVE! 
-    this.menuOpen = false; // TODO: REMOVE! 
-    // TODO: Generate warning if state is assigned during constructor!
-    // Properties are always assigned by parent. 
   }
 
-  // TODO
-  // initialize() {
-  //   this.chosen = pages[0].key;
-  //   this.menuOpen = false; 
-  // }
+  // Which page is showing and whether the modal menu is open are *state*
+  // (see cascade.component/README.md): established once here, changed only
+  // by the user - choose(), the hamburger and the backdrop are all event
+  // handlers, outside any repeater - and never reset by a rebuild. The
+  // measurements render() writes (menuIsModal, workAreaWidth/Height) are
+  // deliberately *not* state: render() is a repeater and recomputes them
+  // every run - a state write from there would (correctly) throw.
+  initializeState() {
+    return { chosen: this.pages[0].key, menuOpen: false };
+  }
 
   choose(key) {
     this.chosen = key;
@@ -74,7 +75,6 @@ export class ApplicationMenuFrame extends Component {
   }
 
   render(context) {
-    console.log("RENDER");
     const u = this.unobservable;
     if (!u.el) u.el = context.target.createChild("div");
     const el = u.el.element;
@@ -88,18 +88,18 @@ export class ApplicationMenuFrame extends Component {
     // Plain observable properties, not RenderContext fields - build()
     // (called below) reads `this.X` directly, not a context argument (see
     // Component.build()'s own signature - it takes none).
-    // postponeInvalidations();
-    accessInitialValues(() => {
-      this.menuIsModal = menuIsModal;
-      // console.log(this.menuIsModal);
-      if (!this.menuIsModal) {
-        this.menuOpen = false; 
-        // console.log(this.menuOpen);
-      }
-      this.workAreaWidth = (menuIsModal ? totalRect.width : totalRect.width - MENU_WIDTH) - 32;
-      this.workAreaHeight = totalRect.height - TOP_BAR_HEIGHT - 32;
-    });
-    // continueInvalidations();
+    postponeInvalidations();
+    this.menuIsModal = menuIsModal;
+    this.workAreaWidth = (menuIsModal ? totalRect.width : totalRect.width - MENU_WIDTH) - 32;
+    this.workAreaHeight = totalRect.height - TOP_BAR_HEIGHT - 32;
+    continueInvalidations();
+
+    // Going wide closes an open modal menu - the drawer is docked now, so
+    // there's nothing for `menuOpen` to mean. That's a *state* change (see
+    // initializeState()), caused by the user resizing, not by the pipeline
+    // recomputing - but render() is a repeater, so a plain assignment here
+    // would (correctly) throw: setState() is the sanctioned way.
+    if (!menuIsModal) this.setState({ menuOpen: false });
 
     const equivalent = this.reactiveBuildEquivalent();
     equivalent.renderOnto(u.innerContext);
@@ -194,26 +194,13 @@ export class ApplicationMenuFrame extends Component {
 // focus), so recreating it is harmless - unlike the page components in
 // the work area, which is why those go through a stable bridge instead.
 class MenuList extends Component {
+  // Both plain properties, passed in fresh on every rebuild. (A dropped
+  // MenuList's stale, still-queued rerun once read `frame` back as
+  // undefined here - now prevented by Component.onDispose() retracting a
+  // dropped component the moment its build identity vanishes, rather than
+  // by repositioning this write.)
   setProperties({ frame, style }) {
-    // accessInitialValues(), not a plain write - a real bug found via
-    // this exact demo: MenuList's own buildRepeater reads `this.frame`,
-    // but a plain write here lands positioned within whichever repeater
-    // happened to be executing ApplicationMenuFrame.build() right now -
-    // ApplicationMenuFrame's own buildRepeater. Every resize disposes and
-    // rebuilds that repeater, which unlinks *all* of its own prior run's
-    // writings, `frame`'s included - and that unlinking itself invalidates
-    // MenuList's own buildRepeater, queuing it for a rerun even on a
-    // resize where MenuList (docked -> modal) is the one being dropped
-    // from the tree entirely. Since MenuList is genuinely retracted (not
-    // relinked) only once something further up its own render-parent
-    // chain (OverlayFrame's own "frame" div) actually reruns to notice it
-    // - which can happen *after* this queued, stale rerun is processed -
-    // build() runs at least once more with `frame` already unlinked,
-    // reading undefined. accessInitialValues() writes at the baseline
-    // position instead - not tied to ApplicationMenuFrame's own
-    // buildRepeater's partial at all, so disposing that repeater can
-    // never unlink it.
-    accessInitialValues(() => { this.frame = frame; });
+    this.frame = frame;
     this.style = style || null;
   }
 

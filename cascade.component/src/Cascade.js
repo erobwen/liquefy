@@ -24,5 +24,7 @@ export const {
   continueInvalidations,
   flush,
   accessInitialValues,
+  declareState,
+  retractRepeater,
   state,
 } = world;

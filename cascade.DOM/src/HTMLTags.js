@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/cascade.component";
-import { taggedElement } from "./DOMElementNode.js";
+import { taggedElement } from "./DOMElementComponent.js";
 
 /**
  * HTML tags - ported from flow.DOM/src/HTMLTags.js, one line per tag,

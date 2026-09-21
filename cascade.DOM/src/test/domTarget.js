@@ -202,7 +202,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
 
     // b is already target.lastChild, already last - reconfirming it (the
     // way a rerun that reuses its element, but didn't move it, still does
-    // every time - see DOMElementNode.renderElement()'s own comment) must
+    // every time - see DOMElementComponent.renderElement()'s own comment) must
     // not move it again.
     target.reattachElement(b);
     assert.equal(moveCount, 0, "b was already exactly where it belongs");

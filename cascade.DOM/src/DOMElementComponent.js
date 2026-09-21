@@ -1,7 +1,7 @@
 import { extractProperty, RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMTarget } from "./DOMTarget.js";
-import { DOMTextNode } from "./DOMTextNode.js";
+import { DOMTextComponent } from "./DOMTextComponent.js";
 import { applyStyle as diffApplyStyle } from "./applyStyle.js";
 
 /**
@@ -21,7 +21,7 @@ import { applyStyle as diffApplyStyle } from "./applyStyle.js";
  * notion of children at all, so that's this class's own addition, not
  * the base's.
  */
-export class DOMElementNode extends DOMNodeRenderComponent {
+export class DOMElementComponent extends DOMNodeRenderComponent {
   // All three are *properties*, not state (see cascade.component/README.md):
   // they come from the build() call constructing this node and are meant
   // to change on every rebuild - applyAttributes() diffs them for exactly
@@ -31,7 +31,7 @@ export class DOMElementNode extends DOMNodeRenderComponent {
   // vanishes, see Component.onDispose(), not by repositioning these writes.)
   setProperties(properties) {
     this.tagName = extractProperty(properties, "tagName");
-    if (!this.tagName) throw new Error("DOMElementNode requires a tagName.");
+    if (!this.tagName) throw new Error("DOMElementComponent requires a tagName.");
     this.children = extractProperty(properties, "children") || null;
 
     // Real element properties are lowercase (element.onclick, not
@@ -118,7 +118,7 @@ export class DOMElementNode extends DOMNodeRenderComponent {
 
   // Delegates to the shared applyStyle.js (see its own doc) - every
   // component that owns a real element and accepts `style` directly needs
-  // this same diffing, not just DOMElementNode.
+  // this same diffing, not just DOMElementComponent.
   applyStyle(element, newStyle) {
     const u = this.unobservable;
     u.previouslySetStyle = diffApplyStyle(element, newStyle, u.previouslySetStyle);
@@ -145,7 +145,7 @@ export class DOMElementNode extends DOMNodeRenderComponent {
       // this is the DOM-specific other half of that: what a plain string
       // child actually means once there's a real element to put it in).
       const childComponent = (typeof(child) === "string" || typeof(child) === "number")
-        ? new DOMTextNode({ text: child })
+        ? new DOMTextComponent({ text: child })
         : child;
       childComponent.renderOnto(u.childContext);
     });
@@ -153,5 +153,5 @@ export class DOMElementNode extends DOMNodeRenderComponent {
 }
 
 export function taggedElement(tagName, properties) {
-  return new DOMElementNode({ tagName, ...properties });
+  return new DOMElementComponent({ tagName, ...properties });
 }

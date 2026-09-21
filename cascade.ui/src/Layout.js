@@ -34,7 +34,7 @@ import { taggedElement } from "@liquefy/cascade.dom";
  *
  * flow's own componentTypeName argument to styledDiv() (purely a debug-id
  * label, baked into flow.core's own aggregateToString()-style element id)
- * isn't ported - cascade.DOM's DOMElementNode doesn't have an equivalent
+ * isn't ported - cascade.DOM's DOMElementComponent doesn't have an equivalent
  * hook yet (setProperties() has no special case for it, so passing one
  * through today would just land as a meaningless "componenttypename" DOM
  * attribute instead). Every element built here still gets a real, unique

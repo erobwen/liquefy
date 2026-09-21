@@ -3,10 +3,10 @@ import assert from "assert";
 import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
 import { div, h1, p, ul, li } from "../HTMLTags.js";
-import { text as textNode, DOMTextNode } from "../DOMTextNode.js";
+import { text as textNode, DOMTextComponent } from "../DOMTextComponent.js";
 
 // Exercises the tag-builder layer (HTMLTags -> taggedElement ->
-// DOMElementNode/DOMTextNode) the way a real component actually uses it:
+// DOMElementComponent/DOMTextComponent) the way a real component actually uses it:
 // build() returning a tree of div/h1/p/ul/li/loose-string-children, the
 // same style flow.application/demo/src/pages/introductionPage.js is
 // written in - see cascade.application/demo/src/pages/IntroductionPage.js
@@ -21,7 +21,7 @@ import { text as textNode, DOMTextNode } from "../DOMTextNode.js";
 // (an observable component instance is never mistaken for key content),
 // and an explicit `key` on each element is what actually lets its own
 // real DOM element identity survive a rebuild (see the third test).
-describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", function () {
+describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", function () {
   let container;
 
   beforeEach(function () {
@@ -101,19 +101,19 @@ describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", functio
     assert.equal(container.children[0].children[0].textContent, "Hello again");
   });
 
-  // text()'s own dual signature (see DOMTextNode.js) - `text("value")`
+  // text()'s own dual signature (see DOMTextComponent.js) - `text("value")`
   // (unkeyed, used above) vs `text({key, text})`/`text("value", {key})`
   // (keyed) - and why the keyed form matters: found while building
   // cascade.application/demo's RecursiveDemo, whose whole point is
   // demonstrating minimal DOM updates through a chain of components that
   // *all* rerun their own build() on every change. A loose string child
-  // (DOMElementNode.render()'s own auto-wrap) is always a fresh, unkeyed
-  // DOMTextNode - reconciled by nothing, so a real DOM Text node gets
+  // (DOMElementComponent.render()'s own auto-wrap) is always a fresh, unkeyed
+  // DOMTextComponent - reconciled by nothing, so a real DOM Text node gets
   // recreated on every single rerun of whatever renders it, even when the
   // text itself doesn't actually change. A keyed text() node instead
-  // reconciles to the same DOMTextNode instance (and so the same real
+  // reconciles to the same DOMTextComponent instance (and so the same real
   // Text node) across reruns, mutating `.data` in place only when the
-  // content genuinely differs - the same story DOMElementNode's own keyed
+  // content genuinely differs - the same story DOMElementComponent's own keyed
   // elements already have, just for a leaf text node instead of a tag.
   it("text({key, text}) reconciles to the same real Text node across a rerun, mutating its data in place - unlike an unkeyed loose string child", function () {
     class KeyedPage extends Component {
@@ -229,7 +229,7 @@ describe("DOMElementNode/HTMLTags (build()-composed real DOM elements)", functio
     // every Leaf inherits (rerunning each Leaf's build(), reusing its
     // existing real element throughout, per the test above), then add a
     // *new* Level as a later sibling of the existing one. Without
-    // DOMElementNode.renderElement() reconfirming a reused element's
+    // DOMElementComponent.renderElement() reconfirming a reused element's
     // position on every render (not just on creation), the existing
     // Level's earlier write to target.lastChild gets silently retracted
     // the moment its own repeater is invalidated for that rerun - it never

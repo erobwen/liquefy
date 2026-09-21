@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, input, text, DOMTargetBridge } from "@liquefy/cascade.dom";
+import { div, button, input, text, DOMBuildBridge } from "@liquefy/cascade.dom";
 
 /**
  * Recursive Demo - ported from
@@ -15,9 +15,9 @@ import { div, button, input, text, DOMTargetBridge } from "@liquefy/cascade.dom"
  * changed - but the real DOM barely moves, because:
  *  - every build()-composed element here carries an explicit key, so it
  *    reconciles to the *same* real element across rebuilds instead of
- *    being torn down and recreated (see DOMElementNode.js's own key-based
+ *    being torn down and recreated (see DOMElementComponent.js's own key-based
  *    reconciliation, and this file's own use of keyed text() nodes -
- *    DOMElementNode.render()'s own auto-wrap of a loose string/number
+ *    DOMElementComponent.render()'s own auto-wrap of a loose string/number
  *    child is deliberately *not* used for any text that might actually
  *    change, since that wrap is always fresh and unkeyed);
  *  - a component whose own inputs didn't genuinely change (same value,
@@ -39,7 +39,7 @@ import { div, button, input, text, DOMTargetBridge } from "@liquefy/cascade.dom"
  *    build() reruns for unrelated reasons (a sibling level being added or
  *    removed further down the chain, say).
  */
-export class RecursiveDemo extends DOMTargetBridge {
+export class RecursiveDemo extends DOMBuildBridge {
   // The number of levels (More/Less), and the value every Item shares -
   // both changed only by the user (the buttons, the shared-value input's
   // own oninput handler), never reset by a rebuild.

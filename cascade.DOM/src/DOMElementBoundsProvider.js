@@ -19,7 +19,7 @@ import { applyStyle } from "./applyStyle.js";
  * component imposing any layout of its own; it has no default style at all.
  * That's what lets a creator's child avoid an *extra* wrapper div purely
  * for sizing purposes - the same reasoning ApplicationMenuFrame.js's own
- * class doc gives for skipping DOMTargetBridge entirely at its own root.
+ * class doc gives for skipping DOMBuildBridge entirely at its own root.
  *
  * Also owns the one window resize listener needed to keep the measurement
  * current, so nothing above this component has to manage one itself.

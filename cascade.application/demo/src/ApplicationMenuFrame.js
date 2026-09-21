@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, bridgeToDOMTargetElement, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
+import { div, button, legacyBridge, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
 
 const MENU_WIDTH = 220;
@@ -43,7 +43,7 @@ const TOP_BAR_HEIGHT = 48;
  *
  * No DOMTargetElement/DOMTarget bridging needed here at all (unlike
  * IntroductionPage/RecursiveDemo, which still need cascade.DOM's
- * DOMTargetBridge, since WorkArea hands every page a DOMTargetElement-based
+ * DOMBuildBridge, since WorkArea hands every page a DOMTargetElement-based
  * context) - this is the frame's own root, rendered directly by index.js,
  * which hands it a DOMTarget-based context to begin with (nothing else ever
  * needs #application's children tracked the older, createChild()-based way,
@@ -56,9 +56,9 @@ const TOP_BAR_HEIGHT = 48;
  *
  * Menu/WorkArea's previous DOMTargetElement-based children (Introduction/
  * ProgrammaticReactiveLayout) are unchanged - reached here via
- * bridgeToDOMTargetElement() (see cascade.DOM/src/DOMTargetElementBridge.js),
- * the boundary between this build()-based, DOMTarget-based frame and that
- * still-DOMTargetElement-based page content.
+ * legacyBridge() (see cascade.DOM/src/DOMLegacyBridge.js), the boundary
+ * between this build()-based, DOMTarget-based frame and that still-
+ * DOMTargetElement-based page content.
  */
 export class ApplicationMenuFrame extends Component {
   setProperties({ pages }) {
@@ -141,7 +141,7 @@ class ApplicationMenuFrameLayout extends Component {
       div({ key: "label" }, "Toolbar"),
     );
 
-    const workArea = bridgeToDOMTargetElement({
+    const workArea = legacyBridge({
       key: "workArea",
       child: page.component,
       style: {

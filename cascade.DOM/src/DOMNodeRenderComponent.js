@@ -29,7 +29,7 @@ export class DOMNodeRenderComponent extends Component {
     // back exactly which component (and which component built it, and
     // which built *that*, ...) produced it, matched straight against the
     // source. Only on a freshly-created element (nodeType 1 - excludes
-    // DOMTextNode's own Text nodes, which have no id/class to set at
+    // DOMTextComponent's own Text nodes, which have no id/class to set at
     // all) - reusing an existing one never touches it again, same as
     // flow's own version never re-derives it on a later rerun either.
     // Unconditional, no debug-mode flag, matching flow's own choice.

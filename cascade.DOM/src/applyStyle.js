@@ -1,8 +1,8 @@
 // Shared by every component that owns a real element and accepts a `style`
-// property directly (DOMElementNode, and anything else that patches an
+// property directly (DOMElementComponent, and anything else that patches an
 // element's style in place across reruns rather than routing through
-// DOMElementNode's own tag functions - DOMElementBoundsProvider,
-// DOMTargetElementBridge). Ported from flow.DOM's own DOMElementNode.js
+// DOMElementComponent's own tag functions - DOMElementBoundsProvider,
+// DOMLegacyBridge, DOMBuildBridge). Ported from flow.DOM's own DOMElementNode.js
 // (updateStyle()/defaultToPx()) - ~every component in flow accepted `style`
 // as an unwritten convention, and this diffing is what made a *changed*
 // style object correct there too, not just a fresh one: a property present

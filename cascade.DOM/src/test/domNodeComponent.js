@@ -4,10 +4,10 @@ import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
 import { DOMNodeComponent } from "../DOMNodeComponent.js";
 import { div, p } from "../HTMLTags.js";
-import { text } from "../DOMTextNode.js";
+import { text } from "../DOMTextComponent.js";
 
 // DOMNodeComponent (abstract) vs DOMNodeRenderComponent (the render-owning
-// primitive DOMElementNode/DOMTextNode/DOMTargetElementBridge extend
+// primitive DOMElementComponent/DOMTextComponent/DOMLegacyBridge extend
 // directly): this one is for a build()-composed component that should still
 // count as "one real DOM node" to anything upstream - checked here, not
 // left to surface later as a mysterious failure wherever that guarantee was

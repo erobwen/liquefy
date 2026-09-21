@@ -1,7 +1,6 @@
 import { Component } from "@liquefy/cascade.component";
 import { div, button, bridgeToDOMTargetElement, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
-import { Page } from "./pages/Page.js";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -23,11 +22,11 @@ const TOP_BAR_HEIGHT = 48;
  * There's no cross-component lookup to do here: the component that owns
  * `menuOpen` (this one) is the same one that owns the OverlayFrame.
  *
- * This component only implements build() (see Page.js and
- * cascade.component/README.md's "most components should only implement
- * build()"): the DOMTargetElement/DOMTarget bridging that used to force a
- * custom render() here now lives in Page (extended below), and the real,
- * imperative measurement that used to force one too - getBoundingClientRect(),
+ * This component only implements build() (see cascade.component/README.md's
+ * "most components should only implement build()" - render() is meant to
+ * stay the exception, mostly implemented by cascade.DOM-level components,
+ * not application code like this one): the real, imperative measurement
+ * that used to force a custom render() here - getBoundingClientRect(),
  * deciding menuIsModal and how much space the work area has - now lives in
  * DOMElementBoundsProvider (cascade.dom), which also owns the one window
  * resize listener that measurement needs. build() below wraps this frame's
@@ -42,13 +41,26 @@ const TOP_BAR_HEIGHT = 48;
  * this same DOMElementBoundsProvider regardless of how many further layout
  * boundaries a deeper descendant sits behind.
  *
+ * No DOMTargetElement/DOMTarget bridging needed here at all (unlike
+ * IntroductionPage/RecursiveDemo, which still need cascade.DOM's
+ * DOMTargetBridge, since WorkArea hands every page a DOMTargetElement-based
+ * context) - this is the frame's own root, rendered directly by index.js,
+ * which hands it a DOMTarget-based context to begin with (nothing else ever
+ * needs #application's children tracked the older, createChild()-based way,
+ * so there's no reason to route through that API here at all). That also
+ * means DOMElementBoundsProvider's own div ends up as a *direct* child of
+ * #application - no unstyled intermediate div for a percentage height to
+ * get lost in (see this file's own git history for the bug that came from
+ * exactly that, when this frame still routed through an intermediate
+ * bridging div here).
+ *
  * Menu/WorkArea's previous DOMTargetElement-based children (Introduction/
  * ProgrammaticReactiveLayout) are unchanged - reached here via
  * bridgeToDOMTargetElement() (see cascade.DOM/src/DOMTargetElementBridge.js),
  * the boundary between this build()-based, DOMTarget-based frame and that
  * still-DOMTargetElement-based page content.
  */
-export class ApplicationMenuFrame extends Page {
+export class ApplicationMenuFrame extends Component {
   setProperties({ pages }) {
     this.pages = pages;
   }

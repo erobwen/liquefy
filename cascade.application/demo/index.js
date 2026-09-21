@@ -16,7 +16,3 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   ],
 });
 applicationMenuFrame.renderOnto(context);
-
-window.addEventListener("resize", () => {
-  applicationMenuFrame.unobservable.repeater.restart();
-});

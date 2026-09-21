@@ -398,6 +398,17 @@ export class Component {
     // immediate): this parent/child relationship doesn't change just
     // because the actual execution is scheduled for slightly later.
     this.renderParent = getRenderParent();
+    // The context this component was actually renderOnto()'d with, right
+    // now - readable from build() too (a plain property read, so build()'s
+    // own zero-argument signature never has to change), and unconditional
+    // here so no component can forget to save it or reach it via the wrong
+    // hook. Set fresh on every call, relink included, so it always reflects
+    // the most recent context even though relinking itself never reruns
+    // render() - matches RenderContext's own stable-identity-across-reruns
+    // requirement (see RenderContext.js), since a parent that wants its
+    // children to see a changed value mutates its cached instance in place
+    // rather than handing down a new one.
+    this.renderContext = context;
     if (u.repeater) {
       // A repeater that was genuinely retracted (not renderOnto()'d some
       // prior run) stays fully intact and re-linkable - see

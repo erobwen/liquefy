@@ -1,6 +1,7 @@
-import { Component, RenderContext, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
-import { div, button, DOMTarget, bridgeToDOMTargetElement } from "@liquefy/cascade.dom";
+import { Component } from "@liquefy/cascade.component";
+import { div, button, bridgeToDOMTargetElement, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
+import { Page } from "./pages/Page.js";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -22,45 +23,41 @@ const TOP_BAR_HEIGHT = 48;
  * There's no cross-component lookup to do here: the component that owns
  * `menuOpen` (this one) is the same one that owns the OverlayFrame.
  *
- * Measurement (real getBoundingClientRect calls, to decide menuIsModal and
- * how much space the work area actually has) is imperative and ordering-
- * sensitive, so render() is overridden directly here rather than relying
- * on the default build()-then-renderOnto flow (see Component.js's own
- * render() doc) - the same reason the old MainFrame did. build() is still
- * used underneath for the declarative part (top bar/drawer/overlay
- * content), called explicitly from render() via reactiveBuildEquivalent()
- * only after every measurement it needs is already written to `this` as
- * plain observable properties - ordinary forward (parent-writes-before-
- * child-reads) dataflow, the same shape WorkArea/MenuFrame already relied
- * on via RenderContext fields before this restructuring, not the "reach
- * back" shape flush()/accessInitialValues() exist for. See
- * Component.js's own reactiveBuildEquivalent() doc for why it - not a
- * bare, repeater-less build() call (an earlier, abandoned attempt at
- * this same interleaving - see git history) - is what's actually needed
- * here: reconciling a keyed child (like the overlayFrame() call below)
- * only resolves correctly once the repeater that constructed it finishes
- * its own refresh(), and reactiveBuildEquivalent() is what guarantees
- * that happens before this method's own renderOnto() call below ever
- * sees the result.
+ * This component only implements build() (see Page.js and
+ * cascade.component/README.md's "most components should only implement
+ * build()"): the DOMTargetElement/DOMTarget bridging that used to force a
+ * custom render() here now lives in Page (extended below), and the real,
+ * imperative measurement that used to force one too - getBoundingClientRect(),
+ * deciding menuIsModal and how much space the work area has - now lives in
+ * DOMElementBoundsProvider (cascade.dom), which also owns the one window
+ * resize listener that measurement needs. build() below wraps this frame's
+ * actual layout in one of those, as ApplicationMenuFrameLayout - the direct
+ * child that reads the measurement back out via `this.renderContext` (see
+ * Component.js's own renderOnto(), which sets that unconditionally on every
+ * component from whatever context it was actually renderOnto()'d with).
+ * That "direct child" placement isn't incidental: bounds measured this way
+ * only mean anything one hop down from where they were measured, which is
+ * exactly the render()-per-hop, RenderContext-based propagation gives you -
+ * unlike a named inherit()/provide() lookup, which would keep resolving to
+ * this same DOMElementBoundsProvider regardless of how many further layout
+ * boundaries a deeper descendant sits behind.
  *
  * Menu/WorkArea's previous DOMTargetElement-based children (Introduction/
  * ProgrammaticReactiveLayout) are unchanged - reached here via
  * bridgeToDOMTargetElement() (see cascade.DOM/src/DOMTargetElementBridge.js),
- * the boundary between this now build()-based, DOMTarget-based frame and
- * that still-DOMTargetElement-based page content.
+ * the boundary between this build()-based, DOMTarget-based frame and that
+ * still-DOMTargetElement-based page content.
  */
-export class ApplicationMenuFrame extends Component {
+export class ApplicationMenuFrame extends Page {
   setProperties({ pages }) {
     this.pages = pages;
   }
 
   // Which page is showing and whether the modal menu is open are *state*
   // (see cascade.component/README.md): established once here, changed only
-  // by the user - choose(), the hamburger and the backdrop are all event
-  // handlers, outside any repeater - and never reset by a rebuild. The
-  // measurements render() writes (menuIsModal, workAreaWidth/Height) are
-  // deliberately *not* state: render() is a repeater and recomputes them
-  // every run - a state write from there would (correctly) throw.
+  // by the user - choose(), the hamburger and the backdrop (see
+  // ApplicationMenuFrameLayout below) are all event handlers, outside any
+  // repeater - and never reset by a rebuild.
   initializeState() {
     return { chosen: this.pages[0].key, menuOpen: false };
   }
@@ -74,40 +71,47 @@ export class ApplicationMenuFrame extends Component {
     return this.pages.find((page) => page.key === this.chosen);
   }
 
-  render(context) {
-    const u = this.unobservable;
-    if (!u.el) u.el = context.target.createChild("div");
-    const el = u.el.element;
-    el.className = "application-menu-frame";
-    el.style.cssText = "position: relative; box-sizing: border-box; height: 100%; overflow: hidden;";
-    if (!u.innerContext) u.innerContext = new RenderContext(DOMTarget.forElement(el));
+  build() {
+    return new DOMElementBoundsProvider({
+      key: "bounds",
+      className: "application-menu-frame",
+      style: { position: "relative", boxSizing: "border-box", height: "100%", overflow: "hidden" },
+      child: new ApplicationMenuFrameLayout({ key: "layout", frame: this }),
+    });
+  }
+}
 
-    const totalRect = el.getBoundingClientRect();
-    const menuIsModal = totalRect.width < MENU_WIDTH * 3;
-
-    // Plain observable properties, not RenderContext fields - build()
-    // (called below) reads `this.X` directly, not a context argument (see
-    // Component.build()'s own signature - it takes none).
-    postponeInvalidations();
-    this.menuIsModal = menuIsModal;
-    this.workAreaWidth = (menuIsModal ? totalRect.width : totalRect.width - MENU_WIDTH) - 32;
-    this.workAreaHeight = totalRect.height - TOP_BAR_HEIGHT - 32;
-    continueInvalidations();
-
-    // Going wide closes an open modal menu - the drawer is docked now, so
-    // there's nothing for `menuOpen` to mean. That's a *state* change (see
-    // initializeState()), caused by the user resizing, not by the pipeline
-    // recomputing - but render() is a repeater, so a plain assignment here
-    // would (correctly) throw: setState() is the sanctioned way.
-    if (!menuIsModal) this.setState({ menuOpen: false });
-
-    const equivalent = this.reactiveBuildEquivalent();
-    equivalent.renderOnto(u.innerContext);
+// The direct child of the DOMElementBoundsProvider ApplicationMenuFrame
+// builds above - the one place entitled to read the measured bounds back
+// out of `this.renderContext` (see ApplicationMenuFrame's own class doc).
+// Everything state-related (chosen page, menu open/closed) still belongs to
+// `frame`, reached the same way MenuList already reaches it below.
+class ApplicationMenuFrameLayout extends Component {
+  setProperties({ frame }) {
+    this.frame = frame;
   }
 
   build() {
-    const menuIsModal = this.menuIsModal;
-    const page = this.currentPage();
+    const { frame } = this;
+    const bounds = this.renderContext;
+    if (!bounds || typeof(bounds.width) !== "number") {
+      throw new Error("ApplicationMenuFrameLayout requires bounds from a DOMElementBoundsProvider ancestor.");
+    }
+
+    const menuIsModal = bounds.width < MENU_WIDTH * 3;
+    const workAreaWidth = (menuIsModal ? bounds.width : bounds.width - MENU_WIDTH) - 32;
+    const workAreaHeight = bounds.height - TOP_BAR_HEIGHT - 32;
+
+    // Going wide closes an open modal menu - the drawer is docked now, so
+    // there's nothing for `menuOpen` to mean. That's a *state* change on
+    // `frame`, caused by the user resizing rather than by the pipeline
+    // recomputing - setState() (rather than a plain assignment) is what
+    // makes writing it from here, inside this component's own build()
+    // repeater, sanctioned (same shape as cascade.ui's OverlayFrame.
+    // showOverlay(), called from Overlay.render()).
+    if (!menuIsModal) frame.setState({ menuOpen: false });
+
+    const page = frame.currentPage();
 
     const topBar = div(
       { key: "topBar", style: {
@@ -116,12 +120,12 @@ export class ApplicationMenuFrame extends Component {
       } },
       button({
         key: "hamburger",
-        onclick: () => { this.menuOpen = !this.menuOpen; },
+        onclick: () => { frame.menuOpen = !frame.menuOpen; },
         style: {
           width: "32px", height: "32px", border: "none", borderRadius: "4px",
           background: "#1a252f", color: "white", cursor: "pointer", flex: "none", fontSize: "16px",
         },
-      }, "☰").show(menuIsModal && !this.menuOpen),
+      }, "☰").show(menuIsModal && !frame.menuOpen),
       div({ key: "label" }, "Toolbar"),
     );
 
@@ -132,7 +136,7 @@ export class ApplicationMenuFrame extends Component {
         flex: "1 1 auto", minHeight: 0, boxSizing: "border-box", padding: "16px",
         background: "#ecf0f1", overflow: "auto",
       },
-      context: { usableWidth: this.workAreaWidth, usableHeight: this.workAreaHeight },
+      context: { usableWidth: workAreaWidth, usableHeight: workAreaHeight },
     });
 
     const column = div(
@@ -142,7 +146,7 @@ export class ApplicationMenuFrame extends Component {
     );
 
     const drawer = menuIsModal ? null : new MenuList({
-      key: "menu", frame: this,
+      key: "menu", frame,
       style: { width: MENU_WIDTH + "px", flex: "none", height: "100%" },
     });
 
@@ -152,37 +156,36 @@ export class ApplicationMenuFrame extends Component {
       column,
       {
         style: { display: "flex", flexDirection: "row", width: "100%", height: "100%", boxSizing: "border-box", overflow: "hidden" },
-        overlayContent: this.menuOpen && menuIsModal ? this.buildModalMenuDrawer() : null,
+        overlayContent: frame.menuOpen && menuIsModal ? buildModalMenuDrawer(frame) : null,
       },
     );
   }
+}
 
-  buildModalMenuDrawer() {
-    // pointerEvents: "auto" on the backdrop and the drawer itself -
-    // OverlayFrame's own modalSubFrame wrapper (see cascade.ui/src/OverlayFrame.js)
-    // sets pointerEvents: "none" on *itself*, deliberately, so clicks pass
-    // through whatever part of its own area nothing here is using - but
-    // that's inherited by everything nested inside it too, including the
-    // parts that *are* in use, unless explicitly opted back in here. A
-    // real bug found via this exact demo: without this, neither the
-    // backdrop nor the menu items inside the drawer ever receive clicks
-    // at all - matches flow.application's own ApplicationMenuFrame,
-    // which sets this on both for the same reason.
-    return div(
-      { key: "modalDrawer", class: "modal-drawer", style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto" } },
-      div({
-        key: "backdrop",
-        class: "Foo",
-        className: "backdrop",
-        onclick: () => { this.menuOpen = false; },
-        style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.3)" },
-      }),
-      new MenuList({
-        key: "drawerMenu", frame: this,
-        style: { position: "relative", width: MENU_WIDTH + "px", height: "100%", boxShadow: "2px 0 8px rgba(0,0,0,0.3)" },
-      }),
-    );
-  }
+// pointerEvents: "auto" on the backdrop and the drawer itself - OverlayFrame's
+// own modalSubFrame wrapper (see cascade.ui/src/OverlayFrame.js) sets
+// pointerEvents: "none" on *itself*, deliberately, so clicks pass through
+// whatever part of its own area nothing here is using - but that's
+// inherited by everything nested inside it too, including the parts that
+// *are* in use, unless explicitly opted back in here. A real bug found via
+// this exact demo: without this, neither the backdrop nor the menu items
+// inside the drawer ever receive clicks at all - matches flow.application's
+// own ApplicationMenuFrame, which sets this on both for the same reason.
+function buildModalMenuDrawer(frame) {
+  return div(
+    { key: "modalDrawer", class: "modal-drawer", style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto" } },
+    div({
+      key: "backdrop",
+      class: "Foo",
+      className: "backdrop",
+      onclick: () => { frame.menuOpen = false; },
+      style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.3)" },
+    }),
+    new MenuList({
+      key: "drawerMenu", frame,
+      style: { position: "relative", width: MENU_WIDTH + "px", height: "100%", boxShadow: "2px 0 8px rgba(0,0,0,0.3)" },
+    }),
+  );
 }
 
 // The menu's own list of pages - build()-based (unlike the old,

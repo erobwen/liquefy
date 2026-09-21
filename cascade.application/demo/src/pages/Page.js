@@ -22,7 +22,18 @@ import { DOMTarget } from "@liquefy/cascade.dom";
 export class Page extends Component {
   render(context) {
     const u = this.unobservable;
-    if (!u.el) u.el = context.target.createChild("div");
+    // Explicit height (not left auto) so a build()-composed descendant's
+    // own height: 100% (ApplicationMenuFrame.js's DOMElementBoundsProvider,
+    // say) resolves against this bridging div's real parent instead of
+    // this div's own content - otherwise this div, having no height of its
+    // own to report, just auto-sizes to whatever that descendant's content
+    // happens to need, breaking the percentage-height chain in both
+    // directions (shrinks for short content, overflows for tall content -
+    // a real bug found via exactly this).
+    if (!u.el) {
+      u.el = context.target.createChild("div");
+      Object.assign(u.el.element.style, { height: "100%", boxSizing: "border-box" });
+    }
     if (!u.innerContext) {
       u.innerContext = new RenderContext(DOMTarget.forElement(u.el.element));
     }

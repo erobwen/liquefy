@@ -102,4 +102,47 @@ describe("DOMElementBoundsProvider", function () {
 
     assert.equal(removeCount, 1);
   });
+
+  // Fully styleable by its creator (see the class's own doc) - and correctly
+  // so across a rebuild, not just on first construction: a property that's
+  // present one rebuild and gone the next must actually clear on the real
+  // element, not linger (a real bug in an earlier version of this file,
+  // where a plain Object.assign(element.style, style) only ever added/
+  // overwrote keys, never removed one that disappeared).
+  it("re-applies style and className from its creator on every rebuild, clearing whatever is no longer given", function () {
+    class Frame extends Component {
+      setProperties({ style, className, child }) {
+        this.style = style;
+        this.className = className;
+        this.child = child;
+      }
+      build() {
+        return new DOMElementBoundsProvider({ key: "bounds", style: this.style, className: this.className, child: this.child });
+      }
+    }
+
+    const context = new RenderContext(new DOMTarget(container));
+    const frame = new Frame({
+      style: { position: "relative", height: "100%" },
+      className: "frame-a",
+      child: new Probe(),
+    });
+    frame.renderOnto(context);
+
+    const element = container.querySelector("div");
+    assert.equal(element.style.position, "relative");
+    assert.equal(element.style.height, "100%");
+    assert.equal(element.className, "frame-a");
+
+    // A rebuild that drops `position`, changes `height`, and adds `width` -
+    // a creator restyling its child to fit a different layout, exactly the
+    // scenario the whole "fully styleable" property is for.
+    frame.style = { height: "50%", width: "10px" };
+    frame.className = "frame-b";
+
+    assert.equal(element.style.position, "", "a style property dropped from the new style object must be cleared, not left stale");
+    assert.equal(element.style.height, "50%");
+    assert.equal(element.style.width, "10px");
+    assert.equal(element.className, "frame-b", "className must also update, not stick to its first value");
+  });
 });

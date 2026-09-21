@@ -2,11 +2,7 @@ import { extractProperty, RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMTarget } from "./DOMTarget.js";
 import { DOMTextNode } from "./DOMTextNode.js";
-
-function defaultToPx(value) { // no style property is ever meant to be a bare number
-  if (typeof(value) === "undefined" || value === null) return "";
-  return typeof(value) === "number" ? value + "px" : value;
-}
+import { applyStyle as diffApplyStyle } from "./applyStyle.js";
 
 /**
  * A real Element node - ported from flow.DOM/src/DOMElementNode.js's own
@@ -120,25 +116,12 @@ export class DOMElementNode extends DOMNodeRenderComponent {
     u.previouslySetAttributes = nextPreviouslySet;
   }
 
+  // Delegates to the shared applyStyle.js (see its own doc) - every
+  // component that owns a real element and accepts `style` directly needs
+  // this same diffing, not just DOMElementNode.
   applyStyle(element, newStyle) {
     const u = this.unobservable;
-    const elementStyle = element.style;
-
-    for (const property in u.previouslySetStyle) {
-      if (typeof(newStyle[property]) === "undefined") {
-        elementStyle[property] = "";
-      }
-    }
-
-    const nextPreviouslySet = {};
-    for (const property in newStyle) {
-      const value = newStyle[property];
-      if (u.previouslySetStyle[property] !== value) {
-        elementStyle[property] = defaultToPx(value);
-      }
-      nextPreviouslySet[property] = value;
-    }
-    u.previouslySetStyle = nextPreviouslySet;
+    u.previouslySetStyle = diffApplyStyle(element, newStyle, u.previouslySetStyle);
   }
 
   render(context) {

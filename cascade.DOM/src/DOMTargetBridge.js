@@ -1,5 +1,14 @@
 import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "./DOMTarget.js";
+import { applyStyle } from "./applyStyle.js";
+
+// Defaults this bridging div starts from - a build()-composed descendant's
+// own height: 100% needs *something* definite to resolve against, or it
+// just auto-sizes to content instead (see this class's own render() doc).
+// `style` (a property, so it may itself change across rebuilds - see
+// cascade.component/README.md) always wins over these, same merge order as
+// flow's own addDefaultStyle()/addDefault() convention.
+const DEFAULT_STYLE = { height: "100%", boxSizing: "border-box" };
 
 /**
  * DOMTargetBridge: the other direction from DOMTargetElementBridge.js's own
@@ -29,26 +38,26 @@ import { DOMTarget } from "./DOMTarget.js";
 export class DOMTargetBridge extends Component {
   // Optional - omitting `style` (or constructing with no properties at all,
   // the common case for a subclass like IntroductionPage.js) leaves this
-  // bridging div at just its own height:100%/box-sizing default below.
+  // bridging div at just DEFAULT_STYLE above.
   setProperties({ style } = {}) {
     this.style = style || null;
   }
 
+  initialUnobservables() {
+    const result = super.initialUnobservables();
+    result.previouslySetStyle = {};
+    return result;
+  }
+
   render(context) {
     const u = this.unobservable;
-    if (!u.el) {
-      u.el = context.target.createChild("div");
-      // Explicit height (not left auto) by default, so a build()-composed
-      // descendant's own height: 100% resolves against this bridging div's
-      // real parent instead of this div's own content - otherwise this
-      // div, having no height of its own to report, just auto-sizes to
-      // whatever that descendant's content happens to need, breaking the
-      // percentage-height chain in both directions (shrinks for short
-      // content, overflows for tall content - a real bug found via exactly
-      // this). `style` (if given) is applied on top, and can override it.
-      Object.assign(u.el.element.style, { height: "100%", boxSizing: "border-box" });
-      if (this.style) Object.assign(u.el.element.style, this.style);
-    }
+    if (!u.el) u.el = context.target.createChild("div");
+    // Every render, not just the first - `style` is a property (see
+    // cascade.component/README.md), meant to be re-set on every rebuild
+    // like a function argument, so a creator that changes it must see that
+    // reflected here too. applyStyle diffs against last time, so a rebuild
+    // that leaves `style` unchanged touches the real element not at all.
+    u.previouslySetStyle = applyStyle(u.el.element, { ...DEFAULT_STYLE, ...this.style }, u.previouslySetStyle);
     if (!u.innerContext) {
       u.innerContext = new RenderContext(DOMTarget.forElement(u.el.element));
     }

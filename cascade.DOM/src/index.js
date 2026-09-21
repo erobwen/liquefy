@@ -7,4 +7,5 @@ export { DOMTargetBridge } from "./DOMTargetBridge.js";
 export { DOMElementBoundsProvider } from "./DOMElementBoundsProvider.js";
 export { DOMElementNode, taggedElement } from "./DOMElementNode.js";
 export { DOMTextNode, text } from "./DOMTextNode.js";
+export { applyStyle, defaultToPx } from "./applyStyle.js";
 export { div, h1, h2, p, ul, li, a, b, span, button, input } from "./HTMLTags.js";

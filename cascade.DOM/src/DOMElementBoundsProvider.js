@@ -1,6 +1,7 @@
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMTarget } from "./DOMTarget.js";
+import { applyStyle } from "./applyStyle.js";
 
 /**
  * DOMElementBoundsProvider: owns one real DOM element, measures it with
@@ -10,6 +11,15 @@ import { DOMTarget } from "./DOMTarget.js";
  * behind another render() override) as `this.renderContext.width`/`height`,
  * from build() or render() alike (see Component.js's own renderOnto(),
  * which sets `this.renderContext` unconditionally for every component).
+ *
+ * Fully styleable, same as flow's own unwritten "every component takes
+ * `style`" convention (see cascade.DOM/src/applyStyle.js's own doc) - its
+ * creator decides how it fits into whatever it's placed in (fill its
+ * parent, a fixed size, flex/grid participation, ...) rather than this
+ * component imposing any layout of its own; it has no default style at all.
+ * That's what lets a creator's child avoid an *extra* wrapper div purely
+ * for sizing purposes - the same reasoning ApplicationMenuFrame.js's own
+ * class doc gives for skipping DOMTargetBridge entirely at its own root.
  *
  * Also owns the one window resize listener needed to keep the measurement
  * current, so nothing above this component has to manage one itself.
@@ -24,11 +34,22 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
     this.className = className || null;
   }
 
+  initialUnobservables() {
+    const result = super.initialUnobservables();
+    result.previouslySetStyle = {};
+    return result;
+  }
+
   renderElement(context, existingElement) {
     const element = existingElement || context.target.appendElement("div");
     if (existingElement) context.target.reattachElement(existingElement);
-    if (this.className) element.className = this.className;
-    if (this.style) Object.assign(element.style, this.style);
+    // Unconditional (not `if (this.className)`) - a className that goes
+    // from set to unset across a rebuild must clear the real attribute too,
+    // not leave the old one stuck (same reasoning applyStyle below has for
+    // a style property that disappears the same way).
+    element.className = this.className || "";
+    const u = this.unobservable;
+    u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
     return element;
   }
 

@@ -1,6 +1,7 @@
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMTargetElement } from "./DOMTargetElement.js";
+import { applyStyle } from "./applyStyle.js";
 
 /**
  * The other direction from DOMElementNode's own bridge (DOMTargetElement.js's
@@ -38,12 +39,22 @@ export class DOMTargetElementBridge extends DOMNodeRenderComponent {
     this.contextExtra = context || null;
   }
 
+  initialUnobservables() {
+    const result = super.initialUnobservables();
+    result.previouslySetStyle = {};
+    return result;
+  }
+
   renderElement(context, existingElement) {
     const element = existingElement || context.target.appendElement("div");
     // Same as DOMElementNode.renderElement(): a reused element reconfirms
     // its position every render (see there for why).
     if (existingElement) context.target.reattachElement(existingElement);
-    if (this.style) Object.assign(element.style, this.style);
+    // Diffed against last time (see applyStyle.js's own doc) - a plain
+    // Object.assign(element.style, this.style) never clears a property
+    // that was set before but is gone from `this.style` now.
+    const u = this.unobservable;
+    u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
     return element;
   }
 

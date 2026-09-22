@@ -1176,26 +1176,31 @@ function createWorld(configuration) {
     insertPartialIntoChain(chainHead, partial);
   }
 
-  // Order two writers (partials, or null for external code): O(1) via
-  // orderNumber when they share a chain (the common case - same root
-  // tree). Different root trees have no real relative position; fall back
-  // to a stable, arbitrary-but-consistent comparison via each chain's own
-  // id so ordering is at least deterministic.
+  // Order two writers (partials, or null for external code) when they
+  // share a chain (the common case - same root tree): prefer the always-
+  // correct structural (parent/sibling) walk - see structuralCompareWriterOrder's
+  // own comment - falling back to the O(1) orderNumber only when structural
+  // genuinely can't tell (neither writer currently findable in a confirmed-
+  // or-pending list - e.g. both retracted). Order-number is a fast, best-
+  // effort hint, not the source of truth right now: a whole reordered
+  // subtree can leave it genuinely wrong, not just stale - see
+  // attachToCurrentParent()'s own eager-retraction handling of that, and
+  // this file's own git history for the concrete failures that surfaced
+  // from trying to trust it through a reorder instead. Different root
+  // trees have no real relative position; fall back to a stable,
+  // arbitrary-but-consistent comparison via each chain's own id so
+  // ordering is at least deterministic.
   function compareWriterOrder(writerA, writerB) {
     if (writerA === writerB) return 0;
     if (writerA === null) return -1;
     if (writerB === null) return 1;
     const chainA = writerA.repeater.chainHead;
     const chainB = writerB.repeater.chainHead;
-    const result = chainA === chainB
-      ? writerA.orderNumber - writerB.orderNumber
-      : chainA.id - chainB.id;
+    if (chainA !== chainB) return chainA.id - chainB.id;
 
-    if (configuration.verifyChainOrderStructurally) {
-      verifyAgainstStructuralOrder(writerA, writerB, result);
-    }
-
-    return result;
+    const structural = structuralCompareWriterOrder(writerA, writerB);
+    if (structural !== null) return structural;
+    return writerA.orderNumber - writerB.orderNumber;
   }
 
   // Walk a writer (a partial, or a bare top-level repeater) up to its
@@ -1213,12 +1218,20 @@ function createWorld(configuration) {
     return path; // [writer, its owning repeater's parent, ..., root]
   }
 
-  // Which of two known siblings (both directly in parentRepeater's own
-  // *confirmed* children list, for whatever run last attached them) comes
-  // first - a plain O(siblings) linear scan, since this list has no
-  // O(1) order primitive of its own (that's the whole reason the
-  // order-number chain exists). Returns null if either isn't found there
-  // (e.g. retracted) - "can't tell structurally", not "equal".
+  // Which of two known siblings (both, at some point, owned by
+  // parentRepeater) comes first - a plain O(siblings) linear scan of its
+  // *confirmed* children list, since this list has no O(1) order primitive
+  // of its own (that's the whole reason the order-number chain exists).
+  //
+  // A sibling not found there at all is either retracted (genuinely gone,
+  // no relative order to report) or still sitting, unclaimed, in
+  // parentRepeater.pendingChildren - this run just hasn't reattached it
+  // yet (see attachToCurrentParent()). The second case *is* decidable:
+  // "not yet reattached this run" always sorts after anything already
+  // confirmed here, since execution hasn't reached it in the new order -
+  // and if the *other* sibling is confirmed, that settles it outright.
+  // Both still pending leaves the question open (no fresh execution order
+  // between them yet to compare) - "can't tell structurally", not "equal".
   function structuralCompareSiblings(parentRepeater, a, b) {
     let node = parentRepeater.children.first;
     while (node !== null) {
@@ -1226,6 +1239,10 @@ function createWorld(configuration) {
       if (node === b) return 1;
       node = node.nextSibling;
     }
+    const aPending = a.listMembership === "pending";
+    const bPending = b.listMembership === "pending";
+    if (aPending && !bPending) return 1;
+    if (bPending && !aPending) return -1;
     return null;
   }
 
@@ -2619,6 +2636,113 @@ function createWorld(configuration) {
     return partial;
   }
 
+  // Every writing produced anywhere in `node`'s own subtree, as it stood
+  // last run - `node` is a "moved-away predecessor" (see
+  // attachToCurrentParent()): something still sitting, unclaimed, in
+  // pendingChildren in front of wherever a sibling is being reconciled
+  // right now. Purely a read - nothing here is retracted, disposed, or
+  // unlinked; a moved-away predecessor may still be reused later this same
+  // run (a shared child used by both branches of a conditional, say - see
+  // this file's own git history for a real regression from retracting one
+  // of those instead of leaving it alone) or swept up normally, once truly
+  // unclaimed, by finalizeChildren() at the end of this parent's own run,
+  // same as always. `node` is either one of parentRepeater's own partials
+  // (its own writings live directly on it) or a genuinely nested child
+  // repeater (recurse into its own `.children`, exactly the same mixed
+  // partial/repeater list attachToCurrentParent()/createNextPartial()
+  // build everywhere else).
+  function collectSubtreeWritings(node, into) {
+    if (node.type === "partial") {
+      for (const writing of node.writings.values()) into.push(writing);
+    } else {
+      let inner = node.children.first;
+      while (inner !== null) {
+        collectSubtreeWritings(inner, into);
+        inner = inner.nextSibling;
+      }
+    }
+  }
+
+  // Whether `repeater` is `subtreeRoot` itself or genuinely nested inside
+  // it, walked via parentRepeater - the same upward walk
+  // structuralWriterPath() uses, just stopping the moment it finds what
+  // it's looking for rather than building the whole path.
+  function repeaterIsWithinSubtree(repeater, subtreeRoot) {
+    let r = repeater;
+    while (r !== null) {
+      if (r === subtreeRoot) return true;
+      r = r.parentRepeater;
+    }
+    return false;
+  }
+
+  // A sibling (`child`) just found reconciling to a different position
+  // than last time (see attachToCurrentParent()) may have its own real
+  // dependency on something a *moved-away predecessor* - still sitting in
+  // pendingChildren, structurally in front of where `child` is needed now
+  // - wrote last run (e.g. `child` reads a shared DOMTarget's own
+  // `lastChild`, last written by whichever sibling actually ran
+  // immediately before it). That write was never invalidated or retracted
+  // - the predecessor simply moved - but it's no longer structurally
+  // reachable from `child`'s new position either, so an ordinary relink
+  // (which only reconsiders a dependency when its *value* changes, never
+  // when a reader's own position does) would silently leave `child`
+  // depending on a stale answer.
+  //
+  // For each `predecessor` skipped over: collect every writing its own
+  // subtree produced last run, and for each one, check whichever of its
+  // own observers falls anywhere inside `child`'s own subtree - `child`
+  // itself, or one of its own nested descendants. A build()-composed
+  // subtree that never reads anything position-sensitive (most of one,
+  // ordinarily) has no matching entries at all here and is left completely
+  // untouched - only the specific partials that actually depended on the
+  // predecessor's own output are ever considered, not `child`'s whole
+  // subtree wholesale.
+  //
+  // Deliberately *not* routed through flagRepeaterEntry()/resolveFlaggedRepeater()'s
+  // own deferred, re-seek-and-compare-values treatment (what an ordinarily
+  // overtaken dependency gets): that machinery's own self-authored-write
+  // fallback (seekWriting resolving to entry.writer's *own* later write,
+  // then falling back to `.previous` - see resolveFlaggedRepeater()'s own
+  // comment) assumes `.previous` (a fixed, timeline-insertion-order
+  // pointer) is always still an accurate stand-in for "whichever writer
+  // structurally precedes me" - true when only *new* writings are being
+  // spliced in, false here, where the predecessor and `child` themselves
+  // have been reordered relative to each other without any new writing
+  // involved at all: `.previous` still points at the predecessor's old
+  // writing regardless, so the value-comparison path silently concludes
+  // "nothing changed" even though the dependency is no longer valid at
+  // all (confirmed by direct instrumentation - see this file's own git
+  // history). What actually matters here isn't "did the value change" (it
+  // might not have, and this would still need retracting) - it's "is this
+  // writing's own writer still structurally before this reader, now that
+  // positions have actually changed" - compareWriterOrder (which already
+  // prefers the always-correct structural walk, including its own
+  // still-pending-vs-confirmed handling - see structuralCompareSiblings())
+  // answers exactly that, directly, with no timeline seeking needed.
+  //
+  // Must be called only after `child` is itself already fully, structurally
+  // confirmed and repositioned (see the call site in attachToCurrentParent()) -
+  // otherwise `child` and `predecessor` both still read as "not yet
+  // reattached this run", which compareWriterOrder can't tell apart, so it
+  // falls back to stale order-numbers that still reflect *last* run's
+  // order (confirmed by direct instrumentation - the whole mechanism
+  // silently does nothing if called too early).
+  function flagOverlapWithMovedPredecessor(predecessor, child) {
+    const writings = [];
+    collectSubtreeWritings(predecessor, writings);
+    for (const writing of writings) {
+      const entries = collectOvertakenPropertyObservers(writing, () => true);
+      for (const entry of entries) {
+        if (entry.flagged) continue;
+        if (!repeaterIsWithinSubtree(entry.observer.repeater, child)) continue;
+        if (compareWriterOrder(writing.writer, entry.writer) < 0) continue; // still genuinely before this reader - no problem
+        entry.flagged = true;
+        invalidateRepeater(entry.observer.repeater);
+      }
+    }
+  }
+
   // Shared by repeat() (a brand new child) and linkRepeater() (an existing
   // one): attach `child` (a repeater or, internally, a partial) to whatever
   // repeater is currently executing, then close the current partial and
@@ -2631,6 +2755,7 @@ function createWorld(configuration) {
       return;
     }
     const parentRepeater = parentContext.repeater;
+    let skippedPredecessors = null;
 
     if (parentRepeater.reconciling && parentRepeater.pendingChildren.first === child) {
       // Structure still lines up with last time - pure bookkeeping, nothing
@@ -2638,14 +2763,51 @@ function createWorld(configuration) {
       // is touched at all.
       unlinkFromChildList(parentRepeater.pendingChildren, child);
     } else {
+      parentRepeater.reconciling = false;
       if (child.parentRepeater === parentRepeater && child.listMembership === "pending") {
-        // A different child was relinked here than occupied this position
-        // last time (e.g. children reordered) - still reclaim it from
-        // wherever it sits, but positional correspondence for the rest of
-        // this run is no longer trustworthy.
+        // This exact child existed under this exact parent last run too -
+        // just not at the very front of what's left in pendingChildren.
+        // Everything still sitting *ahead* of it there is a moved-away
+        // predecessor: it didn't show up again where it used to be, either
+        // genuinely dropped from the tree, or shifted *later* in this new
+        // order (its own turn just hasn't come yet - a shared child used
+        // by more than one branch, say). Which of those it is isn't
+        // decidable yet, with no lookahead - so it is deliberately left
+        // alone here, not retracted (an earlier attempt at exactly that
+        // caused a real regression - see this file's own git history: it
+        // can't tell "gone" from "coming up again shortly" apart, and
+        // retracting the wrong one throws away a live repeater's own
+        // dependency tracking). It's still reclaimable later this same
+        // run if its own turn does come (the ordinary `listMembership ===
+        // "pending"` check this whole branch already relies on), or swept
+        // up normally by finalizeChildren() once this parent's whole run
+        // finishes, exactly as always.
+        //
+        // What *does* need handling right now: anything that predecessor's
+        // own subtree wrote last run - never invalidated or retracted,
+        // since it only moved - is no longer structurally reachable from
+        // `child`'s new position, so an ordinary relink (which only
+        // reconsiders a dependency when its *value* changes, never when a
+        // reader's own position does) would silently leave `child` - or
+        // one of its own nested descendants - watching a stale answer.
+        // flagOverlapWithMovedPredecessor() finds exactly those readers -
+        // but needs `child` itself already fully, structurally reattached
+        // and repositioned first (below), not just found here: it asks
+        // "is the predecessor's own writer still structurally before this
+        // reader", and both `child` and a still-pending predecessor
+        // otherwise compare as "equally not yet reattached this run" -
+        // undecidable - falling back to stale order-numbers that still
+        // reflect *last* run's order, the opposite of what's needed. So
+        // this list of predecessors is only *collected* here; the actual
+        // check happens after `child`'s own reattachment, further below.
+        skippedPredecessors = [];
+        let node = parentRepeater.pendingChildren.first;
+        while (node !== child) {
+          skippedPredecessors.push(node);
+          node = node.nextSibling;
+        }
         unlinkFromChildList(parentRepeater.pendingChildren, child);
       }
-      parentRepeater.reconciling = false;
       // Once reconciliation has broken, this child's own rightmostPartial
       // can no longer be trusted to already reflect "right here, right
       // now" the way it does in the reconciled fast path (there, nothing
@@ -2653,6 +2815,11 @@ function createWorld(configuration) {
       // correct) - see movePartialToCurrentPosition()'s own comment for
       // the concrete failure this causes if left uncorrected (a sibling's
       // fresh write can silently become invisible to this child later).
+      // Best-effort only for now, not relied on for correctness -
+      // compareWriterOrder() prefers the always-correct structural
+      // (parent/sibling) comparison when one is available (see its own
+      // comment) precisely because a whole reordered subtree can leave
+      // this order-number bookkeeping genuinely wrong, not just stale.
       if (child.rightmostPartial) {
         movePartialToCurrentPosition(parentRepeater.chainHead, child.rightmostPartial);
       }
@@ -2661,6 +2828,15 @@ function createWorld(configuration) {
     child.listMembership = "confirmed";
     if (typeof(child.retracted) !== 'undefined') child.retracted = false;
     appendToChildList(parentRepeater.children, child);
+    // Only now - `child` is fully, structurally confirmed and repositioned
+    // above, so comparing a moved-away predecessor's own writer against it
+    // (compareWriterOrder, inside flagOverlapWithMovedPredecessor) reflects
+    // *this* run's real order, not a stale or undecidable one.
+    if (skippedPredecessors !== null) {
+      for (const predecessor of skippedPredecessors) {
+        flagOverlapWithMovedPredecessor(predecessor, child);
+      }
+    }
 
     // Whatever comes next in the parent's own sequence belongs immediately
     // after this whole child subtree in chain order - advance the cursor to

@@ -1,6 +1,6 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { RenderContext } from "@liquefy/cascade.component";
+import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMTarget } from "../DOMTarget.js";
 import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 
@@ -213,6 +213,230 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     target.reattachElement(a); // a moves to right after b
     assert.equal(moveCount, 1);
     assert.deepEqual(Array.from(container.children), [b, a]);
+  });
+
+  it("reordering two owned children needs no manual repositioning - a parent that just renders them in the desired order is enough", function () {
+    // The DOMTarget-based counterpart to domTargetElement.js's own
+    // "reordering two owned children" test - that one needs an explicit
+    // insertChild() call every render, specifically *because*
+    // DOMTargetElement has no lastChild of its own to reposition against
+    // (see its own class comment on why, and cascade.reactive's own
+    // structural-order-verifier.js/reconciliation-position-staleness.js
+    // for the engine-level fix this now relies on: a repeater found to
+    // have moved to a different position among its own siblings gets its
+    // own stale dependency on a moved-away predecessor's writing correctly
+    // invalidated, not left silently stale - see cascade.js's own
+    // attachToCurrentParent()/flagOverlapWithMovedPredecessor()). With
+    // that fixed, a DOMTarget-based parent needs to do nothing more than
+    // call its children in whichever order it wants *this* render - no
+    // "reach back in and rearrange" step at all: each child's own
+    // reattachElement() call reads target.lastChild and positions itself
+    // relative to whatever actually ran immediately before it, and now
+    // correctly re-examines that reading whenever its own position (not
+    // just its own value) has genuinely changed.
+    class Leaf extends DOMNodeRenderComponent {
+      setProperties({ label }) {
+        this.label = label;
+      }
+      renderElement(context, existingElement) {
+        const element = existingElement || context.target.appendElement("div");
+        if (existingElement) context.target.reattachElement(existingElement);
+        element.textContent = this.label;
+        return element;
+      }
+    }
+
+    class Frame extends Component {
+      setProperties({ first, second }) {
+        this.first = first;
+        this.second = second;
+      }
+      initializeState() {
+        return { firstOnTop: true };
+      }
+      render(context) {
+        // No after-the-fact insertChild/reattachElement reassertion here -
+        // just render whichever child comes first this time, then the
+        // other one.
+        if (this.firstOnTop) {
+          this.first.renderOnto(context);
+          this.second.renderOnto(context);
+        } else {
+          this.second.renderOnto(context);
+          this.first.renderOnto(context);
+        }
+      }
+    }
+
+    const a = new Leaf({ label: "a" });
+    const b = new Leaf({ label: "b" });
+    const frame = new Frame({ first: a, second: b });
+    frame.renderOnto(new RenderContext(new DOMTarget(container)));
+
+    function order() {
+      return [...container.children].map((c) => c.textContent);
+    }
+
+    assert.deepEqual(order(), ["a", "b"]);
+
+    for (let i = 0; i < 4; i++) {
+      frame.firstOnTop = !frame.firstOnTop;
+      assert.deepEqual(order(), frame.firstOnTop ? ["a", "b"] : ["b", "a"], `pass ${i}`);
+    }
+  });
+
+  it("reordering two owned children across several passes never leaves a stale value behind, with both also rerunning for their own reasons every pass", function () {
+    // Same shape as the test above, but each Leaf's own displayed value
+    // also genuinely changes on every pass (this is the exact shape that
+    // used to live in domTargetElement.js, built on DOMTargetElement's own
+    // direct insertChild() call instead - see domTargetElement.js's own
+    // note on why it moved here). Proves the fix holds up across repeated
+    // reorders, not just a single flip and flip-back.
+    class Leaf extends DOMNodeRenderComponent {
+      setProperties({ label, value }) {
+        this.label = label;
+        this.value = value;
+      }
+      renderElement(context, existingElement) {
+        const element = existingElement || context.target.appendElement("div");
+        if (existingElement) context.target.reattachElement(existingElement);
+        element.textContent = this.label + ":" + this.value;
+        return element;
+      }
+    }
+
+    class Frame extends Component {
+      setProperties({ first, second }) {
+        this.first = first;
+        this.second = second;
+      }
+      initializeState() {
+        return { firstOnTop: true };
+      }
+      render(context) {
+        if (this.firstOnTop) {
+          this.first.renderOnto(context);
+          this.second.renderOnto(context);
+        } else {
+          this.second.renderOnto(context);
+          this.first.renderOnto(context);
+        }
+      }
+    }
+
+    const a = new Leaf({ label: "a", value: 1 });
+    const b = new Leaf({ label: "b", value: 1 });
+    const frame = new Frame({ first: a, second: b });
+    frame.renderOnto(new RenderContext(new DOMTarget(container)));
+
+    function order() {
+      return [...container.children].map((c) => c.textContent);
+    }
+
+    assert.deepEqual(order(), ["a:1", "b:1"]);
+
+    for (let i = 2; i <= 4; i++) {
+      frame.firstOnTop = !frame.firstOnTop;
+      a.value = i;
+      b.value = i;
+
+      assert.deepEqual(
+        order(),
+        frame.firstOnTop ? [`a:${i}`, `b:${i}`] : [`b:${i}`, `a:${i}`],
+        `pass ${i}`
+      );
+    }
+  });
+
+  it("resizing a build()-composed, keyed grid only reruns cells whose own position actually changed - not the whole grid", function () {
+    // The efficiency question behind DOMTargetElement's own class comment
+    // ("a same-value write is deduped... so writing it again later for an
+    // unrelated reason can spuriously invalidate a long-dormant sibling"):
+    // does a shared, reactive lastChild cause *unrelated* cells to rerun
+    // when a grid resizes, or does the reorder-detection fix (see
+    // cascade.reactive's own attachToCurrentParent()/
+    // flagOverlapWithMovedPredecessor()) stay properly scoped to just the
+    // cells actually affected? Built()-composed and keyed (row/col derives
+    // each cell's own key), the idiomatic shape - not hand-cached inside
+    // render() (a real, different bug found via exactly that shape: a
+    // property set while constructing a child positions that write in the
+    // *parent's* own partial, which the parent's own next dispose() then
+    // unlinks regardless of which object it was actually setting a
+    // property on - see cascade.component's own README.md on properties vs.
+    // state, and this file's own git history).
+    class Cell extends DOMNodeRenderComponent {
+      setProperties({ row, col }) {
+        this.row = row;
+        this.col = col;
+      }
+      renderElement(context, existingElement) {
+        const key = `r${this.row}c${this.col}`;
+        renderCounts[key] = (renderCounts[key] || 0) + 1;
+        const element = existingElement || context.target.appendElement("div");
+        if (existingElement) context.target.reattachElement(existingElement);
+        element.textContent = key;
+        return element;
+      }
+    }
+
+    class Grid extends Component {
+      setProperties({ rows, cols }) {
+        this.rows = rows;
+        this.cols = cols;
+      }
+      build() {
+        const cells = [];
+        for (let row = 0; row < this.rows; row++) {
+          for (let col = 0; col < this.cols; col++) {
+            cells.push(new Cell({ key: `r${row}c${col}`, row, col }));
+          }
+        }
+        return cells;
+      }
+    }
+
+    let renderCounts;
+    // Zero out every key seen *so far* (rather than starting from a fresh
+    // empty object) so a cell that stays clean this phase shows up
+    // explicitly as 0, not simply absent - deepEqual below must see every
+    // still-live cell accounted for, not just the ones that reran.
+    const resetCounts = () => {
+      for (const key in renderCounts) renderCounts[key] = 0;
+    };
+    renderCounts = {};
+    const grid = new Grid({ rows: 3, cols: 3 });
+    grid.renderOnto(new RenderContext(new DOMTarget(container)));
+    assert.deepEqual(renderCounts, {
+      r0c0: 1, r0c1: 1, r0c2: 1, r1c0: 1, r1c1: 1, r1c2: 1, r2c0: 1, r2c1: 1, r2c2: 1,
+    });
+
+    // Shrink to 3x2 (drop the last column, r0c2/r1c2/r2c2): only the cell
+    // *immediately following* a dropped one, within its own row, needs to
+    // recheck its own position - r1c0 (follows the now-gone r0c2) and r2c0
+    // (follows the now-gone r1c2). r0c0 (nothing before it changed) and
+    // every c1 cell (its own predecessor is untouched) stay clean - a
+    // clean relink, not a rerun.
+    resetCounts();
+    grid.cols = 2;
+    // r0c2/r1c2/r2c2 are simply no longer built at all this pass (still
+    // present in renderCounts, at whatever resetCounts() just left them,
+    // since nothing touched them) - included here for a complete picture,
+    // not because they're expected to do anything.
+    assert.deepEqual(renderCounts, {
+      r0c0: 0, r0c1: 0, r0c2: 0, r1c0: 1, r1c1: 0, r1c2: 0, r2c0: 1, r2c1: 0, r2c2: 0,
+    });
+    assert.deepEqual(
+      [...container.children].map((c) => c.textContent),
+      ["r0c0", "r0c1", "r1c0", "r1c1", "r2c0", "r2c1"]
+    );
+
+    // Shrinking off a whole trailing row instead - a clean truncation,
+    // nothing left "after" the removal at all - needs no rerun anywhere.
+    resetCounts();
+    grid.rows = 2;
+    assert.deepEqual(renderCounts, {
+      r0c0: 0, r0c1: 0, r0c2: 0, r1c0: 0, r1c1: 0, r1c2: 0, r2c0: 0, r2c1: 0, r2c2: 0,
+    });
   });
 
 });

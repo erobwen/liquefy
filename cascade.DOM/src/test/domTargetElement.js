@@ -77,82 +77,21 @@ describe("DOMTargetElement", function () {
     assert.equal(container.children[1].textContent, "2");
   });
 
-  it("reordering two owned children across several passes never leaves a stale value behind (the bug DOMTarget's lastChild had)", function () {
-    // The exact shape that broke DOMTarget's shared lastChild: a parent
-    // that reorders two independently-rerunning children depending on its
-    // own state, where one child's element was created while in one
-    // relative position and needs to end up in another later. With
-    // ownership + a direct insertChild call (no observable property in
-    // the middle), there is no dependency for a later, unrelated write to
-    // spuriously trip - so this must settle correctly on every pass, not
-    // just the first.
-    class Leaf extends Component {
-      constructor(className) {
-        super();
-        this.causality.className = className; // plain, non-reactive - just a label for assertions
-      }
-
-      render(context) {
-        const u = this.unobservable;
-        if (!u.el) u.el = context.target.createChild("div");
-        u.el.element.textContent = this.causality.className + ":" + this.value;
-      }
-    }
-
-    class Frame extends Component {
-      constructor(first, second) {
-        super();
-        this.first = first;
-        this.second = second;
-      }
-
-      initializeState() {
-        return { firstOnTop: true };
-      }
-
-      render(context) {
-        this.first.renderOnto(context);
-        this.second.renderOnto(context);
-        // Always assert the current desired order (rather than only
-        // patching when it flips one particular way) - the same
-        // "reassert every render, don't rely on last time's leftover
-        // position" discipline the DOM-order fix in
-        // cascade.application/demo's own MenuFrame needed.
-        if (this.firstOnTop) {
-          context.target.insertChild(this.first.unobservable.el, null);
-        } else {
-          context.target.insertChild(this.second.unobservable.el, null);
-        }
-      }
-    }
-
-    const root = DOMTargetElement.forElement(container);
-    const context = new RenderContext(root);
-    const a = new Leaf("a");
-    const b = new Leaf("b");
-    a.value = 1;
-    b.value = 1;
-    const frame = new Frame(a, b);
-    frame.renderOnto(context);
-
-    function order() {
-      return [...container.children].map((c) => c.textContent);
-    }
-
-    assert.deepEqual(order(), ["a:1", "b:1"]);
-
-    for (let i = 2; i <= 4; i++) {
-      frame.firstOnTop = !frame.firstOnTop;
-      a.value = i;
-      b.value = i;
-
-      if (frame.firstOnTop) {
-        assert.deepEqual(order(), [`a:${i}`, `b:${i}`], `pass ${i}: a on top`);
-      } else {
-        assert.deepEqual(order(), [`b:${i}`, `a:${i}`], `pass ${i}: b on top`);
-      }
-    }
-  });
+  // The reordering test that used to live here (DOMTargetElement +
+  // explicit insertChild(), needed specifically because DOMTargetElement
+  // has no lastChild of its own to reposition against) moved to
+  // domTarget.js's own "reordering two owned children across several
+  // passes..." test: cascade.reactive's own engine-level fix (a repeater
+  // found to have moved to a different position now correctly
+  // invalidates its own stale dependency on whatever a moved-away
+  // predecessor wrote - see attachToCurrentParent()/
+  // flagOverlapWithMovedPredecessor() in cascade.js) means a DOMTarget-based
+  // parent no longer needs this explicit reassertion at all - it can just
+  // render its children in the desired order and rely on lastChild alone,
+  // the same way DOMTargetElement's own direct insertChild() call always
+  // could, just without needing to write it by hand. DOMTargetElement
+  // itself is unaffected either way (see its own class comment) - it
+  // never depended on this engine machinery in the first place.
 
   it("a shared child sees a sibling's fresh write even after a branch swap breaks positional reconciliation", function () {
     // Found via cascade.application/demo's real menu/work-area breakpoint:

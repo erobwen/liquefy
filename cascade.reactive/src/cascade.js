@@ -2743,6 +2743,76 @@ function createWorld(configuration) {
     }
   }
 
+  // The other half of the moved-predecessor problem: `child` just moved
+  // *ahead* of some sibling that hasn't been reattached yet this run (a
+  // "new predecessor appeared in front of it" - see this file's own git
+  // history for the concrete case this was found from, and
+  // domTarget.js/reorder-fuzz.js for the tests). Every writing `child`'s
+  // own subtree produced last run is still exactly where it's always been
+  // in its own property timeline - untouched, since nothing here rewrote
+  // it - even though `child`'s live structural position (and everything
+  // nested inside it) has just changed. An existing reader positioned
+  // after `child`, still pointing at whatever it depended on *before*
+  // `child` ever moved here, has no way to discover this on its own: the
+  // ordinary "a fresh writing overtook my dependency" migration
+  // (migrateOvertakenObserversFor) only ever fires as a side effect of an
+  // actual write - and a descendant whose own reconciliation against its
+  // own immediate parent still "lines up" (the fast path, just above)
+  // never writes again this pass, no matter how far its own ancestor
+  // moved.
+  //
+  // Every writing per distinct property within `child`'s own subtree needs
+  // this, not just the last one - migrateOvertakenObserversFor only ever
+  // checks *one hop* back (`writing.previous`'s own observers), the same
+  // way an ordinary write only ever migrates against its own immediate
+  // predecessor. An external reader parked several same-value "pass-
+  // through" links back (e.g. sitting on a writing three ancestors above
+  // where it actually needs to end up) only ever gets relayed forward one
+  // hop at a time, exactly the way an ordinary run's chain of individual
+  // rewrites would relay it - so every intermediate link in `child`'s own
+  // subtree needs its own hop touched, in structural order, or the relay
+  // stops wherever the touching does. This is still bounded, just not as
+  // tightly as touching only the last one: it costs one relink+migrate
+  // per writing `child`'s subtree actually produced on each property, the
+  // same O(subtree writings) collectSubtreeWritings already walks for
+  // flagOverlapWithMovedPredecessor above - not a new order of cost, just
+  // matching output-side work to the input-side walk already being paid
+  // for.
+  //
+  // Re-splicing each one to wherever it now structurally belongs (exactly
+  // like movePartialToCurrentPosition does for the order-number chain,
+  // just for this one writing's own position in its property timeline)
+  // is what makes migrateOvertakenObserversFor's own `.previous` lookup
+  // correct afterward - without this, a writing whose neighbor got
+  // retired/unlinked out from under it (see retireWritingOnto) can be
+  // left pointing at a stale, no-longer-adjacent neighbor, so the
+  // overtaking check it triggers would ask the wrong question.
+  function retouchSubtreeWritings(child) {
+    const writings = [];
+    collectSubtreeWritings(child, writings);
+    const byTimeline = new Map();
+    for (const writing of writings) {
+      if (!writing.linked) continue; // already retired/replaced by something else this run
+      let list = byTimeline.get(writing.timeline);
+      if (!list) {
+        list = [];
+        byTimeline.set(writing.timeline, list);
+      }
+      list.push(writing);
+    }
+    for (const list of byTimeline.values()) {
+      // Structural (execution) order, earliest first - each one's own
+      // migration needs its predecessor already re-spliced correctly, the
+      // same dependency an ordinary run's own sequence of writes always
+      // has for free.
+      list.sort((a, b) => compareWriterOrder(a.writer, b.writer));
+      for (const writing of list) {
+        relinkWriting(writing);
+        migrateOvertakenObserversFor(writing);
+      }
+    }
+  }
+
   // Shared by repeat() (a brand new child) and linkRepeater() (an existing
   // one): attach `child` (a repeater or, internally, a partial) to whatever
   // repeater is currently executing, then close the current partial and
@@ -2756,6 +2826,7 @@ function createWorld(configuration) {
     }
     const parentRepeater = parentContext.repeater;
     let skippedPredecessors = null;
+    let reconciliationBroke = false;
 
     if (parentRepeater.reconciling && parentRepeater.pendingChildren.first === child) {
       // Structure still lines up with last time - pure bookkeeping, nothing
@@ -2763,6 +2834,7 @@ function createWorld(configuration) {
       // is touched at all.
       unlinkFromChildList(parentRepeater.pendingChildren, child);
     } else {
+      reconciliationBroke = true;
       parentRepeater.reconciling = false;
       if (child.parentRepeater === parentRepeater && child.listMembership === "pending") {
         // This exact child existed under this exact parent last run too -
@@ -2832,6 +2904,21 @@ function createWorld(configuration) {
     // above, so comparing a moved-away predecessor's own writer against it
     // (compareWriterOrder, inside flagOverlapWithMovedPredecessor) reflects
     // *this* run's real order, not a stale or undecidable one.
+    // The reverse direction - see retouchSubtreeWritings's own comment.
+    // Scoped to "reconciliation broke for this child at all" (same
+    // condition as movePartialToCurrentPosition above), not to whether
+    // anything was actually skipped to reach *it* - a child with no
+    // skipped predecessors of its own can still be the *cause* of a later
+    // sibling needing this (see reorder-fuzz.js's own tests). Must run
+    // *before* flagOverlapWithMovedPredecessor below - that call may
+    // invalidate `child` itself (a direct dependency on a skipped
+    // predecessor), and invalidating disposes it, which resets its own
+    // `.children` into `.pendingChildren` for its *own* upcoming
+    // reconciliation - collectSubtreeWritings needs `child`'s subtree
+    // exactly as it stood last run, still intact via `.children`.
+    if (reconciliationBroke) {
+      retouchSubtreeWritings(child);
+    }
     if (skippedPredecessors !== null) {
       for (const predecessor of skippedPredecessors) {
         flagOverlapWithMovedPredecessor(predecessor, child);

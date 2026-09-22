@@ -1,4 +1,5 @@
-import { div, h1, h2, p, ul, li, a, b, text, DOMBuildBridge } from "@liquefy/cascade.dom";
+import { Component } from "@liquefy/cascade.component";
+import { div, h1, h2, p, ul, li, a, b, text } from "@liquefy/cascade.dom";
 
 // Matches flow's own blue() helper (introductionPage.js): a highlighted
 // inline span of text, built from whatever's passed straight through to b().
@@ -14,12 +15,12 @@ function blue(...children) {
  * structure, minus the alert/codeDisplay/portal machinery (nothing here
  * needs those yet, and they don't exist for cascade).
  *
- * Extends cascade.DOM's DOMBuildBridge for the DOMTargetElement/DOMTarget
- * bridge every page under this directory needs - so this implements only
- * build(), the ordinary shape for a component with nothing else to
- * interleave real, synchronous work with.
+ * Implements only build() - Component's own default render() already
+ * builds one step and renderOnto()'s each result in turn (see
+ * Component.js), which is all a page reached via DOMContextContainer
+ * (see ApplicationMenuFrame.js's own `workArea`) needs.
  */
-export class IntroductionPage extends DOMBuildBridge {
+export class IntroductionPage extends Component {
   build() {
     return div(
       h1("Introduction to Cascade"),

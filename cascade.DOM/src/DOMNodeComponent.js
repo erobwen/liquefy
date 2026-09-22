@@ -19,7 +19,7 @@ import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
  * component that should still count as "a real DOM node" to anything
  * upstream; extend DOMNodeRenderComponent directly only for the other style -
  * hardcoded child references, or owning the one real element yourself (see
- * DOMElementComponent/DOMTextComponent/DOMLegacyBridge).
+ * DOMElementComponent/DOMTextComponent/DOMContextContainer).
  */
 export class DOMNodeComponent extends Component {
   render(context) {

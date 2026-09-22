@@ -18,8 +18,8 @@ import { applyStyle } from "./applyStyle.js";
  * parent, a fixed size, flex/grid participation, ...) rather than this
  * component imposing any layout of its own; it has no default style at all.
  * That's what lets a creator's child avoid an *extra* wrapper div purely
- * for sizing purposes - the same reasoning ApplicationMenuFrame.js's own
- * class doc gives for skipping DOMBuildBridge entirely at its own root.
+ * for sizing purposes - see ApplicationMenuFrame.js's own class doc, whose
+ * root is a bare DOMElementBoundsProvider with no further wrapper around it.
  *
  * Also owns the one window resize listener needed to keep the measurement
  * current, so nothing above this component has to manage one itself.

@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, legacyBridge, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
+import { div, button, contextContainer, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
 
 const MENU_WIDTH = 220;
@@ -41,24 +41,19 @@ const TOP_BAR_HEIGHT = 48;
  * this same DOMElementBoundsProvider regardless of how many further layout
  * boundaries a deeper descendant sits behind.
  *
- * No DOMTargetElement/DOMTarget bridging needed here at all (unlike
- * IntroductionPage/RecursiveDemo, which still need cascade.DOM's
- * DOMBuildBridge, since WorkArea hands every page a DOMTargetElement-based
- * context) - this is the frame's own root, rendered directly by index.js,
- * which hands it a DOMTarget-based context to begin with (nothing else ever
- * needs #application's children tracked the older, createChild()-based way,
- * so there's no reason to route through that API here at all). That also
- * means DOMElementBoundsProvider's own div ends up as a *direct* child of
- * #application - no unstyled intermediate div for a percentage height to
- * get lost in (see this file's own git history for the bug that came from
- * exactly that, when this frame still routed through an intermediate
- * bridging div here).
+ * This is the frame's own root, rendered directly by index.js, which hands
+ * it a DOMTarget-based context to begin with - so DOMElementBoundsProvider's
+ * own div ends up as a *direct* child of #application, no unstyled
+ * intermediate div for a percentage height to get lost in (see this file's
+ * own git history for the bug that came from exactly that, when this frame
+ * still routed through an intermediate bridging div here).
  *
- * Menu/WorkArea's previous DOMTargetElement-based children (Introduction/
- * ProgrammaticReactiveLayout) are unchanged - reached here via
- * legacyBridge() (see cascade.DOM/src/DOMLegacyBridge.js), the boundary
- * between this build()-based, DOMTarget-based frame and that still-
- * DOMTargetElement-based page content.
+ * The work area's own page content (Introduction/ProgrammaticReactiveLayout)
+ * is reached via contextContainer() (see cascade.DOM/src/DOMContextContainer.js),
+ * which owns `workArea`'s own real, styled div and hands the page a fresh
+ * context extended with usableWidth/usableHeight - not a bridge between two
+ * different target abstractions (there's only DOMTarget now), just a
+ * container that adds situational context for what it renders.
  */
 export class ApplicationMenuFrame extends Component {
   setProperties({ pages }) {
@@ -141,7 +136,7 @@ class ApplicationMenuFrameLayout extends Component {
       div({ key: "label" }, "Toolbar"),
     );
 
-    const workArea = legacyBridge({
+    const workArea = contextContainer({
       key: "workArea",
       child: page.component,
       style: {
@@ -207,7 +202,8 @@ function buildModalMenuDrawer(frame) {
 // wherever it's needed rather than reparented between them. It carries no
 // state worth preserving across such a move (no scroll position, no
 // focus), so recreating it is harmless - unlike the page components in
-// the work area, which is why those go through a stable bridge instead.
+// the work area, which is why those go through contextContainer() instead,
+// keeping the same component (and its own state) across such a move.
 class MenuList extends Component {
   // Both plain properties, passed in fresh on every rebuild. (A dropped
   // MenuList's stale, still-queued rerun once read `frame` back as

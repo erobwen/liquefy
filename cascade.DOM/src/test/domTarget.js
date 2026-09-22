@@ -216,24 +216,19 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
   });
 
   it("reordering two owned children needs no manual repositioning - a parent that just renders them in the desired order is enough", function () {
-    // The DOMTarget-based counterpart to domTargetElement.js's own
-    // "reordering two owned children" test - that one needs an explicit
-    // insertChild() call every render, specifically *because*
-    // DOMTargetElement has no lastChild of its own to reposition against
-    // (see its own class comment on why, and cascade.reactive's own
-    // structural-order-verifier.js/reconciliation-position-staleness.js
-    // for the engine-level fix this now relies on: a repeater found to
-    // have moved to a different position among its own siblings gets its
-    // own stale dependency on a moved-away predecessor's writing correctly
-    // invalidated, not left silently stale - see cascade.js's own
-    // attachToCurrentParent()/flagOverlapWithMovedPredecessor()). With
-    // that fixed, a DOMTarget-based parent needs to do nothing more than
-    // call its children in whichever order it wants *this* render - no
-    // "reach back in and rearrange" step at all: each child's own
-    // reattachElement() call reads target.lastChild and positions itself
-    // relative to whatever actually ran immediately before it, and now
-    // correctly re-examines that reading whenever its own position (not
-    // just its own value) has genuinely changed.
+    // Relies on cascade.reactive's own engine-level fix (see
+    // structural-order-verifier.js/reconciliation-position-staleness.js,
+    // and cascade.js's own attachToCurrentParent()/
+    // flagOverlapWithMovedPredecessor()): a repeater found to have moved to
+    // a different position among its own siblings gets its own stale
+    // dependency on a moved-away predecessor's writing correctly
+    // invalidated, not left silently stale. With that fixed, a parent needs
+    // to do nothing more than call its children in whichever order it wants
+    // *this* render - no "reach back in and rearrange" step at all: each
+    // child's own reattachElement() call reads target.lastChild and
+    // positions itself relative to whatever actually ran immediately before
+    // it, and now correctly re-examines that reading whenever its own
+    // position (not just its own value) has genuinely changed.
     class Leaf extends DOMNodeRenderComponent {
       setProperties({ label }) {
         this.label = label;
@@ -287,11 +282,8 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
 
   it("reordering two owned children across several passes never leaves a stale value behind, with both also rerunning for their own reasons every pass", function () {
     // Same shape as the test above, but each Leaf's own displayed value
-    // also genuinely changes on every pass (this is the exact shape that
-    // used to live in domTargetElement.js, built on DOMTargetElement's own
-    // direct insertChild() call instead - see domTargetElement.js's own
-    // note on why it moved here). Proves the fix holds up across repeated
-    // reorders, not just a single flip and flip-back.
+    // also genuinely changes on every pass. Proves the fix holds up across
+    // repeated reorders, not just a single flip and flip-back.
     class Leaf extends DOMNodeRenderComponent {
       setProperties({ label, value }) {
         this.label = label;
@@ -349,10 +341,11 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
   });
 
   it("resizing a build()-composed, keyed grid only reruns cells whose own position actually changed - not the whole grid", function () {
-    // The efficiency question behind DOMTargetElement's own class comment
-    // ("a same-value write is deduped... so writing it again later for an
-    // unrelated reason can spuriously invalidate a long-dormant sibling"):
-    // does a shared, reactive lastChild cause *unrelated* cells to rerun
+    // The efficiency question that once justified a separate,
+    // non-reactive target abstraction ("a same-value write is deduped...
+    // so writing it again later for an unrelated reason can spuriously
+    // invalidate a long-dormant sibling"): does a shared, reactive
+    // lastChild cause *unrelated* cells to rerun
     // when a grid resizes, or does the reorder-detection fix (see
     // cascade.reactive's own attachToCurrentParent()/
     // flagOverlapWithMovedPredecessor()) stay properly scoped to just the

@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, input, text, DOMBuildBridge } from "@liquefy/cascade.dom";
+import { div, button, input, text } from "@liquefy/cascade.dom";
 
 /**
  * Recursive Demo - ported from
@@ -39,7 +39,7 @@ import { div, button, input, text, DOMBuildBridge } from "@liquefy/cascade.dom";
  *    build() reruns for unrelated reasons (a sibling level being added or
  *    removed further down the chain, say).
  */
-export class RecursiveDemo extends DOMBuildBridge {
+export class RecursiveDemo extends Component {
   // The number of levels (More/Less), and the value every Item shares -
   // both changed only by the user (the buttons, the shared-value input's
   // own oninput handler), never reset by a rebuild.

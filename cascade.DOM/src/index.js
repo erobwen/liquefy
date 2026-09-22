@@ -1,9 +1,7 @@
 export { DOMTarget } from "./DOMTarget.js";
-export { DOMTargetElement } from "./DOMTargetElement.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
-export { DOMLegacyBridge, legacyBridge } from "./DOMLegacyBridge.js";
-export { DOMBuildBridge } from "./DOMBuildBridge.js";
+export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";
 export { DOMElementBoundsProvider } from "./DOMElementBoundsProvider.js";
 export { DOMElementComponent, taggedElement } from "./DOMElementComponent.js";
 export { DOMTextComponent, text } from "./DOMTextComponent.js";

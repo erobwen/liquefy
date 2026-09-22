@@ -2,7 +2,7 @@
 // property directly (DOMElementComponent, and anything else that patches an
 // element's style in place across reruns rather than routing through
 // DOMElementComponent's own tag functions - DOMElementBoundsProvider,
-// DOMLegacyBridge, DOMBuildBridge). Ported from flow.DOM's own DOMElementNode.js
+// DOMContextContainer). Ported from flow.DOM's own DOMElementNode.js
 // (updateStyle()/defaultToPx()) - ~every component in flow accepted `style`
 // as an unwritten convention, and this diffing is what made a *changed*
 // style object correct there too, not just a fresh one: a property present

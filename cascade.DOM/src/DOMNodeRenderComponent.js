@@ -42,7 +42,7 @@ export class DOMNodeRenderComponent extends Component {
   // create one via context.target.appendElement(tagName) if not - either
   // way, configure and return it. `context` is whatever was passed to
   // renderOnto() - typically a RenderContext, so context.target is the
-  // DOMTarget to manipulate and any other fields (e.g. spaceLeft) are
+  // DOMElementTarget to manipulate and any other fields (e.g. spaceLeft) are
   // situational information from the parent, if it chose to pass any.
   renderElement(context, existingElement) {
     throw new Error(this.constructor.name + " must implement renderElement(context, existingElement)");

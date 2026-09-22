@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { Component, RenderContext } from "@liquefy/cascade.component";
-import { DOMTarget } from "../DOMTarget.js";
+import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 
 // Same toolbar/main-frame shape as cascade.component's own vertical-slice
@@ -9,7 +9,7 @@ import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 // (renderOnto/render/unobservable, plus the target's own lastChild
 // versioning) generalizes from a plain number (spaceLeft) to an actual
 // side effect (a DOM node existing, in a specific position).
-describe("DOMTarget (real-time DOM renderOnto)", function () {
+describe("DOMElementTarget (real-time DOM renderOnto)", function () {
   let container;
 
   beforeEach(function () {
@@ -57,7 +57,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
       // lastChild tracking or simply never see a freshly-constructed
       // context object at all (relinking can't - see RenderContext.js).
       if (!u.innerContext) {
-        u.innerContext = new RenderContext(DOMTarget.forElement(el));
+        u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
       }
       this.toolbar.renderOnto(u.innerContext);
       this.contentArea.renderOnto(u.innerContext);
@@ -66,7 +66,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
   }
 
   it("renders real DOM elements in tree order into the container", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const toolbar = new Toolbar("Toolbar");
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
@@ -85,7 +85,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
   });
 
   it("relinking without structural change leaves the real DOM untouched (no duplicate elements)", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const toolbar = new Toolbar("Toolbar");
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
@@ -103,7 +103,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
   });
 
   it("a component's own rerun replaces its element in place, without duplicating or reordering siblings", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const toolbar = new Toolbar("Toolbar v1");
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
@@ -121,7 +121,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
   });
 
   it("passes a real measurement down to the content area, and reruns it when a re-measurement changes the value", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const toolbar = new Toolbar("Toolbar");
 
     let seenSpaceLeft;
@@ -149,7 +149,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
         const el = existingElement || parentContext.target.appendElement("div");
         el.className = "main-frame";
         if (!u.innerContext) {
-          u.innerContext = new RenderContext(DOMTarget.forElement(el));
+          u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
         }
         this.toolbar.renderOnto(u.innerContext);
         // jsdom does no real layout, so this stands in for a real
@@ -189,7 +189,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     // reattachElement again for an element that's already exactly where
     // target.lastChild says it belongs must not touch the real DOM at all;
     // calling it for one that genuinely needs to move still must.
-    const target = new DOMTarget(container);
+    const target = new DOMElementTarget(container);
     const a = document.createElement("div");
     const b = document.createElement("div");
     target.reattachElement(a);
@@ -266,7 +266,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     const a = new Leaf({ label: "a" });
     const b = new Leaf({ label: "b" });
     const frame = new Frame({ first: a, second: b });
-    frame.renderOnto(new RenderContext(new DOMTarget(container)));
+    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     function order() {
       return [...container.children].map((c) => c.textContent);
@@ -319,7 +319,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     const a = new Leaf({ label: "a", value: 1 });
     const b = new Leaf({ label: "b", value: 1 });
     const frame = new Frame({ first: a, second: b });
-    frame.renderOnto(new RenderContext(new DOMTarget(container)));
+    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     function order() {
       return [...container.children].map((c) => c.textContent);
@@ -398,7 +398,7 @@ describe("DOMTarget (real-time DOM renderOnto)", function () {
     };
     renderCounts = {};
     const grid = new Grid({ rows: 3, cols: 3 });
-    grid.renderOnto(new RenderContext(new DOMTarget(container)));
+    grid.renderOnto(new RenderContext(new DOMElementTarget(container)));
     assert.deepEqual(renderCounts, {
       r0c0: 1, r0c1: 1, r0c2: 1, r1c0: 1, r1c1: 1, r1c2: 1, r2c0: 1, r2c1: 1, r2c2: 1,
     });

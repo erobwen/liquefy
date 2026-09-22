@@ -155,6 +155,20 @@ export class Component {
     // and mergeInto() then skips state when copying the twin back - so
     // the gate lives there, in one place, not in every constructor.
     declareState(me, me.initializeState());
+    // Propagated straight down the *construction* chain (creator, above),
+    // not looked up (inherit()) or carried through render (renderContext) -
+    // a primitive locator (see cascade.dom's DOMPrimitiveLocator) never
+    // changes for the lifetime of a whole tree, so there's nothing to gain
+    // from a live, per-render lookup, and every extra hop here would cost
+    // every single primitive a build() ever constructs. `me.creator` (not
+    // the pre-wrap `this.creator`) so a keyed rebuild's freshly-merged
+    // creator is what's actually read, not whatever the throwaway twin
+    // happened to see. Left null here for anything built with no creator
+    // at all (a hardcoded child reference, or a tree's own root) - that
+    // case has no construction chain to inherit from in the first place,
+    // and is instead bootstrapped once in renderOnto() below, from
+    // whatever real target it's actually renderOnto()'d with.
+    me.unobservable.primitiveLocator = me.creator ? me.creator.unobservable.primitiveLocator : null;
     return me;
   }
 
@@ -409,6 +423,19 @@ export class Component {
     // children to see a changed value mutates its cached instance in place
     // rather than handing down a new one.
     this.renderContext = context;
+    // The one bootstrap point for unobservable.primitiveLocator (see the
+    // constructor above, which propagates it down the creation chain for
+    // free everywhere else): a component built with no creator at all - a
+    // tree's own root, or a hardcoded child reference - has nothing to
+    // inherit it from that way, but renderOnto() reaches every component
+    // unconditionally, and `context.target` is where a locator actually
+    // lives (see cascade.dom's DOMElementTarget). Fill in once, not on
+    // every relink/rerun - the fast constructor-chain path above already
+    // wins wherever it applies, and a locator never changes for a tree's
+    // whole lifetime, so there's nothing to refresh here.
+    if (!u.primitiveLocator && context && context.target && context.target.primitiveLocator) {
+      u.primitiveLocator = context.target.primitiveLocator;
+    }
     if (u.repeater) {
       // A repeater that was genuinely retracted (not renderOnto()'d some
       // prior run) stays fully intact and re-linkable - see

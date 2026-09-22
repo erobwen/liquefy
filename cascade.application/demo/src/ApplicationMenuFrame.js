@@ -42,7 +42,7 @@ const TOP_BAR_HEIGHT = 48;
  * boundaries a deeper descendant sits behind.
  *
  * This is the frame's own root, rendered directly by index.js, which hands
- * it a DOMTarget-based context to begin with - so DOMElementBoundsProvider's
+ * it a DOMElementTarget-based context to begin with - so DOMElementBoundsProvider's
  * own div ends up as a *direct* child of #application, no unstyled
  * intermediate div for a percentage height to get lost in (see this file's
  * own git history for the bug that came from exactly that, when this frame
@@ -52,7 +52,7 @@ const TOP_BAR_HEIGHT = 48;
  * is reached via contextContainer() (see cascade.DOM/src/DOMContextContainer.js),
  * which owns `workArea`'s own real, styled div and hands the page a fresh
  * context extended with usableWidth/usableHeight - not a bridge between two
- * different target abstractions (there's only DOMTarget now), just a
+ * different target abstractions (there's only DOMElementTarget now), just a
  * container that adds situational context for what it renders.
  */
 export class ApplicationMenuFrame extends Component {

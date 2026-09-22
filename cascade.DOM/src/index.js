@@ -1,4 +1,5 @@
-export { DOMTarget } from "./DOMTarget.js";
+export { DOMElementTarget } from "./DOMElementTarget.js";
+export { DOMPrimitiveLocator } from "./DOMPrimitiveLocator.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";

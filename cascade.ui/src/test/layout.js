@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component } from "@liquefy/cascade.component";
-import { DOMTarget, text } from "@liquefy/cascade.dom";
+import { DOMElementTarget, text } from "@liquefy/cascade.dom";
 import { row, column, center, filler, fitContainerStyle, fillerStyle, zStack } from "../index.js";
 
 describe("Layout (flow.ui/basic/src/Layout.js's own style kit, ported)", function () {
@@ -19,7 +19,7 @@ describe("Layout (flow.ui/basic/src/Layout.js's own style kit, ported)", functio
         return row({ key: "r" }, column({ key: "c" }, filler({ key: "f" }, text("content"))));
       }
     }
-    new Frame().renderOnto(new RenderContext(new DOMTarget(container)));
+    new Frame().renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     const rowEl = container.querySelector("div");
     assert.equal(rowEl.style.display, "flex");
@@ -45,7 +45,7 @@ describe("Layout (flow.ui/basic/src/Layout.js's own style kit, ported)", functio
         return row({ key: "r", style: { justifyContent: "flex-end", background: "red" } });
       }
     }
-    new Frame().renderOnto(new RenderContext(new DOMTarget(container)));
+    new Frame().renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     const rowEl = container.querySelector("div");
     // Overridden - caller wins.
@@ -62,7 +62,7 @@ describe("Layout (flow.ui/basic/src/Layout.js's own style kit, ported)", functio
         return center({ key: "centered", style: { ...fitContainerStyle } });
       }
     }
-    new Frame().renderOnto(new RenderContext(new DOMTarget(container)));
+    new Frame().renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     const el = container.querySelector("div");
     assert.equal(el.style.justifyContent, "center");
@@ -79,7 +79,7 @@ describe("Layout (flow.ui/basic/src/Layout.js's own style kit, ported)", functio
         return zStack({ key: "stack" });
       }
     }
-    new Frame().renderOnto(new RenderContext(new DOMTarget(container)));
+    new Frame().renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     const el = container.querySelector("div");
     assert.equal(el.style.position, "relative");

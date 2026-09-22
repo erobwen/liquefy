@@ -35,9 +35,9 @@ describe("a repeaterAction that throws does not corrupt state.context for anythi
     // that stale position instead of their own. A same-partial
     // read-after-write would trivially succeed regardless, since it
     // doesn't depend on cross-sibling tree-position comparison at all -
-    // the real failure (cascade.DOM's own domTarget.js, run after a
+    // the real failure (cascade.DOM's own domElementTarget.js, run after a
     // throwing test) needed a *later sibling* reading what an *earlier*
-    // one wrote, exactly like DOMTarget's own lastChild, so exercise that
+    // one wrote, exactly like DOMElementTarget's own lastChild, so exercise that
     // shape directly.
     const target = observable({ last: null });
     let secondSaw;

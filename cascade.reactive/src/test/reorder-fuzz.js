@@ -3,7 +3,7 @@ import assert from "assert";
 
 // Property-based hardening for the moved-away-predecessor mechanism (see
 // attachToCurrentParent()/flagOverlapWithMovedPredecessor() in cascade.js,
-// and cascade.dom/src/test/domTarget.js's own hand-written reorder tests,
+// and cascade.dom/src/test/domElementTarget.js's own hand-written reorder tests,
 // which this generalizes): every hand-written test for this exercises one
 // reorder point, one or two levels deep. This file instead builds random
 // tree shapes, reorders/drops/reintroduces children at random depths many
@@ -12,7 +12,7 @@ import assert from "assert";
 // a human thought to check.
 //
 // The shape under test is the same "positional accumulator" pattern as
-// renderOnto.js's own Leaf/Panel (spaceLeft) and DOMTarget's own lastChild:
+// renderOnto.js's own Leaf/Panel (spaceLeft) and DOMElementTarget's own lastChild:
 // every node reads the shared target's current value (what whoever ran
 // immediately before it left behind), then writes its own updated value
 // before its own children run. A node that moves relative to its former

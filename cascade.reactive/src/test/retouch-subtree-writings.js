@@ -13,7 +13,7 @@ import assert from "assert";
 // had (see retouchSubtreeWritings() in cascade.js for the full mechanics).
 //
 // Same "positional accumulator" pattern as renderOnto.js's own Leaf/Panel
-// (spaceLeft) and DOMTarget's own lastChild: every node reads the shared
+// (spaceLeft) and DOMElementTarget's own lastChild: every node reads the shared
 // target's current value, then writes its own updated value before its
 // own children run.
 const { observable, repeat, linkRepeater } = getWorld({

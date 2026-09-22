@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
-import { DOMTarget } from "../DOMTarget.js";
+import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 
 // Responsive breakpoint behavior from flow's ApplicationMenuFrame, scoped
@@ -13,7 +13,7 @@ import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 // child one moment, entirely un-rendered - retracted, not just hidden -
 // the next), which is exactly the retract/reconcile machinery already
 // proven in cascade.reactive/src/test/renderOnto.js's case 3 and
-// cascade.DOM's own domTarget.js tests, just driven by a measurement
+// cascade.DOM's own domElementTarget.js tests, just driven by a measurement
 // instead of an explicit boolean.
 describe("MenuFrame modal/docked breakpoint", function () {
   const MENU_WIDTH = 220;
@@ -60,7 +60,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
       const el = existingElement || context.target.appendElement("div");
       el.className = "menu-frame";
       if (!u.innerContext) {
-        u.innerContext = new RenderContext(DOMTarget.forElement(el));
+        u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
       }
 
       const menuIsModal = context.usableWidth < MENU_WIDTH * 3;
@@ -85,7 +85,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
   }
 
   it("docks the menu when there's enough width", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
     context.usableWidth = 1000; // >= MENU_WIDTH * 3 (660)
@@ -97,7 +97,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("goes modal and retracts the menu when width is narrow", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
     context.usableWidth = 1000;
@@ -112,7 +112,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("opens the menu as an overlay on request while modal, and retracts it again on close", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
     context.usableWidth = 500; // modal from the start
@@ -129,7 +129,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("re-docks correctly after having gone modal - the element is reattached, not left orphaned", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
     context.usableWidth = 1000;
@@ -156,7 +156,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("reopening the overlay after closing it also reattaches its element correctly", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     context.usableWidth = 500;
     menuFrame.renderOnto(context);
@@ -181,7 +181,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     // true), then opened as an overlay. The stale value from its last
     // real execution (false) differs from the current one (true) - only
     // a real rerun on reattachment, not just relinking, gets this right.
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
     context.usableWidth = 1000; // docked - menu renders with menuIsOverlay=false

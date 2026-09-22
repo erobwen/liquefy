@@ -2680,7 +2680,7 @@ function createWorld(configuration) {
   // than last time (see attachToCurrentParent()) may have its own real
   // dependency on something a *moved-away predecessor* - still sitting in
   // pendingChildren, structurally in front of where `child` is needed now
-  // - wrote last run (e.g. `child` reads a shared DOMTarget's own
+  // - wrote last run (e.g. `child` reads a shared DOMElementTarget's own
   // `lastChild`, last written by whichever sibling actually ran
   // immediately before it). That write was never invalidated or retracted
   // - the predecessor simply moved - but it's no longer structurally
@@ -2747,7 +2747,7 @@ function createWorld(configuration) {
   // *ahead* of some sibling that hasn't been reattached yet this run (a
   // "new predecessor appeared in front of it" - see this file's own git
   // history for the concrete case this was found from, and
-  // domTarget.js/reorder-fuzz.js for the tests). Every writing `child`'s
+  // domElementTarget.js/reorder-fuzz.js for the tests). Every writing `child`'s
   // own subtree produced last run is still exactly where it's always been
   // in its own property timeline - untouched, since nothing here rewrote
   // it - even though `child`'s live structural position (and everything

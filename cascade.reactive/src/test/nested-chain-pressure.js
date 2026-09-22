@@ -24,7 +24,7 @@ describe("partial chain pressure release inside deep nesting", function () {
       name: "nested-chain-pressure-" + Math.random(),
       ...options,
     });
-    // One shared "target" per level, like DOMTarget.lastChild: each leaf
+    // One shared "target" per level, like DOMElementTarget.lastChild: each leaf
     // reads what its predecessor sibling wrote, then writes its own mark.
     const levels = [];
     const shape = observable({ maxDepth: 1 }); // like RecursiveDemo's own `levels` state

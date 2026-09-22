@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
-import { DOMTarget } from "../DOMTarget.js";
+import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 
 // Side-by-side sibling of the toolbar/main-frame demo: a menu claims a
@@ -60,7 +60,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
       const el = existingElement || context.target.appendElement("div");
       el.className = "menu-frame";
       if (!u.innerContext) {
-        u.innerContext = new RenderContext(DOMTarget.forElement(el));
+        u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
       }
 
       this.menu.renderOnto(u.innerContext);
@@ -79,7 +79,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   }
 
   it("passes real usable bounds down to the work area after measuring the menu", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     menuFrame.unobservable.simulatedFrameWidth = 1000;
     menuFrame.unobservable.simulatedFrameHeight = 700;
@@ -93,7 +93,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   });
 
   it("an unrelated rebuild that produces the same usable bounds does not rerun the work area", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     menuFrame.unobservable.simulatedFrameWidth = 1000;
     menuFrame.unobservable.simulatedFrameHeight = 700;
@@ -107,7 +107,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   });
 
   it("a genuinely different measurement reruns the work area with the new bounds", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     menuFrame.unobservable.simulatedFrameWidth = 1000;
     menuFrame.unobservable.simulatedFrameHeight = 700;

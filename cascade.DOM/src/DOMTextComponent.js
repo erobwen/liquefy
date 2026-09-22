@@ -13,7 +13,7 @@ export class DOMTextComponent extends DOMNodeRenderComponent {
   }
 
   renderElement(context, existingElement) {
-    // DOMTarget has no dedicated "append a text node" of its own (only
+    // DOMElementTarget has no dedicated "append a text node" of its own (only
     // appendElement, which always creates via document.createElement) -
     // reattachElement is the generic insertion primitive underneath both,
     // so it's the right call for a freshly-created Text node too.

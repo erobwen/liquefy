@@ -1,6 +1,6 @@
 import { extractProperty, RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
-import { DOMTarget } from "./DOMTarget.js";
+import { DOMElementTarget } from "./DOMElementTarget.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
 import { applyStyle as diffApplyStyle } from "./applyStyle.js";
 
@@ -55,12 +55,12 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
   renderElement(context, existingElement) {
     // context.target.appendElement (not a bare document.createElement) -
     // that's what actually inserts the new element into the real DOM, at
-    // the right position (see DOMTarget's own lastChild tracking).
+    // the right position (see DOMElementTarget's own lastChild tracking).
     const element = existingElement || context.target.appendElement(this.tagName);
     // A reused element still needs its position reconfirmed on every
     // render, even though nothing here moves it: cascade.reactive retracts
     // a repeater's own prior writings - including ones made onto a foreign,
-    // shared object like DOMTarget - the moment that repeater is
+    // shared object like DOMElementTarget - the moment that repeater is
     // invalidated for a rerun (see cascade.js's own "a repeater's prior
     // output must not be visible to anyone" comment on seekWriting). If
     // this component reruns for a reason unrelated to its own element (a
@@ -128,10 +128,10 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     super.render(context);
     const u = this.unobservable;
     if (!u.childContext) {
-      // A RenderContext, not the bare DOMTarget - renderElement() (this
+      // A RenderContext, not the bare DOMElementTarget - renderElement() (this
       // class's own, and anything else's) reads context.target, exactly
       // like the context this component itself was handed.
-      u.childContext = new RenderContext(DOMTarget.forElement(u.element));
+      u.childContext = new RenderContext(DOMElementTarget.forElement(u.element, this.unobservable.primitiveLocator));
     }
     (this.children || []).forEach((child) => {
       // null/undefined/false - typically Component.show(false)'s own

@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component } from "@liquefy/cascade.component";
-import { DOMTarget } from "../DOMTarget.js";
+import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMElementBoundsProvider } from "../DOMElementBoundsProvider.js";
 
 // jsdom does no real layout, so getBoundingClientRect() always reports
@@ -35,7 +35,7 @@ describe("DOMElementBoundsProvider", function () {
   }
 
   it("passes measured bounds to the direct child via this.renderContext, readable from build()", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ className: "bounds-provider", child: probe });
 
@@ -48,7 +48,7 @@ describe("DOMElementBoundsProvider", function () {
   });
 
   it("re-measures on window resize and reruns the child that read the bounds", function () {
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ child: probe });
 
@@ -92,7 +92,7 @@ describe("DOMElementBoundsProvider", function () {
       }
     }
 
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const frame = new Frame({ shown: true, child: new Probe() });
     frame.renderOnto(context);
     assert.equal(addCount, 1);
@@ -121,7 +121,7 @@ describe("DOMElementBoundsProvider", function () {
       }
     }
 
-    const context = new RenderContext(new DOMTarget(container));
+    const context = new RenderContext(new DOMElementTarget(container));
     const frame = new Frame({
       style: { position: "relative", height: "100%" },
       className: "frame-a",

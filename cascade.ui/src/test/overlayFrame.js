@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component } from "@liquefy/cascade.component";
-import { DOMTarget, div, text } from "@liquefy/cascade.dom";
+import { DOMElementTarget, div, text } from "@liquefy/cascade.dom";
 import { overlayFrame, overlay } from "../index.js";
 
 // Both tests below use text(...) explicitly for every leaf string
@@ -28,7 +28,7 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
     }
 
     const frame = new Frame();
-    frame.renderOnto(new RenderContext(new DOMTarget(container)));
+    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     const frameEl = container.children[0];
     assert.equal(frameEl.children.length, 1, "nothing shown yet - just the static content");
@@ -57,7 +57,7 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
     }
 
     const frame = new Frame();
-    frame.renderOnto(new RenderContext(new DOMTarget(container)));
+    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
 
     const rootFrameEl = container.children[0];
     assert.equal(rootFrameEl.children.length, 1, "nothing shown yet");

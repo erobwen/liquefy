@@ -10,7 +10,7 @@ import { observable } from "./Cascade.js";
  * extra fields inside a child's render() is a normal, tracked dependency -
  * if a parent later re-measures and writes a different value there, the
  * child that read it reruns automatically, the same versioned-timeline
- * mechanism that already makes a target property (e.g. DOMTarget's
+ * mechanism that already makes a target property (e.g. DOMElementTarget's
  * lastChild) resolve correctly per tree position.
  *
  * IMPORTANT: this only works if the *same* context instance is reused

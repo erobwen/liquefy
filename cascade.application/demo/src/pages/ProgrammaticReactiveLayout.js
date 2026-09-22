@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { DOMTarget } from "@liquefy/cascade.dom";
+import { DOMElementTarget } from "@liquefy/cascade.dom";
 
 /**
  * Programmatic Reactive Layout - a simplified replica of
@@ -14,14 +14,14 @@ import { DOMTarget } from "@liquefy/cascade.dom";
  * cell count in a demo page; each cell has no independent state of its
  * own, so there's nothing individual identity would buy here.
  *
- * Uses DOMTarget directly (appendElement()/reattachElement()) rather than
+ * Uses DOMElementTarget directly (appendElement()/reattachElement()) rather than
  * the older DOMTargetElement (createChild()/insertChild()) - the latter
  * is gone now that cascade.reactive's own engine correctly reconciles a
  * repositioned repeater's stale dependency on a moved-away predecessor's
  * writing (see cascade.reactive's own attachToCurrentParent()/
  * flagOverlapWithMovedPredecessor()), which was the reason DOMTargetElement
  * existed in the first place - see this file's own git history, and
- * cascade.dom/src/test/domTarget.js's own reordering/grid-resize tests.
+ * cascade.dom/src/test/domElementTarget.js's own reordering/grid-resize tests.
  */
 export class ProgrammaticReactiveLayout extends Component {
   // The user's chosen grid size - state, changed only from the number
@@ -35,17 +35,17 @@ export class ProgrammaticReactiveLayout extends Component {
     if (!u.el) {
       u.el = context.target.appendElement("div");
       u.el.style.cssText = "box-sizing: border-box; overflow: hidden;";
-      const elTarget = DOMTarget.forElement(u.el);
+      const elTarget = DOMElementTarget.forElement(u.el, this.unobservable.primitiveLocator);
 
       u.controlPanel = elTarget.appendElement("div");
       u.controlPanel.style.cssText = "display: flex; gap: 16px; margin-bottom: 12px;";
-      const controlPanelTarget = DOMTarget.forElement(u.controlPanel);
+      const controlPanelTarget = DOMElementTarget.forElement(u.controlPanel, this.unobservable.primitiveLocator);
       u.rowsField = createNumberField(controlPanelTarget, "Rows", (value) => { this.rows = value; });
       u.columnsField = createNumberField(controlPanelTarget, "Columns", (value) => { this.columns = value; });
 
       u.grid = elTarget.appendElement("div");
       u.grid.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
-      u.gridTarget = DOMTarget.forElement(u.grid);
+      u.gridTarget = DOMElementTarget.forElement(u.grid, this.unobservable.primitiveLocator);
     }
 
     // Reading usableWidth/usableHeight here - not just measuring this
@@ -73,7 +73,7 @@ export class ProgrammaticReactiveLayout extends Component {
       for (let row = 0; row < this.rows; row++) {
         const rowEl = u.gridTarget.appendElement("div");
         rowEl.style.cssText = "display: flex; gap: 4px;";
-        const rowTarget = DOMTarget.forElement(rowEl);
+        const rowTarget = DOMElementTarget.forElement(rowEl, this.unobservable.primitiveLocator);
         for (let column = 0; column < this.columns; column++) {
           const cellEl = rowTarget.appendElement("div");
           cellEl.style.cssText =

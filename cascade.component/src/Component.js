@@ -423,6 +423,21 @@ export class Component {
     // children to see a changed value mutates its cached instance in place
     // rather than handing down a new one.
     this.renderContext = context;
+    // The same value again, as plain bookkeeping - this is what the render
+    // repeater below actually renders against. Not this.renderContext
+    // itself: that's an observable property, written here from the
+    // *parent's* partial, so a parent rerun's own dispose() retires that
+    // writing - and a child whose own rerun was already queued can run
+    // before the parent gets as far as this call again and re-writes it,
+    // reading it back as undefined (the documented "property written at
+    // construction, unlinked by the parent's next dispose()" race - see
+    // cascade.reactive/docs/plan-flagged-scheduling.md). And not the
+    // `context` argument captured by the callback's closure either - see
+    // the comment inside it. An unobservable field has neither problem:
+    // never retired, never a dependency, always whatever the most recent
+    // renderOnto() call handed in.
+    const contextChanged = u.renderContext !== context;
+    u.renderContext = context;
     // The one bootstrap point for unobservable.primitiveLocator (see the
     // constructor above, which propagates it down the creation chain for
     // free everywhere else): a component built with no creator at all - a
@@ -457,6 +472,19 @@ export class Component {
         // rerun rather than trust stale results computed against
         // whatever those dependencies happened to be last time.
         u.repeater.restart();
+      } else if (contextChanged) {
+        // Not retracted - reclaimed by the same parent at the same
+        // position - but handed a genuinely different context object
+        // (a parent that owns two targets moving a child between them,
+        // say). A clean relink never re-executes render(), so nothing
+        // else would ever render this component against the new context
+        // - its element would simply stay under the old target. Same
+        // treatment as reattachment, minus onReattach(): the element was
+        // never removed, and renderElement()'s own reattachElement() on
+        // the new target is what moves it. The common case - the same
+        // cached context object every time, per RenderContext's own
+        // stable-identity rule - stays the free no-op it always was.
+        u.repeater.restart();
       }
     } else {
       // renderStack push/pop lives *inside* this callback, not wrapped
@@ -472,7 +500,20 @@ export class Component {
       u.repeater = repeat(() => {
         renderStack.push(this);
         try {
-          this.render(context);
+          // this.renderContext, not the `context` argument this closure
+          // was created with: that argument is whatever the *first*
+          // renderOnto() call passed, forever. A component retracted and
+          // later renderOnto()'d under a different parent (a dialog moving
+          // between a docked slot and a modal overlay, say - see
+          // cascade.application/demo's HybridModalDialog) is relinked and
+          // restart()ed above with the new context, but this callback is
+          // what restart() actually reruns - rendering against the stale
+          // captured context put its fresh elements back under the old
+          // parent's target. renderOnto() sets u.renderContext fresh on
+          // every call, so it always names the current one - and see its
+          // own comment there on why the unobservable copy rather than the
+          // observable this.renderContext.
+          this.render(u.renderContext);
         } finally {
           // Must run even if render() throws - renderStack is a single,
           // module-level stack shared by every component in the process,

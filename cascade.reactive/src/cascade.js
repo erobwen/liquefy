@@ -2896,6 +2896,19 @@ function createWorld(configuration) {
         movePartialToCurrentPosition(parentRepeater.chainHead, child.rightmostPartial);
       }
     }
+    // Claimed by a different parent than the one it currently belongs to
+    // (a child moved between two sibling subtrees - see
+    // cascade.component's renderContextTransplant.js): detach it from the
+    // old parent's list first. appendToChildList() below only overwrites
+    // the node's own sibling pointers, so without this the old parent's
+    // list keeps a stale reference - and when the old parent reruns, its
+    // finalizeChildren() retracts the child right out from under its new
+    // owner. Which parent reruns first is up to the scheduler, so this
+    // only bit in one direction of the move.
+    const oldParent = child.parentRepeater;
+    if (oldParent && oldParent !== parentRepeater && child.listMembership) {
+      unlinkFromChildList(child.listMembership === "pending" ? oldParent.pendingChildren : oldParent.children, child);
+    }
     child.parentRepeater = parentRepeater;
     child.listMembership = "confirmed";
     if (typeof(child.retracted) !== 'undefined') child.retracted = false;

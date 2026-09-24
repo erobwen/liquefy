@@ -3430,6 +3430,22 @@ function createWorld(configuration) {
         // the one we entered above, not `partial` itself.
         const finalPartial = repeater.currentPartial;
 
+        // Finish rebuilding while the final partial is still open, before
+        // any of this run's stale writings are settled or abandoned below.
+        // Merging a rebuilt twin back into its established object (see
+        // mergeInto()) writes that object's properties again - from this
+        // repeater, in this run - so those writes reclaim the previous
+        // run's writings of the same properties, the same as any rewrite,
+        // and a property that didn't change settles quietly. Done after
+        // the abandon step instead, every property of every established
+        // object would first be abandoned - notifying all its readers -
+        // and only then rewritten. Within one pipeline that notification
+        // is deferred and rechecked, so it cost nothing; a reader in a
+        // parallel pipeline (a component's render reading what its own
+        // independent build repeater merged) is notified immediately and
+        // reruns for nothing.
+        finishRebuilding(this);
+
         // The final partial's own claimed stale writings (see
         // attachToCurrentParent for every earlier partial's own writings -
         // this repeater's own final one never went through there).
@@ -3457,9 +3473,6 @@ function createWorld(configuration) {
         } else if (debounce > 0) {
           throw new Error("Debounce has to be used together with a non-recorded action.");
         }
-
-        // Finish rebuilding
-        finishRebuilding(this);
 
         this.firstTime = false;
         leaveContext( finalPartial );

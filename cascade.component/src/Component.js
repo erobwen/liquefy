@@ -1,4 +1,4 @@
-import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, withoutRecording } from "./Cascade.js";
+import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, withoutRecording } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 
 /**
@@ -247,42 +247,34 @@ export class Component {
   // component's own build() inputs actually change, not on every parent
   // rerun - the same reasoning as any other repeater boundary.
   //
+  // An *independent* repeater (see cascade.reactive's repeat()
+  // {independent: true}): a pipeline of its own at the render's time
+  // level, not a child of the render repeater that calls this. So none of
+  // a render pipeline's own operations (partial chain, reconciliation,
+  // scheduling) ever have to visit build repeaters. The two are parallel
+  // pipelines (see compareWritingToReader() in cascade.reactive): build()
+  // reads the latest value of anything render writes - fine, since what
+  // flows from render to build (the render context, its target, the
+  // primitive locator) is timeless - and render reads the build's latest
+  // result. Its lifecycle follows the render repeater's by hand instead of
+  // by parenthood: retracted along with it (see renderOnto()'s onRetract),
+  // which also covers a dropped component (onDispose() retracts the render
+  // repeater).
+  //
   // The result is stashed on `this.newBuild` - an ordinary *observable*
   // property (matching flow.core's own naming), not something on
-  // `unobservable`. That matters: buildRepeater is the sole writer and
-  // render() (running in a *different* repeater) is the sole reader, so
-  // this is a plain producer/consumer relationship - the same shape as
-  // any pipeline stage reading another's output - not a repeater reading
-  // back its own prior write, which is the shape that actually needs the
-  // unobservable escape hatch. Storing it on unobservable here would just
-  // make render() never notice a rebuild at all: linkRepeater() doesn't
-  // force execution, and a non-observable read creates no dependency for
-  // the rebuild to invalidate.
+  // `unobservable`: buildRepeater is the sole writer and render() the
+  // reader, so a rebuild invalidates render() through that ordinary
+  // dependency.
   reactiveBuildEquivalent() {
     const u = this.unobservable;
     // A retracted buildRepeater is treated the same as "doesn't exist
-    // yet," not relinked - buildRepeater is a child of whatever repeater
-    // called reactiveBuildEquivalent() (typically this component's own
-    // render-repeater), so it gets retracted right along with it: this
-    // component simply not being renderOnto()'d for a run or more (e.g.
-    // swapped out of a page switcher, or crossing a responsive
-    // breakpoint) retracts the whole subtree underneath, buildRepeater
-    // included. Retraction unlinks its own writings (including its write
-    // to `this.newBuild` below - an ordinary observable property, not on
-    // `unobservable`), so relinking it would hand back whatever newBuild
-    // falls through to once that write is gone - undefined, on a
-    // component whose build() has never run any other way - and
-    // renderOnto()'s own restart() (used below for exactly this same
-    // "was retracted" situation) only *schedules* a rerun, deferred until
-    // the current, already-in-progress refresh cycle gets back around to
-    // it - fine there, since nothing needs the result synchronously, only
-    // whatever DOM side effect eventually lands, but wrong here, since
-    // the very next line hands `this.newBuild` straight to this method's
-    // own caller, which uses it immediately. A fresh repeat() call sidesteps
-    // both problems at once, the same already-proven-correct way this
-    // method's very first-ever call already works: a brand new repeater's
-    // first pass always runs synchronously, outside the scheduler
-    // entirely (see repeat()).
+    // yet": it was retracted along with this component's render repeater
+    // (this component not being renderOnto()'d for a run or more - swapped
+    // out of a page switcher, or crossing a responsive breakpoint), which
+    // unlinked its writings, `this.newBuild` included. A fresh repeat()
+    // call's first pass runs synchronously, right here, which is what this
+    // method's caller needs - it uses the result immediately.
     if (!u.buildRepeater || u.buildRepeater.retracted) {
       u.buildRepeater = repeat(() => {
         // Pushed/popped around build() specifically (not this whole
@@ -303,57 +295,26 @@ export class Component {
           creators.pop();
         }
         assignEquivalentCreator(this.newBuild, this);
-      });
+      }, { independent: true });
     } else {
-      linkRepeater(u.buildRepeater);
-      // linkRepeater() only guarantees that a *flagged* buildRepeater's
-      // disposal (retiring its own stale writings, including whatever it
-      // last wrote to `this.newBuild`) happens inline, right here - not
-      // that its *refresh* does too. A flagged repeater found to need a
-      // genuine rerun has that rerun deliberately left for the heap to
-      // pick up later, same as any other scheduled work (see
-      // linkRepeater's own comment) - fine for a caller that only needs
-      // the disposal to have already happened, but wrong here: the very
-      // next line hands `this.newBuild` straight to this method's own
-      // caller, which needs a *fresh* value right now (e.g. a component
-      // that measures, writes an input, then builds/renders off the
-      // result, all synchronously in tree order - see
-      // cascade.application/demo's ApplicationMenuFrame), not whenever
-      // the heap gets back around to it. So finish the job here instead,
-      // exactly the way processRepeater()'s own 'invalid' branch does
-      // (clear workStatus, then refresh) - drainActivePipeline()'s own
-      // heap loop already discards a repeater it later pops whose
-      // workStatus has gone back to null in the meantime ("an ancestor's
-      // own refresh already reached and handled it"), so this can never
-      // cause buildRepeater to run twice.
+      // Pull, don't wait: if the build is pending (its inputs changed, or
+      // it was flagged), run it now - pushed onto the context stack above
+      // this render, returning here with a fresh result - rather than
+      // whenever the scheduler reaches its pipeline. The caller uses
+      // `this.newBuild` immediately (e.g. a component that measures, writes
+      // an input, then builds/renders off the result, all synchronously in
+      // tree order - see cascade.application/demo's ApplicationMenuFrame).
       //
-      // This is also what keeps reconciliation correct for whatever
-      // build() constructs, not just the *value* returned here - a
-      // subtler reason this can't be sidestepped by calling build()
-      // directly, without a repeater at all (an earlier, now-abandoned
-      // attempt at exactly that - see git history). Reconciling a keyed
-      // child (observable(target, buildId)) sets the *established*
-      // object's own forwardTo to point at the freshly-constructed,
-      // about-to-be-discarded one; every read of anything but its
-      // causality/timelines meta (see getHandlerObject) is transparently
-      // redirected through forwardTo until finishRebuilding() clears it -
-      // which only happens once the repeater that did the constructing
-      // finishes its own refresh(). Building without any repeater at all
-      // means that never happens until *this* component's own enclosing
-      // render-repeater finishes - which is too late if this method's own
-      // result gets renderOnto()'d before then, in the same call: reading
-      // .unobservable on a component still mid-forwardTo hits its
-      // temporary, about-to-be-discarded twin's own (empty) unobservable
-      // bag instead of the established one's, so renderOnto() finds no
-      // repeater there and creates a redundant new one instead of
-      // relinking the real one. buildRepeater's own refresh() completing
-      // synchronously, right here, is what guarantees finishRebuilding()
-      // has already run - and forwardTo already cleared - before this
-      // method's own caller ever gets the result back.
-      if (u.buildRepeater.workStatus === 'invalid') {
-        u.buildRepeater.workStatus = null;
-        u.buildRepeater.refresh();
-      }
+      // The build's refresh() completing synchronously here is also what
+      // keeps reconciliation correct for whatever build() constructs, not
+      // just the value returned: reconciling a keyed child
+      // (observable(target, buildId)) points the *established* object's
+      // forwardTo at the freshly-constructed, about-to-be-discarded one
+      // until finishRebuilding() clears it at the end of that refresh.
+      // Rendering the result before then would read the throwaway twin's
+      // own empty unobservable bag, find no repeater there, and create a
+      // redundant one instead of relinking the real one.
+      refreshIfNeeded(u.buildRepeater);
     }
     return this.newBuild;
   }
@@ -501,7 +462,16 @@ export class Component {
           // later tests in the same run.
           renderStack.pop();
         }
-      }, { onRetract: () => this.onRetract() });
+      }, {
+        onRetract: () => {
+          // The build repeater is independent (see reactiveBuildEquivalent()),
+          // not a child of this one, so it isn't retracted along with it
+          // automatically - a component that isn't rendered shouldn't keep
+          // rebuilding either.
+          if (u.buildRepeater) retractRepeater(u.buildRepeater);
+          this.onRetract();
+        },
+      });
     }
   }
 

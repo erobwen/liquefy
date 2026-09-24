@@ -29,4 +29,20 @@ export class RenderContext {
     if (extra) Object.assign(this, extra);
     return observable(this);
   }
+
+  // A context for rendering somewhere else (typically a component's own
+  // element's target, for its children) that keeps what should follow a
+  // subtree down: the service locator (see ServiceLocator.js). Situational
+  // fields - measured bounds, usable width - are deliberately not carried
+  // over; they're only valid near where they were introduced, so each
+  // component passes on what it means to (`extra`).
+  //
+  // The locator is copied once, when the context is created: nested
+  // contexts are cached and reused across reruns, and this keeps a lookup
+  // a single property read. Swapping services at runtime is done inside
+  // the locator (see ObservableCompoundServiceLocator), not by reassigning
+  // a context's serviceLocator.
+  derive(target, extra) {
+    return new RenderContext(target, { serviceLocator: this.serviceLocator, ...extra });
+  }
 }

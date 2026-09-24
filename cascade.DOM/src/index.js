@@ -1,5 +1,5 @@
 export { DOMElementTarget } from "./DOMElementTarget.js";
-export { DOMPrimitiveLocator } from "./DOMPrimitiveLocator.js";
+export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator } from "./DOMServiceLocator.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";
@@ -8,6 +8,7 @@ export { DOMElementComponent, taggedElement } from "./DOMElementComponent.js";
 export { DOMTextComponent, text } from "./DOMTextComponent.js";
 export { applyStyle, defaultToPx } from "./applyStyle.js";
 export {
+  element,
   address, article, aside, footer, header, h1, h2, h3, h4, h5, h6, group, main, nav, section, search,
   blockquote, dd, div, dl, dt, figcaption, figure, hr, li, menu, ol, p, pre, ul,
   a, abbr, b, bdi, bdo, br, cite, code, data, dfn, em, i, kbd, mark, q, rp, rt, ruby, s, samp, small,

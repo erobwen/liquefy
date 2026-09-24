@@ -5,12 +5,17 @@ import { IntroductionPage } from "./src/pages/IntroductionPage.js";
 import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
 import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
 import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
+import { ThemesPage } from "./src/pages/ThemesPage.js";
+import { serviceLocator } from "./src/services.js";
 
 // ApplicationMenuFrame is build()-only (see its own class doc), so this
 // starts it directly on a DOMElementTarget root - DOMElementBoundsProvider's own
 // div lands as a *direct* child of #application, with no intermediate
 // bridging div in between.
-const context = new RenderContext(DOMElementTarget.forElement(document.getElementById("application")));
+//
+// The services every component in the app gets (HTML elements, the current
+// theme's widgets, ...) travel down from here - see src/services.js.
+const context = new RenderContext(DOMElementTarget.forElement(document.getElementById("application")), { serviceLocator });
 
 const applicationMenuFrame = new ApplicationMenuFrame({
   pages: [
@@ -18,6 +23,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
     { key: "recursive-demo", title: "Recursive Demo", component: new RecursiveDemo() },
     { key: "hybrid-modal-dialog", title: "Hybrid Modal Dialog", component: new HybridModalDialog() },
+    { key: "themes", title: "Themes", component: new ThemesPage() },
   ],
 });
 applicationMenuFrame.renderOnto(context);

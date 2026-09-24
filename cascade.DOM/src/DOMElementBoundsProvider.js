@@ -1,4 +1,3 @@
-import { RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
@@ -71,7 +70,7 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
       // separate, later pass - which this real initial measurement, folded
       // into construction itself, guarantees for every call after this one.
       const rect = u.element.getBoundingClientRect();
-      u.innerContext = new RenderContext(DOMElementTarget.forElement(u.element, context.target.primitiveLocator), { width: rect.width, height: rect.height });
+      u.innerContext = context.derive(DOMElementTarget.forElement(u.element), { width: rect.width, height: rect.height });
     } else {
       this.measure();
     }

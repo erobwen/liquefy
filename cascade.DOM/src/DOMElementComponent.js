@@ -1,4 +1,4 @@
-import { extractProperty, RenderContext } from "@liquefy/cascade.component";
+import { extractProperty } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
@@ -53,6 +53,12 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
   }
 
   renderElement(context, existingElement) {
+    // A reconciled component whose tag changed (a theme swap turning a
+    // `button` into an `mdui-button` under the same key, say) can't keep its
+    // element - a real element's tag is fixed for life.
+    if (existingElement && existingElement.tagName.toLowerCase() !== this.tagName.toLowerCase()) {
+      existingElement = this.replaceElement(existingElement);
+    }
     // context.target.appendElement (not a bare document.createElement) -
     // that's what actually inserts the new element into the real DOM, at
     // the right position (see DOMElementTarget's own lastChild tracking).
@@ -75,6 +81,31 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     if (existingElement) context.target.reattachElement(existingElement);
     this.applyAttributes(element);
     return element;
+  }
+
+  // A new element with the current tag, taking the old one's place: same
+  // position, same debug id, the old one's child nodes moved over, and
+  // every attribute/style re-applied from scratch (none of them are set on
+  // the new element yet).
+  //
+  // The children get a fresh target and context for the new element (see
+  // render(), which creates them when missing) rather than having the old
+  // target repointed: repointing would be a write by this component's
+  // render repeater, retracted on its next rerun and never rewritten (the
+  // tag doesn't change again), leaving the target pointing back at the old,
+  // detached element - children rendering into it would vanish from the
+  // page. Handed a different context, every child is re-rendered onto it
+  // (see Component.renderOnto()) and reattaches its own node there.
+  replaceElement(oldElement) {
+    const u = this.unobservable;
+    const newElement = document.createElement(this.tagName);
+    if (oldElement.id) newElement.id = oldElement.id;
+    while (oldElement.firstChild) newElement.appendChild(oldElement.firstChild);
+    if (oldElement.parentNode) oldElement.parentNode.replaceChild(newElement, oldElement);
+    u.childContext = null;
+    u.previouslySetAttributes = {};
+    u.previouslySetStyle = {};
+    return newElement;
   }
 
   // Clears whatever attribute is no longer present, sets whatever's new
@@ -131,7 +162,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       // A RenderContext, not the bare DOMElementTarget - renderElement() (this
       // class's own, and anything else's) reads context.target, exactly
       // like the context this component itself was handed.
-      u.childContext = new RenderContext(DOMElementTarget.forElement(u.element, context.target.primitiveLocator));
+      u.childContext = context.derive(DOMElementTarget.forElement(u.element));
     }
     (this.children || []).forEach((child) => {
       // null/undefined/false - typically Component.show(false)'s own

@@ -2245,8 +2245,16 @@ function createWorld(configuration) {
       const repeater = state.inRepeater;
       if (buildId !== null) {
         if (!repeater.newBuildIdObjectMap) repeater.newBuildIdObjectMap = {};
-        if (repeater.buildIdObjectMap 
+        if (repeater.buildIdObjectMap
           && typeof(repeater.buildIdObjectMap[buildId]) !== 'undefined'
+          // Same build id but a different kind of object (a theme swap
+          // turning key "save" from one button class into another, say):
+          // not the same thing rebuilt, but a replacement. Merging the new
+          // object's properties into the established one would keep the old
+          // class - its old methods and behavior - under new data, so it is
+          // created fresh instead, and the established one is disposed (see
+          // finishRebuilding()'s dispose pass).
+          && Object.getPrototypeOf(repeater.buildIdObjectMap[buildId][objectMetaProperty].target) === Object.getPrototypeOf(target)
           && (!repeater.options.rebuildShapeAnalysis // Note: reject identity reuse if objects are too different (allowMatch() returns false)
             || !repeater.options.rebuildShapeAnalysis.allowMatch 
             || withoutRecording(
@@ -3682,7 +3690,11 @@ function createWorld(configuration) {
       // Send dispose messages
       if (repeater.buildIdObjectMap) {
         for (let buildId in repeater.buildIdObjectMap) {
-          if (typeof(repeater.newBuildIdObjectMap[buildId]) === "undefined") {
+          // Identity, not just "is the key still there": a key rebuilt as a
+          // different kind of object (see observable()'s build-id match) is
+          // present this run too, but holds the replacement - the established
+          // object it replaced is gone just the same.
+          if (repeater.newBuildIdObjectMap[buildId] !== repeater.buildIdObjectMap[buildId]) {
             const object = repeater.buildIdObjectMap[buildId];
             const objectTarget = object[objectMetaProperty].target;
             // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)

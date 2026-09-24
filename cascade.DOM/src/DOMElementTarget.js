@@ -1,5 +1,4 @@
 import { observable } from "@liquefy/cascade.component";
-import { DOMPrimitiveLocator } from "./DOMPrimitiveLocator.js";
 
 /**
  * DOMElementTarget wraps one real DOM element that components render children
@@ -21,32 +20,15 @@ import { DOMPrimitiveLocator } from "./DOMPrimitiveLocator.js";
  * before it - exactly like cascade.reactive/src/test/renderOnto.js's
  * spaceLeft example, just for DOM insertion order instead of a number.
  *
- * Also owns (or, for a nested target, simply forwards) this tree's one
- * shared DOMPrimitiveLocator - the way target-related, timeless information
- * reaches components: through the render context each one is handed, not
- * the construction hierarchy (see HTMLTags.js, which reads it off the
- * building component's own render context). A target created with no
- * `primitiveLocator` argument mints its own - the tree's actual root - and
- * every nested target this tree ever creates (DOMElementComponent's own
- * child context, DOMContextContainer, ...) passes
- * `context.target.primitiveLocator` along instead of leaving this argument
- * out, so the whole tree shares exactly one instance. On
- * `this.causality` (see cascade.reactive's own reserved meta-property),
- * not a plain field - a locator is global and non-reactive, never meant
- * to participate in dependency tracking at all, unlike `element`/
- * `lastChild` just above.
+ * (Services - which component an HTML tag or a themed widget turns into -
+ * aren't a target's business: they travel in the render context, see
+ * cascade.component's ServiceLocator.js and RenderContext.derive().)
  */
 export class DOMElementTarget {
-  constructor(element, primitiveLocator) {
+  constructor(element) {
     this.element = element;
     this.lastChild = null;
-    const target = observable(this);
-    target.causality.primitiveLocator = primitiveLocator || new DOMPrimitiveLocator();
-    return target;
-  }
-
-  get primitiveLocator() {
-    return this.causality.primitiveLocator;
+    return observable(this);
   }
 
   // Create a new real DOM element, insert it immediately after whatever
@@ -100,12 +82,7 @@ export class DOMElementTarget {
   // A target for rendering into a specific real element - typically a
   // component's own newly-created container, so its own children's
   // lastChild tracking is scoped to that element, not to this target's.
-  // Pass the current primitiveLocator along (see this class's own top
-  // comment) - leaving it out doesn't break anything today (a fresh
-  // DOMPrimitiveLocator behaves identically to any other, see its own
-  // class doc), but would stop being harmless the moment a locator ever
-  // holds real per-tree state.
-  static forElement(element, primitiveLocator) {
-    return new DOMElementTarget(element, primitiveLocator);
+  static forElement(element) {
+    return new DOMElementTarget(element);
   }
 }

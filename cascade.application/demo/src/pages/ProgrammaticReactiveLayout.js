@@ -35,17 +35,17 @@ export class ProgrammaticReactiveLayout extends Component {
     if (!u.el) {
       u.el = context.target.appendElement("div");
       u.el.style.cssText = "box-sizing: border-box; overflow: hidden;";
-      const elTarget = DOMElementTarget.forElement(u.el, context.target.primitiveLocator);
+      const elTarget = DOMElementTarget.forElement(u.el);
 
       u.controlPanel = elTarget.appendElement("div");
       u.controlPanel.style.cssText = "display: flex; gap: 16px; margin-bottom: 12px;";
-      const controlPanelTarget = DOMElementTarget.forElement(u.controlPanel, context.target.primitiveLocator);
+      const controlPanelTarget = DOMElementTarget.forElement(u.controlPanel);
       u.rowsField = createNumberField(controlPanelTarget, "Rows", (value) => { this.rows = value; });
       u.columnsField = createNumberField(controlPanelTarget, "Columns", (value) => { this.columns = value; });
 
       u.grid = elTarget.appendElement("div");
       u.grid.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
-      u.gridTarget = DOMElementTarget.forElement(u.grid, context.target.primitiveLocator);
+      u.gridTarget = DOMElementTarget.forElement(u.grid);
     }
 
     // Reading usableWidth/usableHeight here - not just measuring this
@@ -73,7 +73,7 @@ export class ProgrammaticReactiveLayout extends Component {
       for (let row = 0; row < this.rows; row++) {
         const rowEl = u.gridTarget.appendElement("div");
         rowEl.style.cssText = "display: flex; gap: 4px;";
-        const rowTarget = DOMElementTarget.forElement(rowEl, context.target.primitiveLocator);
+        const rowTarget = DOMElementTarget.forElement(rowEl);
         for (let column = 0; column < this.columns; column++) {
           const cellEl = rowTarget.appendElement("div");
           cellEl.style.cssText =

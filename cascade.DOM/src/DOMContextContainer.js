@@ -1,4 +1,3 @@
-import { RenderContext } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
@@ -57,7 +56,7 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
     super.render(context);
     const u = this.unobservable;
     if (!u.innerContext) {
-      u.innerContext = new RenderContext(DOMElementTarget.forElement(u.element, context.target.primitiveLocator));
+      u.innerContext = context.derive(DOMElementTarget.forElement(u.element));
     }
     if (this.contextExtra) Object.assign(u.innerContext, this.contextExtra);
     this.child.renderOnto(u.innerContext);

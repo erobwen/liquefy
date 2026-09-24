@@ -7,3 +7,5 @@ export {
   layoutBorderStyle, overflowVisibleStyle, zStackElementStyle,
   wrapper, row, column, center, middle, centerMiddle, filler, zStack,
 } from "./Layout.js";
+export { widget, button, toButtonProperties } from "./widgets.js";
+export { BasicThemeServiceLocator, basicTheme } from "./BasicTheme.js";

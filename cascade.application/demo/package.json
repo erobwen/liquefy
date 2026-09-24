@@ -25,6 +25,7 @@
     "@liquefy/cascade.reactive": "file:../../cascade.reactive",
     "@liquefy/cascade.component": "file:../../cascade.component",
     "@liquefy/cascade.dom": "file:../../cascade.DOM",
-    "@liquefy/cascade.ui": "file:../../cascade.ui"
+    "@liquefy/cascade.ui": "file:../../cascade.ui",
+    "@liquefy/cascade.ui.material": "file:../../cascade.ui.material"
   }
 }

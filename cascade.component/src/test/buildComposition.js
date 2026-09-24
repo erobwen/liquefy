@@ -123,26 +123,29 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
 
     render(target) {
       if (this.showLeaf) this.leaf.renderOnto(target);
-      // else: leaf simply isn't renderOnto()'d this pass - retracted,
-      // buildRepeater included (it's a child of leaf's own render-repeater).
+      // else: leaf simply isn't renderOnto()'d this pass - its render
+      // repeater is retracted (its build repeater is kept - see
+      // Component.js's reactiveBuildEquivalent()).
     }
   }
 
-  it("buildRepeater's own retraction is recovered from, not just the outer render-repeater's", function () {
+  it("after the render repeater's retraction, the build result handed back is still valid - not undefined from an unlinked writing", function () {
     const target = observable({});
     const parent = new Parent("parent", true);
     parent.renderOnto(target);
 
     assert.equal(parent.leaf.unobservable.lastEquivalent.marker, "built-1");
+    const buildRepeater = parent.leaf.unobservable.buildRepeater;
 
-    parent.showLeaf = false; // leaf (and its own buildRepeater) retracted
+    parent.showLeaf = false; // leaf's render repeater retracted
     parent.showLeaf = true; // renderOnto()'d again - relinked and reattached
 
-    assert.equal(
-      parent.leaf.unobservable.lastEquivalent.marker,
-      "built-2",
-      "build() must actually rerun once reattached after a real retraction, not hand back undefined from a writing that retraction already unlinked"
-    );
+    // (Once, a retracted build repeater's own writing - `newBuild` - was
+    // unlinked, and reattaching handed back undefined.) Nothing build()
+    // reads changed while hidden, so its result is still current: the
+    // same build repeater, not rerun, still handing back what it built.
+    assert.equal(parent.leaf.unobservable.buildRepeater, buildRepeater, "the same build repeater");
+    assert.equal(parent.leaf.unobservable.lastEquivalent.marker, "built-1");
   });
 
 });

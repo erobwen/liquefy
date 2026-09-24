@@ -4058,15 +4058,23 @@ function createWorld(configuration) {
   // before everything it renders (see Component.js's
   // reactiveBuildEquivalent()).
   //
+  // A retracted puller (a component that isn't being rendered right now)
+  // leaves the work pending: nothing needs this repeater's results while
+  // nobody's pulling them, so it isn't run at all - it stays invalid, not
+  // queued, and is brought up to date whenever the puller comes back and
+  // pulls it. Its state (for a build repeater: which object each build key
+  // belongs to) is kept throughout.
+  //
   // Falls back to ordinary scheduling (returns false) when there's no
-  // puller to hand the work to: not created yet, retracted, or running
-  // right now - invalidating a repeater mid-run from outside would dispose
+  // puller to hand the work to - not created yet - or the puller is running
+  // right now: invalidating a repeater mid-run from outside would dispose
   // it under its own feet; this repeater then runs on its own afterwards
   // and the puller, reading its results, reruns from that.
   function scheduleThroughPuller(repeater) {
     const pulledBy = repeater.options.pulledBy;
     const puller = typeof(pulledBy) === "function" ? pulledBy() : pulledBy;
-    if (!puller || puller.retracted || puller.disposed) return false;
+    if (!puller || puller.disposed) return false;
+    if (puller.retracted) return true;
     for (let context = state.context; context; context = context.parent) {
       if (context.type === "partial" && context.repeater === puller) return false;
     }

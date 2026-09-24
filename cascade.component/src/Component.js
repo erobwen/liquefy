@@ -256,10 +256,18 @@ export class Component {
   // reads the latest value of anything render writes - fine, since what
   // flows from render to build (the render context, its target, the
   // primitive locator) is timeless - and render reads the build's latest
-  // result. Its lifecycle follows the render repeater's by hand instead of
-  // by parenthood: retracted along with it (see renderOnto()'s onRetract),
-  // which also covers a dropped component (onDispose() retracts the render
-  // repeater).
+  // result.
+  //
+  // One build repeater per component, for the component's whole life -
+  // never replaced, and never retracted just because the component isn't
+  // being rendered for a while (hidden behind a page switch, say). It holds
+  // which object each build key belongs to; a fresh one would have an empty
+  // map, and every keyed child - with its state - would be constructed anew
+  // the next time it's built. While the component isn't rendered, its build
+  // repeater is simply left invalid if its inputs change (nothing is
+  // pulling it - see scheduleThroughPuller()), and revalidated, keys intact,
+  // when the render comes back and pulls it. Only a component dropped for
+  // good has its build repeater stopped (see onDispose()).
   //
   // The result is stashed on `this.newBuild` - an ordinary *observable*
   // property (matching flow.core's own naming), not something on
@@ -268,14 +276,10 @@ export class Component {
   // dependency.
   reactiveBuildEquivalent() {
     const u = this.unobservable;
-    // A retracted buildRepeater is treated the same as "doesn't exist
-    // yet": it was retracted along with this component's render repeater
-    // (this component not being renderOnto()'d for a run or more - swapped
-    // out of a page switcher, or crossing a responsive breakpoint), which
-    // unlinked its writings, `this.newBuild` included. A fresh repeat()
-    // call's first pass runs synchronously, right here, which is what this
-    // method's caller needs - it uses the result immediately.
-    if (!u.buildRepeater || u.buildRepeater.retracted) {
+    // First time only: a repeat() call's first pass runs synchronously,
+    // right here, which is what this method's caller needs - it uses the
+    // result immediately.
+    if (!u.buildRepeater) {
       u.buildRepeater = repeat(() => {
         // Pushed/popped around build() specifically (not this whole
         // method, and not the constructor - see inherit()'s own comment
@@ -323,6 +327,11 @@ export class Component {
       // Rendering the result before then would read the throwaway twin's
       // own empty unobservable bag, find no repeater there, and create a
       // redundant one instead of relinking the real one.
+      //
+      // Retracted only if this component was once dropped (onDispose()) and
+      // is being rendered again anyway (someone kept a reference to it):
+      // restart it rather than replace it, keeping its key map.
+      if (u.buildRepeater.retracted) u.buildRepeater.restart();
       refreshIfNeeded(u.buildRepeater);
     }
     return this.newBuild;
@@ -471,16 +480,7 @@ export class Component {
           // later tests in the same run.
           renderStack.pop();
         }
-      }, {
-        onRetract: () => {
-          // The build repeater is independent (see reactiveBuildEquivalent()),
-          // not a child of this one, so it isn't retracted along with it
-          // automatically - a component that isn't rendered shouldn't keep
-          // rebuilding either.
-          if (u.buildRepeater) retractRepeater(u.buildRepeater);
-          this.onRetract();
-        },
-      });
+      }, { onRetract: () => this.onRetract() });
     }
   }
 
@@ -520,6 +520,10 @@ export class Component {
   onDispose() {
     const u = this.unobservable;
     if (u.repeater) retractRepeater(u.repeater);
+    // Gone for good (unlike a component that's merely not rendered for a
+    // while - see reactiveBuildEquivalent()), so its build stops for good
+    // too, instead of staying subscribed to whatever it read.
+    if (u.buildRepeater) retractRepeater(u.buildRepeater);
   }
 
   // Ported from flow.core's Component.js verbatim - a conditional-

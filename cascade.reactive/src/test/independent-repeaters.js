@@ -179,17 +179,24 @@ describe("independent repeaters ({independent: true})", function () {
     assert.deepEqual(order, ["puller", "pulled", "puller saw 2"]);
   });
 
-  it("{pulledBy}: with its puller retracted, it falls back to running on its own", function () {
-    const { observable, repeat, retractRepeater } = world();
+  it("{pulledBy}: with its puller retracted, it stays pending - not run, state kept - until pulled again", function () {
+    const { observable, repeat, retractRepeater, refreshIfNeeded } = world();
     const input = observable({ n: 1 });
     const component = observable({ output: null });
+    let runs = 0;
     let pulled;
     const puller = repeat(() => {
-      if (!pulled) pulled = repeat(() => { component.output = input.n; }, { independent: true, pulledBy: () => puller });
+      if (!pulled) pulled = repeat(() => { runs++; component.output = input.n; }, { independent: true, pulledBy: () => puller });
     });
     retractRepeater(puller);
 
     input.n = 2;
+    assert.equal(runs, 1, "nobody is pulling it - not run");
+    assert.equal(pulled.workStatus, "invalid");
+    assert.ok(!pulled.retracted);
+
+    refreshIfNeeded(pulled);
+    assert.equal(runs, 2);
     assert.equal(component.output, 2);
   });
 

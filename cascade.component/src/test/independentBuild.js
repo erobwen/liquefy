@@ -79,12 +79,25 @@ describe("independent build repeaters", function () {
     assert.equal(parent.unobservable.buildCount, 1);
   });
 
-  it("is retracted along with the render repeater, stops rebuilding while hidden, and rebuilds fresh on reattachment", function () {
+  it("survives the component being hidden: keyed children keep their identity and state; no rebuilding while hidden", function () {
+    // Found via cascade.application/demo: leaving a page and coming back
+    // reset every keyed child's state (the recursive demo's per-item values,
+    // the hybrid dialog's counter). Hiding a component retracted its build
+    // repeater too, and showing it again replaced that with a fresh one -
+    // with an empty build-key map, so every keyed child was constructed
+    // anew. The build repeater is now kept for the component's whole life:
+    // left pending while hidden, revalidated - keys intact - when shown.
     const model = observable({ label: "a" });
+    class Counter extends Component {
+      initializeState() {
+        return { count: 0 };
+      }
+      render() {}
+    }
     class Labelled extends Component {
       build() {
         this.unobservable.buildCount = (this.unobservable.buildCount || 0) + 1;
-        return new Leaf({ key: "leaf-" + model.label });
+        return new Counter({ key: "counter", label: model.label });
       }
     }
     class Switch extends Component {
@@ -101,19 +114,22 @@ describe("independent build repeaters", function () {
     const labelled = new Labelled();
     const toggle = new Switch({ child: labelled });
     toggle.renderOnto(context());
-    const firstBuild = labelled.unobservable.buildRepeater;
-    assert.equal(labelled.unobservable.buildCount, 1);
+    const buildRepeater = labelled.unobservable.buildRepeater;
+    const counter = labelled.newBuild;
+    counter.count = 5;
 
     toggle.show = false;
     assert.ok(labelled.unobservable.repeater.retracted);
-    assert.ok(firstBuild.retracted, "retracted with its render repeater");
+    assert.ok(!buildRepeater.retracted, "the build repeater is kept");
     model.label = "b";
     assert.equal(labelled.unobservable.buildCount, 1, "no rebuilding while not rendered");
 
     toggle.show = true;
-    assert.notEqual(labelled.unobservable.buildRepeater, firstBuild, "a fresh build repeater");
-    assert.equal(labelled.unobservable.buildCount, 2);
-    assert.equal(labelled.newBuild.key, "leaf-b", "built against what changed while hidden");
+    assert.equal(labelled.unobservable.buildRepeater, buildRepeater, "the same build repeater");
+    assert.equal(labelled.unobservable.buildCount, 2, "revalidated once, when shown again");
+    assert.equal(labelled.newBuild, counter, "the same keyed child object");
+    assert.equal(counter.count, 5, "with its state");
+    assert.equal(counter.label, "b", "and its properties rebuilt from what changed while hidden");
   });
 
   it("a dropped keyed component's build repeater is retracted too", function () {

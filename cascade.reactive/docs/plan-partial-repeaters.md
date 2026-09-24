@@ -448,12 +448,15 @@ pass, including all four `renderOnto.js` cases and the dedicated
 partial-chain-order stress test.
 
 Explicitly deferred, not needed by any concrete case yet:
-- Same-time writers from *different, unrelated* root trees (two
-  independent top-level repeaters colliding on the same declared time and
-  property, with no tree relationship at all) - still just a stable
-  id-based fallback (the two chains' own ids). Same-time writers *within*
-  or across a real tree relationship is a solved, separate story now -
-  see `docs/plan-flagged-scheduling.md`.
+- ~~Same-time writers from *different, unrelated* root trees~~ -
+  **resolved** as "parallel pipelines" (see `compareWritingToReader()` in
+  cascade.js and `src/test/parallel-pipelines.js`): a timeline may hold
+  same-level writings from only one pipeline at a time (a second one
+  writing throws), and a reader in any other pipeline at that level sees
+  the owner's latest writing. The chain-id fallback in
+  `compareWriterOrder()` no longer decides what anyone reads. Same-time
+  writers *within* a real tree relationship remain the separate, solved
+  story in `docs/plan-flagged-scheduling.md`.
 - A level-dependent density threshold for pressure release (the tighter
   bound from the order-maintenance literature) instead of the current
   fixed 1/2 - only worth adding if a real workload shows the simpler

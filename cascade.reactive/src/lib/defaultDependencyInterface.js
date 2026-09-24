@@ -254,7 +254,7 @@ export function defaultDependencyInterfaceCreator(causality) {
     // deferred case) the repeater-flagging bookkeeping, neither of which
     // this module knows about. `isOvertaken(time, writer)` decides, per
     // recorded entry, whether that entry's own read position is strictly
-    // after the new writing's (comparePositions lives in cascade.js, not
+    // after the new writing's (compareWritingToReader lives in cascade.js, not
     // here - passed in rather than duplicated).
     collectOvertakenPropertyObservers: (previousWriting, isOvertaken) => {
       if (previousWriting.observers === null) return [];

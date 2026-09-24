@@ -22,15 +22,15 @@ import { DOMPrimitiveLocator } from "./DOMPrimitiveLocator.js";
  * spaceLeft example, just for DOM insertion order instead of a number.
  *
  * Also owns (or, for a nested target, simply forwards) this tree's one
- * shared DOMPrimitiveLocator (see cascade.component's Component.js -
- * unobservable.primitiveLocator, propagated to every component down the
- * *construction* chain for free, with this target as the one bootstrap
- * point for whatever has no creator to inherit it from). A target created
- * with no `primitiveLocator` argument mints its own - the tree's actual
- * root - and every nested target this tree ever creates (DOMElementComponent's
- * own child context, DOMContextContainer, ...) passes its own
- * `this.unobservable.primitiveLocator` along instead of leaving this
- * argument out, so the whole tree shares exactly one instance. On
+ * shared DOMPrimitiveLocator - the way target-related, timeless information
+ * reaches components: through the render context each one is handed, not
+ * the construction hierarchy (see HTMLTags.js, which reads it off the
+ * building component's own render context). A target created with no
+ * `primitiveLocator` argument mints its own - the tree's actual root - and
+ * every nested target this tree ever creates (DOMElementComponent's own
+ * child context, DOMContextContainer, ...) passes
+ * `context.target.primitiveLocator` along instead of leaving this argument
+ * out, so the whole tree shares exactly one instance. On
  * `this.causality` (see cascade.reactive's own reserved meta-property),
  * not a plain field - a locator is global and non-reactive, never meant
  * to participate in dependency tracking at all, unlike `element`/

@@ -14,33 +14,33 @@ import { defaultDOMPrimitiveLocator } from "./DOMPrimitiveLocator.js";
  * convention later, on top of this, if cascade ever wants it. `br` is the
  * one void element with no children at all, hence toProperties() instead.
  *
- * Each tag function goes through whichever component is currently being
- * built's own primitiveLocator (see cascade.component's Component.js -
- * unobservable.primitiveLocator, propagated down the construction chain
- * for free - and cascade.dom's DOMPrimitiveLocator, the DOM platform's own
- * one) rather than constructing DOMElementComponent directly: getCreator()
- * is exactly the "currently building" component - the same stack
- * Component.js itself pushes onto around every build() call - so a tag
- * function called from anywhere inside build() (however deeply nested in
- * ordinary JS argument position, e.g. `div(h1(...), p(...))`) always
- * resolves against whichever component's own build() is actually running,
- * not whoever's rendering right now. This is what makes the same `div()`
- * call able to eventually resolve to a different platform's own primitive
- * without this file itself ever changing - see this file's own git
- * history for the larger portability idea this is one piece of.
+ * Each tag function goes through the primitive locator of the target the
+ * currently-building component was rendered onto (cascade.dom's
+ * DOMPrimitiveLocator, owned by DOMElementTarget) rather than constructing
+ * DOMElementComponent directly: getCreator() is exactly the "currently
+ * building" component - the same stack Component.js itself pushes onto
+ * around every build() call - so a tag function called from anywhere
+ * inside build() (however deeply nested in ordinary JS argument position,
+ * e.g. `div(h1(...), p(...))`) always resolves against whichever
+ * component's own build() is actually running. build() only ever runs from
+ * that component's own render(), so its render context is always set by
+ * then. This is what makes the same `div()` call able to eventually
+ * resolve to a different platform's own primitive without this file itself
+ * ever changing - see this file's own git history for the larger
+ * portability idea this is one piece of.
  */
 function buildPrimitive(tag, properties) {
   const creator = getCreator();
-  // No creator at all (not called from inside anyone's build()) - a
-  // component built eagerly and held for later use, rather than returned
-  // from a build() (see cascade.component's own "hardcoded child
-  // reference" style), has no construction chain yet to reach a real
-  // tree's own locator through - see defaultDOMPrimitiveLocator's own
-  // comment for why falling back to it is safe today. A creator that
-  // exists but genuinely has no locator of its own (shouldn't normally
-  // happen once a tree's root is wired up - see Component.js's own
-  // renderOnto() bootstrap) falls back the same way, rather than throwing.
-  const locator = (creator && creator.unobservable.primitiveLocator) || defaultDOMPrimitiveLocator;
+  // unobservable.renderContext, not the observable this.renderContext: the
+  // locator is timeless (fixed for a target's whole lifetime), so there is
+  // nothing to depend on, and an unobservable read costs nothing and can't
+  // resolve to a retracted writing. No creator (a component constructed
+  // eagerly outside anyone's build() - the "hardcoded child reference"
+  // style), or a context whose target carries no locator, falls back to the
+  // shared default - see defaultDOMPrimitiveLocator's own comment for why
+  // that's safe today.
+  const context = creator && creator.unobservable.renderContext;
+  const locator = (context && context.target && context.target.primitiveLocator) || defaultDOMPrimitiveLocator;
   return locator.build(tag, properties);
 }
 

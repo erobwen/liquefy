@@ -26,5 +26,6 @@ export const {
   accessInitialValues,
   declareState,
   retractRepeater,
+  refreshIfNeeded,
   state,
 } = world;

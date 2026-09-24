@@ -1,16 +1,13 @@
 import { DOMElementComponent } from "./DOMElementComponent.js";
 
 /**
- * DOMPrimitiveLocator: the DOM platform's own primitive locator - the
- * concrete counterpart to cascade.component's own
- * `unobservable.primitiveLocator` (see Component.js's own constructor/
- * renderOnto(), which propagate whichever instance a tree's root
- * DOMElementTarget created down to every component in it, at construction
- * time, for free - see DOMElementTarget.js's own comment on why nested
- * targets pass the same instance along rather than each minting their
- * own). HTMLTags.js's own tag functions (div(), span(), ...) are what
- * actually call this, reached via getCreator() - whichever component's
- * own build() is running right now.
+ * DOMPrimitiveLocator: the DOM platform's own primitive locator. Owned by a
+ * tree's root DOMElementTarget and passed along by every nested target
+ * (see DOMElementTarget.js), so it travels down with the render context -
+ * each component reaches it as renderContext.target.primitiveLocator, one
+ * hop, no walk up any hierarchy. HTMLTags.js's own tag functions (div(),
+ * span(), ...) are what actually call this, via whichever component's own
+ * build() is running right now (getCreator()).
  *
  * A plain, global, non-reactive lookup - a locator is never itself
  * observed and never changes once a tree's root creates it, so there's

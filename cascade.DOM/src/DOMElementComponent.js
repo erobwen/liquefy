@@ -131,7 +131,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       // A RenderContext, not the bare DOMElementTarget - renderElement() (this
       // class's own, and anything else's) reads context.target, exactly
       // like the context this component itself was handed.
-      u.childContext = new RenderContext(DOMElementTarget.forElement(u.element, this.unobservable.primitiveLocator));
+      u.childContext = new RenderContext(DOMElementTarget.forElement(u.element, context.target.primitiveLocator));
     }
     (this.children || []).forEach((child) => {
       // null/undefined/false - typically Component.show(false)'s own

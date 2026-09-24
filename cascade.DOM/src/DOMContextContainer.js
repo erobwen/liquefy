@@ -57,7 +57,7 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
     super.render(context);
     const u = this.unobservable;
     if (!u.innerContext) {
-      u.innerContext = new RenderContext(DOMElementTarget.forElement(u.element, this.unobservable.primitiveLocator));
+      u.innerContext = new RenderContext(DOMElementTarget.forElement(u.element, context.target.primitiveLocator));
     }
     if (this.contextExtra) Object.assign(u.innerContext, this.contextExtra);
     this.child.renderOnto(u.innerContext);

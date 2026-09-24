@@ -160,6 +160,7 @@ function createWorld(configuration) {
     accessInitialValues,
     declareState,
     retractRepeater,
+    refreshIfNeeded,
 
     // Transaction
     doWhileInvalidationsPostponed: postponeInvalidationsAndDo,
@@ -814,7 +815,7 @@ function createWorld(configuration) {
       // Which partial (or null, for external code) actually made this
       // writing - the tie-breaker when two writings share the same
       // declared `time` number (a parent and child defaulting to the same
-      // level, most commonly) - see comparePositions()/compareWriterOrder()
+      // level, most commonly) - see compareWritingToReader()/compareWriterOrder()
       // below.
       writer: typeof(writer) === 'undefined' ? null : writer,
       value: undefined,
@@ -933,7 +934,9 @@ function createWorld(configuration) {
       executionCursor: null,
 
       // This pipeline's one, single time level - set once, here, from its
-      // root repeater's own declared time (or 0), and never changed after.
+      // root repeater's own declared time (or 0), and never changed after
+      // (an {independent: true} root with no declared time takes its
+      // creator's level instead - see repeat(), set right after this).
       // Every repeater sharing this chainHead uses it - see repeater.time()
       // - since a pipeline was decided to always execute within exactly
       // one time level (nothing forces a nested repeater to ever declare a
@@ -1292,11 +1295,39 @@ function createWorld(configuration) {
     }
   }
 
-  // Order (timeA, writerA) against (timeB, writerB): by declared time
-  // first, tree position only as a tie-breaker.
-  function comparePositions(timeA, writerA, timeB, writerB) {
-    if (timeA !== timeB) return timeA - timeB;
-    return compareWriterOrder(writerA, writerB);
+  // Parallel pipelines. Two pipelines (different chainHeads) at the same
+  // time level have no execution order relating them - neither is before
+  // the other. The rule that makes that consistent:
+  //
+  //  - A timeline may hold same-level writings from at most one pipeline
+  //    at a time (enforced when a writing is spliced in - see
+  //    spliceWritingIntoTimeline()). So a level's own writings are always
+  //    ordered within a single chain, never across two.
+  //  - A reader in some *other* pipeline at that level sees the owning
+  //    pipeline's latest writing there - the whole level counts as before
+  //    it, exactly like a lower time level does.
+  //
+  // External writes (writer null - outside any repeater, or at initial time
+  // via accessInitialValues()) belong to no pipeline: they are the time-0
+  // baseline, visible to everyone, and claim nothing.
+  //
+  // This is where a writing sits relative to a position (readTime, reader):
+  // by declared time first, tree position as the tie-breaker; negative -
+  // before it (visible to a reader there), zero - that exact slot,
+  // positive - after it. The read walk (seekWriting), exact-slot lookup,
+  // splicing, and the overtaken-reader checks (migrateOvertakenObserversFor,
+  // ...) all go through here, so they always agree about where a reader in
+  // a parallel pipeline stands. The parallel branch below only ever decides
+  // a reader-vs-writing question: splicing a writing next to a parallel
+  // pipeline's same-level writings is exactly what the single-owner rule
+  // rejects, so two writings are never ordered across pipelines.
+  function compareWritingToReader(writingTime, writingWriter, readTime, reader) {
+    if (writingTime !== readTime) return writingTime - readTime;
+    if (writingWriter !== null && reader !== null
+        && writingWriter.repeater.chainHead !== reader.repeater.chainHead) {
+      return -1;
+    }
+    return compareWriterOrder(writingWriter, reader);
   }
 
   // Resolve the writing valid for `time`/`writer`: the writing with the
@@ -1330,12 +1361,12 @@ function createWorld(configuration) {
       return timeline.currentWriting = timeline.last;
     }
     let writing = timeline.currentWriting;
-    if (comparePositions(writing.time, writing.writer, time, writer) <= 0) {
-      while (writing.next !== null && comparePositions(writing.next.time, writing.next.writer, time, writer) <= 0) {
+    if (compareWritingToReader(writing.time, writing.writer, time, writer) <= 0) {
+      while (writing.next !== null && compareWritingToReader(writing.next.time, writing.next.writer, time, writer) <= 0) {
         writing = writing.next;
       }
     } else {
-      while (comparePositions(writing.time, writing.writer, time, writer) > 0) {
+      while (compareWritingToReader(writing.time, writing.writer, time, writer) > 0) {
         writing = writing.previous;
       }
     }
@@ -1344,13 +1375,13 @@ function createWorld(configuration) {
   }
 
   // Is there already a writing at exactly this position? Compares by tree
-  // position (comparePositions), not writer object identity - a leaf
+  // position (compareWritingToReader), not writer object identity - a leaf
   // repeater's own single partial is a fresh object every rerun, but it
   // occupies the same slot each time and must reconcile against its own
   // previous writing, not accumulate a new one forever.
   function findExactWriting(timeline, time, writer) {
     const writing = seekWriting(timeline, time, writer);
-    return comparePositions(writing.time, writing.writer, time, writer) === 0 ? writing : null;
+    return compareWritingToReader(writing.time, writing.writer, time, writer) === 0 ? writing : null;
   }
 
   // Splice a writing (new or previously unlinked) into its timeline at its
@@ -1360,6 +1391,14 @@ function createWorld(configuration) {
   function spliceWritingIntoTimeline(timeline, writing) {
     const previous = seekWriting(timeline, writing.time, writing.writer);
     const next = previous.next;
+    // A level's writings form one contiguous run, so if another pipeline
+    // owns this level of this timeline, one of the two neighbors is its
+    // (see compareWritingToReader(): the seek above lands a parallel
+    // writer right after the owner's last writing at this level).
+    if (writing.writer !== null) {
+      throwIfParallelOwner(timeline, writing, previous);
+      if (next !== null) throwIfParallelOwner(timeline, writing, next);
+    }
     writing.previous = previous;
     writing.next = next;
     previous.next = writing;
@@ -1370,6 +1409,26 @@ function createWorld(configuration) {
     }
     timeline.currentWriting = writing;
     writing.linked = true;
+  }
+
+  // See compareWritingToReader(): a timeline's writings at one time level
+  // must all come from a single pipeline. Two parallel pipelines writing
+  // the same property at the same level have no order between them, so
+  // there's no consistent answer to which value either of them - or any
+  // reader - should see. Claimed only while live: once the owner's
+  // writings are retracted, another pipeline may take the level over.
+  function throwIfParallelOwner(timeline, writing, neighbor) {
+    if (neighbor.writer === null || neighbor.time !== writing.time) return;
+    const owner = neighbor.writer.repeater;
+    const intruder = writing.writer.repeater;
+    if (owner.chainHead === intruder.chainHead) return;
+    throw new Error(
+      "Property '" + timeline.key + "' is already written at time level " + writing.time +
+      " by repeater '" + (owner.chainHead.rootRepeater.description || "unnamed") + "'s pipeline;" +
+      " repeater '" + (intruder.description || "unnamed") + "' belongs to a different pipeline at the same" +
+      " time level and cannot write it too. Parallel pipelines may read each other's properties" +
+      " (seeing the latest writing), but each property has one writer pipeline per time level."
+    );
   }
 
   function insertNewWriting(timeline, time, writer) {
@@ -1539,7 +1598,7 @@ function createWorld(configuration) {
     if (previous === null) return;
     const overtaken = collectOvertakenPropertyObservers(
       previous,
-      (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, writing.time, writing.writer) > 0
+      (entryTime, entryWriter) => compareWritingToReader(writing.time, writing.writer, entryTime, entryWriter) < 0
     );
     settleOvertakenObservers(previous, writing, overtaken);
   }
@@ -1579,7 +1638,7 @@ function createWorld(configuration) {
   // caught by the structural order verifier). There's still just the one,
   // permanently reused writing per handler - but instead of firing every
   // one of its observers unconditionally on any key add/remove, this only
-  // fires the ones positioned strictly *after* the change (comparePositions
+  // fires the ones positioned strictly *after* the change (compareWritingToReader
   // > 0), leaving readers that already ran before it untouched. Always
   // eager, never flagged: flagging only pays off when there's a genuinely
   // fresher writing to defer resolution against later (see
@@ -1590,7 +1649,7 @@ function createWorld(configuration) {
     if (writing.observers === null) return;
     const downstream = collectOvertakenPropertyObservers(
       writing,
-      (entryTime, entryWriter) => comparePositions(entryTime, entryWriter, time, writer) > 0
+      (entryTime, entryWriter) => compareWritingToReader(time, writer, entryTime, entryWriter) < 0
     );
     downstream.forEach((entry) => invalidateObserver(entry.observer, proxy, key));
   }
@@ -3196,6 +3255,12 @@ function createWorld(configuration) {
         return result;
       },
       restart() {
+        // A retracted child comes back by being relinked into its parent
+        // (attachToCurrentParent() clears `retracted`) before it's
+        // restarted. A retracted root - an {independent: true} repeater
+        // stopped by its owner with retractRepeater() - has no parent to
+        // relink it, so restarting it is what brings it back.
+        if (this.retracted && this.parentRepeater === null) this.retracted = false;
         this.invalidateAction();
       },
       invalidateAction() {
@@ -3718,7 +3783,24 @@ function createWorld(configuration) {
     }
     if (!options) options = {};
 
-    if( warnOnNestedRepeater && state.inActiveRecording ){
+    // {independent: true}: a new pipeline of its own even when created from
+    // inside another repeater's run - never that repeater's child, never
+    // retracted along with it, never part of its partial chain (so the
+    // creator's own pipeline operations never have to visit it). Runs at
+    // the creator's own time level unless `time` says otherwise, which
+    // makes the two *parallel* pipelines - see compareWritingToReader():
+    // each reads the other's latest writings, and each property has one
+    // writer pipeline per level. Its first run is still synchronous, right
+    // here, pushed onto the context stack above the creator's own partial;
+    // later on, a creator that needs a fresh result mid-run can pull it the
+    // same way with refreshIfNeeded(). Its lifecycle is the creator's
+    // responsibility: retractRepeater() stops it, restart() resumes it.
+    const independent = options.independent === true;
+    const inheritedTime = (independent && typeof(options.time) === "undefined" && state.context !== null)
+      ? currentTime()
+      : undefined;
+
+    if( warnOnNestedRepeater && state.inActiveRecording && !independent ){
       let parentDesc = state.context.description;
       if( !parentDesc && state.context.parent ) parentDesc = state.context.parent.description;
       if( !parentDesc ){
@@ -3734,15 +3816,16 @@ function createWorld(configuration) {
     // too late for createNextPartial() to have a chainHead to insert this
     // repeater's very first partial into. The parent (if any) is exactly
     // whichever partial is currently executing right now.
-    const parentContext = (state.context && state.context.type === "partial") ? state.context : null;
+    const parentContext = (!independent && state.context && state.context.type === "partial") ? state.context : null;
     repeater.parentRepeater = parentContext ? parentContext.repeater : null;
     repeater.chainHead = repeater.parentRepeater ? repeater.parentRepeater.chainHead : createChainHead(repeater);
+    if (typeof(inheritedTime) !== "undefined") repeater.chainHead.time = inheritedTime;
     const result = repeater.refresh();
     // If created while nested inside another repeater's execution, this
     // repeater automatically becomes its child - closing the parent's
     // current partial and opening a fresh one for whatever parent code
     // comes next. See attachToCurrentParent().
-    attachToCurrentParent(repeater);
+    if (!independent) attachToCurrentParent(repeater);
     return result;
   }
 
@@ -4195,6 +4278,32 @@ function createWorld(configuration) {
     }
   }
 
+  // Bring a repeater up to date right now, if it has pending work (invalid
+  // or flagged), instead of waiting for the scheduler to reach it - the
+  // repeater's refresh is simply pushed onto the context stack above
+  // whatever is running, and control returns here when it's done. For
+  // pulling a fresh result out of an {independent: true} repeater from
+  // inside some other pipeline's run (e.g. a component's render reading
+  // what its build repeater produced). A no-op for an up-to-date or
+  // retracted repeater. Its pipeline may still be sitting in the work
+  // queue afterwards; draining it later finds nothing left to do there.
+  //
+  // A pull is a hand-over point, the same as a child boundary: whatever
+  // the running partial rewrote so far has to be settled first (see
+  // finalizeTouchedStaleWritings() - a rewrite of an existing writing only
+  // notifies its readers when the partial closes). Otherwise a creator that
+  // writes an input and then pulls would find the repeater reading that
+  // input not yet invalidated, get its stale result, and have to rerun
+  // once more when its own partial finally closes.
+  function refreshIfNeeded(repeater) {
+    if (repeater.retracted || repeater.disposed) return repeater;
+    if (state.context !== null && state.context.type === "partial") {
+      finalizeTouchedStaleWritings(state.context);
+    }
+    processRepeater(repeater);
+    return repeater;
+  }
+
   // flush(): called right after every processRepeater() - not mid-refresh,
   // even one that itself recursively revalidates whole subtrees of
   // children; that's never interrupted - to notice a wave retreat and, if
@@ -4252,6 +4361,13 @@ function createWorld(configuration) {
     // deliberately left untouched here (not reset to reflect the root) -
     // the root is always position-zero, so it never advances the
     // wavefront; only real heap items do, below.
+    //
+    // Cleared up front as well as inside the loop: the root may have been
+    // brought up to date out of band (refreshIfNeeded()) after its
+    // pipeline was queued, leaving nothing for the loop to do - and a
+    // root still marked as sitting in a time bucket would be ignored by
+    // every later scheduleWork() for good.
+    root.inATimeBucket = false;
     while (root.workStatus !== null) {
       root.inATimeBucket = false;
       processRepeater(root);

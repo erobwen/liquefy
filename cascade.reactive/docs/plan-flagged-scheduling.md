@@ -743,11 +743,14 @@ Explicitly deferred, not needed by any concrete case yet:
   array, to allow sparse/large level numbers) but not pursued without a
   concrete need driving it.
 - Same-time writers from *different, unrelated* root trees (different
-  chainHeads) - still the stable chain-id fallback from
-  `docs/plan-partial-repeaters.md`; deliberately excluded from the
+  chainHeads) - now "parallel pipelines" (see
+  `docs/plan-partial-repeaters.md` and `compareWritingToReader()`): one
+  writer pipeline per property per level, and cross-pipeline readers see
+  the latest writing. Still deliberately excluded from the
   deferred/flagged treatment (`entryNeedsDeferredTreatment`'s own
-  same-chain check), since there is no wavefront connecting unrelated
-  trees for deferral to mean anything.
+  same-chain check) - a cross-pipeline reader is invalidated eagerly,
+  since there is no wavefront connecting unrelated trees for deferral to
+  mean anything.
 - **Ownership of a backward-written baseline slot for an object created
   *inside* a pipeline** (see `accessInitialValues()` above) - works today
   for global objects and for correcting an existing pipeline-local

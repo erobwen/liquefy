@@ -56,8 +56,13 @@ const TOP_BAR_HEIGHT = 48;
  * container that adds situational context for what it renders.
  */
 export class ApplicationMenuFrame extends Component {
-  setProperties({ pages }) {
+  // rootServiceLocator: provided to the whole app from here (provide()'s
+  // default is the component itself, so any field can be inherited) - the
+  // one way a component can change the app's services, by
+  // inherit("rootServiceLocator"). See src/services.js.
+  setProperties({ pages, rootServiceLocator }) {
     this.pages = pages;
+    this.rootServiceLocator = rootServiceLocator || null;
   }
 
   // Which page is showing and whether the modal menu is open are *state*

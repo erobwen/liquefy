@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
 import { DOMElementTarget, DOMServiceLocator, DOMDebugServiceLocator, element, div, text } from "@liquefy/cascade.dom";
-import { button, basicTheme } from "../index.js";
+import { button, basicTheme, row, column } from "../index.js";
 
 // Themed widgets: `button(...)` asks the render context's service locator
 // for `{ type: "widget", name: "button", properties }` - whichever theme is
@@ -87,6 +87,69 @@ describe("themed widgets", function () {
     assert.equal(container.querySelector("fancy-button"), null);
     container.querySelector("button").click();
     assert.equal(counter.count, 3);
+  });
+
+  it("switching the theme from a button inside the app, reached through inherit(), rebuilds cleanly", function () {
+    // The demo's own shape (ThemesPage/ThemedServiceLocator): a switch found
+    // through inherit() - whose walk up the component hierarchy reads
+    // renderParent/equivalentCreator along the way, written by both render
+    // and build pipelines - clicked from inside the app, writing the theme's
+    // name and then the theme itself. Found in the browser: a build
+    // invalidated by the switch had its writings (the properties of
+    // everything it built) retracted, and an element it had built was
+    // rendered before the build reran, reading its own tagName back as
+    // undefined. A component's build repeater is now only ever run when its
+    // render repeater pulls it (see Component.js / cascade.reactive's
+    // scheduleThroughPuller()), so it's always rebuilt first.
+    class NamedThemeServiceLocator extends ObservableCompoundServiceLocator {
+      constructor() {
+        super(new DOMServiceLocator(), basicTheme);
+        this.themes = { basic: basicTheme, fancy: fancyTheme };
+        this.themeName = "basic";
+      }
+      select(name) {
+        this.themeName = name;
+        this.locators[1] = this.themes[name];
+      }
+    }
+    class Switch extends Component {
+      build() {
+        const services = this.inherit("services");
+        const next = services.themeName === "basic" ? "fancy" : "basic";
+        return row(
+          { key: "switch" },
+          text({ key: "current", text: "Theme: " + services.themeName }),
+          button({ key: "toggle" }, text({ key: "toggleText", text: "Switch" }), () => services.select(next)),
+        );
+      }
+    }
+    class Page extends Component {
+      build() {
+        return column(
+          { key: "page" },
+          new Switch({ key: "themeSwitch" }),
+          button({ key: "other" }, text({ key: "otherText", text: "Other" })),
+        );
+      }
+    }
+    class Root extends Component {
+      setProperties({ services }) {
+        this.services = services; // provided to everything below (provide() is the component itself)
+      }
+      build() {
+        return div({ key: "root" }, new Page({ key: "page" }));
+      }
+    }
+    const services = new NamedThemeServiceLocator();
+    render(new Root({ services }), services);
+
+    container.querySelector("button").click();
+    assert.ok(container.textContent.includes("Theme: fancy"), container.textContent);
+    assert.equal(container.querySelectorAll("fancy-button").length, 2);
+
+    container.querySelector("fancy-button").click();
+    assert.ok(container.textContent.includes("Theme: basic"), container.textContent);
+    assert.equal(container.querySelectorAll("button").length, 2);
   });
 
   it("no theme providing a widget degrades to a visible placeholder, with a warning", function () {

@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, p, button } from "@liquefy/cascade.dom";
+import { div, p, button as htmlButton } from "@liquefy/cascade.dom";
 import {
-  overlay, row, column, centerMiddle, zStack,
+  button, overlay, row, column, centerMiddle, zStack,
   fitContainerStyle, fillerStyle, overflowVisibleStyle, zStackElementStyle,
 } from "@liquefy/cascade.ui";
 
@@ -90,11 +90,13 @@ export class HybridModalDialog extends Component {
         // individually (alignSelf) rather than the row opting every
         // child out of stretch.
         { key: "controls", style: { gap: "16px", minHeight: 0, flex: "1 1 auto" } },
-        button({
-          key: "openButton",
-          onclick: () => { this.showDialog = true; },
-          style: { padding: "8px 16px", cursor: "pointer", flex: "none", alignSelf: "flex-start" },
-        }, "Open Hybrid Modal Dialog"),
+        // A themed widget (cascade.ui's button()) - the app's theme decides
+        // what it looks like; only its placement in this row is set here.
+        button(
+          { key: "openButton", style: { flex: "none", alignSelf: "flex-start" } },
+          "Open Hybrid Modal Dialog",
+          () => { this.showDialog = true; },
+        ),
         dockedSlot,
       ),
       overlay(
@@ -154,7 +156,9 @@ class DialogChrome extends Component {
           },
         },
         div({ key: "title" }, this.title || ""),
-        button({
+        // Plain HTML, not a themed widget: dialog chrome, styled for the
+        // dark title bar (the widget contract has no icon button yet).
+        htmlButton({
           key: "close",
           onclick: () => this.close(),
           style: { background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "16px", lineHeight: 1 },
@@ -181,11 +185,11 @@ class DialogContent extends Component {
         "instance either way, not a fresh one.",
       ),
       p({ key: "counter" }, "Counter: " + this.counter),
-      button({
-        key: "increment",
-        onclick: () => { this.counter += 1; },
-        style: { padding: "6px 12px", cursor: "pointer", alignSelf: "flex-start" },
-      }, "Increment Counter"),
+      button(
+        { key: "increment", style: { alignSelf: "flex-start" } },
+        "Increment Counter",
+        () => { this.counter += 1; },
+      ),
     );
   }
 }

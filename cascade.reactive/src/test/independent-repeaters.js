@@ -161,6 +161,38 @@ describe("independent repeaters ({independent: true})", function () {
     assert.deepEqual(creatorSaw, [11, 21]);
   });
 
+  it("{pulledBy}: its pending work invalidates the puller, which pulls it - it never runs on its own", function () {
+    const { observable, repeat, refreshIfNeeded } = world();
+    const input = observable({ n: 1 });
+    const component = observable({ output: null });
+    const order = [];
+    let pulled;
+    const puller = repeat(() => {
+      order.push("puller");
+      if (!pulled) pulled = repeat(() => { order.push("pulled"); component.output = input.n; }, { independent: true, pulledBy: () => puller });
+      refreshIfNeeded(pulled);
+      order.push("puller saw " + component.output);
+    });
+    order.length = 0;
+
+    input.n = 2;
+    assert.deepEqual(order, ["puller", "pulled", "puller saw 2"]);
+  });
+
+  it("{pulledBy}: with its puller retracted, it falls back to running on its own", function () {
+    const { observable, repeat, retractRepeater } = world();
+    const input = observable({ n: 1 });
+    const component = observable({ output: null });
+    let pulled;
+    const puller = repeat(() => {
+      if (!pulled) pulled = repeat(() => { component.output = input.n; }, { independent: true, pulledBy: () => puller });
+    });
+    retractRepeater(puller);
+
+    input.n = 2;
+    assert.equal(component.output, 2);
+  });
+
   it("retractRepeater() stops it - its writings retracted - and restart() brings it back", function () {
     const { observable, repeat, retractRepeater } = world();
     const input = observable({ n: 1 });

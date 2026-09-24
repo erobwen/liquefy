@@ -4045,8 +4045,38 @@ function createWorld(configuration) {
   // kind of work it is (see invalidateRepeater()/flagRepeaterEntry(),
   // which set workStatus before calling this); purely about *where* it
   // goes.
+  // {pulledBy: puller} (a repeater, or a function returning one): this
+  // repeater's work is not done on its own schedule, but when `puller`
+  // pulls it (refreshIfNeeded()) - so pending work here invalidates
+  // `puller` instead of queuing this repeater. For an {independent: true}
+  // repeater whose results another pipeline must never see mid-rerun: a
+  // component's build repeater, whose writings (the properties of
+  // everything it constructed) are retracted the moment it's invalidated.
+  // Queued on its own, anything rendered from those properties could run
+  // before it does and read them as missing; pulled by its render
+  // repeater instead, it always runs first - the render repeater comes
+  // before everything it renders (see Component.js's
+  // reactiveBuildEquivalent()).
+  //
+  // Falls back to ordinary scheduling (returns false) when there's no
+  // puller to hand the work to: not created yet, retracted, or running
+  // right now - invalidating a repeater mid-run from outside would dispose
+  // it under its own feet; this repeater then runs on its own afterwards
+  // and the puller, reading its results, reruns from that.
+  function scheduleThroughPuller(repeater) {
+    const pulledBy = repeater.options.pulledBy;
+    const puller = typeof(pulledBy) === "function" ? pulledBy() : pulledBy;
+    if (!puller || puller.retracted || puller.disposed) return false;
+    for (let context = state.context; context; context = context.parent) {
+      if (context.type === "partial" && context.repeater === puller) return false;
+    }
+    if (puller.workStatus !== 'invalid') invalidateRepeater(puller);
+    return true;
+  }
+
   function scheduleWork(repeater) {
     const chainHead = repeater.chainHead;
+    if (repeater.options.pulledBy && scheduleThroughPuller(repeater)) return;
     if (repeater.parentRepeater === null) {
       if (repeater.inATimeBucket) return;
       repeater.inATimeBucket = true;

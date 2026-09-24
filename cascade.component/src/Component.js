@@ -295,7 +295,16 @@ export class Component {
           creators.pop();
         }
         assignEquivalentCreator(this.newBuild, this);
-      }, { independent: true });
+      }, {
+        independent: true,
+        // Only ever run when this component's render repeater pulls it
+        // (refreshIfNeeded() below): invalidating it invalidates the render
+        // repeater instead. So it's always rebuilt before anything rendered
+        // from what it built - never read back mid-rebuild, with the
+        // properties it wrote already retracted. See cascade.reactive's
+        // scheduleThroughPuller().
+        pulledBy: () => u.repeater,
+      });
     } else {
       // Pull, don't wait: if the build is pending (its inputs changed, or
       // it was flagged), run it now - pushed onto the context stack above

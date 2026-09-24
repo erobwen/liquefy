@@ -6,7 +6,7 @@ import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayo
 import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
 import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
 import { ThemesPage } from "./src/pages/ThemesPage.js";
-import { serviceLocator } from "./src/services.js";
+import { rootServiceLocator } from "./src/services.js";
 
 // ApplicationMenuFrame is build()-only (see its own class doc), so this
 // starts it directly on a DOMElementTarget root - DOMElementBoundsProvider's own
@@ -15,9 +15,13 @@ import { serviceLocator } from "./src/services.js";
 //
 // The services every component in the app gets (HTML elements, the current
 // theme's widgets, ...) travel down from here - see src/services.js.
-const context = new RenderContext(DOMElementTarget.forElement(document.getElementById("application")), { serviceLocator });
+const context = new RenderContext(DOMElementTarget.forElement(document.getElementById("application")), { serviceLocator: rootServiceLocator });
 
+// Handed to the root component too, which provides it to the whole app as
+// `rootServiceLocator` - the only way to *change* the app's services (see
+// src/services.js).
 const applicationMenuFrame = new ApplicationMenuFrame({
+  rootServiceLocator,
   pages: [
     { key: "introduction", title: "Introduction", component: new IntroductionPage() },
     { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },

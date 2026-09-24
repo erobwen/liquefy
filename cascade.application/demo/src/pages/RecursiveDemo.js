@@ -1,5 +1,6 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, input, text } from "@liquefy/cascade.dom";
+import { div, input, text } from "@liquefy/cascade.dom";
+import { button } from "@liquefy/cascade.ui";
 
 /**
  * Recursive Demo - ported from
@@ -75,19 +76,12 @@ class ControlRow extends Component {
         padding: "8px 0 16px", borderBottom: "1px solid #dfe6e9", marginBottom: "12px",
       } },
       div({ key: "label" }, "Recursive Structure"),
-      button({
-        key: "more",
-        // Outside any repeater (a real DOM event handler) - a plain write
-        // to a state property is fine here, same as ApplicationMenuFrame's
-        // own hamburger onclick.
-        onclick: () => { demo.levels = demo.levels + 1; },
-        style: { padding: "4px 12px", cursor: "pointer" },
-      }, "More"),
-      button({
-        key: "less",
-        onclick: () => { if (demo.levels > 1) demo.levels = demo.levels - 1; },
-        style: { padding: "4px 12px", cursor: "pointer" },
-      }, "Less"),
+      // Themed widgets (cascade.ui's button()) - whichever theme the app is
+      // using provides them. The click handlers run outside any repeater (a
+      // real DOM event), so a plain write to a state property is fine here,
+      // same as ApplicationMenuFrame's own hamburger onclick.
+      button({ key: "more" }, "More", () => { demo.levels = demo.levels + 1; }),
+      button({ key: "less" }, "Less", () => { if (demo.levels > 1) demo.levels = demo.levels - 1; }),
       div({ key: "sharedLabel" }, "Shared value:"),
       input({
         key: "sharedInput",

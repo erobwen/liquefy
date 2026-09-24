@@ -2,4 +2,4 @@ export { world, observable, deeplyObservable, isObservable, repeat, linkRepeater
 export { Component, aggregateToString, getCreator } from "./src/Component.js";
 export { RenderContext } from "./src/RenderContext.js";
 export { toProperties, toPropertiesWithChildren, extractProperty, findImplicitChildren } from "./src/implicitProperties.js";
-export { CompoundServiceLocator, ObservableCompoundServiceLocator, locateService, ServiceProvider, serviceProvider } from "./src/ServiceLocator.js";
+export { CompoundServiceLocator, ObservableCompoundServiceLocator, locateService, ServiceProvider, serviceProvider, isServiceQuery, hydrateQuery, hydrateService } from "./src/ServiceLocator.js";

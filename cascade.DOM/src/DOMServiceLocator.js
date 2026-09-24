@@ -1,4 +1,4 @@
-import { CompoundServiceLocator } from "@liquefy/cascade.component";
+import { CompoundServiceLocator, hydrateService } from "@liquefy/cascade.component";
 import { DOMElementComponent } from "./DOMElementComponent.js";
 
 /**
@@ -55,3 +55,12 @@ export const defaultDOMServiceLocator = new CompoundServiceLocator(
   new DOMServiceLocator(),
   new DOMDebugServiceLocator(),
 );
+
+// Hydrate a document - a tree of service queries (see cascade.component's
+// ServiceLocator.js, hydrateQuery()) - into components, through the
+// service locator of whichever component's build() is running, with the
+// DOM default behind it: the document counterpart of HTMLTags.js's tag
+// functions, for a UI written as data instead of calls.
+export function hydrate(tree) {
+  return hydrateService(tree, defaultDOMServiceLocator);
+}

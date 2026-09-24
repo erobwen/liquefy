@@ -1,5 +1,5 @@
 export { DOMElementTarget } from "./DOMElementTarget.js";
-export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator } from "./DOMServiceLocator.js";
+export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator, hydrate } from "./DOMServiceLocator.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";

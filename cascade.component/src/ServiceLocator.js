@@ -1,4 +1,4 @@
-import { observable } from "./Cascade.js";
+import { observable, isObservable } from "./Cascade.js";
 import { Component, getCreator } from "./Component.js";
 
 /**
@@ -38,6 +38,11 @@ export class CompoundServiceLocator {
       if (result !== undefined) return result;
     }
     return undefined;
+  }
+
+  // A whole tree of queries at once - see hydrateQuery() below.
+  hydrate(query) {
+    return hydrateQuery(query, this);
   }
 }
 
@@ -84,6 +89,55 @@ export function locateService(query, fallbackLocator) {
     throw new Error("No service locator provides " + describeQuery(query) + " - add one to the render context's serviceLocator.");
   }
   return result;
+}
+
+/**
+ * Hydration - turning a document into a working UI. A document is nothing
+ * but queries: plain data, a tree of `{ type, name, properties }` objects
+ * whose `properties.children` (an array, or a single one) hold further
+ * queries, alongside plain strings and already-built components. Hydrating
+ * one hands every query in it to a service locator - children first, so
+ * each node is located with its own children already built - and the
+ * result is an ordinary tree of components, exactly as if build() had
+ * called the convenience functions (div(), button(), ...) itself.
+ *
+ * Nothing reactive happens here: it's one more way to construct components,
+ * not a phase of rendering. Called from a build(), what it constructs is
+ * that build's to reconcile, as always - which is why a node without a key
+ * gets one from its position in the document (`h`, `h.0`, `h.0.2`, ...): a
+ * rebuild (a theme switch, say) then matches the new tree to the old one
+ * node for node, instead of constructing it all anew. A node's own `key`
+ * wins; its descendants' positional keys extend it.
+ */
+
+// A service query: a plain object with a string `type` - not an array,
+// not an observable (a component, or any model), not a properties bag.
+export function isServiceQuery(value) {
+  return value !== null && typeof(value) === "object" && !(value instanceof Array)
+    && !isObservable(value) && typeof(value.type) === "string";
+}
+
+export function hydrateQuery(query, locator, positionalKey = "h") {
+  const properties = { ...(query.properties || {}) };
+  if (typeof(properties.key) === "undefined" || properties.key === null) properties.key = positionalKey;
+  if (typeof(properties.children) !== "undefined") {
+    const children = properties.children instanceof Array ? properties.children : [properties.children];
+    properties.children = children.map((child, index) =>
+      isServiceQuery(child) ? hydrateQuery(child, locator, properties.key + "." + index) : child);
+  }
+  const result = locator.locate({ ...query, properties });
+  if (result === undefined) {
+    throw new Error("No service locator provides " + describeQuery(query) + " - add one to the render context's serviceLocator.");
+  }
+  return result;
+}
+
+// Hydrate through the service locator of the component whose build() is
+// running right now - the same lookup as locateService(), so a document is
+// hydrated with whatever services (theme, platform, ...) that component's
+// render context holds.
+export function hydrateService(query, fallbackLocator) {
+  return hydrateQuery(query, { locate: (each) => locateService(each, fallbackLocator) });
 }
 
 export function serviceProvider(...parameters) {

@@ -33,19 +33,56 @@ export class DOMNodeRenderComponent extends Component {
     // all) - reusing an existing one never touches it again, same as
     // flow's own version never re-derives it on a later rerun either.
     // Unconditional, no debug-mode flag, matching flow's own choice.
-    if (wasFresh && u.element && u.element.nodeType === 1) {
+    if (wasFresh && u.element && u.element.nodeType === 1 && !u.element.id) {
       u.element.id = aggregateToString(this);
     }
   }
 
-  // Override: reuse `existingElement` (patching it in place) if given, or
-  // create one via context.target.appendElement(tagName) if not - either
-  // way, configure and return it. `context` is whatever was passed to
-  // renderOnto() - typically a RenderContext, so context.target is the
-  // DOMElementTarget to manipulate and any other fields (e.g. spaceLeft) are
-  // situational information from the parent, if it chose to pass any.
+  // Two ways to implement a DOM node component:
+  //
+  //  - ensureNode() - create this component's node if it has none, bring it
+  //    up to date (attributes, content, ...), and return it, *without*
+  //    placing it anywhere. That makes it a primitive (see isPrimitive()):
+  //    something a component placing nodes itself (cascade.dom's
+  //    FlipAnimationContainer) can use directly. Ordinary rendering then
+  //    just places the node (the default renderElement() below), so the
+  //    component itself never knows which of the two it's in.
+  //  - renderElement(context, existingElement) - do both at once, however
+  //    it likes (measuring, owning a context for its children, ...). Such a
+  //    component can only be rendered, never placed by someone else.
+  //
+  // ensureNode() keeps unobservable.element up to date itself.
+  ensureNode() {
+    throw new Error(this.constructor.name + " must implement ensureNode() or renderElement(context, existingElement)");
+  }
+
+  isPrimitive() {
+    return this.ensureNode !== DOMNodeRenderComponent.prototype.ensureNode;
+  }
+
+  // For a component that sets a new element's own debug id itself (see
+  // render() above for what it is) - one placed by someone else is never
+  // render()ed.
+  assignDebugId(element) {
+    if (element.nodeType === 1 && !element.id) element.id = aggregateToString(this);
+  }
+
+  // Default: ensure the node, then put it at the current position in
+  // context.target (typically a RenderContext's DOMElementTarget) - on every
+  // render, not just when it's new. A reused node still needs its position
+  // reconfirmed even though nothing here moves it: cascade.reactive retracts
+  // a repeater's prior writings - including ones made onto a foreign, shared
+  // object like DOMElementTarget's lastChild - the moment that repeater is
+  // invalidated for a rerun. If this component reruns for a reason
+  // unrelated to its node but skipped rewriting lastChild, that write would
+  // simply be gone, and a sibling constructed later would read lastChild as
+  // the baseline and be inserted before this node instead of after it.
+  // reattachElement() itself skips the real DOM move when the node is
+  // already exactly where it belongs.
   renderElement(context, existingElement) {
-    throw new Error(this.constructor.name + " must implement renderElement(context, existingElement)");
+    const node = this.ensureNode();
+    context.target.reattachElement(node);
+    return node;
   }
 
   // Cascade's own retraction (see Component.onRetract()) cleans up

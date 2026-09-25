@@ -22,6 +22,13 @@ import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
  * DOMElementComponent/DOMTextComponent/DOMContextContainer).
  */
 export class DOMNodeComponent extends Component {
+  // render() below only verifies what build() returns before rendering it
+  // the default way - this is still purely build()-composed, so it can be
+  // expanded (see Component.expandToPrimitives()).
+  isBuildComposed() {
+    return true;
+  }
+
   render(context) {
     // reactiveBuildEquivalent() is cached per run (see its own comment) -
     // calling it here to verify, then again via super.render() below, does

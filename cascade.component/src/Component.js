@@ -276,6 +276,7 @@ export class Component {
   // dependency.
   reactiveBuildEquivalent() {
     const u = this.unobservable;
+    u.pullingComponent = getRenderParent();
     // First time only: a repeat() call's first pass runs synchronously,
     // right here, which is what this method's caller needs - it uses the
     // result immediately.
@@ -306,8 +307,11 @@ export class Component {
         // repeater instead. So it's always rebuilt before anything rendered
         // from what it built - never read back mid-rebuild, with the
         // properties it wrote already retracted. See cascade.reactive's
-        // scheduleThroughPuller().
-        pulledBy: () => u.repeater,
+        // scheduleThroughPuller(). Normally that's this component's own render
+        // repeater; a component that's never rendered itself but expanded
+        // by another (see expandToPrimitives()) is pulled by whoever is
+        // expanding it - the component rendering when it was pulled.
+        pulledBy: () => u.repeater || (u.pullingComponent && u.pullingComponent.unobservable.repeater),
       });
     } else {
       // Pull, don't wait: if the build is pending (its inputs changed, or
@@ -365,44 +369,94 @@ export class Component {
     }
   }
 
+  // Give this component its place in the tree - the render context it's
+  // rendered with, and who rendered it - without rendering it. renderOnto()
+  // does this first, every time; a component that places others itself,
+  // without calling their render() (see cascade.dom's
+  // FlipAnimationContainer, which expands its subtree with
+  // expandToPrimitives() below), does it instead - so builds find their
+  // services (a theme, a platform - see ServiceLocator.js) and inherit()
+  // walks the same hierarchy either way.
+  //
+  //  - renderParent: see inherit()'s own comment on why this (not
+  //    equivalentCreator) is the one that actually, reliably reaches a
+  //    hardcoded-child-reference component.
+  //  - this.renderContext: readable from build() too (a plain property read,
+  //    so build()'s own zero-argument signature never has to change). Set
+  //    fresh on every call, relink included, so it always reflects the most
+  //    recent context - matches RenderContext's own stable-identity-across-
+  //    reruns requirement (see RenderContext.js), since a parent that wants
+  //    its children to see a changed value mutates its cached instance in
+  //    place rather than handing down a new one.
+  //  - unobservable.renderContext: the same value again, as plain
+  //    bookkeeping - what the render repeater renders against, and what
+  //    service lookups read. Not this.renderContext itself: that's an
+  //    observable property, written from the *parent's* partial, so a
+  //    parent rerun's own dispose() retires that writing - and a child whose
+  //    own rerun was already queued can run before the parent gets as far
+  //    as writing it again, reading it back as undefined (the documented
+  //    "property written at construction, unlinked by the parent's next
+  //    dispose()" race - see cascade.reactive/docs/plan-flagged-scheduling.md).
+  //    An unobservable field has neither problem: never retired, never a
+  //    dependency, always whatever was most recently handed in.
+  provideContext(context, renderParent) {
+    this.renderParent = renderParent;
+    this.renderContext = context;
+    this.unobservable.renderContext = context;
+  }
+
+  // Whether this component is one of the platform's primitives - what a
+  // tree is ultimately made of (see cascade.dom's DOMNodeRenderComponent,
+  // which answers true for components that can produce their own node
+  // without being rendered). Nothing is, at this level.
+  isPrimitive() {
+    return false;
+  }
+
+  // Whether this component is composed purely through build() - rendered by
+  // the default render() below, so building it is all there is to it. A
+  // component that overrides render() does its own work there (measuring,
+  // placing things itself, ...) and can only be rendered, not expanded -
+  // see expandToPrimitives().
+  isBuildComposed() {
+    return this.render === Component.prototype.render;
+  }
+
+  // Build this component not just one step (reactiveBuildEquivalent()) but
+  // all the way down: through whatever it builds, and whatever that builds,
+  // until what's left are primitives - or components that can only be
+  // rendered, not built (see isBuildComposed()), which a caller has to treat
+  // as opaque "islands" and render normally. Every component on the way is
+  // given its place in the tree first (provideContext()), exactly as
+  // rendering it would have, so builds find the same services either way.
+  // Returns a flat list: a build may return several components (or none).
+  //
+  // Only this chain is expanded - a primitive's own children (a DOM
+  // element's, say) are whoever calls this's business, since only the
+  // platform knows what a primitive's children are.
+  expandToPrimitives(context, renderParent) {
+    this.provideContext(context, renderParent);
+    if (this.isPrimitive() || !this.isBuildComposed()) return [this];
+    const built = this.reactiveBuildEquivalent();
+    const children = built instanceof Array ? built : [built];
+    const result = [];
+    for (const child of children) {
+      if (child === null || typeof(child) === "undefined" || child === false) continue;
+      result.push(...child.expandToPrimitives(context, this));
+    }
+    return result;
+  }
+
   renderOnto(context) {
     const u = this.unobservable;
-    // Whoever's calling renderOnto() on me, right now - see inherit()'s
-    // own comment on why this (not equivalentCreator) is the one that
-    // actually, reliably reaches a hardcoded-child-reference component.
     // Captured synchronously, right here - correct regardless of whether
     // render() itself ends up running synchronously below or is deferred
-    // (see the restart() call further down, and reactiveBuildEquivalent()'s
-    // own comment on why a retracted repeater's rerun isn't always
-    // immediate): this parent/child relationship doesn't change just
-    // because the actual execution is scheduled for slightly later.
-    this.renderParent = getRenderParent();
-    // The context this component was actually renderOnto()'d with, right
-    // now - readable from build() too (a plain property read, so build()'s
-    // own zero-argument signature never has to change), and unconditional
-    // here so no component can forget to save it or reach it via the wrong
-    // hook. Set fresh on every call, relink included, so it always reflects
-    // the most recent context even though relinking itself never reruns
-    // render() - matches RenderContext's own stable-identity-across-reruns
-    // requirement (see RenderContext.js), since a parent that wants its
-    // children to see a changed value mutates its cached instance in place
-    // rather than handing down a new one.
-    this.renderContext = context;
-    // The same value again, as plain bookkeeping - this is what the render
-    // repeater below actually renders against. Not this.renderContext
-    // itself: that's an observable property, written here from the
-    // *parent's* partial, so a parent rerun's own dispose() retires that
-    // writing - and a child whose own rerun was already queued can run
-    // before the parent gets as far as this call again and re-writes it,
-    // reading it back as undefined (the documented "property written at
-    // construction, unlinked by the parent's next dispose()" race - see
-    // cascade.reactive/docs/plan-flagged-scheduling.md). And not the
-    // `context` argument captured by the callback's closure either - see
-    // the comment inside it. An unobservable field has neither problem:
-    // never retired, never a dependency, always whatever the most recent
-    // renderOnto() call handed in.
+    // (see the restart() call further down): this parent/child relationship
+    // doesn't change just because the actual execution is scheduled for
+    // slightly later. Unconditional, so no component can forget to record
+    // its context or reach it via the wrong hook.
     const contextChanged = u.renderContext !== context;
-    u.renderContext = context;
+    this.provideContext(context, getRenderParent());
     if (u.repeater) {
       // A repeater that was genuinely retracted (not renderOnto()'d some
       // prior run) stays fully intact and re-linkable - see

@@ -4,6 +4,7 @@ export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";
 export { DOMElementBoundsProvider } from "./DOMElementBoundsProvider.js";
+export { FlipAnimationContainer, flipAnimationContainer } from "./FlipAnimationContainer.js";
 export { DOMElementComponent, taggedElement } from "./DOMElementComponent.js";
 export { DOMTextComponent, text } from "./DOMTextComponent.js";
 export { applyStyle, defaultToPx } from "./applyStyle.js";

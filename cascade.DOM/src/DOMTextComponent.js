@@ -12,23 +12,15 @@ export class DOMTextComponent extends DOMNodeRenderComponent {
     this.text = extractProperty(properties, "text");
   }
 
-  renderElement(context, existingElement) {
-    // DOMElementTarget has no dedicated "append a text node" of its own (only
-    // appendElement, which always creates via document.createElement) -
-    // reattachElement is the generic insertion primitive underneath both,
-    // so it's the right call for a freshly-created Text node too.
-    let node = existingElement;
-    if (!node) {
-      node = document.createTextNode("");
-    }
-    // Reconfirm position every render, not just on fresh creation - see
-    // DOMElementComponent.renderElement()'s own comment for why a reused node
-    // still needs this.
-    context.target.reattachElement(node);
-    if (node.data !== String(this.text)) {
-      node.data = String(this.text);
-    }
-    return node;
+  // A primitive (see DOMNodeRenderComponent): its own Text node, created
+  // once, its data patched in place. Placed by the default renderElement()
+  // when rendered, or by whoever places it otherwise.
+  ensureNode() {
+    const u = this.unobservable;
+    if (!u.element) u.element = document.createTextNode("");
+    const data = String(this.text);
+    if (u.element.data !== data) u.element.data = data;
+    return u.element;
   }
 }
 

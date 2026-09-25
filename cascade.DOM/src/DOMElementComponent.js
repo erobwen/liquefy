@@ -52,33 +52,25 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     return result;
   }
 
-  renderElement(context, existingElement) {
+  // A primitive (see DOMNodeRenderComponent): its own element, created once
+  // and patched in place - placed by the default renderElement() when
+  // rendered (its children then rendered by render() below), or by whoever
+  // places it otherwise (cascade.dom's FlipAnimationContainer, which also
+  // places its children).
+  ensureNode() {
+    const u = this.unobservable;
+    let element = u.element;
     // A reconciled component whose tag changed (a theme swap turning a
     // `button` into an `mdui-button` under the same key, say) can't keep its
     // element - a real element's tag is fixed for life.
-    if (existingElement && existingElement.tagName.toLowerCase() !== this.tagName.toLowerCase()) {
-      existingElement = this.replaceElement(existingElement);
+    if (element && element.tagName.toLowerCase() !== this.tagName.toLowerCase()) {
+      element = this.replaceElement(element);
     }
-    // context.target.appendElement (not a bare document.createElement) -
-    // that's what actually inserts the new element into the real DOM, at
-    // the right position (see DOMElementTarget's own lastChild tracking).
-    const element = existingElement || context.target.appendElement(this.tagName);
-    // A reused element still needs its position reconfirmed on every
-    // render, even though nothing here moves it: cascade.reactive retracts
-    // a repeater's own prior writings - including ones made onto a foreign,
-    // shared object like DOMElementTarget - the moment that repeater is
-    // invalidated for a rerun (see cascade.js's own "a repeater's prior
-    // output must not be visible to anyone" comment on seekWriting). If
-    // this component reruns for a reason unrelated to its own element (a
-    // sibling's inherited value changed its content, say) but skips
-    // rewriting target.lastChild because it's only reusing its existing
-    // element, that write is simply gone - not stale, just retracted and
-    // never replaced. A sibling constructed later, reading target.lastChild
-    // for its own insertion point, then falls through to the baseline
-    // (null/first) instead of seeing this element, and gets inserted
-    // before it instead of after. reattachElement's own insertBefore is a
-    // harmless no-op when the element is already exactly where it belongs.
-    if (existingElement) context.target.reattachElement(existingElement);
+    if (!element) {
+      element = document.createElement(this.tagName);
+      this.assignDebugId(element);
+    }
+    u.element = element;
     this.applyAttributes(element);
     return element;
   }

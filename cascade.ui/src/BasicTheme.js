@@ -121,14 +121,18 @@ const widgets = {
   },
 
   // Google's Material Symbols font: the icon's name, drawn as a ligature.
-  icon({ name, style, ...rest }) {
+  // A function, not a component - so the key of its text is derived from
+  // its own: a fixed one would collide between icons built by one build.
+  // lineHeight as a string: a number would be taken for pixels.
+  icon({ key, name, style, ...rest }) {
     return span(
       {
         ...rest,
+        key,
         class: "material-symbols-outlined",
-        style: { fontSize: "24px", lineHeight: 1, userSelect: "none", ...style },
+        style: { fontSize: "24px", lineHeight: "1", userSelect: "none", ...style },
       },
-      text({ key: "name", text: name || "" }),
+      text({ key: key ? key + "Name" : undefined, text: name || "" }),
     );
   },
 

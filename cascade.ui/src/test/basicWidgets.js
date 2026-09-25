@@ -52,6 +52,20 @@ describe("basic theme widgets", function () {
     assert.equal(clicks, 1);
   });
 
+  it("many icons built by one build keep their names across rebuilds - no key collision between them", function () {
+    const shown = render(page((self) => div(
+      { key: "page" },
+      ["home", "search", "settings"].map((name) => icon({ key: name, name, style: { fontSize: self.version > 0 ? "30px" : "24px" } })),
+    ), { version: 0 }));
+    const names = () => Array.from(container.querySelectorAll(".material-symbols-outlined")).map((each) => each.textContent);
+    assert.deepEqual(names(), ["home", "search", "settings"]);
+    shown.version = 1;
+    assert.deepEqual(names(), ["home", "search", "settings"], "after a rebuild");
+    shown.version = 2;
+    assert.deepEqual(names(), ["home", "search", "settings"]);
+    assert.equal(container.querySelector(".material-symbols-outlined").style.lineHeight, "1", "unitless");
+  });
+
   it("card: a surface per variant, its style merged over the variant's", function () {
     render(page(() => div({ key: "page" },
       card({ key: "elevated" }, text("elevated")),

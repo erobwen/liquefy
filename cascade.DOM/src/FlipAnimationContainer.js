@@ -435,11 +435,7 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     }
     this.applyAnimation();
     for (const [element, ghost] of [...u.ghosts]) {
-      if (ghost.opacity < 0.02) {
-        u.ghosts.delete(element);
-        GHOSTS.delete(element);
-        element.remove();
-      }
+      if (ghost.opacity < 0.02) this.removeGhost(element);
     }
     if (u.springs.size > 0 || u.ghosts.size > 0) this.requestFrame();
   }
@@ -452,11 +448,15 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
       element.style.transformOrigin = "";
       element.style.opacity = "";
     }
-    for (const element of u.ghosts.keys()) {
-      GHOSTS.delete(element);
-      element.remove();
-    }
-    u.ghosts.clear();
+    for (const element of [...u.ghosts.keys()]) this.removeGhost(element);
+  }
+
+  // A ghost done fading: gone from the page - with its own style back, as
+  // it was before it became a ghost, since the same element may well come
+  // back later (a product put into a hidden cart, shown when the cart is).
+  removeGhost(element) {
+    this.restoreGhost(element);
+    element.remove();
   }
 }
 

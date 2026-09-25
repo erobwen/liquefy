@@ -8,7 +8,8 @@ import { wrapper } from "./Layout.js";
  * bar, say, which the page knows nothing else about.
  *
  *  - portal({ style, children }): a div, showing whatever is currently
- *    assigned to it - or its own children (a default) when nothing is.
+ *    assigned to it - or its own children (a default) when nothing is, or
+ *    nothing but an empty list (an empty cart).
  *  - portalContents({ portal, children }): builds nothing where it
  *    stands; while it's shown, its children are shown in `portal` - a
  *    portal, or the name of one to inherit() ("topBarPortal"), found when
@@ -74,7 +75,8 @@ export class Portal extends Component {
   }
 
   build() {
-    return wrapper({ key: "portal", style: this.style || {} }, this.contents || this.defaultContents);
+    const assigned = this.contents && this.contents.length > 0;
+    return wrapper({ key: "portal", style: this.style || {} }, assigned ? this.contents : this.defaultContents);
   }
 }
 

@@ -245,4 +245,32 @@ describe("portals", function () {
     app.chosen = 1;
     assert.equal(topBar(), "rendered action");
   });
+
+  it("empty contents show the portal's own default, as no contents do", function () {
+    class Shelf extends Component {
+      initializeState() {
+        return { chosen: [] };
+      }
+      initialUnobservables() {
+        return { cart: portal({ key: "cart" }, text({ key: "empty", text: "empty" })) };
+      }
+      get cart() {
+        return this.unobservable.cart;
+      }
+      build() {
+        return div(
+          { key: "shelf" },
+          this.unobservable.cart,
+          portalContents({ key: "contents", portal: "cart" }, this.chosen.map((name) => text({ key: name, text: name }))),
+        );
+      }
+    }
+    const shelf = new Shelf();
+    shelf.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    assert.equal(container.textContent, "empty");
+    shelf.chosen = ["pear"];
+    assert.equal(container.textContent, "pear");
+    shelf.chosen = [];
+    assert.equal(container.textContent, "empty");
+  });
 });

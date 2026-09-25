@@ -8,6 +8,7 @@ import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
 import { ThemesPage } from "./src/pages/ThemesPage.js";
 import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
+import { StorePage } from "./src/pages/StorePage.js";
 import { rootServiceLocator } from "./src/services.js";
 
 
@@ -33,6 +34,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "themes", title: "Themes", component: new ThemesPage() },
     { key: "hydration", title: "Hydration", component: new HydrationPage() },
     { key: "animation", title: "Animation", component: new AnimationPage() },
+    { key: "store", title: "Web Store", component: new StorePage() },
   ],
 });
 applicationMenuFrame.renderOnto(context);

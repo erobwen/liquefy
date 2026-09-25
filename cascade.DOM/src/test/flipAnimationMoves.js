@@ -310,6 +310,39 @@ describe("FlipAnimationContainer animations", function () {
     assert.deepEqual(drawnAt(three), layoutOf(three));
   });
 
+  it("a leaving element that comes back after it has faded out comes back as itself - no ghost style left on it - and fades in", function () {
+    class Toggled extends Component {
+      initializeState() {
+        return { show: true };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "first" }, text({ key: "firstText", text: "first" })),
+          div({ key: "middle", style: { color: "red" } }, text({ key: "middleText", text: "middle" })).show(this.show),
+        );
+      }
+    }
+    const toggled = new Toggled();
+    toggled.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const middle = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "middle");
+
+    toggled.show = false;
+    runToRest();
+    assert.ok(!middle.isConnected, "faded out and gone");
+
+    toggled.show = true;
+    assert.ok(middle.isConnected, "the same element, back");
+    assert.equal(middle.style.position, "", "no ghost style left");
+    assert.equal(middle.style.left, "");
+    assert.equal(middle.style.pointerEvents, "");
+    assert.equal(middle.style.color, "red", "its own style");
+    assert.ok(Number(middle.style.opacity) < 0.05, "fading in");
+    runToRest();
+    assert.equal(middle.style.opacity, "");
+    assert.deepEqual(drawnAt(middle), layoutOf(middle));
+  });
+
   it("a leaving element that comes back while fading is restored, and moves on from where its ghost was", function () {
     class Toggled extends Component {
       initializeState() {

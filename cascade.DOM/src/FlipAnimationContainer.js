@@ -17,12 +17,13 @@ export function flipAnimationContainer(...parameters) {
  * components in it stay exactly as they are everywhere else, knowing
  * nothing about animation.
  *
- * How it sees the subtree: each child is expanded all the way down to
- * primitives (Component.expandToPrimitives() - every component on the way
- * given its render context, so services such as a theme are found exactly
- * as when rendering normally), each primitive asked for its node
- * (ensureNode() - see DOMNodeRenderComponent), and a DOM element's own
- * children expanded the same way, recursively. Then every element's child
+ * How it sees the subtree: each child is expanded (Component.expand() -
+ * every component on the way given its render context, so services such
+ * as a theme are found exactly as when rendering normally) down to
+ * components that can hand over their own node (providesNode() - see
+ * DOMNodeRenderComponent), each of those asked for its node
+ * (ensureNode()), and a DOM element's own children expanded the same way,
+ * recursively. Then every element's child
  * nodes are put in order, touching only nodes that actually need to move.
  * At rest, the result is exactly the DOM rendering the same subtree
  * normally would give.
@@ -54,15 +55,24 @@ export function flipAnimationContainer(...parameters) {
  * Islands: a component that can only be rendered, not expanded (one with
  * its own render() - a bounds provider, say) is rendered normally, into a
  * plain block element of its own, which is placed and animated like any
- * other element. Edits inside an island stay the island's own business, as
+ * other element. So is any component the app wants moved as one piece -
+ * a card, say, rather than each element in it: `isUnit`, a function
+ * given each component on the way down, answering true for those. Edits inside an island stay the island's own business, as
  * efficient as anywhere else; anything that changes the structure of the
  * rest of the subtree reruns the whole container - it reads the entire
  * expanded tree.
  */
 export class FlipAnimationContainer extends DOMNodeRenderComponent {
-  setProperties({ children, style }) {
+  setProperties({ children, style, isUnit }) {
     this.children = children || [];
     this.style = style || null;
+    this.isUnit = isUnit || null;
+  }
+
+  // Where expanding stops (see Component.expand()): at what the app wants
+  // moved as one piece, and otherwise at what can hand over its own node.
+  isLeaf(component) {
+    return (this.isUnit && this.isUnit(component)) || (component instanceof DOMNodeRenderComponent && component.providesNode());
   }
 
   initialUnobservables() {
@@ -161,14 +171,15 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
         nodes.push(this.looseText(owner, index, child).ensureNode());
         return;
       }
-      for (const expanded of child.expandToPrimitives(context, owner)) {
+      for (const expanded of child.expand(context, owner, (component) => this.isLeaf(component))) {
         nodes.push(this.nodeOf(expanded, context, ancestor, placements));
       }
     });
   }
 
   nodeOf(component, context, ancestor, placements) {
-    if (!component.isPrimitive()) {
+    const isUnit = this.isUnit && this.isUnit(component);
+    if (isUnit || !(component instanceof DOMNodeRenderComponent && component.providesNode())) {
       const holder = this.renderIsland(component, context);
       this.unobservable.tracked.push({ element: holder, ancestor });
       return holder;

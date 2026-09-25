@@ -7,7 +7,7 @@ import { div, p } from "../HTMLTags.js";
 import { text } from "../DOMTextComponent.js";
 
 // DOMNodeComponent (abstract) vs DOMNodeRenderComponent (the render-owning
-// primitive DOMElementComponent/DOMTextComponent/DOMContextContainer extend
+// base DOMElementComponent/DOMTextComponent/DOMContextContainer extend
 // directly): this one is for a build()-composed component that should still
 // count as "one real DOM node" to anything upstream - checked here, not
 // left to surface later as a mysterious failure wherever that guarantee was

@@ -24,8 +24,8 @@ import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 export class DOMNodeComponent extends Component {
   // render() below only verifies what build() returns before rendering it
   // the default way - this is still purely build()-composed, so it can be
-  // expanded (see Component.expandToPrimitives()).
-  isBuildComposed() {
+  // expanded (see Component.expand()).
+  isExpandable() {
     return true;
   }
 

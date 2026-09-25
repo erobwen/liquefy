@@ -13,7 +13,7 @@ export class DOMTextComponent extends DOMNodeRenderComponent {
     this.text = extractProperty(properties, "text");
   }
 
-  // A primitive (see DOMNodeRenderComponent): its own Text node, created
+  // Provides its node (see DOMNodeRenderComponent): its own Text node, created
   // once, its data patched in place. Placed by the default renderElement()
   // when rendered, or by whoever places it otherwise.
   ensureNode() {

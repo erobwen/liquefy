@@ -403,6 +403,44 @@ describe("FlipAnimationContainer animations", function () {
     assert.deepEqual(drawnAt(holder), layoutOf(holder));
   });
 
+  it("a component the app marks as a unit (isUnit) moves as one piece - nothing inside it animates on its own", function () {
+    class Card extends Component {
+      setProperties({ label }) {
+        this.label = label;
+      }
+      build() {
+        return div({ key: "card" }, div({ key: "title" }, text({ key: "titleText", text: this.label })), div({ key: "body" }, text({ key: "bodyText", text: "body" })));
+      }
+    }
+    class Cards extends Component {
+      initializeState() {
+        return { order: ["a", "b"] };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip", isUnit: (component) => component instanceof Card },
+          this.order.map((label) => new Card({ key: label, label })),
+        );
+      }
+    }
+    const cards = new Cards();
+    cards.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const holders = () => Array.from(container.querySelectorAll("[data-flip-island]"));
+    assert.equal(holders().length, 2, "each card in a box of its own");
+    const [a, b] = holders();
+    const titleOf = (holder) => holder.querySelector("div > div");
+    const before = drawnAt(a);
+
+    cards.order = ["b", "a"];
+    assert.deepEqual(holders(), [b, a], "the same boxes, moved");
+    assert.deepEqual(drawnAt(a), before, "the card starts where it was");
+    assert.notEqual(a.style.transform, "");
+    assert.equal(titleOf(a).style.transform, "", "its insides just come along");
+    assert.equal(a.querySelector("div").style.transform, "");
+    runToRest();
+    assert.deepEqual(drawnAt(a), layoutOf(a));
+  });
+
   it("runs at FlipAnimationContainer.speed - at half speed a move takes about twice as many frames", function () {
     const framesToRest = (speed) => {
       FlipAnimationContainer.speed = speed;

@@ -42,9 +42,9 @@ export class DOMNodeRenderComponent extends Component {
   //
   //  - ensureNode() - create this component's node if it has none, bring it
   //    up to date (attributes, content, ...), and return it, *without*
-  //    placing it anywhere. That makes it a primitive (see isPrimitive()):
-  //    something a component placing nodes itself (cascade.dom's
-  //    FlipAnimationContainer) can use directly. Ordinary rendering then
+  //    placing it anywhere. That makes it a component that provides its node
+  //    (see providesNode()): something a component placing nodes itself
+  //    (cascade.dom's FlipAnimationContainer) can use directly. Ordinary rendering then
   //    just places the node (the default renderElement() below), so the
   //    component itself never knows which of the two it's in.
   //  - renderElement(context, existingElement) - do both at once, however
@@ -56,7 +56,9 @@ export class DOMNodeRenderComponent extends Component {
     throw new Error(this.constructor.name + " must implement ensureNode() or renderElement(context, existingElement)");
   }
 
-  isPrimitive() {
+  // Whether this component can hand over its node without being rendered
+  // - it implements ensureNode().
+  providesNode() {
     return this.ensureNode !== DOMNodeRenderComponent.prototype.ensureNode;
   }
 

@@ -234,10 +234,9 @@ export class Component {
   }
 
   // Build this component's immediate equivalent - one step only, not all
-  // the way down to something primitive (that's
-  // reactiveBuildEquivalentPrimitive(), layered on top of this, for a
-  // component like FlipAnimationContainer that specifically needs an
-  // abstract tree built before rendering anything - out of scope here).
+  // the way down (that's expand(), layered on top of this, for a component
+  // like FlipAnimationContainer that needs a whole subtree built before
+  // placing any of it).
   // One step is what lets build and render interleave at every level
   // instead of needing two separate passes: a parent can build one child,
   // render it, take a real measurement, and only then build/render the
@@ -254,8 +253,8 @@ export class Component {
   // scheduling) ever have to visit build repeaters. The two are parallel
   // pipelines (see compareWritingToReader() in cascade.reactive): build()
   // reads the latest value of anything render writes - fine, since what
-  // flows from render to build (the render context, its target, the
-  // primitive locator) is timeless - and render reads the build's latest
+  // flows from render to build (the render context, its target, its
+  // service locator) is timeless - and render reads the build's latest
   // result.
   //
   // One build repeater per component, for the component's whole life -
@@ -309,7 +308,7 @@ export class Component {
         // properties it wrote already retracted. See cascade.reactive's
         // scheduleThroughPuller(). Normally that's this component's own render
         // repeater; a component that's never rendered itself but expanded
-        // by another (see expandToPrimitives()) is pulled by whoever is
+        // by another (see expand()) is pulled by whoever is
         // expanding it - the component rendering when it was pulled.
         pulledBy: () => u.repeater || (u.pullingComponent && u.pullingComponent.unobservable.repeater),
       });
@@ -374,7 +373,7 @@ export class Component {
   // does this first, every time; a component that places others itself,
   // without calling their render() (see cascade.dom's
   // FlipAnimationContainer, which expands its subtree with
-  // expandToPrimitives() below), does it instead - so builds find their
+  // expand() below), does it instead - so builds find their
   // services (a theme, a platform - see ServiceLocator.js) and inherit()
   // walks the same hierarchy either way.
   //
@@ -405,44 +404,40 @@ export class Component {
     this.unobservable.renderContext = context;
   }
 
-  // Whether this component is one of the platform's primitives - what a
-  // tree is ultimately made of (see cascade.dom's DOMNodeRenderComponent,
-  // which answers true for components that can produce their own node
-  // without being rendered). Nothing is, at this level.
-  isPrimitive() {
-    return false;
-  }
-
-  // Whether this component is composed purely through build() - rendered by
-  // the default render() below, so building it is all there is to it. A
-  // component that overrides render() does its own work there (measuring,
-  // placing things itself, ...) and can only be rendered, not expanded -
-  // see expandToPrimitives().
-  isBuildComposed() {
+  // Whether this component can be expanded - composed purely through
+  // build(), rendered by the default render() below, so building it is all
+  // there is to it. A component that overrides render() does its own work
+  // there (measuring, placing things itself, ...) and can only be rendered -
+  // see expand().
+  isExpandable() {
     return this.render === Component.prototype.render;
   }
 
   // Build this component not just one step (reactiveBuildEquivalent()) but
-  // all the way down: through whatever it builds, and whatever that builds,
-  // until what's left are primitives - or components that can only be
-  // rendered, not built (see isBuildComposed()), which a caller has to treat
-  // as opaque "islands" and render normally. Every component on the way is
-  // given its place in the tree first (provideContext()), exactly as
-  // rendering it would have, so builds find the same services either way.
-  // Returns a flat list: a build may return several components (or none).
+  // as far down as the caller wants: through whatever it builds, and
+  // whatever that builds, until each component left is either a leaf -
+  // whatever `isLeaf(component)` says it is - or can't be expanded (see
+  // isExpandable()), which a caller then has to treat as opaque and render
+  // normally. What counts as a leaf is the caller's business, not the
+  // component's: it only means something to a particular consumer on a
+  // particular platform (cascade.dom's FlipAnimationContainer stops at
+  // components that can hand over their own DOM node, say). Every
+  // component on the way is given its place in the tree first
+  // (provideContext()), exactly as rendering it would have, so builds find
+  // the same services either way. Returns a flat list: a build may return
+  // several components (or none).
   //
-  // Only this chain is expanded - a primitive's own children (a DOM
-  // element's, say) are whoever calls this's business, since only the
-  // platform knows what a primitive's children are.
-  expandToPrimitives(context, renderParent) {
+  // Only this chain is expanded - a leaf's own children (a DOM element's,
+  // say) are the caller's business too, since only it knows what they are.
+  expand(context, renderParent, isLeaf = () => false) {
     this.provideContext(context, renderParent);
-    if (this.isPrimitive() || !this.isBuildComposed()) return [this];
+    if (isLeaf(this) || !this.isExpandable()) return [this];
     const built = this.reactiveBuildEquivalent();
     const children = built instanceof Array ? built : [built];
     const result = [];
     for (const child of children) {
       if (child === null || typeof(child) === "undefined" || child === false) continue;
-      result.push(...child.expandToPrimitives(context, this));
+      result.push(...child.expand(context, this, isLeaf));
     }
     return result;
   }

@@ -52,7 +52,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     return result;
   }
 
-  // A primitive (see DOMNodeRenderComponent): its own element, created once
+  // Provides its node (see DOMNodeRenderComponent): its own element, created once
   // and patched in place - placed by the default renderElement() when
   // rendered (its children then rendered by render() below), or by whoever
   // places it otherwise (cascade.dom's FlipAnimationContainer, which also

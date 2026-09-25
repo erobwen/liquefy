@@ -9,8 +9,9 @@ import { div, span, p, button, h1, h2, ul, li } from "../HTMLTags.js";
 import { text } from "../DOMTextComponent.js";
 
 // FlipAnimationContainer, before any animation: it places its whole
-// subtree itself (expanding every child down to primitives - see
-// Component.expandToPrimitives() - and putting their nodes in order), and
+// subtree itself (expanding every child down to components that provide
+// their own node - see Component.expand() - and putting those nodes in
+// order), and
 // the result has to be exactly what rendering the same subtree normally
 // gives. Every scenario below builds the same app twice - once inside a
 // plain div, once inside the container - drives both through the same

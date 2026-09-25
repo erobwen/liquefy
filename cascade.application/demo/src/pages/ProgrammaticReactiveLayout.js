@@ -5,10 +5,11 @@ import source from "./ProgrammaticReactiveLayout.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
-  summary: "Components that know their own pixel budget - no CSS media queries.",
+  summary: "Components that know their own pixel budget can use the space more efficiently - no CSS media queries.",
   points: [
     "The page is handed the width and height it may use (usableWidth/usableHeight, measured by the app frame) and sizes itself to it.",
     "Every cell shows its own measured size. Resize the window, or change rows and columns, and watch them follow.",
+    "Sub component choice and composition can depend on available area, which creates new possibilities.",
   ],
 };
 

@@ -10,6 +10,23 @@ import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { StorePage } from "./src/pages/StorePage.js";
 import { rootServiceLocator } from "./src/services.js";
+import faviconSvg from "../../cascade/images/favicon.svg";
+import faviconPng from "../../cascade/images/favicon.png";
+
+// The Cascade favicon - the SVG where the browser takes one (sharp at any
+// size), the PNG otherwise, and for iOS home screens. Added from here
+// rather than in index.html: the images live outside this demo, where only
+// an import reaches them (Vite serves them, and bundles them in a build).
+for (const [rel, type, href, sizes] of [
+  ["icon", "image/png", faviconPng, "255x255"],
+  ["icon", "image/svg+xml", faviconSvg, "any"],
+  ["apple-touch-icon", "image/png", faviconPng, "255x255"],
+]) {
+  const link = document.createElement("link");
+  Object.assign(link, { rel, type, href });
+  link.setAttribute("sizes", sizes);
+  document.head.appendChild(link);
+}
 
 
 // ApplicationMenuFrame is build()-only (see its own class doc), so this

@@ -1,7 +1,8 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, h1, h2, p, ul, li, a, b, text } from "@liquefy/cascade.dom";
+import { div, h1, h2, p, ul, li, a, b, img, text } from "@liquefy/cascade.dom";
 import { pageActions } from "../components/pageActions.js";
 import source from "./IntroductionPage.js?raw";
+import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 
 // Matches flow's own blue() helper (introductionPage.js): a highlighted
 // inline span of text. Strings go in as text() - a lone string starting
@@ -28,20 +29,26 @@ export class IntroductionPage extends Component {
       p("Reactive front end framework, with an integrated state management system."),
       p(blue("The purpose of Cascade is to make it simple and fast to build advanced user interfaces that are data driven, generative and reactive.")),
       p("Unlike most reactive UI frameworks, Cascade renders directly onto a live target in one pass - reading and writing the real DOM in tree order - rather than building an abstract tree first and reconciling it separately."),
-      h2("World's first: Temporal signals"),
+      h2("World's first: Temporal Signals"),
       p(
         "Signals are great for building reactive systems, and they come in many forms and shapes, such as properties " +
         "of MobX observables or Vue property values. But the problem with signals is: ",
         blue("there is usually only one signal per object and per property."),
       ),
       p("This means that with signals you are forced to build an explicit dependency graph, storing intermediary values as their own signals."),
-      p("But this is not how rendering and document transformation is normally done! When rendering, and when transforming documents, there is a pipeline of operations that transform the same object."),
+      p("But this is not how rendering and document transformation is normally done! When rendering, and when transforming documents, there is a sequence of operations that transform the same object."),
       p(
         blue("Temporal signals"),
         " allow us to build a pipeline of readers and writers of data that manipulate the same data objects. " +
         "They each operate within their own time frame, only invalidating other readers downstream in the pipeline.",
       ),
       p("Where signals introduce the space dimension for observation, temporal signals also introduce the time dimension for observation."),
+      img({
+        key: "temporalSignalsBoard",
+        src: temporalSignalsBoard,
+        alt: "Temporal signals: components - temporal observers - read (R) and write (W) the properties of data objects, along time. A change written to one property reaches only the readers after it in the pipeline.",
+        style: { display: "block", width: "100%", maxWidth: "600px", margin: "8px 0 16px 0", borderRadius: "8px" },
+      }),
       p("In Cascade this mechanism is used to define a reactive order of rendering, so that a parent can render before its children, measure its bounds, and pass the bounds on to its children for programmatic reactive layout. So temporal signals are used in Cascade to build a reactive front end framework with unprecedented precision."),
       p(
         "But the real use case where temporal signals shine is when building ",
@@ -57,6 +64,7 @@ export class IntroductionPage extends Component {
         li(blue("Component lifecycle control"), " - a component that stops being rendered (a page switched away from, a breakpoint) keeps its state and DOM elements, and comes back as it was."),
         li(blue("Programmatic responsive layout"), " driven by real DOM measurement rather than CSS media queries - see the menu breakpoint, and the Programmatic Reactive Layout page."),
         li(blue("Service locators throughout"), " - every element and widget is asked for, not constructed, so themes can replace whole components at runtime, and any part of the app can have services of its own (see the Themes page)."),
+        li(blue("Component inheritance"), " - Conveniently inherit properties from structural parents."),
         li(blue("Hydration"), " - a UI can be written as a document: plain data, a tree of service queries, turned into components by the same service locators (see the Hydration page)."),
         li(blue("DOM transition animations"), " - elements moving within or between parents, resizing, appearing and leaving all animate, with no changes to the components animated (see the Animation page)."),
         li(blue("Portals"), " - a component can put content somewhere else in the tree, as this demo's pages do with their buttons in the top bar."),

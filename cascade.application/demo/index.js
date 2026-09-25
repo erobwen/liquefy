@@ -7,6 +7,7 @@ import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
 import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
 import { ThemesPage } from "./src/pages/ThemesPage.js";
 import { HydrationPage } from "./src/pages/HydrationPage.js";
+import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { rootServiceLocator } from "./src/services.js";
 
 // ApplicationMenuFrame is build()-only (see its own class doc), so this
@@ -30,6 +31,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "hybrid-modal-dialog", title: "Hybrid Modal Dialog", component: new HybridModalDialog() },
     { key: "themes", title: "Themes", component: new ThemesPage() },
     { key: "hydration", title: "Hydration", component: new HydrationPage() },
+    { key: "animation", title: "Animation", component: new AnimationPage() },
   ],
 });
 applicationMenuFrame.renderOnto(context);

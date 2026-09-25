@@ -1,9 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, p, button as htmlButton } from "@liquefy/cascade.dom";
-import {
-  button, overlay, row, column, centerMiddle, zStack,
-  fitContainerStyle, fillerStyle, overflowVisibleStyle, zStackElementStyle,
-} from "@liquefy/cascade.ui";
+import { div, p } from "@liquefy/cascade.dom";
+import { button, overlay, row, column, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { DialogChrome, modalPresentation } from "../components/dialog.js";
 
 // Below this usableWidth (the page's own allotted content area, handed
 // down by ApplicationMenuFrame's own workArea - ultimately sourced from
@@ -103,68 +101,6 @@ export class HybridModalDialog extends Component {
         modalPresentation(dialog, () => { this.showDialog = false; }),
         { key: "dialogOverlay", showing: this.showDialog && dialogIsModal },
       ),
-    );
-  }
-}
-
-// The modal-window presentation: a full-frame backdrop (click to close)
-// with the dialog centered on top of it. Unkeyed - it holds no state of
-// its own (unlike `dialog`, nested inside it, which does) and reconciles
-// positionally like any other unkeyed build()-composed content; only
-// `dialog`'s own key is what needs to survive across rebuilds.
-function modalPresentation(dialog, close) {
-  return zStack(
-    { key: "modalPresentation", style: { ...fitContainerStyle, pointerEvents: "none" } },
-    div({
-      key: "backdrop",
-      onclick: () => close(),
-      style: { ...zStackElementStyle, pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" },
-    }),
-    centerMiddle(dialog, { key: "centered", style: { ...zStackElementStyle, pointerEvents: "none" } }),
-  );
-}
-
-// Dialog chrome - title bar (with close button) around whatever content
-// it's given. Holds no state of its own (isFullScreen-style chrome
-// variants aren't needed here), so it doesn't strictly need a stable key
-// itself - but `dialog` above is keyed anyway, both because it wraps
-// `content` (which does hold state) and to keep its own real DOM element
-// stable across the docked/modal transition rather than being torn down
-// and recreated.
-class DialogChrome extends Component {
-  setProperties({ title, close, style, children }) {
-    this.title = title || null;
-    this.close = close;
-    this.style = style || null;
-    this.dialogChildren = children || [];
-  }
-
-  build() {
-    return column(
-      {
-        key: "dialog",
-        style: {
-          background: "white", borderRadius: "8px", boxSizing: "border-box", overflow: "hidden",
-          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)", pointerEvents: "auto", ...this.style,
-        },
-      },
-      row(
-        {
-          key: "titleBar", style: {
-            padding: "10px 16px", background: "#2c3e50", color: "white", flex: "none",
-            alignItems: "center", justifyContent: "space-between",
-          },
-        },
-        div({ key: "title" }, this.title || ""),
-        // Plain HTML, not a themed widget: dialog chrome, styled for the
-        // dark title bar (the widget contract has no icon button yet).
-        htmlButton({
-          key: "close",
-          onclick: () => this.close(),
-          style: { background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "16px", lineHeight: 1 },
-        }, "✕"),
-      ),
-      column({ key: "body", style: { ...fillerStyle, overflow: "auto" } }, this.dialogChildren),
     );
   }
 }

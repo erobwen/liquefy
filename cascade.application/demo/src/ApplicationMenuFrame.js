@@ -1,6 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 import { div, button, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
+import { CodeButton } from "./components/code.js";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -138,7 +139,10 @@ class ApplicationMenuFrameLayout extends Component {
           background: "#1a252f", color: "white", cursor: "pointer", flex: "none", fontSize: "16px",
         },
       }, "☰").show(menuIsModal && !frame.menuOpen),
-      div({ key: "label" }, "Toolbar"),
+      // The current page's code (see index.js's page list for where it
+      // comes from) - one button, handed whichever page is shown.
+      new CodeButton({ key: "codeButton", source: page.source, fileName: page.fileName }),
+      div({ key: "label", style: { fontWeight: "bold" } }, page.title),
     );
 
     const workArea = contextContainer({

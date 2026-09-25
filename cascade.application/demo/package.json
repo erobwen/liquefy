@@ -22,10 +22,11 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
-    "@liquefy/cascade.reactive": "file:../../cascade.reactive",
     "@liquefy/cascade.component": "file:../../cascade.component",
     "@liquefy/cascade.dom": "file:../../cascade.DOM",
+    "@liquefy/cascade.reactive": "file:../../cascade.reactive",
     "@liquefy/cascade.ui": "file:../../cascade.ui",
-    "@liquefy/cascade.ui.material": "file:../../cascade.ui.material"
+    "@liquefy/cascade.ui.material": "file:../../cascade.ui.material",
+    "highlight.js": "^11.12.0"
   }
 }

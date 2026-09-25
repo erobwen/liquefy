@@ -1,4 +1,5 @@
 export { DOMElementTarget } from "./DOMElementTarget.js";
+export { BrowserLocation, browserLocation } from "./BrowserLocation.js";
 export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator, hydrate, locateDOMComponent } from "./DOMServiceLocator.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";

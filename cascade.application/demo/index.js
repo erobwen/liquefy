@@ -1,5 +1,5 @@
 import { RenderContext } from "@liquefy/cascade.component";
-import { DOMElementTarget } from "@liquefy/cascade.dom";
+import { DOMElementTarget, browserLocation } from "@liquefy/cascade.dom";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
 import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
@@ -24,8 +24,13 @@ const context = new RenderContext(DOMElementTarget.forElement(document.getElemen
 // Handed to the root component too, which provides it to the whole app as
 // `rootServiceLocator` - the only way to *change* the app's services (see
 // src/services.js).
+// Which page is shown follows the URL - below wherever the app is served
+// from (Vite's base).
+const location = browserLocation({ base: import.meta.env.BASE_URL });
+
 const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
+  location,
   pages: [
     { key: "introduction", title: "Introduction", component: new IntroductionPage() },
     { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },

@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, img, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { a, div, img, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, portal } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.png";
 
@@ -61,18 +61,24 @@ export class ApplicationMenuFrame extends Component {
   // default is the component itself, so any field can be inherited) - the
   // one way a component can change the app's services, by
   // inherit("rootServiceLocator"). See src/services.js.
-  setProperties({ pages, rootServiceLocator }) {
+  //
+  // location: the browser's location (cascade.dom's browserLocation()) -
+  // which page is shown is the URL's: its first path segment is the page's
+  // key, none at all the first page. So back and forward, a reload or a
+  // link to a page all just work, as in Flow's demo.
+  setProperties({ pages, rootServiceLocator, location }) {
     this.pages = pages;
     this.rootServiceLocator = rootServiceLocator || null;
+    this.location = location;
   }
 
-  // Which page is showing and whether the modal menu is open are *state*
-  // (see cascade.component/README.md): established once here, changed only
-  // by the user - choose(), the hamburger and the backdrop (see
-  // ApplicationMenuFrameLayout below) are all event handlers, outside any
-  // repeater - and never reset by a rebuild.
+  // Whether the modal menu is open is *state* (see
+  // cascade.component/README.md): established once here, changed only by the
+  // user - the hamburger and the backdrop (see ApplicationMenuFrameLayout
+  // below) are event handlers, outside any repeater - and never reset by a
+  // rebuild.
   initializeState() {
-    return { chosen: this.pages[0].key, menuOpen: false };
+    return { menuOpen: false };
   }
 
   // The top bar's portal, where the page shown puts its own buttons (see
@@ -93,13 +99,33 @@ export class ApplicationMenuFrame extends Component {
     return this.unobservable.topBarPortal;
   }
 
+  // A page's path: the first page is the app's own root.
+  pathOf(page) {
+    return page === this.pages[0] ? [] : [page.key];
+  }
+
   choose(key) {
-    this.chosen = key;
+    this.location.navigate(this.pathOf(this.pages.find((page) => page.key === key)));
     this.menuOpen = false;
   }
 
+  // The page the URL names - or, for a path that names none, the first
+  // page, with the URL corrected to match (replacing it, not adding to the
+  // history). That's a navigation, not something a build may do while it
+  // runs - so, as in Flow's demo, it's done right after.
   currentPage() {
-    return this.pages.find((page) => page.key === this.chosen);
+    const key = this.location.path[0];
+    const page = key === undefined ? this.pages[0] : this.pages.find((each) => each.key === key);
+    if (page) return page;
+    const u = this.unobservable;
+    if (!u.correctingPath) {
+      u.correctingPath = true;
+      setTimeout(() => {
+        u.correctingPath = false;
+        this.location.navigate([], { replace: true });
+      });
+    }
+    return this.pages[0];
   }
 
   build() {
@@ -247,16 +273,25 @@ class MenuList extends Component {
       { key: "list", style: { boxSizing: "border-box", padding: "16px", background: "#34495e", color: "white", overflow: "auto", ...this.style } },
       logo(),
       ...frame.pages.map((page) => {
-        const active = page.key === frame.chosen;
-        return div({
+        const active = page === frame.currentPage();
+        // A real link, to the page's URL - opening it in a new tab, or
+        // copying it, works as for any link. A plain click navigates here
+        // instead of loading the page anew.
+        return a({
           key: page.key,
-          onclick: () => frame.choose(page.key),
+          href: frame.location.href(frame.pathOf(page)),
+          onclick: (event) => {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            frame.choose(page.key);
+          },
           style: {
-            padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
+            display: "block", padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
+            color: "inherit", textDecoration: "none",
             background: active ? "rgba(255,255,255,0.2)" : "transparent",
             fontWeight: active ? "bold" : "normal",
           },
-        }, page.title);
+        }, text({ key: page.key + "Title", text: page.title }));
       }),
     );
   }

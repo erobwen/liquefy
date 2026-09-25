@@ -4,44 +4,70 @@ import { Component, RenderContext, postponeInvalidations, continueInvalidations 
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
 import { div } from "../HTMLTags.js";
+import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
 import { text } from "../DOMTextComponent.js";
 
-// FlipAnimationContainer's moves: an element that changes place is drawn
-// where it was, then carried to where it now belongs by a spring. jsdom has
-// no layout, so a fake one stands in: every element a 20px-tall block,
-// stacked in DOM order inside its parent and indented 10px per level - and
-// drawn offset by its own and its ancestors' translate(), as a browser
-// would. Frames are driven by hand.
-describe("FlipAnimationContainer moves", function () {
+// FlipAnimationContainer's animations: an element that changes place (or
+// size) is drawn where (and as large as) it was, then carried to where it
+// now belongs by a spring; a new one fades in; a removed one fades out as a
+// ghost. jsdom has no layout, so a fake one stands in: every element a
+// 20px-tall block - 100px wide, or as wide as its title says - stacked in
+// DOM order inside its parent and indented 10px per level (an absolutely
+// positioned one sits at its left/top instead, out of the stacking), and
+// drawn the way a browser would draw its translate()/scale() (origin 0 0)
+// and its ancestors'. Frames are driven by hand.
+describe("FlipAnimationContainer animations", function () {
   let container;
   let frames;
   let time;
   let originalClock;
+  let originalSpeed;
 
-  const translation = (element) => {
-    const match = /translate\((-?[\d.e+-]+)px, (-?[\d.e+-]+)px\)/.exec(element.style.transform || "");
-    return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: 0, y: 0 };
+  const transformOf = (element) => {
+    const transform = element.style.transform || "";
+    const t = /translate\((-?[\d.e+-]+)px, (-?[\d.e+-]+)px\)/.exec(transform);
+    const s = /scale\((-?[\d.e+-]+), (-?[\d.e+-]+)\)/.exec(transform);
+    return { x: t ? Number(t[1]) : 0, y: t ? Number(t[2]) : 0, sx: s ? Number(s[1]) : 1, sy: s ? Number(s[2]) : 1 };
   };
 
-  // Where an element lies in the fake layout (no translations).
+  const inContainer = (element) => element && element !== container && container.contains(element);
+
+  // Where an element lies in the fake layout (no transforms).
   const layoutOf = (element) => {
     const parent = element.parentElement;
-    if (!parent || parent === document.body || !container.contains(parent)) return { x: 0, y: 0 };
+    if (!inContainer(parent)) return { x: 0, y: 0 };
     const above = layoutOf(parent);
-    const index = Array.from(parent.children).indexOf(element);
-    return { x: above.x + 10, y: above.y + 20 * (index + 1) };
+    if (element.style.position === "absolute") {
+      return { x: above.x + parseFloat(element.style.left), y: above.y + parseFloat(element.style.top) };
+    }
+    const stacked = Array.from(parent.children).filter((each) => each.style.position !== "absolute");
+    return { x: above.x + 10, y: above.y + 20 * (stacked.indexOf(element) + 1) };
   };
 
-  // Where an element is drawn: its layout plus every translation on the way.
-  const drawnAt = (element) => {
-    let { x, y } = layoutOf(element);
-    for (let each = element; each && container.contains(each); each = each.parentElement) {
-      const t = translation(each);
-      x += t.x;
-      y += t.y;
-    }
-    return { x, y };
+  const layoutWidthOf = (element) => Number(element.title) || 100;
+
+  // Where an element is drawn: top-left and total scale, through its own
+  // and every ancestor's transform.
+  const drawn = (element) => {
+    const layout = layoutOf(element);
+    const own = transformOf(element);
+    const parent = element.parentElement;
+    if (!inContainer(parent)) return { x: layout.x + own.x, y: layout.y + own.y, sx: own.sx, sy: own.sy };
+    const above = drawn(parent);
+    const parentLayout = layoutOf(parent);
+    return {
+      x: above.x + above.sx * (layout.x - parentLayout.x + own.x),
+      y: above.y + above.sy * (layout.y - parentLayout.y + own.y),
+      sx: above.sx * own.sx,
+      sy: above.sy * own.sy,
+    };
   };
+  const round = (value) => Math.round(value * 1000) / 1000;
+  const drawnAt = (element) => {
+    const { x, y } = drawn(element);
+    return { x: round(x), y: round(y) };
+  };
+  const drawnWidth = (element) => round(layoutWidthOf(element) * drawn(element).sx);
 
   beforeEach(function () {
     const dom = new JSDOM("<!DOCTYPE html><body></body>");
@@ -49,17 +75,22 @@ describe("FlipAnimationContainer moves", function () {
     container = document.createElement("div");
     document.body.appendChild(container);
     dom.window.Element.prototype.getBoundingClientRect = function () {
-      const { x, y } = drawnAt(this);
-      return { left: x, top: y, width: 100, height: 20, right: x + 100, bottom: y + 20 };
+      if (!inContainer(this)) return { left: 0, top: 0, width: 1000, height: 1000, right: 1000, bottom: 1000 };
+      const { x, y, sx, sy } = drawn(this);
+      const width = layoutWidthOf(this) * sx;
+      const height = 20 * sy;
+      return { left: x, top: y, width, height, right: x + width, bottom: y + height };
     };
     frames = [];
     time = 0;
     originalClock = FlipAnimationContainer.clock;
+    originalSpeed = FlipAnimationContainer.speed;
     FlipAnimationContainer.clock = { now: () => time, requestFrame: (callback) => frames.push(callback) };
   });
 
   afterEach(function () {
     FlipAnimationContainer.clock = originalClock;
+    FlipAnimationContainer.speed = originalSpeed;
   });
 
   function runFrames(count) {
@@ -197,12 +228,154 @@ describe("FlipAnimationContainer moves", function () {
     assert.deepEqual(drawnAt(inner), layoutOf(inner));
   });
 
-  it("a new element appears at once; a removed one is gone", function () {
+  it("a new element fades in where it lies", function () {
     const { lists, element } = setup();
     lists.a = ["one", "two", "three", "five"];
-    assert.equal(element("five").style.transform, "");
-    lists.a = ["one", "three", "five"];
-    assert.equal(element("two"), undefined);
+    const five = element("five");
+    assert.equal(five.style.transform, "");
+    assert.ok(Number(five.style.opacity) < 0.05, "starts invisible");
+    runFrames(10);
+    const midway = Number(five.style.opacity);
+    assert.ok(midway > 0.05 && midway < 1, "fading in");
+    runToRest();
+    assert.equal(five.style.opacity, "");
+  });
+
+  it("nothing fades in on the container's first render", function () {
+    const { element } = setup();
+    assert.equal(element("one").style.opacity, "");
+    assert.equal(frames.length, 0);
+  });
+
+  it("a removed element fades out as a ghost, exactly where and how it was drawn, while the rest close the gap", function () {
+    const { lists, element } = setup();
+    const two = element("two");
+    const three = element("three");
+    const twoBefore = drawnAt(two);
+    const threeBefore = drawnAt(three);
+
+    lists.a = ["one", "three"];
+    assert.ok(two.isConnected, "still shown");
+    assert.equal(two.style.position, "absolute");
+    assert.deepEqual(drawnAt(two), twoBefore, "right where it was");
+    assert.equal(two.style.pointerEvents, "none");
+    assert.deepEqual(drawnAt(three), threeBefore, "three starts where it was, too");
+
+    runFrames(10);
+    assert.ok(Number(two.style.opacity) < 1 && Number(two.style.opacity) > 0, "fading out");
+    assert.ok(drawnAt(three).y < threeBefore.y, "three moving up into the gap");
+
+    runToRest();
+    assert.ok(!two.isConnected, "gone once faded");
+    assert.deepEqual(drawnAt(three), layoutOf(three));
+  });
+
+  it("a leaving element that comes back while fading is restored, and moves on from where its ghost was", function () {
+    class Toggled extends Component {
+      initializeState() {
+        return { show: true };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "first" }, text({ key: "firstText", text: "first" })),
+          div({ key: "middle", style: { color: "red" } }, text({ key: "middleText", text: "middle" })).show(this.show),
+          div({ key: "last" }, text({ key: "lastText", text: "last" })),
+        );
+      }
+    }
+    const toggled = new Toggled();
+    toggled.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const middle = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "middle");
+    const before = drawnAt(middle);
+
+    toggled.show = false;
+    runFrames(5);
+    assert.equal(middle.style.position, "absolute");
+
+    toggled.show = true;
+    assert.equal(middle.style.position, "", "restored");
+    assert.equal(middle.style.color, "red", "with its own style back");
+    assert.deepEqual(drawnAt(middle), before, "from where its ghost was");
+    runToRest();
+    assert.ok(middle.isConnected);
+    assert.equal(middle.style.opacity, "");
+    assert.deepEqual(drawnAt(middle), layoutOf(middle));
+  });
+
+  it("a resized element is drawn at its old size, then grows to its new one - its contents not stretched along", function () {
+    class Sized extends Component {
+      initializeState() {
+        return { wide: false };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "box", title: this.wide ? "200" : "100" }, div({ key: "inner" }, text({ key: "innerText", text: "inner" }))),
+        );
+      }
+    }
+    const sized = new Sized();
+    sized.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const box = container.querySelector("[title]");
+    const inner = box.firstElementChild;
+
+    sized.wide = true;
+    assert.equal(drawnWidth(box), 100, "still drawn at its old width");
+    assert.equal(drawnWidth(inner), 100, "its contents at their own width, not squashed");
+    runFrames(10);
+    const midway = drawnWidth(box);
+    assert.ok(midway > 100 && midway < 200, "growing");
+    assert.equal(drawnWidth(inner), 100, "contents still not stretched");
+    runToRest();
+    assert.equal(drawnWidth(box), 200);
+    assert.equal(box.style.transform, "");
+  });
+
+  it("an island moves as a unit, in the box the container gives it", function () {
+    class Island extends DOMNodeRenderComponent {
+      renderElement(context, existingElement) {
+        const element = existingElement || document.createElement("output");
+        context.target.reattachElement(element);
+        element.textContent = this.key;
+        return element;
+      }
+    }
+    class WithIsland extends Component {
+      initializeState() {
+        return { islandFirst: false };
+      }
+      build() {
+        const island = new Island({ key: "island" });
+        const other = div({ key: "other" }, text({ key: "otherText", text: "other" }));
+        return flipAnimationContainer({ key: "flip" }, this.islandFirst ? [island, other] : [other, island]);
+      }
+    }
+    const withIsland = new WithIsland();
+    withIsland.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const holder = container.querySelector("[data-flip-island]");
+    const before = drawnAt(holder);
+
+    withIsland.islandFirst = true;
+    assert.deepEqual(drawnAt(holder), before);
+    assert.notEqual(holder.style.transform, "");
+    runToRest();
+    assert.deepEqual(drawnAt(holder), layoutOf(holder));
+  });
+
+  it("runs at FlipAnimationContainer.speed - at half speed a move takes about twice as many frames", function () {
+    const framesToRest = (speed) => {
+      FlipAnimationContainer.speed = speed;
+      container.innerHTML = "";
+      const { lists } = setup();
+      lists.a = ["three", "one", "two"];
+      let count = 0;
+      while (frames.length > 0 && count < 1000) { runFrames(1); count++; }
+      return count;
+    };
+    const full = framesToRest(1);
+    const half = framesToRest(0.5);
+    assert.ok(half > full * 1.7 && half < full * 2.3, "full speed " + full + " frames, half speed " + half);
   });
 
   it("while the container isn't in the page, it just places - nothing animates", function () {

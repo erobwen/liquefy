@@ -25,14 +25,12 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
   });
 
   // The DOM without what legitimately differs: debug ids (component
-  // numbering), and island holders (`display: contents` elements the
-  // container renders islands into).
+  // numbering), and island holders (the elements the container renders
+  // islands into, to give them a box of their own).
   function normalized(element) {
     const clone = element.cloneNode(true);
     clone.querySelectorAll("[id]").forEach((each) => each.removeAttribute("id"));
-    clone.querySelectorAll("div").forEach((each) => {
-      if (each.style.display === "contents") each.replaceWith(...each.childNodes);
-    });
+    clone.querySelectorAll("[data-flip-island]").forEach((each) => each.replaceWith(...each.childNodes));
     return clone.innerHTML;
   }
 

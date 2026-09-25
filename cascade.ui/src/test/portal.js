@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
-import { DOMElementTarget, DOMServiceLocator, div, text, element } from "@liquefy/cascade.dom";
+import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer } from "@liquefy/cascade.dom";
 import { portal, portalContents, button, basicTheme } from "../index.js";
 
 // portal()/portalContents(): a page putting its own buttons into the app's
@@ -169,5 +169,80 @@ describe("portals", function () {
     services.locators.splice(1, 1, fancyTheme);
     assert.equal(topBar(), "ab");
     assert.ok(container.querySelector("[id*='(topBar)'] fancy-button"), "rebuilt with the new theme");
+  });
+
+  it("inside a FlipAnimationContainer: contents placed like anything else - no box of their own - and an item moved into the portal is the same element", function () {
+    // A store: the items not chosen in the middle, the chosen ones in the
+    // cart - a portal in a bar the list knows nothing else about.
+    class Bar extends Component {
+      initialUnobservables() {
+        return { cart: portal({ key: "cart" }) };
+      }
+      build() {
+        return div({ key: "bar" }, this.unobservable.cart);
+      }
+    }
+    class Store extends Component {
+      initializeState() {
+        return { chosen: [] };
+      }
+      initialUnobservables() {
+        return { bar: new Bar({ key: "bar" }) };
+      }
+      get cart() {
+        return this.unobservable.bar.unobservable.cart;
+      }
+      build() {
+        const item = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
+        const all = ["apple", "pear", "plum"];
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "shelf" }, all.filter((name) => !this.chosen.includes(name)).map(item)),
+          portalContents({ key: "chosen", portal: this.inherit("cart") }, this.chosen.map(item)),
+          this.unobservable.bar,
+        );
+      }
+    }
+    const store = new Store();
+    store.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const shelf = () => container.querySelector("[id*='(shelf)']");
+    const cart = () => container.querySelector("[id*='(cart)']");
+    const pear = Array.from(shelf().children).find((each) => each.textContent === "pear");
+    assert.equal(container.querySelector("[data-flip-island]"), null, "no island box for the contents");
+    assert.equal(cart().textContent, "");
+
+    store.chosen = ["pear"];
+    assert.equal(shelf().textContent, "appleplum");
+    assert.equal(cart().textContent, "pear");
+    assert.equal(cart().firstElementChild, pear, "the same element, moved into the cart");
+
+    store.chosen = [];
+    assert.equal(shelf().textContent, "applepearplum");
+    assert.equal(cart().textContent, "");
+  });
+
+  it("a page that renders itself - owning its contents, created in initialization with the portal's name - swaps in like any other", function () {
+    // Created outside any repeater (created in render() instead, its
+    // properties would be the render's own writings - gone after its next
+    // run, which doesn't construct it again).
+    class RenderedPage extends Component {
+      initialUnobservables() {
+        return { actions: portalContents({ key: "actions", portal: "topBarPortal" }, text({ key: "renderedText", text: "rendered action" })) };
+      }
+      render(context) {
+        this.unobservable.actions.renderOnto(context);
+      }
+    }
+    const pages = [new Page({ key: "first", name: "first" }), new RenderedPage({ key: "rendered" })];
+    const app = new App({ pages });
+    app.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    assert.equal(topBar(), "first action 0");
+
+    app.chosen = 1;
+    assert.equal(topBar(), "rendered action");
+    app.chosen = 0;
+    assert.equal(topBar(), "first action 0");
+    app.chosen = 1;
+    assert.equal(topBar(), "rendered action");
   });
 });

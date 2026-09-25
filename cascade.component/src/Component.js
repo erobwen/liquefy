@@ -57,9 +57,18 @@ function assignEquivalentCreator(built, creator) {
  * will live on a specific component that opts into it, not here.
  */
 export class Component {
+  // Created on first access - which can be anywhere: inside some other
+  // component's render, say. So initialUnobservables() runs at initial time
+  // whenever that is (accessInitialValues()): a component created there (a
+  // portal this one owns, its portalContents - see
+  // cascade.component/README.md on creating a sub-component directly, in
+  // initialization) has its properties as baseline values, not as the
+  // writings of whichever repeater happened to touch this first - retracted
+  // with it the moment that repeater is (a page hidden), and never
+  // rewritten, since nothing constructs it again.
   get unobservable() {
     if (!this.causality.unobservable) {
-      this.causality.unobservable = Object.assign({ repeater: null }, this.initialUnobservables());
+      this.causality.unobservable = Object.assign({ repeater: null }, accessInitialValues(() => this.initialUnobservables()));
     }
     return this.causality.unobservable;
   }
@@ -452,15 +461,20 @@ export class Component {
   //
   // Only this chain is expanded - a leaf's own children (a DOM element's,
   // say) are the caller's business too, since only it knows what they are.
-  expand(context, renderParent, isLeaf = () => false) {
+  //
+  // `visited`, when given, is a Set every component on the way is added
+  // to - the leaves and everything in between - for a caller that needs to
+  // know what it placed (to call onShow()/onHide() for them, say).
+  expand(context, renderParent, isLeaf = () => false, visited = null) {
     this.provideContext(context, renderParent);
+    if (visited) visited.add(this);
     if (isLeaf(this) || !this.isExpandable()) return [this];
     const built = this.reactiveBuildEquivalent();
     const children = built instanceof Array ? built : [built];
     const result = [];
     for (const child of children) {
       if (child === null || typeof(child) === "undefined" || child === false) continue;
-      result.push(...child.expand(context, this, isLeaf));
+      result.push(...child.expand(context, this, isLeaf, visited));
     }
     return result;
   }
@@ -553,30 +567,49 @@ export class Component {
           renderStack.pop();
         }
       }, { onRetract: () => this.onRetract() });
+      this.onShow();
     }
   }
 
   // Override: called each time this component's repeater is genuinely
   // retracted - simply not renderOnto()'d some run (see the
   // retract/reconcile discussion in docs/plan-partial-repeaters.md,
-  // cascade.reactive). Clean up whatever side effect the reactive system
-  // itself has no visibility into (a real DOM node parented outside any
-  // observable, a subscription, ...) - see cascade.DOM's DOMNodeRenderComponent for
-  // the concrete case (removing its own element). No-op by default: a
-  // component with no such side effects doesn't need to override this.
-  // If it's later renderOnto()'d again, retraction being fully reversible
-  // is exactly the point (see onReattach() below) - this can fire more
-  // than once over a component's lifetime.
-  onRetract() {}
+  // cascade.reactive). Undo the rendering's own side effects the reactive
+  // system has no visibility into - see cascade.DOM's DOMNodeRenderComponent
+  // for the concrete case (removing its own element). Calls onHide() by
+  // default - an override calls super.onRetract() to keep that. If it's
+  // later renderOnto()'d again, retraction being fully reversible is
+  // exactly the point (see onReattach() below) - this can fire more than
+  // once over a component's lifetime.
+  onRetract() {
+    this.onHide();
+  }
 
   // Override: the other half of onRetract() - called when this component
   // is renderOnto()'d again after having been retracted, right as it's
   // relinked (never on an ordinary rerun or a first-ever render). Redo
   // whatever onRetract() undid - see cascade.DOM's DOMNodeRenderComponent, which
   // re-inserts its own element (removed by onRetract()) since relinking
-  // itself never re-executes render() to do it another way. No-op by
-  // default.
-  onReattach(context) {}
+  // itself never re-executes render() to do it another way. Calls onShow()
+  // by default - an override calls super.onReattach() to keep that.
+  onReattach(context) {
+    this.onShow();
+  }
+
+  // Override: this component is shown now - first rendered, rendered again
+  // after being hidden, or placed by a component that places its subtree
+  // itself (cascade.DOM's FlipAnimationContainer, which calls this
+  // directly). onHide() is the other half: no longer shown - hidden, its
+  // page switched away from, dropped. Unlike onRetract()/onReattach(),
+  // these are only notifications, with no rendering mechanics attached, so
+  // whoever places a component can make them for it - Flow's isVisible,
+  // as two events. For whatever a component does only while it's visible:
+  // cascade.ui's PortalContents shows its contents in its portal. Called
+  // from inside whoever is rendering - reads here are recorded against
+  // that render unless wrapped in withoutRecording(). No-ops by default.
+  onShow() {}
+
+  onHide() {}
 
   // Called by cascade.reactive (see finishRebuilding()) when this
   // component's build identity is gone: whoever's build() constructed it

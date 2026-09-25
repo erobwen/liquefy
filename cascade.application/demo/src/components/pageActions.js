@@ -7,18 +7,20 @@ import { CodeButton } from "./code.js";
  * A page's own buttons in the app's top bar, just before the page title -
  * ported from the Flow demo's per-page portalContents(informationButton(),
  * displayCodeButton()) (there, they sat off to the right). Put the result
- * anywhere in the page's build(): it renders nothing where it stands, and
- * shows the buttons in the top bar's portal (see ApplicationMenuFrame,
- * which provides it as `topBarPortal`) for as long as the page is shown.
+ * anywhere in the page's build() - or, for a page that renders itself,
+ * create it in initialization and render it: it renders nothing where it
+ * stands, and shows the buttons in the top bar's portal (see
+ * ApplicationMenuFrame, which provides it as `topBarPortal`, found by that
+ * name) for as long as the page is shown.
  *
  *  - information: what the information button shows (optional) - plain
  *    data, `{ summary, points }`: a sentence, and a list of points.
  *  - source, fileName: the page's own code, for the code button - a
  *    page's module imports itself for it: `import source from "./X.js?raw"`.
  */
-export function pageActions(page, { information, source, fileName }) {
+export function pageActions({ information, source, fileName }) {
   return portalContents(
-    { key: "pageActions", portal: page.inherit("topBarPortal") },
+    { key: "pageActions", portal: "topBarPortal" },
     information ? new InformationButton({ key: "information", ...information }) : null,
     new CodeButton({ key: "code", source, fileName }),
   );

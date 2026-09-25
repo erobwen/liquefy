@@ -51,7 +51,7 @@ export class ThemesPage extends Component {
     return column(
       // As tall as its content - the work area around it scrolls.
       { key: "page", style: { ...overflowVisibleStyle, boxSizing: "border-box", width: "100%", gap: "20px", padding: "16px" } },
-      pageActions(this, { information, source, fileName: "src/pages/ThemesPage.js" }),
+      pageActions({ information, source, fileName: "src/pages/ThemesPage.js" }),
       alert(
         { key: "info" },
         text({

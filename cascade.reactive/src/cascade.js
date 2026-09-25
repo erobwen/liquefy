@@ -2434,6 +2434,19 @@ function createWorld(configuration) {
   }
 
   function invalidateObserver(observer, proxy, key) {
+    // A read by a repeater that is running right now: see
+    // invalidateRepeater() - never disposed mid-run; a read of its previous
+    // run it hasn't reached yet is superseded, a read of this run gets it
+    // rerun right after. Asked by isRecording, not by finding the observer
+    // on the stack of running contexts (below, Flow's original guard, for
+    // everything else): that walk misses a write at initial time (no
+    // context at all), a previous run's partial (not on the stack, though
+    // its repeater runs) - and for a read this run already made, it
+    // dropped a real change silently.
+    if (observer.type === "partial" && observer.repeater.isRecording) {
+      invalidateRepeater(observer.repeater, observer);
+      return;
+    }
     let observerActive = false
     let scannedContext = state.context;
     while(scannedContext) {
@@ -2619,7 +2632,7 @@ function createWorld(configuration) {
         removeAllSources(this);
       },
       invalidateAction() {
-        this.repeater.invalidateAction();
+        this.repeater.invalidateAction(this);
       },
       causalityString() {
         return "<partial of> " + this.repeater.causalityString();
@@ -3271,8 +3284,10 @@ function createWorld(configuration) {
         if (this.retracted && this.parentRepeater === null) this.retracted = false;
         this.invalidateAction();
       },
-      invalidateAction() {
-        invalidateRepeater(this);
+      // `partial`: which of its partials read what changed, when it's a
+      // read that's invalidated (see invalidateRepeater()).
+      invalidateAction(partial) {
+        invalidateRepeater(this, partial);
       },
       // disposeAllCreatedWithBuildId() {
       //   // Dispose all created objects?
@@ -3400,6 +3415,7 @@ function createWorld(configuration) {
         repeater.firstPartial = partial;
 
         // Recorded action (cause and/or effect)
+        repeater.invalidatedWhileRunning = false;
         repeater.isRecording = true;
         const contextBeforeThisRun = state.context;
         enterContext(partial);
@@ -3484,6 +3500,13 @@ function createWorld(configuration) {
 
         this.firstTime = false;
         leaveContext( finalPartial );
+        // Invalidated while it ran, by a read it had already made (see
+        // invalidateRepeater()): run again, as for any invalidation that
+        // arrives just after a run.
+        if (repeater.invalidatedWhileRunning) {
+          repeater.invalidatedWhileRunning = false;
+          invalidateRepeater(repeater);
+        }
         return repeater;
       }
     }
@@ -4075,6 +4098,14 @@ function createWorld(configuration) {
     const puller = typeof(pulledBy) === "function" ? pulledBy() : pulledBy;
     if (!puller || puller.disposed) return false;
     if (puller.retracted) return true;
+    // Running right now: its action is executing (isRecording). Walking
+    // state.context up to it isn't enough on its own - a write at initial
+    // time (accessInitialValues(), which setState() uses) has no context at
+    // all while it runs. Found via a portal inside a FlipAnimationContainer:
+    // the contents' build, pulled while the container expands, assigns the
+    // portal's contents with setState() - invalidating the portal's build,
+    // pulled by that same, running, container.
+    if (puller.isRecording) return false;
     for (let context = state.context; context; context = context.parent) {
       if (context.type === "partial" && context.repeater === puller) return false;
     }
@@ -4117,7 +4148,30 @@ function createWorld(configuration) {
   // The genuine-invalidation entry point - replaces the old
   // repeaterDirty(). 'invalid' always wins over 'flagged' and is never
   // downgraded back (see flagRepeaterEntry()).
-  function invalidateRepeater(repeater) {
+  //
+  // A repeater that is running right now (its action is on the stack -
+  // isRecording) is never disposed here: that would pull its run out from
+  // under it (dispose() moves the run's partials away and clears
+  // currentPartial, and the run crashes finishing). Restored from Flow's
+  // causality, which skipped any observer found on the stack of running
+  // contexts - by isRecording rather than by walking state.context, since
+  // a write at initial time (accessInitialValues(), setState()) has no
+  // context to walk. Such an invalidation is one of two things:
+  //  - a read of its *previous* run, from a partial this run hasn't
+  //    reached yet (old partials keep their sources until the run reaches
+  //    them - see createNextPartial()): nothing - the run in progress
+  //    either reads it afresh when it gets there, or drops the partial.
+  //  - a read this run has already made (or is making): the run has used a
+  //    value that has changed since - it's rerun right after it finishes
+  //    (see refresh()), rather than left stale.
+  // Only reachable through eager notifications - a write from a parallel
+  // pipeline, or at initial time; within a pipeline, a later write never
+  // invalidates an earlier reader eagerly (see flagRepeaterEntry()).
+  function invalidateRepeater(repeater, partial) {
+    if (repeater.isRecording) {
+      if (!partial || partial.listMembership !== "pending") repeater.invalidatedWhileRunning = true;
+      return;
+    }
     repeater.dispose();
     repeater.flagRecords = null;
     repeater.workStatus = 'invalid';

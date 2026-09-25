@@ -85,7 +85,7 @@ export class HybridModalDialog extends Component {
 
     return column(
       { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: "16px" } },
-      pageActions(this, { information, source, fileName: "src/pages/HybridModalDialog.js" }),
+      pageActions({ information, source, fileName: "src/pages/HybridModalDialog.js" }),
       alert(
         { key: "info", style: { flex: "none" } },
         text({

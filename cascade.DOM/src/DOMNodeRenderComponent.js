@@ -96,6 +96,7 @@ export class DOMNodeRenderComponent extends Component {
   // still fully attached to the DOM.
   onRetract() {
     if (this.unobservable.element) this.unobservable.element.remove();
+    super.onRetract();
   }
 
   // The other half: if this component is renderOnto()'d again later
@@ -105,5 +106,6 @@ export class DOMNodeRenderComponent extends Component {
   // same way appendElement would for a brand new one.
   onReattach(context) {
     if (this.unobservable.element) context.target.reattachElement(this.unobservable.element);
+    super.onReattach(context);
   }
 }

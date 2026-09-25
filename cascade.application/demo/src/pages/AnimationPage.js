@@ -107,7 +107,7 @@ export class AnimationPage extends Component {
   build() {
     return column(
       { key: "page", style: { height: "100%", width: "100%" } },
-      pageActions(this, { information, source, fileName: "src/pages/AnimationPage.js" }),
+      pageActions({ information, source, fileName: "src/pages/AnimationPage.js" }),
       row(
         { key: "controls" },
         row(

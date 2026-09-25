@@ -1,12 +1,12 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, withoutRecording } from "@liquefy/cascade.component";
 
 /**
  * Overlay - the other half of overlay.js's port (see OverlayFrame.js).
- * Renders nothing at its own position; its whole job is to hand its
+ * Builds nothing at its own position; its whole job is to hand its
  * single child to the nearest enclosing OverlayFrame (found via
  * `this.inherit("overlayFrame")`) whenever `this.showing` is true, and
- * take it back whenever it's false (or this component is retracted
- * outright - see onRetract()).
+ * take it back whenever it's false (or this component stops being shown
+ * altogether - see onHide()).
  *
  * Deliberately named `showing`, not flow's own `isVisible` - flow's
  * `isVisible` is a much more general, base-Component concept (computed
@@ -37,7 +37,33 @@ export class Overlay extends Component {
     return { visibleOnFrame: null };
   }
 
-  render() {
+  // Build-only (like PortalContents - see Portal.js): a build only runs
+  // while something is showing this component, so building is where the
+  // content is handed to the frame - again whenever showing changes.
+  // Builds nothing where it stands.
+  build() {
+    this.update();
+    return null;
+  }
+
+  // Shown again (see Component.onShow()): an up-to-date build doesn't
+  // rerun, so hand the content over here. Read without recording - this
+  // runs inside whoever is rendering.
+  onShow() {
+    withoutRecording(() => this.update());
+  }
+
+  // No longer shown - its page switched away from, say: take the content
+  // back, whatever `showing` says.
+  onHide() {
+    const u = this.unobservable;
+    if (u.visibleOnFrame) {
+      u.visibleOnFrame.hideOverlay(this);
+      u.visibleOnFrame = null;
+    }
+  }
+
+  update() {
     const u = this.unobservable;
     if (this.showing) {
       const overlayFrame = this.inherit("overlayFrame");
@@ -46,22 +72,8 @@ export class Overlay extends Component {
         u.visibleOnFrame = overlayFrame;
         overlayFrame.showOverlay(this, this.overlayChild);
       }
-    } else if (u.visibleOnFrame) {
-      u.visibleOnFrame.hideOverlay(this);
-      u.visibleOnFrame = null;
-    }
-  }
-
-  // If this component simply stops being rendered altogether (rather
-  // than being shown with show(false) first), render() never runs again
-  // to notice and hide itself - see Component.onRetract()'s own doc on
-  // exactly this shape (the demo's HamburgerButton/Menu already rely on
-  // it for their own real DOM element).
-  onRetract() {
-    const u = this.unobservable;
-    if (u.visibleOnFrame) {
-      u.visibleOnFrame.hideOverlay(this);
-      u.visibleOnFrame = null;
+    } else {
+      this.onHide();
     }
   }
 }

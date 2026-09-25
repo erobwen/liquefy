@@ -247,4 +247,52 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     assert.deepEqual(Array.from(container.querySelectorAll("li")), [items[1], items[2], items[0]]);
     assert.equal(container.querySelector("h1").textContent, "Before hiding");
   });
+
+  it("tells what it places when it's shown and hidden, as rendering would - with no DOM mechanics", function () {
+    // Build-composed, so the container expands (places) it rather than
+    // rendering it; records the notifications it gets.
+    class Watched extends Component {
+      initialUnobservables() {
+        return { events: [] };
+      }
+      build() {
+        return p({ key: "watchedText" }, text({ key: "text", text: "watched" }));
+      }
+      onShow() {
+        this.unobservable.events.push("show");
+      }
+      onHide() {
+        this.unobservable.events.push("hide");
+      }
+    }
+    const model = observable({ inTree: true, pageShown: true });
+    const watched = new Watched({ key: "watched" });
+    class Frame extends Component {
+      render(context) {
+        if (model.pageShown) this.flip.renderOnto(context);
+      }
+    }
+    class Holder extends Component {
+      build() {
+        return model.inTree ? watched : null;
+      }
+    }
+    const frame = new Frame();
+    frame.flip = flipAnimationContainer({ key: "flip" }, new Holder({ key: "holder" }));
+    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const events = () => watched.unobservable.events;
+    assert.deepEqual(events(), ["show"], "placed: shown");
+    assert.equal(container.querySelector("p").textContent, "watched");
+
+    model.inTree = false;
+    assert.deepEqual(events(), ["show", "hide"], "no longer in the tree: hidden");
+    model.inTree = true;
+    assert.deepEqual(events(), ["show", "hide", "show"]);
+
+    model.pageShown = false;
+    assert.deepEqual(events(), ["show", "hide", "show", "hide"], "the container hidden: so is what it placed");
+    model.pageShown = true;
+    assert.deepEqual(events(), ["show", "hide", "show", "hide", "show"]);
+    assert.equal(container.querySelector("p").textContent, "watched", "and it's all back");
+  });
 });

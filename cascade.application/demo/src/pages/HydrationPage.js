@@ -151,6 +151,6 @@ const hydrationDocument = element("div", {
 
 export class HydrationPage extends Component {
   build() {
-    return [pageActions(this, { information, source, fileName: "src/pages/HydrationPage.js" }), hydrate(hydrationDocument)];
+    return [pageActions({ information, source, fileName: "src/pages/HydrationPage.js" }), hydrate(hydrationDocument)];
   }
 }

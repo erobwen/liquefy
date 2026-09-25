@@ -41,11 +41,15 @@ export class ProgrammaticReactiveLayout extends Component {
     return { rows: 3, columns: 3 };
   }
 
+  // This page's buttons in the top bar - it renders itself rather than
+  // building, so it creates them itself, in initialization, owns them, and
+  // renders them each time.
+  initialUnobservables() {
+    return { actions: pageActions({ information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" }) };
+  }
+
   render(context) {
     const u = this.unobservable;
-    // This page's buttons in the top bar - created once and owned here
-    // (this page renders itself rather than building), rendered each time.
-    if (!u.actions) u.actions = pageActions(this, { information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" });
     u.actions.renderOnto(context);
     if (!u.el) {
       u.el = context.target.appendElement("div");

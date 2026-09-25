@@ -9,10 +9,13 @@ import { wrapper } from "./Layout.js";
  *
  *  - portal({ style, children }): a div, showing whatever is currently
  *    assigned to it - or its own children (a default) when nothing is.
- *  - portalContents({ portal, children }): renders nothing where it
- *    stands; while it's rendered, its children are shown in `portal`
+ *  - portalContents({ portal, children }): builds nothing where it
+ *    stands; while it's shown, its children are shown in `portal` - a
+ *    portal, or the name of one to inherit() ("topBarPortal"), found when
+ *    it builds, so it can be created before it has a place in the tree
  *    instead, and once it isn't (it's hidden, or its page is switched
- *    away from), they're taken back out. The last one rendered wins.
+ *    away from), they're taken back out - see Component.onShow()/onHide().
+ *    The last one shown wins.
  *
  * The same mechanism as OverlayFrame/Overlay (see OverlayFrame.js - an
  * overlay frame is a portal with a modal layer): the contents are
@@ -85,26 +88,43 @@ export class PortalContents extends Component {
     return { shownIn: null };
   }
 
-  render() {
-    const u = this.unobservable;
-    if (u.shownIn && u.shownIn !== this.portal) {
-      u.shownIn.hide(this);
-      u.shownIn = null;
-    }
-    if (this.portal) {
-      this.portal.show(this, this.portalChildren);
-      u.shownIn = this.portal;
-    }
+  // Build-only - so it's also placed like any other component by one that
+  // places its subtree itself (cascade.DOM's FlipAnimationContainer), where
+  // it expands to nothing. A build only runs while something is showing
+  // this component (rendering or expanding it pulls it), so building is
+  // where the contents are assigned - again whenever they change.
+  build() {
+    this.assign();
+    return null;
   }
 
-  // No longer rendered (hidden, or its page switched away from): take the
-  // contents back - render() won't run again to do it (see Overlay's own
-  // onRetract()).
-  onRetract() {
+  // Shown again (see Component.onShow()): an up-to-date build doesn't
+  // rerun, so assign the contents here. Read without recording - this runs
+  // inside whoever is rendering.
+  onShow() {
+    withoutRecording(() => this.assign());
+  }
+
+  // No longer shown (hidden, its page switched away from, dropped): take
+  // the contents back.
+  onHide() {
     const u = this.unobservable;
     if (u.shownIn) {
       u.shownIn.hide(this);
       u.shownIn = null;
+    }
+  }
+
+  assign() {
+    const u = this.unobservable;
+    const portal = typeof(this.portal) === "string" ? this.inherit(this.portal) : this.portal;
+    if (u.shownIn && u.shownIn !== portal) {
+      u.shownIn.hide(this);
+      u.shownIn = null;
+    }
+    if (portal) {
+      portal.show(this, this.portalChildren);
+      u.shownIn = portal;
     }
   }
 }

@@ -69,7 +69,7 @@ export class RecursiveDemo extends Component {
   build() {
     return div(
       { key: "recursiveDemo", style: { maxWidth: 720 } },
-      pageActions(this, { information, source, fileName: "src/pages/RecursiveDemo.js" }),
+      pageActions({ information, source, fileName: "src/pages/RecursiveDemo.js" }),
       new ControlRow({ key: "controlRow", demo: this }),
       new ListLevel({ key: "rootList", maxDepth: this.levels, depth: 1 }),
     );

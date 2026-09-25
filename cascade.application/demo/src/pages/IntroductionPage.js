@@ -23,7 +23,7 @@ function blue(...children) {
 export class IntroductionPage extends Component {
   build() {
     return div(
-      pageActions(this, { source, fileName: "src/pages/IntroductionPage.js" }),
+      pageActions({ source, fileName: "src/pages/IntroductionPage.js" }),
       h1("Introduction to Cascade"),
       p("Reactive front end framework, with an integrated state management system."),
       p(blue("The purpose of Cascade is to make it simple and fast to build advanced user interfaces that are data driven, generative and reactive.")),

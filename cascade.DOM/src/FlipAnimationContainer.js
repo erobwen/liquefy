@@ -89,6 +89,10 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     result.ghosts = new Map();
     result.framePending = false;
     result.hasRendered = false;
+    // Every component it placed last time - expanded, not rendered - and
+    // whether it's hidden itself right now (see onShow()/onHide()).
+    result.placed = new Set();
+    result.hidden = false;
     return result;
   }
 
@@ -131,6 +135,8 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     const previous = u.tracked;
     u.tracked = [];
     const placements = [];
+    const placedBefore = u.placed;
+    u.placed = new Set();
     this.expandChildren(this, u.element, u.innerContext, this.children, null, placements);
 
     const current = new Set(u.tracked.map(({ element }) => element));
@@ -156,6 +162,36 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
       this.stopAll();
     }
     u.hasRendered = u.element.isConnected;
+
+    // What it placed gets told it's shown or hidden, as rendering would
+    // have told it (see Component.onShow()): hidden first - whatever it
+    // hands over to something new (a portal's contents, say) is let go
+    // before the new one takes it. Unless the container itself is hidden.
+    if (u.hidden) return;
+    for (const component of placedBefore) {
+      if (!u.placed.has(component)) component.onHide();
+    }
+    for (const component of u.placed) {
+      if (!placedBefore.has(component)) component.onShow();
+    }
+  }
+
+  // Hidden itself (its page switched away from, say): so is everything it
+  // placed - and shown again with it. (Islands are rendered, so rendering
+  // tells them itself.)
+  onHide() {
+    super.onHide();
+    const u = this.unobservable;
+    u.hidden = true;
+    for (const component of u.placed) component.onHide();
+  }
+
+  onShow() {
+    super.onShow();
+    const u = this.unobservable;
+    if (!u.hidden) return;
+    u.hidden = false;
+    for (const component of u.placed) component.onShow();
   }
 
   // Expand `children` (the children of `owner`, whose node is
@@ -171,7 +207,7 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
         nodes.push(this.looseText(owner, index, child).ensureNode());
         return;
       }
-      for (const expanded of child.expand(context, owner, (component) => this.isLeaf(component))) {
+      for (const expanded of child.expand(context, owner, (component) => this.isLeaf(component), this.unobservable.placed)) {
         nodes.push(this.nodeOf(expanded, context, ancestor, placements));
       }
     });
@@ -181,6 +217,8 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     const isUnit = this.isUnit && this.isUnit(component);
     if (isUnit || !(component instanceof DOMNodeRenderComponent && component.providesNode())) {
       const holder = this.renderIsland(component, context);
+      // Rendered, not placed: rendering tells it when it's shown or hidden.
+      this.unobservable.placed.delete(component);
       this.unobservable.tracked.push({ element: holder, ancestor });
       return holder;
     }

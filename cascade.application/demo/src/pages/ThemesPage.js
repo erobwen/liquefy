@@ -1,6 +1,10 @@
 import { Component, serviceProvider } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, widget, row, column, basicTheme, fitContainerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import {
+  button, widget, icon, iconButton, card, alert, listItem, dialog, popover, overlay,
+  row, column, basicTheme, fillerStyle, overflowVisibleStyle,
+} from "@liquefy/cascade.ui";
+import { modalPresentation } from "../components/modal.js";
 import { materialTheme } from "@liquefy/cascade.ui.material";
 
 /**
@@ -21,6 +25,10 @@ import { materialTheme } from "@liquefy/cascade.ui.material";
  * their own through serviceProvider(), whatever the rest of the app uses.
  * And a widget no theme provides still renders, as a visibly marked
  * placeholder (with a console warning), rather than breaking the page.
+ *
+ * The two sample sections show every themed widget there is (see
+ * cascade.ui's widgets.js) - the same components, side by side, in each
+ * theme.
  */
 export class ThemesPage extends Component {
   initializeState() {
@@ -29,9 +37,10 @@ export class ThemesPage extends Component {
 
   build() {
     return column(
-      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "20px", padding: "16px" } },
-      div(
-        { key: "info", style: { padding: "12px 16px", background: "#eaf4ff", border: "1px solid #b8dcff", borderRadius: "6px" } },
+      // As tall as its content - the work area around it scrolls.
+      { key: "page", style: { ...overflowVisibleStyle, boxSizing: "border-box", width: "100%", gap: "20px", padding: "16px" } },
+      alert(
+        { key: "info" },
         text({
           key: "infoText",
           text: "Every button in the demo's pages is a themed widget: the app asks for a button, and whichever " +
@@ -51,8 +60,11 @@ export class ThemesPage extends Component {
         text({ key: "blockedLabel", text: "The same switch, inside a part of the app that doesn't pass on the right to change the theme:" }),
         new NoThemeSwitching({ key: "noThemeSwitching" }),
       ),
-      section("alwaysMaterial", "Always Material, whatever the app's theme:", materialTheme),
-      section("alwaysBasic", "Always Basic, whatever the app's theme:", basicTheme),
+      row(
+        { key: "sections", style: { gap: "24px", alignItems: "flex-start", flexWrap: "wrap" } },
+        section("alwaysMaterial", "Always Material, whatever the app's theme:", materialTheme),
+        section("alwaysBasic", "Always Basic, whatever the app's theme:", basicTheme),
+      ),
       column(
         { key: "degradation", style: { gap: "8px" } },
         text({ key: "degradationLabel", text: "A widget no theme provides still renders, as a marked placeholder:" }),
@@ -100,18 +112,73 @@ class NoThemeSwitching extends Component {
 
 function section(key, label, theme) {
   return column(
-    { key, style: { gap: "8px" } },
+    { key, style: { ...fillerStyle, ...overflowVisibleStyle, gap: "8px", minWidth: "320px" } },
     text({ key: key + "Label", text: label }),
     serviceProvider({ key: key + "Provider", serviceLocator: theme, child: new SampleButtons({ key: key + "Sample" }) }),
   );
 }
 
+// Every themed widget, as whichever theme is in the context provides it.
 class SampleButtons extends Component {
+  initializeState() {
+    return { chosen: "inbox", dialogOpen: false, popoverOpen: false, anchor: null, favorite: false };
+  }
+
   build() {
-    return row(
+    const heading = (key, value) => text({ key, text: value });
+    const closeDialog = () => { this.dialogOpen = false; };
+    return column(
       { key: "sample", style: { gap: "12px" } },
-      button({ key: "first" }, text({ key: "firstText", text: "First" })),
-      button({ key: "second", variant: "tonal" }, text({ key: "secondText", text: "Second" })),
+      row(
+        { key: "buttons", style: { gap: "12px", alignItems: "center" } },
+        button({ key: "first" }, text({ key: "firstText", text: "First" })),
+        button({ key: "second", variant: "tonal" }, text({ key: "secondText", text: "Second" })),
+        iconButton({ key: "favorite", icon: this.favorite ? "favorite" : "favorite_border", title: "Favorite" }, () => { this.favorite = !this.favorite; }),
+        iconButton({ key: "info", icon: "info", title: "More information" }, (event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          this.anchor = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+          this.popoverOpen = true;
+        }),
+        button({ key: "openDialog" }, text({ key: "openDialogText", text: "Open dialog" }), () => { this.dialogOpen = true; }),
+      ),
+      heading("alertsHeading", "Alerts"),
+      ...["info", "success", "warning", "error"].map((severity) =>
+        alert({ key: severity, severity }, text({ key: severity + "Text", text: "An alert of severity " + severity + "." }))),
+      heading("cardsHeading", "Cards"),
+      row(
+        { key: "cards", style: { gap: "12px" } },
+        ...["elevated", "filled", "outlined"].map((variant) =>
+          card({ key: variant, variant, style: { flex: "1 1 0" } }, text({ key: variant + "Text", text: "A card, " + variant }))),
+      ),
+      heading("listHeading", "List items"),
+      card(
+        { key: "list", style: { padding: "4px" } },
+        ...[["inbox", "Inbox"], ["sent", "Sent"], ["drafts", "Drafts"]].map(([key, title]) =>
+          listItem({ key, active: this.chosen === key }, text({ key: key + "Text", text: title }), () => { this.chosen = key; })),
+      ),
+      row(
+        { key: "iconRow", style: { gap: "8px", alignItems: "center" } },
+        ...["home", "search", "settings", "shopping_cart"].map((name) => icon({ key: name, name })),
+      ),
+      popover(
+        { key: "popover", anchor: this.anchor, showing: this.popoverOpen, close: () => { this.popoverOpen = false; } },
+        card({ key: "popoverCard", style: { maxWidth: "320px" } },
+          text({ key: "popoverText", text: "A popover: shown beside what was clicked, over everything else. Click outside it to close it." })),
+      ),
+      overlay(
+        modalPresentation(
+          dialog(
+            { key: "dialog", title: "A themed dialog", close: closeDialog, style: { width: "360px", flex: "none" } },
+            column(
+              { key: "dialogBody", style: { padding: "16px", gap: "12px" } },
+              text({ key: "dialogText", text: "Title bar, close button and body - all from the theme." }),
+              button({ key: "done" }, text({ key: "doneText", text: "Done" }), closeDialog),
+            ),
+          ),
+          closeDialog,
+        ),
+        { key: "dialogOverlay", showing: this.dialogOpen },
+      ),
     );
   }
 }

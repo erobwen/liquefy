@@ -3,5 +3,8 @@
 // in src/, free of mdui imports, so it can be tested under node.
 import "mdui/mdui.css";
 import "mdui/components/button.js";
+import "mdui/components/button-icon.js";
+import "mdui/components/icon.js";
+import "mdui/components/list-item.js";
 
 export { MaterialThemeServiceLocator, materialTheme } from "./src/MaterialTheme.js";

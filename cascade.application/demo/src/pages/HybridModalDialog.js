@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, p } from "@liquefy/cascade.dom";
-import { button, overlay, row, column, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
-import { DialogChrome, modalPresentation } from "../components/dialog.js";
+import { p, text } from "@liquefy/cascade.dom";
+import { button, dialog as themedDialog, alert, overlay, row, column, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { modalPresentation } from "../components/modal.js";
 
 // Below this usableWidth (the page's own allotted content area, handed
 // down by ApplicationMenuFrame's own workArea - ultimately sourced from
@@ -60,7 +60,7 @@ export class HybridModalDialog extends Component {
     // the dialog happens to be closed would silently reset its state
     // (the counter) the next time it's reopened.
     const content = new DialogContent({ key: "dialogContent" });
-    const dialog = new DialogChrome({
+    const dialog = themedDialog({
       key: "dialog",
       title: "Hybrid Modal Dialog",
       close: () => { this.showDialog = false; },
@@ -74,10 +74,13 @@ export class HybridModalDialog extends Component {
 
     return column(
       { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: "16px" } },
-      div(
-        { key: "info", style: { padding: "12px 16px", background: "#eaf4ff", border: "1px solid #b8dcff", borderRadius: "6px" } },
-        "A hybrid modal dialog - only modal when there isn't enough room. Open it, then resize the window: " +
-        "the same dialog (and its counter) moves between docked and modal, never resetting.",
+      alert(
+        { key: "info", style: { flex: "none" } },
+        text({
+          key: "infoText",
+          text: "A hybrid modal dialog - only modal when there isn't enough room. Open it, then resize the window: " +
+            "the same dialog (and its counter) moves between docked and modal, never resetting.",
+        }),
       ),
       row(
         // Deliberately *not* alignItems: "flex-start" here - the docked

@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
-import { overlayFrame } from "@liquefy/cascade.ui";
+import { div, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { overlayFrame, iconButton } from "@liquefy/cascade.ui";
 import { CodeButton } from "./components/code.js";
 
 const MENU_WIDTH = 220;
@@ -131,14 +131,13 @@ class ApplicationMenuFrameLayout extends Component {
         height: TOP_BAR_HEIGHT + "px", boxSizing: "border-box", display: "flex", alignItems: "center",
         gap: "12px", padding: "0 16px", background: "#2c3e50", color: "white", flex: "none",
       } },
-      button({
+      iconButton({
         key: "hamburger",
-        onclick: () => { frame.menuOpen = !frame.menuOpen; },
-        style: {
-          width: "32px", height: "32px", border: "none", borderRadius: "4px",
-          background: "#1a252f", color: "white", cursor: "pointer", flex: "none", fontSize: "16px",
-        },
-      }, "☰").show(menuIsModal && !frame.menuOpen),
+        icon: "menu",
+        title: "Menu",
+        onClick: () => { frame.menuOpen = !frame.menuOpen; },
+        style: { color: "white" },
+      }).show(menuIsModal && !frame.menuOpen),
       // The current page's code (see index.js's page list for where it
       // comes from) - one button, handed whichever page is shown.
       new CodeButton({ key: "codeButton", source: page.source, fileName: page.fileName }),

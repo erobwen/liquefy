@@ -1,3 +1,4 @@
+import { accessInitialValues } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
@@ -89,16 +90,24 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
   // Re-measures an *already-established* innerContext - called on every
   // render() after the first (in case something other than a resize changed
   // this element's real size) and directly from the resize listener, an
-  // ordinary event handler outside any repeater (these are plain property
-  // writes either way - see cascade.component/README.md's properties-vs-
-  // state distinction; width/height here are neither: situational fields on
-  // this component's own cached RenderContext, not this component's own
-  // state).
+  // ordinary event handler outside any repeater. (Width/height are neither
+  // properties nor state - see cascade.component/README.md - but situational
+  // fields on this component's own cached RenderContext.)
+  //
+  // Written at initial time (accessInitialValues()) wherever it's called
+  // from, so both callers write the same slot: the listener's writes land
+  // there anyway, being outside any repeater - but a plain write from
+  // render() would be this render's own, positioned later in the pipeline,
+  // and shadow every write the listener makes after it. Rendered again for
+  // any reason (its creator rebuilding - an app-wide theme switch, say),
+  // this would then stop following resizes altogether.
   measure() {
     const u = this.unobservable;
     const rect = u.element.getBoundingClientRect();
-    u.innerContext.width = rect.width;
-    u.innerContext.height = rect.height;
+    accessInitialValues(() => {
+      u.innerContext.width = rect.width;
+      u.innerContext.height = rect.height;
+    });
   }
 
   onDispose() {

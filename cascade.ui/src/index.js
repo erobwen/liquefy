@@ -7,5 +7,6 @@ export {
   layoutBorderStyle, overflowVisibleStyle, zStackElementStyle,
   wrapper, row, column, center, middle, centerMiddle, filler, zStack,
 } from "./Layout.js";
-export { widget, button, toButtonProperties } from "./widgets.js";
+export { widget, button, icon, iconButton, card, alert, listItem, dialog, alertSeverities, toButtonProperties } from "./widgets.js";
+export { popover } from "./Popover.js";
 export { BasicThemeServiceLocator, basicTheme } from "./BasicTheme.js";

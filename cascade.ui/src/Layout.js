@@ -1,5 +1,5 @@
 import { toPropertiesWithChildren } from "@liquefy/cascade.component";
-import { taggedElement } from "@liquefy/cascade.dom";
+import { div } from "@liquefy/cascade.dom";
 
 /**
  * Layout - ported from flow.ui/basic/src/Layout.js: a small kit of style
@@ -91,14 +91,13 @@ export const overflowVisibleStyle = { overflow: "visible" };
 
 // --- styledDiv: the shared mechanism behind every function below ---
 
-// Builds a div the same mechanical way cascade.DOM's own div() does
-// (toPropertiesWithChildren() then taggedElement()) - just merging
-// `defaultStyle` underneath whatever `style` property is given first, so
+// A div (asked for through the service locator, like any div() call) with
+// `defaultStyle` merged underneath whatever `style` property is given, so
 // the caller's own value always wins (see this file's own class doc).
 function styledDiv(defaultStyle, parameters) {
   const properties = toPropertiesWithChildren(parameters);
   properties.style = { ...defaultStyle, ...properties.style };
-  return taggedElement("div", properties);
+  return div(properties);
 }
 
 // --- Basic layout containers ---

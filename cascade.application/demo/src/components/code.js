@@ -1,10 +1,10 @@
 import { Component } from "@liquefy/cascade.component";
-import { button as htmlButton, DOMNodeRenderComponent } from "@liquefy/cascade.dom";
-import { overlay } from "@liquefy/cascade.ui";
+import { DOMNodeRenderComponent } from "@liquefy/cascade.dom";
+import { overlay, iconButton, dialog } from "@liquefy/cascade.ui";
 import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
 import "highlight.js/styles/github.css";
-import { DialogChrome, modalPresentation } from "./dialog.js";
+import { modalPresentation } from "./modal.js";
 
 hljs.registerLanguage("javascript", javascript);
 
@@ -46,8 +46,7 @@ export class HighlightedCode extends DOMNodeRenderComponent {
 }
 
 // A button that shows `source` (a file's text - see index.js's `?raw`
-// imports) in a modal dialog titled `fileName`. Styled for the dark top
-// bar it sits in (the themed widget contract has no icon button yet).
+// imports) in a modal dialog titled `fileName`.
 export class CodeButton extends Component {
   setProperties({ source, fileName }) {
     this.source = source || "";
@@ -60,7 +59,7 @@ export class CodeButton extends Component {
 
   build() {
     const close = () => { this.open = false; };
-    const dialog = new DialogChrome({
+    const codeDialog = dialog({
       key: "codeDialog",
       title: this.fileName,
       close,
@@ -68,16 +67,14 @@ export class CodeButton extends Component {
       children: [new HighlightedCode({ key: "code", source: this.source })],
     });
     return [
-      htmlButton({
+      iconButton({
         key: "button",
+        icon: "code",
         title: "Show the code for this page",
-        onclick: () => { this.open = true; },
-        style: {
-          height: "32px", padding: "0 10px", border: "none", borderRadius: "4px", flex: "none",
-          background: "#1a252f", color: "#7bed9f", cursor: "pointer", fontFamily: "monospace", fontSize: "14px", fontWeight: "bold",
-        },
-      }, "</>"),
-      overlay(modalPresentation(dialog, close), { key: "codeOverlay", showing: this.open }),
+        onClick: () => { this.open = true; },
+        style: { color: "#7bed9f" },
+      }),
+      overlay(modalPresentation(codeDialog, close), { key: "codeOverlay", showing: this.open }),
     ];
   }
 }

@@ -1,4 +1,4 @@
-import { toProperties, findImplicitChildren, locateService } from "@liquefy/cascade.component";
+import { toProperties, toPropertiesWithChildren, findImplicitChildren, locateService } from "@liquefy/cascade.component";
 import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
 
 /**
@@ -17,6 +17,28 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  *    flow's own argument convention, a loose function argument is
  *    `onClick` and anything else loose is a child:
  *    `button("Save", () => save())`.
+ *  - icon: `key`, `name` (a Material icon name - "info", "close",
+ *    "shopping_cart", ...), `style` (fontSize sets its size). Both themes
+ *    draw icons with Google's icon fonts, which the app links (see
+ *    cascade.application/demo/index.html).
+ *  - iconButton: `key`, `icon` (an icon name), `onClick` (or a loose
+ *    function), `title`, `style` - a round button showing just an icon.
+ *  - card: `key`, `variant` ("elevated" - the default - "filled" or
+ *    "outlined"), `style`, `children` - a surface to group content on.
+ *  - alert: `key`, `severity` ("info" - the default - "success",
+ *    "warning" or "error"), `style`, `children` - a message with its
+ *    severity's icon and colors (see alertSeverities).
+ *  - listItem: `key`, `active`, `onClick` (or a loose function),
+ *    `style`, `children` - one clickable row of a list, marked when active.
+ *  - dialog: `key`, `title`, `close` (called by its close button),
+ *    `style`, `children` - a dialog's own box: title bar, close button and
+ *    body. Where it's shown (docked, or modal over the app) is up to
+ *    whoever places it - see cascade.ui's overlay().
+ *
+ * Widgets that are more than one element (an alert: icon plus message) are
+ * components of their own in each theme, so the keys inside them are
+ * scoped to them rather than to whoever builds them - two alerts on one
+ * page don't collide.
  *
  * No theme in the context providing a widget falls back to the DOM
  * default, which ends in a visible, warning placeholder (see
@@ -46,3 +68,18 @@ export function widget(name, properties) {
 }
 
 export const button = (...parameters) => widget("button", toButtonProperties(parameters));
+export const icon = (...parameters) => widget("icon", toProperties(parameters));
+export const iconButton = (...parameters) => widget("iconButton", toButtonProperties(parameters));
+export const card = (...parameters) => widget("card", toPropertiesWithChildren(parameters));
+export const alert = (...parameters) => widget("alert", toPropertiesWithChildren(parameters));
+export const listItem = (...parameters) => widget("listItem", toButtonProperties(parameters));
+export const dialog = (...parameters) => widget("dialog", toPropertiesWithChildren(parameters));
+
+// Each alert severity's icon and colors - the same in every theme, so a
+// warning reads as a warning whichever one is in use.
+export const alertSeverities = {
+  info: { icon: "info", background: "#f0f8ff", iconColor: "rgb(2, 136, 209)", color: "rgb(1, 67, 97)" },
+  success: { icon: "check_circle", background: "#edf7ed", iconColor: "rgb(46, 125, 50)", color: "rgb(30, 70, 32)" },
+  warning: { icon: "warning", background: "#fff4e5", iconColor: "rgb(237, 108, 2)", color: "rgb(102, 60, 0)" },
+  error: { icon: "error", background: "#fdeded", iconColor: "rgb(211, 47, 47)", color: "rgb(95, 33, 32)" },
+};

@@ -68,6 +68,38 @@ describe("DOMElementBoundsProvider", function () {
     assert.equal(probe.unobservable.lastHeight, 480);
   });
 
+  it("still follows resizes after being rendered again - by a rebuild of its creator, say (a theme switch)", function () {
+    // Rendered again, it measures again - that measurement must land where
+    // the resize listener's do, or every resize after it would be shadowed
+    // by it and never reach the child.
+    const probe = new Probe();
+    class Holder extends Component {
+      initializeState() {
+        return { color: "red" };
+      }
+      build() {
+        return new DOMElementBoundsProvider({ key: "provider", style: { color: this.color }, child: probe });
+      }
+    }
+    const holder = new Holder();
+    holder.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const element = () => holder.newBuild.unobservable.element;
+
+    element().getBoundingClientRect = () => ({ width: 300, height: 200 });
+    holder.color = "blue";
+    assert.equal(element().style.color, "blue", "rendered again");
+    assert.equal(probe.unobservable.lastWidth, 300, "and measured again");
+
+    element().getBoundingClientRect = () => ({ width: 640, height: 480 });
+    dom.window.dispatchEvent(new dom.window.Event("resize"));
+    assert.equal(probe.unobservable.lastWidth, 640);
+    assert.equal(probe.unobservable.lastHeight, 480);
+
+    element().getBoundingClientRect = () => ({ width: 800, height: 600 });
+    dom.window.dispatchEvent(new dom.window.Event("resize"));
+    assert.equal(probe.unobservable.lastWidth, 800, "and every resize after that");
+  });
+
   it("removes its resize listener once dropped from its own build()-owning parent", function () {
     let addCount = 0;
     let removeCount = 0;

@@ -5,7 +5,8 @@ import {
 } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMServiceLocator, DOMDebugServiceLocator } from "../DOMServiceLocator.js";
-import { div, span, button, h1, h2, element } from "../HTMLTags.js";
+import { div, span, p, button, h1, h2, element } from "../HTMLTags.js";
+import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
 import { text } from "../DOMTextComponent.js";
 
 // The service locator travels in the render context (RenderContext.derive()
@@ -36,7 +37,7 @@ describe("DOM service locators (reached through the render context)", function (
       this.asked = [];
     }
     locate(query) {
-      this.asked.push(query.type + ":" + query.name);
+      this.asked.push(query.name ? query.type + ":" + query.name : query.type);
       return super.locate(query);
     }
   }
@@ -54,7 +55,32 @@ describe("DOM service locators (reached through the render context)", function (
   const contextWith = (serviceLocator, target) =>
     new RenderContext(target || new DOMElementTarget(container), { serviceLocator });
 
-  it("every tag built anywhere in the tree - nested components included - goes through the render context's own locator", function () {
+  it("the platform's other components - flipAnimationContainer(), contextContainer(), ... - are located too, so another locator can replace one wholesale", function () {
+    // Say, an app that turns animation off: every flipAnimationContainer()
+    // becomes a plain div around the same children.
+    class NoAnimation {
+      locate(query) {
+        if (query.type !== "domComponent" || query.name !== "flipAnimationContainer") return undefined;
+        return new DOMServiceLocator().locate({ type: "htmlElement", name: "div", properties: query.properties });
+      }
+    }
+    class App extends Component {
+      build() {
+        return flipAnimationContainer({ key: "flip" }, p({ key: "p" }, text("still here")));
+      }
+    }
+    const app = new App();
+    app.renderOnto(contextWith(new CompoundServiceLocator(new NoAnimation(), new DOMServiceLocator())));
+    assert.ok(!(app.newBuild instanceof FlipAnimationContainer));
+    assert.equal(container.innerHTML.replace(/ id="[^"]*"/g, ""), "<div><p>still here</p></div>");
+
+    const plain = new App();
+    container.innerHTML = "";
+    plain.renderOnto(contextWith(new DOMServiceLocator()));
+    assert.ok(plain.newBuild instanceof FlipAnimationContainer, "and by default, it's the real one");
+  });
+
+  it("every tag (and text) built anywhere in the tree - nested components included - goes through the render context's own locator", function () {
     class Inner extends Component {
       build() {
         return span({ key: "inner" }, text("inner"));
@@ -69,7 +95,8 @@ describe("DOM service locators (reached through the render context)", function (
     const locator = new RecordingDOMServiceLocator();
     new Outer().renderOnto(contextWith(locator));
 
-    assert.deepEqual(locator.asked, ["htmlElement:div", "htmlElement:span"]);
+    // text("inner") is an argument of span(), so it's asked for first.
+    assert.deepEqual(locator.asked, ["htmlElement:div", "textNode", "htmlElement:span"]);
     assert.equal(container.querySelector("span").textContent, "inner");
   });
 

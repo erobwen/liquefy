@@ -3,9 +3,10 @@ import { DOMElementComponent } from "./DOMElementComponent.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
+import { locateDOMComponent } from "./DOMServiceLocator.js";
 
 export function flipAnimationContainer(...parameters) {
-  return new FlipAnimationContainer(...parameters);
+  return locateDOMComponent("flipAnimationContainer", parameters);
 }
 
 /**

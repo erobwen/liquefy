@@ -1,5 +1,9 @@
-import { CompoundServiceLocator, hydrateService } from "@liquefy/cascade.component";
+import { CompoundServiceLocator, hydrateService, locateService, toPropertiesWithChildren } from "@liquefy/cascade.component";
 import { DOMElementComponent } from "./DOMElementComponent.js";
+import { DOMTextComponent } from "./DOMTextComponent.js";
+import { DOMContextContainer } from "./DOMContextContainer.js";
+import { DOMElementBoundsProvider } from "./DOMElementBoundsProvider.js";
+import { FlipAnimationContainer } from "./FlipAnimationContainer.js";
 
 /**
  * The DOM platform's own service locators (see cascade.component's
@@ -7,15 +11,47 @@ import { DOMElementComponent } from "./DOMElementComponent.js";
  * provides for a query object, or undefined).
  */
 
-// Provides real DOM elements: `{ type: "htmlElement", name: tagName,
-// properties }` - what HTMLTags.js's tag functions ask for. Any tag name,
-// custom elements included (`mdui-button`, ...): a `<div>` and an
-// `<mdui-button>` are both just an Element with a different tagName.
+// Provides the DOM platform's own components:
+//  - `{ type: "htmlElement", name: tagName, properties }`: real DOM
+//    elements - what HTMLTags.js's tag functions ask for. Any tag name,
+//    custom elements included (`mdui-button`, ...): a `<div>` and an
+//    `<mdui-button>` are both just an Element with a different tagName.
+//  - `{ type: "textNode", properties }`: a Text node - what text() asks for.
+//  - `{ type: "domComponent", name, properties }`: the platform's other
+//    components (see domComponents below) - what their factory functions
+//    (contextContainer(), flipAnimationContainer(), ...) ask for.
+// Only what an application builds goes through here: inside this package,
+// components construct each other directly (a DOMElementComponent its
+// Text children, say) - whoever wants another implementation of one of
+// them replaces the whole component, not its insides. (A function, not a
+// table: these modules import this one for their factory functions, so
+// the classes aren't there yet while this module loads.)
+const domComponent = (name) => ({
+  contextContainer: DOMContextContainer,
+  elementBoundsProvider: DOMElementBoundsProvider,
+  flipAnimationContainer: FlipAnimationContainer,
+})[name];
+
 export class DOMServiceLocator {
   locate(query) {
-    if (query.type !== "htmlElement") return undefined;
-    return new DOMElementComponent({ tagName: query.name, ...query.properties });
+    switch (query.type) {
+      case "htmlElement":
+        return new DOMElementComponent({ tagName: query.name, ...query.properties });
+      case "textNode":
+        return new DOMTextComponent(query.properties);
+      case "domComponent": {
+        const Class = domComponent(query.name);
+        return Class ? new Class(query.properties) : undefined;
+      }
+      default:
+        return undefined;
+    }
   }
+}
+
+// The factory functions for the domComponent services above.
+export function locateDOMComponent(name, parameters) {
+  return locateService({ type: "domComponent", name, properties: toPropertiesWithChildren(parameters) }, defaultDOMServiceLocator);
 }
 
 // The last resort - graceful degradation. Provides *something* for any

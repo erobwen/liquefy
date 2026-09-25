@@ -1,6 +1,7 @@
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
+import { locateDOMComponent } from "./DOMServiceLocator.js";
 
 /**
  * DOMElementBoundsProvider: owns one real DOM element, measures it with
@@ -26,6 +27,10 @@ import { applyStyle } from "./applyStyle.js";
  * render() at all rather than build() (see cascade.component/README.md's
  * "most components should only implement build()").
  */
+export function elementBoundsProvider(...parameters) {
+  return locateDOMComponent("elementBoundsProvider", parameters);
+}
+
 export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
   setProperties({ child, style, className }) {
     this.child = child;

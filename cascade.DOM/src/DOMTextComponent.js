@@ -1,5 +1,6 @@
-import { extractProperty } from "@liquefy/cascade.component";
+import { extractProperty, locateService } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { defaultDOMServiceLocator } from "./DOMServiceLocator.js";
 
 /**
  * A real Text node, ported from flow.DOM/src/DOMTextNode.js's own role -
@@ -48,5 +49,5 @@ export function text(...parameters) {
     throw new Error("text(): cannot have both a loose value and a 'text' property.");
   }
   if (typeof(value) !== "undefined") properties.text = value;
-  return new DOMTextComponent(properties);
+  return locateService({ type: "textNode", properties }, defaultDOMServiceLocator);
 }

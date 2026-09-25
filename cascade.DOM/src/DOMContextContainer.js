@@ -1,9 +1,10 @@
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { locateDOMComponent } from "./DOMServiceLocator.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
 
 export function contextContainer(...parameters) {
-  return new DOMContextContainer(...parameters);
+  return locateDOMComponent("contextContainer", parameters);
 }
 
 /**

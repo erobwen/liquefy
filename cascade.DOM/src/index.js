@@ -1,9 +1,9 @@
 export { DOMElementTarget } from "./DOMElementTarget.js";
-export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator, hydrate } from "./DOMServiceLocator.js";
+export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator, hydrate, locateDOMComponent } from "./DOMServiceLocator.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";
-export { DOMElementBoundsProvider } from "./DOMElementBoundsProvider.js";
+export { DOMElementBoundsProvider, elementBoundsProvider } from "./DOMElementBoundsProvider.js";
 export { FlipAnimationContainer, flipAnimationContainer } from "./FlipAnimationContainer.js";
 export { DOMElementComponent, taggedElement } from "./DOMElementComponent.js";
 export { DOMTextComponent, text } from "./DOMTextComponent.js";

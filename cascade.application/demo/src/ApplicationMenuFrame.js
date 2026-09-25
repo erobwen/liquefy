@@ -1,5 +1,5 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, button, contextContainer, DOMElementBoundsProvider } from "@liquefy/cascade.dom";
+import { div, button, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame } from "@liquefy/cascade.ui";
 
 const MENU_WIDTH = 220;
@@ -84,7 +84,7 @@ export class ApplicationMenuFrame extends Component {
   }
 
   build() {
-    return new DOMElementBoundsProvider({
+    return elementBoundsProvider({
       key: "bounds",
       className: "application-menu-frame",
       style: { position: "relative", boxSizing: "border-box", height: "100%", overflow: "hidden" },

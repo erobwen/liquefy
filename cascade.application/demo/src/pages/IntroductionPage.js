@@ -1,5 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 import { div, h1, h2, p, ul, li, a, b, text } from "@liquefy/cascade.dom";
+import { pageActions } from "../components/pageActions.js";
+import source from "./IntroductionPage.js?raw";
 
 // Matches flow's own blue() helper (introductionPage.js): a highlighted
 // inline span of text, built from whatever's passed straight through to b().
@@ -12,8 +14,8 @@ function blue(...children) {
  * flow.application/demo/src/pages/introductionPage.js's own opening
  * content to prove out the new build()/tag-function infrastructure (see
  * cascade.DOM/src/DOMElementComponent.js, HTMLTags.js) - same content and
- * structure, minus the alert/codeDisplay/portal machinery (nothing here
- * needs those yet, and they don't exist for cascade).
+ * structure (its code button sits in the top bar - see
+ * ../components/pageActions.js).
  *
  * Implements only build() - Component's own default render() already
  * builds one step and renderOnto()'s each result in turn (see
@@ -23,6 +25,7 @@ function blue(...children) {
 export class IntroductionPage extends Component {
   build() {
     return div(
+      pageActions(this, { source, fileName: "src/pages/IntroductionPage.js" }),
       h1("Introduction to Cascade"),
       p("Reactive front end framework, with an integrated state management system."),
       p(blue("The purpose of Cascade is to make it simple and fast to build advanced user interfaces that are data driven, generative and reactive.")),

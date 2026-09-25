@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
-import { overlayFrame, iconButton } from "@liquefy/cascade.ui";
-import { CodeButton } from "./components/code.js";
+import { div, img, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { overlayFrame, iconButton, portal } from "@liquefy/cascade.ui";
+import menuBarLogo from "../../../cascade/images/menu-bar-logo.png";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -75,6 +75,24 @@ export class ApplicationMenuFrame extends Component {
     return { chosen: this.pages[0].key, menuOpen: false };
   }
 
+  // The top bar's portal, where the page shown puts its own buttons (see
+  // src/components/pageActions.js). Created here, once, and owned by this
+  // frame - not built in a build() and referenced as well (see
+  // cascade.component/README.md) - and placed by ApplicationMenuFrameLayout
+  // as a plain child reference.
+  initialUnobservables() {
+    return {
+      ...super.initialUnobservables(),
+      topBarPortal: portal({ key: "topBarPortal", style: { display: "flex", alignItems: "center", gap: "4px", flex: "none" } }),
+    };
+  }
+
+  // Provided for inherit("topBarPortal") (provide()'s default is the
+  // component itself, so a getter is all it takes).
+  get topBarPortal() {
+    return this.unobservable.topBarPortal;
+  }
+
   choose(key) {
     this.chosen = key;
     this.menuOpen = false;
@@ -138,9 +156,9 @@ class ApplicationMenuFrameLayout extends Component {
         onClick: () => { frame.menuOpen = !frame.menuOpen; },
         style: { color: "white" },
       }).show(menuIsModal && !frame.menuOpen),
-      // The current page's code (see index.js's page list for where it
-      // comes from) - one button, handed whichever page is shown.
-      new CodeButton({ key: "codeButton", source: page.source, fileName: page.fileName }),
+      // The shown page's own buttons - information, code - just before its
+      // title (see src/components/pageActions.js).
+      frame.topBarPortal,
       div({ key: "label", style: { fontWeight: "bold" } }, page.title),
     );
 
@@ -227,6 +245,7 @@ class MenuList extends Component {
     const { frame } = this;
     return div(
       { key: "list", style: { boxSizing: "border-box", padding: "16px", background: "#34495e", color: "white", overflow: "auto", ...this.style } },
+      logo(),
       ...frame.pages.map((page) => {
         const active = page.key === frame.chosen;
         return div({
@@ -241,4 +260,21 @@ class MenuList extends Component {
       }),
     );
   }
+}
+
+// The Cascade logotype, at the top of the menu. The image has a wide
+// margin of plain background (the menu's own color) around the logo
+// itself - cropped here by showing only the middle band of it: the image a
+// little wider than the menu, shifted up and left inside a box as tall as
+// the logo. (Percentage margins are fractions of the box's width.)
+function logo() {
+  return div(
+    { key: "logo", style: { overflow: "hidden", aspectRatio: "3.4", margin: "0 0 12px 0", flex: "none" } },
+    img({
+      key: "logoImage",
+      src: menuBarLogo,
+      alt: "Cascade",
+      style: { display: "block", width: "112%", marginLeft: "-6%", marginTop: "-21.5%" },
+    }),
+  );
 }

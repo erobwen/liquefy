@@ -6,6 +6,18 @@ import {
 } from "@liquefy/cascade.ui";
 import { modalPresentation } from "../components/modal.js";
 import { materialTheme } from "@liquefy/cascade.ui.material";
+import { pageActions } from "../components/pageActions.js";
+import source from "./ThemesPage.js?raw";
+
+// What this page's information button shows (see ../components/pageActions.js).
+const information = {
+  summary: "Themes are service locators:",
+  points: [
+    "Every widget is asked for through the render context, and whichever theme is in it provides one.",
+    "Switching the theme replaces whole components, not just their style - app state stays where it was.",
+    "A part of the app can have a theme of its own, or be denied the right to change it.",
+  ],
+};
 
 /**
  * Themes - the cascade counterpart of flow.application/demo's own theme
@@ -39,6 +51,7 @@ export class ThemesPage extends Component {
     return column(
       // As tall as its content - the work area around it scrolls.
       { key: "page", style: { ...overflowVisibleStyle, boxSizing: "border-box", width: "100%", gap: "20px", padding: "16px" } },
+      pageActions(this, { information, source, fileName: "src/pages/ThemesPage.js" }),
       alert(
         { key: "info" },
         text({

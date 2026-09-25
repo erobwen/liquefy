@@ -10,15 +10,6 @@ import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { rootServiceLocator } from "./src/services.js";
 
-// Each page's own source, shown by the code button in the top bar (see
-// src/components/code.js).
-import introductionPageSource from "./src/pages/IntroductionPage.js?raw";
-import programmaticReactiveLayoutSource from "./src/pages/ProgrammaticReactiveLayout.js?raw";
-import recursiveDemoSource from "./src/pages/RecursiveDemo.js?raw";
-import hybridModalDialogSource from "./src/pages/HybridModalDialog.js?raw";
-import themesPageSource from "./src/pages/ThemesPage.js?raw";
-import hydrationPageSource from "./src/pages/HydrationPage.js?raw";
-import animationPageSource from "./src/pages/AnimationPage.js?raw";
 
 // ApplicationMenuFrame is build()-only (see its own class doc), so this
 // starts it directly on a DOMElementTarget root - DOMElementBoundsProvider's own
@@ -35,13 +26,13 @@ const context = new RenderContext(DOMElementTarget.forElement(document.getElemen
 const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
   pages: [
-    { key: "introduction", title: "Introduction", component: new IntroductionPage(), source: introductionPageSource, fileName: "src/pages/IntroductionPage.js" },
-    { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout(), source: programmaticReactiveLayoutSource, fileName: "src/pages/ProgrammaticReactiveLayout.js" },
-    { key: "recursive-demo", title: "Recursive Demo", component: new RecursiveDemo(), source: recursiveDemoSource, fileName: "src/pages/RecursiveDemo.js" },
-    { key: "hybrid-modal-dialog", title: "Hybrid Modal Dialog", component: new HybridModalDialog(), source: hybridModalDialogSource, fileName: "src/pages/HybridModalDialog.js" },
-    { key: "themes", title: "Themes", component: new ThemesPage(), source: themesPageSource, fileName: "src/pages/ThemesPage.js" },
-    { key: "hydration", title: "Hydration", component: new HydrationPage(), source: hydrationPageSource, fileName: "src/pages/HydrationPage.js" },
-    { key: "animation", title: "Animation", component: new AnimationPage(), source: animationPageSource, fileName: "src/pages/AnimationPage.js" },
+    { key: "introduction", title: "Introduction", component: new IntroductionPage() },
+    { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
+    { key: "recursive-demo", title: "Recursive Demo", component: new RecursiveDemo() },
+    { key: "hybrid-modal-dialog", title: "Hybrid Modal Dialog", component: new HybridModalDialog() },
+    { key: "themes", title: "Themes", component: new ThemesPage() },
+    { key: "hydration", title: "Hydration", component: new HydrationPage() },
+    { key: "animation", title: "Animation", component: new AnimationPage() },
   ],
 });
 applicationMenuFrame.renderOnto(context);

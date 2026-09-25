@@ -1,5 +1,16 @@
 import { Component } from "@liquefy/cascade.component";
 import { hydrate } from "@liquefy/cascade.dom";
+import { pageActions } from "../components/pageActions.js";
+import source from "./HydrationPage.js?raw";
+
+// What this page's information button shows (see ../components/pageActions.js).
+const information = {
+  summary: "A page written as a document instead of code:",
+  points: [
+    "One plain object: a tree of service queries, hydrated into components by the service locator.",
+    "The document is pure data - it could come from a file or a server - and follows the app's theme like any other page.",
+  ],
+};
 
 /**
  * Hydration - the same kind of page as IntroductionPage, but written as a
@@ -140,6 +151,6 @@ const hydrationDocument = element("div", {
 
 export class HydrationPage extends Component {
   build() {
-    return hydrate(hydrationDocument);
+    return [pageActions(this, { information, source, fileName: "src/pages/HydrationPage.js" }), hydrate(hydrationDocument)];
   }
 }

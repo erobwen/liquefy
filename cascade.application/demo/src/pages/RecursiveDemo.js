@@ -1,6 +1,18 @@
 import { Component } from "@liquefy/cascade.component";
 import { div, input, text } from "@liquefy/cascade.dom";
 import { button } from "@liquefy/cascade.ui";
+import { pageActions } from "../components/pageActions.js";
+import source from "./RecursiveDemo.js?raw";
+
+// What this page's information button shows (see ../components/pageActions.js).
+const information = {
+  summary: "A recursive structure of components, rebuilt at every level whenever the depth changes:",
+  points: [
+    "Minimal DOM updates: every level rebuilds, but only the nodes that actually changed are touched (watch the Elements panel).",
+    "Stable component identity across rebuilds, so each item's local state is kept.",
+    "Hierarchy inheritance: every item, however deep, reads the same shared value through inherit().",
+  ],
+};
 
 /**
  * Recursive Demo - ported from
@@ -57,6 +69,7 @@ export class RecursiveDemo extends Component {
   build() {
     return div(
       { key: "recursiveDemo", style: { maxWidth: 720 } },
+      pageActions(this, { information, source, fileName: "src/pages/RecursiveDemo.js" }),
       new ControlRow({ key: "controlRow", demo: this }),
       new ListLevel({ key: "rootList", maxDepth: this.levels, depth: 1 }),
     );

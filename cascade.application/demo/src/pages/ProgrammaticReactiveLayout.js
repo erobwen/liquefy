@@ -1,5 +1,16 @@
 import { Component } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "@liquefy/cascade.dom";
+import { pageActions } from "../components/pageActions.js";
+import source from "./ProgrammaticReactiveLayout.js?raw";
+
+// What this page's information button shows (see ../components/pageActions.js).
+const information = {
+  summary: "Components that know their own pixel budget - no CSS media queries.",
+  points: [
+    "The page is handed the width and height it may use (usableWidth/usableHeight, measured by the app frame) and sizes itself to it.",
+    "Every cell shows its own measured size. Resize the window, or change rows and columns, and watch them follow.",
+  ],
+};
 
 /**
  * Programmatic Reactive Layout - a simplified replica of
@@ -32,6 +43,10 @@ export class ProgrammaticReactiveLayout extends Component {
 
   render(context) {
     const u = this.unobservable;
+    // This page's buttons in the top bar - created once and owned here
+    // (this page renders itself rather than building), rendered each time.
+    if (!u.actions) u.actions = pageActions(this, { information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" });
+    u.actions.renderOnto(context);
     if (!u.el) {
       u.el = context.target.appendElement("div");
       u.el.style.cssText = "box-sizing: border-box; overflow: hidden;";

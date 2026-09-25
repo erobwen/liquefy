@@ -9,4 +9,5 @@ export {
 } from "./Layout.js";
 export { widget, button, icon, iconButton, card, alert, listItem, dialog, alertSeverities, toButtonProperties } from "./widgets.js";
 export { popover } from "./Popover.js";
+export { portal, portalContents, Portal, PortalContents } from "./Portal.js";
 export { BasicThemeServiceLocator, basicTheme } from "./BasicTheme.js";

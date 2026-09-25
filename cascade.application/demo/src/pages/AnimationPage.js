@@ -1,11 +1,23 @@
 import { Component, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
 import { button, row, column, filler, fillerStyle, naturalSizeStyle } from "@liquefy/cascade.ui";
+import { pageActions } from "../components/pageActions.js";
+import source from "./AnimationPage.js?raw";
+
+// What this page's information button shows (see ../components/pageActions.js).
+const information = {
+  summary: "Animated moves, with FlipAnimationContainer:",
+  points: [
+    "Try Add, Remove, Randomize and Juggle.",
+    "Items move, grow and shrink between the panels, new ones fade in, and removed ones fade out where they were.",
+    "Nothing in the page knows about animation: the container expands the subtree and animates every change in it.",
+  ],
+};
 
 /**
  * Animation - ported from flow.application/demo/src/pages/animationExample.js
- * (minus its top-bar information/code buttons, which cascade has no portal
- * for yet): items in two panels - add, remove, randomize, and juggle them
+ * (its information and code buttons in the top bar - see
+ * ../components/pageActions.js): items in two panels - add, remove, randomize, and juggle them
  * between the panels - and every move animated.
  *
  * The animation is FlipAnimationContainer's (see cascade.DOM): it's wrapped
@@ -95,6 +107,7 @@ export class AnimationPage extends Component {
   build() {
     return column(
       { key: "page", style: { height: "100%", width: "100%" } },
+      pageActions(this, { information, source, fileName: "src/pages/AnimationPage.js" }),
       row(
         { key: "controls" },
         row(

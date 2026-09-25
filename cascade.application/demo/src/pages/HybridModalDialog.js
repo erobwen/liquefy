@@ -2,6 +2,17 @@ import { Component } from "@liquefy/cascade.component";
 import { p, text } from "@liquefy/cascade.dom";
 import { button, dialog as themedDialog, alert, overlay, row, column, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { modalPresentation } from "../components/modal.js";
+import { pageActions } from "../components/pageActions.js";
+import source from "./HybridModalDialog.js?raw";
+
+// What this page's information button shows (see ../components/pageActions.js).
+const information = {
+  summary: "A hybrid modal dialog - modal only when there isn't room for it:",
+  points: [
+    "The same dialog content component moves between docked and modal as the window is resized.",
+    "So its state (the counter) is simply kept - never saved and restored.",
+  ],
+};
 
 // Below this usableWidth (the page's own allotted content area, handed
 // down by ApplicationMenuFrame's own workArea - ultimately sourced from
@@ -74,6 +85,7 @@ export class HybridModalDialog extends Component {
 
     return column(
       { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: "16px" } },
+      pageActions(this, { information, source, fileName: "src/pages/HybridModalDialog.js" }),
       alert(
         { key: "info", style: { flex: "none" } },
         text({

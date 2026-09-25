@@ -1,4 +1,4 @@
-import { Component, flush, withoutRecording } from "@liquefy/cascade.component";
+import { Component, flush, withoutRecording, frozen } from "@liquefy/cascade.component";
 import { wrapper } from "./Layout.js";
 
 /**
@@ -41,8 +41,8 @@ export function portalContents(...parameters) {
 
 export class Portal extends Component {
   setProperties({ style, children }) {
-    this.style = style || null;
-    this.defaultContents = children || [];
+    this.style = frozen(style || null);
+    this.defaultContents = frozen(children || []);
   }
 
   // What some PortalContents has assigned is state: changed only by
@@ -83,7 +83,7 @@ export class Portal extends Component {
 export class PortalContents extends Component {
   setProperties({ portal, children }) {
     this.portal = portal || null;
-    this.portalChildren = children || [];
+    this.portalChildren = frozen(children || []);
   }
 
   initialUnobservables() {

@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, callback } from "@liquefy/cascade.component";
 import { p, ul, li, text } from "@liquefy/cascade.dom";
 import { iconButton, alert, popover, portalContents } from "@liquefy/cascade.ui";
 import { CodeButton } from "./code.js";
@@ -51,7 +51,7 @@ export class InformationButton extends Component {
         this.open = true;
       }),
       popover(
-        { key: "popover", anchor: this.anchor, showing: this.open, close: () => { this.open = false; } },
+        { key: "popover", anchor: this.anchor, showing: this.open, close: callback("close", () => { this.open = false; }) },
         alert(
           { key: "information", style: { boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)", maxWidth: "640px", lineHeight: "1.4" } },
           p({ key: "summary", style: { margin: 0 } }, text({ key: "summaryText", text: this.summary })),

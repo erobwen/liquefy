@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, frozen, callback } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { overlay } from "./Overlay.js";
 import { zStack, wrapper, fitContainerStyle, zStackElementStyle } from "./Layout.js";
@@ -30,11 +30,11 @@ const GAP = 6;
 
 export class Popover extends Component {
   setProperties({ anchor, showing, close, style, children }) {
-    this.anchor = anchor || null;
+    this.anchor = frozen(anchor || null);
     this.showing = !!showing;
     this.close = close || null;
-    this.style = style || null;
-    this.popoverChildren = children || [];
+    this.style = frozen(style || null);
+    this.popoverChildren = frozen(children || []);
   }
 
   placement() {
@@ -57,7 +57,7 @@ export class Popover extends Component {
         { key: "layer", style: { ...fitContainerStyle, pointerEvents: "none" } },
         div({
           key: "outside",
-          onmousedown: () => this.close && this.close(),
+          onmousedown: callback("outside", () => this.close && this.close()),
           style: { ...zStackElementStyle, pointerEvents: "auto" },
         }),
         wrapper(

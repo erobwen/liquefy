@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, callback } from "@liquefy/cascade.component";
 import { a, div, img, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, portal } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.png";
@@ -65,7 +65,10 @@ export class ApplicationMenuFrame extends Component {
   // location: the browser's location (cascade.dom's browserLocation()) -
   // which page is shown is the URL's: its first path segment is the page's
   // key, none at all the first page. So back and forward, a reload or a
-  // link to a page all just work, as in Flow's demo.
+  // link to a page all just work, as in Flow's demo. What's left of the
+  // path is the page's own business: it's handed down in the page's render
+  // context (see ApplicationMenuFrameLayout's workArea), and the location
+  // itself is found by inherit("location") (a field is all it takes).
   setProperties({ pages, rootServiceLocator, location }) {
     this.pages = pages;
     this.rootServiceLocator = rootServiceLocator || null;
@@ -179,7 +182,7 @@ class ApplicationMenuFrameLayout extends Component {
         key: "hamburger",
         icon: "menu",
         title: "Menu",
-        onClick: () => { frame.menuOpen = !frame.menuOpen; },
+        onClick: callback("toggleMenu", () => { frame.menuOpen = !frame.menuOpen; }),
         style: { color: "white" },
       }).show(menuIsModal && !frame.menuOpen),
       // The shown page's own buttons - information, code - just before its
@@ -196,8 +199,16 @@ class ApplicationMenuFrameLayout extends Component {
         background: "#ecf0f1", overflow: "auto",
       },
       // The page's own pixel budget - and the whole app's size, for what
-      // covers the whole app (a full-screen dialog, say).
-      context: { usableWidth: workAreaWidth, usableHeight: workAreaHeight, appWidth: bounds.width, appHeight: bounds.height },
+      // covers the whole app (a full-screen dialog, say). And its part of
+      // the URL: `path`, what's left after the page's own segment - for
+      // whatever in the page picks it up, as the next segment down - and
+      // `basePath`, the page's own, to navigate relative to. Both strings,
+      // so they only count as changed when they are.
+      context: {
+        usableWidth: workAreaWidth, usableHeight: workAreaHeight, appWidth: bounds.width, appHeight: bounds.height,
+        basePath: frame.pathOf(page).join("/"),
+        path: frame.location.path.slice(frame.pathOf(page).length).join("/"),
+      },
     });
 
     const column = div(
@@ -239,7 +250,7 @@ function buildModalMenuDrawer(frame) {
       key: "backdrop",
       class: "Foo",
       className: "backdrop",
-      onclick: () => { frame.menuOpen = false; },
+      onclick: callback("closeMenu", () => { frame.menuOpen = false; }),
       style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.3)" },
     }),
     new MenuList({
@@ -282,11 +293,11 @@ class MenuList extends Component {
         return a({
           key: page.key,
           href: frame.location.href(frame.pathOf(page)),
-          onclick: (event) => {
+          onclick: callback(page.key + "Choose", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             frame.choose(page.key);
-          },
+          }),
           style: {
             display: "block", padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
             color: "inherit", textDecoration: "none",

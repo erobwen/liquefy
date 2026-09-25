@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, callback } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "@liquefy/cascade.dom";
 import { overlay, iconButton, dialog } from "@liquefy/cascade.ui";
 import hljs from "highlight.js/lib/core";
@@ -58,7 +58,7 @@ export class CodeButton extends Component {
   }
 
   build() {
-    const close = () => { this.open = false; };
+    const close = callback("close", () => { this.open = false; });
     const codeDialog = dialog({
       key: "codeDialog",
       title: this.fileName,
@@ -71,7 +71,7 @@ export class CodeButton extends Component {
         key: "button",
         icon: "code",
         title: "Show the code for this page",
-        onClick: () => { this.open = true; },
+        onClick: callback("open", () => { this.open = true; }),
         style: { color: "#7bed9f" },
       }),
       overlay(modalPresentation(codeDialog, close), { key: "codeOverlay", showing: this.open }),

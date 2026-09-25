@@ -77,4 +77,27 @@ describe("browserLocation", function () {
     assert.deepEqual(location.path, []);
     assert.equal(container.textContent, "/");
   });
+
+  it("back(): opened right at a URL, there's nowhere in the app to go back to - so it goes to the fallback, replacing the entry", function () {
+    at("/page/dialog");
+    location = browserLocation({ window: dom.window });
+    const entries = dom.window.history.length;
+    location.back("page");
+    assert.equal(dom.window.location.pathname, "/page");
+    assert.deepEqual(location.path, ["page"]);
+    assert.equal(dom.window.history.length, entries, "replaced - not a new entry, and not out of the app");
+  });
+
+  it("back(): come to by navigating, it really goes back - to where the user came from", function (done) {
+    at("/page");
+    location = browserLocation({ window: dom.window });
+    location.navigate("page/dialog");
+    assert.deepEqual(location.path, ["page", "dialog"]);
+    dom.window.addEventListener("popstate", () => {
+      assert.equal(dom.window.location.pathname, "/page");
+      assert.deepEqual(location.path, ["page"]);
+      done();
+    });
+    location.back("elsewhere");
+  });
 });

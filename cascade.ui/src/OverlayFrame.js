@@ -1,4 +1,4 @@
-import { Component, flush } from "@liquefy/cascade.component";
+import { Component, flush, frozen } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 
 /**
@@ -34,8 +34,8 @@ export function overlayFrame(...parameters) {
 
 export class OverlayFrame extends Component {
   setProperties({ style, children, overlayContent }) {
-    this.style = style || null;
-    this.staticContent = children || [];
+    this.style = frozen(style || null);
+    this.staticContent = frozen(children || []);
     // The alternative to showOverlay()/hideOverlay() below: an overlay
     // frame can be handed its modal content directly as a property
     // instead, for a frame that's dedicated to one specific modal rather
@@ -104,7 +104,7 @@ export class OverlayFrame extends Component {
   // which would also retract and rebuild everything recursively nested
   // inside it for no reason.
   setStaticContent(staticContent) {
-    this.staticContent = staticContent instanceof Array ? staticContent : [staticContent];
+    this.staticContent = frozen(staticContent instanceof Array ? staticContent : [staticContent]);
   }
 
   build() {

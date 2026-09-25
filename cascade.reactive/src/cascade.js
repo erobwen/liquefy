@@ -596,7 +596,41 @@ function createWorld(configuration) {
 
   function sameAsPrevious(previousValue, newValue) {
     if (configuration.useNonObservablesAsValues) return sameAsPreviousDeep(previousValue, newValue, configuration.valueComparisonDepthLimit);
-    return (previousValue === newValue || Number.isNaN(previousValue) && Number.isNaN(newValue));
+    if (previousValue === newValue || Number.isNaN(previousValue) && Number.isNaN(newValue)) return true;
+    return sameFrozenValue(previousValue, newValue);
+  }
+
+  // Frozen plain data - arrays and plain objects, frozen (cascade.component's
+  // frozen(), in setProperties()) - is a value: compared by content, not
+  // identity, when both sides are frozen. Frozen, neither side can have
+  // changed since, so the comparison holds. This is what makes a rebuilt
+  // component's properties unchanged when they're equal: mergeInto()
+  // writes each one back, reclaiming the previous run's writing, and
+  // finalizeTouchedStaleWritings() compares the two with sameAsPrevious().
+  // Inside a frozen value, whatever isn't frozen plain data (an
+  // observable, a function, a class instance) is compared by identity. And
+  // what isn't frozen at all is compared by identity as always - a large
+  // structure's identity standing for the whole, rather than a
+  // comparison node by node.
+  function isFrozenPlainData(value) {
+    if (value === null || typeof(value) !== "object" || !Object.isFrozen(value) || isObservable(value)) return false;
+    if (Array.isArray(value)) return true;
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+  }
+
+  function sameFrozenValue(previousValue, newValue, depth = 0) {
+    if (previousValue === newValue || (Number.isNaN(previousValue) && Number.isNaN(newValue))) return true;
+    if (!isFrozenPlainData(previousValue) || !isFrozenPlainData(newValue)) return false;
+    if (depth > 64) return false; // Deeper than any property should be - treat as changed.
+    if (Array.isArray(previousValue) !== Array.isArray(newValue)) return false;
+    const previousKeys = Object.keys(previousValue);
+    if (previousKeys.length !== Object.keys(newValue).length) return false;
+    for (const key of previousKeys) {
+      if (!Object.prototype.hasOwnProperty.call(newValue, key)) return false;
+      if (!sameFrozenValue(previousValue[key], newValue[key], depth + 1)) return false;
+    }
+    return true;
   }
 
   function sameAsPreviousDeep(previousValue, newValue, valueComparisonDepthLimit) {

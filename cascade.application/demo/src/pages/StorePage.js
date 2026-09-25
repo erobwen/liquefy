@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, callback } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
 import { button, card, icon, iconButton, row, column, portal, portalContents, fitContainerStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
@@ -112,7 +112,7 @@ class ProductList extends Component {
     return card(
       {
         key: product.id,
-        onclick: () => this.toggle(product.id),
+        onclick: callback(product.id + "Toggle", () => this.toggle(product.id)),
         title: inCart ? "Put back" : "Add to cart",
         style: inCart
           ? { ...common, display: "flex", alignItems: "center", gap: "6px", padding: "4px 10px", flex: "none" }

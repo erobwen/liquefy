@@ -1,4 +1,4 @@
-import { accessInitialValues } from "@liquefy/cascade.component";
+import { accessInitialValues, frozen } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
@@ -35,7 +35,7 @@ export function elementBoundsProvider(...parameters) {
 export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
   setProperties({ child, style, className }) {
     this.child = child;
-    this.style = style || null;
+    this.style = frozen(style || null);
     this.className = className || null;
   }
 

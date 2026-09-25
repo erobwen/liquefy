@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { RenderContext, Component, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
-import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { RenderContext, Component, ObservableCompoundServiceLocator, observable, accessInitialValues } from "@liquefy/cascade.component";
+import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer, contextContainer } from "@liquefy/cascade.dom";
 import { portal, portalContents, button, basicTheme } from "../index.js";
 
 // portal()/portalContents(): a page putting its own buttons into the app's
@@ -272,5 +272,63 @@ describe("portals", function () {
     assert.equal(container.textContent, "pear");
     shelf.chosen = [];
     assert.equal(container.textContent, "empty");
+  });
+
+  it("contents built for the first time just after their creator's build was invalidated still get their properties", function () {
+    // The demo's shape: switching to a page whose build reads its part of
+    // the URL from its render context - written anew as the switch is
+    // rendered, which invalidates that build once more, its writings (the
+    // properties of the contents it made) retracted - just before the
+    // portal builds those contents for the first time.
+    class Labelled extends Component {
+      setProperties({ labels }) {
+        this.labels = labels;
+      }
+      build() {
+        return text({ key: "labels", text: this.labels.join("") });
+      }
+    }
+    class ContextPage extends Component {
+      setProperties({ name }) {
+        this.name = name;
+      }
+      build() {
+        return div(
+          { key: "page" },
+          text({ key: "where", text: "at " + this.renderContext.path }),
+          portalContents({ key: "actions", portal: "topBarPortal" }, new Labelled({ key: "labelled", labels: [this.name, "!"] })),
+        );
+      }
+    }
+    class ContextApp extends Component {
+      setProperties({ pages }) {
+        this.pages = pages;
+      }
+      initializeState() {
+        return { chosen: 0 };
+      }
+      initialUnobservables() {
+        return { topBar: portal({ key: "topBarPortal" }) };
+      }
+      get topBarPortal() {
+        return this.unobservable.topBar;
+      }
+      build() {
+        const page = this.pages[this.chosen];
+        return div(
+          { key: "app" },
+          div({ key: "topBar" }, this.unobservable.topBar),
+          contextContainer({ key: "workArea", child: page, context: { path: page.name } }),
+        );
+      }
+    }
+    const pages = [new ContextPage({ key: "first", name: "first" }), new ContextPage({ key: "second", name: "second" })];
+    const app = new ContextApp({ pages });
+    app.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    assert.equal(topBar(), "first!");
+    app.chosen = 1;
+    assert.equal(topBar(), "second!");
+    app.chosen = 0;
+    assert.equal(topBar(), "first!");
   });
 });

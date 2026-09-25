@@ -287,8 +287,13 @@ export class Component {
     u.pullingComponent = getRenderParent();
     // First time only: a repeat() call's first pass runs synchronously,
     // right here, which is what this method's caller needs - it uses the
-    // result immediately.
+    // result immediately. Its properties first, as for every later build
+    // (see refreshCreatorBuild()): shown somewhere else, before its creator
+    // (a page's buttons in a portal), a component can be built for the
+    // first time just after its creator's build was invalidated - its
+    // properties retracted with it.
     if (!u.buildRepeater) {
+      this.refreshCreatorBuild();
       u.buildRepeater = repeat(() => {
         // Pushed/popped around build() specifically (not this whole
         // method, and not the constructor - see inherit()'s own comment

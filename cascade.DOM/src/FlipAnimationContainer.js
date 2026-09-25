@@ -1,3 +1,4 @@
+import { frozen } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementComponent } from "./DOMElementComponent.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
@@ -64,8 +65,8 @@ export function flipAnimationContainer(...parameters) {
  */
 export class FlipAnimationContainer extends DOMNodeRenderComponent {
   setProperties({ children, style, isUnit }) {
-    this.children = children || [];
-    this.style = style || null;
+    this.children = frozen(children || []);
+    this.style = frozen(style || null);
     this.isUnit = isUnit || null;
   }
 

@@ -1,4 +1,4 @@
-import { extractProperty } from "@liquefy/cascade.component";
+import { extractProperty, frozen } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
@@ -32,7 +32,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
   setProperties(properties) {
     this.tagName = extractProperty(properties, "tagName");
     if (!this.tagName) throw new Error("DOMElementComponent requires a tagName.");
-    this.children = extractProperty(properties, "children") || null;
+    this.children = frozen(extractProperty(properties, "children") || null);
 
     // Real element properties are lowercase (element.onclick, not
     // element.onClick - the latter is silently a no-op, not a stylistic
@@ -42,7 +42,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     for (const key in properties) {
       attributes[key.toLowerCase()] = properties[key];
     }
-    this.attributes = attributes;
+    this.attributes = frozen(attributes);
   }
 
   initialUnobservables() {

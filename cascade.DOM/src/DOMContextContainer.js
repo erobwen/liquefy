@@ -1,3 +1,4 @@
+import { frozen } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { locateDOMComponent } from "./DOMServiceLocator.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
@@ -32,11 +33,11 @@ export function contextContainer(...parameters) {
 export class DOMContextContainer extends DOMNodeRenderComponent {
   setProperties({ child, style, context }) {
     this.child = child;
-    this.style = style || null;
+    this.style = frozen(style || null);
     // Extra fields to merge onto the inner RenderContext on every render -
     // e.g. usableWidth/usableHeight (see ApplicationMenuFrame.js's own
     // `workArea`).
-    this.contextExtra = context || null;
+    this.contextExtra = frozen(context || null);
   }
 
   initialUnobservables() {

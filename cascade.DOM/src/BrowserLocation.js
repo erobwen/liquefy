@@ -15,6 +15,11 @@ import { observable } from "@liquefy/cascade.component";
  *    below the base) - a new history entry, or replacing the current one.
  *    Call it from event handlers, as any other change the user makes.
  *  - href(path): the URL for `path`, for a link's href.
+ *  - back(fallback): go back - to where the user came from within the app
+ *    (history.back()), or, when there's nowhere in the app to go back to
+ *    (the app was opened right at this URL), to `fallback`, replacing the
+ *    current entry rather than leaving the app. For closing something that
+ *    has a URL of its own: a dialog at /page/dialog, say.
  *
  * Back and forward (popstate) update `path` too. Unlike Flow's version, it
  * doesn't patch history.pushState/replaceState globally: navigating goes
@@ -29,6 +34,13 @@ export class BrowserLocation {
     this.base = base.endsWith("/") ? base : base + "/";
     this.window = view;
     this.state = observable({ path: this.read() });
+    // How many entries into the app the current history entry is - kept in
+    // history.state, so it's right after back/forward and reloads too. The
+    // entry the app was opened at is 0.
+    const history = this.window.history;
+    if (!history.state || typeof(history.state.cascadeDepth) !== "number") {
+      history.replaceState({ ...(history.state || {}), cascadeDepth: 0 }, "", this.window.location.href);
+    }
     this.onPopState = () => this.update();
     this.window.addEventListener("popstate", this.onPopState);
   }
@@ -56,14 +68,24 @@ export class BrowserLocation {
     return this.base + segments.join("/");
   }
 
+  get depth() {
+    const state = this.window.history.state;
+    return state && typeof(state.cascadeDepth) === "number" ? state.cascadeDepth : 0;
+  }
+
   navigate(path, { replace = false } = {}) {
     const url = this.href(path);
     if (url !== this.window.location.pathname) {
       const history = this.window.history;
-      if (replace) history.replaceState({}, "", url);
-      else history.pushState({}, "", url);
+      if (replace) history.replaceState({ cascadeDepth: this.depth }, "", url);
+      else history.pushState({ cascadeDepth: this.depth + 1 }, "", url);
     }
     this.update();
+  }
+
+  back(fallback) {
+    if (this.depth > 0) this.window.history.back();
+    else this.navigate(fallback, { replace: true });
   }
 
   dispose() {

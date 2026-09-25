@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, frozen, callback } from "@liquefy/cascade.component";
 import { element, text } from "@liquefy/cascade.dom";
 import { row, column, filler, wrapper, icon, iconButton, alertSeverities } from "@liquefy/cascade.ui";
 
@@ -31,8 +31,8 @@ const cardStyles = {
 class MaterialAlert extends Component {
   setProperties({ severity, style, children }) {
     this.severity = alertSeverities[severity] ? severity : "info";
-    this.style = style || null;
-    this.alertChildren = children || [];
+    this.style = frozen(style || null);
+    this.alertChildren = frozen(children || []);
   }
 
   build() {
@@ -56,12 +56,12 @@ class MaterialDialog extends Component {
     this.title = title || "";
     this.close = close || null;
     this.fullScreen = !!fullScreen;
-    this.style = style || null;
-    this.dialogChildren = children || [];
+    this.style = frozen(style || null);
+    this.dialogChildren = frozen(children || []);
   }
 
   build() {
-    const close = () => this.close && this.close();
+    const close = callback("close", () => this.close && this.close());
     // Full screen: Material's full-screen dialog - the surface itself, with
     // a back arrow and the title in a top app bar.
     const frame = this.fullScreen

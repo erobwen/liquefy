@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, frozen, callback } from "@liquefy/cascade.component";
 import { button as htmlButton, span, text } from "@liquefy/cascade.dom";
 import { row, column, filler, wrapper } from "./Layout.js";
 import { icon, iconButton, alertSeverities } from "./widgets.js";
@@ -33,8 +33,8 @@ class BasicIconButton extends Component {
   setProperties({ icon, onClick, style, children, ...rest }) {
     this.icon = icon;
     this.onClick = onClick || null;
-    this.style = style || null;
-    this.rest = rest;
+    this.style = frozen(style || null);
+    this.rest = frozen(rest);
   }
 
   build() {
@@ -57,8 +57,8 @@ class BasicIconButton extends Component {
 class BasicAlert extends Component {
   setProperties({ severity, style, children }) {
     this.severity = alertSeverities[severity] ? severity : "info";
-    this.style = style || null;
-    this.alertChildren = children || [];
+    this.style = frozen(style || null);
+    this.alertChildren = frozen(children || []);
   }
 
   build() {
@@ -82,12 +82,12 @@ class BasicDialog extends Component {
     this.title = title || "";
     this.close = close || null;
     this.fullScreen = !!fullScreen;
-    this.style = style || null;
-    this.dialogChildren = children || [];
+    this.style = frozen(style || null);
+    this.dialogChildren = frozen(children || []);
   }
 
   build() {
-    const close = () => this.close && this.close();
+    const close = callback("close", () => this.close && this.close());
     const frame = this.fullScreen
       ? { width: "100%", height: "100%" }
       : { borderRadius: "8px", boxShadow: dialogShadow };

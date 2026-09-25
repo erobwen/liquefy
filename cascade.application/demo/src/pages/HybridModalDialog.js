@@ -1,4 +1,4 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, callback } from "@liquefy/cascade.component";
 import { p, text } from "@liquefy/cascade.dom";
 import { button, card, dialog as themedDialog, alert, overlay, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { modalPresentation, fullScreenPresentation } from "../components/modal.js";
@@ -10,6 +10,7 @@ const information = {
   summary: "A hybrid modal dialog - modal only when there isn't room for it:",
   points: [
     "Docked beside the controls when there's room, a modal window when there isn't - and full screen, with a back arrow, on a phone-sized screen.",
+    "Open, the dialog has a URL of its own (/hybrid-modal-dialog/dialog): link to it, reload it, and the browser's back button closes it - as a phone's back gesture would.",
     "The same dialog content component moves between all three as the window is resized.",
     "So its state (the counter) is simply kept - never saved and restored.",
   ],
@@ -67,18 +68,28 @@ const MODAL_HEIGHT = 420;
  * Reaches the app-wide OverlayFrame (created once, in ApplicationMenuFrame's
  * own build()) via cascade.ui's overlay()/inherit("overlayFrame") -
  * nothing here wires that connection up explicitly.
+ *
+ * Whether the dialog is open is the URL's: this page's part of the path
+ * (`path` in its render context - see ApplicationMenuFrame) is "dialog"
+ * while it is. Opening navigates there; closing goes back (see cascade.dom's
+ * BrowserLocation.back()) - so the browser's back button closes it too, a
+ * link to it opens it, and a reload keeps it open. The page picks the
+ * segment up, not the button that opens it: the page is what owns the
+ * dialog.
  */
 export class HybridModalDialog extends Component {
-  initializeState() {
-    return { showDialog: false };
-  }
-
   build() {
-    const bounds = this.renderContext || {};
-    const usableWidth = typeof(bounds.usableWidth) === "number" ? bounds.usableWidth : 1000;
-    const appWidth = typeof(bounds.appWidth) === "number" ? bounds.appWidth : usableWidth;
+    const context = this.renderContext || {};
+    const usableWidth = typeof(context.usableWidth) === "number" ? context.usableWidth : 1000;
+    const appWidth = typeof(context.appWidth) === "number" ? context.appWidth : usableWidth;
     const mode = usableWidth >= DOCKED_MIN_WIDTH ? "docked" : appWidth < FULL_SCREEN_BELOW ? "fullScreen" : "modal";
-    const close = () => { this.showDialog = false; };
+
+    // This page's part of the URL: "dialog" while the dialog is open.
+    const location = this.inherit("location");
+    const basePath = context.basePath || "";
+    const showDialog = (context.path || "").split("/")[0] === "dialog";
+    const open = callback("open", () => location.navigate(basePath + "/dialog"));
+    const close = callback("close", () => location.back(basePath));
 
     // Constructed unconditionally, every rebuild, regardless of
     // showDialog/mode - only where it's shown below is conditional. A
@@ -131,7 +142,7 @@ export class HybridModalDialog extends Component {
         // what it looks like; only its placement here is set here.
         centerMiddle(
           { key: "openButtonArea", style: { ...fillerStyle, ...overflowVisibleStyle } },
-          button({ key: "openButton" }, "Open Hybrid Modal Dialog", () => { this.showDialog = true; }),
+          button({ key: "openButton" }, "Open Hybrid Modal Dialog", open),
         ),
       ),
       // The dialog has one place per build: docked here, or in the
@@ -139,9 +150,9 @@ export class HybridModalDialog extends Component {
       // too, the overlay (still shown as this build runs) would render it
       // there once more, taking its element back from the docked slot just
       // before the overlay closes - and the dialog would be gone.
-      dialog.show(this.showDialog && mode === "docked"),
+      dialog.show(showDialog && mode === "docked"),
       overlay(
-        { key: "dialogOverlay", showing: this.showDialog && mode !== "docked" },
+        { key: "dialogOverlay", showing: showDialog && mode !== "docked" },
         mode === "docked" ? null : mode === "fullScreen" ? fullScreenPresentation(dialog) : modalPresentation(dialog, close),
       ),
     );

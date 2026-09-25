@@ -134,6 +134,20 @@ describe("basic theme widgets", function () {
     assert.equal(shown.open, false);
   });
 
+  it("dialog: switched to full screen, the back arrow comes first - before the title - and back again", function () {
+    const shown = render(page((self) => dialog({ key: "dialog", title: "Title", fullScreen: self.fullScreen, close: () => {} },
+      text({ key: "body", text: "body" }),
+    ), { fullScreen: false }));
+    const titleBar = () => Array.from(container.querySelector("[id*='(titleBar)']").children).map((each) => each.title || each.textContent);
+    assert.deepEqual(titleBar(), ["Title", "Close"]);
+    shown.fullScreen = true;
+    assert.deepEqual(titleBar(), ["Back", "Title"]);
+    shown.fullScreen = false;
+    assert.deepEqual(titleBar(), ["Title", "Close"]);
+    shown.fullScreen = true;
+    assert.deepEqual(titleBar(), ["Back", "Title"]);
+  });
+
   it("popover: shown over everything by the overlay frame, beside its anchor, closed by a click outside it", function () {
     const view = document.defaultView;
     view.innerWidth = 1000;

@@ -78,31 +78,38 @@ class BasicAlert extends Component {
 }
 
 class BasicDialog extends Component {
-  setProperties({ title, close, style, children }) {
+  setProperties({ title, close, fullScreen, style, children }) {
     this.title = title || "";
     this.close = close || null;
+    this.fullScreen = !!fullScreen;
     this.style = style || null;
     this.dialogChildren = children || [];
   }
 
   build() {
+    const close = () => this.close && this.close();
+    const frame = this.fullScreen
+      ? { width: "100%", height: "100%" }
+      : { borderRadius: "8px", boxShadow: dialogShadow };
     return column(
       {
         key: "dialog",
-        style: {
-          background: "white", borderRadius: "8px", boxSizing: "border-box", overflow: "hidden",
-          boxShadow: dialogShadow, pointerEvents: "auto", ...this.style,
-        },
+        style: { background: "white", boxSizing: "border-box", overflow: "hidden", pointerEvents: "auto", ...frame, ...this.style },
       },
       row(
         {
           key: "titleBar",
-          style: { padding: "4px 4px 4px 16px", background: "#2c3e50", color: "white", flex: "none", alignItems: "center", gap: "8px" },
+          style: {
+            padding: this.fullScreen ? "4px 16px 4px 4px" : "4px 4px 4px 16px",
+            ...(this.fullScreen ? { minHeight: "48px" } : {}),
+            background: "#2c3e50", color: "white", flex: "none", alignItems: "center", gap: "8px",
+          },
         },
+        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).show(this.fullScreen),
         // text(): a lone string starting lowercase (a file name, say)
         // would be taken for an implicit key.
         filler({ key: "title" }, text({ key: "titleText", text: this.title })),
-        iconButton({ key: "close", icon: "close", title: "Close", onClick: () => this.close && this.close() }),
+        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).show(!this.fullScreen),
       ),
       // Sized by its content, scrolling once the dialog has a height of its own.
       column({ key: "body", style: { flex: "1 1 auto", minHeight: 0, overflow: "auto" } }, this.dialogChildren),

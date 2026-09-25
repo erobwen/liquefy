@@ -43,6 +43,28 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
     assert.equal(frameEl.children.length, 1, "modal sub-frame removed again once closed");
   });
 
+  it("an overlay whose content changes while it's shown shows the new content (a modal window becoming full screen)", function () {
+    class Page extends Component {
+      initializeState() {
+        return { fullScreen: false };
+      }
+      build() {
+        const content = this.fullScreen
+          ? div({ key: "fullScreen" }, text({ key: "fullScreenText", text: "full screen" }))
+          : div({ key: "window" }, text({ key: "windowText", text: "window" }));
+        return overlayFrame({ key: "root" }, div({ key: "static" }, text("static")), overlay(content, { key: "modal", showing: true }));
+      }
+    }
+    const page = new Page();
+    page.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const shown = () => container.children[0].children[1] && container.children[0].children[1].textContent;
+    assert.equal(shown(), "window");
+    page.fullScreen = true;
+    assert.equal(shown(), "full screen");
+    page.fullScreen = false;
+    assert.equal(shown(), "window");
+  });
+
   it("an overlay shown inside another overlay's own content finds the nearest frame, stacking correctly - not the page's root one", function () {
     const innerModal = overlay(div({ key: "innerContent" }, text("inner")));
     // The outer modal's own content includes the inner overlay - so when

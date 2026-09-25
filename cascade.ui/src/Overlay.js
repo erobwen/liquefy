@@ -34,7 +34,7 @@ export class Overlay extends Component {
   }
 
   initialUnobservables() {
-    return { visibleOnFrame: null };
+    return { visibleOnFrame: null, shownChild: null };
   }
 
   // Build-only (like PortalContents - see Portal.js): a build only runs
@@ -70,6 +70,12 @@ export class Overlay extends Component {
       if (overlayFrame && u.visibleOnFrame !== overlayFrame) {
         if (u.visibleOnFrame) u.visibleOnFrame.hideOverlay(this);
         u.visibleOnFrame = overlayFrame;
+        u.shownChild = this.overlayChild;
+        overlayFrame.showOverlay(this, this.overlayChild);
+      } else if (overlayFrame && u.shownChild !== this.overlayChild) {
+        // Shown already, with other content: a modal window becoming full
+        // screen, say - hand the frame the new content.
+        u.shownChild = this.overlayChild;
         overlayFrame.showOverlay(this, this.overlayChild);
       }
     } else {

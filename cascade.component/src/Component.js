@@ -509,7 +509,17 @@ export class Component {
         // that was never actually retracted in between. So force a real
         // rerun rather than trust stale results computed against
         // whatever those dependencies happened to be last time.
+        //
+        // And run it right here, at its place in the tree, as a first
+        // render would - not whenever the scheduler gets to it. Deferred,
+        // this parent would go on rendering the children after it first:
+        // they'd position themselves (target.lastChild) before this one
+        // has, and its own position, recorded later, out of order, isn't
+        // where they read it the next time they rerun on their own - a
+        // shown-again button ending up after its sibling. (linkRepeater()
+        // handles a flagged child the same way, on the spot.)
         u.repeater.restart();
+        refreshIfNeeded(u.repeater);
       } else if (contextChanged) {
         // Not retracted - reclaimed by the same parent at the same
         // position - but handed a genuinely different context object
@@ -521,8 +531,10 @@ export class Component {
         // never removed, and renderElement()'s own reattachElement() on
         // the new target is what moves it. The common case - the same
         // cached context object every time, per RenderContext's own
-        // stable-identity rule - stays the free no-op it always was.
+        // stable-identity rule - stays the free no-op it always was. Run
+        // right here too, in tree order, as above.
         u.repeater.restart();
+        refreshIfNeeded(u.repeater);
       }
     } else {
       // renderStack push/pop lives *inside* this callback, not wrapped

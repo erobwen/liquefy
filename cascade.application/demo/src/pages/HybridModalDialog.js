@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 import { p, text } from "@liquefy/cascade.dom";
-import { button, dialog as themedDialog, alert, overlay, row, column, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
-import { modalPresentation } from "../components/modal.js";
+import { button, card, dialog as themedDialog, alert, overlay, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { modalPresentation, fullScreenPresentation } from "../components/modal.js";
 import { pageActions } from "../components/pageActions.js";
 import source from "./HybridModalDialog.js?raw";
 
@@ -9,18 +9,31 @@ import source from "./HybridModalDialog.js?raw";
 const information = {
   summary: "A hybrid modal dialog - modal only when there isn't room for it:",
   points: [
-    "The same dialog content component moves between docked and modal as the window is resized.",
+    "Docked beside the controls when there's room, a modal window when there isn't - and full screen, with a back arrow, on a phone-sized screen.",
+    "The same dialog content component moves between all three as the window is resized.",
     "So its state (the counter) is simply kept - never saved and restored.",
   ],
 };
 
-// Below this usableWidth (the page's own allotted content area, handed
-// down by ApplicationMenuFrame's own workArea - ultimately sourced from
-// DOMElementBoundsProvider's real measurement, not raw window size), the
-// dialog goes modal instead of docked. Resize the browser window while
-// the dialog is open to see it flip between the two presentations, same
-// as flow.application/demo's own modalDemo.js.
-const MODAL_BREAKPOINT = 560;
+// The three presentations, as flow.application/demo's modalDemo.js has
+// them. Resize the browser window while the dialog is open to see it move
+// between them.
+//
+//  - Docked, beside the controls, while the page itself (its usableWidth,
+//    handed down by ApplicationMenuFrame's workArea from a real
+//    measurement) has room for both: at least DOCKED_MIN_WIDTH. That's high
+//    enough to be decided only while the app's menu is docked too - the
+//    menu going modal gives the page ~200px more at once, and a threshold
+//    below that jump would flip the dialog back and forth as the window is
+//    narrowed past it.
+//  - A modal window otherwise.
+//  - Full screen - the whole app, like a phone app's screen - when the app
+//    itself (appWidth, not the page) is narrower than FULL_SCREEN_BELOW. By
+//    the app's width, which follows the window, not the page's, which jumps
+//    with the menu.
+const PANEL_WIDTH = 400;
+const DOCKED_MIN_WIDTH = 800;
+const FULL_SCREEN_BELOW = 600;
 const MODAL_WIDTH = 360;
 const MODAL_HEIGHT = 420;
 
@@ -28,10 +41,11 @@ const MODAL_HEIGHT = 420;
  * HybridModalDialog - ported from flow.application/demo/src/pages/modalDemo.js's
  * own ModalExample/DialogueContent. The point of the demo: DialogContent
  * (below) carries its own independent state (a counter) that survives the
- * dialog transitioning between docked (inline, next to the controls) and
- * modal (centered over a backdrop, reached through cascade.ui's own
- * Overlay/OverlayFrame) - it's the exact same live component instance
- * either way, never saved/restored externally.
+ * dialog transitioning between docked (beside the controls), modal
+ * (centered over a backdrop, reached through cascade.ui's own
+ * Overlay/OverlayFrame) and full screen (the whole app, with a back arrow)
+ * - it's the exact same live component instance either way, never
+ * saved/restored externally.
  *
  * The mechanism is cascade's ordinary keyed build() reconciliation, not
  * anything modal-specific: `dialog` (and, nested inside it, `content`)
@@ -60,12 +74,14 @@ export class HybridModalDialog extends Component {
   }
 
   build() {
-    const bounds = this.renderContext;
-    const usableWidth = bounds && typeof (bounds.usableWidth) === "number" ? bounds.usableWidth : 1000;
-    const dialogIsModal = usableWidth < MODAL_BREAKPOINT;
+    const bounds = this.renderContext || {};
+    const usableWidth = typeof(bounds.usableWidth) === "number" ? bounds.usableWidth : 1000;
+    const appWidth = typeof(bounds.appWidth) === "number" ? bounds.appWidth : usableWidth;
+    const mode = usableWidth >= DOCKED_MIN_WIDTH ? "docked" : appWidth < FULL_SCREEN_BELOW ? "fullScreen" : "modal";
+    const close = () => { this.showDialog = false; };
 
     // Constructed unconditionally, every rebuild, regardless of
-    // showDialog/dialogIsModal - only visibility below is conditional. A
+    // showDialog/mode - only where it's shown below is conditional. A
     // key that drops out for even one rebuild is gone for good (see
     // cascade.component/README.md), so skipping this construction while
     // the dialog happens to be closed would silently reset its state
@@ -74,47 +90,59 @@ export class HybridModalDialog extends Component {
     const dialog = themedDialog({
       key: "dialog",
       title: "Hybrid Modal Dialog",
-      close: () => { this.showDialog = false; },
-      style: dialogIsModal
-        ? { width: MODAL_WIDTH + "px", height: MODAL_HEIGHT + "px", flex: "none" }
-        : { ...fillerStyle, maxWidth: "420px" },
+      close,
+      fullScreen: mode === "fullScreen",
+      style: {
+        docked: { ...fillerStyle },
+        modal: { width: MODAL_WIDTH + "px", height: MODAL_HEIGHT + "px", flex: "none" },
+        fullScreen: {},
+      }[mode],
       children: [content],
     });
 
-    const dockedSlot = dialog.show(this.showDialog && !dialogIsModal);
-
-    return column(
-      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: "16px" } },
+    return row(
+      // Deliberately *not* alignItems: "flex-start" here - the docked
+      // dialog's own fillerStyle (flex: 1 1 0) needs this row to give it a
+      // definite, stretched height to fill.
+      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px" } },
       pageActions({ information, source, fileName: "src/pages/HybridModalDialog.js" }),
-      alert(
-        { key: "info", style: { flex: "none" } },
-        text({
-          key: "infoText",
-          text: "A hybrid modal dialog - only modal when there isn't enough room. Open it, then resize the window: " +
-            "the same dialog (and its counter) moves between docked and modal, never resetting.",
-        }),
-      ),
-      row(
-        // Deliberately *not* alignItems: "flex-start" here - the docked
-        // dialog's own fillerStyle (flex: 1 1 0) needs this row to give it
-        // a definite, stretched height to fill; without that, its own
-        // body (also fillerStyle) has nothing to fill either and
-        // collapses to zero height instead. The button opts back out
-        // individually (alignSelf) rather than the row opting every
-        // child out of stretch.
-        { key: "controls", style: { gap: "16px", minHeight: 0, flex: "1 1 auto" } },
-        // A themed widget (cascade.ui's button()) - the app's theme decides
-        // what it looks like; only its placement in this row is set here.
-        button(
-          { key: "openButton", style: { flex: "none", alignSelf: "flex-start" } },
-          "Open Hybrid Modal Dialog",
-          () => { this.showDialog = true; },
+      // The controls, on a panel of their own (an elevated card - white,
+      // with a shadow, on the grey page) - its edge is the border between
+      // them and the docked dialog. As wide as the page when the
+      // dialog isn't docked beside it.
+      card(
+        {
+          key: "panel",
+          style: {
+            display: "flex", flexDirection: "column", gap: "16px", boxSizing: "border-box",
+            ...(mode === "docked" ? { width: PANEL_WIDTH + "px", flex: "none" } : { ...fillerStyle }),
+          },
+        },
+        alert(
+          { key: "info", style: { flex: "none" } },
+          text({
+            key: "infoText",
+            text: "A hybrid modal dialog - docked when there's room, modal when there isn't, and full screen on a " +
+              "phone-sized screen. Open it, then resize the window: the same dialog (and its counter) moves between " +
+              "them, never resetting.",
+          }),
         ),
-        dockedSlot,
+        // A themed widget (cascade.ui's button()) - the app's theme decides
+        // what it looks like; only its placement here is set here.
+        centerMiddle(
+          { key: "openButtonArea", style: { ...fillerStyle, ...overflowVisibleStyle } },
+          button({ key: "openButton" }, "Open Hybrid Modal Dialog", () => { this.showDialog = true; }),
+        ),
       ),
+      // The dialog has one place per build: docked here, or in the
+      // overlay - never both. Put in the overlay's content while docked
+      // too, the overlay (still shown as this build runs) would render it
+      // there once more, taking its element back from the docked slot just
+      // before the overlay closes - and the dialog would be gone.
+      dialog.show(this.showDialog && mode === "docked"),
       overlay(
-        modalPresentation(dialog, () => { this.showDialog = false; }),
-        { key: "dialogOverlay", showing: this.showDialog && dialogIsModal },
+        { key: "dialogOverlay", showing: this.showDialog && mode !== "docked" },
+        mode === "docked" ? null : mode === "fullScreen" ? fullScreenPresentation(dialog) : modalPresentation(dialog, close),
       ),
     );
   }
@@ -132,8 +160,8 @@ class DialogContent extends Component {
     return column(
       { key: "content", style: { padding: "16px", gap: "12px" } },
       p({ key: "explanation" },
-        "This counter's value survives the docked ⇄ modal transition - it's the exact same component " +
-        "instance either way, not a fresh one.",
+        "This counter's value survives moving between docked, modal and full screen - it's the exact same " +
+        "component instance each way, not a fresh one.",
       ),
       p({ key: "counter" }, "Counter: " + this.counter),
       button(

@@ -31,8 +31,10 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  *  - listItem: `key`, `active`, `onClick` (or a loose function),
  *    `style`, `children` - one clickable row of a list, marked when active.
  *  - dialog: `key`, `title`, `close` (called by its close button),
- *    `style`, `children` - a dialog's own box: title bar, close button and
- *    body. Where it's shown (docked, or modal over the app) is up to
+ *    `fullScreen`, `style`, `children` - a dialog's own box: title bar,
+ *    close button and body. Full screen, it fills whatever it's placed in,
+ *    as a phone app's screen does: no corners, no shadow, and a back arrow
+ *    at the top left (calling `close`) instead of the close button. Where it's shown (docked, or modal over the app) is up to
  *    whoever places it - see cascade.ui's overlay().
  *
  * Widgets that are more than one element (an alert: icon plus message) are

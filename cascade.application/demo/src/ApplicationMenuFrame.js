@@ -195,7 +195,9 @@ class ApplicationMenuFrameLayout extends Component {
         flex: "1 1 auto", minHeight: 0, boxSizing: "border-box", padding: "16px",
         background: "#ecf0f1", overflow: "auto",
       },
-      context: { usableWidth: workAreaWidth, usableHeight: workAreaHeight },
+      // The page's own pixel budget - and the whole app's size, for what
+      // covers the whole app (a full-screen dialog, say).
+      context: { usableWidth: workAreaWidth, usableHeight: workAreaHeight, appWidth: bounds.width, appHeight: bounds.height },
     });
 
     const column = div(

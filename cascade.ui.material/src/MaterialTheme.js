@@ -52,29 +52,41 @@ class MaterialAlert extends Component {
 }
 
 class MaterialDialog extends Component {
-  setProperties({ title, close, style, children }) {
+  setProperties({ title, close, fullScreen, style, children }) {
     this.title = title || "";
     this.close = close || null;
+    this.fullScreen = !!fullScreen;
     this.style = style || null;
     this.dialogChildren = children || [];
   }
 
   build() {
+    const close = () => this.close && this.close();
+    // Full screen: Material's full-screen dialog - the surface itself, with
+    // a back arrow and the title in a top app bar.
+    const frame = this.fullScreen
+      ? { width: "100%", height: "100%", background: "rgb(var(--mdui-color-surface))" }
+      : {
+        background: "rgb(var(--mdui-color-surface-container-high))",
+        borderRadius: "var(--mdui-shape-corner-extra-large)", boxShadow: "var(--mdui-elevation-level3)",
+      };
     return column(
       {
         key: "dialog",
-        style: {
-          background: "rgb(var(--mdui-color-surface-container-high))", color: "rgb(var(--mdui-color-on-surface))",
-          borderRadius: "var(--mdui-shape-corner-extra-large)", boxShadow: "var(--mdui-elevation-level3)",
-          boxSizing: "border-box", overflow: "hidden", pointerEvents: "auto", ...this.style,
-        },
+        style: { color: "rgb(var(--mdui-color-on-surface))", boxSizing: "border-box", overflow: "hidden", pointerEvents: "auto", ...frame, ...this.style },
       },
       row(
-        { key: "titleBar", style: { padding: "8px 8px 0 24px", flex: "none", alignItems: "center", gap: "8px", fontSize: "20px" } },
+        {
+          key: "titleBar",
+          style: this.fullScreen
+            ? { padding: "8px 16px 8px 4px", minHeight: "56px", flex: "none", alignItems: "center", gap: "8px", fontSize: "22px" }
+            : { padding: "8px 8px 0 24px", flex: "none", alignItems: "center", gap: "8px", fontSize: "20px" },
+        },
+        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).show(this.fullScreen),
         // text(): a lone string starting lowercase (a file name, say)
         // would be taken for an implicit key.
         filler({ key: "title" }, text({ key: "titleText", text: this.title })),
-        iconButton({ key: "close", icon: "close", title: "Close", onClick: () => this.close && this.close() }),
+        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).show(!this.fullScreen),
       ),
       // Sized by its content, scrolling once the dialog has a height of its own.
       column({ key: "body", style: { flex: "1 1 auto", minHeight: 0, overflow: "auto" } }, this.dialogChildren),

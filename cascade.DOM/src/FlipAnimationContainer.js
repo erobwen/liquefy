@@ -105,7 +105,14 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     const drawnAt = new Map();
     if (animate) {
       for (const { element } of u.tracked) {
-        if (element.isConnected) drawnAt.set(element, rectOf(element));
+        if (!element.isConnected) continue;
+        const rect = rectOf(element);
+        // Text is drawn at its font size times the (uniform) scale it's
+        // animating with - see startAnimations().
+        const spring = u.springs.get(element);
+        const font = textFontSize(element);
+        if (font) rect.font = font * (spring ? 1 + spring.sx : 1);
+        drawnAt.set(element, rect);
       }
       for (const element of u.ghosts.keys()) drawnAt.set(element, rectOf(element));
     }
@@ -269,6 +276,11 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
       element.style.transformOrigin = "";
     }
     u.layout = new Map(u.tracked.map(({ element }) => [element, rectOf(element)]));
+    const fonts = new Map();
+    for (const { element } of u.tracked) {
+      const font = textFontSize(element);
+      if (font) fonts.set(element, font);
+    }
 
     for (const { element, ancestor } of u.tracked) {
       const before = drawnAt.get(element);
@@ -277,8 +289,22 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
       if (before) {
         spring.x = before.x - now.x;
         spring.y = before.y - now.y;
-        spring.sx = now.width > 0 ? before.width / now.width - 1 : 0;
-        spring.sy = now.height > 0 ? before.height / now.height - 1 : 0;
+        if (fonts.has(element)) {
+          // An element with text of its own can't have its box scaled: its
+          // text nodes can't be counter-scaled, so the text would be
+          // squashed along - and its box often changes size for reasons
+          // that have nothing to do with it (a stretching flex parent whose
+          // widest item left, say). So it's scaled uniformly, by how large
+          // its text is drawn, and only when that changes (moving to a
+          // parent with another font size); its box takes its new size at
+          // once.
+          const ratio = before.font ? before.font / fonts.get(element) - 1 : 0;
+          spring.sx = ratio;
+          spring.sy = ratio;
+        } else {
+          spring.sx = now.width > 0 ? before.width / now.width - 1 : 0;
+          spring.sy = now.height > 0 ? before.height / now.height - 1 : 0;
+        }
       } else if (!ancestor || drawnAt.has(ancestor)) {
         // Appearing (the outermost new element): fades in where it lies.
         spring.o = -1;
@@ -426,6 +452,18 @@ function isSettled(spring) {
 function rectOf(element) {
   const rect = element.getBoundingClientRect();
   return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+}
+
+// The font size of an element's own text - undefined if it has no text of
+// its own (only elements, or whitespace), or no known font size.
+function textFontSize(element) {
+  let hasText = false;
+  for (const node of element.childNodes) {
+    if (node.nodeType === 3 && node.textContent.trim() !== "") { hasText = true; break; }
+  }
+  if (!hasText) return undefined;
+  const size = parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).fontSize);
+  return size > 0 ? size : undefined;
 }
 
 // What a leaving element loses by leaving its place: whatever it inherited

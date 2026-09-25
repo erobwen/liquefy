@@ -144,6 +144,46 @@ describe("FlipAnimationContainer animations", function () {
     assert.equal(frames.length, 0, "and the animation has stopped");
   });
 
+  it("an element with text of its own is scaled only by how large its text is drawn - never by its box changing size", function () {
+    // Like a flex column that stretches its items to the widest one: when
+    // the wide one leaves, the others' boxes narrow - their text must not
+    // be squashed along. Moving to the smaller-font list, one does shrink.
+    class Stretched extends Component {
+      initializeState() {
+        return { a: ["wide", "one", "two"], b: [] };
+      }
+      build() {
+        const width = this.a.includes("wide") ? "200" : "100";
+        const item = (fontSize) => (name) => div({ key: name, title: width, style: { fontSize } }, text({ key: name + "Text", text: name }));
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "listA" }, this.a.map(item("40px"))),
+          div({ key: "listB" }, this.b.map(item("20px"))),
+        );
+      }
+    }
+    const stretched = new Stretched();
+    stretched.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const two = named("two");
+    const one = named("one");
+
+    postponeInvalidations();
+    stretched.a = ["two"];
+    stretched.b = ["one"];
+    continueInvalidations();
+
+    const scaleOf = (element) => drawn(element);
+    assert.equal(scaleOf(two).sx, 1, "the stretched sibling isn't scaled");
+    assert.equal(scaleOf(two).sy, 1);
+    assert.ok(Math.abs(scaleOf(one).sx - 2) < 1e-9 && Math.abs(scaleOf(one).sy - 2) < 1e-9, "the moved one starts at its old text size - uniformly");
+    runFrames(10);
+    assert.ok(scaleOf(one).sx > 1 && scaleOf(one).sx < 2, "and shrinks on the way");
+    assert.equal(scaleOf(one).sx, scaleOf(one).sy);
+    runToRest();
+    assert.equal(one.style.transform, "");
+  });
+
   it("an element that didn't move isn't touched", function () {
     const { lists, element } = setup();
     const four = element("four");

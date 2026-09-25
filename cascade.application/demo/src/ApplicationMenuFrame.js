@@ -269,12 +269,15 @@ class MenuList extends Component {
 // the logo. (Percentage margins are fractions of the box's width.)
 function logo() {
   return div(
-    { key: "logo", style: { overflow: "hidden", aspectRatio: "3.4", margin: "0 0 12px 0", flex: "none" } },
+    { key: "logo", style: { overflow: "hidden", aspectRatio: "3.5", margin: "0 0 12px 0", flex: "none" } },
     img({
       key: "logoImage",
       src: menuBarLogo,
       alt: "Cascade",
-      style: { display: "block", width: "112%", marginLeft: "-6%", marginTop: "-21.5%" },
+      // The logo spans 6-95% of the image across, 31-67% down: at 106% of
+      // the box wide, shifted 3% left, it spans about 3-98% of the box -
+      // its glow included.
+      style: { display: "block", width: "106%", marginLeft: "-3%", marginTop: "-20%" },
     }),
   );
 }

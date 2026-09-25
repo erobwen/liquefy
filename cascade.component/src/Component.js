@@ -335,9 +335,32 @@ export class Component {
       // is being rendered again anyway (someone kept a reference to it):
       // restart it rather than replace it, keeping its key map.
       if (u.buildRepeater.retracted) u.buildRepeater.restart();
+      this.refreshCreatorBuild();
       refreshIfNeeded(u.buildRepeater);
     }
     return this.newBuild;
+  }
+
+  // A component's properties are written by its creator's build (the one
+  // that constructed it) - and an invalidated build's writings are
+  // retracted at once, until it reruns (see cascade.reactive's dispose()).
+  // So before building, bring the creator's build up to date: otherwise a
+  // component rendered *before* its creator's build reruns reads its
+  // properties as undefined. Normally the order takes care of itself - a
+  // component is rendered by its creator's own subtree, after the creator
+  // has built - but not for one shown somewhere else, earlier in the tree:
+  // a page's buttons in a top-bar portal, or a dialog in an overlay, when
+  // a theme switch invalidates the page and them alike. Recursive - the
+  // creator's own properties come from its creator. A creator whose build
+  // is up to date, retracted, or running right now (it's the one pulling)
+  // is left as it is.
+  refreshCreatorBuild() {
+    const creator = this.creator;
+    if (!creator) return;
+    const creatorBuild = creator.unobservable.buildRepeater;
+    if (!creatorBuild || creatorBuild.retracted) return;
+    creator.refreshCreatorBuild();
+    refreshIfNeeded(creatorBuild);
   }
 
   // Override: do this component's own real-time work against `context` -

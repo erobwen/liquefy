@@ -1,8 +1,8 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { RenderContext, Component } from "@liquefy/cascade.component";
-import { DOMElementTarget, div, text } from "@liquefy/cascade.dom";
-import { portal, portalContents } from "../index.js";
+import { RenderContext, Component, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
+import { DOMElementTarget, DOMServiceLocator, div, text, element } from "@liquefy/cascade.dom";
+import { portal, portalContents, button, basicTheme } from "../index.js";
 
 // portal()/portalContents(): a page putting its own buttons into the app's
 // top bar, rendered before it - the shape the demo uses them in. Every leaf
@@ -131,5 +131,43 @@ describe("portals", function () {
     }
     new Both().renderOnto(new RenderContext(new DOMElementTarget(container)));
     assert.equal(container.textContent, "B");
+  });
+
+  it("contents with themed widgets in them survive a theme switch - they're rebuilt with their properties", function () {
+    // A theme switch rebuilds everything that asked for a widget: the page
+    // (which constructs the contents) and the contents themselves - which
+    // are rendered in the portal, before the page.
+    const fancyTheme = {
+      locate(query) {
+        if (query.type !== "widget" || query.name !== "button") return undefined;
+        const { onClick, children, ...rest } = query.properties;
+        return element("fancy-button", { ...rest, ...(onClick ? { onclick: onClick } : {}), children });
+      },
+    };
+    class Labelled extends Component {
+      setProperties({ labels }) {
+        this.labels = labels;
+      }
+      build() {
+        return button({ key: "button" }, this.labels.map((label) => text({ key: label, text: label })));
+      }
+    }
+    class ThemedPage extends Component {
+      build() {
+        return div(
+          { key: "page" },
+          button({ key: "pageButton" }, text({ key: "pageButtonText", text: "page" })),
+          portalContents({ key: "actions", portal: this.inherit("topBarPortal") }, new Labelled({ key: "labelled", labels: ["a", "b"] })),
+        );
+      }
+    }
+    const services = new ObservableCompoundServiceLocator(new DOMServiceLocator(), basicTheme);
+    const app = new App({ pages: [new ThemedPage({ key: "themed" })] });
+    app.renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator: services }));
+    assert.equal(topBar(), "ab");
+
+    services.locators.splice(1, 1, fancyTheme);
+    assert.equal(topBar(), "ab");
+    assert.ok(container.querySelector("[id*='(topBar)'] fancy-button"), "rebuilt with the new theme");
   });
 });

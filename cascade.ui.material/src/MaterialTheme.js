@@ -1,6 +1,7 @@
 import { Component, frozen, callback } from "@liquefy/cascade.component";
-import { element, text } from "@liquefy/cascade.dom";
-import { row, column, filler, wrapper, icon, iconButton, alertSeverities } from "@liquefy/cascade.ui";
+import { element, text, input as htmlInput, label as htmlLabel, button as htmlButton, div } from "@liquefy/cascade.dom";
+import { row, column, filler, wrapper, icon, iconButton, alertSeverities, ColorScheme } from "@liquefy/cascade.ui";
+import { argbFromHex, Scheme, CorePalette, redFromArgb, greenFromArgb, blueFromArgb } from "@material/material-color-utilities";
 
 /**
  * The Material theme - ported from flow.ui/material's own components.js,
@@ -21,6 +22,41 @@ import { row, column, filler, wrapper, icon, iconButton, alertSeverities } from 
  */
 
 const onClickOf = (onClick) => (onClick ? { onclick: onClick } : {});
+
+// mdui's own colors, from one: its variables (--mdui-color-primary, ...,
+// each "r, g, b"), made from the base color the way mdui's
+// setColorScheme() makes them - Material's tonal palettes - but as data,
+// for whoever gives a part of the app its colors to set on an element
+// (see cascade.ui's colorScheme.js). The light scheme only.
+const mduiVariablesByColor = new Map();
+const kebab = (name) => name.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
+const rgbOf = (argb) => [redFromArgb(argb), greenFromArgb(argb), blueFromArgb(argb)].join(", ");
+
+export function mduiColorVariables(hex) {
+  let variables = mduiVariablesByColor.get(hex);
+  if (variables) return variables;
+  const source = argbFromHex(hex);
+  const scheme = Scheme.light(source).toJSON();
+  // The surface containers mdui adds, which the color library lacks.
+  const palette = CorePalette.of(source);
+  Object.assign(scheme, {
+    surfaceDim: palette.n1.tone(87),
+    surfaceBright: palette.n1.tone(98),
+    surfaceContainerLowest: palette.n1.tone(100),
+    surfaceContainerLow: palette.n1.tone(96),
+    surfaceContainer: palette.n1.tone(94),
+    surfaceContainerHigh: palette.n1.tone(92),
+    surfaceContainerHighest: palette.n1.tone(90),
+    surfaceTintColor: scheme.primary,
+  });
+  variables = {};
+  for (const name in scheme) variables["--mdui-color-" + kebab(name)] = rgbOf(scheme[name]);
+  mduiVariablesByColor.set(hex, variables);
+  return variables;
+}
+
+// Material's baseline purple, and its tertiary rose as the accent.
+export const materialDefaultColors = { base: "#6750a4", accent: "#7d5260" };
 
 const cardStyles = {
   elevated: { background: "rgb(var(--mdui-color-surface-container-low))", boxShadow: "var(--mdui-elevation-level1)" },
@@ -157,6 +193,70 @@ class MaterialCheckbox extends Component {
   }
 }
 
+// The browser's own color picker, in Material's outline and corners.
+class MaterialColorField extends Component {
+  setProperties({ label, value, onInput, style }) {
+    this.label = label || "";
+    this.value = value || "#000000";
+    this.onInput = onInput || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    return htmlLabel(
+      { key: "field", style: { display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "rgb(var(--mdui-color-on-surface))", ...this.style } },
+      htmlInput({
+        key: "input",
+        type: "color",
+        value: this.value,
+        oninput: callback("input", (event) => this.onInput && this.onInput(event.target.value)),
+        style: {
+          boxSizing: "border-box", width: "44px", height: "36px", padding: "3px", margin: 0, flex: "none", cursor: "pointer",
+          background: "transparent", border: "1px solid rgb(var(--mdui-color-outline))", borderRadius: "var(--mdui-shape-corner-small)",
+        },
+      }),
+      text({ key: "labelText", text: this.label }),
+    );
+  }
+}
+
+// Material's primary tabs: the selected one in the primary color, with its
+// indicator under it.
+class MaterialTabBar extends Component {
+  setProperties({ tabs, selected, onSelect, style }) {
+    this.tabs = frozen(tabs || []);
+    this.selected = selected;
+    this.onSelect = onSelect || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    return div(
+      {
+        key: "tabs",
+        role: "tablist",
+        style: { display: "flex", flexWrap: "wrap", borderBottom: "1px solid rgb(var(--mdui-color-surface-variant))", ...this.style },
+      },
+      this.tabs.map((tab) => {
+        const selected = tab.key === this.selected;
+        return htmlButton(
+          {
+            key: tab.key,
+            role: "tab",
+            onclick: callback("select" + tab.key, () => this.onSelect && this.onSelect(tab.key)),
+            style: {
+              padding: "12px 20px", margin: "0 0 -1px 0", font: "inherit", fontWeight: "500", cursor: "pointer",
+              background: "transparent", border: "none", borderBottom: "3px solid " + (selected ? "rgb(var(--mdui-color-primary))" : "transparent"),
+              color: selected ? "rgb(var(--mdui-color-primary))" : "rgb(var(--mdui-color-on-surface-variant))",
+            },
+          },
+          text({ key: tab.key + "Title", text: tab.title }),
+        );
+      }),
+    );
+  }
+}
+
 const widgets = {
   button({ onClick, children, ...rest }) {
     return element("mdui-button", {
@@ -215,10 +315,19 @@ const widgets = {
   textField: (properties) => new MaterialTextField(properties),
 
   checkbox: (properties) => new MaterialCheckbox(properties),
+
+  colorField: (properties) => new MaterialColorField(properties),
+
+  tabBar: (properties) => new MaterialTabBar(properties),
 };
 
 export class MaterialThemeServiceLocator {
+  constructor() {
+    this.colorScheme = new ColorScheme({ ...materialDefaultColors, extraVariables: (base) => mduiColorVariables(base) });
+  }
+
   locate(query) {
+    if (query.type === "colorScheme") return this.colorScheme;
     if (query.type !== "widget") return undefined;
     const build = widgets[query.name];
     return build ? build(query.properties) : undefined;

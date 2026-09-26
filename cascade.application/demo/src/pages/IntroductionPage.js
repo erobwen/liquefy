@@ -4,6 +4,7 @@ import { pageActions } from "../components/pageActions.js";
 import { article, emphasis } from "../components/layout.js";
 import source from "./IntroductionPage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
+import whatIfEverything from "../../../../cascade/images/what-if-everything.svg";
 
 /**
  * Introduction Page - what Cascade is, and what's new about it: temporal
@@ -20,10 +21,16 @@ export class IntroductionPage extends Component {
     return article(
       { key: "introduction" },
       pageActions({ source, fileName: "src/pages/IntroductionPage.js" }),
+      img({
+        key: "whatIfEverything",
+        src: whatIfEverything,
+        alt: "What if everything was reactive?",
+        style: { display: "block", width: "100%", margin: "8px 0 16px 0", borderRadius: "8px" },
+      }),
       h1("Introduction to Cascade"),
       p("Reactive front end framework, with an integrated state management system."),
       p(emphasis("The purpose of Cascade is to make it simple and fast to build advanced user interfaces that are data driven, generative and reactive.")),
-      p("Unlike most reactive UI frameworks, Cascade renders directly onto a live target in one pass - reading and writing the real DOM in tree order - rather than building an abstract tree first and reconciling it separately."),
+      p("Unlike most reactive UI frameworks, Cascade renders directly onto a live target in one pass - reading and writing the real DOM in tree order - rather than building an abstract tree first and reconciling it separately. All while still ensuring minimal changes to the DOM upon change."),
       h2("World's first: Temporal Signals"),
       p(
         "Signals are great for building reactive systems, and they come in many forms and shapes, such as properties " +
@@ -43,7 +50,7 @@ export class IntroductionPage extends Component {
         src: temporalSignalsBoard,
         alt: "Temporal signals: components - temporal observers - read (R) and write (W) the properties of data objects, along time. A change written to one property reaches only the readers after it in the pipeline.",
         style: { display: "block", width: "100%", maxWidth: "600px", margin: "8px 0 16px 0", borderRadius: "8px" },
-      }),
+      }),      
       p("In Cascade this mechanism is used to define a reactive order of rendering, so that a parent can render before its children, measure its bounds, and pass the bounds on to its children for programmatic reactive layout. So temporal signals are used in Cascade to build a reactive front end framework with unprecedented precision."),
       p(
         "But the real use case where temporal signals shine is when building ",

@@ -1,5 +1,5 @@
 import { b, div, text } from "@liquefy/cascade.dom";
-import { card, column, fitContainerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { card, column, fitContainerStyle, overflowVisibleStyle, themeColor } from "@liquefy/cascade.ui";
 
 /**
  * The demo's shared page layout - so every page spaces itself the same way,
@@ -19,8 +19,8 @@ import { card, column, fitContainerStyle, overflowVisibleStyle } from "@liquefy/
 // The space between the parts of a page - everywhere.
 export const pageGap = "16px";
 
-// Emphasis - the accent blue both themes have in common with the logo.
-export const accentColor = "#2e86c1";
+// Emphasis - the accent color of the theme's color scheme.
+export const accentColor = themeColor.accent;
 
 const toChildren = (children) => children.map((child) => typeof(child) === "string" ? text(child) : child);
 

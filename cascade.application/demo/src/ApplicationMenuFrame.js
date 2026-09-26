@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { a, div, img, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
-import { overlayFrame, iconButton, portal } from "@liquefy/cascade.ui";
+import { overlayFrame, iconButton, portal, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.png";
 
 const MENU_WIDTH = 220;
@@ -131,11 +131,16 @@ export class ApplicationMenuFrame extends Component {
     return this.pages[0];
   }
 
+  // The app's colors: its theme's color scheme, as CSS variables on its
+  // outermost element - everything in the app uses them (see cascade.ui's
+  // colorScheme.js). Picking another color rewrites these, and nothing
+  // else is built again.
   build() {
+    const scheme = currentColorScheme();
     return elementBoundsProvider({
       key: "bounds",
       className: "application-menu-frame",
-      style: { position: "relative", boxSizing: "border-box", height: "100%", overflow: "hidden" },
+      style: { ...(scheme ? scheme.variables() : {}), position: "relative", boxSizing: "border-box", height: "100%", overflow: "hidden" },
       child: new ApplicationMenuFrameLayout({ key: "layout", frame: this }),
     });
   }
@@ -176,7 +181,7 @@ class ApplicationMenuFrameLayout extends Component {
     const topBar = div(
       { key: "topBar", style: {
         height: TOP_BAR_HEIGHT + "px", boxSizing: "border-box", display: "flex", alignItems: "center",
-        gap: "12px", padding: "0 16px", background: "#2c3e50", color: "white", flex: "none",
+        gap: "12px", padding: "0 16px", background: themeColor.chromeDark, color: themeColor.onChrome, flex: "none",
       } },
       iconButton({
         key: "hamburger",
@@ -196,7 +201,7 @@ class ApplicationMenuFrameLayout extends Component {
       child: page.component,
       style: {
         flex: "1 1 auto", minHeight: 0, boxSizing: "border-box", padding: "16px",
-        background: "#eaf0f6", color: "#2c3e50", overflow: "auto",
+        background: themeColor.page, color: themeColor.text, overflow: "auto",
       },
       // The page's own pixel budget - and the whole app's size, for what
       // covers the whole app (a full-screen dialog, say). And its part of
@@ -283,7 +288,7 @@ class MenuList extends Component {
   build() {
     const { frame } = this;
     return div(
-      { key: "list", style: { boxSizing: "border-box", padding: "16px", background: "#34495e", color: "white", overflow: "auto", ...this.style } },
+      { key: "list", style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
       logo(),
       ...frame.pages.map((page) => {
         const active = page === frame.currentPage();

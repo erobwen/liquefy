@@ -171,8 +171,10 @@ export class ServiceProvider extends Component {
       u.compound = inherited ? new CompoundServiceLocator(own, inherited) : own;
     }
     if (!u.providedContext) u.providedContext = context.derive(context.target);
+    // Everything but the services, passed through - the target included:
+    // moved to another parent, a provider renders its child there too.
     for (const key of Object.keys(context)) {
-      if (key !== "target" && key !== "serviceLocator") u.providedContext[key] = context[key];
+      if (key !== "serviceLocator") u.providedContext[key] = context[key];
     }
     u.providedContext.serviceLocator = u.compound;
     this.child.renderOnto(u.providedContext);

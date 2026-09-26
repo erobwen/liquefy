@@ -19,4 +19,4 @@ TextField.prototype.setTextareaHeight = function () {
   if (this.inputRef && this.inputRef.value) setTextareaHeight.call(this);
 };
 
-export { MaterialThemeServiceLocator, materialTheme } from "./src/MaterialTheme.js";
+export { MaterialThemeServiceLocator, materialTheme, mduiColorVariables, materialDefaultColors } from "./src/MaterialTheme.js";

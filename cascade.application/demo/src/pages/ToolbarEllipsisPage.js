@@ -1,6 +1,6 @@
 import { Component, callback, flush } from "@liquefy/cascade.component";
 import { p, text, select, option, span, elementBoundsProvider, overflowContainer, elementSlot } from "@liquefy/cascade.dom";
-import { button, iconButton, alert, card, textField, popover, row, filler, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { button, iconButton, alert, card, textField, popover, row, filler, overflowVisibleStyle, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import source from "./ToolbarEllipsisPage.js?raw";
@@ -47,7 +47,7 @@ export class ToolbarEllipsisPage extends Component {
       new SizePicker({ key: "size" }),
       icon("settings", 3), icon("star", 4),
       select(
-        { key: "font", title: "Font", style: { flex: "none", height: "32px", padding: "0 6px", font: "inherit", color: "inherit", border: "1px solid #cdd7e2", borderRadius: "6px", background: "white" }, onchange: callback("font", (event) => { this.lastTool = "font " + event.target.value; }) },
+        { key: "font", title: "Font", style: { flex: "none", height: "32px", padding: "0 6px", font: "inherit", color: "inherit", border: "1px solid " + themeColor.border, borderRadius: "6px", background: themeColor.surface }, onchange: callback("font", (event) => { this.lastTool = "font " + event.target.value; }) },
         ...["Sans", "Serif", "Monospace"].map((font) => option({ key: font, value: font }, text({ key: font + "Text", text: font }))),
       ),
       icon("key", 5), icon("bolt", 6),

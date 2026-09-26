@@ -2,6 +2,7 @@ import { Component, frozen, callback } from "@liquefy/cascade.component";
 import { button as htmlButton, input as htmlInput, label as htmlLabel, span, div, text } from "@liquefy/cascade.dom";
 import { row, column, filler, wrapper } from "./Layout.js";
 import { icon, iconButton, alertSeverities } from "./widgets.js";
+import { themeColor, ColorScheme, defaultColors } from "./colorScheme.js";
 
 /**
  * The basic theme - plain HTML, lightly styled (ported from
@@ -15,7 +16,8 @@ import { icon, iconButton, alertSeverities } from "./widgets.js";
  * in an alert, ...) are asked for the same way too, so they come from
  * whatever theme is in the context.
  *
- * The look: the blue tones of the Cascade app's own navy and slate, soft
+ * The look: tones of one base color - slate blue, unless changed (see
+ * colorScheme.js: every color here is one of its CSS variables) - soft
  * corners - square, just rounded a little (6px on controls, 8px on
  * surfaces; the Material theme's are pill shaped) - and one discreet
  * shadow for whatever lies on the page. Buttons are white chips on it.
@@ -26,22 +28,10 @@ import { icon, iconButton, alertSeverities } from "./widgets.js";
  * ensureStyleSheet()) - and inline style is left for what the caller gives.
  */
 
-// The palette - exported for whoever builds something of their own in the
-// same look (a widget no theme provides, say).
-export const basicColors = {
-  navy: "#2c3e50",
-  slate: "#34495e",
-  text: "#2c3e50",
-  page: "#eaf0f6",
-  surface: "#ffffff",
-  filled: "#e1e9f2",
-  border: "#cdd7e2",
-  accent: "#2e86c1",
-  error: "#c0392b",
-};
-export const basicShadow = "0 1px 2px rgba(44, 62, 80, 0.10), 0 2px 6px rgba(44, 62, 80, 0.08)";
-const dialogShadow = "0 12px 32px rgba(44, 62, 80, 0.35)";
-const c = basicColors;
+// The theme's colors - its scheme's CSS variables - and its shadows.
+const c = { ...themeColor, error: "#c0392b" };
+export const basicShadow = "0 1px 2px rgba(30, 40, 55, 0.10), 0 2px 6px rgba(30, 40, 55, 0.08)";
+const dialogShadow = "0 12px 32px rgba(30, 40, 55, 0.35)";
 
 const styleSheet = `
 .cb-button {
@@ -52,11 +42,11 @@ const styleSheet = `
   box-shadow: ${basicShadow}; cursor: pointer; user-select: none;
   transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.cb-button:hover:not(:disabled) { background: #f3f7fb; border-color: #b4c3d3; }
+.cb-button:hover:not(:disabled) { background: ${c.surfaceHover}; border-color: ${c.borderStrong}; }
 .cb-button:active:not(:disabled) { background: ${c.filled}; box-shadow: none; }
-.cb-button.cb-filled { color: white; background: ${c.slate}; border-color: ${c.slate}; }
-.cb-button.cb-filled:hover:not(:disabled) { background: #3f5a74; border-color: #3f5a74; }
-.cb-button.cb-filled:active:not(:disabled) { background: ${c.navy}; }
+.cb-button.cb-filled { color: ${c.onChrome}; background: ${c.chrome}; border-color: ${c.chrome}; }
+.cb-button.cb-filled:hover:not(:disabled) { background: ${c.chromeLight}; border-color: ${c.chromeLight}; }
+.cb-button.cb-filled:active:not(:disabled) { background: ${c.chromeDark}; }
 .cb-button:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
 .cb-button .cb-icon { font-size: 20px; }
 .cb-icon { font-size: 24px; line-height: 1; user-select: none; }
@@ -68,16 +58,32 @@ const styleSheet = `
 .cb-icon-button:hover { background: rgba(127, 150, 175, 0.18); }
 .cb-icon-button:active { background: rgba(127, 150, 175, 0.32); }
 .cb-list-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; user-select: none; transition: background-color 0.15s; }
-.cb-list-item:hover { background: rgba(46, 134, 193, 0.08); }
-.cb-list-item.cb-active { background: rgba(46, 134, 193, 0.16); font-weight: bold; }
+.cb-list-item:hover { background: ${c.accentFaint}; }
+.cb-list-item.cb-active { background: ${c.accentSoft}; font-weight: bold; }
 .cb-input {
   box-sizing: border-box; height: 32px; padding: 0 10px; min-width: 0; font: inherit;
   color: ${c.text}; background: ${c.surface}; border: 1px solid ${c.border}; border-radius: 6px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.cb-input:focus { outline: none; border-color: ${c.accent}; box-shadow: 0 0 0 3px rgba(46, 134, 193, 0.2); }
+.cb-input:focus { outline: none; border-color: ${c.accent}; box-shadow: 0 0 0 3px ${c.accentRing}; }
 .cb-input.cb-invalid { border-color: ${c.error}; background: #fdf1f0; }
-.cb-button:focus-visible, .cb-icon-button:focus-visible, .cb-list-item:focus-visible {
+.cb-color {
+  box-sizing: border-box; width: 40px; height: 32px; padding: 3px; margin: 0; flex: none;
+  background: ${c.surface}; border: 1px solid ${c.border}; border-radius: 6px; cursor: pointer;
+}
+.cb-color:hover { border-color: ${c.borderStrong}; }
+.cb-color::-webkit-color-swatch-wrapper { padding: 0; }
+.cb-color::-webkit-color-swatch { border: none; border-radius: 4px; }
+.cb-color::-moz-color-swatch { border: none; border-radius: 4px; }
+.cb-tab-bar { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid ${c.border}; }
+.cb-tab {
+  padding: 8px 16px; margin: 0 0 -1px 0; font: inherit; font-weight: 500; color: ${c.textSoft};
+  background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0;
+  cursor: pointer; transition: background-color 0.15s, color 0.15s;
+}
+.cb-tab:hover { color: ${c.text}; background: ${c.accentFaint}; }
+.cb-tab.cb-selected { color: ${c.accent}; border-bottom-color: ${c.accent}; }
+.cb-button:focus-visible, .cb-icon-button:focus-visible, .cb-list-item:focus-visible, .cb-tab:focus-visible, .cb-color:focus-visible {
   outline: 2px solid ${c.accent}; outline-offset: 2px;
 }
 `;
@@ -169,7 +175,7 @@ class BasicDialog extends Component {
           style: {
             padding: this.fullScreen ? "6px 16px 6px 6px" : "6px 6px 6px 16px",
             ...(this.fullScreen ? { minHeight: "48px" } : {}),
-            background: c.navy, color: "white", flex: "none", alignItems: "center", gap: "8px", fontWeight: "bold",
+            background: c.chromeDark, color: c.onChrome, flex: "none", alignItems: "center", gap: "8px", fontWeight: "bold",
           },
         },
         iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).show(this.fullScreen),
@@ -237,9 +243,60 @@ class BasicCheckbox extends Component {
         type: "checkbox",
         checked: this.checked,
         onchange: callback("change", (event) => this.onChange && this.onChange(event.target.checked)),
-        style: { width: "18px", height: "18px", margin: 0, accentColor: c.slate },
+        style: { width: "18px", height: "18px", margin: 0, accentColor: c.chrome },
       }),
       text({ key: "labelText", text: this.label }),
+    );
+  }
+}
+
+// A color, its label beside it - the browser's own picker opens on a click.
+class BasicColorField extends Component {
+  setProperties({ label, value, onInput, style }) {
+    this.label = label || "";
+    this.value = value || "#000000";
+    this.onInput = onInput || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    ensureStyleSheet();
+    return htmlLabel(
+      { key: "field", style: { display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", ...this.style } },
+      htmlInput({
+        key: "input",
+        class: "cb-color",
+        type: "color",
+        value: this.value,
+        oninput: callback("input", (event) => this.onInput && this.onInput(event.target.value)),
+      }),
+      text({ key: "labelText", text: this.label }),
+    );
+  }
+}
+
+// Tabs, underlined in the accent color when selected.
+class BasicTabBar extends Component {
+  setProperties({ tabs, selected, onSelect, style }) {
+    this.tabs = frozen(tabs || []);
+    this.selected = selected;
+    this.onSelect = onSelect || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    ensureStyleSheet();
+    return div(
+      { key: "tabs", class: "cb-tab-bar", role: "tablist", style: this.style || {} },
+      this.tabs.map((tab) => htmlButton(
+        {
+          key: tab.key,
+          class: tab.key === this.selected ? "cb-tab cb-selected" : "cb-tab",
+          role: "tab",
+          onclick: callback("select" + tab.key, () => this.onSelect && this.onSelect(tab.key)),
+        },
+        text({ key: tab.key + "Title", text: tab.title }),
+      )),
     );
   }
 }
@@ -311,10 +368,19 @@ const widgets = {
   textField: (properties) => new BasicTextField(properties),
 
   checkbox: (properties) => new BasicCheckbox(properties),
+
+  colorField: (properties) => new BasicColorField(properties),
+
+  tabBar: (properties) => new BasicTabBar(properties),
 };
 
 export class BasicThemeServiceLocator {
+  constructor() {
+    this.colorScheme = new ColorScheme(defaultColors);
+  }
+
   locate(query) {
+    if (query.type === "colorScheme") return this.colorScheme;
     if (query.type !== "widget") return undefined;
     const build = widgets[query.name];
     return build ? build(query.properties) : undefined;

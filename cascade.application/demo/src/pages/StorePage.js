@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { button, card, icon, iconButton, row, portal, portalContents } from "@liquefy/cascade.ui";
+import { button, card, icon, iconButton, row, portal, portalContents, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import source from "./StorePage.js?raw";
@@ -109,7 +109,7 @@ class ProductList extends Component {
   // component either way, so it's the same element wherever it is. Its own
   // text color: in the cart, it sits in the dark status bar.
   tile(product, inCart) {
-    const common = { cursor: "pointer", userSelect: "none", color: "#1f2d3a" };
+    const common = { cursor: "pointer", userSelect: "none", color: themeColor.text };
     return card(
       {
         key: product.id,
@@ -169,7 +169,7 @@ class StatusBar extends Component {
         key: "statusBar",
         style: {
           flex: "none", minHeight: "64px", gap: "12px", padding: "8px 16px", alignItems: "center", boxSizing: "border-box",
-          overflow: "visible", background: "#2c3e50", color: "white", borderRadius: "8px",
+          overflow: "visible", background: themeColor.chromeDark, color: themeColor.onChrome, borderRadius: "8px",
         },
       },
       icon({ key: "cartIcon", name: "shopping_cart", style: { fontSize: "28px", flex: "none" } }),

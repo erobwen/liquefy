@@ -47,6 +47,12 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  *    marking it as wrong), `style` - a labelled input field.
  *  - checkbox: `key`, `label`, `checked`, `onChange` (called with whether
  *    it's now checked), `style`.
+ *  - colorField: `key`, `label`, `value` (a hex color: "#34495e"),
+ *    `onInput` (called with the new one, as it's being picked), `style` - a
+ *    color, and the browser's own picker for it.
+ *  - tabBar: `key`, `tabs` (`[{ key, title }]`), `selected` (a tab's key),
+ *    `onSelect` (called with the key of the tab clicked), `style` - a row of
+ *    tabs, one of them selected. What each shows is up to whoever places it.
  *
  * Widgets that are more than one element (an alert: icon plus message) are
  * components of their own in each theme, so the keys inside them are
@@ -90,6 +96,8 @@ export const listItem = (...parameters) => widget("listItem", toButtonProperties
 export const dialog = (...parameters) => widget("dialog", toPropertiesWithChildren(parameters));
 export const textField = (...parameters) => widget("textField", toProperties(parameters));
 export const checkbox = (...parameters) => widget("checkbox", toProperties(parameters));
+export const colorField = (...parameters) => widget("colorField", toProperties(parameters));
+export const tabBar = (...parameters) => widget("tabBar", toProperties(parameters));
 
 // Each alert severity's icon and colors - the same in every theme, so a
 // warning reads as a warning whichever one is in use.

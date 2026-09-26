@@ -206,6 +206,45 @@ describe("DOM service locators (reached through the render context)", function (
     assert.equal(plain.parentNode.parentNode, red.parentNode.parentNode);
   });
 
+  it("a serviceProvider() moved to another parent renders its child there - not onto the parent it left", function () {
+    // A page that lays out the same keyed sections side by side, or - narrow
+    // - under a bar, in another parent: each section with services of its
+    // own (a theme, say) - which what's built inside it asks for.
+    class Content extends Component {
+      setProperties({ title }) {
+        this.title = title;
+      }
+      build() {
+        return div({ key: "section" }, button({ key: "button" }, text({ key: "title", text: this.title })));
+      }
+    }
+    class Section extends Component {
+      setProperties({ title }) {
+        this.title = title;
+      }
+      build() {
+        return serviceProvider({ key: "provider", serviceLocator: new RedButtons(), child: new Content({ key: "content", title: this.title }) });
+      }
+    }
+    const layout = observable({ wide: true });
+    class Page extends Component {
+      build() {
+        const sections = [new Section({ key: "a", title: "A" }), new Section({ key: "b", title: "B" })];
+        return layout.wide
+          ? div({ key: "row" }, sections)
+          : div({ key: "column" }, div({ key: "bar" }, text({ key: "barText", text: "bar" })), sections[0]);
+      }
+    }
+    new Page().renderOnto(contextWith(new DOMServiceLocator()));
+    const shown = () => Array.from(container.firstChild.children).map((each) => each.textContent);
+    assert.deepEqual(shown(), ["A", "B"]);
+    layout.wide = false;
+    assert.deepEqual(shown(), ["bar", "A"], "moved into the column");
+    assert.equal(container.querySelector("button").style.color, "red", "with its own services still");
+    layout.wide = true;
+    assert.deepEqual(shown(), ["A", "B"], "and back");
+  });
+
   it("a reconciled element whose tag changes gets a new element in the same place, keeping its children", function () {
     const model = observable({ big: true, title: "Title" });
     class Heading extends Component {

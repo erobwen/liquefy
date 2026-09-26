@@ -1,5 +1,6 @@
 import { Component } from "@liquefy/cascade.component";
 import { hydrate } from "@liquefy/cascade.dom";
+import { themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { accentColor } from "../components/layout.js";
 import source from "./HydrationPage.js?raw";
@@ -99,7 +100,7 @@ const content = {
         type: "htmlElement",
         name: "blockquote",
         properties: {
-          style: { borderLeft: "4px solid " + accentColor, margin: "16px 0", padding: "4px 16px", color: "#5d6d7e" },
+          style: { borderLeft: "4px solid " + accentColor, margin: "16px 0", padding: "4px 16px", color: themeColor.textSoft },
           children: [
             "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
           ],
@@ -146,7 +147,7 @@ const hydrationDocument = {
         children: [
           element("summary", { style: { cursor: "pointer" }, children: ["Show the document this page was hydrated from"] }),
           element("pre", {
-            style: { fontSize: "12px", background: "#eef3f8", border: "1px solid #cdd7e2", borderRadius: "6px", padding: "12px", overflow: "auto", lineHeight: "1.3" },
+            style: { fontSize: "12px", background: themeColor.filled, border: "1px solid " + themeColor.border, borderRadius: "6px", padding: "12px", overflow: "auto", lineHeight: "1.3" },
             children: [JSON.stringify(content, null, 2)],
           }),
         ],

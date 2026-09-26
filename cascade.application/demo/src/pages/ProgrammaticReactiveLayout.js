@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { text, div, span, elementBoundsProvider, fitTextWithinWidth } from "@liquefy/cascade.dom";
-import { controlPanel, textField, icon, row, column, centerMiddle, fillerStyle, centerMiddleStyle } from "@liquefy/cascade.ui";
+import { controlPanel, textField, icon, row, column, centerMiddle, fillerStyle, centerMiddleStyle, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage, accentColor } from "../components/layout.js";
 import surface from "../../../../cascade/images/surface.jpg";
@@ -105,7 +105,7 @@ class BoundsDisplay extends Component {
     backgroundImage: `url(${surface})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
-    border: "1px solid #2c3e50",
+    border: "1px solid " + themeColor.chromeDark,
   };
 
   build() {
@@ -115,7 +115,7 @@ class BoundsDisplay extends Component {
       text: "Bounds: " + Math.round(width) + " x " + Math.round(height),
       width: width * 0.8,
       maxFontSize: 16,
-      style: { padding: "4px 8px", borderRadius: "4px", backgroundColor: "rgba(255, 255, 255, 0.6)", color: "#2c3e50" },
+      style: { padding: "4px 8px", borderRadius: "4px", backgroundColor: "rgba(255, 255, 255, 0.6)", color: themeColor.text },
     });
   }
 }
@@ -124,7 +124,7 @@ class BoundsDisplay extends Component {
  * String Display - a text as wide as the cell.
  */
 class StringDisplay extends Component {
-  static cellStyle = { border: "1px solid #cdd7e2", backgroundColor: "#ffffff", color: "#34495e" };
+  static cellStyle = { border: "1px solid " + themeColor.border, backgroundColor: themeColor.surface, color: themeColor.text };
 
   build() {
     const { width, height } = this.renderContext;
@@ -143,7 +143,7 @@ class StringDisplay extends Component {
  * as fits the cell.
  */
 class FixedAspectRatioDisplay extends Component {
-  static cellStyle = { border: "1px solid #cdd7e2", backgroundColor: "#f4f7fb" };
+  static cellStyle = { border: "1px solid " + themeColor.border, backgroundColor: themeColor.page };
 
   initializeState() {
     return { aspectRatio: (Math.random() * 4 + 1) / (Math.random() * 4 + 1) };
@@ -163,7 +163,7 @@ class FixedAspectRatioDisplay extends Component {
         key: "box",
         style: {
           flex: "none", width: width + "px", height: height + "px", boxSizing: "border-box",
-          border: "1px solid " + accentColor, borderRadius: "6px", backgroundColor: "#d6eaf8", color: "#1b4f72", overflow: "hidden",
+          border: "1px solid " + accentColor, borderRadius: "6px", backgroundColor: themeColor.accentLight, color: themeColor.accentDark, overflow: "hidden",
         },
       },
       fittedText({
@@ -182,7 +182,7 @@ class FixedAspectRatioDisplay extends Component {
  * a whole description when there's plenty.
  */
 class ResponsiveDisplay extends Component {
-  static cellStyle = { border: "1px solid #2c3e50", backgroundColor: "#34495e", color: "#ffffff" };
+  static cellStyle = { border: "1px solid " + themeColor.chromeDark, backgroundColor: themeColor.chrome, color: themeColor.onChrome };
 
   build() {
     const { width, height } = this.renderContext;

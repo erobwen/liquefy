@@ -31,8 +31,8 @@ const information = {
 //    itself (appWidth, not the page) is narrower than FULL_SCREEN_BELOW. By
 //    the app's width, which follows the window, not the page's, which jumps
 //    with the menu.
-const PANEL_WIDTH = 400;
-const DOCKED_MIN_WIDTH = 800;
+const PANEL_WIDTH = 520;
+const DOCKED_MIN_WIDTH = 920;
 const FULL_SCREEN_BELOW = 600;
 const MODAL_WIDTH = 360;
 const MODAL_HEIGHT = 420;

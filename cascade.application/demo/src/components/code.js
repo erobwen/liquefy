@@ -3,10 +3,14 @@ import { DOMNodeRenderComponent } from "@liquefy/cascade.dom";
 import { overlay, iconButton, dialog } from "@liquefy/cascade.ui";
 import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
+import xml from "highlight.js/lib/languages/xml";
+import bash from "highlight.js/lib/languages/bash";
 import "highlight.js/styles/github.css";
 import { modalPresentation } from "./modal.js";
 
 hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("html", xml);
+hljs.registerLanguage("bash", bash);
 
 /**
  * Showing a page's own source code - ported from
@@ -14,15 +18,16 @@ hljs.registerLanguage("javascript", javascript);
  * CodeDisplay.
  */
 
-// JavaScript source, syntax highlighted: a <pre><code> whose content is
+// Source, syntax highlighted - JavaScript, or `language`: "html" or "bash": a <pre><code> whose content is
 // highlight.js's HTML. A node of its own rather than a code() tag, since
 // that HTML has to go in as innerHTML - which element properties can't
 // set (DOMElementComponent lowercases every property name, and
 // element.innerhtml is nothing). Highlighted again only when the source
 // changes.
 export class HighlightedCode extends DOMNodeRenderComponent {
-  setProperties({ source, style }) {
+  setProperties({ source, language, style }) {
     this.source = source || "";
+    this.language = language || "javascript";
     this.style = style || null;
   }
 
@@ -32,12 +37,12 @@ export class HighlightedCode extends DOMNodeRenderComponent {
       u.element = document.createElement("pre");
       u.element.style.margin = "0";
       u.code = document.createElement("code");
-      u.code.className = "hljs language-javascript";
+      u.code.className = "hljs language-" + this.language;
       Object.assign(u.code.style, { display: "inline-block", minWidth: "100%", boxSizing: "border-box", padding: "15px", fontSize: "14px", userSelect: "text" });
       u.element.appendChild(u.code);
     }
     if (u.highlighted !== this.source) {
-      u.code.innerHTML = hljs.highlight(this.source, { language: "javascript" }).value;
+      u.code.innerHTML = hljs.highlight(this.source, { language: this.language }).value;
       u.highlighted = this.source;
     }
     Object.assign(u.element.style, this.style || {});

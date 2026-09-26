@@ -1,4 +1,4 @@
-![Cascade](cascade/images/menu-bar-logo.png "Cascade")
+![Cascade](cascade/images/menu-bar-logo.svg "Cascade")
 
 # Liquefy
 

@@ -1,7 +1,7 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { a, div, img, span, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, portal, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
-import menuBarLogo from "../../../cascade/images/menu-bar-logo.png";
+import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -320,13 +320,14 @@ class MenuList extends Component {
   }
 }
 
-// The Cascade logotype, at the top of the menu - its background
-// transparent, so it sits on the menu as it is, glow and all.
+// The Cascade logotype, at the top of the menu - a vector drawing with a
+// snug bounding box, on a transparent background: it sits on the menu as it
+// is, with room around it given here.
 function logo() {
   return img({
     key: "logo",
     src: menuBarLogo,
     alt: "Cascade",
-    style: { display: "block", width: "100%", margin: "0 0 12px 0", flex: "none" },
+    style: { display: "block", width: "100%", boxSizing: "border-box", padding: "10px 8px", margin: "0 0 12px 0", flex: "none" },
   });
 }

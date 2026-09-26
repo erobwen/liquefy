@@ -2,6 +2,7 @@ import { RenderContext } from "@liquefy/cascade.component";
 import { DOMElementTarget, browserLocation } from "@liquefy/cascade.dom";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
+import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
 import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
 import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
 import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
@@ -52,6 +53,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   location,
   pages: [
     { key: "introduction", title: "Introduction", icon: "info", component: new IntroductionPage() },
+    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage() },
     { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
     { key: "toolbar-ellipsis", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage() },
     { key: "recursive-demo", title: "Recursive Demo", component: new RecursiveDemo() },

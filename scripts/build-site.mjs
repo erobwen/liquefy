@@ -39,7 +39,7 @@ for (const demo of demos) {
 cpSync(join(root, "landing"), site, { recursive: true });
 for (const [from, to] of [
   ["cascade/images/what-if-everything.svg", "what-if-everything.svg"],
-  ["cascade/images/menu-bar-logo.png", "cascade-logo.png"],
+  ["cascade/images/menu-bar-logo.svg", "cascade-logo.svg"],
   ["cascade/images/favicon.svg", "favicon.svg"],
   ["cascade/images/favicon.png", "favicon.png"],
   ["flow.application/demo/public/flow.svg", "flow-logo.svg"],

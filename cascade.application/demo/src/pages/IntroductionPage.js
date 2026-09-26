@@ -1,11 +1,34 @@
-import { Component } from "@liquefy/cascade.component";
+import { Component, callback } from "@liquefy/cascade.component";
 import { div, h1, h2, p, ul, li, a, img, text } from "@liquefy/cascade.dom";
 import { themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { HighlightedCode } from "../components/code.js";
 import { article, emphasis } from "../components/layout.js";
 import source from "./IntroductionPage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import whatIfEverything from "../../../../cascade/images/what-if-everything.svg";
+
+// Temporal signals in their smallest form - its printouts as they really
+// are (run it with @liquefy/cascade.reactive).
+const temporalSignalsExample = `import getWorld from "@liquefy/cascade.reactive";
+const { observable, repeat } = getWorld({ timeLevels: 2 });
+
+const box = observable({ width: 100, label: "Box" });
+
+// Time 0: gives the box a 20px border - by adding it to its own width.
+repeat(() => { box.width = box.width + 20; }, { time: 0 });
+
+// Time 1: sees the box as time 0 left it.
+repeat(() => console.log(box.label, box.width), { time: 1 });
+// Box 120
+
+box.width = 200;
+// Box 220 - time 0 reads the new 200, not its own 120:
+// no second border, and no endless loop.
+
+box.label = "Wide box";
+// Wide box 220 - only time 1 reads the label,
+// so only time 1 runs again.`;
 
 /**
  * Introduction Page - what Cascade is, and what's new about it: temporal
@@ -17,6 +40,35 @@ import whatIfEverything from "../../../../cascade/images/what-if-everything.svg"
  * Component.js), which is all a page reached via DOMContextContainer
  * (see ApplicationMenuFrame.js's own `workArea`) needs.
  */
+// The way on, to the Getting Started page: a real link to its address (open
+// it in a new tab, copy it), and a plain click goes there without loading
+// the app anew - as the menu does.
+function learnMore(location) {
+  const path = "getting-started";
+  return div(
+    {
+      key: "learnMore",
+      style: {
+        margin: "24px 0 8px 0", padding: "16px 20px", borderRadius: "8px",
+        background: themeColor.accentLight, borderLeft: "4px solid " + themeColor.accent,
+      },
+    },
+    a(
+      {
+        key: "learnMoreLink",
+        href: location.href(path),
+        style: { color: themeColor.accentDark, fontWeight: "bold", fontSize: "17px", textDecoration: "none" },
+        onclick: callback("learnMore", (event) => {
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          location.navigate(path);
+        }),
+      },
+      text({ key: "learnMoreText", text: "Do you want to learn more? Get started with Cascade →" }),
+    ),
+  );
+}
+
 export class IntroductionPage extends Component {
   build() {
     return article(
@@ -56,13 +108,24 @@ export class IntroductionPage extends Component {
         src: temporalSignalsBoard,
         alt: "Temporal signals: components - temporal observers - read (R) and write (W) the properties of data objects, along time. A change written to one property reaches only the readers after it in the pipeline.",
         style: { display: "block", width: "100%", maxWidth: "600px", margin: "8px 0 16px 0", borderRadius: "8px" },
-      }),      
+      }),
+      p(
+        "In its smallest form: two readers and writers of the same object, at two fixed times. The first adds a border ",
+        "to the box's width - by writing the width it reads - and the second sees the result. With ordinary signals, ",
+        "a reader writing what it reads would set itself off again, adding the border over and over.",
+      ),
+      new HighlightedCode({
+        key: "temporalSignalsExample",
+        source: temporalSignalsExample,
+        style: { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" },
+      }),
       p("In Cascade this mechanism is used to define a reactive order of rendering, so that a parent can render before its children, measure its bounds, and pass the bounds on to its children for programmatic reactive layout. So temporal signals are used in Cascade to build a reactive front end framework with unprecedented precision."),
       p(
         "But the real use case where temporal signals shine is when building ",
         emphasis("WYSIWYG word processors and other document editors"),
         ", which temporal signals are especially engineered for.",
       ),
+      learnMore(this.inherit("location")),
       h2("Technical features"),
       ul(
         li(emphasis("Temporal signals"), " (see above): readers and writers of the same objects, ordered in time - rendering follows the tree, so what a parent measures reaches its children in the same pass."),

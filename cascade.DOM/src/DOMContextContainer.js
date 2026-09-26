@@ -1,6 +1,6 @@
 import { frozen } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
-import { locateDOMComponent } from "./DOMServiceLocator.js";
+import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
 
@@ -64,3 +64,5 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
     this.child.renderOnto(u.innerContext);
   }
 }
+
+registerDOMComponent("contextContainer", DOMContextContainer);

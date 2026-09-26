@@ -553,6 +553,13 @@ export class Component {
       // looking at whatever unrelated component happens to be on top at
       // that later moment.
       u.repeater = repeat(() => {
+        // Its properties first, as before building (see
+        // refreshCreatorBuild()): a component that renders straight from
+        // its properties - a DOM element - can have its render queued, and
+        // reached, just after its creator's build was invalidated, its
+        // properties retracted with it (a creator correcting itself with
+        // setState() and flush() from its own render, say).
+        this.refreshCreatorBuild();
         renderStack.push(this);
         try {
           // this.renderContext, not the `context` argument this closure

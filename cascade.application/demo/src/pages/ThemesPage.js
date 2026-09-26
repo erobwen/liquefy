@@ -148,8 +148,8 @@ class SampleButtons extends Component {
         button({ key: "second", variant: "tonal" }, text({ key: "secondText", text: "Second" })),
         iconButton({ key: "favorite", icon: this.favorite ? "favorite" : "favorite_border", title: "Favorite" }, () => { this.favorite = !this.favorite; }),
         iconButton({ key: "info", icon: "info", title: "More information" }, (event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          this.anchor = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+          // The button itself - the popover follows it, should it move.
+          this.anchor = event.currentTarget;
           this.popoverOpen = true;
         }),
         button({ key: "openDialog" }, text({ key: "openDialogText", text: "Open dialog" }), () => { this.dialogOpen = true; }),

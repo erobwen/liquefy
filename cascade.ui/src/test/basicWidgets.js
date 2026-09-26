@@ -178,4 +178,36 @@ describe("basic theme widgets", function () {
     assert.equal(app.open, false);
     assert.equal(content(), undefined);
   });
+
+  it("popover anchored to an element: follows it when the window is resized - and stops once closed", function (done) {
+    const view = document.defaultView;
+    view.innerWidth = 1000;
+    view.innerHeight = 800;
+    const anchorElement = document.createElement("button");
+    document.body.appendChild(anchorElement);
+    let anchorRect = { left: 900, top: 700, right: 940, bottom: 740 };
+    anchorElement.getBoundingClientRect = () => anchorRect;
+    const app = render(page((self) => overlayFrame(
+      { key: "frame" },
+      popover({ key: "popover", anchor: anchorElement, showing: self.open, close: () => { self.open = false; } },
+        card({ key: "info" }, text({ key: "infoText", text: "More" })),
+      ),
+    ), { open: true }));
+    const content = () => Array.from(container.querySelectorAll("div")).find((each) => each.style.position === "fixed");
+    assert.equal(content().style.right, "60px", "where its anchor is");
+
+    // The window resized - and the anchor moved with the layout.
+    anchorRect = { left: 500, top: 700, right: 540, bottom: 740 };
+    view.dispatchEvent(new view.Event("resize"));
+    setTimeout(() => {
+      assert.equal(content().style.right, "460px", "followed it");
+      app.open = false;
+      anchorRect = { left: 100, top: 100, right: 140, bottom: 140 };
+      view.dispatchEvent(new view.Event("resize"));
+      setTimeout(() => {
+        assert.equal(content(), undefined, "closed - and nothing following any more");
+        done();
+      }, 20);
+    }, 20);
+  });
 });

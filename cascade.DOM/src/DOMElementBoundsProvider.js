@@ -2,7 +2,7 @@ import { accessInitialValues, frozen } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
-import { locateDOMComponent } from "./DOMServiceLocator.js";
+import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 
 /**
  * DOMElementBoundsProvider: owns one real DOM element, measures it with
@@ -116,3 +116,5 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
     if (u.resizeListener) window.removeEventListener("resize", u.resizeListener);
   }
 }
+
+registerDOMComponent("elementBoundsProvider", DOMElementBoundsProvider);

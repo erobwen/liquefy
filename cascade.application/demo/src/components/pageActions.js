@@ -46,8 +46,8 @@ export class InformationButton extends Component {
         title: "About this page",
         style: { color: "#74b9ff" },
       }, (event) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        this.anchor = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+        // The button itself - the popover follows it, should it move.
+        this.anchor = event.currentTarget;
         this.open = true;
       }),
       popover(

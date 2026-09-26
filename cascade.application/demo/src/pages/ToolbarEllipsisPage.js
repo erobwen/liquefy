@@ -1,21 +1,21 @@
 import { Component, callback, flush } from "@liquefy/cascade.component";
-import { p, text, input, select, option, span, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { p, text, input, select, option, span, elementBoundsProvider, overflowContainer, elementSlot } from "@liquefy/cascade.dom";
 import { button, iconButton, alert, card, popover, row, column, filler, fitContainerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import source from "./ToolbarEllipsisPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
-  summary: "A toolbar that adapts to the room it has - tools of any width:",
+  summary: "A toolbar that adapts to the room it has - tools of any width, laid out for real:",
   points: [
     "Resize the window: the toolbar shows as many tools as fit, and an ellipsis button for the rest, which opens them in a popover.",
-    "It renders, then measures the tools where they really are, and corrects itself within the same frame if they don't fit - or if more would.",
-    "Each tool's width is remembered from where it was last drawn, so the toolbar knows whether the next one fits before placing it - and a tool that grows by itself (the size picker going from 9 to 10) makes it fit again.",
+    "Nothing is measured anywhere but where it will be: the toolbar puts its tools in the bar one by one, and at the first one that doesn't fit, takes it out again - all before anything is drawn.",
+    "That takes rendering in real time, which Flow couldn't: there, a copy of a tool had to be measured on its own - and in Cascade, a tool out of view isn't even a complete node.",
+    "The size picker changes width by itself (9 to 10): the toolbar notices, and lays out again.",
   ],
 };
 
 const GAP = 2;
-const PADDING = 8;
 
 /**
  * Toolbar Ellipsis - ported from flow.application/demo's
@@ -25,9 +25,11 @@ const PADDING = 8;
  * here - icons, text buttons, a size picker, a select, a search field - and
  * can change width by themselves.
  *
- * The toolbar's width comes from cascade.dom's elementBoundsProvider(): the
- * toolbar is its direct child, and reads the measured width from its render
- * context. How many tools fit is up to the toolbar - see EllipsisToolbar.
+ * The toolbar's width comes from cascade.dom's elementBoundsProvider(), the
+ * toolbar its direct child: resized, it renders again. (The card goes
+ * around the bounds provider, not between it and the toolbar: an element
+ * gives what it renders a render context of its own, without the measured
+ * width.)
  */
 export class ToolbarEllipsisPage extends Component {
   initializeState() {
@@ -72,11 +74,14 @@ export class ToolbarEllipsisPage extends Component {
       ),
       text({ key: "lastTool", text: this.lastTool ? "Last pushed: " + this.lastTool : "Push a tool." }),
       filler({ key: "space" }),
-      elementBoundsProvider({
-        key: "toolbarBounds",
-        style: { flex: "none", width: "100%" },
-        child: new EllipsisToolbar({ key: "toolbar", children: tools }),
-      }),
+      card(
+        { key: "toolbarCard", style: { flex: "none", padding: "8px" } },
+        elementBoundsProvider({
+          key: "toolbarBounds",
+          style: { width: "100%" },
+          child: new EllipsisToolbar({ key: "toolbar", children: tools }),
+        }),
+      ),
     );
   }
 }
@@ -98,27 +103,13 @@ class SizePicker extends Component {
 }
 
 /**
- * Ellipsis Toolbar - as many of its tools as fit in its width (from the
- * DOMElementBoundsProvider it's the direct child of), and an ellipsis
- * button opening the rest in a popover. Its tools can be of any width, and
- * change width.
- *
- * It renders, then measures - cascade renders in real time, in tree order,
- * so right after this toolbar has rendered its tools, they are laid out in
- * the page:
- *  - Each tool's width is measured where it is (in the bar, or in the
- *    popover) and remembered - widths known before placing the next tool,
- *    without rendering anything twice.
- *  - From those, how many fit (\`shown\`, this toolbar's state) is worked
- *    out; if it isn't what was just rendered, it's corrected with
- *    setState() - and flush(), so the corrected rendering follows in the
- *    same frame, before anything is drawn.
- *  - A tool that changes width by itself, with nothing about the toolbar
- *    changing, is caught by a ResizeObserver on the tools, which does the
- *    same.
- * The first rendering shows all the tools - so every width is known from
- * the start. Settles in one correction: the next rendering measures the
- * same widths, and works out the same number.
+ * Ellipsis Toolbar - as many of its tools as fit, and an ellipsis button
+ * opening the rest in a popover. It leaves the layout to cascade.dom's
+ * OverflowContainer, which places the tools itself, one by one, measuring
+ * each where it really is, and puts those that don't fit into the overflow
+ * slot - an element slot this toolbar owns (created in initialization) and
+ * shows in its popover. All the toolbar keeps is how many overflowed, for
+ * the ellipsis button to say.
  */
 export class EllipsisToolbar extends Component {
   setProperties({ children }) {
@@ -126,43 +117,44 @@ export class EllipsisToolbar extends Component {
   }
 
   initializeState() {
-    return { shown: this.tools.length, menuOpen: false, anchor: null };
+    return { overflowCount: 0, menuOpen: false, anchor: null };
   }
 
   initialUnobservables() {
-    return { widths: new WeakMap(), observer: null, observed: new WeakSet() };
+    return {
+      overflowSlot: elementSlot({ key: "overflowSlot", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: GAP + "px" } }),
+    };
   }
 
   build() {
-    const shown = Math.min(this.shown, this.tools.length);
-    const barTools = this.tools.slice(0, shown);
-    const menuTools = this.tools.slice(shown);
-    const menuButton = iconButton({
+    const ellipsis = iconButton({
       key: "menuButton",
       icon: "more_horiz",
-      title: menuTools.length + " more tools",
+      title: this.overflowCount + " more tools",
       style: { flex: "none" },
       onClick: callback("openMenu", (event) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        this.anchor = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+        // The button itself - the popover follows it, should it move.
+        this.anchor = event.currentTarget;
         this.menuOpen = true;
       }),
     });
-    return card(
-      {
-        key: "toolbar",
-        style: {
-          display: "flex", flexDirection: "row", alignItems: "center", gap: GAP + "px",
-          padding: PADDING + "px", boxSizing: "border-box", width: "100%", overflow: "hidden",
-        },
-      },
-      ...barTools,
-      menuTools.length > 0 ? menuButton : null,
+    return [
+      overflowContainer({
+        key: "bar",
+        style: { display: "flex", flexDirection: "row", alignItems: "center", gap: GAP + "px", width: "100%", overflow: "hidden" },
+        children: this.tools,
+        ellipsis,
+        overflowSlot: this.unobservable.overflowSlot,
+        // Reported from the bar's own rendering - a write back to this
+        // toolbar, which built it: setState() and flush(), so the ellipsis
+        // says the right number in the same frame.
+        onOverflow: callback("overflow", (count) => { flush(() => this.setState({ overflowCount: count })); }),
+      }),
       popover(
         {
           key: "extraToolbarMenu",
           anchor: this.anchor,
-          showing: this.menuOpen && menuTools.length > 0,
+          showing: this.menuOpen && this.overflowCount > 0,
           close: callback("closeMenu", () => { this.menuOpen = false; }),
         },
         card(
@@ -172,82 +164,11 @@ export class EllipsisToolbar extends Component {
             onclick: callback("closeOnPick", (event) => {
               if (event.target.closest("button, mdui-button, mdui-button-icon")) this.menuOpen = false;
             }),
-            style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: GAP + "px", maxWidth: "360px", padding: "4px" },
+            style: { maxWidth: "360px", padding: "4px" },
           },
-          ...menuTools,
+          this.unobservable.overflowSlot,
         ),
       ),
-    );
+    ];
   }
-
-  render(context) {
-    super.render(context);
-    this.fit();
-  }
-
-  // Measure what can be measured, work out how many tools fit, and correct
-  // the rendering if that isn't what it shows.
-  fit() {
-    const u = this.unobservable;
-    // Read, to rerun when the window is resized (the bounds provider
-    // measures) - but the room itself is measured on the bar as it now is,
-    // to the fraction of a pixel.
-    const width = this.renderContext && this.renderContext.width;
-    const bar = elementOf(this);
-    if (typeof(width) !== "number" || !bar || !bar.isConnected) return;
-    const style = bar.ownerDocument.defaultView.getComputedStyle(bar);
-    const available = bar.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
-      - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
-    for (const tool of this.tools) {
-      const element = elementOf(tool);
-      if (!element) continue;
-      this.observe(element);
-      if (element.isConnected) u.widths.set(tool, element.getBoundingClientRect().width);
-    }
-    const menuButton = this.newBuild && this.newBuild.children ? this.newBuild.children.find((child) => child && child.key === "menuButton") : null;
-    const menuElement = menuButton ? elementOf(menuButton) : null;
-    if (menuElement && menuElement.isConnected) u.ellipsisWidth = menuElement.getBoundingClientRect().width;
-    const shown = fitting(this.tools.map((tool) => u.widths.get(tool)), available, u.ellipsisWidth || 40);
-    if (shown !== this.shown) flush(() => this.setState({ shown }));
-  }
-
-  // A tool changing width by itself: fit again. (Called by the observer,
-  // outside any rendering - a plain event, like a click.)
-  observe(element) {
-    const u = this.unobservable;
-    if (typeof(ResizeObserver) === "undefined" || u.observed.has(element)) return;
-    if (!u.observer) u.observer = new ResizeObserver(() => this.fit());
-    u.observer.observe(element);
-    u.observed.add(element);
-  }
-
-  onDispose() {
-    super.onDispose();
-    if (this.unobservable.observer) this.unobservable.observer.disconnect();
-  }
-}
-
-// How many of the tools, with these widths, fit in `available` - leaving
-// room for the ellipsis button whenever any are left over. A width not
-// known yet counts as not fitting.
-function fitting(widths, available, ellipsisWidth) {
-  let used = 0;
-  for (let index = 0; index < widths.length; index++) {
-    if (typeof(widths[index]) !== "number") return index;
-    const next = used + (index > 0 ? GAP : 0) + widths[index];
-    const isLast = index === widths.length - 1;
-    if (next + (isLast ? 0 : GAP + ellipsisWidth) > available) return index;
-    used = next;
-  }
-  return widths.length;
-}
-
-// The element a component ends up as - its own, or that of what it builds.
-function elementOf(component) {
-  let current = component;
-  while (current) {
-    if (current.unobservable && current.unobservable.element) return current.unobservable.element;
-    current = Array.isArray(current.newBuild) ? current.newBuild[0] : current.newBuild;
-  }
-  return null;
 }

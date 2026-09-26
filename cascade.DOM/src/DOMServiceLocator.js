@@ -1,9 +1,6 @@
 import { CompoundServiceLocator, hydrateService, locateService, toPropertiesWithChildren } from "@liquefy/cascade.component";
 import { DOMElementComponent } from "./DOMElementComponent.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
-import { DOMContextContainer } from "./DOMContextContainer.js";
-import { DOMElementBoundsProvider } from "./DOMElementBoundsProvider.js";
-import { FlipAnimationContainer } from "./FlipAnimationContainer.js";
 
 /**
  * The DOM platform's own service locators (see cascade.component's
@@ -18,19 +15,26 @@ import { FlipAnimationContainer } from "./FlipAnimationContainer.js";
 //    `<mdui-button>` are both just an Element with a different tagName.
 //  - `{ type: "textNode", properties }`: a Text node - what text() asks for.
 //  - `{ type: "domComponent", name, properties }`: the platform's other
-//    components (see domComponents below) - what their factory functions
-//    (contextContainer(), flipAnimationContainer(), ...) ask for.
+//    components (see registerDOMComponent() below) - what their factory
+//    functions (contextContainer(), flipAnimationContainer(), ...) ask for.
 // Only what an application builds goes through here: inside this package,
 // components construct each other directly (a DOMElementComponent its
 // Text children, say) - whoever wants another implementation of one of
-// them replaces the whole component, not its insides. (A function, not a
-// table: these modules import this one for their factory functions, so
-// the classes aren't there yet while this module loads.)
-const domComponent = (name) => ({
-  contextContainer: DOMContextContainer,
-  elementBoundsProvider: DOMElementBoundsProvider,
-  flipAnimationContainer: FlipAnimationContainer,
-})[name];
+// them replaces the whole component, not its insides.
+//
+// Each of those components registers itself here, from its own module -
+// rather than this module importing them all: they import this one for
+// their factory functions (locateDOMComponent()), and some build on each
+// other (FlipAnimationContainer and OverflowContainer on
+// DOMPlacingContainer), so importing them from here made cycles in which a
+// class could be needed before its module had finished loading.
+const domComponents = new Map();
+
+export function registerDOMComponent(name, Class) {
+  domComponents.set(name, Class);
+}
+
+const domComponent = (name) => domComponents.get(name);
 
 export class DOMServiceLocator {
   locate(query) {

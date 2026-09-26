@@ -1,10 +1,5 @@
-import { frozen } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
-import { DOMElementComponent } from "./DOMElementComponent.js";
-import { DOMTextComponent } from "./DOMTextComponent.js";
-import { DOMElementTarget } from "./DOMElementTarget.js";
-import { applyStyle } from "./applyStyle.js";
-import { locateDOMComponent } from "./DOMServiceLocator.js";
+import { DOMPlacingContainer } from "./DOMPlacingContainer.js";
+import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 
 export function flipAnimationContainer(...parameters) {
   return locateDOMComponent("flipAnimationContainer", parameters);
@@ -18,16 +13,10 @@ export function flipAnimationContainer(...parameters) {
  * components in it stay exactly as they are everywhere else, knowing
  * nothing about animation.
  *
- * How it sees the subtree: each child is expanded (Component.expand() -
- * every component on the way given its render context, so services such
- * as a theme are found exactly as when rendering normally) down to
- * components that can hand over their own node (providesNode() - see
- * DOMNodeRenderComponent), each of those asked for its node
- * (ensureNode()), and a DOM element's own children expanded the same way,
- * recursively. Then every element's child
- * nodes are put in order, touching only nodes that actually need to move.
- * At rest, the result is exactly the DOM rendering the same subtree
- * normally would give.
+ * How it sees and places the subtree - expanded down to DOM nodes, then
+ * every element's child nodes put in order, islands for what can only be
+ * rendered - is DOMPlacingContainer's (see there). At rest, the result is
+ * exactly the DOM rendering the same subtree normally would give.
  *
  * Animation. Every element it places is tracked. On every render, before
  * changing anything, it records where and how large each one is drawn
@@ -53,35 +42,13 @@ export function flipAnimationContainer(...parameters) {
  *    same element comes back while it's fading, it's restored and moves on
  *    from there.
  *
- * Islands: a component that can only be rendered, not expanded (one with
- * its own render() - a bounds provider, say) is rendered normally, into a
- * plain block element of its own, which is placed and animated like any
- * other element. So is any component the app wants moved as one piece -
- * a card, say, rather than each element in it: `isUnit`, a function
- * given each component on the way down, answering true for those. Edits inside an island stay the island's own business, as
- * efficient as anywhere else; anything that changes the structure of the
- * rest of the subtree reruns the whole container - it reads the entire
- * expanded tree.
+ * Islands - components that can only be rendered, and what `isUnit` says
+ * to place as one piece (see DOMPlacingContainer) - are animated as one
+ * element, in the box the container gives them.
  */
-export class FlipAnimationContainer extends DOMNodeRenderComponent {
-  setProperties({ children, style, isUnit }) {
-    this.children = frozen(children || []);
-    this.style = frozen(style || null);
-    this.isUnit = isUnit || null;
-  }
-
-  // Where expanding stops (see Component.expand()): at what the app wants
-  // moved as one piece, and otherwise at what can hand over its own node.
-  isLeaf(component) {
-    return (this.isUnit && this.isUnit(component)) || (component instanceof DOMNodeRenderComponent && component.providesNode());
-  }
-
+export class FlipAnimationContainer extends DOMPlacingContainer {
   initialUnobservables() {
     const result = super.initialUnobservables();
-    result.previouslySetStyle = {};
-    // Every element placed last time, in tree order, each with its nearest
-    // tracked ancestor element (or null) - see render().
-    result.tracked = [];
     // Per animating element - see startAnimations().
     result.springs = new Map();
     // Where each tracked element lies in the current layout.
@@ -90,26 +57,12 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     result.ghosts = new Map();
     result.framePending = false;
     result.hasRendered = false;
-    // Every component it placed last time - expanded, not rendered - and
-    // whether it's hidden itself right now (see onShow()/onHide()).
-    result.placed = new Set();
-    result.hidden = false;
     return result;
-  }
-
-  // The container's own element, placed like any other rendered node.
-  renderElement(context, existingElement) {
-    const u = this.unobservable;
-    const element = existingElement || document.createElement("div");
-    context.target.reattachElement(element);
-    u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
-    return element;
   }
 
   render(context) {
     super.render(context);
     const u = this.unobservable;
-    if (!u.innerContext) u.innerContext = context.derive(DOMElementTarget.forElement(u.element));
 
     // Only meaningful while the container is in the page: hidden, nothing
     // has a position - it just places, and whatever was animating stops.
@@ -134,11 +87,7 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
     }
 
     const previous = u.tracked;
-    u.tracked = [];
-    const placements = [];
-    const placedBefore = u.placed;
-    u.placed = new Set();
-    this.expandChildren(this, u.element, u.innerContext, this.children, null, placements);
+    const { placements, placedBefore } = this.expandSubtree(context);
 
     const current = new Set(u.tracked.map(({ element }) => element));
     // Leaving: no longer in the tree - only the outermost of a leaving
@@ -154,7 +103,7 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
       if (current.has(element)) this.restoreGhost(element);
     }
 
-    for (const { parent, nodes } of placements) placeInOrder(parent, nodes);
+    for (const { parent, nodes } of placements) this.placeInOrder(parent, nodes);
 
     if (animate) {
       this.removeAsGhosts(leaving, drawnAt, leavingLooks);
@@ -163,108 +112,13 @@ export class FlipAnimationContainer extends DOMNodeRenderComponent {
       this.stopAll();
     }
     u.hasRendered = u.element.isConnected;
-
-    // What it placed gets told it's shown or hidden, as rendering would
-    // have told it (see Component.onShow()): hidden first - whatever it
-    // hands over to something new (a portal's contents, say) is let go
-    // before the new one takes it. Unless the container itself is hidden.
-    if (u.hidden) return;
-    for (const component of placedBefore) {
-      if (!u.placed.has(component)) component.onHide();
-    }
-    for (const component of u.placed) {
-      if (!placedBefore.has(component)) component.onShow();
-    }
+    this.notifyPlaced(placedBefore);
   }
 
-  // Hidden itself (its page switched away from, say): so is everything it
-  // placed - and shown again with it. (Islands are rendered, so rendering
-  // tells them itself.)
-  onHide() {
-    super.onHide();
-    const u = this.unobservable;
-    u.hidden = true;
-    for (const component of u.placed) component.onHide();
-  }
-
-  onShow() {
-    super.onShow();
-    const u = this.unobservable;
-    if (!u.hidden) return;
-    u.hidden = false;
-    for (const component of u.placed) component.onShow();
-  }
-
-  // Expand `children` (the children of `owner`, whose node is
-  // `parentElement`) into nodes, recording where each element's children
-  // go in `placements` (placed afterwards, all at once). `ancestor` is the
-  // nearest tracked element above them (null directly under the container).
-  expandChildren(owner, parentElement, context, children, ancestor, placements) {
-    const nodes = [];
-    placements.push({ parent: parentElement, nodes });
-    children.forEach((child, index) => {
-      if (child === null || typeof(child) === "undefined" || child === false) return;
-      if (typeof(child) === "string" || typeof(child) === "number") {
-        nodes.push(this.looseText(owner, index, child).ensureNode());
-        return;
-      }
-      for (const expanded of child.expand(context, owner, (component) => this.isLeaf(component), this.unobservable.placed)) {
-        nodes.push(this.nodeOf(expanded, context, ancestor, placements));
-      }
-    });
-  }
-
-  nodeOf(component, context, ancestor, placements) {
-    const isUnit = this.isUnit && this.isUnit(component);
-    if (isUnit || !(component instanceof DOMNodeRenderComponent && component.providesNode())) {
-      const holder = this.renderIsland(component, context);
-      // Rendered, not placed: rendering tells it when it's shown or hidden.
-      this.unobservable.placed.delete(component);
-      this.unobservable.tracked.push({ element: holder, ancestor });
-      return holder;
-    }
-    const node = component.ensureNode();
-    if (component instanceof DOMElementComponent) {
-      this.unobservable.tracked.push({ element: node, ancestor });
-      const u = component.unobservable;
-      // Cached, like DOMElementComponent's own render() does - the same
-      // context object every time, so expanding again changes nothing any
-      // build depends on. Dropped when the element is replaced (a tag
-      // change - see DOMElementComponent.replaceElement()).
-      if (!u.childContext) u.childContext = context.derive(DOMElementTarget.forElement(node));
-      this.expandChildren(component, node, u.childContext, component.children || [], node, placements);
-    }
-    return node;
-  }
-
-  // A loose string/number child, as a Text node - kept per position in its
-  // owner's children, so re-expanding patches the same node rather than
-  // making a new one (DOMElementComponent's own render() makes a fresh
-  // one every time; the resulting DOM is the same).
-  looseText(owner, index, value) {
-    const u = owner.unobservable;
-    if (!u.looseTexts) u.looseTexts = [];
-    let textComponent = u.looseTexts[index];
-    if (!textComponent) {
-      textComponent = new DOMTextComponent({ text: value });
-      u.looseTexts[index] = textComponent;
-    } else {
-      textComponent.text = value;
-    }
-    return textComponent;
-  }
-
-  // An island is rendered normally, into a plain block element the
-  // container provides - which gives it a box to be animated as a unit.
-  renderIsland(component, context) {
-    const u = component.unobservable;
-    if (!u.islandElement) {
-      u.islandElement = document.createElement("div");
-      u.islandElement.setAttribute("data-flip-island", "");
-      u.islandContext = context.derive(DOMElementTarget.forElement(u.islandElement));
-    }
-    component.renderOnto(u.islandContext);
-    return u.islandElement;
+  // Leaving ghosts (see removeAsGhosts()) stay where they are while their
+  // container places its children.
+  leftAlone(node) {
+    return GHOSTS.has(node);
   }
 
   // Put each leaving element (only the outermost of a leaving subtree)
@@ -472,6 +326,9 @@ FlipAnimationContainer.clock = {
 // half that, so what happens is easier to follow.
 FlipAnimationContainer.speed = 0.5;
 
+// Its islands' holders are marked as its own.
+FlipAnimationContainer.islandAttribute = "data-flip-island";
+
 // A spring per element, pulling each deviation - position (x, y, pixels),
 // size (sx, sy, ratio - 1), opacity (o, 0 is fully visible) - to zero.
 // Firm enough to arrive in well under a second at full speed, damped just
@@ -531,27 +388,4 @@ function computedLooks(element) {
 // whichever container it belongs to - so placement leaves them alone.
 const GHOSTS = new WeakSet();
 
-// Make `parent`'s child nodes exactly `nodes`, in that order - moving only
-// the nodes that aren't already in place (the same "don't touch what
-// didn't move" rule as DOMElementTarget.reattachElement()), and removing
-// whatever is no longer among them. Leaving ghosts (see removeAsGhosts())
-// are left where they are.
-function placeInOrder(parent, nodes) {
-  const skipGhosts = (node) => {
-    while (node && GHOSTS.has(node)) node = node.nextSibling;
-    return node;
-  };
-  let current = skipGhosts(parent.firstChild);
-  for (const node of nodes) {
-    if (node === current) {
-      current = skipGhosts(current.nextSibling);
-    } else {
-      parent.insertBefore(node, current);
-    }
-  }
-  while (current) {
-    const next = skipGhosts(current.nextSibling);
-    parent.removeChild(current);
-    current = next;
-  }
-}
+registerDOMComponent("flipAnimationContainer", FlipAnimationContainer);

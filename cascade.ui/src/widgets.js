@@ -36,6 +36,12 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  *    as a phone app's screen does: no corners, no shadow, and a back arrow
  *    at the top left (calling `close`) instead of the close button. Where it's shown (docked, or modal over the app) is up to
  *    whoever places it - see cascade.ui's overlay().
+ *  - textField: `key`, `label`, `value`, `onInput` (called with the new
+ *    value, as text), `type` ("text" - the default - or "number"), `unit`
+ *    (shown after the value: "kg"), `error` (a message, shown under it,
+ *    marking it as wrong), `style` - a labelled input field.
+ *  - checkbox: `key`, `label`, `checked`, `onChange` (called with whether
+ *    it's now checked), `style`.
  *
  * Widgets that are more than one element (an alert: icon plus message) are
  * components of their own in each theme, so the keys inside them are
@@ -76,6 +82,8 @@ export const card = (...parameters) => widget("card", toPropertiesWithChildren(p
 export const alert = (...parameters) => widget("alert", toPropertiesWithChildren(parameters));
 export const listItem = (...parameters) => widget("listItem", toButtonProperties(parameters));
 export const dialog = (...parameters) => widget("dialog", toPropertiesWithChildren(parameters));
+export const textField = (...parameters) => widget("textField", toProperties(parameters));
+export const checkbox = (...parameters) => widget("checkbox", toProperties(parameters));
 
 // Each alert severity's icon and colors - the same in every theme, so a
 // warning reads as a warning whichever one is in use.

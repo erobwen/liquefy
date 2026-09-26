@@ -25,13 +25,24 @@ export function defaultToPx(value) {
 // property whose value actually changed. Returns the next `previouslySetStyle`
 // for the caller to store (typically on `this.unobservable`) and pass back in
 // next time.
+// CSS custom properties ("--mdui-color-outline") can only be set through
+// setProperty(): assigned like the others, they are silently ignored.
+function setStyleProperty(elementStyle, property, value) {
+  if (property.startsWith("--")) {
+    if (value === "") elementStyle.removeProperty(property);
+    else elementStyle.setProperty(property, value);
+  } else {
+    elementStyle[property] = value;
+  }
+}
+
 export function applyStyle(element, newStyle, previouslySetStyle) {
   const elementStyle = element.style;
   const currentlySet = previouslySetStyle || {};
 
   for (const property in currentlySet) {
     if (typeof(newStyle[property]) === "undefined") {
-      elementStyle[property] = "";
+      setStyleProperty(elementStyle, property, "");
     }
   }
 
@@ -39,7 +50,7 @@ export function applyStyle(element, newStyle, previouslySetStyle) {
   for (const property in newStyle) {
     const value = newStyle[property];
     if (currentlySet[property] !== value) {
-      elementStyle[property] = defaultToPx(value);
+      setStyleProperty(elementStyle, property, defaultToPx(value));
     }
     nextPreviouslySet[property] = value;
   }

@@ -652,7 +652,23 @@ export class Component {
     // Gone for good (unlike a component that's merely not rendered for a
     // while - see reactiveBuildEquivalent()), so its build stops for good
     // too, instead of staying subscribed to whatever it read.
-    if (u.buildRepeater) retractRepeater(u.buildRepeater);
+    if (u.buildRepeater) {
+      retractRepeater(u.buildRepeater);
+      // And so does everything its build constructed: their properties
+      // were that build's writings, retracted with it. Not all of them are
+      // underneath its render, to be retracted with that - one it built
+      // but isn't showing (a closed drawer's contents, say) - and one whose
+      // build is still alive, pulled by whatever expanded it (see
+      // expand()), would otherwise build once more, reading its properties
+      // as undefined.
+      const built = u.buildRepeater.buildIdObjectMap;
+      if (built) {
+        for (const key in built) {
+          const object = built[key];
+          if (object !== this && typeof(object.onDispose) === "function") object.onDispose();
+        }
+      }
+    }
   }
 
   // Ported from flow.core's Component.js verbatim - a conditional-

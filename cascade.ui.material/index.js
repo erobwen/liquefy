@@ -6,5 +6,7 @@ import "mdui/components/button.js";
 import "mdui/components/button-icon.js";
 import "mdui/components/icon.js";
 import "mdui/components/list-item.js";
+import "mdui/components/text-field.js";
+import "mdui/components/checkbox.js";
 
 export { MaterialThemeServiceLocator, materialTheme } from "./src/MaterialTheme.js";

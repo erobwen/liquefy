@@ -1,5 +1,5 @@
 import { Component, frozen, callback } from "@liquefy/cascade.component";
-import { button as htmlButton, span, text } from "@liquefy/cascade.dom";
+import { button as htmlButton, input as htmlInput, label as htmlLabel, span, div, text } from "@liquefy/cascade.dom";
 import { row, column, filler, wrapper } from "./Layout.js";
 import { icon, iconButton, alertSeverities } from "./widgets.js";
 
@@ -117,6 +117,69 @@ class BasicDialog extends Component {
   }
 }
 
+const errorColor = "#c0392b";
+
+// A label above an input (and its unit, if any), and the error under it,
+// if there is one.
+class BasicTextField extends Component {
+  setProperties({ label, value, onInput, type, unit, error, style }) {
+    this.label = label || "";
+    this.value = value === undefined || value === null ? "" : value;
+    this.onInput = onInput || null;
+    this.type = type || "text";
+    this.unit = unit || null;
+    this.error = error || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    return htmlLabel(
+      { key: "field", style: { display: "flex", flexDirection: "column", gap: "4px", ...this.style } },
+      span({ key: "label", style: { fontSize: "13px", opacity: 0.8 } }, text({ key: "labelText", text: this.label })),
+      row(
+        { key: "inputRow", style: { alignItems: "center", gap: "6px" } },
+        htmlInput({
+          key: "input",
+          type: this.type,
+          value: this.value,
+          oninput: callback("input", (event) => this.onInput && this.onInput(event.target.value)),
+          style: {
+            boxSizing: "border-box", height: "32px", padding: "0 8px", font: "inherit", minWidth: 0,
+            border: "1px solid " + (this.error ? errorColor : "#b2bec3"), borderRadius: "4px",
+            background: this.error ? "#fdf0ef" : "white",
+            ...(this.type === "number" ? { width: "80px" } : { flex: "1 1 auto" }),
+          },
+        }),
+        this.unit ? span({ key: "unit" }, text({ key: "unitText", text: this.unit })) : null,
+      ),
+      div({ key: "error", style: { fontSize: "12px", color: errorColor } }, text({ key: "errorText", text: this.error || "" })).show(!!this.error),
+    );
+  }
+}
+
+class BasicCheckbox extends Component {
+  setProperties({ label, checked, onChange, style }) {
+    this.label = label || "";
+    this.checked = !!checked;
+    this.onChange = onChange || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    return htmlLabel(
+      { key: "field", style: { display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none", ...this.style } },
+      htmlInput({
+        key: "input",
+        type: "checkbox",
+        checked: this.checked,
+        onchange: callback("change", (event) => this.onChange && this.onChange(event.target.checked)),
+        style: { width: "18px", height: "18px", margin: 0 },
+      }),
+      text({ key: "labelText", text: this.label }),
+    );
+  }
+}
+
 const widgets = {
   button({ onClick, style, children, ...rest }) {
     return htmlButton({
@@ -168,6 +231,10 @@ const widgets = {
   },
 
   dialog: (properties) => new BasicDialog(properties),
+
+  textField: (properties) => new BasicTextField(properties),
+
+  checkbox: (properties) => new BasicCheckbox(properties),
 };
 
 export class BasicThemeServiceLocator {

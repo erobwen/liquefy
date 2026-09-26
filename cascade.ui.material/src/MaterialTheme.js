@@ -94,6 +94,67 @@ class MaterialDialog extends Component {
   }
 }
 
+// mdui's outlined text field - its label inside the outline, the unit as
+// its suffix - and the error under it, in the theme's error color.
+class MaterialTextField extends Component {
+  setProperties({ label, value, onInput, type, unit, error, style }) {
+    this.label = label || "";
+    this.value = value === undefined || value === null ? "" : value;
+    this.onInput = onInput || null;
+    this.type = type || "text";
+    this.unit = unit || null;
+    this.error = error || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    // Overflow visible: a filled-in field's label floats half above its
+    // outline.
+    return column(
+      { key: "field", style: { gap: "4px", overflow: "visible", ...this.style } },
+      element("mdui-text-field", {
+        key: "input",
+        variant: "outlined",
+        label: this.label,
+        type: this.type,
+        value: String(this.value),
+        suffix: this.unit || "",
+        oninput: callback("input", (event) => this.onInput && this.onInput(event.target.value)),
+        style: {
+          ...(this.type === "number" ? { width: "140px" } : {}),
+          ...(this.error ? { "--mdui-color-outline": "var(--mdui-color-error)", "--mdui-color-on-surface-variant": "var(--mdui-color-error)" } : {}),
+        },
+      }),
+      wrapper(
+        { key: "error", style: { fontSize: "12px", padding: "0 16px", color: "rgb(var(--mdui-color-error))" } },
+        text({ key: "errorText", text: this.error || "" }),
+      ).show(!!this.error),
+    );
+  }
+}
+
+class MaterialCheckbox extends Component {
+  setProperties({ label, checked, onChange, style }) {
+    this.label = label || "";
+    this.checked = !!checked;
+    this.onChange = onChange || null;
+    this.style = frozen(style || null);
+  }
+
+  build() {
+    return element(
+      "mdui-checkbox",
+      {
+        key: "checkbox",
+        checked: this.checked,
+        onchange: callback("change", (event) => this.onChange && this.onChange(event.target.checked)),
+        style: this.style || {},
+      },
+      text({ key: "labelText", text: this.label }),
+    );
+  }
+}
+
 const widgets = {
   button({ onClick, children, ...rest }) {
     return element("mdui-button", {
@@ -135,6 +196,10 @@ const widgets = {
   },
 
   dialog: (properties) => new MaterialDialog(properties),
+
+  textField: (properties) => new MaterialTextField(properties),
+
+  checkbox: (properties) => new MaterialCheckbox(properties),
 };
 
 export class MaterialThemeServiceLocator {

@@ -9,6 +9,7 @@ import { ThemesPage } from "./src/pages/ThemesPage.js";
 import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { StorePage } from "./src/pages/StorePage.js";
+import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
 import { ToolbarEllipsisPage } from "./src/pages/ToolbarEllipsisPage.js";
 import { rootServiceLocator } from "./src/services.js";
 import faviconSvg from "../../cascade/images/favicon.svg";
@@ -54,6 +55,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
     { key: "toolbar-ellipsis", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage() },
     { key: "recursive-demo", title: "Recursive Demo", component: new RecursiveDemo() },
+    { key: "reactive-form", title: "Reactive Form", component: new ReactiveFormPage() },
     { key: "hybrid-modal-dialog", title: "Hybrid Modal Dialog", component: new HybridModalDialog() },
     { key: "themes", title: "Themes", component: new ThemesPage() },
     { key: "hydration", title: "Hydration", component: new HydrationPage() },

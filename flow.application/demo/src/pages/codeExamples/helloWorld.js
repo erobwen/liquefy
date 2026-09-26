@@ -4,10 +4,7 @@ import { button } from "@liquefy/ui-material"
 
 // A simple Hello World component
 class Hello extends Component {
-
-  recieve({to}) {
-    this.to = to;
-  }
+  // Its properties - `to` here - are merged into it by Flow itself.
 
   initialize() {
     this.count = 1;
@@ -26,7 +23,7 @@ class Hello extends Component {
   }
 }
 
-// Create an instance, and set as content of a render context.
+// Create an instance, and set it as the content of a render target.
 new DOMRenderTarget(document.getElementById("root")).setContent(
   new Hello({to: "World"})
 )

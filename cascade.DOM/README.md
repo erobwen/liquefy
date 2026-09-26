@@ -70,5 +70,5 @@ lowercase letter is taken for a key.
   queries, turned into components.
 - **`fitTextWithinWidth()`**, `textWidth()` - text measured on a canvas.
 
-See the [demo](https://erobwen.github.io/liquefy/) - every page has a button
+See the [demo](https://erobwen.github.io/liquefy/cascade/) - every page has a button
 showing its own code.

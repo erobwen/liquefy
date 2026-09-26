@@ -2,7 +2,7 @@ import { observable, transaction, workOnPriorityLevel } from "@liquefy/flow.core
 import { toProperties, extractProperty } from "@liquefy/flow.core";
 import { RenderTarget, model } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
-import { observePathChange } from "./pathobserver";
+import { observePathChange } from "./pathObserver";
 
 // import { clearNode } from "./DOMNode";
 

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Liquefy - Cascade and Flow</title>
+    <meta name="description" content="Cascade, a reactive front end framework built on temporal signals - and Flow, the generation before it." />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <style>
+      :root {
+        --navy: #1f2d3b;
+        --navy-deep: #16212c;
+        --card: #2a3b4d;
+        --card-border: #3a5068;
+        --text: #e6eef6;
+        --text-soft: #a9bccf;
+        --cyan: #4fc3f7;
+        --coral: #ff6b6b;
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--navy-deep); }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.55;
+        color: var(--text);
+        background: radial-gradient(ellipse at top, #2c3e50 0%, var(--navy) 45%, var(--navy-deep) 100%) no-repeat;
+        background-color: var(--navy-deep);
+      }
+      main { max-width: 1040px; margin: 0 auto; padding: 48px 20px 32px; }
+      header { text-align: center; margin-bottom: 40px; }
+      .name {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.5em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+      }
+      .banner { display: block; width: 100%; max-width: 760px; margin: 18px auto 6px; }
+      .tagline { margin: 0 auto; max-width: 640px; font-size: 18px; color: var(--text-soft); }
+      .frameworks { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+      .framework {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 28px;
+        border-radius: 14px;
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      }
+      .framework.cascade { border-color: rgba(79, 195, 247, 0.45); }
+      .logo { height: 72px; display: flex; align-items: center; }
+      .logo img { max-height: 100%; max-width: 100%; }
+      .logo.flow { background: #ffffff; border-radius: 10px; padding: 8px 18px; align-self: flex-start; height: 72px; }
+      .generation { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan); }
+      .framework.flow .generation { color: var(--text-soft); }
+      .framework h2 { margin: 0; font-size: 26px; }
+      .framework p { margin: 0; color: var(--text-soft); }
+      .framework ul { margin: 0; padding-left: 20px; color: var(--text-soft); }
+      .framework li { margin: 2px 0; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 8px; }
+      .actions a {
+        display: inline-flex;
+        align-items: center;
+        padding: 9px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 15px;
+        text-decoration: none;
+        color: var(--text);
+        border: 1px solid var(--card-border);
+        transition: background-color 0.15s, border-color 0.15s;
+      }
+      .actions a:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--text-soft); }
+      .actions a.primary { background: var(--cyan); border-color: var(--cyan); color: var(--navy-deep); }
+      .actions a.primary:hover { background: #81d4fa; border-color: #81d4fa; }
+      .framework.flow .actions a.primary { background: transparent; color: var(--text); border-color: var(--text-soft); }
+      .framework.flow .actions a.primary:hover { background: rgba(255, 255, 255, 0.08); }
+      code {
+        font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+        font-size: 14px;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      footer { margin-top: 40px; text-align: center; font-size: 14px; color: var(--text-soft); }
+      footer a { color: var(--cyan); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="name">Liquefy</p>
+        <img class="banner" src="what-if-everything.svg" alt="What if everything was reactive?" />
+        <p class="tagline">Two generations of a reactive, JavaScript-first front end framework - with state management built in.</p>
+      </header>
+
+      <div class="frameworks">
+        <section class="framework cascade">
+          <div class="logo"><img src="cascade-logo.png" alt="Cascade" /></div>
+          <p class="generation">The new generation</p>
+          <h2>Cascade</h2>
+          <p>
+            Built on the world's first <strong>temporal signals</strong>: readers and writers of the same data,
+            ordered in time. So Cascade renders straight onto the live DOM in one pass - a parent can measure the
+            room it has and hand it to its children, in the same pass - while a change still touches only what changed.
+          </p>
+          <ul>
+            <li>Programmatic, reactive layout from real measurements</li>
+            <li>Transition animations, with nothing animated knowing about it</li>
+            <li>Themes that replace whole components - and are their colors</li>
+          </ul>
+          <div class="actions">
+            <a class="primary" href="cascade/">Try the demo</a>
+            <a href="https://github.com/erobwen/liquefy#cascade">Documentation</a>
+            <a href="https://www.npmjs.com/package/@liquefy/cascade.ui">npm</a>
+          </div>
+        </section>
+
+        <section class="framework flow">
+          <div class="logo flow"><img src="flow-logo.svg" alt="Flow" /></div>
+          <p class="generation">The generation before</p>
+          <h2>Flow</h2>
+          <p>
+            What you get if you take all the capabilities of MobX + React and integrate them into one unit:
+            components that build reactively, auto-observed state, minimal DOM updates and transition animations -
+            without the overhead of temporal signals.
+          </p>
+          <ul>
+            <li>Auto-observed state - change anything, from anywhere</li>
+            <li>Minimal updates, to the DOM and the component tree</li>
+            <li>For context free UIs, built context free</li>
+          </ul>
+          <div class="actions">
+            <a class="primary" href="flow/">Try the demo</a>
+            <a href="https://github.com/erobwen/liquefy/tree/main/flow.core#readme">Documentation</a>
+            <a href="https://www.npmjs.com/package/@liquefy/flow.core">npm</a>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <p>
+          On <a href="https://github.com/erobwen/liquefy">GitHub</a> - install with <code>npm install @liquefy/cascade.ui</code>.
+          By Robert Renbris, ISC license.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

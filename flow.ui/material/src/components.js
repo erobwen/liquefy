@@ -5,6 +5,7 @@ import 'mdui/components/layout-item.js';
 import 'mdui/components/layout-main.js';
 import 'mdui/components/button-icon.js';
 import 'mdui';
+import './mduiGuards.js';
 import { toProperties, getRenderTarget, toPropertiesWithChildren } from "@liquefy/flow.core";
 import { toButtonProperties, toInputProperties, elementNode, addDefaultStyle } from "@liquefy/flow.dom";
 

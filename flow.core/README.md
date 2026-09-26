@@ -74,5 +74,5 @@ Packages: [@liquefy/flow.dom](https://github.com/erobwen/liquefy/tree/main/flow.
 [@liquefy/themed-ui](https://github.com/erobwen/liquefy/tree/main/flow.ui/themed#readme),
 [@liquefy/ui-material](https://github.com/erobwen/liquefy/tree/main/flow.ui/material#readme),
 on [@liquefy/causality](https://github.com/erobwen/liquefy/tree/main/causality#readme).
-More in [Flow's documentation](https://github.com/erobwen/liquefy/tree/main/flow#readme),
+[Try the demo](https://erobwen.github.io/liquefy/flow/). More in [Flow's documentation](https://github.com/erobwen/liquefy/tree/main/flow#readme),
 and an [introduction video](https://www.youtube.com/watch?v=eNdQrf7WLWU).

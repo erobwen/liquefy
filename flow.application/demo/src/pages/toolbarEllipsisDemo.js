@@ -53,9 +53,7 @@ export class ToolbarEllipsisDemo extends Component {
  * Ellipsis Toolbar
  */
 export class EllipsisToolbar extends Component {
-  recieve({children}) {
-    this.children = children;
-  }
+  // Its properties - `children` - are merged into it by Flow itself.
 
   initialize() {
     this.menuOpen = false;

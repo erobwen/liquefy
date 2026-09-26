@@ -5,5 +5,5 @@ export default defineConfig({
   server: {
     historyApiFallback: true
   },
-  base: "liquefy"
+  base: "/liquefy/"
 })

@@ -30,7 +30,8 @@
     "demo": "npm start -w @liquefy/cascade-demo",
     "build:demo": "npm run build -w @liquefy/cascade-demo",
     "flow:demo": "npm start -w @liquefy/flow-demo",
-    "pack:check": "npm pack --dry-run --workspaces"
+    "pack:check": "npm pack --dry-run --workspaces",
+    "build:site": "node scripts/build-site.mjs"
   },
   "repository": {
     "type": "git",

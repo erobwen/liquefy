@@ -5,8 +5,9 @@
 A home for two generations of a reactive, JavaScript-first front end
 framework: **Cascade**, and **Flow** before it.
 
-**[Try the demo](https://erobwen.github.io/liquefy/)** - every page has a
-button showing its own code.
+**[Try the demo](https://erobwen.github.io/liquefy/cascade/)** - every page has a
+button showing its own code. (And [Flow's demo](https://erobwen.github.io/liquefy/flow/) - both
+from [erobwen.github.io/liquefy](https://erobwen.github.io/liquefy/).)
 
 ## Cascade
 
@@ -83,6 +84,7 @@ capabilities of MobX + React and integrate them into one unit: components
 that build reactively, auto-observed state, minimal DOM updates and
 transition animations. It has no temporal signals - and none of their
 overhead: for context free UIs, built context free, it's a simpler machine.
+[Try its demo](https://erobwen.github.io/liquefy/flow/).
 
 | Package | |
 |---|---|
@@ -103,6 +105,7 @@ npm install
 npm test            # every package's tests
 npm run demo        # the Cascade demo, at http://localhost:5173
 npm run flow:demo   # the Flow demo
+npm run build:site  # both demos, as deployed to GitHub Pages - see .github/workflows
 ```
 
 This repository is a more mature version of the experiments in

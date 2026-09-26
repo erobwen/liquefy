@@ -26,6 +26,11 @@ import { IntroductionPage } from "./pages/introductionPage";
 import { informationButton } from "./components/information";
 import { ToolbarEllipsisDemo } from "./pages/toolbarEllipsisDemo";
 
+// Where the demo is served from - "/liquefy/", or wherever the build puts it
+// (Vite's base) - and how many segments of the path that takes.
+const basePath = import.meta.env.BASE_URL;
+const basePathLength = basePath.split("/").filter(segment => segment.length > 0).length;
+
 
 
 /**
@@ -84,9 +89,9 @@ export class Demo extends Component {
   chose(page) {
     // Consider: For non root components, inherit base path and add.
     if (page === this.introduction) {
-      window.history.pushState({}, "", "/liquefy/")
+      window.history.pushState({}, "", basePath)
     } else {
-      window.history.pushState({}, "", "/liquefy/" +page.key)
+      window.history.pushState({}, "", basePath + page.key)
     }
   }
 
@@ -176,15 +181,16 @@ export class Demo extends Component {
   }
 
   build() {
-    const { path } = this; 
+    // The path below the demo's own (see basePath).
+    const path = this.path.slice(basePathLength);
     let chosen;
-    if (this.path.length === 1) {
+    if (path.length === 0) {
       chosen = this.introduction;
     } else {
-      const pathFirst = path[1];
+      const pathFirst = path[0];
       chosen = this.items.find(item => item.key === pathFirst);
       if (chosen) { 
-        chosen.setProperty("path", path.slice(2))
+        chosen.setProperty("path", path.slice(1))
       } else {
         setTimeout(() => {
           this.chose(this.introduction); 

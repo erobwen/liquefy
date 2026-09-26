@@ -2,23 +2,22 @@ import { Component, serviceProvider, callback } from "@liquefy/cascade.component
 import { div, text } from "@liquefy/cascade.dom";
 import {
   button, widget, icon, iconButton, card, controlPanel, alert, listItem, dialog, popover, overlay, colorField, tabBar,
-  row, column, filler, basicTheme, fillerStyle, overflowVisibleStyle, colorSchemeScope, currentColorScheme,
+  row, column, filler, basicTheme, fillerStyle, overflowVisibleStyle, colorSchemeScope, currentColorScheme, themeColor,
 } from "@liquefy/cascade.ui";
 import { modalPresentation } from "../components/modal.js";
 import { materialTheme } from "@liquefy/cascade.ui.material";
-import { pageActions } from "../components/pageActions.js";
+import { pageActions, informationBox } from "../components/pageActions.js";
 import { pageColumn, sectionTitle } from "../components/layout.js";
 import source from "./ThemesPage.js?raw";
 
-// What this page's information button shows (see ../components/pageActions.js).
+// What this page is about - first on the page (see
+// ../components/pageActions.js's informationBox()).
 const information = {
-  summary: "Themes are service locators:",
+  summary: "Themes are service locators: every widget - every button on every page - is asked for through the render context, and whichever theme is in it provides one.",
   points: [
-    "Every widget is asked for through the render context, and whichever theme is in it provides one.",
-    "Switching the theme replaces whole components, not just their style - app state stays where it was.",
-    "A part of the app can have a theme of its own, or be denied the right to change it.",
-    "A theme is its colors too: a base and an accent, and every other color made from them. Pick them for either theme - for the app's own, the whole app follows, frame and all.",
-    "Narrow, the two themes are tabs.",
+    "A theme can change color and style, but it can also replace entire components. Switch the theme here, and it changes for the whole app - with all app state kept where it was (try the Recursive Demo or the Hybrid Modal Dialog afterwards).",
+    "A theme is its colors too: a base and an accent, and every other color made from them. Pick them below - for the app's own theme, the whole app follows, frame and all.",
+    "Each theme below is shown with its own services and colors, whatever the app's theme is: any part of an app can have a theme of its own.",
   ],
 };
 
@@ -34,21 +33,21 @@ const information = {
  * this page gets them through inherit("rootServiceLocator"), which the
  * app's root component provides (see ../services.js). A subtree that
  * provides `rootServiceLocator: null` itself takes that ability away from
- * everything below it - the second switch below is inside one.
+ * everything below it.
  *
- * Services are contextual too: the two sample sections each get a theme of
+ * Services are contextual too: the two theme cards each get a theme of
  * their own through serviceProvider(), whatever the rest of the app uses.
  * And a widget no theme provides still renders, as a visibly marked
  * placeholder (with a console warning), rather than breaking the page.
  *
- * The two sample sections show every themed widget there is (see
- * cascade.ui's widgets.js) - the same components, side by side, in each
- * theme - or, where there isn't room for both, as tabs.
+ * The two cards show every themed widget there is (see cascade.ui's
+ * widgets.js) - the same components, side by side, in each theme - or,
+ * where there isn't room for both, as tabs.
  *
  * A theme is its colors too (see cascade.ui's colorScheme.js): a base and
- * an accent, every other color made from them. Each section has pickers
- * for its theme's - they change that theme, so for the app's own theme the
- * whole app follows. Each section is given its theme's colors by a
+ * an accent, every other color made from them. Each card has pickers for
+ * its theme's - they change that theme, so for the app's own theme the
+ * whole app follows. Each card is given its theme's colors by a
  * colorSchemeScope() around it, which asks the theme in its context for
  * them: the same way the app's frame gives the whole app the colors of the
  * app's theme.
@@ -63,9 +62,10 @@ const themes = [
 
 // Narrower than this, the themes are tabs.
 const SIDE_BY_SIDE_WIDTH = 760;
+
 export class ThemesPage extends Component {
   initializeState() {
-    return { clicks: 0, tab: "material" };
+    return { tab: "material" };
   }
 
   build() {
@@ -80,31 +80,9 @@ export class ThemesPage extends Component {
     // As tall as its content - the work area around it scrolls.
     return pageColumn(
       { key: "page" },
-      pageActions({ information, source, fileName: "src/pages/ThemesPage.js" }),
-      alert(
-        { key: "info" },
-        text({
-          key: "infoText",
-          text: "Every button in the demo's pages is a themed widget: the app asks for a button, and whichever " +
-            "theme is in its render context provides one. A theme can change things such as color and style, " +
-            "but it can also replace entire components. "+
-            "Switching the theme here changes it for the whole " +
-            "app - try the Recursive Demo and Hybrid Modal Dialog pages afterwards. The click count survives. " +
-            "And pick a theme's colors below: for the app's own theme, the whole app follows.",
-        }),
-      ),
+      pageActions({ source, fileName: "src/pages/ThemesPage.js" }),
+      informationBox({ key: "information", ...information }),
       new ThemeSwitch({ key: "themeSwitch" }),
-      controlPanel(
-        { key: "buttons" },
-        button({ key: "clickMe" }, text({ key: "clickMeText", text: "Click me" }), () => { this.clicks = this.clicks + 1; }),
-        button({ key: "reset", variant: "outlined" }, text({ key: "resetText", text: "Reset" }), () => { this.clicks = 0; }),
-        text({ key: "clicks", text: "Clicks: " + this.clicks }),
-      ),
-      column(
-        { key: "blocked", style: { gap: "8px", overflow: "visible" } },
-        sectionTitle("blockedLabel", "The same switch, inside a part of the app that doesn't pass on the right to change the theme:"),
-        new NoThemeSwitching({ key: "noThemeSwitching" }),
-      ),
       wide
         ? row({ key: "sections", style: { gap: "24px", alignItems: "flex-start", overflow: "visible" } }, sections)
         : column(
@@ -143,27 +121,13 @@ class ThemeSwitch extends Component {
     return controlPanel(
       { key: "switch" },
       text({ key: "current", text: "Current theme: " + root.themes[current].title }),
-      button({ key: "toggle" }, text({ key: "toggleText", text: "Switch to " + root.themes[next].title }), () => root.selectTheme(next)),
+      button({ key: "toggle" }, text({ key: "toggleText", text: "Switch to " + root.themes[next].title }), callback("toggle", () => root.selectTheme(next))),
     );
   }
 }
 
-// Provides `rootServiceLocator: null` (provide()'s default is the
-// component itself, so a field is all it takes) - inherit() stops at the
-// first provider it finds, so nothing it builds can reach the root
-// services, whatever is provided further up.
-class NoThemeSwitching extends Component {
-  setProperties() {
-    this.rootServiceLocator = null;
-  }
-
-  build() {
-    return new ThemeSwitch({ key: "blockedSwitch" });
-  }
-}
-
 // A theme, whatever the app's is: its own services, and its own colors,
-// for everything in it - and pickers for its colors on top.
+// for everything in it.
 class ThemeSection extends Component {
   setProperties({ title, theme, isAppTheme }) {
     this.title = title;
@@ -176,11 +140,27 @@ class ThemeSection extends Component {
       key: "provider",
       serviceLocator: this.theme,
       child: colorSchemeScope(
-        { key: "scope", style: { ...fillerStyle, ...overflowVisibleStyle, display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 } },
-        new ColorSchemeEditor({ key: "editor", title: this.title, isAppTheme: this.isAppTheme }),
-        new SampleButtons({ key: "sample" }),
+        { key: "scope", style: { ...fillerStyle, ...overflowVisibleStyle, minWidth: 0 } },
+        new ThemeCard({ key: "card", title: this.title, isAppTheme: this.isAppTheme }),
       ),
     });
+  }
+}
+
+// The theme's own card - built inside its section's provider, so it's the
+// theme's card - with the theme's colors on top, and its widgets below.
+class ThemeCard extends Component {
+  setProperties({ title, isAppTheme }) {
+    this.title = title;
+    this.isAppTheme = isAppTheme;
+  }
+
+  build() {
+    return card(
+      { key: "themeCard", style: { display: "flex", flexDirection: "column", gap: "16px", overflow: "visible" } },
+      new ColorSchemeEditor({ key: "editor", title: this.title, isAppTheme: this.isAppTheme }),
+      new SampleButtons({ key: "sample" }),
+    );
   }
 }
 
@@ -194,13 +174,20 @@ class ColorSchemeEditor extends Component {
 
   build() {
     const scheme = currentColorScheme();
-    return controlPanel(
-      { key: "editor" },
-      div({ key: "title", style: { fontWeight: "bold" } }, text({ key: "titleText", text: this.title + (this.isAppTheme ? " - the app's theme" : "") })),
-      filler({ key: "editorFiller" }),
-      colorField({ key: "base", label: "Base", value: scheme.base, onInput: callback("base", (value) => { scheme.base = value; }) }),
-      colorField({ key: "accent", label: "Accent", value: scheme.accent, onInput: callback("accent", (value) => { scheme.accent = value; }) }),
-      button({ key: "reset", disabled: !scheme.isChanged() }, text({ key: "resetText", text: "Reset" }), callback("reset", () => scheme.reset())),
+    return column(
+      { key: "editor", style: { gap: "10px", overflow: "visible", paddingBottom: "14px", borderBottom: "1px solid " + themeColor.border } },
+      row(
+        { key: "heading", style: { alignItems: "baseline", gap: "8px", flexWrap: "wrap" } },
+        div({ key: "title", style: { fontWeight: "bold", fontSize: "17px" } }, text({ key: "titleText", text: this.title })),
+        div({ key: "appTheme", style: { fontSize: "13px", color: themeColor.textSoft } }, text({ key: "appThemeText", text: "the app's theme" })).show(this.isAppTheme),
+      ),
+      row(
+        { key: "colors", style: { alignItems: "center", gap: "8px 16px", flexWrap: "wrap", overflow: "visible" } },
+        colorField({ key: "base", label: "Base", value: scheme.base, onInput: callback("base", (value) => { scheme.base = value; }) }),
+        colorField({ key: "accent", label: "Accent", value: scheme.accent, onInput: callback("accent", (value) => { scheme.accent = value; }) }),
+        filler({ key: "colorsFiller" }),
+        button({ key: "reset", disabled: !scheme.isChanged() }, text({ key: "resetText", text: "Reset" }), callback("reset", () => scheme.reset())),
+      ),
     );
   }
 }

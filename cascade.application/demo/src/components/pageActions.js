@@ -14,7 +14,10 @@ import { CodeButton } from "./code.js";
  * name) for as long as the page is shown.
  *
  *  - information: what the information button shows (optional) - plain
- *    data, `{ summary, points }`: a sentence, and a list of points.
+ *    data, `{ summary, points }`: a sentence, and a list of points. Only for
+ *    a page with no room of its own for it (one that fills the work area:
+ *    a form, a grid): a page with room shows it first on the page itself,
+ *    with informationBox() below - one or the other, never both.
  *  - source, fileName: the page's own code, for the code button - a
  *    page's module imports itself for it: `import source from "./X.js?raw"`.
  */
@@ -52,15 +55,27 @@ export class InformationButton extends Component {
       }),
       popover(
         { key: "popover", anchor: this.anchor, showing: this.open, close: callback("close", () => { this.open = false; }) },
-        alert(
-          { key: "information", style: { boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)", maxWidth: "640px", lineHeight: "1.4" } },
-          p({ key: "summary", style: { margin: 0 } }, text({ key: "summaryText", text: this.summary })),
-          ul(
-            { key: "points", style: { margin: "8px 0 0 0", paddingLeft: "20px" } },
-            this.points.map((point, index) => li({ key: "point" + index }, text({ key: "pointText" + index, text: point }))),
-          ).show(this.points.length > 0),
+        informationBox(
+          { key: "information", summary: this.summary, points: this.points },
+          { boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)", maxWidth: "640px" },
         ),
       ),
     ];
   }
+}
+
+/**
+ * A page's information - `{ summary, points }`, as for pageActions() - in an
+ * info alert: shown first on a page that has room for it, and in the
+ * information button's popover for one that hasn't.
+ */
+export function informationBox({ key, summary, points }, style) {
+  return alert(
+    { key, style: { lineHeight: "1.4", flex: "none", ...style } },
+    p({ key: key + "Summary", style: { margin: 0 } }, text({ key: key + "SummaryText", text: summary })),
+    ul(
+      { key: key + "Points", style: { margin: "8px 0 0 0", paddingLeft: "20px" } },
+      (points || []).map((point, index) => li({ key: key + "Point" + index }, text({ key: key + "PointText" + index, text: point }))),
+    ).show(!!points && points.length > 0),
+  );
 }

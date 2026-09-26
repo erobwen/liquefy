@@ -1,18 +1,18 @@
 import { Component, callback, flush } from "@liquefy/cascade.component";
-import { p, text, select, option, span, elementBoundsProvider, overflowContainer, elementSlot } from "@liquefy/cascade.dom";
-import { button, iconButton, alert, card, textField, popover, row, filler, overflowVisibleStyle, themeColor } from "@liquefy/cascade.ui";
-import { pageActions } from "../components/pageActions.js";
+import { text, select, option, span, elementBoundsProvider, overflowContainer, elementSlot } from "@liquefy/cascade.dom";
+import { button, iconButton, card, textField, popover, row, filler, overflowVisibleStyle, themeColor } from "@liquefy/cascade.ui";
+import { pageActions, informationBox } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import source from "./ToolbarEllipsisPage.js?raw";
 
-// What this page's information button shows (see ../components/pageActions.js).
+// What this page is about - first on the page (see
+// ../components/pageActions.js's informationBox()).
 const information = {
-  summary: "A toolbar that adapts to the room it has - tools of any width, laid out for real:",
+  summary: "Programmatic responsiveness: a toolbar that adapts to the room it has - as many tools as fit, whatever their widths, and an ellipsis button that opens the rest in a popover.",
   points: [
-    "Resize the window: the toolbar shows as many tools as fit, and an ellipsis button for the rest, which opens them in a popover.",
-    "Nothing is measured anywhere but where it will be: the toolbar puts its tools in the bar one by one, and at the first one that doesn't fit, takes it out again - all before anything is drawn.",
-    "That takes rendering in real time, which Flow couldn't: there, a copy of a tool had to be measured on its own - and in Cascade, a tool out of view isn't even a complete node.",
-    "The size picker changes width by itself (9 to 10): the toolbar notices, and lays out again.",
+    "Not something you would typically do with CSS, container queries and breakpoints - ask for it to be designed, and you'll be given a JavaScript solution.",
+    "Nothing is measured anywhere but where it will be: the toolbar puts its tools in the bar one by one, and at the first one that doesn't fit, takes it out again - all before anything is drawn. (Flow had to measure a copy of each tool on its own, off screen.)",
+    "A tool can change width by itself - the size picker, going from 9 to 10: the toolbar notices, and lays out again.",
   ],
 };
 
@@ -33,21 +33,18 @@ const GAP = 2;
  * width.)
  */
 export class ToolbarEllipsisPage extends Component {
-  initializeState() {
-    return { lastTool: null };
-  }
-
   build() {
-    const pushed = (name) => callback(name, () => { this.lastTool = name; });
-    const icon = (name, number) => iconButton({ key: name + number, icon: name, title: name + " " + number, style: { flex: "none" }, onClick: pushed(name + " " + number) });
-    const textButton = (name) => button({ key: name, style: { flex: "none" } }, text({ key: name + "Text", text: name }), pushed(name));
+    // The tools only have to be there, taking room - none of them does
+    // anything (but the size picker, which grows by itself).
+    const icon = (name, number) => iconButton({ key: name + number, icon: name, title: name + " " + number, style: { flex: "none" } });
+    const textButton = (name) => button({ key: name, style: { flex: "none" } }, text({ key: name + "Text", text: name }));
     const tools = [
       icon("search", 1), icon("home", 2),
       textButton("Bold"), textButton("Italic"),
       new SizePicker({ key: "size" }),
       icon("settings", 3), icon("star", 4),
       select(
-        { key: "font", title: "Font", style: { flex: "none", height: "32px", padding: "0 6px", font: "inherit", color: "inherit", border: "1px solid " + themeColor.border, borderRadius: "6px", background: themeColor.surface }, onchange: callback("font", (event) => { this.lastTool = "font " + event.target.value; }) },
+        { key: "font", title: "Font", style: { flex: "none", height: "32px", padding: "0 6px", font: "inherit", color: "inherit", border: "1px solid " + themeColor.border, borderRadius: "6px", background: themeColor.surface } },
         ...["Sans", "Serif", "Monospace"].map((font) => option({ key: font, value: font }, text({ key: font + "Text", text: font }))),
       ),
       icon("key", 5), icon("bolt", 6),
@@ -59,21 +56,9 @@ export class ToolbarEllipsisPage extends Component {
 
     return fullPage(
       { key: "page", style: overflowVisibleStyle },
-      pageActions({ information, source, fileName: "src/pages/ToolbarEllipsisPage.js" }),
-      alert(
-        { key: "info", style: { flex: "none" } },
-        p({ key: "first", style: { margin: 0 } }, text({
-          key: "firstText",
-          text: "Demonstrates the power of programmatic responsiveness: a toolbar that adapts to the available space, " +
-            "showing an ellipsis menu when there isn't room for all its tools - whatever their widths.",
-        })),
-        p({ key: "second", style: { margin: "8px 0 0 0" } }, text({
-          key: "secondText",
-          text: "This is not something you would typically do with CSS, container queries and breakpoints - " +
-            "ask for it to be designed, and you'll be given a JavaScript solution.",
-        })),
-      ),
-      text({ key: "lastTool", text: this.lastTool ? "Last pushed: " + this.lastTool : "Push a tool." }),
+      pageActions({ source, fileName: "src/pages/ToolbarEllipsisPage.js" }),
+      informationBox({ key: "information", ...information }),
+      text({ key: "hint", text: "Try to resize the window to see how the toolbar behaves." }),
       filler({ key: "space" }),
       card(
         { key: "toolbarCard", style: { flex: "none", padding: "8px" } },

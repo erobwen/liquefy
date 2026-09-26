@@ -1,18 +1,17 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { p, text } from "@liquefy/cascade.dom";
-import { button, card, dialog as themedDialog, alert, overlay, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { button, card, dialog as themedDialog, overlay, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { modalPresentation, fullScreenPresentation } from "../components/modal.js";
-import { pageActions } from "../components/pageActions.js";
+import { pageActions, informationBox } from "../components/pageActions.js";
 import source from "./HybridModalDialog.js?raw";
 
-// What this page's information button shows (see ../components/pageActions.js).
+// What this page is about - first on the page, on its panel (see
+// ../components/pageActions.js's informationBox()).
 const information = {
-  summary: "A hybrid modal dialog - modal only when there isn't room for it:",
+  summary: "A hybrid modal dialog: docked beside these controls when there's room, a modal window when there isn't, and full screen - with a back arrow - on a phone-sized screen.",
   points: [
-    "Docked beside the controls when there's room, a modal window when there isn't - and full screen, with a back arrow, on a phone-sized screen.",
+    "Open it, then resize the window: the very same dialog component moves between the three - so its state (the counter) is simply kept, never saved and restored.",
     "Open, the dialog has a URL of its own (/hybrid-modal-dialog/dialog): link to it, reload it, and the browser's back button closes it - as a phone's back gesture would.",
-    "The same dialog content component moves between all three as the window is resized.",
-    "So its state (the counter) is simply kept - never saved and restored.",
   ],
 };
 
@@ -116,7 +115,7 @@ export class HybridModalDialog extends Component {
       // dialog's own fillerStyle (flex: 1 1 0) needs this row to give it a
       // definite, stretched height to fill.
       { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px" } },
-      pageActions({ information, source, fileName: "src/pages/HybridModalDialog.js" }),
+      pageActions({ source, fileName: "src/pages/HybridModalDialog.js" }),
       // The controls, on a panel of their own (an elevated card - white,
       // with a shadow, on the grey page) - its edge is the border between
       // them and the docked dialog. As wide as the page when the
@@ -129,15 +128,7 @@ export class HybridModalDialog extends Component {
             ...(mode === "docked" ? { width: PANEL_WIDTH + "px", flex: "none" } : { ...fillerStyle }),
           },
         },
-        alert(
-          { key: "info", style: { flex: "none" } },
-          text({
-            key: "infoText",
-            text: "A hybrid modal dialog - docked when there's room, modal when there isn't, and full screen on a " +
-              "phone-sized screen. Open it, then resize the window: the same dialog (and its counter) moves between " +
-              "them, never resetting.",
-          }),
-        ),
+        informationBox({ key: "information", ...information }),
         // A themed widget (cascade.ui's button()) - the app's theme decides
         // what it looks like; only its placement here is set here.
         centerMiddle(

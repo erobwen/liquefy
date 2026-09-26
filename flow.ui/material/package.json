@@ -1,35 +1,41 @@
 {
   "name": "@liquefy/ui-material",
   "version": "1.0.0",
-  "description": "A material designs user interface framework for Flow, based on mdui 2.1 web-components.",
-  "type": "module",
-  "module": "./index.js",
-  "scripts": {
-    "build": "vite build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
-  },
+  "description": "A Material Design theme for Flow, built on mdui 2 web components.",
   "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
+    "reactive",
+    "ui",
+    "material design",
+    "mdui",
+    "flow"
   ],
   "author": "Robert Renbris",
   "license": "ISC",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "files": [
+    "index.js",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "flow.ui/material"
+  },
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
-  "peerDependencies": {
-    "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/basic-ui": "file:../../flow.ui/basic",
-    "@liquefy/causality": "file:../../causality",
-    "@liquefy/flow": "file:../../flow",
-    "@material/web": "^2.2.0",
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/flow.ui/material#readme",
+  "dependencies": {
     "mdui": "^2.1.2"
+  },
+  "peerDependencies": {
+    "@liquefy/flow.core": "^1.0.0",
+    "@liquefy/flow.dom": "^1.0.0",
+    "@liquefy/basic-ui": "^1.0.0"
   },
   "publishConfig": {
     "access": "public"

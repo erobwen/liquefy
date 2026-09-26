@@ -1,9 +1,10 @@
 {
   "name": "@liquefy/flow-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A demo showcasing flow.",
   "author": "Robert Renbris",
   "license": "ISC",
-  "version": "1.0.0",
-  "description": "A demo showcasing flow.",
   "type": "module",
   "module": "./index.js",
   "scripts": {
@@ -20,19 +21,18 @@
     "url": "https://github.com/erobwen/liquefy/issues"
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
+  "dependencies": {
+    "@liquefy/causality": "^3.0.0",
+    "@liquefy/flow.core": "^1.0.0",
+    "@liquefy/flow.dom": "^1.0.0",
+    "@liquefy/basic-ui": "^1.0.0",
+    "@liquefy/themed-ui": "^1.0.0",
+    "@liquefy/ui-material": "^1.0.0",
+    "highlight.js": "^11.11.1"
+  },
   "devDependencies": {
     "cpy-cli": "^5.0.0",
     "gh-pages": "^6.3.0",
     "vite": "^5.3.1"
-  },
-  "dependencies": {
-    "@liquefy/basic-ui": "file:../../flow.ui/basic",
-    "@liquefy/causality": "file:../../causality",
-    "@liquefy/flow": "file:../../flow",
-    "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/themed-ui": "file:../../flow.ui/themed",
-    "@liquefy/ui-material": "file:../../flow.ui/material",
-    "highlight.js": "^11.11.1"
   }
 }

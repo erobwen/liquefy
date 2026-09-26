@@ -1,9 +1,15 @@
 {
   "name": "@liquefy/hello-world",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A helo world with flow.",
+  "keywords": [
+    "Javascript",
+    "Proxy",
+    "Reactive"
+  ],
   "author": "Robert Renbris",
   "license": "ISC",
-  "version": "1.0.0",
-  "description": "A helo world with flow.",
   "type": "module",
   "scripts": {
     "start": "vite --debug"
@@ -12,24 +18,18 @@
     "type": "git",
     "url": "https://github.com/erobwen/liquefy.git"
   },
-  "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
-  ],
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
+  "dependencies": {
+    "@liquefy/causality": "^3.0.0",
+    "@liquefy/flow.core": "^1.0.0",
+    "@liquefy/flow.dom": "^1.0.0",
+    "@liquefy/basic-ui": "^1.0.0",
+    "@liquefy/ui-material": "^1.0.0"
+  },
   "devDependencies": {
     "vite": "^5.3.1"
-  },
-  "dependencies": {
-    "@liquefy/flow": "file:../../flow",
-    "@liquefy/causality": "file:../../causality",
-    "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/basic-ui": "file:../../flow.ui/basic",
-    "@liquefy/ui-material": "file:../../flow.ui/material"
   }
 }

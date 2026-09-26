@@ -1,7 +1,7 @@
 function K(r) {
   return Array.prototype.slice.call(r);
 }
-function Z(r, n) {
+function V(r, n) {
   if (n instanceof Array) {
     it(r.causality.target, n.causality.target).forEach(function(b) {
       let y = [];
@@ -75,9 +75,9 @@ function it(r, n) {
   return b;
 }
 function rt(r) {
-  return r.name ? r.name : (r = ge(r), JSON.stringify(r));
+  return r.name ? r.name : (r = ye(r), JSON.stringify(r));
 }
-function ge(r) {
+function ye(r) {
   if (typeof r == "object") {
     if (r === null) return "null";
     let n = Object.keys(r);
@@ -87,12 +87,12 @@ function ge(r) {
     let s = {};
     return n.forEach(function(b) {
       let y = r[b];
-      typeof y == "object" && (y = ge(y)), s[b] = y;
+      typeof y == "object" && (y = ye(y)), s[b] = y;
     }), s;
   } else
     return "[" + typeof r + "]";
 }
-const pe = {
+const he = {
   Reset: "\x1B[0m",
   Bright: "\x1B[1m",
   Dim: "\x1B[2m",
@@ -134,13 +134,13 @@ function ot() {
   }
   return r(arguments.callee.caller);
 }
-function k(r) {
+function ee(r) {
   let n = "";
   for (; r-- > 0; )
     n = n + L.indentToken;
   return n;
 }
-function ee() {
+function te() {
   const r = {
     terminated: !1,
     rootLevel: !0,
@@ -153,9 +153,9 @@ function ee() {
   }, r;
 }
 function st() {
-  let r = ee();
+  let r = te();
   return r.result = "", r.log = function(n) {
-    this.unfinishedLine ? (this.result += n, this.unfinishedLine = !0) : (this.result += k(this.indentLevel) + n, this.unfinishedLine = !0);
+    this.unfinishedLine ? (this.result += n, this.unfinishedLine = !0) : (this.result += ee(this.indentLevel) + n, this.unfinishedLine = !0);
   }, r.finishOpenLine = function() {
     this.unfinishedLine && !this.horizontal && (this.result += `
 `, this.unfinishedLine = !1);
@@ -163,34 +163,34 @@ function st() {
   }, r.jsonCompatible = !0, r;
 }
 function U() {
-  let r = ee();
+  let r = te();
   return r.lineMemory = "", r.log = function(n) {
     if (this.unfinishedLine)
       typeof process < "u" ? process.stdout.write(n) : r.lineMemory += n, this.unfinishedLine = !0;
     else {
-      let s = k(this.indentLevel);
+      let s = ee(this.indentLevel);
       typeof process < "u" ? process.stdout.write(s + n) : r.lineMemory += s + n, this.unfinishedLine = !0;
     }
   }, r.finishOpenLine = function() {
     this.unfinishedLine && !this.horizontal && (r.lineMemory !== "" ? (console.log(r.lineMemory), r.lineMemory = "") : console.log(), this.unfinishedLine = !1);
   }, r.setColor = function(n) {
-    pe[n] || (n = "Reset"), r.log(pe[n]);
+    he[n] || (n = "Reset"), r.log(he[n]);
   }, r.jsonCompatible = !1, r;
 }
 function lt(r, n) {
-  let s = ee();
+  let s = te();
   return s.horizontal = !0, s.count = 0, s.limit = r, s.log = function(b) {
     if (this.unfinishedLine)
       this.count += b.length, this.terminated = this.count > this.limit, this.unfinishedLine = !0;
     else {
-      let y = k(this.indentLevel);
+      let y = ee(this.indentLevel);
       this.count += (y + b).length, this.terminated = this.count > this.limit, this.unfinishedLine = !0;
     }
   }, s.finishOpenLine = function() {
   }, s.setColor = function() {
   }, s.jsonCompatible = n.jsonCompatible, s;
 }
-function ye(r, n, s, b) {
+function me(r, n, s, b) {
   let y = lt(s, b);
   return M(r, n, y), !y.terminated;
 }
@@ -220,7 +220,7 @@ function M(r, n, s) {
       let g = !1;
       if (!s.horizontal) {
         let c = L.bufferWidth - s.indentLevel * L.indentToken.length;
-        s.horizontal = L.bufferWidth === -1 ? !0 : ye(r, n, c, s), g = s.horizontal;
+        s.horizontal = L.bufferWidth === -1 ? !0 : me(r, n, c, s), g = s.horizontal;
       }
       O && s.finishOpenLine(), s.log(O ? "[" : "{"), s.horizontal && I && s.log(" "), s.finishOpenLine(), s.indentLevel++;
       let l = !0;
@@ -266,7 +266,7 @@ const W = {
     else {
       context = U(), typeof s > "u" && (s = 1), context.log(r + ": ");
       let b = L.bufferWidth - context.indentLevel * L.indentToken.length - (r + ": ").length;
-      context.horizontal = L.bufferWidth === -1 ? !0 : ye(n, s, b), context.horizontal ? M(n, s, context) : (context.indentLevel++, M(n, s, context), context.indentLevel--);
+      context.horizontal = L.bufferWidth === -1 ? !0 : me(n, s, b), context.horizontal ? M(n, s, context) : (context.indentLevel++, M(n, s, context), context.indentLevel--);
     }
   },
   group(r, n) {
@@ -359,7 +359,7 @@ function at(r) {
   }
   return l;
 }
-let he = 500;
+let ge = 500;
 function ft(r) {
   const n = r.state, s = r.invalidateObserver;
   function b(g, l, c) {
@@ -376,9 +376,9 @@ function ft(r) {
   }
   function y(g, l, c) {
     let d = g.id;
-    if (typeof l.contents[d] < "u" || l.contentsCounter === he && l.last !== null && (l = l.last, typeof l.contents[d] < "u"))
+    if (typeof l.contents[d] < "u" || l.contentsCounter === ge && l.last !== null && (l = l.last, typeof l.contents[d] < "u"))
       return;
-    if (l.contentsCounter === he) {
+    if (l.contentsCounter === ge) {
       let m = {
         isRoot: !1,
         contents: {},
@@ -495,7 +495,7 @@ function ct(r) {
     sameAsPreviousDeep: $,
     // Main API
     observable: z,
-    deeplyObservable: re,
+    deeplyObservable: J,
     isObservable: D,
     create: z,
     // observable alias
@@ -503,11 +503,11 @@ function ct(r) {
     repeat: Je,
     finalize: Ye,
     // Modifiers
-    withoutRecording: we,
+    withoutRecording: ie,
     withoutReactions: Ce,
     // Transaction
-    doWhileInvalidationsPostponed: ne,
-    transaction: ne,
+    doWhileInvalidationsPostponed: re,
+    transaction: re,
     postponeInvalidations: Re,
     continueInvalidations: Ie,
     // Debugging and testing
@@ -536,42 +536,44 @@ function ct(r) {
     enterContext: F,
     leaveContext: _,
     invalidateObserver: ze,
-    proceedWithPostponedInvalidations: J,
+    proceedWithPostponedInvalidations: Q,
     nextObserverId: () => n.observerId++,
     // Libraries
     caching: at(z),
     // Priority levels 
-    enterPriorityLevel: S,
+    enterPriorityLevel: B,
     exitPriorityLevel: X,
-    workOnPriorityLevel: Ae
-  }, b = r.customCreateRepeater ? r.customCreateRepeater : Ke, y = r.customCreateInvalidator ? r.customCreateInvalidator : qe, O = r.customDependencyInterfaceCreator ? r.customDependencyInterfaceCreator(s) : ft(s), I = O.recordDependencyOnArray, g = O.recordDependencyOnEnumeration, l = O.recordDependencyOnProperty, c = O.invalidateArrayObservers, d = O.invalidateEnumerateObservers, h = O.invalidatePropertyObservers, m = O.removeAllSources, R = r.customObjectlog ? r.customObjectlog : ut, C = Te(), {
-    requireRepeaterName: me,
-    requireInvalidatorName: be,
-    warnOnNestedRepeater: Oe,
+    workOnPriorityLevel: Te
+  }, b = r.customCreateRepeater ? r.customCreateRepeater : Ke, y = r.customCreateInvalidator ? r.customCreateInvalidator : qe, O = r.customDependencyInterfaceCreator ? r.customDependencyInterfaceCreator(s) : ft(s), I = O.recordDependencyOnArray, g = O.recordDependencyOnEnumeration, l = O.recordDependencyOnProperty, c = O.invalidateArrayObservers, d = O.invalidateEnumerateObservers, h = O.invalidatePropertyObservers, m = O.removeAllSources, R = r.customObjectlog ? r.customObjectlog : ut, C = Ae(), {
+    requireRepeaterName: be,
+    requireInvalidatorName: Oe,
+    warnOnNestedRepeater: ve,
     objectMetaProperty: f,
-    sendEventsToObjects: te,
+    sendEventsToObjects: ne,
     onEventGlobal: Y,
-    emitReBuildEvents: ve,
+    emitReBuildEvents: we,
     onWriteGlobal: x,
-    onReadGlobal: A,
+    onReadGlobal: T,
     cannotReadPropertyValue: E
-  } = r, T = !!Y || te;
-  function we(e) {
-    n.recordingPaused++, j(), e(), n.recordingPaused--, j();
+  } = r, A = !!Y || ne;
+  function ie(e) {
+    n.recordingPaused++, j();
+    const t = e();
+    return n.recordingPaused--, j(), t;
   }
-  function ne(e) {
-    n.postponeInvalidation++, e(), n.postponeInvalidation--, J();
+  function re(e) {
+    n.postponeInvalidation++, e(), n.postponeInvalidation--, Q();
   }
   function Re() {
     n.postponeInvalidation++;
   }
   function Ie() {
-    n.postponeInvalidation--, J();
+    n.postponeInvalidation--, Q();
   }
   function Ce(e) {
     n.blockInvalidation++, e(), n.blockInvalidation--;
   }
-  function S(e) {
+  function B(e) {
     if (typeof e != "number") {
       const t = e;
       e = typeof t.priority == "function" ? t.priority() : 0;
@@ -588,14 +590,14 @@ function ct(r) {
     for (; e < n.workOnPriorityLevel.length && n.workOnPriorityLevel[e] === 0; )
       typeof r.onFinishedPriorityLevel == "function" && r.onFinishedPriorityLevel(e, t), n.revalidationLevelLock = e, e++, t = !1;
   }
-  function Ae(e, t) {
-    S(e), t(), X(e);
+  function Te(e, t) {
+    B(e), t(), X(e);
   }
   function j() {
     n.inActiveRecording = n.context !== null && n.context.isRecording && n.recordingPaused === 0, n.inRepeater = n.context && n.context.type === "repeater" ? n.context : null;
   }
   function F(e) {
-    return e.parent = n.context, n.context = e, j(), S(e), e;
+    return e.parent = n.context, n.context = e, j(), B(e), e;
   }
   function _(e) {
     if (n.context && e === n.context)
@@ -604,45 +606,45 @@ function ct(r) {
       throw new Error("Context missmatch");
     j(), X(e);
   }
-  function Te() {
+  function Ae() {
     const e = {
       pop: function() {
         let t = this.target.length - 1, i = this.target.pop();
-        return c(this, "pop"), T && P(this, t, [i], null), i;
+        return c(this, "pop"), A && P(this, t, [i], null), i;
       },
       push: function() {
         let t = this.target.length, i = K(arguments);
-        return this.target.push.apply(this.target, i), c(this, "push"), T && P(this, t, null, i), this.target.length;
+        return this.target.push.apply(this.target, i), c(this, "push"), A && P(this, t, null, i), this.target.length;
       },
       shift: function() {
         let t = this.target.shift();
-        return c(this, "shift"), T && P(this, 0, [t], null), t;
+        return c(this, "shift"), A && P(this, 0, [t], null), t;
       },
       unshift: function() {
         let t = K(arguments);
-        return this.target.unshift.apply(this.target, t), c(this, "unshift"), T && P(this, 0, null, t), this.target.length;
+        return this.target.unshift.apply(this.target, t), c(this, "unshift"), A && P(this, 0, null, t), this.target.length;
       },
       splice: function() {
         let t = K(arguments), i = t[0], o = t[1];
         typeof t[1] > "u" && (o = this.target.length - i);
         let u = t.slice(2), a = this.target.slice(i, i + o), p = this.target.splice.apply(this.target, t);
-        return c(this, "splice"), T && P(this, i, a, u), p;
+        return c(this, "splice"), A && P(this, i, a, u), p;
       },
       copyWithin: function(t, i, o) {
         if (i || (i = 0), o || (o = this.target.length), t < 0 && (i = this.target.length - t), i < 0 && (i = this.target.length - i), o < 0 && (i = this.target.length - o), o = Math.min(o, this.target.length), i = Math.min(i, this.target.length), i >= o)
           return;
         let u = this.target.slice(t, t + o - i), a = this.target.slice(i, o), p = this.target.copyWithin(t, i, o);
-        return c(this, "copyWithin"), T && P(this, t, a, u), p;
+        return c(this, "copyWithin"), A && P(this, t, a, u), p;
       }
     };
     return ["reverse", "sort", "fill"].forEach(function(t) {
       e[t] = function() {
         let i = K(arguments), o = this.target.slice(0), u = this.target[t].apply(this.target, i);
-        return c(this, t), T && P(this, 0, o, this.target.slice(0)), u;
+        return c(this, t), A && P(this, 0, o, this.target.slice(0)), u;
       };
     }), e;
   }
-  function ie(e, t) {
+  function oe(e, t) {
     return r.useNonObservablesAsValues ? $(e, t, r.valueComparisonDepthLimit) : e === t || Number.isNaN(e) && Number.isNaN(t);
   }
   function $(e, t, i) {
@@ -660,7 +662,7 @@ function ct(r) {
       let i = this.meta.forwardTo[f].handler;
       return i.get.apply(i, [i.target, t]);
     }
-    return A && !A(this, e, t) ? E : C[t] ? C[t].bind(this) : (n.inActiveRecording && I(n.context, this), e[t]);
+    return T && !T(this, e, t) ? E : C[t] ? C[t].bind(this) : (n.inActiveRecording && I(n.context, this), e[t]);
   }
   function Le(e, t, i) {
     if (t === f) throw new Error("Cannot set the dedicated meta property '" + f + "'");
@@ -671,7 +673,7 @@ function ct(r) {
     if (x && !x(this, e, t))
       return;
     let o = e[t];
-    return t in e && ie(o, i) ? !0 : (isNaN(t) ? (e[t] = i, (e[t] === i || Number.isNaN(e[t]) && Number.isNaN(i)) && (c(this, t), oe(this, t, i, o))) : (typeof t == "string" && (t = parseInt(t)), e[t] = i, (e[t] === i || Number.isNaN(e[t]) && Number.isNaN(i)) && (c(this, t), _e(this, t, i, o))), !(e[t] !== i && !(Number.isNaN(e[t]) && Number.isNaN(i))));
+    return t in e && oe(o, i) ? !0 : (isNaN(t) ? (e[t] = i, (e[t] === i || Number.isNaN(e[t]) && Number.isNaN(i)) && (c(this, t), se(this, t, i, o))) : (typeof t == "string" && (t = parseInt(t)), e[t] = i, (e[t] === i || Number.isNaN(e[t]) && Number.isNaN(i)) && (c(this, t), _e(this, t, i, o))), !(e[t] !== i && !(Number.isNaN(e[t]) && Number.isNaN(i))));
   }
   function je(e, t) {
     if (this.meta.forwardTo !== null) {
@@ -686,7 +688,7 @@ function ct(r) {
     if (!(t in e))
       return !0;
     let i = e[t];
-    return delete e[t], t in e || (c(this, "delete"), se(this, t, i)), !(t in e);
+    return delete e[t], t in e || (c(this, "delete"), le(this, t, i)), !(t in e);
   }
   function De(e) {
     if (this.meta.forwardTo !== null) {
@@ -696,7 +698,7 @@ function ct(r) {
         [i.target]
       );
     }
-    if (A && !A(this, e))
+    if (T && !T(this, e))
       return E;
     n.inActiveRecording && I(n.context, this);
     let t = Object.keys(e);
@@ -707,7 +709,7 @@ function ct(r) {
       let i = this.meta.forwardTo[f].handler;
       return i.has.apply(i, [e, t]);
     }
-    return A && !A(this, e, t) ? E : (n.inActiveRecording && I(n.context, this), t in e);
+    return T && !T(this, e, t) ? E : (n.inActiveRecording && I(n.context, this), t in e);
   }
   function Ee(e, t, i) {
     if (this.meta.forwardTo !== null) {
@@ -728,7 +730,7 @@ function ct(r) {
         [i.target, t]
       );
     }
-    return A && !A(this, e, t) ? E : (n.inActiveRecording && I(n.context, this), Object.getOwnPropertyDescriptor(e, t));
+    return T && !T(this, e, t) ? E : (n.inActiveRecording && I(n.context, this), Object.getOwnPropertyDescriptor(e, t));
   }
   function Pe(e, t) {
     if (t = t.toString(), t === f)
@@ -737,7 +739,7 @@ function ct(r) {
       let i = this.meta.forwardTo[f].handler;
       return i.get.apply(i, [i.target, t]);
     }
-    if (A && !A(this, e, t))
+    if (T && !T(this, e, t))
       return E;
     if (typeof t < "u") {
       n.inActiveRecording && l(n.context, this, t);
@@ -751,7 +753,7 @@ function ct(r) {
       return e[t];
     }
   }
-  function Be(e, t, i) {
+  function Se(e, t, i) {
     if (t === f) throw new Error("Cannot set the dedicated meta property '" + f + "'");
     if (this.meta.forwardTo !== null) {
       let p = this.meta.forwardTo[f].handler;
@@ -760,14 +762,14 @@ function ct(r) {
     if (x && !x(this, e, t))
       return;
     let o = e[t];
-    if (t in e && ie(o, i))
+    if (t in e && oe(o, i))
       return !0;
     let u = !(t in e);
     e[t] = i;
     let a = e[t];
-    return (a === i || Number.isNaN(a) && Number.isNaN(i)) && (h(this, t), u && d(this, t)), oe(this, t, i, o), !(a !== i && !(Number.isNaN(a) && Number.isNaN(i)));
+    return (a === i || Number.isNaN(a) && Number.isNaN(i)) && (h(this, t), u && d(this, t)), se(this, t, i, o), !(a !== i && !(Number.isNaN(a) && Number.isNaN(i)));
   }
-  function Se(e, t) {
+  function Be(e, t) {
     if (this.meta.forwardTo !== null) {
       let i = this.meta.forwardTo[f].handler;
       return i.deleteProperty.apply(
@@ -778,7 +780,7 @@ function ct(r) {
     if (!(x && !x(this, e, t)))
       if (t in e) {
         let i = e[t];
-        return delete e[t], t in e || (h(this, t), d(this, t), se(this, t, i)), !(t in e);
+        return delete e[t], t in e || (h(this, t), d(this, t), le(this, t, i)), !(t in e);
       } else
         return !0;
   }
@@ -790,7 +792,7 @@ function ct(r) {
         [o.target, t]
       );
     }
-    return A && !A(this, e, t) ? E : (n.inActiveRecording && g(n.context, this), Object.keys(e));
+    return T && !T(this, e, t) ? E : (n.inActiveRecording && g(n.context, this), Object.keys(e));
   }
   function He(e, t) {
     if (this.meta.forwardTo !== null) {
@@ -800,7 +802,7 @@ function ct(r) {
         [i.target, t]
       );
     }
-    return A && !A(this, e, t) ? E : (n.inActiveRecording && g(n.context, this), t in e);
+    return T && !T(this, e, t) ? E : (n.inActiveRecording && g(n.context, this), t in e);
   }
   function We(e, t, i) {
     if (this.meta.forwardTo !== null) {
@@ -818,13 +820,14 @@ function ct(r) {
       let i = this.meta.forwardTo[f].handler;
       return i.getOwnPropertyDescriptor.apply(i, [i.target, t]);
     }
-    return A && !A(this, e, t) ? E : (n.inActiveRecording && g(n.context, this), Object.getOwnPropertyDescriptor(e, t));
+    return T && !T(this, e, t) ? E : (n.inActiveRecording && g(n.context, this), Object.getOwnPropertyDescriptor(e, t));
   }
   function D(e) {
     return e !== null && typeof e == "object" && typeof e[f] == "object" && e[f].world === s;
   }
   function z(e, t) {
-    if (typeof e > "u" && (e = {}), typeof t > "u" && (t = null), D(e))
+    if (typeof e > "u" && (e = {}), typeof e != "object") return e;
+    if (typeof t > "u" && (t = null), D(e))
       throw new Error("Cannot observe an already observed object!");
     let i;
     e instanceof Array ? i = {
@@ -850,8 +853,8 @@ function ct(r) {
       // apply: function () {},
       // construct: function () {},
       get: Pe,
-      set: Be,
-      deleteProperty: Se,
+      set: Se,
+      deleteProperty: Be,
       ownKeys: Xe,
       has: He,
       defineProperty: We,
@@ -872,10 +875,12 @@ function ct(r) {
     }, n.inRepeater !== null) {
       const u = n.inRepeater;
       if (t !== null) {
-        if (u.newBuildIdObjectMap || (u.newBuildIdObjectMap = {}), u.buildIdObjectMap && typeof u.buildIdObjectMap[t] < "u") {
+        if (u.newBuildIdObjectMap || (u.newBuildIdObjectMap = {}), u.buildIdObjectMap && typeof u.buildIdObjectMap[t] < "u" && (!u.options.rebuildShapeAnalysis || !u.options.rebuildShapeAnalysis.allowMatch || ie(
+          () => u.options.rebuildShapeAnalysis.allowMatch(u.buildIdObjectMap[t], o)
+        ))) {
           i.meta.isBeingRebuilt = !0;
           let a = u.buildIdObjectMap[t];
-          a[f].forwardTo = o, u.options.rebuildShapeAnalysis && (i.meta.copyTo = a), i.meta.id = "temp-" + n.nextTempObjectId++, u.newBuildIdObjectMap[t] = a, o = a, i = o[f].handler, le(a[f].handler);
+          a[f].forwardTo = o, u.options.rebuildShapeAnalysis && (i.meta.copyTo = a), i.meta.id = "temp-" + n.nextTempObjectId++, u.newBuildIdObjectMap[t] = a, o = a, i = o[f].handler, ae(a[f].handler);
         } else
           i.meta.id = n.nextObjectId++, i.meta.pendingOnEstablishCall = !0, u.newBuildIdObjectMap[t] = o, q(i);
         u.options.rebuildShapeAnalysis && (u.newIdObjectShapeMap || (u.newIdObjectShapeMap = {}), u.newIdObjectShapeMap[i.meta.id] = o);
@@ -884,57 +889,60 @@ function ct(r) {
       i.meta.id = n.nextObjectId++, q(i);
     return o;
   }
-  function re(e, t) {
-    if (D(e) || typeof e != "object") return e;
+  function J(e, t) {
+    if (D(e) || typeof e != "object" || e === null) return e;
     let i;
     if (t) {
       const o = e instanceof Array ? [] : {};
       for (let u in e)
-        o[u] = re(e[u], t);
+        o[u] = J(e[u], t);
       i = o;
-    } else
+    } else {
       i = e;
+      for (let o in e)
+        i[o] = J(i[o], t);
+    }
     return z(i);
   }
   function P(e, t, i, o) {
-    T && B(e, { type: "splice", index: t, removed: i, added: o });
+    A && S(e, { type: "splice", index: t, removed: i, added: o });
   }
   function _e(e, t, i, o) {
-    T && B(e, {
+    A && S(e, {
       type: "splice",
       index: t,
       removed: [o],
       added: [i]
     });
   }
-  function oe(e, t, i, o) {
-    T && B(e, {
+  function se(e, t, i, o) {
+    A && S(e, {
       type: "set",
       property: t,
       newValue: i,
       oldValue: o
     });
   }
-  function se(e, t, i) {
-    T && B(e, {
+  function le(e, t, i) {
+    A && S(e, {
       type: "delete",
       property: t,
       deletedValue: i
     });
   }
-  function le(e) {
-    T && B(e, { type: "reCreate" });
+  function ae(e) {
+    A && S(e, { type: "reCreate" });
   }
   function q(e) {
-    T && B(e, { type: "create" });
+    A && S(e, { type: "create" });
   }
-  function ae(e) {
-    T && B(e, { type: "dispose" });
+  function fe(e) {
+    A && S(e, { type: "dispose" });
   }
-  function B(e, t) {
-    t.object = e.meta.proxy, t.objectId = e.meta.id, !(!ve && e.meta.isBeingRebuilt) && (Y && Y(t), te && typeof e.target.onChange == "function" && e.target.onChange(t));
+  function S(e, t) {
+    t.object = e.meta.proxy, t.objectId = e.meta.id, !(!we && e.meta.isBeingRebuilt) && (Y && Y(t), ne && typeof e.target.onChange == "function" && e.target.onChange(t));
   }
-  function J() {
+  function Q() {
     if (n.postponeInvalidation == 0) {
       for (n.postponeRefreshRepeaters++; n.nextObserverToInvalidate !== null; ) {
         let e = n.nextObserverToInvalidate;
@@ -942,7 +950,7 @@ function ct(r) {
         const t = e.nextToNotify;
         t ? (e.nextToNotify = null, n.nextObserverToInvalidate = t) : n.lastObserverToInvalidate = null, e.invalidateAction(), X(e);
       }
-      n.postponeRefreshRepeaters--, ce();
+      n.postponeRefreshRepeaters--, pe();
     }
   }
   function ze(e, t, i) {
@@ -954,7 +962,7 @@ function ct(r) {
       }
       u = u.parent;
     }
-    o || (e.invalidatedInContext = n.context, e.invalidatedByKey = i, e.invalidatedByObject = t, e.dispose(), n.postponeInvalidation > 0 ? (S(e), n.lastObserverToInvalidate !== null ? n.lastObserverToInvalidate.nextToNotify = e : n.nextObserverToInvalidate = e, n.lastObserverToInvalidate = e) : e.invalidateAction(i));
+    o || (e.invalidatedInContext = n.context, e.invalidatedByKey = i, e.invalidatedByObject = t, e.dispose(), n.postponeInvalidation > 0 ? (B(e), n.lastObserverToInvalidate !== null ? n.lastObserverToInvalidate.nextToNotify = e : n.nextObserverToInvalidate = e, n.lastObserverToInvalidate = e) : e.invalidateAction(i));
   }
   function qe(e, t) {
     return {
@@ -987,7 +995,7 @@ function ct(r) {
     if (arguments.length > 2)
       i = arguments[0], e = arguments[1], t = arguments[2];
     else {
-      if (be) throw new Error("Missing description for 'invalidateOnChange'");
+      if (Oe) throw new Error("Missing description for 'invalidateOnChange'");
       e = arguments[0], t = arguments[1];
     }
     const o = y(i, t);
@@ -1049,7 +1057,7 @@ function ct(r) {
       //   }
       // },
       dispose() {
-        ue(this), m(this), this.disposeChildren();
+        de(this), m(this), this.disposeChildren();
       },
       notifyDisposeToCreatedObjects() {
         if (this.idObjectShapeMap)
@@ -1090,7 +1098,7 @@ function ct(r) {
       }
     };
   }
-  function fe(e) {
+  function ue(e) {
     const t = e.options.rebuildShapeAnalysis;
     function i(a, p) {
       a[f].forwardTo = p, p[f].copyTo = a, p[f].pendingCreationEvent && (delete p[f].pendingCreationEvent, a[f].pendingReCreationEvent = !0), delete p[f].pendingOnEstablishCall, delete e.newIdObjectShapeMap[p[f].id], e.newIdObjectShapeMap[a[f].id] = a;
@@ -1120,7 +1128,7 @@ function ct(r) {
       return o instanceof Array ? o.map((u) => i(u)) : D(o) && o[f].copyTo ? o[f].copyTo : o;
     }
     if (e.options.rebuildShapeAnalysis) {
-      const { matchChildrenInEquivalentSlot: o, matchInEquivalentSlot: u } = fe(e), a = e.options.rebuildShapeAnalysis;
+      const { matchChildrenInEquivalentSlot: o, matchInEquivalentSlot: u } = ue(e), a = e.options.rebuildShapeAnalysis;
       if (e.establishedRoot instanceof Array || a.shapeRoot() instanceof Array) {
         let p = e.establishedRoot, v = a.shapeRoot();
         p instanceof Array || (p = [p]), v instanceof Array || (v = [v]), o(p, v);
@@ -1143,32 +1151,32 @@ function ct(r) {
       for (let p in e.newIdObjectShapeMap) {
         let v = e.newIdObjectShapeMap[p];
         const w = v[f].forwardTo;
-        w ? (w[f].copyTo = null, v[f].forwardTo = null, Z(v, w[f].target), v[f].pendingCreationEvent && (delete v[f].pendingCreationEvent, le(v[f].handler))) : (v[f].pendingCreationEvent && (delete v[f].pendingCreationEvent, q(v[f].handler)), Q(v));
+        w ? (w[f].copyTo = null, v[f].forwardTo = null, V(v, w[f].target), v[f].pendingCreationEvent && (delete v[f].pendingCreationEvent, ae(v[f].handler))) : (v[f].pendingCreationEvent && (delete v[f].pendingCreationEvent, q(v[f].handler)), Z(v));
       }
       if (e.idObjectShapeMap) {
         for (let p in e.idObjectShapeMap)
           if (typeof e.newIdObjectShapeMap[p] > "u") {
             const v = e.idObjectShapeMap[p], w = v[f].target;
-            ae(v[f].handler), typeof w.onDispose == "function" && v.onDispose();
+            fe(v[f].handler), typeof w.onDispose == "function" && v.onDispose();
           }
       }
     } else {
       for (let o in e.newBuildIdObjectMap) {
         let u = e.newBuildIdObjectMap[o];
         const a = u[f].forwardTo;
-        a !== null ? (u[f].forwardTo = null, a[f].isBeingRebuilt = !1, Z(u, a[f].target)) : Q(u);
+        a !== null ? (u[f].forwardTo = null, a[f].isBeingRebuilt = !1, V(u, a[f].target)) : Z(u);
       }
       if (e.buildIdObjectMap) {
         for (let o in e.buildIdObjectMap)
           if (typeof e.newBuildIdObjectMap[o] > "u") {
             const u = e.buildIdObjectMap[o], a = u[f].target;
-            ae(u[f].handler), typeof a.onDispose == "function" && a.onDispose();
+            fe(u[f].handler), typeof a.onDispose == "function" && a.onDispose();
           }
       }
     }
     e.buildIdObjectMap = e.newBuildIdObjectMap, e.newBuildIdObjectMap = {}, e.idObjectShapeMap = e.newIdObjectShapeMap, e.newIdObjectShapeMap = {}, e.finishedRebuilding = !0, t.onEndBuildUpdate && t.onEndBuildUpdate();
   }
-  function Q(e) {
+  function Z(e) {
     const t = e[f];
     (t.pendingOnEstablishCall || !t.established) && (delete t.pendingOnEstablishCall, t.established = !0, typeof t.target.onEstablish == "function" && e.onEstablish());
   }
@@ -1178,13 +1186,13 @@ function ct(r) {
       if (n.inRepeater) {
         const i = n.context;
         if (i.options.rebuildShapeAnalysis) {
-          const { matchChildrenInEquivalentSlot: o } = fe(i);
+          const { matchChildrenInEquivalentSlot: o } = ue(i);
           o(e[f].target, t[f].target);
         }
       }
-      e[f].forwardTo = null, t[f].isBeingRebuilt = !1, Z(e, t[f].target);
+      e[f].forwardTo = null, t[f].isBeingRebuilt = !1, V(e, t[f].target);
     } else
-      Q(e);
+      Z(e);
     return e;
   }
   function $e(e, { throttle: t = 0 }) {
@@ -1205,9 +1213,9 @@ function ct(r) {
     const u = arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments);
     if (typeof u[0] == "string")
       e = u.shift();
-    else if (me)
+    else if (be)
       throw new Error("Every repeater has to be given a name as first argument. Note: This requirement can be removed in the configuration.");
-    if (typeof u[0] == "function" && (t = u.shift()), (typeof u[0] == "function" || u[0] === null) && (i = u.shift()), typeof u[0] == "object" && (o = u.shift()), o || (o = {}), Oe && n.inActiveRecording) {
+    if (typeof u[0] == "function" && (t = u.shift()), (typeof u[0] == "function" || u[0] === null) && (i = u.shift()), typeof u[0] == "object" && (o = u.shift()), o || (o = {}), ve && n.inActiveRecording) {
       let p = n.context.description;
       !p && n.context.parent && (p = n.context.parent.description), p || (p = "unnamed"), r.traceWarnings && console.warn(Error(`repeater ${e || "unnamed"} inside active recording ${p}`));
     }
@@ -1217,20 +1225,20 @@ function ct(r) {
   function Qe(e) {
     e.dispose();
     const t = e.priority();
-    S(t);
+    B(t);
     const o = n.dirtyRepeaters[t];
-    o.last === null ? (o.last = e, o.first = e) : (o.last.nextDirty = e, e.previousDirty = o.last, o.last = e), ce();
+    o.last === null ? (o.last = e, o.first = e) : (o.last.nextDirty = e, e.previousDirty = o.last, o.last = e), pe();
   }
   function Ze() {
     n.observerId = 0, n.dirtyRepeaters.map((e) => {
       e.first = null, e.last = null;
     });
   }
-  function ue(e) {
+  function de(e) {
     const t = e.priority(), i = n.dirtyRepeaters[t];
     i.last === e && (i.last = e.previousDirty), i.first === e && (i.first = e.nextDirty), e.nextDirty && (e.nextDirty.previousDirty = e.previousDirty), e.previousDirty && (e.previousDirty.nextDirty = e.nextDirty), e.nextDirty = null, e.previousDirty = null;
   }
-  function de(e = 0) {
+  function ce(e = 0) {
     const t = n.dirtyRepeaters;
     let i = e;
     for (; i < t.length; ) {
@@ -1255,11 +1263,11 @@ function ct(r) {
     }
     return null;
   }
-  function ce() {
-    if (n.postponeRefreshRepeaters === 0 && !n.refreshingAllDirtyRepeaters && de()) {
-      for (n.refreshingAllDirtyRepeaters = !0; de(); ) {
+  function pe() {
+    if (n.postponeRefreshRepeaters === 0 && !n.refreshingAllDirtyRepeaters && ce()) {
+      for (n.refreshingAllDirtyRepeaters = !0; ce(); ) {
         let e = Ve();
-        e.refresh(), ue(e), X(e.priority());
+        e.refresh(), de(e), X(e.priority());
       }
       n.refreshingAllDirtyRepeaters = !1;
     }
@@ -1280,11 +1288,11 @@ function ct(r) {
   }
   return s;
 }
-let V = {};
+let k = {};
 function pt(r) {
   r || (r = {}), r = { ...dt, ...r };
   const n = rt(r);
-  return typeof V[n] > "u" && (V[n] = ct(r)), V[n];
+  return typeof k[n] > "u" && (k[n] = ct(r)), k[n];
 }
 export {
   pt as default,

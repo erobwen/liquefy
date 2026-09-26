@@ -1,7 +1,18 @@
 {
   "name": "@liquefy/cascade.reactive",
-  "version": "3.0.0",
-  "description": "A library for reactive programming based on Javascript proxies.",
+  "version": "1.0.0",
+  "description": "Temporal signals: reactive programming with ES6 proxies, where readers and writers of the same data are ordered in time. The reactive engine of Cascade.",
+  "keywords": [
+    "reactive",
+    "signals",
+    "temporal signals",
+    "proxy",
+    "observable",
+    "state management",
+    "cascade"
+  ],
+  "author": "Robert Renbris",
+  "license": "ISC",
   "type": "module",
   "main": "./dist/cascade.reactive.umd.cjs",
   "module": "./src/cascade.js",
@@ -11,25 +22,28 @@
       "require": "./dist/cascade.reactive.umd.cjs"
     }
   },
+  "files": [
+    "src",
+    "!src/test",
+    "!src/experiments",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "mocha ./src/test",
-    "build": "vite build"
+    "build": "vite build",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.reactive"
   },
-  "keywords": [
-    "Javascript",
-    "ESProxy",
-    "Reactive Programming"
-  ],
-  "author": "Robert Renbris",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.reactive#readme",
   "devDependencies": {
     "eslint": "^6.8.0",
     "mobx": "^5.15.4",

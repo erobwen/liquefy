@@ -1,20 +1,23 @@
-
 # Causality
 
-![Alt text](/docs/logotype.png?raw=true "Causality Logotype")
+![Causality Logotype](https://raw.githubusercontent.com/erobwen/liquefy/main/causality/docs/logotype.png "Causality Logotype")
 
-Reactive programming for simple, scalable state management, using ES6 proxies.
+Reactive programming for simple, scalable state management, using ES6
+proxies. The reactive engine of [Flow](https://github.com/erobwen/liquefy/tree/main/flow.core#readme) - and the
+ancestor of [cascade.reactive](https://github.com/erobwen/liquefy/tree/main/cascade.reactive#readme), Cascade's
+temporal signals.
 
+```console
+npm install @liquefy/causality
+```
 
-# Installation
-
-Installation: npm install causalityjs --save
+(Versions up to 2.x were published as `causalityjs`.)
 
 # Usage
 
 It is possible to create several instances of causality, called worlds, each with its separate config and dependencies. As the name implies, you typically just create one single causality world for your app to use. But you can sometimes benefit from created several isolated worlds where causality isolates observation and event propagation within each world.
 
-    import getWorld from "causality";
+    import getWorld from "@liquefy/causality";
     let myWorld = getWorld({name: "myWorld", ...moreOptions}); // Create an instance with possibility to configure it.
     let { observable, repeat } = myWorld;
 
@@ -25,7 +28,7 @@ Calling getWorld multiple times with the same unique name given in the configura
 
 This is just to show a simple example of what causality is all about, using the simple repeat primitive.
 
-    import getWorld from "causality";
+    import getWorld from "@liquefy/causality";
     let { observable, repeat } = getWorld();
 
     let x = observable({propA: 11});
@@ -215,7 +218,7 @@ Since version 2.0 a few features were removed, as they seemed too esoteric to be
 The 3.0 version uses a getWorld function that can create multiple instances of causality.  
 
 ```js
-import getWorld from "causalityjs";
+import getWorld from "@liquefy/causality";
 const myCausalityWorld = getWorld({name: "myCausalityWorld", ...moreOptions});
 const { repeat, invalidateOnChange, observable } = myCausalityWorld;
 ```

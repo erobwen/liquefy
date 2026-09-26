@@ -1,9 +1,10 @@
 {
   "name": "@liquefy/experiments",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A demo showcasing flow.",
   "author": "Robert Renbris",
   "license": "ISC",
-  "version": "1.0.0",
-  "description": "A demo showcasing flow.",
   "type": "module",
   "module": "./src/index.js",
   "scripts": {
@@ -17,16 +18,17 @@
     "url": "https://github.com/erobwen/liquefy/issues"
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
-  "devDependencies": {
-    "vite": "^5.3.1"
-  },
   "dependencies": {
-    "@liquefy/causality": "file:../../causality",
-    "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.dom": "file:../../flow.DOM",
-    "@liquefy/themed-ui": "file:../../flow.ui/themed",
-    "@liquefy/basic-ui": "file:../../flow.ui/basic",
+    "@liquefy/causality": "^3.0.0",
+    "@liquefy/flow.core": "^1.0.0",
+    "@liquefy/flow.dom": "^1.0.0",
+    "@liquefy/themed-ui": "^1.0.0",
+    "@liquefy/basic-ui": "^1.0.0",
+    "@liquefy/ui-material": "^1.0.0",
     "@material/web": "^2.2.0",
     "mdui": "^2.1.2"
+  },
+  "devDependencies": {
+    "vite": "^5.3.1"
   }
 }

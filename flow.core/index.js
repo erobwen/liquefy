@@ -1,5 +1,5 @@
 
-import { world, transaction, observable, deeplyObservable, isObservable, repeat, finalize, withoutRecording, sameAsPreviousDeep, workOnPriorityLevel, invalidateOnChange, postponeInvalidations, continueInvalidations, state, model, configuration, setFlowConfiguration, trace, traceAnimation, traceWarnings, activeTrace, activeTraceModel, when, callback } from "./src/Flow";
+import { world, transaction, observable, deeplyObservable, isObservable, repeat, finalize, withoutRecording, sameAsPreviousDeep, workOnPriorityLevel, invalidateOnChange, postponeInvalidations, continueInvalidations, state, model, configuration, setFlowConfiguration, trace, traceAnimation, traceWarnings, activeTrace, activeTraceModel, when, callback, updateTargetTime } from "./src/Flow";
 import { Component } from "./src/Component";
 import { creators, getCreator, getRenderTarget, inherit, globalContext, modifyGlobalContext } from "./src/buildContext";
 import { findImplicitChildren, toProperties, toPropertiesWithChildren, createTextNodesFromStringChildren, extractProperty, extractExpectedProperty, extractProperties} from "./src/implicitProperties";
@@ -10,6 +10,7 @@ import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrame
 
 export {
     // Flow.js
+    updateTargetTime,
     world, 
     transaction, 
     observable, 

@@ -1,29 +1,52 @@
 {
-    "name": "liquefy",
-    "author": "Robert Renbris",
-    "version": "1.0.0",
-    "description": "A monorepo for liquefy products.",
-    "scripts": {
-      "build": "cd causality && npm run build && cd .. && cd flow.core && npm run build && cd .. && cd flow.DOM && npm run build && cd .. && cd flow && npm run build && cd .. && cd flow.ui/basic && npm run build && cd ../.. && cd flow.ui/themed && npm run build && cd ../.. && cd flow.ui/modern && npm run build && cd ../.. && cd flow.ui/material && npm run build && cd ../.. && cd cascade.reactive && npm run build && cd .. && cd cascade && npm run build && cd ..",
-      "postinstall": "cd causality && npm install && cd .. && cd flow && npm install && cd .. && cd flow.core && npm install && cd .. && cd flow.DOM && npm install && cd .. && cd flow.ui/basic && npm install && cd ../.. && cd flow.ui/modern && npm install && cd ../.. && cd flow.ui/themed && npm install && cd ../.. && cd flow.ui/material && npm install && cd ../.. && cd flow.application/demo && npm install && cd ../.. && cd flow.application/hello-world && npm install && cd ../.. && cd flow.application/experiments && npm install && cd ../.. && cd cascade.reactive && npm install && cd .. && cd cascade && npm install && cd .. && cd cascade.component && npm install && cd .."
-    },
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/erobwen/liquefy.git"
-    },
-    "keywords": [
-      "Javascript",
-      "Proxy",
-      "Reactive Programming",
-      "Front End Framework"
-    ],
-    "license": "ISC",
-    "bugs": {
-      "url": "https://github.com/erobwen/liquefy/issues"
-    },
-    "homepage": "https://github.com/erobwen/liquefy#readme",
-    "devDependencies": {},
-    "dependencies": {}
-  }
-  
-
+  "name": "liquefy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The liquefy monorepo: Cascade, a reactive front end framework built on temporal signals - and Flow, the generation before it.",
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "workspaces": [
+    "cascade.reactive",
+    "cascade.component",
+    "cascade.DOM",
+    "cascade.ui",
+    "cascade.ui.material",
+    "cascade.application/demo",
+    "causality",
+    "flow.core",
+    "flow.DOM",
+    "flow",
+    "flow.ui/basic",
+    "flow.ui/themed",
+    "flow.ui/material",
+    "flow.ui/modern",
+    "flow.application/demo",
+    "flow.application/hello-world",
+    "flow.application/experiments"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "build": "npm run build -w @liquefy/causality -w @liquefy/cascade.reactive",
+    "demo": "npm start -w @liquefy/cascade-demo",
+    "build:demo": "npm run build -w @liquefy/cascade-demo",
+    "flow:demo": "npm start -w @liquefy/flow-demo",
+    "pack:check": "npm pack --dry-run --workspaces"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "keywords": [
+    "javascript",
+    "proxy",
+    "reactive",
+    "signals",
+    "temporal signals",
+    "front end",
+    "framework"
+  ]
+}

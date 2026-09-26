@@ -1,32 +1,43 @@
 {
   "name": "@liquefy/cascade.ui.material",
-  "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
-  ],
   "version": "1.0.0",
-  "description": "A Material Design theme for cascade's themed widgets (see @liquefy/cascade.ui), built on mdui 2 web components - the cascade counterpart of flow.ui/material.",
+  "description": "A Material Design theme for Cascade's themed widgets, built on mdui 2 web components - its colors made from any one you pick.",
+  "keywords": [
+    "reactive",
+    "ui",
+    "material design",
+    "mdui",
+    "themes",
+    "cascade"
+  ],
+  "author": "Robert Renbris",
+  "license": "ISC",
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
+  "files": [
+    "index.js",
+    "src",
+    "!src/test",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "mocha ./src/test"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.ui.material"
   },
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
-  "author": "Robert Renbris",
-  "license": "ISC",
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.ui.material#readme",
   "dependencies": {
-    "@liquefy/cascade.component": "file:../cascade.component",
-    "@liquefy/cascade.dom": "file:../cascade.DOM",
-    "@liquefy/cascade.ui": "file:../cascade.ui",
+    "@liquefy/cascade.component": "^1.0.0",
+    "@liquefy/cascade.dom": "^1.0.0",
+    "@liquefy/cascade.ui": "^1.0.0",
     "mdui": "^2.1.3",
     "@material/material-color-utilities": "^0.3.0"
   },

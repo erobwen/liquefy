@@ -1,20 +1,55 @@
+# cascade.reactive
 
-# Causality
+**Temporal signals** - reactive programming with ES6 proxies, where the
+readers and writers of the same data are ordered in time. The reactive
+engine of [Cascade](https://github.com/erobwen/liquefy#readme).
 
-![Alt text](/docs/logotype.png?raw=true "Causality Logotype")
+Signals usually give you one value per object and property, so every
+intermediate result needs a signal of its own, and an explicit dependency
+graph between them. But rendering, like any document transformation, is a
+sequence of steps transforming the *same* objects. With temporal signals,
+each reader and writer operates within its own time frame: a reader sees the
+value as of its place in the pipeline, and a change invalidates only the
+readers downstream of it.
 
-Reactive programming for simple, scalable state management, using ES6 proxies.
+```console
+npm install @liquefy/cascade.reactive
+```
 
+## Temporal signals in one example
 
-# Installation
+```js
+import getWorld from "@liquefy/cascade.reactive";
+const { observable, repeat } = getWorld({ name: "example" });
 
-Installation: npm install causalityjs --save
+// The same object, read and written along a pipeline of repeaters.
+const layout = observable({ width: 1000 });
+
+repeat(() => {
+  repeat(() => console.log("Header sees width", layout.width));  // before the write
+  repeat(() => { layout.width = layout.width - 200; });          // the sidebar takes 200
+  repeat(() => console.log("Content sees width", layout.width)); // after it
+});
+// Header sees width 1000
+// Content sees width 800
+
+layout.width = 1200;
+// Header sees width 1200
+// Content sees width 1000
+```
+
+This is what lets a Cascade component render before its children, measure
+the room it has, and hand that down to them - in the same pass.
+
+cascade.reactive grew out of [causality](https://github.com/erobwen/liquefy/tree/main/causality#readme) (the reactive
+engine of Flow), and shares its API: the reference below still calls it
+causality in places.
 
 # Usage
 
 It is possible to create several instances of causality, called worlds, each with its separate config and dependencies. As the name implies, you typically just create one single causality world for your app to use. But you can sometimes benefit from created several isolated worlds where causality isolates observation and event propagation within each world.
 
-    import getWorld from "causality";
+    import getWorld from "@liquefy/cascade.reactive";
     let myWorld = getWorld({name: "myWorld", ...moreOptions}); // Create an instance with possibility to configure it.
     let { observable, repeat } = myWorld;
 
@@ -25,7 +60,7 @@ Calling getWorld multiple times with the same unique name given in the configura
 
 This is just to show a simple example of what causality is all about, using the simple repeat primitive.
 
-    import getWorld from "causality";
+    import getWorld from "@liquefy/cascade.reactive";
     let { observable, repeat } = getWorld();
 
     let x = observable({propA: 11});
@@ -203,54 +238,6 @@ It is possible to do many changes at once, before causality has a chance to resp
     })
 
 Warning: A transaction should typically only write data, as reading data inside a transaction might result in reading non-updated data since all repeaters are frozen inside the transaction.
-
-# Release Notes for 3.0
-
-## Removed features
-
-Since version 2.0 a few features were removed, as they seemed too esoteric to be practically used. For example cached, reCached, withoutSideEffects etc. if you miss any of these features, please let us know. The idea is that using rebuilding keys in a standard repeat should replace reCached, and that cached functions can be implemented fairly easily using invalidateOnChange.
-
-## Migration
-
-The 3.0 version uses a getWorld function that can create multiple instances of causality.  
-
-```js
-import getWorld from "causalityjs";
-const myCausalityWorld = getWorld({name: "myCausalityWorld", ...moreOptions});
-const { repeat, invalidateOnChange, observable } = myCausalityWorld;
-```
-You can name a configuration with the "name" property. Doing so makes it possible to retrieve the same instance from another call to the factory function. A named configuration is created the first time by using the configuration, on successive calls by using the same name, configuration settings will be ignored and you will just be given the instance created the first time that name was used. 
-
-`Causality.create` has been renamed `Causality.observable`. However, create still exists as an alias.  
-
-
-`Causality.independently` is no longer needed for repeaters created inside other repeaters, since now, the default behaviour is that sub-repeaters will become independent of their parents. This means they will not be removed before their parent is re-run. If nesting is wanted, use
-```js
-Causality.repeat( repeaterActions, {dependentOnParent: true});
-```
-
-`obj.observe(listener)` has been replaced with a single `obj.onChange` callback. Enable events with config `{sendEventsToObjects: true}`. It is also possible to globaly observe events by setting onEventGlobal in the configuration. 
-
-You can also intercept reading and writing to any object in the world by setting onReadGlobal and onWriteGlobal in the configuration. That can be useful for security features. 
-
-Observed object causality metadata are now gathered in a configurable property, defaulting to `causality`. `obj.__id` is now `obj.causality.id`. `obj.__target` is now `obj.causality.target`.
-
-Check if an object is an observable by checking for `obj.causality`.
-
-
-# React Integration
-
-It is fairly simple to integrate causality with react. The only thing you have to do is to run all render functions wrapped in invalidateUponChange. If change occurs, register the react component as dirty, and later, when all model changes are finished, we run forceUpdate on all dirty components. There will be a package for this purpose, perhaps later this year. 
-
-# Community
-
-For discussions, see:
-
-https://gitter.im/causalityjs/Lobby
-
-For discussions in Swedish:
-
-https://gitter.im/avantgarde_web_development/Lobby
 
 # Comparison to MobX
 

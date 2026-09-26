@@ -1,30 +1,38 @@
 {
   "name": "@liquefy/flow.core",
   "version": "1.0.0",
-  "description": "An abstract Reactive front end framework.",
-  "type": "module",
-  "main": "./dist/flow.core.umd.cjs",
-  "module": "./index.js",
-  "scripts": {
-    "build": "vite build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
-  },
+  "description": "Flow: a generative, JavaScript-first front end framework with integrated, auto-observing state management - what MobX and React give you, as one unit.",
   "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
+    "reactive",
+    "components",
+    "front end",
+    "framework",
+    "state management",
+    "flow"
   ],
   "author": "Robert Renbris",
   "license": "ISC",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "files": [
+    "index.js",
+    "src",
+    "!src/test",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "flow.core"
+  },
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/flow.core#readme",
   "peerDependencies": {
-    "@liquefy/causality": "file:../causality"
+    "@liquefy/causality": "^3.0.0"
   },
   "publishConfig": {
     "access": "public"

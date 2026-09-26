@@ -1,31 +1,40 @@
 {
   "name": "@liquefy/cascade.component",
   "version": "1.0.0",
-  "description": "The component model for Cascade - the corresponding piece to flow.core, built on cascade.reactive instead of causality.",
-  "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
-  "scripts": {
-    "test": "mocha ./src/test",
-    "build": "vite build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
-  },
+  "description": "The component model of Cascade: components that build and render reactively, with stable identity, state, services and inheritance - on cascade.reactive's temporal signals.",
   "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
+    "reactive",
+    "components",
+    "front end",
+    "framework",
+    "cascade"
   ],
   "author": "Robert Renbris",
   "license": "ISC",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "files": [
+    "index.js",
+    "src",
+    "!src/test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "mocha ./src/test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.component"
+  },
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.component#readme",
   "peerDependencies": {
-    "@liquefy/cascade.reactive": "file:../cascade.reactive"
+    "@liquefy/cascade.reactive": "^1.0.0"
   },
   "devDependencies": {
     "mocha": "^10.8.2"

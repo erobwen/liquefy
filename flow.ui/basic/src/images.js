@@ -1,7 +1,7 @@
 import { toProperties, getRenderTarget } from "@liquefy/flow.core";
 
 import { div, elementNode, addDefaultStyle } from "@liquefy/flow.dom";
-import { extractProperty } from "../../../flow.core/src/implicitProperties";
+import { extractProperty } from "@liquefy/flow.core";
 
 // import flowImage from "../../resources/flow.svg"
 

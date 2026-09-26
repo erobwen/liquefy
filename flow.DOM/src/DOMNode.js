@@ -3,7 +3,7 @@ import { PrimitiveComponent } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
 import { standardAnimation } from "./ZoomFlyDOMTransitionAnimation";
-import { updateTargetTime } from "../../flow.core/src/Flow";
+import { updateTargetTime } from "@liquefy/flow.core";
 
 const log = console.log;
 

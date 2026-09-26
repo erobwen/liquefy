@@ -1,32 +1,40 @@
 {
   "name": "@liquefy/cascade.dom",
-  "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
-  ],
   "version": "1.0.0",
-  "description": "A real-DOM target for cascade.component - components manipulate it directly, in render time, instead of building an abstract primitive tree first.",
+  "description": "Cascade for the browser: components rendered straight onto the real DOM in one pass, with bounds measurement, animation, overflow layout, routing and hydration.",
+  "keywords": [
+    "reactive",
+    "dom",
+    "front end",
+    "framework",
+    "animation",
+    "cascade"
+  ],
+  "author": "Robert Renbris",
+  "license": "ISC",
   "type": "module",
   "main": "./src/index.js",
   "module": "./src/index.js",
+  "files": [
+    "src",
+    "!src/test",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "test": "mocha ./src/test",
-    "build": "vite build"
+    "test": "mocha ./src/test"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.DOM"
   },
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
-  "author": "Robert Renbris",
-  "license": "ISC",
-
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.DOM#readme",
   "peerDependencies": {
-    "@liquefy/cascade.component": "file:../cascade.component"
+    "@liquefy/cascade.component": "^1.0.0"
   },
   "devDependencies": {
     "mocha": "^10.8.2",

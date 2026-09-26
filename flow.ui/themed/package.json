@@ -1,30 +1,37 @@
 {
-  "name": "@liquefy/ui-themed",
+  "name": "@liquefy/themed-ui",
   "version": "1.0.0",
-  "description": "A modern widget collection for Flow.",
-  "type": "module",
-  "module": "./index.js",
-  "scripts": {
-    "build": "vite build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/erobwen/liquefy.git"
-  },
+  "description": "Themed widgets for Flow: whichever theme is configured provides them.",
   "keywords": [
-    "Javascript",
-    "Proxy",
-    "Reactive"
+    "reactive",
+    "ui",
+    "widgets",
+    "themes",
+    "flow"
   ],
   "author": "Robert Renbris",
   "license": "ISC",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "flow.ui/themed"
+  },
   "bugs": {
     "url": "https://github.com/erobwen/liquefy/issues"
   },
-  "homepage": "https://github.com/erobwen/liquefy#readme",
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/flow.ui/themed#readme",
   "peerDependencies": {
-    "@liquefy/flow.core": "file:../../flow.core",
-    "@liquefy/flow.dom": "file:../../flow.DOM"
+    "@liquefy/flow.core": "^1.0.0",
+    "@liquefy/flow.dom": "^1.0.0",
+    "@liquefy/basic-ui": "^1.0.0"
   },
   "publishConfig": {
     "access": "public"

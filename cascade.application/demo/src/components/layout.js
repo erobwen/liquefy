@@ -1,4 +1,5 @@
-import { b, div, text } from "@liquefy/cascade.dom";
+import { Component, callback } from "@liquefy/cascade.component";
+import { a, b, div, text } from "@liquefy/cascade.dom";
 import { card, column, fitContainerStyle, overflowVisibleStyle, themeColor } from "@liquefy/cascade.ui";
 
 /**
@@ -14,6 +15,7 @@ import { card, column, fitContainerStyle, overflowVisibleStyle, themeColor } fro
  *  - article(): text to read, on a surface of its own, at a readable width.
  *  - sectionTitle(): a small heading, above a group of things on a page.
  *  - emphasis(): a highlighted phrase in running text.
+ *  - nextPage(): the way on, to another page of the app.
  */
 
 // The space between the parts of a page - everywhere.
@@ -51,4 +53,46 @@ export function sectionTitle(key, title) {
 
 export function emphasis(...children) {
   return b({ style: { color: accentColor } }, ...toChildren(children));
+}
+
+/**
+ * nextPage({ key, path, label }) - the way on, to another page of the app:
+ * a real link to its address (open it in a new tab, copy it) - and a plain
+ * click goes there without loading the app anew, as the menu does.
+ */
+export function nextPage(properties) {
+  return new NextPage(properties);
+}
+
+class NextPage extends Component {
+  setProperties({ path, label }) {
+    this.path = path;
+    this.label = label;
+  }
+
+  build() {
+    const location = this.inherit("location");
+    return div(
+      {
+        key: "nextPage",
+        style: {
+          margin: "24px 0 8px 0", padding: "16px 20px", borderRadius: "8px",
+          background: themeColor.accentLight, borderLeft: "4px solid " + themeColor.accent,
+        },
+      },
+      a(
+        {
+          key: "link",
+          href: location.href(this.path),
+          style: { color: themeColor.accentDark, fontWeight: "bold", fontSize: "17px", textDecoration: "none" },
+          onclick: callback("go", (event) => {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            location.navigate(this.path);
+          }),
+        },
+        text({ key: "linkText", text: this.label }),
+      ),
+    );
+  }
 }

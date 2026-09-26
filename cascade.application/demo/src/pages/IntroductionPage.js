@@ -1,9 +1,9 @@
-import { Component, callback } from "@liquefy/cascade.component";
+import { Component } from "@liquefy/cascade.component";
 import { div, h1, h2, p, ul, li, a, img, text } from "@liquefy/cascade.dom";
 import { themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { HighlightedCode } from "../components/code.js";
-import { article, emphasis } from "../components/layout.js";
+import { article, emphasis, nextPage } from "../components/layout.js";
 import source from "./IntroductionPage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import whatIfEverything from "../../../../cascade/images/what-if-everything.svg";
@@ -40,35 +40,6 @@ box.label = "Wide box";
  * Component.js), which is all a page reached via DOMContextContainer
  * (see ApplicationMenuFrame.js's own `workArea`) needs.
  */
-// The way on, to the Getting Started page: a real link to its address (open
-// it in a new tab, copy it), and a plain click goes there without loading
-// the app anew - as the menu does.
-function learnMore(location) {
-  const path = "getting-started";
-  return div(
-    {
-      key: "learnMore",
-      style: {
-        margin: "24px 0 8px 0", padding: "16px 20px", borderRadius: "8px",
-        background: themeColor.accentLight, borderLeft: "4px solid " + themeColor.accent,
-      },
-    },
-    a(
-      {
-        key: "learnMoreLink",
-        href: location.href(path),
-        style: { color: themeColor.accentDark, fontWeight: "bold", fontSize: "17px", textDecoration: "none" },
-        onclick: callback("learnMore", (event) => {
-          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-          event.preventDefault();
-          location.navigate(path);
-        }),
-      },
-      text({ key: "learnMoreText", text: "Do you want to learn more? Get started with Cascade →" }),
-    ),
-  );
-}
-
 export class IntroductionPage extends Component {
   build() {
     return article(
@@ -125,7 +96,7 @@ export class IntroductionPage extends Component {
         emphasis("WYSIWYG word processors and other document editors"),
         ", which temporal signals are especially engineered for.",
       ),
-      learnMore(this.inherit("location")),
+      nextPage({ key: "learnMore", path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
       h2("Technical features"),
       ul(
         li(emphasis("Temporal signals"), " (see above): readers and writers of the same objects, ordered in time - rendering follows the tree, so what a parent measures reaches its children in the same pass."),

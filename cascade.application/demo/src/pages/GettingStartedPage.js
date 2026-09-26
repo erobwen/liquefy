@@ -3,7 +3,7 @@ import { div, h1, h2, p, a, code, text } from "@liquefy/cascade.dom";
 import { themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { HighlightedCode } from "../components/code.js";
-import { article, emphasis } from "../components/layout.js";
+import { article, emphasis, nextPage } from "../components/layout.js";
 import { HelloWorld } from "./gettingStarted/HelloWorld.js";
 import helloWorldSource from "./gettingStarted/HelloWorld.js?raw";
 import source from "./GettingStartedPage.js?raw";
@@ -141,6 +141,7 @@ export class GettingStartedPage extends Component {
         a({ key: "readme", href: "https://github.com/erobwen/liquefy#cascade" }, text({ key: "readmeText", text: "the repository's" })),
         " on.",
       ),
+      nextPage({ key: "advanced", path: "advanced-usage", label: "Ready for more? On to Advanced Usage →" }),
     );
   }
 }

@@ -287,37 +287,70 @@ class MenuList extends Component {
 
   build() {
     const { frame } = this;
+    const items = [];
+    let previousGroup = null;
+    for (const page of frame.pages) {
+      // Pages grouped together (see index.js - `group`) get a header above
+      // them, and a gap after them, before the next page on its own.
+      const group = page.group || null;
+      const startsGroup = group !== null && group !== previousGroup;
+      const endsGroup = group === null && previousGroup !== null;
+      if (startsGroup) items.push(groupHeader(group));
+      items.push(this.pageLink(page, endsGroup, group !== null));
+      previousGroup = group;
+    }
     return div(
       { key: "list", style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
       logo(),
-      ...frame.pages.map((page) => {
-        const active = page === frame.currentPage();
-        // A real link, to the page's URL - opening it in a new tab, or
-        // copying it, works as for any link. A plain click navigates here
-        // instead of loading the page anew.
-        return a({
-          key: page.key,
-          href: frame.location.href(frame.pathOf(page)),
-          onclick: callback(page.key + "Choose", (event) => {
-            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            event.preventDefault();
-            frame.choose(page.key);
-          }),
-          style: {
-            display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
-            color: "inherit", textDecoration: "none",
-            background: active ? "rgba(255,255,255,0.2)" : "transparent",
-            fontWeight: active ? "bold" : "normal",
-          },
-        },
-        span({ key: page.key + "Title", style: { flex: "1 1 auto" } }, text({ key: page.key + "TitleText", text: page.title })),
-        // A page's own icon, if it has one (see index.js), to the right - in
-        // the menu's own text color, and the same whatever the theme: the
-        // icon font's glyph itself, not the theme's icon widget.
-        page.icon ? span({ key: page.key + "Icon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", flex: "none", userSelect: "none" } }, text({ key: page.key + "IconName", text: page.icon })) : null);
-      }),
+      ...items,
     );
   }
+
+  // A page's link in the menu - in a group, indented under its header; after
+  // a group, set apart from it.
+  pageLink(page, afterGroup, inGroup) {
+    const { frame } = this;
+    const active = page === frame.currentPage();
+    // A real link, to the page's URL - opening it in a new tab, or
+    // copying it, works as for any link. A plain click navigates here
+    // instead of loading the page anew.
+    return a({
+      key: page.key,
+      href: frame.location.href(frame.pathOf(page)),
+      onclick: callback(page.key + "Choose", (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        frame.choose(page.key);
+      }),
+      style: {
+        display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
+        ...(afterGroup ? { marginTop: "16px" } : {}),
+        ...(inGroup ? { marginLeft: "16px" } : {}),
+        color: "inherit", textDecoration: "none",
+        background: active ? "rgba(255,255,255,0.2)" : "transparent",
+        fontWeight: active ? "bold" : "normal",
+      },
+    },
+    span({ key: page.key + "Title", style: { flex: "1 1 auto" } }, text({ key: page.key + "TitleText", text: page.title })),
+    // A page's own icon, if it has one (see index.js), to the right - in
+    // the menu's own text color, and the same whatever the theme: the
+    // icon font's glyph itself, not the theme's icon widget.
+    page.icon ? span({ key: page.key + "Icon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", flex: "none", userSelect: "none" } }, text({ key: page.key + "IconName", text: page.icon })) : null);
+  }
+}
+
+// A group's header in the menu: small, and quieter than the pages under it.
+function groupHeader(name) {
+  return div(
+    {
+      key: "group" + name,
+      style: {
+        padding: "0 12px", margin: "16px 0 6px 0", fontSize: "12px", fontWeight: "bold",
+        letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.6,
+      },
+    },
+    text({ key: "group" + name + "Text", text: name }),
+  );
 }
 
 // The Cascade logotype, at the top of the menu - a vector drawing with a

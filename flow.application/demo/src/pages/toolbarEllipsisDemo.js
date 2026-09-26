@@ -5,9 +5,9 @@ import { alert } from "@liquefy/themed-ui";
 import { filler, wrapper, column, row, layoutBorderStyle, portalContents, cardShadow3, popover } from "@liquefy/basic-ui";
 import { buttonIcon } from "@liquefy/ui-material";
 
-import { displayCodeButton } from "../components/information";
+import { displayCodeButton } from "../components/information.js";
 
-import file from './toolbarEllipsisDemo?raw';
+import file from './toolbarEllipsisDemo.js?raw';
 
 
 /**

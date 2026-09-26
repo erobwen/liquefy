@@ -5,8 +5,8 @@ import { button, card, textInput, buttonIcon } from "@liquefy/themed-ui";
 
 import { wrapper, column, filler, fillerStyle, row, centerMiddle, columnStyle, middle, naturalSizeStyle, portalContents } from "@liquefy/basic-ui";
 
-import { informationButton, displayCodeButton } from "../components/information";
-import file from './reactiveFormApplication?raw';
+import { informationButton, displayCodeButton } from "../components/information.js";
+import file from './reactiveFormApplication.js?raw';
 
 
 /**

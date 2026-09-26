@@ -4,14 +4,14 @@ import { model, Component, transaction, toProperties } from "@liquefy/flow.core"
 import { text, div, p, ul, li, DOMRenderTarget, standardAnimation, addDefaultStyle } from "@liquefy/flow.dom";
 
 import { column, filler, fillerStyle, naturalSizeStyle, portalContents, row } from "@liquefy/basic-ui";
-import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation";
-import { SimpleAddRemoveAnimation } from "./animation/simpleAddRemoveAnimation";
+import { SimpleMoveAnimation } from "./animation/simpleMoveAnimation.js";
+import { SimpleAddRemoveAnimation } from "./animation/simpleAddRemoveAnimation.js";
 
 import { button } from "@liquefy/themed-ui";
-import { codeDisplay, displayCodeButton, informationButton } from "../components/information";
+import { codeDisplay, displayCodeButton, informationButton } from "../components/information.js";
 
-import file from './animationExample?raw';
-import moveComponentFile from './codeExamples/moveComponent?raw';
+import file from './animationExample.js?raw';
+import moveComponentFile from './codeExamples/moveComponent.js?raw';
 
 // Style constants
 const smallSpace = "5px";

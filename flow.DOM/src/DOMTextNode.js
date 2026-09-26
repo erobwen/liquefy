@@ -1,6 +1,6 @@
 import { extractProperty, toProperties, getRenderTarget } from "@liquefy/flow.core";
-import { DOMNode } from "./DOMNode";    
-import { domNodeClassRegistry } from "./DOMRenderTarget";
+import { DOMNode } from "./DOMNode.js";    
+import { domNodeClassRegistry } from "./DOMRenderTarget.js";
 const log = console.log;
 
 

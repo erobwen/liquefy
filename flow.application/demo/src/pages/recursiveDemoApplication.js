@@ -4,9 +4,9 @@ import { DOMRenderTarget, text, div, ul, li, p } from "@liquefy/flow.dom";
 import { filler, fitContainerStyle, column, row, middle, portalContents } from "@liquefy/basic-ui";
 import { numberInput, button, cardColumn } from "@liquefy/themed-ui";
 
-import { informationButton, displayCodeButton } from "../components/information";
+import { informationButton, displayCodeButton } from "../components/information.js";
 
-import file from './recursiveDemoApplication?raw';
+import file from './recursiveDemoApplication.js?raw';
 
 export class RecursiveExample extends Component {
   

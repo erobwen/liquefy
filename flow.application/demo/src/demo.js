@@ -12,19 +12,19 @@ import { portal } from "@liquefy/basic-ui";
 import { column, columnStyle, filler } from "@liquefy/basic-ui";
 import { svgImage, wrapper } from "@liquefy/basic-ui";
 
-import { RecursiveExample } from "./pages/recursiveDemoApplication";
-import { ReactiveForm, initialData } from "./pages/reactiveFormApplication";
-import { AnimationExample } from "./pages/animationExample";
-import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout";
-import { PortalExample } from "./pages/portalDemo";
-import { ModalExample } from "./pages/modalDemo";
+import { RecursiveExample } from "./pages/recursiveDemoApplication.js";
+import { ReactiveForm, initialData } from "./pages/reactiveFormApplication.js";
+import { AnimationExample } from "./pages/animationExample.js";
+import { ProgrammaticReactiveLayout } from "./pages/programmaticReactiveLayout.js";
+import { PortalExample } from "./pages/portalDemo.js";
+import { ModalExample } from "./pages/modalDemo.js";
 
 import flowImage from "../public/flow.svg"
 
-import { applicationMenuFrame } from "./ApplicationMenuFrame"
-import { IntroductionPage } from "./pages/introductionPage";
-import { informationButton } from "./components/information";
-import { ToolbarEllipsisDemo } from "./pages/toolbarEllipsisDemo";
+import { applicationMenuFrame } from "./ApplicationMenuFrame.js"
+import { IntroductionPage } from "./pages/introductionPage.js";
+import { informationButton } from "./components/information.js";
+import { ToolbarEllipsisDemo } from "./pages/toolbarEllipsisDemo.js";
 
 // Where the demo is served from - "/liquefy/", or wherever the build puts it
 // (Vite's base) - and how many segments of the path that takes.

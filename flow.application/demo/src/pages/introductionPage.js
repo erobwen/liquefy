@@ -4,9 +4,9 @@ import { div, text, h1, a, h2, h3, p, ul, li, b, br, i, span, addDefaultStyle } 
 import { alert } from "@liquefy/themed-ui";
 import { portalContents, middle, fitContainerStyle, cardShadow3 } from "@liquefy/basic-ui";
 
-import { codeDisplay, displayCodeButton } from "../components/information";
+import { codeDisplay, displayCodeButton } from "../components/information.js";
 
-import file from './introductionPage?raw';
+import file from './introductionPage.js?raw';
 import helloWorldFile from './codeExamples/helloWorld.js?raw';
 
 // Styling

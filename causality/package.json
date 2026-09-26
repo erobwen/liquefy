@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/causality",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Reactive programming for simple, scalable state management, using ES6 proxies. The reactive engine of Flow.",
   "keywords": [
     "reactive",
@@ -14,6 +14,12 @@
   "type": "module",
   "main": "./dist/causality.umd.cjs",
   "module": "./src/causality.js",
+  "exports": {
+    ".": {
+      "import": "./src/causality.js",
+      "require": "./dist/causality.umd.cjs"
+    }
+  },
   "files": [
     "src",
     "!src/test",

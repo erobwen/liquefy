@@ -1,6 +1,6 @@
 import { logMark, extractProperties } from "@liquefy/flow.core";
-import { changeType } from "./DOMAnimation";
-import { ZoomFlyDOMTransitionAnimation } from "./ZoomFlyDOMTransitionAnimation";
+import { changeType } from "./DOMAnimation.js";
+import { ZoomFlyDOMTransitionAnimation } from "./ZoomFlyDOMTransitionAnimation.js";
 
 const log = console.log;
 

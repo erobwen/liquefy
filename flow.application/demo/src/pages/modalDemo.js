@@ -7,8 +7,8 @@ import {
   centerMiddle, column, fitContainerStyle, row,
   overflowVisibleStyle, modalContainer, portalContents
 } from "@liquefy/basic-ui";
-import { displayCodeButton, informationButton } from "../components/information";
-import file from './modalDemo?raw';
+import { displayCodeButton, informationButton } from "../components/information.js";
+import file from './modalDemo.js?raw';
 import dropPortrait from '../../public/drop-portrait.jpg';
 
 

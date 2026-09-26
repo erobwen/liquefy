@@ -1,6 +1,6 @@
 import { toPropertiesWithChildren, toProperties } from "@liquefy/flow.core";
-import { toButtonProperties, toInputProperties } from "./implicitProperties";
-import { elementNode } from "./DOMElementNode";
+import { toButtonProperties, toInputProperties } from "./implicitProperties.js";
+import { elementNode } from "./DOMElementNode.js";
 
 /**
  * Tag creation helper

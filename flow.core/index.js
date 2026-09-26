@@ -1,11 +1,11 @@
 
-import { world, transaction, observable, deeplyObservable, isObservable, repeat, finalize, withoutRecording, sameAsPreviousDeep, workOnPriorityLevel, invalidateOnChange, postponeInvalidations, continueInvalidations, state, model, configuration, setFlowConfiguration, trace, traceAnimation, traceWarnings, activeTrace, activeTraceModel, when, callback, updateTargetTime } from "./src/Flow";
-import { Component } from "./src/Component";
-import { creators, getCreator, getRenderTarget, inherit, globalContext, modifyGlobalContext } from "./src/buildContext";
-import { findImplicitChildren, toProperties, toPropertiesWithChildren, createTextNodesFromStringChildren, extractProperty, extractExpectedProperty, extractProperties} from "./src/implicitProperties";
-import { PrimitiveComponent } from "./src/PrimitiveComponent"
-import { RenderTarget } from "./src/RenderTarget"
-import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator, logMark, isUpperCase, draw, camelCased } from "./src/utility"
+import { world, transaction, observable, deeplyObservable, isObservable, repeat, finalize, withoutRecording, sameAsPreviousDeep, workOnPriorityLevel, invalidateOnChange, postponeInvalidations, continueInvalidations, state, model, configuration, setFlowConfiguration, trace, traceAnimation, traceWarnings, activeTrace, activeTraceModel, when, callback, updateTargetTime } from "./src/Flow.js";
+import { Component } from "./src/Component.js";
+import { creators, getCreator, getRenderTarget, inherit, globalContext, modifyGlobalContext } from "./src/buildContext.js";
+import { findImplicitChildren, toProperties, toPropertiesWithChildren, createTextNodesFromStringChildren, extractProperty, extractExpectedProperty, extractProperties} from "./src/implicitProperties.js";
+import { PrimitiveComponent } from "./src/PrimitiveComponent.js"
+import { RenderTarget } from "./src/RenderTarget.js"
+import { log, deepFreeze, insertAfter, logAnimationFrameGroup, logAnimationFrameEnd, logAnimationSeparator, logMark, isUpperCase, draw, camelCased } from "./src/utility.js"
 
 
 export {

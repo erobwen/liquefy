@@ -4,8 +4,8 @@ import { button, card, cardColumn, cardRow } from "@liquefy/themed-ui";
 
 import { naturalSizeStyle, filler, column, row, centerMiddle, portalContents, layoutBorderStyle, fillerStyle, portal, fitContainerStyle } from "@liquefy/basic-ui";
 
-import { informationButton, displayCodeButton } from "../components/information";
-import file from './portalDemo?raw';
+import { informationButton, displayCodeButton } from "../components/information.js";
+import file from './portalDemo.js?raw';
 
 export const borderStyle = {
   boxSizing: "border-box",

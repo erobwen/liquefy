@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/flow.core";
 import { toProperties } from "@liquefy/flow.core";
 import { div, text } from "@liquefy/flow.dom";
-import { panelStyle } from "./Style";
+import { panelStyle } from "./Style.js";
 import { button, textInput } from "@liquefy/basic-ui";
 import { centerMiddle, column, filler, fitContainerStyle, row } from "@liquefy/basic-ui";
 

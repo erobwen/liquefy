@@ -1,8 +1,8 @@
-import { adjustLightness, grayColor, rgba2hex } from "./src/Color";
-import { modernButton, ModernButton } from "./src/ModernButton";
-import { ModernTextField, modernTextField } from "./src/ModernTextField";
-import { borderStyle, hardCardShadow, panelStyle, cardShadow } from "./src/Style";
-import { card, cardColumn, cardRow } from "./src/Paper";
+import { adjustLightness, grayColor, rgba2hex } from "./src/Color.js";
+import { modernButton, ModernButton } from "./src/ModernButton.js";
+import { ModernTextField, modernTextField } from "./src/ModernTextField.js";
+import { borderStyle, hardCardShadow, panelStyle, cardShadow } from "./src/Style.js";
+import { card, cardColumn, cardRow } from "./src/Paper.js";
 
 const button = modernButton;
 

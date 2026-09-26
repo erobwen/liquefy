@@ -21,8 +21,7 @@
     "flow.ui/material",
     "flow.ui/modern",
     "flow.application/demo",
-    "flow.application/hello-world",
-    "flow.application/experiments"
+    "flow.application/hello-world"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",

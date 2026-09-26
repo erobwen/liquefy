@@ -2,8 +2,8 @@ import { toProperties, Component } from "@liquefy/flow.core";
 import { findImplicitChildrenAndOnClick } from "@liquefy/flow.dom";
 import { button } from "@liquefy/basic-ui";
 
-import { adjustLightness, grayColor } from "./Color";
-import { cardShadow2, cardShadow5 } from "./Paper";
+import { adjustLightness, grayColor } from "./Color.js";
+import { cardShadow2, cardShadow5 } from "./Paper.js";
 
 const log = console.log; 
 

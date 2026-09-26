@@ -107,24 +107,24 @@ import {
   summary,
   slot,
   template
-} from "./HTMLTags";
-import { addDefaultStyle } from "./HTMLBuilding";
-import { DOMElementNode, elementNode } from "./DOMElementNode";
-import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, toPropertiesWithImplicitSingleText } from "./DOMTextNode"
-import { DOMRenderTarget} from "./DOMRenderTarget"
-import { mostAbstractComponent, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode";
-import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics"
-import { findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties, findImplicitInputParameters, findDomElementNodeProperties } from "./implicitProperties";
+} from "./HTMLTags.js";
+import { addDefaultStyle } from "./HTMLBuilding.js";
+import { DOMElementNode, elementNode } from "./DOMElementNode.js";
+import { textNode, text, DOMTextNode, getTextNodeProperties, findImplicitSingleTextInContent, toPropertiesWithImplicitSingleText } from "./DOMTextNode.js"
+import { DOMRenderTarget} from "./DOMRenderTarget.js"
+import { mostAbstractComponent, aggregateToString, clearNode, getWidthIncludingMargin, getHeightIncludingMargin, DOMNode } from "./DOMNode.js";
+import { fitTextWithinWidth, fitTextWithinCapHeight, textWidth, textHeight, textDimensions, uncachedTextWidth, uncachedTextHeight, uncachedTextDimensions, capHeight, getFontSizeToCapHeightRatio, getGoldenRatioTopPadding } from "./fontMetrics.js"
+import { findImplicitChildrenAndOnClick, toButtonProperties, toInputProperties, findImplicitInputParameters, findDomElementNodeProperties } from "./implicitProperties.js";
 
 
 // Animation
-import { installDOMAnimation, resetDOMAnimation, freezeComponentChanges, unfreezeComponentChanges, logProperties, componentChanges, previousComponentChanges, changeType, onFinishRenderingComponents, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation";
-import { DOMTransitionAnimation } from "./DOMTransitionAnimation"
-import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMTransitionAnimation"
-import { setAnimationTime, ZoomFlyDOMTransitionAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMTransitionAnimation"
-import { zoomAnimation } from "./ZoomDOMTransitionAnimation"
+import { installDOMAnimation, resetDOMAnimation, freezeComponentChanges, unfreezeComponentChanges, logProperties, componentChanges, previousComponentChanges, changeType, onFinishRenderingComponents, onFinishReBuildingDOM, sameBounds, camelCase, parseMatrix } from "./DOMAnimation.js";
+import { DOMTransitionAnimation } from "./DOMTransitionAnimation.js"
+import { flyFromLeftAnimation, flyFromTopAnimation } from "./FlyDOMTransitionAnimation.js"
+import { setAnimationTime, ZoomFlyDOMTransitionAnimation, zoomFlyAnimation, standardAnimation } from "./ZoomFlyDOMTransitionAnimation.js"
+import { zoomAnimation } from "./ZoomDOMTransitionAnimation.js"
 
-import { flipAnimator } from "./FlipAnimator";
+import { flipAnimator } from "./FlipAnimator.js";
 
 export {
     // HTML tags

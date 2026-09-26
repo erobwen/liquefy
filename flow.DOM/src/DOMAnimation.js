@@ -1,6 +1,6 @@
 import { configuration, postponeInvalidations, continueInvalidations, traceAnimation, traceWarnings } from "@liquefy/flow.core";
 import { logAnimationFrameGroup, logAnimationSeparator } from "@liquefy/flow.core";
-import { getDomRenderTargets } from "./DOMRenderTarget";
+import { getDomRenderTargets } from "./DOMRenderTarget.js";
 
 // import { inExperiment, inExperimentOnCount } from "..";
 

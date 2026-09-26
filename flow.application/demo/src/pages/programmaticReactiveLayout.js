@@ -5,10 +5,10 @@ import { text, div, p, ul, li, DOMRenderTarget, toPropertiesWithImplicitSingleTe
 import { basicWidgetTheme, centerMiddle, column, fitContainerStyle, naturalSizeStyle, fillerStyle, row, layoutBorderStyle, portalContents } from "@liquefy/basic-ui";
 
 import { cardRow, numberInput } from "@liquefy/themed-ui";
-import { displayCodeButton, informationButton } from "../components/information";
+import { displayCodeButton, informationButton } from "../components/information.js";
 
 import waves from '../../public/surface.jpg';
-import file from './programmaticReactiveLayout?raw';
+import file from './programmaticReactiveLayout.js?raw';
 
 
 /**

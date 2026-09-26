@@ -2,7 +2,7 @@ import { Component } from "@liquefy/flow.core";
 import { text } from "@liquefy/flow.dom";
 
 import { row, rowStyle, filler, middle, cardShadow4 } from "@liquefy/basic-ui";
-import { buttonIcon, cardColumn } from "./components"
+import { buttonIcon, cardColumn } from "./components.js"
 
 
 /**

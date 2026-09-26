@@ -1,5 +1,5 @@
 // import { adjustLightness, rgba2hex } from "../components/themed/Color";
-import { traceAnimation } from "./Flow";
+import { traceAnimation } from "./Flow.js";
 
 export const log = console.log;
 

@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/flow.core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flow: a generative, JavaScript-first front end framework with integrated, auto-observing state management - what MobX and React give you, as one unit.",
   "keywords": [
     "reactive",

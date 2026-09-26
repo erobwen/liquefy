@@ -1,7 +1,7 @@
 import { extractProperty, toPropertiesWithChildren, getRenderTarget, extractExpectedProperty } from "@liquefy/flow.core";
-import { DOMNode } from "./DOMNode";  
-import { domNodeClassRegistry } from "./DOMRenderTarget";
-import { findDomElementNodeProperties } from "./implicitProperties";
+import { DOMNode } from "./DOMNode.js";  
+import { domNodeClassRegistry } from "./DOMRenderTarget.js";
+import { findDomElementNodeProperties } from "./implicitProperties.js";
   
 const log = console.log;
 

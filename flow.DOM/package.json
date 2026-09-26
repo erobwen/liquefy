@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/flow.dom",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flow for the browser: minimal-update DOM rendering, and transition animations.",
   "keywords": [
     "reactive",

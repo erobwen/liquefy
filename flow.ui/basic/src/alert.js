@@ -1,8 +1,8 @@
 import { toPropertiesWithChildren } from "@liquefy/flow.core";
 import { addDefaultStyle } from "@liquefy/flow.dom";
-import { card, cardRow } from "./card";
-import { icon } from "./Icons";
-import { centerMiddle, filler } from "./Layout";
+import { card, cardRow } from "./card.js";
+import { icon } from "./Icons.js";
+import { centerMiddle, filler } from "./Layout.js";
 
 
 const iconNames = {

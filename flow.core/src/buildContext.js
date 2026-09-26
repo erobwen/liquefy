@@ -1,4 +1,4 @@
-import { model } from "./Flow";
+import { model } from "./Flow.js";
 
 /**
  * Flow creation stack. When a flow is created and running its constructor, it can find its creator using these functions. 

@@ -1,7 +1,7 @@
 import { configuration } from "@liquefy/flow.core";
 import { Component } from "@liquefy/flow.core";
-import { div } from "./HTMLTags";
-import { onFinishRenderingComponents, onFinishReBuildingDOM } from "./DOMAnimation";
+import { div } from "./HTMLTags.js";
+import { onFinishRenderingComponents, onFinishReBuildingDOM } from "./DOMAnimation.js";
 
 /**
  * Dialogue

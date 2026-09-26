@@ -9,7 +9,7 @@ import './mduiGuards.js';
 import { toProperties, getRenderTarget, toPropertiesWithChildren } from "@liquefy/flow.core";
 import { toButtonProperties, toInputProperties, elementNode, addDefaultStyle } from "@liquefy/flow.dom";
 
-import { toMduiCheckboxProperties, toMduiInputProperties } from './implicitProperties';
+import { toMduiCheckboxProperties, toMduiInputProperties } from './implicitProperties.js';
 import "./components.css";
 import { rowStyle, columnStyle } from '@liquefy/basic-ui'
 

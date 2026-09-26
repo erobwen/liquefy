@@ -2,7 +2,7 @@ import { repeat, trace, finalize, traceWarnings } from "@liquefy/flow.core";
 import { PrimitiveComponent } from "@liquefy/flow.core";
 import { logMark } from "@liquefy/flow.core";
 
-import { standardAnimation } from "./ZoomFlyDOMTransitionAnimation";
+import { standardAnimation } from "./ZoomFlyDOMTransitionAnimation.js";
 import { updateTargetTime } from "@liquefy/flow.core";
 
 const log = console.log;

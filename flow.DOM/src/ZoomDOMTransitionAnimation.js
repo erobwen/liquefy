@@ -1,8 +1,8 @@
 import { draw, insertAfter, extractProperties, logMark } from "@liquefy/flow.core";
 
-import { camelCase, changeType, componentChanges, freezeComponentChanges, sameBounds, unfreezeComponentChanges } from "./DOMAnimation";
-import { DOMTransitionAnimation } from "./DOMTransitionAnimation";
-import { ZoomFlyDOMTransitionAnimation } from "./ZoomFlyDOMTransitionAnimation";
+import { camelCase, changeType, componentChanges, freezeComponentChanges, sameBounds, unfreezeComponentChanges } from "./DOMAnimation.js";
+import { DOMTransitionAnimation } from "./DOMTransitionAnimation.js";
+import { ZoomFlyDOMTransitionAnimation } from "./ZoomFlyDOMTransitionAnimation.js";
 
 const log = console.log;
 

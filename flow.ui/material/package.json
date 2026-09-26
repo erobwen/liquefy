@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/ui-material",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Material Design theme for Flow, built on mdui 2 web components.",
   "keywords": [
     "reactive",

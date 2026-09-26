@@ -1,6 +1,6 @@
 import { callback, extractProperty } from "@liquefy/flow.core";
 import { elementNode, text, label, addDefaultStyle, toInputProperties } from "@liquefy/flow.dom";
-import { filler, row } from "./Layout";
+import { filler, row } from "./Layout.js";
 
 /**
  * Input

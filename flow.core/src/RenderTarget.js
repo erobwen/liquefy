@@ -1,5 +1,5 @@
-import { Component } from "./Component";
-import { buildComponentTime, repeat, workOnPriorityLevel } from "./Flow";
+import { Component } from "./Component.js";
+import { buildComponentTime, repeat, workOnPriorityLevel } from "./Flow.js";
 
 /**
  * Implement any render target that implements HTML Element Node and HTML Text Node. 

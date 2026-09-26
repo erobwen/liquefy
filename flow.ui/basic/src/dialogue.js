@@ -1,9 +1,9 @@
 import { Component } from "@liquefy/flow.core";
 import { text } from "@liquefy/flow.dom";
 
-import { row, rowStyle, filler, middle } from "./Layout";
-import { buttonIcon } from "./buttons"
-import { cardColumn, cardShadow4 } from "./card";
+import { row, rowStyle, filler, middle } from "./Layout.js";
+import { buttonIcon } from "./buttons.js"
+import { cardColumn, cardShadow4 } from "./card.js";
 
 
 /**

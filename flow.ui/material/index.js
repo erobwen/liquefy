@@ -18,9 +18,9 @@ import {
     listItem,
     collapse,
     collapseItem
-} from "./src/components";
-import { dialogue } from "./src/dialogue";
-import { alert } from "./src/alert";
+} from "./src/components.js";
+import { dialogue } from "./src/dialogue.js";
+import { alert } from "./src/alert.js";
 
 export const materialTheme = {
   components: {

@@ -97,8 +97,9 @@ class MaterialDialog extends Component {
 // mdui's outlined text field - its label inside the outline, the unit as
 // its suffix - and the error under it, in the theme's error color.
 class MaterialTextField extends Component {
-  setProperties({ label, value, onInput, type, unit, error, style }) {
+  setProperties({ label, placeholder, value, onInput, type, unit, error, style }) {
     this.label = label || "";
+    this.placeholder = placeholder || "";
     this.value = value === undefined || value === null ? "" : value;
     this.onInput = onInput || null;
     this.type = type || "text";
@@ -116,6 +117,7 @@ class MaterialTextField extends Component {
         key: "input",
         variant: "outlined",
         label: this.label,
+        placeholder: this.placeholder,
         type: this.type,
         value: String(this.value),
         suffix: this.unit || "",
@@ -178,6 +180,19 @@ const widgets = {
       style: {
         padding: "12px", borderRadius: "var(--mdui-shape-corner-medium)", boxSizing: "border-box",
         ...(cardStyles[variant] || cardStyles.elevated), ...style,
+      },
+      children,
+    });
+  },
+
+  // Controls in a row, on a surface - Material's own corners and tone.
+  controlPanel({ style, children, ...rest }) {
+    return wrapper({
+      ...rest,
+      style: {
+        display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 12px", flex: "none",
+        padding: "8px 16px", borderRadius: "var(--mdui-shape-corner-large)", boxSizing: "border-box", overflow: "visible",
+        ...cardStyles.elevated, ...style,
       },
       children,
     });

@@ -58,7 +58,8 @@ describe("themed widgets", function () {
     const htmlButton = container.querySelector("button");
     assert.ok(htmlButton);
     assert.equal(htmlButton.textContent, "Increment");
-    assert.equal(htmlButton.style.cursor, "pointer");
+    assert.ok(htmlButton.classList.contains("cb-button"), "styled by the theme's stylesheet");
+    assert.ok(document.querySelector("style[data-cascade-theme=basic]"), "which is in the document");
 
     htmlButton.click();
     htmlButton.click();

@@ -63,7 +63,8 @@ describe("basic theme widgets", function () {
     assert.deepEqual(names(), ["home", "search", "settings"], "after a rebuild");
     shown.version = 2;
     assert.deepEqual(names(), ["home", "search", "settings"]);
-    assert.equal(container.querySelector(".material-symbols-outlined").style.lineHeight, "1", "unitless");
+    assert.ok(container.querySelector(".material-symbols-outlined").classList.contains("cb-icon"), "styled by the theme's stylesheet");
+    assert.equal(container.querySelector(".material-symbols-outlined").style.fontSize, "30px", "its own style over it");
   });
 
   it("card: a surface per variant, its style merged over the variant's", function () {
@@ -108,12 +109,13 @@ describe("basic theme widgets", function () {
       ["one", "two"].map((name) => listItem({ key: name, active: self.chosen === name }, text({ key: name + "Text", text: name }), () => { self.chosen = name; })),
     ), { chosen: "one" }));
     const items = () => Array.from(container.firstChild.children);
-    assert.equal(items()[0].style.fontWeight, "bold");
-    assert.equal(items()[1].style.fontWeight, "normal");
+    // Marked by the theme's stylesheet (cb-active) - a hover effect can't
+    // be inline style.
+    const active = (item) => item.classList.contains("cb-active");
+    assert.deepEqual(items().map(active), [true, false]);
     items()[1].click();
     assert.equal(list.chosen, "two");
-    assert.equal(items()[1].style.fontWeight, "bold");
-    assert.equal(items()[0].style.fontWeight, "normal");
+    assert.deepEqual(items().map(active), [false, true]);
   });
 
   it("dialog: title bar with a close button, and the body - its elements kept across rebuilds", function () {

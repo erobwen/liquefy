@@ -1,7 +1,8 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { button, card, icon, iconButton, row, column, portal, portalContents, fitContainerStyle } from "@liquefy/cascade.ui";
+import { button, card, icon, iconButton, row, portal, portalContents } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { fullPage } from "../components/layout.js";
 import source from "./StorePage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -79,8 +80,8 @@ export class StorePage extends Component {
     // - stays within it, rather than reaching the work area around it and
     // giving it scroll bars for the moment. (Not at the status bar: a
     // product flying into the cart is drawn inside it, up by the shelf.)
-    return column(
-      { key: "page", style: { ...fitContainerStyle, overflow: "hidden" } },
+    return fullPage(
+      { key: "page", style: { overflow: "hidden", gap: 0 } },
       pageActions({ information, source, fileName: "src/pages/StorePage.js" }),
       flipAnimationContainer(
         {

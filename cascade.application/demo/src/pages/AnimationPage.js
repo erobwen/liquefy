@@ -1,7 +1,8 @@
 import { Component, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { button, row, column, filler, fillerStyle, naturalSizeStyle } from "@liquefy/cascade.ui";
+import { button, card, controlPanel, row, column, filler, fillerStyle, naturalSizeStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { fullPage, accentColor } from "../components/layout.js";
 import source from "./AnimationPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -47,13 +48,10 @@ function transaction(action) {
   }
 }
 
-const panelStyle = {
-  marginBottom: "0px", borderRadius: "15px", backgroundColor: "#eeeeee",
-  borderColor: "#cccccc", borderStyle: "solid", borderWidth: "1px", padding: "10px",
-};
-
-const panel = (key, list, style) => column(
-  { key, style: { ...panelStyle, ...style } },
+// A panel: a card with the items in it - one under the other. Never
+// quite nothing, even empty: something for items to fly to.
+const panel = (key, list, style) => card(
+  { key, style: { display: "flex", flexDirection: "column", minWidth: "48px", minHeight: "48px", ...style } },
   list.map((item) => div(
     { key: item, style: { display: "block", margin: smallSpace, textAlign: "left" } },
     text({ key: item + "Text", text: item }),
@@ -105,22 +103,16 @@ export class AnimationPage extends Component {
   }
 
   build() {
-    return column(
-      { key: "page", style: { height: "100%", width: "100%" } },
+    return fullPage(
+      { key: "page" },
       pageActions({ information, source, fileName: "src/pages/AnimationPage.js" }),
-      row(
+      controlPanel(
         { key: "controls" },
-        row(
-          { key: "addRemove", style: { gap: "5px" } },
-          button({ key: "add", disabled: this.store.length === 0 }, "Add random", () => this.addRandom()),
-          button({ key: "remove", disabled: this.listA.length === 0 }, "Remove random", () => this.removeRandom()),
-        ),
+        button({ key: "add", disabled: this.store.length === 0 }, "Add random", () => this.addRandom()),
+        button({ key: "remove", disabled: this.listA.length === 0 }, "Remove random", () => this.removeRandom()),
         filler({ key: "controlsFiller" }),
-        row(
-          { key: "shuffle", style: { gap: "5px" } },
-          button({ key: "randomize" }, "Randomize", () => this.randomize()),
-          button({ key: "juggle" }, "Juggle", () => this.juggle()),
-        ),
+        button({ key: "randomize" }, "Randomize", () => this.randomize()),
+        button({ key: "juggle" }, "Juggle", () => this.juggle()),
       ),
       flipAnimationContainer(
         { key: "animated", style: { ...fillerStyle, display: "flex", flexDirection: "column", overflow: "visible" } },
@@ -137,7 +129,7 @@ export class AnimationPage extends Component {
           column(
             { key: "columnB", style: { overflow: "visible" } },
             filler({ key: "bAbove" }),
-            panel("panelB", this.listB, { fontSize: "20px", lineHeight: "20px", color: "blue", margin: largeSpace, padding: largeSpace, overflow: "visible" }),
+            panel("panelB", this.listB, { fontSize: "20px", lineHeight: "20px", color: accentColor, margin: largeSpace, padding: largeSpace, overflow: "visible" }),
             filler({ key: "bBelow" }),
           ),
         ),

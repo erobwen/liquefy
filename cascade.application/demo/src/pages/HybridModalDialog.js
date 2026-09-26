@@ -142,7 +142,7 @@ export class HybridModalDialog extends Component {
         // what it looks like; only its placement here is set here.
         centerMiddle(
           { key: "openButtonArea", style: { ...fillerStyle, ...overflowVisibleStyle } },
-          button({ key: "openButton" }, "Open Hybrid Modal Dialog", open),
+          button({ key: "openButton", variant: "filled" }, "Open Hybrid Modal Dialog", open),
         ),
       ),
       // The dialog has one place per build: docked here, or in the

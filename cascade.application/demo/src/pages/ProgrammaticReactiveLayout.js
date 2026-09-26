@@ -1,7 +1,8 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { text, div, span, label, input, elementBoundsProvider, fitTextWithinWidth } from "@liquefy/cascade.dom";
-import { card, icon, row, column, centerMiddle, fillerStyle, fitContainerStyle, centerMiddleStyle } from "@liquefy/cascade.ui";
+import { text, div, span, elementBoundsProvider, fitTextWithinWidth } from "@liquefy/cascade.dom";
+import { controlPanel, textField, icon, row, column, centerMiddle, fillerStyle, centerMiddleStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { fullPage, accentColor } from "../components/layout.js";
 import surface from "../../../../cascade/images/surface.jpg";
 import source from "./ProgrammaticReactiveLayout.js?raw";
 
@@ -47,16 +48,13 @@ export class ProgrammaticReactiveLayout extends Component {
       rows.push(row({ key: "row" + rowIndex, style: { ...fillerStyle, gap: GAP } }, cells));
     }
 
-    return column(
-      { key: "page", style: { ...fitContainerStyle, gap: "12px" } },
+    return fullPage(
+      { key: "page" },
       pageActions({ information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" }),
-      card(
-        { key: "controls", style: { flex: "none", padding: "8px 16px" } },
-        row(
-          { key: "controlRow", style: { alignItems: "center", gap: "24px", flexWrap: "wrap" } },
-          this.numberField("rows", "Rows"),
-          this.numberField("columns", "Columns"),
-        ),
+      controlPanel(
+        { key: "controls" },
+        this.numberField("rows", "Rows"),
+        this.numberField("columns", "Columns"),
       ),
       column({ key: "grid", style: { ...fillerStyle, gap: GAP } }, rows),
     );
@@ -70,28 +68,22 @@ export class ProgrammaticReactiveLayout extends Component {
     const Kind = cellKinds[(rowIndex + columnIndex) % cellKinds.length];
     return elementBoundsProvider({
       key,
-      style: { ...fillerStyle, ...centerMiddleStyle, minWidth: 0, borderRadius: "6px", ...Kind.cellStyle },
+      style: { ...fillerStyle, ...centerMiddleStyle, minWidth: 0, borderRadius: "8px", ...Kind.cellStyle },
       child: new Kind({ key: key + "Content" }),
     });
   }
 
   numberField(property, caption) {
-    return label(
-      { key: property + "Field", style: { display: "flex", alignItems: "center", gap: "8px" } },
-      text({ key: property + "Caption", text: caption }),
-      input({
-        key: property + "Input",
-        type: "number",
-        min: 1,
-        max: MAX_CELLS,
-        value: this[property],
-        style: { width: "56px" },
-        oninput: callback(property, (event) => {
-          const value = parseInt(event.target.value, 10);
-          if (value >= 1) this[property] = Math.min(MAX_CELLS, value);
-        }),
+    return textField({
+      key: property + "Field",
+      label: caption,
+      type: "number",
+      value: this[property],
+      onInput: callback(property, (value) => {
+        const number = parseInt(value, 10);
+        if (number >= 1) this[property] = Math.min(MAX_CELLS, number);
       }),
-    );
+    });
   }
 }
 
@@ -132,7 +124,7 @@ class BoundsDisplay extends Component {
  * String Display - a text as wide as the cell.
  */
 class StringDisplay extends Component {
-  static cellStyle = { border: "1px solid #b2bec3", backgroundColor: "#ffffff", color: "#34495e" };
+  static cellStyle = { border: "1px solid #cdd7e2", backgroundColor: "#ffffff", color: "#34495e" };
 
   build() {
     const { width, height } = this.renderContext;
@@ -151,7 +143,7 @@ class StringDisplay extends Component {
  * as fits the cell.
  */
 class FixedAspectRatioDisplay extends Component {
-  static cellStyle = { border: "1px solid #b2bec3", backgroundColor: "#ecf0f1" };
+  static cellStyle = { border: "1px solid #cdd7e2", backgroundColor: "#f4f7fb" };
 
   initializeState() {
     return { aspectRatio: (Math.random() * 4 + 1) / (Math.random() * 4 + 1) };
@@ -171,7 +163,7 @@ class FixedAspectRatioDisplay extends Component {
         key: "box",
         style: {
           flex: "none", width: width + "px", height: height + "px", boxSizing: "border-box",
-          border: "1px solid #2c3e50", borderRadius: "4px", backgroundColor: "#bbbbff", overflow: "hidden",
+          border: "1px solid " + accentColor, borderRadius: "6px", backgroundColor: "#d6eaf8", color: "#1b4f72", overflow: "hidden",
         },
       },
       fittedText({

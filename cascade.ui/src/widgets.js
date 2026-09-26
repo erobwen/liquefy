@@ -13,7 +13,8 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  * Each widget has a property contract every theme implements, so switching
  * themes changes appearance, not meaning:
  *
- *  - button: `key`, `onClick`, `disabled`, `style`, `children` - with
+ *  - button: `key`, `onClick`, `disabled`, `variant` ("filled" for the
+ *    main thing to do - what else a theme knows is up to it), `style`, `children` - with
  *    flow's own argument convention, a loose function argument is
  *    `onClick` and anything else loose is a child:
  *    `button("Save", () => save())`.
@@ -25,6 +26,10 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  *    function), `title`, `style` - a round button showing just an icon.
  *  - card: `key`, `variant` ("elevated" - the default - "filled" or
  *    "outlined"), `style`, `children` - a surface to group content on.
+ *  - controlPanel: `key`, `style`, `children` - controls in a row (buttons,
+ *    fields, a label), on a surface of their own, spaced evenly and
+ *    wrapping when there isn't room: what a page puts its controls in, so
+ *    they sit apart from what they control.
  *  - alert: `key`, `severity` ("info" - the default - "success",
  *    "warning" or "error"), `style`, `children` - a message with its
  *    severity's icon and colors (see alertSeverities).
@@ -36,7 +41,7 @@ import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
  *    as a phone app's screen does: no corners, no shadow, and a back arrow
  *    at the top left (calling `close`) instead of the close button. Where it's shown (docked, or modal over the app) is up to
  *    whoever places it - see cascade.ui's overlay().
- *  - textField: `key`, `label`, `value`, `onInput` (called with the new
+ *  - textField: `key`, `label` (optional), `placeholder`, `value`, `onInput` (called with the new
  *    value, as text), `type` ("text" - the default - or "number"), `unit`
  *    (shown after the value: "kg"), `error` (a message, shown under it,
  *    marking it as wrong), `style` - a labelled input field.
@@ -79,6 +84,7 @@ export const button = (...parameters) => widget("button", toButtonProperties(par
 export const icon = (...parameters) => widget("icon", toProperties(parameters));
 export const iconButton = (...parameters) => widget("iconButton", toButtonProperties(parameters));
 export const card = (...parameters) => widget("card", toPropertiesWithChildren(parameters));
+export const controlPanel = (...parameters) => widget("controlPanel", toPropertiesWithChildren(parameters));
 export const alert = (...parameters) => widget("alert", toPropertiesWithChildren(parameters));
 export const listItem = (...parameters) => widget("listItem", toButtonProperties(parameters));
 export const dialog = (...parameters) => widget("dialog", toPropertiesWithChildren(parameters));

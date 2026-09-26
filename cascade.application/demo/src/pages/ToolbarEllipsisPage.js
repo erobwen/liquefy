@@ -1,7 +1,8 @@
 import { Component, callback, flush } from "@liquefy/cascade.component";
-import { p, text, input, select, option, span, elementBoundsProvider, overflowContainer, elementSlot } from "@liquefy/cascade.dom";
-import { button, iconButton, alert, card, popover, row, column, filler, fitContainerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
+import { p, text, select, option, span, elementBoundsProvider, overflowContainer, elementSlot } from "@liquefy/cascade.dom";
+import { button, iconButton, alert, card, textField, popover, row, filler, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { fullPage } from "../components/layout.js";
 import source from "./ToolbarEllipsisPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -46,18 +47,18 @@ export class ToolbarEllipsisPage extends Component {
       new SizePicker({ key: "size" }),
       icon("settings", 3), icon("star", 4),
       select(
-        { key: "font", title: "Font", style: { flex: "none", height: "32px" }, onchange: callback("font", (event) => { this.lastTool = "font " + event.target.value; }) },
+        { key: "font", title: "Font", style: { flex: "none", height: "32px", padding: "0 6px", font: "inherit", color: "inherit", border: "1px solid #cdd7e2", borderRadius: "6px", background: "white" }, onchange: callback("font", (event) => { this.lastTool = "font " + event.target.value; }) },
         ...["Sans", "Serif", "Monospace"].map((font) => option({ key: font, value: font }, text({ key: font + "Text", text: font }))),
       ),
       icon("key", 5), icon("bolt", 6),
       textButton("Underline"),
-      input({ key: "search", type: "search", placeholder: "Find...", style: { flex: "none", width: "120px", height: "28px", boxSizing: "border-box" } }),
+      textField({ key: "search", type: "search", placeholder: "Find...", style: { flex: "none", width: "140px" } }),
       icon("search", 7), icon("home", 8), textButton("Strikethrough"),
       icon("settings", 9), icon("star", 10), icon("key", 11), icon("bolt", 12),
     ];
 
-    return column(
-      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px" } },
+    return fullPage(
+      { key: "page", style: overflowVisibleStyle },
       pageActions({ information, source, fileName: "src/pages/ToolbarEllipsisPage.js" }),
       alert(
         { key: "info", style: { flex: "none" } },

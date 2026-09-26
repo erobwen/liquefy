@@ -1,10 +1,11 @@
 import { Component, callback, deeplyObservable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, span, text, flipAnimationContainer } from "@liquefy/cascade.dom";
 import {
-  button, card, icon, iconButton, alert, textField, checkbox,
+  button, card, controlPanel, icon, iconButton, alert, textField, checkbox,
   row, column, filler, fitContainerStyle,
 } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { pageGap, sectionTitle } from "../components/layout.js";
 import source from "./ReactiveFormPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -77,8 +78,8 @@ export class ReactiveFormPage extends Component {
     const wide = (this.renderContext.usableWidth || 1000) >= 820;
     const count = travelerCount(data);
     const form = [
-      row(
-        { key: "header", style: { alignItems: "center", gap: "16px", flexWrap: "wrap" } },
+      controlPanel(
+        { key: "header" },
         div({ key: "title", style: { fontSize: "18px", fontWeight: "bold" } },
           text({ key: "titleText", text: "Traveler information" + (count === 1 ? "" : " (" + count + " people)") })),
         filler({ key: "headerFiller" }),
@@ -99,7 +100,7 @@ export class ReactiveFormPage extends Component {
         { key: "addTravelerRow" },
         filler({ key: "addTravelerFiller" }),
         button(
-          { key: "addTraveler", style: { display: "flex", alignItems: "center", gap: "6px" } },
+          { key: "addTraveler" },
           icon({ key: "addTravelerIcon", name: "add" }),
           text({ key: "addTravelerText", text: "Traveler" }),
           callback("addTraveler", () => this.addTraveler()),
@@ -116,12 +117,14 @@ export class ReactiveFormPage extends Component {
         ),
       ).show(!!this.sent),
 
-      button({ key: "submit" }, text({ key: "submitText", text: "Submit" }), callback("submit", () => this.submit())),
+      button({ key: "submit", variant: "filled" }, text({ key: "submitText", text: "Submit" }), callback("submit", () => this.submit())),
     ];
 
-    const formStyle = { display: "flex", flexDirection: "column", gap: "20px", padding: "24px", maxWidth: "720px", boxSizing: "border-box" };
+    // A little padding, for the cards' shadows: the scroll panel clips
+    // at its edges.
+    const formStyle = { display: "flex", flexDirection: "column", gap: pageGap, padding: "2px 4px 16px", maxWidth: "720px", boxSizing: "border-box" };
     return row(
-      { key: "page", style: { ...fitContainerStyle } },
+      { key: "page", style: { ...fitContainerStyle, gap: pageGap } },
       pageActions({ information, source, fileName: "src/pages/ReactiveFormPage.js" }),
       div(
         { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
@@ -170,7 +173,7 @@ class TravelerForm extends Component {
     });
 
     return card(
-      { key: "card", variant: "filled", style: { display: "flex", flexDirection: "column", gap: "12px" } },
+      { key: "card", style: { display: "flex", flexDirection: "column", gap: "12px" } },
       row(
         { key: "cardHeader", style: { alignItems: "center", gap: "8px" } },
         icon({ key: "personIcon", name: fellow ? "group" : "person" }),
@@ -222,7 +225,7 @@ class TravelerForm extends Component {
         { key: "addLuggageRow" },
         filler({ key: "addLuggageFiller" }),
         button(
-          { key: "addLuggage", style: { display: "flex", alignItems: "center", gap: "6px" } },
+          { key: "addLuggage" },
           icon({ key: "addLuggageIcon", name: "add" }),
           text({ key: "addLuggageText", text: "Add luggage" }),
           callback("addLuggage", () => this.addLuggage()),
@@ -247,7 +250,7 @@ class LuggageDrawer extends Component {
     return column(
       { key: "drawer", style: { gap: "10px" } },
       button(
-        { key: "toggle", style: { display: "flex", alignItems: "center", gap: "20px", justifyContent: "space-between" } },
+        { key: "toggle", style: { justifyContent: "space-between" } },
         span({ key: "toggleLabel" }, text({ key: "toggleText", text: this.isOpen ? "Hide luggage" : "Show luggage (" + this.count + ")" })),
         icon({ key: "toggleIcon", name: this.isOpen ? "expand_less" : "expand_more" }),
         this.toggleOpen,
@@ -309,17 +312,14 @@ class CostDisplay extends Component {
 // The model's data, as it is right now.
 class ModelDataDisplay extends Component {
   build() {
-    return column(
+    return card(
       {
         key: "modelData",
-        style: {
-          width: "40%", maxWidth: "420px", flex: "none", height: "100%", boxSizing: "border-box",
-          borderLeft: "1px solid #dfe6e9", background: "#f4f6f7", color: "#2c3e50",
-        },
+        style: { width: "40%", maxWidth: "420px", flex: "none", height: "calc(100% - 4px)", display: "flex", flexDirection: "column", gap: "8px", margin: "2px 2px 2px 0" },
       },
-      div({ key: "modelDataTitle", style: { padding: "12px 16px", fontWeight: "bold", flex: "none" } }, text({ key: "modelDataTitleText", text: "Model data" })),
+      sectionTitle("modelDataTitle", "Model data"),
       div(
-        { key: "json", style: { flex: "1 1 0", overflow: "auto", padding: "0 16px 16px", whiteSpace: "pre", fontFamily: "monospace", fontSize: "12px" } },
+        { key: "json", style: { flex: "1 1 0", overflow: "auto", whiteSpace: "pre", fontFamily: "monospace", fontSize: "12px" } },
         text({ key: "jsonText", text: JSON.stringify(data, null, 2) }),
       ),
     );

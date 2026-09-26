@@ -1,12 +1,13 @@
 import { Component, serviceProvider } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
 import {
-  button, widget, icon, iconButton, card, alert, listItem, dialog, popover, overlay,
+  button, widget, icon, iconButton, card, controlPanel, alert, listItem, dialog, popover, overlay,
   row, column, basicTheme, fillerStyle, overflowVisibleStyle,
 } from "@liquefy/cascade.ui";
 import { modalPresentation } from "../components/modal.js";
 import { materialTheme } from "@liquefy/cascade.ui.material";
 import { pageActions } from "../components/pageActions.js";
+import { pageColumn, sectionTitle } from "../components/layout.js";
 import source from "./ThemesPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -48,9 +49,9 @@ export class ThemesPage extends Component {
   }
 
   build() {
-    return column(
-      // As tall as its content - the work area around it scrolls.
-      { key: "page", style: { ...overflowVisibleStyle, boxSizing: "border-box", width: "100%", gap: "20px", padding: "16px" } },
+    // As tall as its content - the work area around it scrolls.
+    return pageColumn(
+      { key: "page" },
       pageActions({ information, source, fileName: "src/pages/ThemesPage.js" }),
       alert(
         { key: "info" },
@@ -62,15 +63,15 @@ export class ThemesPage extends Component {
         }),
       ),
       new ThemeSwitch({ key: "themeSwitch" }),
-      row(
-        { key: "buttons", style: { gap: "12px", alignItems: "center" } },
+      controlPanel(
+        { key: "buttons" },
         button({ key: "clickMe" }, text({ key: "clickMeText", text: "Click me" }), () => { this.clicks = this.clicks + 1; }),
         button({ key: "reset", variant: "outlined" }, text({ key: "resetText", text: "Reset" }), () => { this.clicks = 0; }),
         text({ key: "clicks", text: "Clicks: " + this.clicks }),
       ),
       column(
-        { key: "blocked", style: { gap: "8px" } },
-        text({ key: "blockedLabel", text: "The same switch, inside a part of the app that doesn't pass on the right to change the theme:" }),
+        { key: "blocked", style: { gap: "8px", overflow: "visible" } },
+        sectionTitle("blockedLabel", "The same switch, inside a part of the app that doesn't pass on the right to change the theme:"),
         new NoThemeSwitching({ key: "noThemeSwitching" }),
       ),
       row(
@@ -80,7 +81,7 @@ export class ThemesPage extends Component {
       ),
       column(
         { key: "degradation", style: { gap: "8px" } },
-        text({ key: "degradationLabel", text: "A widget no theme provides still renders, as a marked placeholder:" }),
+        sectionTitle("degradationLabel", "A widget no theme provides still renders, as a marked placeholder:"),
         widget("rating", { key: "rating", children: [text({ key: "ratingText", text: "★★★☆☆" })] }),
       ),
     );
@@ -93,16 +94,16 @@ class ThemeSwitch extends Component {
   build() {
     const root = this.inherit("rootServiceLocator");
     if (!root) {
-      return row(
-        { key: "switch", style: { gap: "12px", alignItems: "center" } },
+      return controlPanel(
+        { key: "switch" },
         text({ key: "notAllowed", text: "Theme switching isn't available here." }),
       );
     }
     const themeNames = Object.keys(root.themes);
     const current = root.themeName;
     const next = themeNames[(themeNames.indexOf(current) + 1) % themeNames.length];
-    return row(
-      { key: "switch", style: { gap: "12px", alignItems: "center" } },
+    return controlPanel(
+      { key: "switch" },
       text({ key: "current", text: "Current theme: " + root.themes[current].title }),
       button({ key: "toggle" }, text({ key: "toggleText", text: "Switch to " + root.themes[next].title }), () => root.selectTheme(next)),
     );
@@ -126,7 +127,7 @@ class NoThemeSwitching extends Component {
 function section(key, label, theme) {
   return column(
     { key, style: { ...fillerStyle, ...overflowVisibleStyle, gap: "8px", minWidth: "320px" } },
-    text({ key: key + "Label", text: label }),
+    sectionTitle(key + "Label", label),
     serviceProvider({ key: key + "Provider", serviceLocator: theme, child: new SampleButtons({ key: key + "Sample" }) }),
   );
 }
@@ -138,12 +139,12 @@ class SampleButtons extends Component {
   }
 
   build() {
-    const heading = (key, value) => text({ key, text: value });
+    const heading = (key, value) => sectionTitle(key, value);
     const closeDialog = () => { this.dialogOpen = false; };
     return column(
-      { key: "sample", style: { gap: "12px" } },
+      { key: "sample", style: { gap: "12px", overflow: "visible" } },
       row(
-        { key: "buttons", style: { gap: "12px", alignItems: "center" } },
+        { key: "buttons", style: { gap: "12px", alignItems: "center", flexWrap: "wrap", overflow: "visible" } },
         button({ key: "first" }, text({ key: "firstText", text: "First" })),
         button({ key: "second", variant: "tonal" }, text({ key: "secondText", text: "Second" })),
         iconButton({ key: "favorite", icon: this.favorite ? "favorite" : "favorite_border", title: "Favorite" }, () => { this.favorite = !this.favorite; }),
@@ -159,7 +160,7 @@ class SampleButtons extends Component {
         alert({ key: severity, severity }, text({ key: severity + "Text", text: "An alert of severity " + severity + "." }))),
       heading("cardsHeading", "Cards"),
       row(
-        { key: "cards", style: { gap: "12px" } },
+        { key: "cards", style: { gap: "12px", overflow: "visible" } },
         ...["elevated", "filled", "outlined"].map((variant) =>
           card({ key: variant, variant, style: { flex: "1 1 0" } }, text({ key: variant + "Text", text: "A card, " + variant }))),
       ),

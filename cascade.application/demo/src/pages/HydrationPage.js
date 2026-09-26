@@ -1,6 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 import { hydrate } from "@liquefy/cascade.dom";
 import { pageActions } from "../components/pageActions.js";
+import { accentColor } from "../components/layout.js";
 import source from "./HydrationPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -49,7 +50,7 @@ const content = {
         properties: {
           children: [
             "Everything on this page was written as ",
-            { type: "htmlElement", name: "b", properties: { style: { color: "blue" }, children: ["one plain object literal"] } },
+            { type: "htmlElement", name: "b", properties: { style: { color: accentColor }, children: ["one plain object literal"] } },
             " - a document - and hydrated into components by the service locator, not built with convenience functions.",
           ],
         },
@@ -66,7 +67,7 @@ const content = {
               name: "li",
               properties: {
                 children: [
-                  { type: "htmlElement", name: "b", properties: { style: { color: "blue" }, children: ["Consectetur"] } },
+                  { type: "htmlElement", name: "b", properties: { style: { color: accentColor }, children: ["Consectetur"] } },
                   " adipiscing elit, sed do eiusmod tempor.",
                 ],
               },
@@ -76,7 +77,7 @@ const content = {
               name: "li",
               properties: {
                 children: [
-                  { type: "htmlElement", name: "b", properties: { style: { color: "blue" }, children: ["Incididunt"] } },
+                  { type: "htmlElement", name: "b", properties: { style: { color: accentColor }, children: ["Incididunt"] } },
                   " ut labore et dolore magna aliqua.",
                 ],
               },
@@ -86,7 +87,7 @@ const content = {
               name: "li",
               properties: {
                 children: [
-                  { type: "htmlElement", name: "b", properties: { style: { color: "blue" }, children: ["Ullamco"] } },
+                  { type: "htmlElement", name: "b", properties: { style: { color: accentColor }, children: ["Ullamco"] } },
                   " laboris nisi ut aliquip ex ea commodo.",
                 ],
               },
@@ -98,7 +99,7 @@ const content = {
         type: "htmlElement",
         name: "blockquote",
         properties: {
-          style: { borderLeft: "4px solid #b2bec3", margin: "16px 0", padding: "4px 16px", color: "#636e72" },
+          style: { borderLeft: "4px solid " + accentColor, margin: "16px 0", padding: "4px 16px", color: "#5d6d7e" },
           children: [
             "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
           ],
@@ -131,23 +132,28 @@ const content = {
 };
 
 // The page itself: the document above, plus - also as data - a way to
-// see the document this page was hydrated from.
-const hydrationDocument = element("div", {
-  style: { maxWidth: 720, lineHeight: "1.5" },
-  children: [
-    content,
-    element("details", {
-      style: { marginTop: "24px" },
-      children: [
-        element("summary", { style: { cursor: "pointer" }, children: ["Show the document this page was hydrated from"] }),
-        element("pre", {
-          style: { fontSize: "12px", background: "#f5f6fa", border: "1px solid #dfe6e9", padding: "12px", overflow: "auto", lineHeight: "1.3" },
-          children: [JSON.stringify(content, null, 2)],
-        }),
-      ],
-    }),
-  ],
-});
+// see the document this page was hydrated from - on a themed card, asked
+// for in the document like the button in it.
+const hydrationDocument = {
+  type: "widget",
+  name: "card",
+  properties: {
+    style: { maxWidth: "820px", padding: "8px 32px 24px", lineHeight: "1.55", boxSizing: "border-box" },
+    children: [
+      content,
+      element("details", {
+        style: { marginTop: "24px" },
+        children: [
+          element("summary", { style: { cursor: "pointer" }, children: ["Show the document this page was hydrated from"] }),
+          element("pre", {
+            style: { fontSize: "12px", background: "#eef3f8", border: "1px solid #cdd7e2", borderRadius: "6px", padding: "12px", overflow: "auto", lineHeight: "1.3" },
+            children: [JSON.stringify(content, null, 2)],
+          }),
+        ],
+      }),
+    ],
+  },
+};
 
 export class HydrationPage extends Component {
   build() {

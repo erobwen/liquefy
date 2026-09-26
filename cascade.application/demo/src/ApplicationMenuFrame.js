@@ -196,7 +196,7 @@ class ApplicationMenuFrameLayout extends Component {
       child: page.component,
       style: {
         flex: "1 1 auto", minHeight: 0, boxSizing: "border-box", padding: "16px",
-        background: "#ecf0f1", overflow: "auto",
+        background: "#eaf0f6", color: "#2c3e50", overflow: "auto",
       },
       // The page's own pixel budget - and the whole app's size, for what
       // covers the whole app (a full-screen dialog, say). And its part of
@@ -310,22 +310,13 @@ class MenuList extends Component {
   }
 }
 
-// The Cascade logotype, at the top of the menu. The image has a wide
-// margin of plain background (the menu's own color) around the logo
-// itself - cropped here by showing only the middle band of it: the image a
-// little wider than the menu, shifted up and left inside a box as tall as
-// the logo. (Percentage margins are fractions of the box's width.)
+// The Cascade logotype, at the top of the menu - its background
+// transparent, so it sits on the menu as it is, glow and all.
 function logo() {
-  return div(
-    { key: "logo", style: { overflow: "hidden", aspectRatio: "3.5", margin: "0 0 12px 0", flex: "none" } },
-    img({
-      key: "logoImage",
-      src: menuBarLogo,
-      alt: "Cascade",
-      // The logo spans 6-95% of the image across, 31-67% down: at 106% of
-      // the box wide, shifted 3% left, it spans about 3-98% of the box -
-      // its glow included.
-      style: { display: "block", width: "106%", marginLeft: "-3%", marginTop: "-20%" },
-    }),
-  );
+  return img({
+    key: "logo",
+    src: menuBarLogo,
+    alt: "Cascade",
+    style: { display: "block", width: "100%", margin: "0 0 12px 0", flex: "none" },
+  });
 }

@@ -1,7 +1,8 @@
-import { Component } from "@liquefy/cascade.component";
-import { div, input, text } from "@liquefy/cascade.dom";
-import { button } from "@liquefy/cascade.ui";
+import { Component, callback } from "@liquefy/cascade.component";
+import { div, text } from "@liquefy/cascade.dom";
+import { button, card, controlPanel, textField, row, filler } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { pageColumn } from "../components/layout.js";
 import source from "./RecursiveDemo.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -67,8 +68,8 @@ export class RecursiveDemo extends Component {
   // genuinely recursive nesting - see cascade.ui/src/OverlayFrame.js).
 
   build() {
-    return div(
-      { key: "recursiveDemo", style: { maxWidth: 720 } },
+    return pageColumn(
+      { key: "recursiveDemo", style: { maxWidth: "760px" } },
       pageActions({ information, source, fileName: "src/pages/RecursiveDemo.js" }),
       new ControlRow({ key: "controlRow", demo: this }),
       new ListLevel({ key: "rootList", maxDepth: this.levels, depth: 1 }),
@@ -83,30 +84,28 @@ class ControlRow extends Component {
 
   build() {
     const { demo } = this;
-    return div(
-      { key: "controls", style: {
-        display: "flex", alignItems: "center", gap: "12px",
-        padding: "8px 0 16px", borderBottom: "1px solid #dfe6e9", marginBottom: "12px",
-      } },
-      div({ key: "label" }, "Recursive Structure"),
-      // Themed widgets (cascade.ui's button()) - whichever theme the app is
-      // using provides them. The click handlers run outside any repeater (a
-      // real DOM event), so a plain write to a state property is fine here,
-      // same as ApplicationMenuFrame's own hamburger onclick.
-      button({ key: "more" }, "More", () => { demo.levels = demo.levels + 1; }),
-      button({ key: "less" }, "Less", () => { if (demo.levels > 1) demo.levels = demo.levels - 1; }),
-      div({ key: "sharedLabel" }, "Shared value:"),
-      input({
-        key: "sharedInput",
+    // Themed widgets - whichever theme the app is using provides them. The
+    // handlers run outside any repeater (a real DOM event), so a plain
+    // write to a state property is fine here.
+    return controlPanel(
+      { key: "controls" },
+      div({ key: "label", style: { fontWeight: "bold" } }, text({ key: "labelText", text: "Recursive structure" })),
+      button({ key: "more" }, text({ key: "moreText", text: "More" }), callback("more", () => { demo.levels = demo.levels + 1; })),
+      button({ key: "less", disabled: demo.levels <= 1 }, text({ key: "lessText", text: "Less" }), callback("less", () => { if (demo.levels > 1) demo.levels = demo.levels - 1; })),
+      filler({ key: "controlsFiller" }),
+      textField({
+        key: "sharedValue",
+        label: "Shared value",
         type: "number",
         value: demo.sharedValue,
-        oninput: (event) => { demo.sharedValue = Number(event.target.value); },
-        style: { width: "72px" },
+        onInput: callback("sharedValue", (value) => { if (value !== "") demo.sharedValue = Number(value); }),
       }),
     );
   }
 }
 
+// One level: its item, and - if it isn't the last - the next level, inside
+// it.
 class ListLevel extends Component {
   setProperties({ maxDepth, depth }) {
     this.maxDepth = maxDepth;
@@ -118,11 +117,8 @@ class ListLevel extends Component {
     if (this.depth < this.maxDepth) {
       children.push(new ListLevel({ key: "rest", maxDepth: this.maxDepth, depth: this.depth + 1 }));
     }
-    return div(
-      { key: "level", style: {
-        border: "1px solid #b2bec3", borderRadius: "4px",
-        padding: "8px 8px 8px 16px", marginBottom: "6px",
-      } },
+    return card(
+      { key: "level", variant: this.depth === 1 ? "elevated" : "outlined", style: { display: "flex", flexDirection: "column", gap: "12px" } },
       children,
     );
   }
@@ -141,26 +137,19 @@ class ListItem extends Component {
 
   build() {
     const shared = this.inherit("sharedValue");
-    return div(
-      { key: "item", style: { display: "flex", alignItems: "center", gap: "16px" } },
-      // Keyed - see this file's own top comment on why: this text's own
-      // content only ever depends on `depth`, which never changes for a
-      // given Item once constructed, but keeping it keyed (matching
-      // flow's own choice here) means a rerun for any reason at all still
-      // reconciles to the same real Text node rather than replacing it.
-      text({ key: "depthLabel", text: "Depth " + this.depth }),
-      input({
+    return row(
+      { key: "item", style: { alignItems: "center", gap: "16px", flexWrap: "wrap", overflow: "visible" } },
+      // Keyed text - every Item's own copy of the shared value changes
+      // whenever anyone edits it, and a keyed text() is mutated in place at
+      // each one, never recreated.
+      div({ key: "depth", style: { fontWeight: "bold", minWidth: "64px" } }, text({ key: "depthLabel", text: "Depth " + this.depth })),
+      textField({
         key: "localValue",
+        label: "Local value",
         type: "number",
         value: this.value,
-        oninput: (event) => { this.value = Number(event.target.value); },
-        style: { width: "72px" },
+        onInput: callback("localValue", (value) => { if (value !== "") this.value = Number(value); }),
       }),
-      // Keyed for real this time - every Item's own copy of this text
-      // changes whenever *anyone* edits the shared value, and it's the
-      // one place in this demo where you can watch a rerun that touches
-      // many Items at once still only mutate a Text node in place at
-      // each one, never recreate it.
       text({ key: "sharedLabel", text: "Shared value: " + shared }),
     );
   }

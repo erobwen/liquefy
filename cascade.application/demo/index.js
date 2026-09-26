@@ -51,16 +51,16 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
   location,
   pages: [
-    { key: "introduction", title: "Introduction", component: new IntroductionPage() },
+    { key: "introduction", title: "Introduction", icon: "info", component: new IntroductionPage() },
     { key: "programmatic-layout", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
     { key: "toolbar-ellipsis", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage() },
     { key: "recursive-demo", title: "Recursive Demo", component: new RecursiveDemo() },
     { key: "reactive-form", title: "Reactive Form", component: new ReactiveFormPage() },
     { key: "hybrid-modal-dialog", title: "Hybrid Modal Dialog", component: new HybridModalDialog() },
-    { key: "themes", title: "Themes", component: new ThemesPage() },
     { key: "hydration", title: "Hydration", component: new HydrationPage() },
     { key: "animation", title: "Animation", component: new AnimationPage() },
     { key: "store", title: "Web Store", component: new StorePage() },
+    { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage() },
   ],
 });
 applicationMenuFrame.renderOnto(context);

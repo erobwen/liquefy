@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { a, div, img, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { a, div, img, span, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, portal, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.png";
 
@@ -304,12 +304,17 @@ class MenuList extends Component {
             frame.choose(page.key);
           }),
           style: {
-            display: "block", padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", marginBottom: "4px", borderRadius: "4px", cursor: "pointer",
             color: "inherit", textDecoration: "none",
             background: active ? "rgba(255,255,255,0.2)" : "transparent",
             fontWeight: active ? "bold" : "normal",
           },
-        }, text({ key: page.key + "Title", text: page.title }));
+        },
+        span({ key: page.key + "Title", style: { flex: "1 1 auto" } }, text({ key: page.key + "TitleText", text: page.title })),
+        // A page's own icon, if it has one (see index.js), to the right - in
+        // the menu's own text color, and the same whatever the theme: the
+        // icon font's glyph itself, not the theme's icon widget.
+        page.icon ? span({ key: page.key + "Icon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", flex: "none", userSelect: "none" } }, text({ key: page.key + "IconName", text: page.icon })) : null);
       }),
     );
   }

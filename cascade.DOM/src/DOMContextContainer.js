@@ -29,10 +29,17 @@ export function contextContainer(...parameters) {
  * existed at all. With only one target kind left, what remains here is
  * just "own a styled div, hand my child an extended context" - no bridging
  * of anything.
+ *
+ * With `scrollToTopOnNewChild: true`, a container that scrolls (a page's
+ * work area, say) starts each new child from its top: handed a different
+ * child than it showed last, its element is scrolled back to the top -
+ * rather than showing the new one as far down as the old one was scrolled.
+ * The same child building again keeps its place.
  */
 export class DOMContextContainer extends DOMNodeRenderComponent {
-  setProperties({ child, style, context }) {
+  setProperties({ child, style, context, scrollToTopOnNewChild }) {
     this.child = child;
+    this.scrollToTopOnNewChild = !!scrollToTopOnNewChild;
     this.style = frozen(style || null);
     // Extra fields to merge onto the inner RenderContext on every render -
     // e.g. usableWidth/usableHeight (see ApplicationMenuFrame.js's own
@@ -62,6 +69,8 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
     }
     if (this.contextExtra) Object.assign(u.innerContext, this.contextExtra);
     this.child.renderOnto(u.innerContext);
+    if (this.scrollToTopOnNewChild && u.shownChild && u.shownChild !== this.child) u.element.scrollTop = 0;
+    u.shownChild = this.child;
   }
 }
 

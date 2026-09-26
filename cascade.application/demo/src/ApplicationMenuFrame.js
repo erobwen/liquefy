@@ -199,6 +199,9 @@ class ApplicationMenuFrameLayout extends Component {
     const workArea = contextContainer({
       key: "workArea",
       child: page.component,
+      // Each page shown from its top - not as far down as the one before
+      // was scrolled.
+      scrollToTopOnNewChild: true,
       style: {
         flex: "1 1 auto", minHeight: 0, boxSizing: "border-box", padding: "16px",
         background: themeColor.page, color: themeColor.text, overflow: "auto",

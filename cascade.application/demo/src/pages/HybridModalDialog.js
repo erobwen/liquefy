@@ -3,6 +3,7 @@ import { p, text } from "@liquefy/cascade.dom";
 import { button, card, dialog as themedDialog, overlay, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { modalPresentation, fullScreenPresentation } from "../components/modal.js";
 import { pageActions, informationBox } from "../components/pageActions.js";
+import { pagePadding } from "../components/layout.js";
 import source from "./HybridModalDialog.js?raw";
 
 // What this page is about - first on the page, on its panel (see
@@ -114,7 +115,7 @@ export class HybridModalDialog extends Component {
       // Deliberately *not* alignItems: "flex-start" here - the docked
       // dialog's own fillerStyle (flex: 1 1 0) needs this row to give it a
       // definite, stretched height to fill.
-      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px" } },
+      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: pagePadding } },
       pageActions({ source, fileName: "src/pages/HybridModalDialog.js" }),
       // The controls, on a panel of their own (an elevated card - white,
       // with a shadow, on the grey page) - its edge is the border between

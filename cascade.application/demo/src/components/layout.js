@@ -7,12 +7,21 @@ import { card, column, fitContainerStyle, overflowVisibleStyle, themeColor } fro
  * and none has to say how. What things look like (surfaces, controls) is
  * the theme's; this is only how a page is laid out with them.
  *
- *  - pageColumn(): a page as tall as its content - the work area around it
- *    scrolls.
- *  - fullPage(): a page filling the work area exactly - for pages that lay
- *    out within the room they're given (a toolbar at the bottom, panels
- *    spread out, ...).
- *  - article(): text to read, on a surface of its own, at a readable width.
+ * Every page owns its scrolling: the work area around it never scrolls, it
+ * only gives the page its room. A page as tall as its content scrolls in a
+ * panel of its own - so its scroll position is its own, and it starts from
+ * the top when it's shown - and one laid out within its room doesn't scroll
+ * at all.
+ *
+ *  - pageColumn(): a page as tall as its content, in a scroll panel of its
+ *    own.
+ *  - fullPage(): a page filling its room exactly - for pages that lay out
+ *    within the room they're given (a toolbar at the bottom, panels spread
+ *    out, ...). No scrolling.
+ *  - article(): text to read, on a surface of its own, at a readable width -
+ *    in a scroll panel of its own.
+ *  - pagePadding: the margin every page keeps to its room's edges - for a
+ *    page making its own outermost element.
  *  - sectionTitle(): a small heading, above a group of things on a page.
  *  - emphasis(): a highlighted phrase in running text.
  *  - nextPage(): the way on, to another page of the app.
@@ -21,30 +30,39 @@ import { card, column, fitContainerStyle, overflowVisibleStyle, themeColor } fro
 // The space between the parts of a page - everywhere.
 export const pageGap = "16px";
 
+// The margin to the page's room: inside a scroll panel, so the scroll bar
+// sits at the room's edge, and cards' shadows aren't clipped.
+export const pagePadding = "16px";
+
+// A scroll panel filling the page's room, the page's content inside.
+function scrollPanel(key, content) {
+  return div({ key: key + "Scroll", style: { ...fitContainerStyle, overflowY: "auto", padding: pagePadding } }, content);
+}
+
 // Emphasis - the accent color of the theme's color scheme.
 export const accentColor = themeColor.accent;
 
 const toChildren = (children) => children.map((child) => typeof(child) === "string" ? text(child) : child);
 
 export function pageColumn(properties, ...children) {
-  return column(
+  return scrollPanel(properties.key, column(
     { ...properties, style: { ...overflowVisibleStyle, boxSizing: "border-box", width: "100%", gap: pageGap, ...properties.style } },
     ...children,
-  );
+  ));
 }
 
 export function fullPage(properties, ...children) {
   return column(
-    { ...properties, style: { ...fitContainerStyle, gap: pageGap, ...properties.style } },
+    { ...properties, style: { ...fitContainerStyle, gap: pageGap, padding: pagePadding, ...properties.style } },
     ...children,
   );
 }
 
 export function article(properties, ...children) {
-  return card(
+  return scrollPanel(properties.key, card(
     { ...properties, style: { maxWidth: "820px", padding: "8px 32px 24px", lineHeight: "1.55", boxSizing: "border-box", ...properties.style } },
     ...children,
-  );
+  ));
 }
 
 export function sectionTitle(key, title) {

@@ -5,7 +5,7 @@ import {
   row, column, filler, fitContainerStyle,
 } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
-import { pageGap, sectionTitle } from "../components/layout.js";
+import { pageGap, pagePadding, sectionTitle } from "../components/layout.js";
 import source from "./ReactiveFormPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -124,7 +124,7 @@ export class ReactiveFormPage extends Component {
     // at its edges.
     const formStyle = { display: "flex", flexDirection: "column", gap: pageGap, padding: "2px 4px 16px", maxWidth: "720px", boxSizing: "border-box" };
     return row(
-      { key: "page", style: { ...fitContainerStyle, gap: pageGap } },
+      { key: "page", style: { ...fitContainerStyle, gap: pageGap, padding: pagePadding } },
       pageActions({ information, source, fileName: "src/pages/ReactiveFormPage.js" }),
       div(
         { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },

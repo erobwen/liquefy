@@ -164,6 +164,8 @@ class ApplicationMenuFrameLayout extends Component {
     }
 
     const menuIsModal = bounds.width < MENU_WIDTH * 3;
+    // The room inside a page's margins (16px each side - see
+    // components/layout.js's pagePadding).
     const workAreaWidth = (menuIsModal ? bounds.width : bounds.width - MENU_WIDTH) - 32;
     const workAreaHeight = bounds.height - TOP_BAR_HEIGHT - 32;
 
@@ -199,12 +201,11 @@ class ApplicationMenuFrameLayout extends Component {
     const workArea = contextContainer({
       key: "workArea",
       child: page.component,
-      // Each page shown from its top - not as far down as the one before
-      // was scrolled.
-      scrollToTopOnNewChild: true,
       style: {
-        flex: "1 1 auto", minHeight: 0, boxSizing: "border-box", padding: "16px",
-        background: themeColor.page, color: themeColor.text, overflow: "auto",
+        // Never scrolls: each page owns its scrolling, and its margins (see
+        // components/layout.js).
+        flex: "1 1 auto", minHeight: 0, boxSizing: "border-box",
+        background: themeColor.page, color: themeColor.text, overflow: "hidden",
       },
       // The page's own pixel budget - and the whole app's size, for what
       // covers the whole app (a full-screen dialog, say). And its part of

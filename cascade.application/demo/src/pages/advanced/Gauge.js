@@ -13,16 +13,20 @@ export class Gauge extends DOMNodeRenderComponent {
   ensureNode() {
     const u = this.unobservable;
     if (!u.element) u.element = document.createElement("div");
-    const arc = "M 10 60 A 50 50 0 0 1 110 60";
-    u.element.innerHTML = `
-      <svg viewBox="0 0 120 70" width="240" height="140" role="img" aria-label="${this.value}%">
-        <path d="${arc}" fill="none" stroke="#dfe6ee" stroke-width="12" stroke-linecap="round" />
-        <path d="${arc}" fill="none" stroke="#2e86c1" stroke-width="12" stroke-linecap="round"
-              pathLength="100" stroke-dasharray="${this.value} 100" />
-        <text x="60" y="58" text-anchor="middle" font-size="18" font-weight="bold" fill="currentColor">${this.value}%</text>
-      </svg>`;
+    u.element.innerHTML = gaugeSvg(this.value);
     return u.element;
   }
+}
+
+export function gaugeSvg(value, color = "#2e86c1") {
+  const arc = "M 10 60 A 50 50 0 0 1 110 60";
+  return `
+    <svg viewBox="0 0 120 70" width="240" height="140" role="img" aria-label="${value}%">
+      <path d="${arc}" fill="none" stroke="#dfe6ee" stroke-width="12" stroke-linecap="round" />
+      <path d="${arc}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="${value} 100" />
+      <text x="60" y="58" text-anchor="middle" font-size="18" font-weight="bold" fill="currentColor">${value}%</text>
+    </svg>`;
 }
 
 // Using it - like any other component.

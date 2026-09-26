@@ -3,7 +3,7 @@ import { div, hydrate } from "@liquefy/cascade.dom";
 import { card, row, fitContainerStyle, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { HighlightedCode } from "../components/code.js";
-import { accentColor, pageColumn, pageGap, sectionTitle } from "../components/layout.js";
+import { accentColor, pageColumn, pageGap, pagePadding, sectionTitle } from "../components/layout.js";
 import source from "./HydrationPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -176,7 +176,7 @@ export class HydrationPage extends Component {
     const actions = pageActions({ information, source, fileName: "src/pages/HydrationPage.js" });
     if (!wide) return pageColumn({ key: "page" }, actions, hydrate(hydrationDocument), sourcePanel);
     return row(
-      { key: "page", style: { ...fitContainerStyle, gap: pageGap } },
+      { key: "page", style: { ...fitContainerStyle, gap: pageGap, padding: pagePadding } },
       actions,
       // The page scrolls, the document beside it on its own.
       div(

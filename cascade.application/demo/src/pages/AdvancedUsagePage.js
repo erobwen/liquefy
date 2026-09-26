@@ -11,6 +11,7 @@ import { ShuffleList } from "./advanced/ShuffleList.js";
 import { Measured } from "./advanced/Measured.js";
 import { NoticeBoard } from "./advanced/NoticeBoard.js";
 import { ConfirmDelete } from "./advanced/ConfirmDelete.js";
+import { KeepAlive } from "./advanced/KeepAlive.js";
 import gaugeSource from "./advanced/Gauge.js?raw";
 import doubleGaugeSource from "./advanced/DoubleGauge.js?raw";
 import paperSource from "./advanced/Paper.js?raw";
@@ -19,6 +20,7 @@ import shuffleSource from "./advanced/ShuffleList.js?raw";
 import measuredSource from "./advanced/Measured.js?raw";
 import noticeBoardSource from "./advanced/NoticeBoard.js?raw";
 import confirmSource from "./advanced/ConfirmDelete.js?raw";
+import keepAliveSource from "./advanced/KeepAlive.js?raw";
 import source from "./AdvancedUsagePage.js?raw";
 
 /**
@@ -28,6 +30,18 @@ import source from "./AdvancedUsagePage.js?raw";
  * target on paper (a script, run with Node: no DOM involved at all),
  * running right on the page, with this app's own services.
  */
+
+// How this demo keeps its pages - an excerpt of its own index.js.
+const pagesExcerpt = `// Created once, outside of any build - and handed to the frame.
+const applicationMenuFrame = new ApplicationMenuFrame({
+  rootServiceLocator,
+  location,
+  pages: [
+    { key: "introduction", title: "Introduction", component: new IntroductionPage() },
+    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage() },
+    // ...
+  ],
+});`;
 
 const codeStyle = { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" };
 const codeBlock = (key, sourceText) => new HighlightedCode({ key, source: sourceText, style: codeStyle });
@@ -141,6 +155,44 @@ export class AdvancedUsagePage extends Component {
       ),
       stage("confirmStage", new ConfirmDelete({ key: "confirmDelete" })),
       codeBlock("confirmCode", confirmSource),
+
+      h2("How to keep your children alive off screen"),
+      p(
+        "Switching pages in Cascade is lightning fast, because nothing is rebuilt: a page switched away from keeps ",
+        "its whole tree of DOM nodes, waiting off screen, with its state - and switching back just puts it back in ",
+        "place. But that only works for children that stay alive. A keyed child that its parent's build() doesn't ",
+        "construct, even once, is gone for good: the next time it's built, it's a new one - new state, new DOM.",
+      ),
+      p(
+        "Count up in each, switch tab, and switch back - the first forgets, the other two remember:",
+      ),
+      stage("keepAliveStage", new KeepAlive({ key: "keepAlive" })),
+      h3("1. Build them in every build - and show them with .show()"),
+      p(
+        "Create your children in build(), with a key - but don't hide them behind an ", name("if", "if"), ". Build them ",
+        "every time, and leave them out with ", name("show", ".show(condition)"), " instead: a child built but not ",
+        "shown is only hidden, while its key keeps it alive.",
+      ),
+      h3("2. Take full control"),
+      p(
+        "Create them yourself, once, in ", name("initialUnobservables", "initialUnobservables()"), ", and dispose them ",
+        "in ", name("onDispose", "onDispose()"), ". Unobservables, because nothing needs to observe the references - ",
+        "an observable property for them would only be overhead. Then build() just places them, where and when it ",
+        "likes.",
+      ),
+      codeBlock("keepAliveCode", keepAliveSource),
+      h3("3. Outside of Cascade altogether"),
+      p(
+        "Create them where no build ever sees them being created - in a module, or anywhere else outside of any ",
+        "component - and hand them in as properties. That's how this very demo keeps its pages. Nothing disposes ",
+        "them, so it's for what lives as long as the app does.",
+      ),
+      codeBlock("pagesCode", pagesExcerpt),
+      p(
+        emphasis("A word of warning: never combine these methods."),
+        " A child constructed inside build() belongs to that build, even if you keep a reference to it as well: the ",
+        "first build that doesn't construct it disposes it - out from under your reference.",
+      ),
     );
   }
 }

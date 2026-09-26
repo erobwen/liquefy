@@ -11,9 +11,10 @@ import { zStack, wrapper, fitContainerStyle, zStackElementStyle } from "./Layout
  *  - anchor: what it points to - an element (typically what was clicked:
  *    `event.currentTarget`), or a rectangle in viewport coordinates. An
  *    element it follows: while it's shown, a resize of the window, or a
- *    scroll, places it again, where the element now is - a frame later, so
- *    whatever lays out again on the same resize has done so (a toolbar
- *    moving the button it was opened from, say). A rectangle stays put.
+ *    scroll, places it again, where the element now is - watched in the
+ *    frames after, for as long as it keeps moving, so whatever lays out
+ *    again on the same resize has done so, however late (a toolbar moving
+ *    the button it was opened from, say). A rectangle stays put.
  *  - showing, close: whether it's shown, and what a click outside it calls.
  *  - style, children: the popover's own content (usually a card or an
  *    alert), and extra style for the box it's placed in.
@@ -63,20 +64,37 @@ export class Popover extends Component {
   }
 
   // Following an element: while shown, on a resize or a scroll, place again
-  // - the next frame, when everything that lays out again on it has.
+  // - in the frames after, whenever the element has moved.
   follow() {
     const u = this.unobservable;
     if (u.following) return;
     const view = document.defaultView;
-    let pending = false;
     const later = view.requestAnimationFrame ? (action) => view.requestAnimationFrame(action) : (action) => setTimeout(action, 0);
+    // Watched frame by frame, until it has held still for a few: what moves
+    // it may lay out again later than the next frame - a bounds provider's
+    // ResizeObserver, say, which runs after animation frames.
+    const sameRect = (a, b) => a && b && a.left === b.left && a.top === b.top && a.right === b.right && a.bottom === b.bottom;
+    let watching = false;
+    let stillFrames = 0;
+    const watch = () => {
+      if (!u.following) { watching = false; return; }
+      const anchor = this.anchor;
+      const rect = anchor && anchor.isConnected && typeof(anchor.getBoundingClientRect) === "function" ? anchor.getBoundingClientRect() : null;
+      // Placed again if the element has moved - or the window has changed
+      // size: a placement from its right or bottom edge moves along with it.
+      const viewportChanged = u.placedViewport !== view.innerWidth + "x" + view.innerHeight;
+      if ((rect && !sameRect(rect, u.lastAnchorRect)) || viewportChanged) {
+        stillFrames = 0;
+        this.moved = this.moved + 1;
+      } else stillFrames++;
+      if (stillFrames < 3) later(watch);
+      else watching = false;
+    };
     const moved = () => {
-      if (pending) return;
-      pending = true;
-      later(() => {
-        pending = false;
-        if (u.following) this.moved = this.moved + 1;
-      });
+      stillFrames = 0;
+      if (watching) return;
+      watching = true;
+      later(watch);
     };
     view.addEventListener("resize", moved);
     document.addEventListener("scroll", moved, true);
@@ -107,6 +125,7 @@ export class Popover extends Component {
     const view = document.defaultView;
     const width = view ? view.innerWidth : 1024;
     const height = view ? view.innerHeight : 768;
+    this.unobservable.placedViewport = width + "x" + height;
     const placement = {};
     if ((anchor.top + anchor.bottom) / 2 < height / 2) placement.top = anchor.bottom + GAP + "px";
     else placement.bottom = height - anchor.top + GAP + "px";

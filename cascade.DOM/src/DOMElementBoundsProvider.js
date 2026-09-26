@@ -22,8 +22,13 @@ import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js
  * for sizing purposes - see ApplicationMenuFrame.js's own class doc, whose
  * root is a bare DOMElementBoundsProvider with no further wrapper around it.
  *
- * Also owns the one window resize listener needed to keep the measurement
- * current, so nothing above this component has to manage one itself.
+ * Also keeps the measurement current by itself, so nothing above this
+ * component has to: a ResizeObserver on its element catches every change
+ * of its size - a window resize, but also siblings arriving next to it in
+ * a flex row, which make it narrower with no resize at all (a grid of
+ * bounds providers: the first, measured on its own, would otherwise keep
+ * the whole row's width). Where there is no ResizeObserver, a window
+ * resize listener does what it can.
  * Measuring is real, synchronous DOM work - the reason this overrides
  * render() at all rather than build() (see cascade.component/README.md's
  * "most components should only implement build()").
@@ -77,13 +82,11 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
       // into construction itself, guarantees for every call after this one.
       const rect = u.element.getBoundingClientRect();
       u.innerContext = context.derive(DOMElementTarget.forElement(u.element), { width: rect.width, height: rect.height });
+      u.measured = { width: rect.width, height: rect.height };
     } else {
       this.measure();
     }
-    if (!u.resizeListener) {
-      u.resizeListener = () => this.measure();
-      window.addEventListener("resize", u.resizeListener);
-    }
+    this.observeSize();
     this.child.renderOnto(u.innerContext);
   }
 
@@ -104,16 +107,38 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
   measure() {
     const u = this.unobservable;
     const rect = u.element.getBoundingClientRect();
+    // Compared with what it last wrote, kept unobservable: reading the
+    // context itself here would make render() depend on what it writes.
+    if (u.measured.width === rect.width && u.measured.height === rect.height) return;
+    u.measured = { width: rect.width, height: rect.height };
     accessInitialValues(() => {
       u.innerContext.width = rect.width;
       u.innerContext.height = rect.height;
     });
   }
 
+  // Measuring again whenever the element changes size - only then: a
+  // measurement the same as before writes nothing.
+  observeSize() {
+    const u = this.unobservable;
+    if (u.resizeObserver || u.resizeListener) return;
+    const view = u.element.ownerDocument.defaultView;
+    if (typeof(view.ResizeObserver) === "function") {
+      u.resizeObserver = new view.ResizeObserver(() => {
+        if (u.element.isConnected) this.measure();
+      });
+      u.resizeObserver.observe(u.element);
+    } else {
+      u.resizeListener = () => this.measure();
+      view.addEventListener("resize", u.resizeListener);
+    }
+  }
+
   onDispose() {
     super.onDispose();
     const u = this.unobservable;
-    if (u.resizeListener) window.removeEventListener("resize", u.resizeListener);
+    if (u.resizeObserver) u.resizeObserver.disconnect();
+    if (u.resizeListener) u.element.ownerDocument.defaultView.removeEventListener("resize", u.resizeListener);
   }
 }
 

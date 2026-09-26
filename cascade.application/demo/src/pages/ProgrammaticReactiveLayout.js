@@ -1,155 +1,220 @@
-import { Component } from "@liquefy/cascade.component";
-import { DOMElementTarget } from "@liquefy/cascade.dom";
+import { Component, callback } from "@liquefy/cascade.component";
+import { text, div, span, label, input, elementBoundsProvider, fitTextWithinWidth } from "@liquefy/cascade.dom";
+import { card, icon, row, column, centerMiddle, fillerStyle, fitContainerStyle, centerMiddleStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import surface from "../../../../cascade/images/surface.jpg";
 import source from "./ProgrammaticReactiveLayout.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
   summary: "Components that know their own pixel budget can use the space more efficiently - no CSS media queries.",
   points: [
-    "The page is handed the width and height it may use (usableWidth/usableHeight, measured by the app frame) and sizes itself to it.",
-    "Every cell shows its own measured size. Resize the window, or change rows and columns, and watch them follow.",
-    "Sub component choice and composition can depend on available area, which creates new possibilities.",
+    "The cells aren't given a size: a flexbox layout spreads them over the page. Each cell measures itself, and what's in it adapts to what it measured.",
+    "Resize the window, or change rows and columns, and watch every cell follow.",
+    "Text sized to fit its width, a box keeping its aspect ratio, and a cell that picks what to show by the room it has - sub component choice and composition can depend on available area.",
+    "No bounds are computed anywhere: the measuring is done by elementBoundsProvider(), one for every cell, and styled like any element.",
   ],
 };
 
+const MAX_CELLS = 8;
+const GAP = "6px";
+
 /**
- * Programmatic Reactive Layout - a simplified replica of
- * flow.application/demo/src/pages/programmaticReactiveLayout.js: a rows/
- * columns control panel and a grid of cells, each showing its own real
- * measured width/height. The font-fitted text and fixed-aspect-ratio
- * cells from the original are left for later - this is just the core
- * "components are aware of their own real pixel budget" idea.
+ * Programmatic Reactive Layout - ported from flow.application/demo's
+ * programmaticReactiveLayout.js: a rows/columns control panel, and a grid
+ * of cells, each adapting its content to the room it has.
  *
- * The grid's own real DOM is rebuilt (not reconciled cell-by-cell)
- * whenever rows/columns changes - simplest correct thing for a variable
- * cell count in a demo page; each cell has no independent state of its
- * own, so there's nothing individual identity would buy here.
- *
- * Uses DOMElementTarget directly (appendElement()/reattachElement()) rather than
- * the older DOMTargetElement (createChild()/insertChild()) - the latter
- * is gone now that cascade.reactive's own engine correctly reconciles a
- * repositioned repeater's stale dependency on a moved-away predecessor's
- * writing (see cascade.reactive's own attachToCurrentParent()/
- * flagOverlapWithMovedPredecessor()), which was the reason DOMTargetElement
- * existed in the first place - see this file's own git history, and
- * cascade.dom/src/test/domElementTarget.js's own reordering/grid-resize tests.
+ * Unlike Flow, nothing here computes bounds: the grid is plain flexbox - a
+ * column of filler rows of filler cells - and every cell is an
+ * elementBoundsProvider(), styled as the cell, measuring itself. Its direct
+ * child, the cell's content, reads what it measured as
+ * this.renderContext.width/height, from build(). (Directly: an element in
+ * between would give the content a render context of its own, without the
+ * measurement.)
  */
 export class ProgrammaticReactiveLayout extends Component {
-  // The user's chosen grid size - state, changed only from the number
-  // fields' input handlers (see createNumberField below).
   initializeState() {
     return { rows: 3, columns: 3 };
   }
 
-  // This page's buttons in the top bar - it renders itself rather than
-  // building, so it creates them itself, in initialization, owns them, and
-  // renders them each time.
-  initialUnobservables() {
-    return { actions: pageActions({ information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" }) };
+  build() {
+    const rows = [];
+    for (let rowIndex = 0; rowIndex < this.rows; rowIndex++) {
+      const cells = [];
+      for (let columnIndex = 0; columnIndex < this.columns; columnIndex++) {
+        cells.push(this.cell(rowIndex, columnIndex));
+      }
+      rows.push(row({ key: "row" + rowIndex, style: { ...fillerStyle, gap: GAP } }, cells));
+    }
+
+    return column(
+      { key: "page", style: { ...fitContainerStyle, gap: "12px" } },
+      pageActions({ information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" }),
+      card(
+        { key: "controls", style: { flex: "none", padding: "8px 16px" } },
+        row(
+          { key: "controlRow", style: { alignItems: "center", gap: "24px", flexWrap: "wrap" } },
+          this.numberField("rows", "Rows"),
+          this.numberField("columns", "Columns"),
+        ),
+      ),
+      column({ key: "grid", style: { ...fillerStyle, gap: GAP } }, rows),
+    );
   }
 
-  render(context) {
-    const u = this.unobservable;
-    u.actions.renderOnto(context);
-    if (!u.el) {
-      u.el = context.target.appendElement("div");
-      u.el.style.cssText = "box-sizing: border-box; overflow: hidden;";
-      const elTarget = DOMElementTarget.forElement(u.el);
-
-      u.controlPanel = elTarget.appendElement("div");
-      u.controlPanel.style.cssText = "display: flex; gap: 16px; margin-bottom: 12px;";
-      const controlPanelTarget = DOMElementTarget.forElement(u.controlPanel);
-      u.rowsField = createNumberField(controlPanelTarget, "Rows", (value) => { this.rows = value; });
-      u.columnsField = createNumberField(controlPanelTarget, "Columns", (value) => { this.columns = value; });
-
-      u.grid = elTarget.appendElement("div");
-      u.grid.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
-      u.gridTarget = DOMElementTarget.forElement(u.grid);
-    }
-
-    // Reading usableWidth/usableHeight here - not just measuring this
-    // page's own already-laid-out DOM after the fact - is what makes this
-    // rerun on a plain window resize at all: a resize only invalidates
-    // whatever actually *read* a context field that changed (see
-    // MenuFrame/WorkArea above), and getBoundingClientRect() alone never
-    // creates that dependency (it's not an observable read of anything -
-    // it just reflects whatever CSS already decided, which does keep
-    // resizing correctly on its own, but leaves this component with
-    // nothing telling it to rerun and recompute the *text* describing it).
-    u.el.style.width = context.usableWidth + "px";
-    u.el.style.height = context.usableHeight + "px";
-
-    u.rowsField.value = this.rows;
-    u.columnsField.value = this.columns;
-
-    if (u.builtRows !== this.rows || u.builtColumns !== this.columns) {
-      u.grid.innerHTML = "";
-      // The raw clear above doesn't touch gridTarget's own lastChild
-      // bookkeeping - reset it explicitly rather than relying on a
-      // detached node's own nextSibling reading null.
-      u.gridTarget.lastChild = null;
-      u.cellEls = [];
-      for (let row = 0; row < this.rows; row++) {
-        const rowEl = u.gridTarget.appendElement("div");
-        rowEl.style.cssText = "display: flex; gap: 4px;";
-        const rowTarget = DOMElementTarget.forElement(rowEl);
-        for (let column = 0; column < this.columns; column++) {
-          const cellEl = rowTarget.appendElement("div");
-          cellEl.style.cssText =
-            "display: flex; align-items: center; justify-content: center; " +
-            "background: #dfe6e9; border: 1px solid #b2bec3; box-sizing: border-box; font-size: 12px;";
-          u.cellEls.push(cellEl);
-        }
-      }
-      u.builtRows = this.rows;
-      u.builtColumns = this.columns;
-    }
-
-    // Real measurement, not a computed guess - the whole point of this
-    // page: a genuine pixel budget, handed down and divided, the same
-    // principle the toolbar/menu breakpoint above already runs on. Driven
-    // straight from context.usableWidth/usableHeight (read above) rather
-    // than reading back the grid's own CSS-computed size.
-    const controlPanelHeight = u.controlPanel.getBoundingClientRect().height;
-    const gridWidth = context.usableWidth;
-    const gridHeight = context.usableHeight - controlPanelHeight;
-    u.grid.style.width = gridWidth + "px";
-    u.grid.style.height = gridHeight + "px";
-
-    const columnGaps = (this.columns - 1) * 4;
-    const rowGaps = (this.rows - 1) * 4;
-    const cellWidth = (gridWidth - columnGaps) / this.columns;
-    const cellHeight = (gridHeight - rowGaps) / this.rows;
-    u.cellEls.forEach((cellEl) => {
-      cellEl.style.width = cellWidth + "px";
-      cellEl.style.height = cellHeight + "px";
-      cellEl.textContent = Math.round(cellWidth) + " x " + Math.round(cellHeight);
+  // A cell: a bounds provider, styled as the cell, with the content as its
+  // direct child. Keyed by position, so a cell stays the same cell - its
+  // aspect ratio, say - however rows and columns change around it.
+  cell(rowIndex, columnIndex) {
+    const key = "cell" + rowIndex + "x" + columnIndex;
+    const Kind = cellKinds[(rowIndex + columnIndex) % cellKinds.length];
+    return elementBoundsProvider({
+      key,
+      style: { ...fillerStyle, ...centerMiddleStyle, minWidth: 0, borderRadius: "6px", ...Kind.cellStyle },
+      child: new Kind({ key: key + "Content" }),
     });
   }
 
-  onRetract() {
-    this.unobservable.el.remove();
-  }
-
-  onReattach(context) {
-    context.target.reattachElement(this.unobservable.el);
+  numberField(property, caption) {
+    return label(
+      { key: property + "Field", style: { display: "flex", alignItems: "center", gap: "8px" } },
+      text({ key: property + "Caption", text: caption }),
+      input({
+        key: property + "Input",
+        type: "number",
+        min: 1,
+        max: MAX_CELLS,
+        value: this[property],
+        style: { width: "56px" },
+        oninput: callback(property, (event) => {
+          const value = parseInt(event.target.value, 10);
+          if (value >= 1) this[property] = Math.min(MAX_CELLS, value);
+        }),
+      }),
+    );
   }
 }
 
-function createNumberField(target, label, onChange) {
-  const wrapper = target.appendElement("label");
-  wrapper.style.cssText = "display: flex; align-items: center; gap: 6px; font-size: 13px;";
-  wrapper.appendChild(document.createTextNode(label + ":"));
-  const field = document.createElement("input");
-  field.type = "number";
-  field.min = "1";
-  field.max = "8";
-  field.style.width = "48px";
-  field.addEventListener("input", () => {
-    const value = Math.max(1, Math.min(8, parseInt(field.value, 10) || 1));
-    onChange(value);
-  });
-  wrapper.appendChild(field);
-  return field;
+// Text on one line, as large as fits `width` - but no larger than
+// `maxFontSize`.
+function fittedText({ key, text: content, width, maxFontSize = Infinity, style }) {
+  const fontSize = Math.min(maxFontSize, fitTextWithinWidth(content, width));
+  return span(
+    { key, style: { whiteSpace: "pre", lineHeight: "1.2", fontSize: fontSize + "px", ...style } },
+    text({ key: key + "Text", text: content }),
+  );
 }
+
+/**
+ * Bounds Display - what the cell measured, on a background photo.
+ */
+class BoundsDisplay extends Component {
+  static cellStyle = {
+    backgroundImage: `url(${surface})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    border: "1px solid #2c3e50",
+  };
+
+  build() {
+    const { width, height } = this.renderContext;
+    return fittedText({
+      key: "bounds",
+      text: "Bounds: " + Math.round(width) + " x " + Math.round(height),
+      width: width * 0.8,
+      maxFontSize: 16,
+      style: { padding: "4px 8px", borderRadius: "4px", backgroundColor: "rgba(255, 255, 255, 0.6)", color: "#2c3e50" },
+    });
+  }
+}
+
+/**
+ * String Display - a text as wide as the cell.
+ */
+class StringDisplay extends Component {
+  static cellStyle = { border: "1px solid #b2bec3", backgroundColor: "#ffffff", color: "#34495e" };
+
+  build() {
+    const { width, height } = this.renderContext;
+    return fittedText({
+      key: "string",
+      text: "Text that fits the width of its container",
+      // Its border and a margin off - and never taller than the cell.
+      width: width - 12,
+      maxFontSize: height * 0.8,
+    });
+  }
+}
+
+/**
+ * Fixed Aspect Ratio Display - a box keeping a ratio of its own, as large
+ * as fits the cell.
+ */
+class FixedAspectRatioDisplay extends Component {
+  static cellStyle = { border: "1px solid #b2bec3", backgroundColor: "#ecf0f1" };
+
+  initializeState() {
+    return { aspectRatio: (Math.random() * 4 + 1) / (Math.random() * 4 + 1) };
+  }
+
+  build() {
+    const { width: cellWidth, height: cellHeight } = this.renderContext;
+    const padding = Math.min(10, cellWidth * 0.1, cellHeight * 0.1);
+    let width = Math.max(0, cellWidth - padding * 2);
+    let height = width / this.aspectRatio;
+    if (height > cellHeight - padding * 2) {
+      height = Math.max(0, cellHeight - padding * 2);
+      width = height * this.aspectRatio;
+    }
+    return centerMiddle(
+      {
+        key: "box",
+        style: {
+          flex: "none", width: width + "px", height: height + "px", boxSizing: "border-box",
+          border: "1px solid #2c3e50", borderRadius: "4px", backgroundColor: "#bbbbff", overflow: "hidden",
+        },
+      },
+      fittedText({
+        key: "ratio",
+        text: "Width / Height = " + (Math.round(this.aspectRatio * 100) / 100),
+        width: width * 0.8,
+        maxFontSize: 16,
+      }),
+    );
+  }
+}
+
+/**
+ * Responsive Display - not just sized to its room: what it shows depends on
+ * it. An icon when it's cramped, a caption when there's a little more room,
+ * a whole description when there's plenty.
+ */
+class ResponsiveDisplay extends Component {
+  static cellStyle = { border: "1px solid #2c3e50", backgroundColor: "#34495e", color: "#ffffff" };
+
+  build() {
+    const { width, height } = this.renderContext;
+    const glyph = (size) => icon({ key: "icon", name: "dashboard", style: { fontSize: size + "px", flex: "none" } });
+    if (width < 140 || height < 60) {
+      return glyph(Math.max(12, Math.min(48, width * 0.5, height * 0.6)));
+    }
+    if (width < 280 || height < 140) {
+      return row(
+        { key: "compact", style: { alignItems: "center", gap: "8px" } },
+        glyph(32),
+        span({ key: "caption", style: { fontWeight: "bold" } }, text({ key: "captionText", text: "Adaptive" })),
+      );
+    }
+    return column(
+      { key: "full", style: { alignItems: "center", gap: "8px", padding: "12px", textAlign: "center" } },
+      glyph(48),
+      span({ key: "title", style: { fontWeight: "bold", fontSize: "18px" } }, text({ key: "titleText", text: "Adaptive composition" })),
+      div({ key: "description", style: { fontSize: "13px", opacity: 0.85, maxWidth: "260px" } }, text({
+        key: "descriptionText",
+        text: "With room to spare, this cell shows a whole description. Make it smaller: first a caption, then just the icon.",
+      })),
+    );
+  }
+}
+
+const cellKinds = [BoundsDisplay, StringDisplay, FixedAspectRatioDisplay, ResponsiveDisplay];

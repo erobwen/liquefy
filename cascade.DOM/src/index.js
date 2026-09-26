@@ -11,6 +11,7 @@ export { OverflowContainer, overflowContainer, DOMElementSlot, elementSlot } fro
 export { DOMElementComponent, taggedElement } from "./DOMElementComponent.js";
 export { DOMTextComponent, text } from "./DOMTextComponent.js";
 export { applyStyle, defaultToPx } from "./applyStyle.js";
+export { textWidth, fitTextWithinWidth } from "./fontMetrics.js";
 export {
   element,
   address, article, aside, footer, header, h1, h2, h3, h4, h5, h6, group, main, nav, section, search,

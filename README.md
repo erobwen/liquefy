@@ -108,6 +108,11 @@ npm run flow:demo   # the Flow demo
 npm run build:site  # both demos, as deployed to GitHub Pages - see .github/workflows
 ```
 
+A release: bump the versions of the packages that changed (`npm run release:check`
+lists what would be published), commit, and push a version tag - `git tag v1.0.1`,
+`git push origin main v1.0.1`. GitHub Actions tests and publishes them (see
+`.github/workflows/release.yml`).
+
 This repository is a more mature version of the experiments in
 [reactive-flow](https://github.com/erobwen/reactive-flow).
 

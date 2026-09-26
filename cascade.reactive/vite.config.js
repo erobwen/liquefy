@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [],
   build: {
     minify: true,
+    // Named exports - and the default (getWorld) as `.default` - for require() users too.
+    rollupOptions: { output: { exports: "named" } },
     lib: {
       entry: resolve(__dirname, 'src/cascade.js'),
       name: "@liquefy/cascade.reactive"

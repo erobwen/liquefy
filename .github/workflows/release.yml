@@ -1,0 +1,37 @@
+# Publishes to npm: every package whose version isn't on npm yet (see
+# scripts/publish-new-versions.mjs) - on a pushed version tag, once every
+# package's tests pass. No token or password: npm trusts this workflow
+# itself (trusted publishing), and records which commit and workflow built
+# each release (provenance).
+#
+# A release: bump the versions of the packages that changed, commit, then
+#   git tag v1.0.1
+#   git push origin main v1.0.1
+#
+# Needs, on npmjs.com, each package's Settings > Trusted publishing set to
+# GitHub Actions: user "erobwen", repository "liquefy", workflow "release.yml".
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5 or later; Node 22 comes with npm 10.
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm test
+      - run: node scripts/publish-new-versions.mjs

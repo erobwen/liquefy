@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.reactive",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Temporal signals: reactive programming with ES6 proxies, where readers and writers of the same data are ordered in time. The reactive engine of Cascade.",
   "keywords": [
     "reactive",

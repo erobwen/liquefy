@@ -1,5 +1,6 @@
 import { Component } from "@liquefy/cascade.component";
-import { h1, h2, p, ul, li, a, img, text } from "@liquefy/cascade.dom";
+import { div, h1, h2, p, ul, li, a, img, text } from "@liquefy/cascade.dom";
+import { themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { article, emphasis } from "../components/layout.js";
 import source from "./IntroductionPage.js?raw";
@@ -21,12 +22,17 @@ export class IntroductionPage extends Component {
     return article(
       { key: "introduction" },
       pageActions({ source, fileName: "src/pages/IntroductionPage.js" }),
-      img({
-        key: "whatIfEverything",
-        src: whatIfEverything,
-        alt: "What if everything was reactive?",
-        style: { display: "block", width: "100%", margin: "8px 0 16px 0", borderRadius: "8px" },
-      }),
+      // The banner is see-through: it lies on the theme's own color - so
+      // picking another (see the Themes page) recolors it too.
+      div(
+        { key: "banner", style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
+        img({
+          key: "whatIfEverything",
+          src: whatIfEverything,
+          alt: "What if everything was reactive?",
+          style: { display: "block", width: "100%" },
+        }),
+      ),
       h1("Introduction to Cascade"),
       p("Reactive front end framework, with an integrated state management system."),
       p(emphasis("The purpose of Cascade is to make it simple and fast to build advanced user interfaces that are data driven, generative and reactive.")),

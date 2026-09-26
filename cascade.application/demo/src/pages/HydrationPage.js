@@ -1,8 +1,9 @@
 import { Component } from "@liquefy/cascade.component";
-import { hydrate } from "@liquefy/cascade.dom";
-import { themeColor } from "@liquefy/cascade.ui";
+import { div, hydrate } from "@liquefy/cascade.dom";
+import { card, row, fitContainerStyle, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
-import { accentColor } from "../components/layout.js";
+import { HighlightedCode } from "../components/code.js";
+import { accentColor, pageColumn, pageGap, sectionTitle } from "../components/layout.js";
 import source from "./HydrationPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -11,6 +12,7 @@ const information = {
   points: [
     "One plain object: a tree of service queries, hydrated into components by the service locator.",
     "The document is pure data - it could come from a file or a server - and follows the app's theme like any other page.",
+    "Beside it, the document itself: the very object the page was hydrated from.",
   ],
 };
 
@@ -31,8 +33,10 @@ const information = {
  * app's theme like any other (try switching it on the Themes page). Nodes
  * without a key get one from their position, so a rebuild reconciles the
  * hydrated tree node for node instead of recreating it.
+ *
+ * Beside the page (under it, when narrow) is the document itself, as JSON:
+ * the very object the page was hydrated from.
  */
-const element = (name, properties) => ({ type: "htmlElement", name, properties });
 
 const loremIpsum =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et " +
@@ -132,32 +136,54 @@ const content = {
   },
 };
 
-// The page itself: the document above, plus - also as data - a way to
-// see the document this page was hydrated from - on a themed card, asked
-// for in the document like the button in it.
+// The page's document: the content above, on a themed card - asked for in
+// the document, like the button in it.
 const hydrationDocument = {
   type: "widget",
   name: "card",
   properties: {
     style: { maxWidth: "820px", padding: "8px 32px 24px", lineHeight: "1.55", boxSizing: "border-box" },
-    children: [
-      content,
-      element("details", {
-        style: { marginTop: "24px" },
-        children: [
-          element("summary", { style: { cursor: "pointer" }, children: ["Show the document this page was hydrated from"] }),
-          element("pre", {
-            style: { fontSize: "12px", background: themeColor.filled, border: "1px solid " + themeColor.border, borderRadius: "6px", padding: "12px", overflow: "auto", lineHeight: "1.3" },
-            children: [JSON.stringify(content, null, 2)],
-          }),
-        ],
-      }),
-    ],
+    children: [content],
   },
 };
 
+// Beside it - narrow, under it: the document itself, as the data it is.
+const documentJson = JSON.stringify(hydrationDocument, null, 2);
+
+// Narrower than this, the document's source goes under the page, not beside it.
+const SIDE_PANEL_WIDTH = 900;
+
 export class HydrationPage extends Component {
   build() {
-    return [pageActions({ information, source, fileName: "src/pages/HydrationPage.js" }), hydrate(hydrationDocument)];
+    const wide = (this.renderContext.usableWidth || 1000) >= SIDE_PANEL_WIDTH;
+    const sourcePanel = card(
+      {
+        key: "sourcePanel",
+        style: wide
+          ? { width: "44%", maxWidth: "600px", flex: "none", height: "calc(100% - 4px)", margin: "2px 2px 2px 0", display: "flex", flexDirection: "column", gap: "8px" }
+          : { display: "flex", flexDirection: "column", gap: "8px" },
+      },
+      sectionTitle("sourceTitle", "The document this page was hydrated from"),
+      new HighlightedCode({
+        key: "sourceCode",
+        source: documentJson,
+        style: {
+          fontSize: "12px", border: "1px solid " + themeColor.border, borderRadius: "6px", overflow: "auto",
+          ...(wide ? { flex: "1 1 0", minHeight: 0 } : { maxHeight: "60vh" }),
+        },
+      }),
+    );
+    const actions = pageActions({ information, source, fileName: "src/pages/HydrationPage.js" });
+    if (!wide) return pageColumn({ key: "page" }, actions, hydrate(hydrationDocument), sourcePanel);
+    return row(
+      { key: "page", style: { ...fitContainerStyle, gap: pageGap } },
+      actions,
+      // The page scrolls, the document beside it on its own.
+      div(
+        { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box", padding: "0 4px 4px 0" } },
+        hydrate(hydrationDocument),
+      ),
+      sourcePanel,
+    );
   }
 }

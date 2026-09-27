@@ -35,6 +35,9 @@ export class ConvenientUsagePage extends Component {
         "and the one line around it is all the animation there is.",
       ),
       stage("shuffleStage", new ShuffleList({ key: "shuffleList" })),
+      p(
+        "Note: CSS and transition animations can not by itself handle changes in the DOM tree shape, often leading to complicated FLIP animation setups, all which are automated here.",
+      ),
       codeBlock("shuffleCode", shuffleSource),
 
       h2("Portals"),

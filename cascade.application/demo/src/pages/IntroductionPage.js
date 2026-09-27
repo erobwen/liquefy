@@ -111,6 +111,7 @@ export class IntroductionPage extends Component {
           style: { display: "block", width: "100%" },
         }),
       ),
+      p("Components can override either build() or render(). 'Build components' just build children and let them do all work. 'Render components' however interact directly with the render context and give direct render instructions. Note: Build components also have access to the render context, but can only see the final and timeless value of every property."),
       h2("Technical features"),
       ul(
         li(emphasis("Temporal signals"), " (see above): readers and writers of the same objects, ordered in time - rendering follows the tree, so what a parent measures reaches its children in the same pass."),

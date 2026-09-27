@@ -7,6 +7,7 @@ import { article, emphasis, nextPage } from "../components/layout.js";
 import source from "./IntroductionPage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import whatIfEverything from "../../../../cascade/images/what-if-everything.svg";
+import keyConcepts from "../../../../cascade/images/key-concepts.svg";
 
 // Temporal signals in their smallest form - its printouts as they really
 // are (run it with @liquefy/cascade.reactive).
@@ -74,12 +75,15 @@ export class IntroductionPage extends Component {
         "They each operate within their own time frame, only invalidating other readers downstream in the pipeline.",
       ),
       p("Where signals introduce the space dimension for observation, temporal signals also introduce the time dimension for observation."),
-      img({
-        key: "temporalSignalsBoard",
-        src: temporalSignalsBoard,
-        alt: "Temporal signals: components - temporal observers - read (R) and write (W) the properties of data objects, along time. A change written to one property reaches only the readers after it in the pipeline.",
-        style: { display: "block", width: "100%", maxWidth: "600px", margin: "8px 0 16px 0", borderRadius: "8px" },
-      }),
+      div(
+        { key: "temporal-signals", style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
+        img({
+          key: "temporalSignalsBoard",
+          src: temporalSignalsBoard,
+          alt: "Temporal signals: components - temporal observers - read (R) and write (W) the properties of data objects, along time. A change written to one property reaches only the readers after it in the pipeline.",
+          style: { display: "block", width: "100%", margin: "8px 0 16px 0", borderRadius: "8px" },
+        })
+      ),
       p(
         "In its smallest form: two readers and writers of the same object, at two fixed times. The first adds a border ",
         "to the box's width - by writing the width it reads - and the second sees the result. With ordinary signals, ",
@@ -97,6 +101,16 @@ export class IntroductionPage extends Component {
         ", which temporal signals are especially engineered for.",
       ),
       nextPage({ key: "learnMore", path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
+      h2("Key concepts"),
+      div(
+        { key: "key-concepts", style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
+        img({
+          key: "keyConcepts",
+          src: keyConcepts,
+          alt: "Key concepts",
+          style: { display: "block", width: "100%" },
+        }),
+      ),
       h2("Technical features"),
       ul(
         li(emphasis("Temporal signals"), " (see above): readers and writers of the same objects, ordered in time - rendering follows the tree, so what a parent measures reaches its children in the same pass."),

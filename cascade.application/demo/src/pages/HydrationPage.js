@@ -10,6 +10,7 @@ import source from "./HydrationPage.js?raw";
 const information = {
   summary: "A page written as a document instead of code:",
   points: [
+    "NOTE: Hydration is optional and components can construct children directly or one at a time via a service locator request. A dehydrated object structure represents sending multiple component requests at the same time to the service locator.",
     "One plain object: a tree of service queries, hydrated into components by the service locator.",
     "The document is pure data - it could come from a file or a server - and follows the app's theme like any other page.",
     "Beside it, the document itself: the very object the page was hydrated from.",

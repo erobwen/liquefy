@@ -125,6 +125,7 @@ export class IntroductionPage extends Component {
         li(emphasis("DOM transition animations"), " - elements moving within or between parents, resizing, appearing and leaving all animate, with no changes to the components animated (see the Animation page)."),
         li(emphasis("Portals"), " - a component can put content somewhere else in the tree, as this demo's pages do with their buttons in the top bar."),
         li(emphasis("JavaScript first"), " - no JSX, no CSS files: the user interface is built with plain JavaScript functions."),
+        li(emphasis("Future JSX support?"), " - Through the hydration mechanism it could be possible to add if enough people want it."),
       ),
       h2("Repository"),
       a(text("https://github.com/erobwen/liquefy"), { href: "https://github.com/erobwen/liquefy" }),

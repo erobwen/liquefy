@@ -112,6 +112,23 @@ export class IntroductionPage extends Component {
         }),
       ),
       p("Components can override either build() or render(). 'Build components' just build children and let them do all work. 'Render components' however interact directly with the render context and give direct render instructions. Note: Build components also have access to the render context, but can only see the final and timeless value of every property."),
+      h2("Conventions, or the lack thereof"),
+      p("Cascade offers opportunities and features, with as few requirements as possible. There are multiple ways to do the same thing in this framework, and everyone can find a style of development that fits them. For example:"),
+      ul(
+        li("The service locator is totally optional. If someone wants to build an app without it that works fine as well. Components then just construct their children directly. "),
+        li("When it comes to creating components, you can either:",
+          ul(
+            li("Call the component constructor directly"), 
+            li("Call one of many convenience functions that indirectly gets the component from the service locator OR in some cases constructs them directly"),
+            li("In the future we might add support for JSX inside your component, that would indirectly create a compound request object that is then sent to the service locator")
+          )
+        ),
+        li("Building children in the build function is a convenience and allows for the use of keys to maintain a stable object identity, but a parent can also construct a child child during its initialization and dispose of it when the parent itself is disposed. Components can also be constructed entirely outside of the framework."), 
+        li("Most components delegate their rendering to a sequence of children, but other components could implement the render function directly and take charge of DOM manipulaiton directly."),
+        li("As a rule of thumb, app components build, and library components render. Because if there is a need to take control and render something, it could probably be built into a reusable component. But someone might build a render-oriented application by only implementing the render function for all components, and that could have its merits too."),
+        li("Today there is cascade.DOM that allows for rendering an application on a DOM, but another implementation of the render target could have the same app operate on top of totally different infrastructure. (think React Native and NextJS server side rendering.)"),
+      ),
+      p(),
       h2("Technical features"),
       ul(
         li(emphasis("Temporal signals"), " (see above): readers and writers of the same objects, ordered in time - rendering follows the tree, so what a parent measures reaches its children in the same pass."),

@@ -3,6 +3,7 @@ import { DOMElementTarget, browserLocation } from "@liquefy/cascade.dom";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
 import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
+import { ConvenientUsagePage } from "./src/pages/ConvenientUsagePage.js";
 import { AdvancedUsagePage } from "./src/pages/AdvancedUsagePage.js";
 import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
 import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
@@ -55,6 +56,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   pages: [
     { key: "introduction", title: "Introduction", icon: "info", component: new IntroductionPage() },
     { key: "getting-started", title: "Getting Started", component: new GettingStartedPage() },
+    { key: "convenient-usage", title: "Convenient Usage", component: new ConvenientUsagePage() },
     { key: "advanced-usage", title: "Advanced Usage", component: new AdvancedUsagePage() },
     { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
     { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage() },

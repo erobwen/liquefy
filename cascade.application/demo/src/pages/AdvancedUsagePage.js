@@ -1,30 +1,23 @@
 import { Component } from "@liquefy/cascade.component";
-import { div, h1, h2, h3, p, code, text } from "@liquefy/cascade.dom";
-import { themeColor } from "@liquefy/cascade.ui";
+import { h1, h2, h3, p } from "@liquefy/cascade.dom";
 import { pageActions } from "../components/pageActions.js";
-import { HighlightedCode } from "../components/code.js";
 import { article, emphasis } from "../components/layout.js";
+import { codeBlock, stage, name } from "../components/examples.js";
 import { GaugeDemo } from "./advanced/Gauge.js";
 import { DoubleGaugeDemo } from "./advanced/DoubleGauge.js";
 import { TranslationDemo } from "./advanced/Translation.js";
-import { ShuffleList } from "./advanced/ShuffleList.js";
 import { Measured } from "./advanced/Measured.js";
-import { NoticeBoard } from "./advanced/NoticeBoard.js";
-import { ConfirmDelete } from "./advanced/ConfirmDelete.js";
 import { KeepAlive } from "./advanced/KeepAlive.js";
 import gaugeSource from "./advanced/Gauge.js?raw";
 import doubleGaugeSource from "./advanced/DoubleGauge.js?raw";
 import paperSource from "./advanced/Paper.js?raw";
 import translationSource from "./advanced/Translation.js?raw";
-import shuffleSource from "./advanced/ShuffleList.js?raw";
 import measuredSource from "./advanced/Measured.js?raw";
-import noticeBoardSource from "./advanced/NoticeBoard.js?raw";
-import confirmSource from "./advanced/ConfirmDelete.js?raw";
 import keepAliveSource from "./advanced/KeepAlive.js?raw";
 import source from "./AdvancedUsagePage.js?raw";
 
 /**
- * Advanced Usage - the continuation of Getting Started, straight to some of
+ * Advanced Usage - the continuation of Convenient Usage, straight to some of
  * the hardest things, so they're known to be possible. Every example is a
  * file of its own in ./advanced/, shown as it is - and, but for the render
  * target on paper (a script, run with Node: no DOM involved at all),
@@ -43,18 +36,6 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   ],
 });`;
 
-const codeStyle = { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" };
-const codeBlock = (key, sourceText) => new HighlightedCode({ key, source: sourceText, style: codeStyle });
-
-// An example, running: on a stage of its own.
-const stage = (key, child) => div(
-  { key, style: { margin: "8px 0 12px 0", padding: "20px", borderRadius: "8px", background: themeColor.page, overflow: "visible" } },
-  child,
-);
-
-// A name from the code, in running text.
-const name = (key, value) => code({ key, style: { fontSize: "0.95em" } }, text({ key: key + "Text", text: value }));
-
 export class AdvancedUsagePage extends Component {
   build() {
     return article(
@@ -62,7 +43,7 @@ export class AdvancedUsagePage extends Component {
       pageActions({ source, fileName: "src/pages/AdvancedUsagePage.js" }),
       h1("Advanced Usage"),
       p(
-        "Picking up where Getting Started left off - and going straight to some of the hardest things, so you know ",
+        "Picking up where Convenient Usage left off - and going straight to some of the hardest things, so you know ",
         "they're there when you need them.",
       ),
 
@@ -120,15 +101,6 @@ export class AdvancedUsagePage extends Component {
       stage("translationStage", new TranslationDemo({ key: "translationDemo" })),
       codeBlock("translationCode", translationSource),
 
-      h2("Animation, as a separate concern"),
-      p(
-        "Wrap anything in ", name("flip", "flipAnimationContainer()"), ", and every change in it animates: elements ",
-        "moving, appearing, leaving and resizing. What's inside is entirely unaware of it - this list is just a list, ",
-        "and the one line around it is all the animation there is.",
-      ),
-      stage("shuffleStage", new ShuffleList({ key: "shuffleList" })),
-      codeBlock("shuffleCode", shuffleSource),
-
       h2("Layout from real measurements"),
       p(
         "A component can lay itself out by the room it really has, measured: ", name("bounds", "elementBoundsProvider()"),
@@ -137,24 +109,6 @@ export class AdvancedUsagePage extends Component {
       ),
       stage("measuredStage", new Measured({ key: "measured" })),
       codeBlock("measuredCode", measuredSource),
-
-      h2("Portals"),
-      p(
-        "A component can show content somewhere else entirely: ", name("portal", "portal()"), " is a place for it, ",
-        name("portalContents", "portalContents()"), " puts content there, from anywhere - found by name, nothing ",
-        "handed down. This demo's pages put their buttons in the top bar the same way.",
-      ),
-      stage("noticeStage", new NoticeBoard({ key: "noticeBoard" })),
-      codeBlock("noticeCode", noticeBoardSource),
-
-      h2("Modals"),
-      p(
-        name("overlay", "overlay()"), " shows its content over the whole app - on the overlay frame at the app's root ",
-        "(", name("overlayFrame", "overlayFrame()"), ") - while it's built right where it belongs, next to the button ",
-        "that opens it.",
-      ),
-      stage("confirmStage", new ConfirmDelete({ key: "confirmDelete" })),
-      codeBlock("confirmCode", confirmSource),
 
       h2("How to keep your children alive off screen"),
       p(

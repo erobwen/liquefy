@@ -141,7 +141,7 @@ export class GettingStartedPage extends Component {
         a({ key: "readme", href: "https://github.com/erobwen/liquefy#cascade" }, text({ key: "readmeText", text: "the repository's" })),
         " on.",
       ),
-      nextPage({ key: "advanced", path: "advanced-usage", label: "Ready for more? On to Advanced Usage →" }),
+      nextPage({ key: "convenient", path: "convenient-usage", label: "Ready for more? On to Convenient Usage →" }),
     );
   }
 }

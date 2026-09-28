@@ -84,7 +84,6 @@ export class ReactiveFormPage extends Component {
           text({ key: "titleText", text: "Traveler information" + (count === 1 ? "" : " (" + count + " people)") })),
         filler({ key: "headerFiller" }),
         new CostDisplay({ key: "cost" }),
-        checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
       ),
 
       // Traveler forms.
@@ -132,7 +131,16 @@ export class ReactiveFormPage extends Component {
           ? flipAnimationContainer({ key: "form", style: formStyle }, form)
           : column({ key: "plainForm", style: formStyle }, form),
       ),
-      new ModelDataDisplay({ key: "modelData" }).show(wide),
+      // Beside the form, not in it: how the demo is shown, and the model's
+      // data - neither is part of the form's own UI.
+      column(
+        { key: "side", style: { gap: pageGap, flex: "none", width: wide ? "40%" : "auto", maxWidth: "420px", height: "100%", boxSizing: "border-box" } },
+        card(
+          { key: "demoControls", style: { margin: "2px 2px 0 0" } },
+          checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
+        ),
+        new ModelDataDisplay({ key: "modelData" }).show(wide),
+      ),
     );
   }
 }
@@ -315,7 +323,7 @@ class ModelDataDisplay extends Component {
     return card(
       {
         key: "modelData",
-        style: { width: "40%", maxWidth: "420px", flex: "none", height: "calc(100% - 4px)", display: "flex", flexDirection: "column", gap: "8px", margin: "2px 2px 2px 0" },
+        style: { flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column", gap: "8px", margin: "0 2px 2px 0" },
       },
       sectionTitle("modelDataTitle", "Model data"),
       div(

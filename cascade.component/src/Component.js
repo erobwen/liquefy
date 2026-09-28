@@ -324,7 +324,14 @@ export class Component {
         // repeater; a component that's never rendered itself but expanded
         // by another (see expand()) is pulled by whoever is
         // expanding it - the component rendering when it was pulled.
-        pulledBy: () => u.repeater || (u.pullingComponent && u.pullingComponent.unobservable.repeater),
+        // Whoever pulled it *last*: rendered, that's this component itself
+        // (it's on top of the render stack in its own render()); expanded,
+        // the container. Not its own repeater first - a component rendered
+        // for a while and then expanded again (a form in a plain column,
+        // then in a FlipAnimationContainer again when animation is switched
+        // back on) still has one, retracted, which would leave every
+        // rebuild pending for good.
+        pulledBy: () => (u.pullingComponent && u.pullingComponent.unobservable.repeater) || u.repeater,
       });
     } else {
       // Pull, don't wait: if the build is pending (its inputs changed, or

@@ -225,6 +225,64 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     assert.equal(container.querySelector("p").textContent, "three");
   });
 
+  it("a child rendered normally for a while, then expanded by a new container, still rebuilds on change", function () {
+    // The reactive form's Animate switch: the same form, in a container,
+    // then in a plain div (rendered - so it gets a render repeater of its
+    // own), then in a new container again. Its build must be pulled by
+    // that container now, not by its own, retracted, render repeater -
+    // or every change to it waits until something else reruns the
+    // container (the page shown again, say), and then all animates at once.
+    const model = observable({ animate: true, label: "one" });
+    class Labelled extends Component {
+      build() {
+        return p({ key: "label" }, text({ key: "text", text: model.label }));
+      }
+    }
+    class App extends Component {
+      build() {
+        const child = new Labelled({ key: "labelled" });
+        return model.animate ? flipAnimationContainer({ key: "flip" }, child) : div({ key: "plain" }, child);
+      }
+    }
+    new App().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const label = () => container.querySelector("p").textContent;
+    model.label = "two";
+    assert.equal(label(), "two", "in the container");
+
+    model.animate = false;
+    model.label = "three";
+    assert.equal(label(), "three", "rendered normally");
+
+    model.animate = true;
+    assert.equal(label(), "three");
+    model.label = "four";
+    assert.equal(label(), "four", "in a new container: rebuilt at once");
+  });
+
+  it("rendered normally after being placed, an element keeps none of the nodes the container left in it", function () {
+    // The reactive form's luggage: the last item removed while animating
+    // hides the whole drawer - so the container never places the drawer's
+    // list again, and the removed item's node stays in it. Animation
+    // switched off, the drawer is rendered normally when an item is added:
+    // only that item may be in it.
+    const model = observable({ animate: true, items: ["a"] });
+    class App extends Component {
+      build() {
+        const drawer = ul({ key: "drawer" }, model.items.map((item) => li({ key: item }, text({ key: item + "Text", text: item }))))
+          .show(model.items.length > 0);
+        return model.animate ? flipAnimationContainer({ key: "flip" }, drawer) : div({ key: "plain" }, drawer);
+      }
+    }
+    new App().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    const items = () => Array.from(container.querySelectorAll("li")).map((each) => each.textContent);
+    assert.deepEqual(items(), ["a"]);
+    model.items = [];
+    assert.deepEqual(items(), []);
+    model.animate = false;
+    model.items = ["b"];
+    assert.deepEqual(items(), ["b"]);
+  });
+
   it("hidden and shown again, it comes back with its elements and state", function () {
     const model = observable({ show: true });
     const list = new List({ key: "list" });

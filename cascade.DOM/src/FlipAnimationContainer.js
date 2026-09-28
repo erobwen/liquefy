@@ -115,6 +115,16 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     this.notifyPlaced(placedBefore);
   }
 
+  // No longer rendered - hidden, or gone for good (animation switched off,
+  // say): whatever was animating is done now. Above all, ghosts are removed
+  // with their own style back - an element fading out may well come back,
+  // rendered somewhere else, and must not still look like a ghost there.
+  onRetract() {
+    this.stopAll();
+    this.unobservable.hasRendered = false;
+    super.onRetract();
+  }
+
   // Leaving ghosts (see removeAsGhosts()) stay where they are while their
   // container places its children.
   leftAlone(node) {

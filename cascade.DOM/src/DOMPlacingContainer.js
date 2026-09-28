@@ -132,6 +132,9 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
       // build depends on. Dropped when the element is replaced (a tag
       // change - see DOMElementComponent.replaceElement()).
       if (!u.childContext) u.childContext = context.derive(DOMElementTarget.forElement(node));
+      // Its children are placed here, not rendered - see
+      // DOMElementComponent.render(), for when it's rendered again.
+      u.childrenPlaced = true;
       this.expandChildren(component, node, u.childContext, component.children || [], node, placements);
     }
     return node;

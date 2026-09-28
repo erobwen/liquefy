@@ -156,6 +156,18 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       // like the context this component itself was handed.
       u.childContext = context.derive(DOMElementTarget.forElement(u.element));
     }
+    // Rendered again after a placing container (see DOMPlacingContainer)
+    // placed its children: whatever that left in its element is no
+    // rendered child's - a node of a child removed while this element was
+    // out of the container's tree (its luggage removed while the drawer
+    // was hidden, say), never retracted, since it was never rendered. So
+    // start from an empty element: every child rendered below puts its
+    // own node back (they aren't rendered yet either - a retracted one is
+    // reattached, see DOMNodeRenderComponent.onReattach()).
+    if (u.childrenPlaced) {
+      u.childrenPlaced = false;
+      while (u.element.firstChild) u.element.removeChild(u.element.firstChild);
+    }
     (this.children || []).forEach((child) => {
       // null/undefined/false - typically Component.show(false)'s own
       // "don't include me at all" result (see its own doc) - simply

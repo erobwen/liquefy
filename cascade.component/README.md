@@ -73,6 +73,17 @@ If a component is created by its creator the following needs to hold.
 
 WARNING: There is a danger in combining both these methods. If a component is created during the creatprs build call, it will be registered in the rebuild process, and even if the creator keeps track of a reference to the component, the rebuild system might depose it. 
 
+### Keys and pattern matching
+
+When a build() runs again, what it constructs is matched to what it constructed the previous time, so that the same component stays the same component - its state, its DOM elements, everything it built itself. Two ways:
+
+- **Pattern matching**, for anything without a key: a component constructed in the same place as before - the same property of the same parent, the same position among its siblings - and of the same class (for a DOM element, with the same tag) is the one from before. So static structure needs no keys at all.
+- **A key**, for whatever can move, appear or disappear among its siblings - the items of a list. Among an array's children, those without a key are paired in order, skipping the keyed ones, so an item inserted at the front would otherwise be matched to what used to be first. Also for a component built but not shown (`.show(false)` - it's not in the result, so there's nothing to match it against), and for two components of the same class taking turns in the same place (without keys, the second would carry on as the first).
+
+A matched component is merged into the established one exactly as a keyed one is (see "State during rebuild" below): its properties copied over, its state never. The matching reads the new build through its proxies, without recording any dependencies, and matches it against a plain-data snapshot of the previous build taken at the end of each run - the previous build's own properties are retracted once it's invalidated, so they can't be read back (see cascade.reactive's "Rebuild shape analysis").
+
+One thing a key does that matching can't: references outside of what build() returns - a variable in a closure, an unobservable - still point to the new, discarded twin after a match. A component referred to like that wants a key.
+
 ### A dropped keyed child is gone forever
 
 We do not keep keyed instances around indefinitely. If a build() call does not construct a given key on some run, that key's slot is gone - permanently, not just for that one run. If the same key is constructed again on some later run, there is nothing left to reconcile against: it is built as a brand new instance, with fresh `initializeState()` defaults, not the one that was there before. This is expected, not a bug - a build() that conditionally guards a child's construction with an `if` is choosing, deliberately, to let that child's identity (and state) lapse whenever the condition is false.

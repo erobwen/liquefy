@@ -114,7 +114,9 @@ export class GettingStartedPage extends Component {
         "In ", file("helloWorldJs", "src/HelloWorld.js"), " - the app at the top of this page, as it is. ",
         file("initializeState", "initializeState()"), " sets up its state; ", file("build", "build()"),
         " describes what it shows, and runs again whenever something it read changes - only what actually changed ",
-        "is updated in the page. The keys give what it builds a stable identity from one run to the next.",
+        "is updated in the page. Each run's result is matched to the previous one - the same kind of component in ",
+        "the same place is the same component - so its state and its elements are kept. Only what can move, appear ",
+        "or disappear among its siblings - the items of a list - needs a key.",
       ),
       codeBlock("helloWorld", helloWorldSource, "javascript"),
 

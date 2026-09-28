@@ -3546,161 +3546,301 @@ function createWorld(configuration) {
     }
   }
 
-  function reBuildShapeAnalysis(repeater) {
-    const shapeAnalysis = repeater.options.rebuildShapeAnalysis
-    
+  /***************************************************************
+   *
+   *  Rebuild shape analysis
+   *
+   *  Matching what a rebuild constructs *without* a build id to what the
+   *  previous run constructed, by shape: the same kind of object, in the
+   *  same place. Turned on per repeater, with
+   *
+   *    rebuildShapeAnalysis: {
+   *      shapeRoot(),          // what this run built - an object, or an array
+   *      signature(object),    // optional: what must match besides the class
+   *                            // (a DOM element's tag name, say)
+   *      setShapeRoot(root),   // optional: handed the root again, with every
+   *                            // matched object replaced by its established one
+   *    }
+   *
+   *  The previous run's shape can't be read back from its objects: an
+   *  invalidated repeater's writings - their properties among them - are
+   *  retracted the moment it's invalidated, until it reruns. So at the end
+   *  of every run its shape is taken as plain data (takeShape()): each
+   *  object this repeater constructed, its class and signature as of then,
+   *  and, per property, the constructed objects (or arrays of them) it
+   *  holds. This run's objects are read through their proxies - an
+   *  established object rebuilt by build id forwards to its twin, which
+   *  holds exactly this run's values - so no timeline is read here
+   *  directly, and none of it is recorded (withoutRecording()): a rebuild
+   *  must never come to depend on the objects it built.
+   *
+   *  (Along with the result, everything the run constructed with a build
+   *  id but didn't put in it - a component built but not shown - since its
+   *  build id keeps it alive, and what it holds must stay alive with it.)
+   *
+   *  Matching walks both shapes from the root down. An object rebuilt by
+   *  build id is matched already (it *is* the established object) - only
+   *  what it holds is matched further. Elsewhere, an array's objects
+   *  without a build id are paired in order, skipping those with one on
+   *  both sides - which is why whatever can move, appear or disappear
+   *  among its siblings wants a build id, and static structure doesn't. A
+   *  pair matches if it's the same class with the same signature, and the
+   *  established one isn't matched already; a matched object's properties
+   *  are then matched the same way, and so on down.
+   *
+   *  A match makes the new object a twin of the established one, just as a
+   *  build id would have: every reference to it in what this run
+   *  constructed is replaced by the established object, whose identity -
+   *  and state (see mergeInto()) - is kept, merged with the twin's
+   *  properties. References the repeater can't see - in a closure, or
+   *  somewhere unobservable - aren't replaced: an object referred to like
+   *  that wants a build id.
+   *
+   ***************************************************************/
+
+  function isConstructedIn(objectMap, value) {
+    return isObservable(value) && objectMap[value[objectMetaProperty].id] === value;
+  }
+
+  function hasBuildId(object) {
+    const buildId = object[objectMetaProperty].buildId;
+    return buildId !== null && typeof(buildId) !== "undefined";
+  }
+
+  function shapeSignature(shapeAnalysis, object) {
+    return shapeAnalysis.signature ? shapeAnalysis.signature(object) : null;
+  }
+
+  // The shape of `value` - see above. Only objects in `objectMap` (what
+  // this repeater constructed) are part of it; anything else is someone
+  // else's (a model, an object handed in from outside) and left out.
+  function takeShape(shapeAnalysis, objectMap, value, seen) {
+    if (value instanceof Array) {
+      return value.map(each => takeShape(shapeAnalysis, objectMap, each, seen));
+    }
+    if (!isConstructedIn(objectMap, value) || seen.has(value)) return null;
+    seen.add(value);
+    const shape = {
+      object: value,
+      prototype: Object.getPrototypeOf(value),
+      signature: shapeSignature(shapeAnalysis, value),
+      slots: {},
+    };
+    for (let key in value) {
+      const slot = value[key];
+      if (slot instanceof Array) {
+        if (slot.some(each => each instanceof Array || isConstructedIn(objectMap, each))) {
+          shape.slots[key] = takeShape(shapeAnalysis, objectMap, slot, seen);
+        }
+      } else if (isConstructedIn(objectMap, slot)) {
+        shape.slots[key] = takeShape(shapeAnalysis, objectMap, slot, seen);
+      }
+    }
+    return shape;
+  }
+
+  // Match what this run built (`root`) against the previous run's shape.
+  // Returns whether anything matched.
+  function matchShape(repeater, shapeAnalysis, establishedShape, root) {
+    const objectMap = repeater.newIdObjectShapeMap;
+    let anyMatch = false;
+
     function setAsMatch(establishedObject, newObject) {
-      //console.log("setAsMatch: " + establishedObject.toString() + " <---- " + newObject.toString());
       establishedObject[objectMetaProperty].forwardTo = newObject;
       newObject[objectMetaProperty].copyTo = establishedObject;
-      if (newObject[objectMetaProperty].pendingCreationEvent) {
-        delete newObject[objectMetaProperty].pendingCreationEvent;
-        establishedObject[objectMetaProperty].pendingReCreationEvent = true;
-      } 
+      // Not created after all - recreated.
+      delete newObject[objectMetaProperty].pendingCreationEvent;
       delete newObject[objectMetaProperty].pendingOnEstablishCall;
-      delete repeater.newIdObjectShapeMap[newObject[objectMetaProperty].id];
-      repeater.newIdObjectShapeMap[establishedObject[objectMetaProperty].id] = establishedObject;
+      establishedObject[objectMetaProperty].pendingReCreationEvent = true;
+      delete objectMap[newObject[objectMetaProperty].id];
+      objectMap[establishedObject[objectMetaProperty].id] = establishedObject;
+      anyMatch = true;
     }
 
-    function matchInEquivalentSlot(establishedObject, newObject) {
-      if (establishedObject !== newObject) { // Could be the same if buildId was used
-        const newObjectObservable = isObservable(newObject);
-        const establishedObjectObservable = isObservable(establishedObject); 
-        if (newObjectObservable !== establishedObjectObservable) return;
-        if (newObjectObservable && establishedObjectObservable) {
-          // Two observed objects
-          if (!repeater.newIdObjectShapeMap[newObject[objectMetaProperty].id]) return; // Limit search! otherwise we could go off road!
-          if (establishedObject[objectMetaProperty].forwardTo === newObject) return; // Already set as match during shape analysis! 
-          if (newObject[objectMetaProperty].buildId || establishedObject[objectMetaProperty].buildId) return;
-          if (shapeAnalysis.allowMatch && shapeAnalysis.allowMatch(establishedObject, newObject)) {
-            setAsMatch(establishedObject, newObject);
-            // console.log({...establishedObject[objectMetaProperty].target});
-            // console.log({...newObject[objectMetaProperty].target});
-            // console.log(establishedObject[objectMetaProperty].target === newObject[objectMetaProperty].target);
-            matchChildrenInEquivalentSlot(establishedObject[objectMetaProperty].target, newObject[objectMetaProperty].target);
-          }
-        } else { //if (!newObjectObservable && !establishedObjectObservable) 
-          // Could run off-road?
-          // Two unobserved objects
-          matchChildrenInEquivalentSlot(establishedObject, newObject)
+    function matchValue(shape, value) {
+      if (shape === null || typeof(shape) === "undefined") return;
+      if (shape instanceof Array) {
+        if (value instanceof Array) matchArray(shape, value);
+        return;
+      }
+      if (!isConstructedIn(objectMap, value)) return;
+      if (shape.object === value) {
+        // Rebuilt by build id: the established object itself.
+        matchSlots(shape, value);
+        return;
+      }
+      const established = shape.object;
+      if (hasBuildId(value) || hasBuildId(established)) return;
+      if (established[objectMetaProperty].forwardTo !== null) return; // Matched already.
+      if (Object.getPrototypeOf(value) !== shape.prototype) return;
+      if (shapeSignature(shapeAnalysis, value) !== shape.signature) return;
+      setAsMatch(established, value);
+      matchSlots(shape, value);
+    }
+
+    // Objects with a build id whose contents were matched - each once.
+    const matchedByBuildId = new Set();
+
+    function matchSlots(shape, value) {
+      if (hasBuildId(value)) {
+        if (matchedByBuildId.has(value)) return;
+        matchedByBuildId.add(value);
+      }
+      for (let key in shape.slots) matchValue(shape.slots[key], value[key]);
+    }
+
+    function matchArray(shapes, values) {
+      const byObject = new Map();
+      const withoutBuildId = [];
+      shapes.forEach(shape => {
+        if (shape === null || shape instanceof Array) return;
+        byObject.set(shape.object, shape);
+        if (!hasBuildId(shape.object)) withoutBuildId.push(shape);
+      });
+      let next = 0;
+      values.forEach((value, index) => {
+        if (value instanceof Array) {
+          if (shapes[index] instanceof Array) matchArray(shapes[index], value);
+          return;
         }
-      }
+        if (!isConstructedIn(objectMap, value)) return;
+        if (hasBuildId(value)) {
+          const shape = byObject.get(value);
+          if (shape) matchSlots(shape, value);
+          return;
+        }
+        const shape = withoutBuildId[next++];
+        if (shape) matchValue(shape, value);
+      });
     }
 
-    function matchChildrenInEquivalentSlot(establishedObjectTarget, newObjectTarget) {
-      for (let [establishedSlot, newSlot] of shapeAnalysis.slotsIterator(establishedObjectTarget, newObjectTarget, object => (isObservable(object) && object[objectMetaProperty].buildId))) {
-        matchInEquivalentSlot(establishedSlot, newSlot);
+    matchValue(establishedShape.root, root);
+    // Whatever was constructed with a build id again but not reached from
+    // the result - not shown now, or not before (see takeShapes()): matched
+    // through its build id already, so only what it holds is left to match,
+    // against its shape wherever it was last time.
+    establishedShape.withBuildId.forEach(shape => {
+      if (isConstructedIn(objectMap, shape.object)) matchSlots(shape, shape.object);
+    });
+    return anyMatch;
+  }
+
+  // The shape of everything a run constructed: its result, and whatever it
+  // constructed with a build id that isn't in the result - a component
+  // built but not shown (see cascade.component's show()), kept alive by its
+  // build id, whose own unkeyed contents must stay alive with it.
+  function takeShapes(shapeAnalysis, objectMap, root) {
+    const shapeRoot = takeShape(shapeAnalysis, objectMap, root, new Set());
+    // Every object with a build id, in the result or not: the next run may
+    // show one this run didn't, or hide one this run showed.
+    const withBuildId = collectShapesWithBuildId(shapeRoot, []);
+    const inResult = new Set(withBuildId.map(shape => shape.object));
+    for (let id in objectMap) {
+      const object = objectMap[id];
+      if (hasBuildId(object) && !inResult.has(object)) {
+        withBuildId.push(takeShape(shapeAnalysis, objectMap, object, new Set()));
       }
     }
-    return {setAsMatch, matchChildrenInEquivalentSlot, matchInEquivalentSlot};
+    return { root: shapeRoot, withBuildId };
+  }
+
+  function collectShapesWithBuildId(shape, result) {
+    if (shape === null || typeof(shape) === "undefined") return result;
+    if (shape instanceof Array) {
+      shape.forEach(each => collectShapesWithBuildId(each, result));
+      return result;
+    }
+    if (hasBuildId(shape.object)) result.push(shape);
+    for (let key in shape.slots) collectShapesWithBuildId(shape.slots[key], result);
+    return result;
+  }
+
+  // A reference to a matched object, replaced by its established one - the
+  // very same reference back if nothing in it changed. An array rebuilt
+  // with replacements is frozen again if it was (see cascade.component's
+  // frozen(): a frozen value is compared by content when merged).
+  function translateReference(reference) {
+    if (reference instanceof Array && !isObservable(reference)) {
+      let changed = false;
+      const translated = reference.map(fragment => {
+        const result = translateReference(fragment);
+        if (result !== fragment) changed = true;
+        return result;
+      });
+      if (!changed) return reference;
+      if (Object.isFrozen(reference)) Object.freeze(translated);
+      return translated;
+    }
+    if (isObservable(reference) && reference[objectMetaProperty].copyTo) {
+      return reference[objectMetaProperty].copyTo;
+    }
+    return reference;
   }
 
   function finishRebuilding(repeater) {
-    if (repeater.finishedRebuilding) return; 
-    
+    if (repeater.finishedRebuilding) return;
+
     const options = repeater.options;
     if (options.onStartBuildUpdate) options.onStartBuildUpdate();
 
-    function translateReference(reference) {
-      if (reference instanceof Array) {
-        return reference.map(fragment => translateReference(fragment));
-      }
-      if (isObservable(reference)) {
-        if (reference[objectMetaProperty].copyTo) {
-          return reference[objectMetaProperty].copyTo;
-        }
-      }
-      return reference;
-    }
-
-    // Do shape analysis to find additional matches. 
     if (repeater.options.rebuildShapeAnalysis) {
-      const {matchChildrenInEquivalentSlot, matchInEquivalentSlot} = reBuildShapeAnalysis(repeater);
       const shapeAnalysis = repeater.options.rebuildShapeAnalysis;
-      
-      // console.group("reBuildShapeAnalysis");
-      if (repeater.establishedRoot instanceof Array || shapeAnalysis.shapeRoot() instanceof Array) {
-        // If one shape root is array, compare as arrays.
-        let establishedRootArray = repeater.establishedRoot;
-        let shapeRootArray = shapeAnalysis.shapeRoot();
-        if (!(establishedRootArray instanceof Array)) establishedRootArray = [establishedRootArray];
-        if (!(shapeRootArray instanceof Array)) shapeRootArray = [shapeRootArray];
-        matchChildrenInEquivalentSlot(establishedRootArray, shapeRootArray)
-      } else {
-        // Match two ordinary shape roots
-        matchInEquivalentSlot(repeater.establishedShapeRoot, shapeAnalysis.shapeRoot());
-      }
-      for(let id in  repeater.newIdObjectShapeMap) {
-        const newObject = repeater.newIdObjectShapeMap[id];
-        const temporaryObject = newObject[objectMetaProperty].forwardTo;
-        if (temporaryObject) {
-          matchChildrenInEquivalentSlot(newObject[objectMetaProperty].target, temporaryObject[objectMetaProperty].target);
-        }
-      }
-      // console.groupEnd();
+      if (!repeater.newIdObjectShapeMap) repeater.newIdObjectShapeMap = {};
 
+      withoutRecording(() => {
+        const root = shapeAnalysis.shapeRoot();
+        const anyMatch = repeater.establishedShape
+          ? matchShape(repeater, shapeAnalysis, repeater.establishedShape, root)
+          : false;
+        if (!anyMatch) return;
 
-      // Debug printout
-      // console.log("Reference translatinos: ")
-      // for(let id in  repeater.newIdObjectShapeMap) {
-      //   const newObject = repeater.newIdObjectShapeMap[id];
-      //   if (newObject[objectMetaProperty].forwardTo){
-      //     // console.log(newObject[objectMetaProperty].forwardTo.toString() + "==>" + newObject.toString());
-      //   }
-      // }
-
-      // Translate references
-      // TODO(timelines): a user-supplied rebuildShapeAnalysis.translateReferences
-      // still receives the raw `target`, which no longer holds plain data
-      // properties for objects (they live in handler.timelines now) - only
-      // accessors/methods remain there. Its public contract would need to
-      // change (e.g. to receive read/write functions instead of a raw
-      // object) to see virtualized properties; left as-is for now since
-      // that's a user-facing API change, not an internal detail.
-      for(let id in repeater.newIdObjectShapeMap) {
-        let object = repeater.newIdObjectShapeMap[id];
-        let target;
-        let handler;
-        const temporaryObject = object[objectMetaProperty].forwardTo;
-        if (temporaryObject) {
-          target = temporaryObject[objectMetaProperty].target;
-          handler = temporaryObject[objectMetaProperty].handler;
-        } else {
-          target = object[objectMetaProperty].target;
-          handler = object[objectMetaProperty].handler;
-        }
-        if (repeater.options.rebuildShapeAnalysis.translateReferences) {
-          repeater.options.rebuildShapeAnalysis.translateReferences(target, translateReference);
-        } else if (target instanceof Array) {
-          for (let property in target) {
-            target[property] = translateReference(target[property])
+        // Every reference to a matched object, in whatever this run
+        // constructed, now refers to the established one.
+        for (let id in repeater.newIdObjectShapeMap) {
+          const object = repeater.newIdObjectShapeMap[id];
+          const temporaryObject = object[objectMetaProperty].forwardTo;
+          const holder = temporaryObject ? temporaryObject : object;
+          const target = holder[objectMetaProperty].target;
+          const handler = holder[objectMetaProperty].handler;
+          if (target instanceof Array) {
+            for (let property in target) {
+              const value = target[property];
+              const translated = translateReference(value);
+              if (translated !== value) target[property] = translated;
+            }
+          } else {
+            // Through the timeline read/write interface - plain data
+            // properties live in handler.timelines, not on target.
+            const time = currentTime();
+            const writer = currentWriter();
+            timelineDataKeys(handler, time, writer).forEach(function(key) {
+              const value = readTimelineValue(handler, key, time, writer);
+              const translated = translateReference(value);
+              if (translated !== value) writeTimelineValueSilently(handler, key, translated, time, writer);
+            });
           }
-        } else {
-          // Go through the timeline read/write interface instead of the raw
-          // target - plain data properties live in handler.timelines now.
-          const time = currentTime();
-          const writer = currentWriter();
-          timelineDataKeys(handler, time, writer).forEach(function(key) {
-            writeTimelineValueSilently(handler, key, translateReference(readTimelineValue(handler, key, time, writer)), time, writer);
-          });
         }
-      }
+        if (shapeAnalysis.setShapeRoot) {
+          const translatedRoot = translateReference(root);
+          if (translatedRoot !== root) shapeAnalysis.setShapeRoot(translatedRoot);
+        }
+      });
 
-      // Save translated root for next run
-      repeater.establishedShapeRoot = translateReference(repeater.options.rebuildShapeAnalysis.shapeRoot())
-
-      // Merge those set for mergeing
+      // Merge the rebuilt ones - by build id, or matched by shape - into
+      // their established objects.
       for(let id in repeater.newIdObjectShapeMap) {
         let object = repeater.newIdObjectShapeMap[id];
         const temporaryObject = object[objectMetaProperty].forwardTo;
         if (temporaryObject) {
           temporaryObject[objectMetaProperty].copyTo = null;
+          temporaryObject[objectMetaProperty].isBeingRebuilt = false;
           object[objectMetaProperty].forwardTo = null;
           mergeInto(object, temporaryObject);
 
-          // Send recreate event
-          if (object[objectMetaProperty].pendingCreationEvent) {
-            delete object[objectMetaProperty].pendingCreationEvent;
+          // Send recreate event (for a match by shape - one by build id
+          // sent its own when it was constructed)
+          if (object[objectMetaProperty].pendingReCreationEvent) {
+            delete object[objectMetaProperty].pendingReCreationEvent;
             emitReCreationEvent(object[objectMetaProperty].handler);
           }
         } else {
@@ -3715,18 +3855,25 @@ function createWorld(configuration) {
         }
       }
 
-      // Send dispose event
+      // Send dispose event - identity, not just the id: a build id rebuilt
+      // as a different kind of object (see observable()) holds a
+      // replacement, and the object it replaced is gone just the same.
       if (repeater.idObjectShapeMap) {
         for (let id in repeater.idObjectShapeMap) {
-          if (typeof(repeater.newIdObjectShapeMap[id]) === "undefined") {
+          if (repeater.newIdObjectShapeMap[id] !== repeater.idObjectShapeMap[id]) {
             const object = repeater.idObjectShapeMap[id];
             const objectTarget = object[objectMetaProperty].target;
-            // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
             emitDisposeEvent(object[objectMetaProperty].handler);
             if (typeof(objectTarget.onDispose) === "function") object.onDispose();
           }
         }
       }
+
+      // This run's shape, for the next run to match against.
+      const newObjectMap = repeater.newIdObjectShapeMap;
+      repeater.establishedShape = withoutRecording(
+        () => takeShapes(shapeAnalysis, newObjectMap, shapeAnalysis.shapeRoot())
+      );
     } else {
       // Merge those with build ids. 
       for (let buildId in repeater.newBuildIdObjectMap) {
@@ -3792,16 +3939,6 @@ function createWorld(configuration) {
     const temporaryObject = object[objectMetaProperty].forwardTo;
     if (temporaryObject !== null) {
       
-      if (state.inRepeater) {
-        // console.group("reBuildShapeAnalysis");
-        const repeater = state.inRepeater;
-        if (repeater.options.rebuildShapeAnalysis) {
-          const {matchChildrenInEquivalentSlot} = reBuildShapeAnalysis(repeater);
-          matchChildrenInEquivalentSlot(object[objectMetaProperty].target, temporaryObject[objectMetaProperty].target);
-        }
-        // console.groupEnd();
-      }
-
       // A re-build, push changes to established object.
       object[objectMetaProperty].forwardTo = null;
       temporaryObject[objectMetaProperty].isBeingRebuilt = false; 

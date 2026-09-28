@@ -66,23 +66,23 @@ export class DoubleGaugeDemo extends Component {
   }
 
   build() {
-    const slider = (key, name) => input({
-      key, type: "range", min: 0, max: 100, value: this[name],
-      oninput: callback(key, (event) => { this[name] = Number(event.target.value); }),
+    const slider = (name) => input({
+      type: "range", min: 0, max: 100, value: this[name],
+      oninput: callback(name, (event) => { this[name] = Number(event.target.value); }),
     });
     return column(
-      { key: "doubleGaugeDemo", style: { gap: "16px" } },
+      { style: { gap: "16px" } },
       row(
-        { key: "gauges", style: { alignItems: "center", gap: "16px", flexWrap: "wrap" } },
-        div({ key: "before" }, text({ key: "beforeText", text: "Before" })),
-        new DoubleGauge({ key: "doubleGauge", left: this.left, right: this.right, swapped: this.swapped }),
-        div({ key: "after" }, text({ key: "afterText", text: "After both" })),
+        { style: { alignItems: "center", gap: "16px", flexWrap: "wrap" } },
+        div(text("Before")),
+        new DoubleGauge({ left: this.left, right: this.right, swapped: this.swapped }),
+        div(text("After both")),
       ),
       row(
-        { key: "controls", style: { alignItems: "center", gap: "16px", flexWrap: "wrap" } },
-        slider("blueSlider", "left"),
-        slider("greenSlider", "right"),
-        button({ key: "swap" }, text({ key: "swapText", text: "Swap the gauges" }), callback("swap", () => { this.swapped = !this.swapped; })),
+        { style: { alignItems: "center", gap: "16px", flexWrap: "wrap" } },
+        slider("left"),
+        slider("right"),
+        button(text("Swap the gauges"), callback("swap", () => { this.swapped = !this.swapped; })),
       ),
     );
   }

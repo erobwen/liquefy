@@ -18,27 +18,27 @@ export class ConfirmDelete extends Component {
     const confirm = callback("confirm", () => { this.deleted++; this.asking = false; });
     return [
       row(
-        { key: "controls", style: { alignItems: "center", gap: "12px" } },
-        button({ key: "delete" }, text({ key: "deleteText", text: "Delete everything" }), callback("ask", () => { this.asking = true; })),
-        text({ key: "count", text: "Deleted " + this.deleted + (this.deleted === 1 ? " time" : " times") }),
+        { style: { alignItems: "center", gap: "12px" } },
+        button(text("Delete everything"), callback("ask", () => { this.asking = true; })),
+        text("Deleted " + this.deleted + (this.deleted === 1 ? " time" : " times")),
       ),
       overlay(
-        { key: "modal", showing: this.asking },
+        { showing: this.asking },
         zStack(
-          { key: "layer", style: { ...fitContainerStyle, pointerEvents: "none" } },
+          { style: { ...fitContainerStyle, pointerEvents: "none" } },
           // A click beside the dialog closes it.
-          div({ key: "backdrop", onclick: close, style: { ...zStackElementStyle, pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" } }),
+          div({ onclick: close, style: { ...zStackElementStyle, pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" } }),
           centerMiddle(
-            { key: "centered", style: { ...zStackElementStyle, pointerEvents: "none" } },
+            { style: { ...zStackElementStyle, pointerEvents: "none" } },
             dialog(
-              { key: "dialog", title: "Are you sure?", close, style: { width: "340px" } },
+              { title: "Are you sure?", close, style: { width: "340px" } },
               column(
-                { key: "body", style: { padding: "16px", gap: "16px" } },
-                p({ key: "question", style: { margin: 0 } }, text({ key: "questionText", text: "Everything will be gone - well, in this example." })),
+                { style: { padding: "16px", gap: "16px" } },
+                p({ style: { margin: 0 } }, text("Everything will be gone - well, in this example.")),
                 row(
-                  { key: "answers", style: { gap: "8px", justifyContent: "flex-end" } },
-                  button({ key: "cancel" }, text({ key: "cancelText", text: "Cancel" }), close),
-                  button({ key: "confirm", variant: "filled" }, text({ key: "confirmText", text: "Delete" }), confirm),
+                  { style: { gap: "8px", justifyContent: "flex-end" } },
+                  button(text("Cancel"), close),
+                  button({ variant: "filled" }, text("Delete"), confirm),
                 ),
               ),
             ),

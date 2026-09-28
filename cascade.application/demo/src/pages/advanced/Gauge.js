@@ -37,10 +37,9 @@ export class GaugeDemo extends Component {
 
   build() {
     return row(
-      { key: "gaugeDemo", style: { alignItems: "center", gap: "24px", flexWrap: "wrap" } },
-      new Gauge({ key: "gauge", value: this.value }),
+      { style: { alignItems: "center", gap: "24px", flexWrap: "wrap" } },
+      new Gauge({ value: this.value }),
       input({
-        key: "slider",
         type: "range",
         min: 0,
         max: 100,

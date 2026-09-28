@@ -13,11 +13,7 @@ class Tally extends Component {
   }
 
   build() {
-    return button(
-      { key: "tally" },
-      text({ key: "tallyText", text: this.label + ": " + this.count }),
-      callback("increment", () => { this.count++; }),
-    );
+    return button(text(this.label + ": " + this.count), callback("increment", () => { this.count++; }));
   }
 }
 
@@ -29,11 +25,11 @@ class Tabs extends Component {
 
   tabBar() {
     const tab = (key, label) => button(
-      { key: key + "Tab", variant: this.tab === key ? "filled" : undefined },
-      text({ key: key + "TabText", text: label }),
+      { variant: this.tab === key ? "filled" : undefined },
+      text(label),
       callback(key + "Tab", () => { this.tab = key; }),
     );
-    return row({ key: "tabBar", style: { gap: "8px" } }, tab("first", "First"), tab("second", "Second"));
+    return row({ style: { gap: "8px" } }, tab("first", "First"), tab("second", "Second"));
   }
 }
 
@@ -42,7 +38,7 @@ class Tabs extends Component {
 export class Guarded extends Tabs {
   build() {
     return column(
-      { key: "guarded", style: { gap: "12px" } },
+      { style: { gap: "12px" } },
       this.tabBar(),
       this.tab === "first"
         ? new Tally({ key: "first", label: "First" })
@@ -55,7 +51,7 @@ export class Guarded extends Tabs {
 export class Shown extends Tabs {
   build() {
     return column(
-      { key: "shown", style: { gap: "12px" } },
+      { style: { gap: "12px" } },
       this.tabBar(),
       new Tally({ key: "first", label: "First" }).show(this.tab === "first"),
       new Tally({ key: "second", label: "Second" }).show(this.tab === "second"),
@@ -82,7 +78,7 @@ export class Owned extends Tabs {
 
   build() {
     return column(
-      { key: "owned", style: { gap: "12px" } },
+      { style: { gap: "12px" } },
       this.tabBar(),
       this.tab === "first" ? this.unobservable.first : this.unobservable.second,
     );
@@ -92,16 +88,16 @@ export class Owned extends Tabs {
 // All three, side by side: count up, switch tab, and switch back.
 export class KeepAlive extends Component {
   build() {
-    const variant = (key, title, child) => card(
-      { key, style: { display: "flex", flexDirection: "column", gap: "12px", flex: "1 1 180px", boxSizing: "border-box" } },
-      div({ key: key + "Title", style: { fontWeight: "bold" } }, text({ key: key + "TitleText", text: title })),
+    const variant = (title, child) => card(
+      { style: { display: "flex", flexDirection: "column", gap: "12px", flex: "1 1 180px", boxSizing: "border-box" } },
+      div({ style: { fontWeight: "bold" } }, text(title)),
       child,
     );
     return row(
-      { key: "keepAlive", style: { gap: "16px", flexWrap: "wrap", alignItems: "stretch" } },
-      variant("guardedVariant", "if - forgets", new Guarded({ key: "guarded" })),
-      variant("shownVariant", "1. .show() - remembers", new Shown({ key: "shown" })),
-      variant("ownedVariant", "2. Owned - remembers", new Owned({ key: "owned" })),
+      { style: { gap: "16px", flexWrap: "wrap", alignItems: "stretch" } },
+      variant("if - forgets", new Guarded()),
+      variant("1. .show() - remembers", new Shown()),
+      variant("2. Owned - remembers", new Owned()),
     );
   }
 }

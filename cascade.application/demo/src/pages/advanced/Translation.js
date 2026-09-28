@@ -6,13 +6,9 @@ import { button, card, row } from "@liquefy/cascade.ui";
 class SaveChanges extends Component {
   build() {
     return card(
-      { key: "saveChanges", style: { display: "flex", flexDirection: "column", gap: "12px" } },
-      p({ key: "question", style: { margin: 0 } }, text({ key: "questionText", text: "Save your changes?" })),
-      row(
-        { key: "actions", style: { gap: "8px" } },
-        button({ key: "save" }, text({ key: "saveText", text: "Save" })),
-        button({ key: "discard" }, text({ key: "discardText", text: "Discard" })),
-      ),
+      { style: { display: "flex", flexDirection: "column", gap: "12px" } },
+      p({ style: { margin: 0 } }, text("Save your changes?")),
+      row({ style: { gap: "8px" } }, button(text("Save")), button(text("Discard"))),
     );
   }
 }
@@ -33,9 +29,9 @@ const inSwedish = {
 export class TranslationDemo extends Component {
   build() {
     return row(
-      { key: "translation", style: { gap: "16px", flexWrap: "wrap", overflow: "visible" } },
-      new SaveChanges({ key: "original" }),
-      serviceProvider({ key: "swedish", serviceLocator: inSwedish, child: new SaveChanges({ key: "translated" }) }),
+      { style: { gap: "16px", flexWrap: "wrap", overflow: "visible" } },
+      new SaveChanges(),
+      serviceProvider({ serviceLocator: inSwedish, child: new SaveChanges() }),
     );
   }
 }

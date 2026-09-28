@@ -140,12 +140,14 @@ export class Component {
   // discards this freshly-constructed instance and returns the
   // established one instead (its own observable fields merged in from
   // this fresh one, but its identity - unobservable.repeater included -
-  // completely untouched). A component with no key is never reconciled
-  // this way; that's the hardcoded-child-reference style (see
-  // cascade.component/src/test/toolbarMainFrame.js), still fully
-  // supported as an alternative to build()/keys - calling `super()` with
-  // no arguments at all resolves to the exact same "no key, no
-  // properties" case this always was.
+  // completely untouched). A component with no key constructed in a
+  // build() is reconciled too, by pattern matching instead - the same
+  // class in the same place (see reactiveBuildEquivalent()'s
+  // rebuildShapeAnalysis, and README.md's "Keys and pattern matching").
+  // Outside any build (the hardcoded-child-reference style - see
+  // cascade.component/src/test/toolbarMainFrame.js) there's nothing to
+  // reconcile with: calling `super()` with no arguments at all is the
+  // same "no key, no properties" case it always was.
   constructor(...parameters) {
     const properties = toPropertiesWithChildren(parameters);
     // Captured once, here, exactly like flow.core's own Component - see
@@ -332,6 +334,21 @@ export class Component {
         // back on) still has one, retracted, which would leave every
         // rebuild pending for good.
         pulledBy: () => (u.pullingComponent && u.pullingComponent.unobservable.repeater) || u.repeater,
+        // Pattern matching (ported from flow.core's getShapeAnalysis()):
+        // what a rebuild constructs without a key is matched to what the
+        // previous build constructed in the same place - the same class
+        // (and, for a DOM element, the same tag) - and keeps its identity,
+        // its state and its DOM, just as a key would have kept them. So
+        // static structure needs no keys; what can move, appear or
+        // disappear among its siblings does. See cascade.reactive's
+        // "Rebuild shape analysis" for how.
+        rebuildShapeAnalysis: {
+          shapeRoot: () => this.newBuild,
+          signature: (object) => (typeof(object.tagName) === "string" ? object.tagName.toLowerCase() : null),
+          // The build, with every matched component replaced by the
+          // established one it was matched to.
+          setShapeRoot: (root) => { this.newBuild = root; },
+        },
       });
     } else {
       // Pull, don't wait: if the build is pending (its inputs changed, or
@@ -667,8 +684,9 @@ export class Component {
       // but isn't showing (a closed drawer's contents, say) - and one whose
       // build is still alive, pulled by whatever expanded it (see
       // expand()), would otherwise build once more, reading its properties
-      // as undefined.
-      const built = u.buildRepeater.buildIdObjectMap;
+      // as undefined. Everything it constructed, with a key or without
+      // (matched by shape - see rebuildShapeAnalysis above).
+      const built = u.buildRepeater.idObjectShapeMap || u.buildRepeater.buildIdObjectMap;
       if (built) {
         for (const key in built) {
           const object = built[key];

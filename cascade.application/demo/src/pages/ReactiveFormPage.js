@@ -211,7 +211,7 @@ class TravelerForm extends Component {
 
       // The address: the main traveler only.
       column(
-        { key: "address", style: { gap: "12px" } },
+        { key: "addressFields", style: { gap: "12px" } },
         field(traveler.address, "address", "Address"),
         field(traveler.address, "zipCode", "Zip code"),
         field(traveler.address, "city", "City"),

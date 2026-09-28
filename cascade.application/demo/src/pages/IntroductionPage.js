@@ -133,7 +133,7 @@ export class IntroductionPage extends Component {
       ul(
         li(emphasis("Sub-frame render precision"), " Since all components render in a well-defined order in real time with access to the real DOM, it enables advanced animation setup or layout measuring within the same frame."),
         li(emphasis("JS Proxies"), " for fully transparent data dependency tracking - no dependencies to declare."),
-        li(emphasis("Temporal signals"), " (see above): Allows for implicit dependency tracking between readers and writers of the same render target."),
+        li(emphasis("Temporal signals"), " (see above): Allows for implicit dependency tracking between multiple ordered readers and writers of the same render target."),
         li(emphasis("Minimal DOM updates"), " for fine-grained, targeted change response: a rebuild touches only the nodes that actually changed."),
         li(emphasis("Stable identity across rebuilds"), " - keyed components are matched to the ones they replace, so their local state and DOM elements are kept."),
         li(emphasis("Component lifecycle control"), " - a component that stops being rendered (a page switched away from, a breakpoint) keeps its state and DOM elements, and comes back as it was."),

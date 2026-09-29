@@ -144,3 +144,30 @@ describe("content shown elsewhere keeps the context it came from", function () {
     assert.notEqual(second.closest(".overlay-frame"), first.closest(".overlay-frame"), "on a frame of its own, on top of the first");
   });
 });
+
+describe("a portal name nothing provides", function () {
+  beforeEach(function () {
+    const dom = new JSDOM("<!DOCTYPE html><body></body>");
+    global.document = dom.window.document;
+  });
+
+  it("says so, once - instead of showing its contents nowhere silently", function () {
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (message) => warnings.push(message);
+    try {
+      const state = observable({ label: "a" });
+      class Page extends Component {
+        build() {
+          return div({ key: "page" }, portalContents({ key: "actions", portal: "topBarPortl" }, text({ key: "label", text: state.label })));
+        }
+      }
+      new Page().renderOnto(new DOMElementTarget(document.createElement("div")));
+      state.label = "b";
+      assert.equal(warnings.length, 1);
+      assert.ok(/"topBarPortl"/.test(warnings[0]));
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+});

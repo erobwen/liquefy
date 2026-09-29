@@ -217,7 +217,7 @@ class SampleButtons extends Component {
       ),
       heading("alertsHeading", "Alerts"),
       ...["info", "success", "warning", "error"].map((severity) =>
-        alert({ key: severity, severity }, text({ key: severity + "Text", text: "An alert of severity " + severity + "." }))),
+        alert({ key: severity + "Alert", severity }, text({ key: severity + "Text", text: "An alert of severity " + severity + "." }))),
       heading("cardsHeading", "Cards"),
       row(
         { key: "cards", style: { gap: "12px", overflow: "visible" } },

@@ -129,6 +129,12 @@ export class PortalContents extends Component {
   assign() {
     const u = this.unobservable;
     const portal = typeof(this.portal) === "string" ? this.inherit(this.portal) : this.portal;
+    // A name nothing provides - a typo, or placed outside what provides
+    // it: its contents are shown nowhere. Said once, not silently.
+    if (!portal && typeof(this.portal) === "string" && !u.warnedMissing) {
+      u.warnedMissing = true;
+      console.warn("portalContents(): nothing provides a portal named \"" + this.portal + "\" where it's placed - its contents aren't shown.");
+    }
     if (u.shownIn && u.shownIn !== portal) {
       u.shownIn.hide(this);
       u.shownIn = null;

@@ -2222,6 +2222,12 @@ function createWorld(configuration) {
       const repeater = state.inRepeater;
       if (buildId !== null) {
         if (!repeater.newBuildIdObjectMap) repeater.newBuildIdObjectMap = {};
+        // One object per key and run: a second one with the same key would
+        // silently take the first one's place - its identity (and, on a
+        // rebuild, what was merged into it) lost.
+        if (typeof(repeater.newBuildIdObjectMap[buildId]) !== 'undefined') {
+          throw new Error("Duplicate key \"" + buildId + "\" in one build (a " + (target.constructor ? target.constructor.name : "object") + "): keys must be unique among what a build constructs.");
+        }
         if (repeater.buildIdObjectMap
           && typeof(repeater.buildIdObjectMap[buildId]) !== 'undefined'
           // Same build id but a different kind of object (a theme swap

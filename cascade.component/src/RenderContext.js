@@ -69,6 +69,13 @@ export class RenderContext {
   // What `name` is above this context - cached here (see the class doc).
   inheritFromAbove(name) {
     const meta = this.causality;
+    // Gone for good (see onDispose()): still answered - a stale read of a
+    // dropped component is no reason to fail - but not cached any more:
+    // nothing would ever dispose of a repeater started now.
+    if (meta.disposed) {
+      const parent = this.parent;
+      return parent ? parent.inherit(name) : undefined;
+    }
     if (!meta.inheritCache) meta.inheritCache = new Map();
     let entry = meta.inheritCache.get(name);
     if (entry) {
@@ -105,6 +112,7 @@ export class RenderContext {
 
   // Its component is gone for good: so are the lookups cached on it.
   onDispose() {
+    this.causality.disposed = true;
     const cache = this.causality.inheritCache;
     if (!cache) return;
     for (const entry of cache.values()) retractRepeater(entry.repeater);

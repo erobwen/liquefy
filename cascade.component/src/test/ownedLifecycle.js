@@ -97,3 +97,15 @@ describe("the lifecycle of an owned component", function () {
     assert.equal(established, 2, "a new one, once the key came back");
   });
 });
+
+describe("development checks on components", function () {
+  it("initialUnobservables() may not use a name Component keeps its own bookkeeping under", function () {
+    class Clashing extends Component {
+      initialUnobservables() {
+        return { renderContext: "mine" };
+      }
+      render() {}
+    }
+    assert.throws(() => new Clashing().renderOnto({ name: "target" }), /"renderContext" is a name Component keeps/);
+  });
+});

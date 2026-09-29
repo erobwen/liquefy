@@ -239,3 +239,17 @@ describe("Component.inherit() (through the render context chain)", function () {
     assert.equal(leaf.unobservable.foundFrame, "root frame");
   });
 });
+
+describe("a disposed render context", function () {
+  it("still answers lookups - uncached, starting no repeater that nothing would dispose of", function () {
+    const root = new RenderContext({ frame: "root frame" });
+    const context = new RenderContext({ other: 1 }, root);
+    assert.equal(context.inherit("frame"), "root frame");
+    const cached = context.causality.inheritCache.size;
+    context.onDispose();
+    assert.equal(context.inherit("frame"), "root frame");
+    assert.equal(context.inherit("somethingElse"), undefined);
+    assert.equal(context.causality.inheritCache, null, "nothing cached on it again");
+    assert.ok(cached > 0);
+  });
+});

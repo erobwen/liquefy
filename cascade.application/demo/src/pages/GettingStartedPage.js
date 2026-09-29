@@ -94,7 +94,7 @@ export class GettingStartedPage extends Component {
 
       h2("2. The page"),
       p(
-        "Replace ", file("indexHtml", "index.html"), " with this - all it needs is an element for the app to render into:",
+        "Replace ", file("indexHtmlName", "index.html"), " with this - all it needs is an element for the app to render into:",
       ),
       codeBlock("indexHtml", indexHtml, "html"),
 
@@ -107,7 +107,7 @@ export class GettingStartedPage extends Component {
         "a themed widget when they ask for ", file("buttonCall", "button()"),
         ". Nothing in an app names a theme: change the service locator, and the whole app changes with it.",
       ),
-      p("In ", file("mainJs", "src/main.js"), ":"),
+      p("In ", file("mainJsName", "src/main.js"), ":"),
       codeBlock("mainJs", mainJs, "javascript"),
 
       h2("4. Your first component"),
@@ -119,7 +119,7 @@ export class GettingStartedPage extends Component {
         "the same place is the same component - so its state and its elements are kept. Only what can move, appear ",
         "or disappear among its siblings - the items of a list - needs a key.",
       ),
-      codeBlock("helloWorld", helloWorldSource, "javascript"),
+      codeBlock("helloWorldCode", helloWorldSource, "javascript"),
 
       h2("5. Run it"),
       codeBlock("runIt", runIt, "bash"),

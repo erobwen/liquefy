@@ -67,6 +67,10 @@ export class Overlay extends Component {
     const u = this.unobservable;
     if (this.showing) {
       const overlayFrame = this.inherit("overlayFrame");
+      if (!overlayFrame && !u.warnedMissing) {
+        u.warnedMissing = true;
+        console.warn("overlay(): no overlayFrame() around it - what it shows isn't shown.");
+      }
       // What its content is shown with: the context this Overlay passes on
       // - so a dialog inherits from where it's opened (see OverlayFrame).
       const context = u.childContext;

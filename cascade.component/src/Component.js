@@ -18,6 +18,13 @@ export function getCreator() {
   return creators.length > 0 ? creators[creators.length - 1] : null;
 }
 
+// What Component itself keeps in `unobservable` (and callback() in its
+// creator's) - not to be used by a subclass's initialUnobservables().
+const reservedUnobservables = new Set([
+  "repeater", "buildRepeater", "pullingComponent", "renderTarget", "renderContext", "renderParent",
+  "ownContext", "childContext", "targetTimeless", "callbacks",
+]);
+
 const renderStack = [];
 function getRenderParent() {
   return renderStack.length > 0 ? renderStack[renderStack.length - 1] : null;
@@ -72,7 +79,13 @@ export class Component {
   // rewritten, since nothing constructs it again.
   get unobservable() {
     if (!this.causality.unobservable) {
-      this.causality.unobservable = Object.assign({ repeater: null }, accessInitialValues(() => this.initialUnobservables()));
+      const own = accessInitialValues(() => this.initialUnobservables());
+      for (const name in own) {
+        if (reservedUnobservables.has(name)) {
+          throw new Error(this.constructor.name + ".initialUnobservables(): \"" + name + "\" is a name Component keeps its own bookkeeping under - use another.");
+        }
+      }
+      this.causality.unobservable = Object.assign({ repeater: null }, own);
     }
     return this.causality.unobservable;
   }

@@ -121,6 +121,37 @@ export class ReactiveFormPage extends Component {
       button({ key: "submit", variant: "filled" }, text({ key: "submitText", text: "Submit" }), callback("submit", () => this.submit())),
     ];
 
+    // How the demo is shown, and the model's data - neither is part of the
+    // form's own UI. Wide, they're beside the form; narrow, the page is one
+    // column: the settings above the form, the model's data below it.
+    const demoControls = card(
+      { key: "demoControls", style: { margin: wide ? "2px 2px 0 0" : "2px 4px 0" } },
+      row(
+        { key: "demoControlsRow", style: { alignItems: "center", gap: "12px", flexWrap: "wrap" } },
+        checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
+        // How fast the animation runs - 1 is its springs' natural pace.
+        row(
+          { key: "speed", style: { alignItems: "center", gap: "8px", flex: "1 1 160px", opacity: this.animate ? 1 : 0.5 } },
+          span({ key: "speedLabel" }, text({ key: "speedLabelText", text: "Speed" })),
+          input({
+            key: "speedSlider",
+            type: "range",
+            min: 0.1,
+            max: 2,
+            step: 0.1,
+            value: this.speed,
+            disabled: !this.animate,
+            title: "Animation speed",
+            oninput: callback("speed", (event) => { this.speed = Number(event.target.value); }),
+            style: { flex: "1 1 auto", minWidth: "80px", margin: 0, accentColor: themeColor.chrome },
+          }),
+          span({ key: "speedValue", style: { minWidth: "36px", textAlign: "right", fontVariantNumeric: "tabular-nums" } },
+            text({ key: "speedValueText", text: this.speed.toFixed(1) + "×" })),
+        ),
+      ),
+    );
+    const modelData = new ModelDataDisplay({ key: "modelData", fill: wide });
+
     // A little padding, for the cards' shadows: the scroll panel clips
     // at its edges.
     const formStyle = { display: "flex", flexDirection: "column", gap: pageGap, padding: "2px 4px 16px", maxWidth: "720px", boxSizing: "border-box" };
@@ -129,42 +160,19 @@ export class ReactiveFormPage extends Component {
       pageActions({ information, source, fileName: "src/pages/ReactiveFormPage.js" }),
       div(
         { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
+        wide ? null : div({ key: "narrowTop", style: { maxWidth: "720px", paddingBottom: pageGap } }, demoControls),
         this.animate
           ? flipAnimationContainer({ key: "form", style: formStyle, speed: this.speed, confine: this.confine }, form)
           : column({ key: "plainForm", style: formStyle }, form),
+        wide ? null : div({ key: "narrowBottom", style: { maxWidth: "720px", padding: "0 4px 16px", boxSizing: "border-box" } }, modelData),
       ),
-      // Beside the form, not in it: how the demo is shown, and the model's
-      // data - neither is part of the form's own UI.
-      column(
-        { key: "side", style: { gap: pageGap, flex: "none", width: wide ? "40%" : "auto", maxWidth: "420px", height: "100%", boxSizing: "border-box" } },
-        card(
-          { key: "demoControls", style: { margin: "2px 2px 0 0" } },
-          row(
-            { key: "demoControlsRow", style: { alignItems: "center", gap: "12px", flexWrap: "wrap" } },
-            checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
-            // How fast the animation runs - 1 is its springs' natural pace.
-            row(
-              { key: "speed", style: { alignItems: "center", gap: "8px", flex: "1 1 160px", opacity: this.animate ? 1 : 0.5 } },
-              span({ key: "speedLabel" }, text({ key: "speedLabelText", text: "Speed" })),
-              input({
-                key: "speedSlider",
-                type: "range",
-                min: 0.1,
-                max: 2,
-                step: 0.1,
-                value: this.speed,
-                disabled: !this.animate,
-                title: "Animation speed",
-                oninput: callback("speed", (event) => { this.speed = Number(event.target.value); }),
-                style: { flex: "1 1 auto", minWidth: "80px", margin: 0, accentColor: themeColor.chrome },
-              }),
-              span({ key: "speedValue", style: { minWidth: "36px", textAlign: "right", fontVariantNumeric: "tabular-nums" } },
-                text({ key: "speedValueText", text: this.speed.toFixed(1) + "×" })),
-            ),
-          ),
-        ),
-        new ModelDataDisplay({ key: "modelData" }).showIf(wide),
-      ),
+      wide
+        ? column(
+          { key: "side", style: { gap: pageGap, flex: "none", width: "40%", maxWidth: "420px", height: "100%", boxSizing: "border-box" } },
+          demoControls,
+          modelData,
+        )
+        : null,
     );
   }
 }
@@ -412,17 +420,23 @@ class CostDisplay extends Component {
   }
 }
 
-// The model's data, as it is right now.
+// The model's data, as it is right now - filling the height it's given
+// and scrolling within it (fill), or as high as the data.
 class ModelDataDisplay extends Component {
+  setProperties({ fill }) {
+    this.fill = !!fill;
+  }
+
   build() {
+    const fill = this.fill;
     return card(
       {
         key: "modelData",
-        style: { flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column", gap: "8px", margin: "0 2px 2px 0" },
+        style: { ...(fill ? { flex: "1 1 0", minHeight: 0, margin: "0 2px 2px 0" } : {}), display: "flex", flexDirection: "column", gap: "8px" },
       },
       sectionTitle("modelDataTitle", "Model data"),
       div(
-        { key: "json", style: { flex: "1 1 0", overflow: "auto", whiteSpace: "pre", fontFamily: "monospace", fontSize: "12px" } },
+        { key: "json", style: { ...(fill ? { flex: "1 1 0" } : {}), overflow: "auto", whiteSpace: "pre", fontFamily: "monospace", fontSize: "12px" } },
         text({ key: "jsonText", text: JSON.stringify(data, null, 2) }),
       ),
     );

@@ -46,8 +46,9 @@ const information = {
 export class ReactiveFormPage extends Component {
   initializeState() {
     // Whether Submit has been pressed (so errors are shown), whether to
-    // animate - and how fast - and the message after a successful submit.
-    return { verifying: false, animate: true, speed: 1, sent: null };
+    // animate - how fast, and whether what appears is confined to what it
+    // appears in - and the message after a successful submit.
+    return { verifying: false, animate: true, speed: 1, confine: false, sent: null };
   }
 
   addTraveler() {
@@ -129,7 +130,7 @@ export class ReactiveFormPage extends Component {
       div(
         { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
         this.animate
-          ? flipAnimationContainer({ key: "form", style: formStyle, speed: this.speed }, form)
+          ? flipAnimationContainer({ key: "form", style: formStyle, speed: this.speed, confine: this.confine }, form)
           : column({ key: "plainForm", style: formStyle }, form),
       ),
       // Beside the form, not in it: how the demo is shown, and the model's

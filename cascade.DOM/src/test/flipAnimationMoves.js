@@ -281,6 +281,56 @@ describe("FlipAnimationContainer animations", function () {
     assert.equal(five.style.opacity, "");
   });
 
+  it("while it fades in, a new element - and the animated element it's in - is lifted above what moves around it, unclipped, then put back", function () {
+    const { lists, element } = setup();
+    const listA = element("one").parentNode;
+    listA.style.zIndex = "3"; // its own z-index - to be put back as it was
+    listA.style.overflow = "hidden"; // clips - as a column() does
+    lists.a = ["one", "two", "three", "five"];
+    const five = element("five");
+    assert.equal(five.style.zIndex, "1");
+    assert.equal(five.style.position, "relative", "a z-index needs a position");
+    assert.equal(listA.style.zIndex, "1", "and so is the list it's in: a stacking context of its own");
+    assert.equal(listA.style.overflow, "visible", "drawn smaller than it is on its way, it doesn't cut off the newcomer");
+    runFrames(10);
+    assert.equal(five.style.zIndex, "1", "still fading in: still lifted");
+    runToRest();
+    assert.equal(five.style.zIndex, "");
+    assert.equal(five.style.position, "");
+    assert.equal(listA.style.zIndex, "3", "its own, back");
+    assert.equal(listA.style.position, "");
+    assert.equal(listA.style.overflow, "hidden");
+  });
+
+  it("told to confine what appears, it leaves the elements around it as they are: clipped, not lifted", function () {
+    class Confined extends Component {
+      initializeState() {
+        return { a: ["one", "two", "three"] };
+      }
+      build() {
+        const item = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
+        return flipAnimationContainer({ key: "flip", confine: true }, div({ key: "listA", style: { overflow: "hidden" } }, this.a.map(item)));
+      }
+    }
+    const confined = new Confined();
+    confined.renderOnto(new DOMElementTarget(container));
+    const listA = container.querySelector("[id*='(listA)']");
+    confined.a = ["one", "two", "three", "five"];
+    const five = Array.from(listA.children).find((each) => each.textContent === "five");
+    assert.ok(Number(five.style.opacity) < 0.05, "it does fade in");
+    assert.equal(five.style.zIndex, "");
+    assert.equal(listA.style.zIndex, "");
+    assert.equal(listA.style.overflow, "hidden", "clipped, as it's drawn");
+  });
+
+  it("what scrolls keeps scrolling while something in it appears", function () {
+    const { lists, element } = setup();
+    const listA = element("one").parentNode;
+    listA.style.overflow = "auto";
+    lists.a = ["one", "two", "three", "five"];
+    assert.equal(listA.style.overflow, "auto");
+  });
+
   it("nothing fades in on the container's first render", function () {
     const { element } = setup();
     assert.equal(element("one").style.opacity, "");
@@ -333,13 +383,15 @@ describe("FlipAnimationContainer animations", function () {
 
     toggled.show = true;
     assert.ok(middle.isConnected, "the same element, back");
-    assert.equal(middle.style.position, "", "no ghost style left");
+    assert.notEqual(middle.style.position, "absolute", "no ghost style left");
     assert.equal(middle.style.left, "");
     assert.equal(middle.style.pointerEvents, "");
     assert.equal(middle.style.color, "red", "its own style");
     assert.ok(Number(middle.style.opacity) < 0.05, "fading in");
     runToRest();
     assert.equal(middle.style.opacity, "");
+    assert.equal(middle.style.position, "", "nor anything of its lift, once it has appeared");
+    assert.equal(middle.style.zIndex, "");
     assert.deepEqual(drawnAt(middle), layoutOf(middle));
   });
 

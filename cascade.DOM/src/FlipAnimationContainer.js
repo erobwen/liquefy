@@ -36,7 +36,16 @@ export function flipAnimationContainer(...parameters) {
  * add up twice, and a panel resizing doesn't squash what's in it.
  *
  *  - Appearing: an element with nothing to move from fades in (only the
- *    outermost new one - what's inside it comes along).
+ *    outermost new one - what's inside it comes along) - where it lies,
+ *    whole. A card (or a drawer) growing to make room for it is drawn at its
+ *    old size at first, so the newcomer reaches out over its edge: while it
+ *    fades in, it and every animated element it's inside are lifted above
+ *    what's around them - the siblings after the card are still moving out
+ *    of the way, and drawn after it, they'd cover it - and one that clips
+ *    what overflows it doesn't, meanwhile (see lift()). Unless the
+ *    container is told to `confine` it: then what appears stays within
+ *    the elements around it, as they're drawn - crisp edges, revealed as
+ *    they grow.
  *  - Leaving: an element removed from the tree is put back as a "ghost" -
  *    absolutely positioned exactly where and how it was drawn, keeping the
  *    font and color it had - which fades out and is then removed. If the
@@ -53,15 +62,24 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // container: 1 is the springs' natural pace. Only read as frames are
   // drawn, so changing it never places anything again - animations under
   // way just go on at the new pace.
-  setProperties({ speed, ...rest }) {
+  //
+  // `confine`: what appears stays within the elements it's in, as they're
+  // drawn on their way to their new size - clipped where they clip, and
+  // not lifted above what's around them (see lift()). Off by default: it
+  // fades in whole, where it lies. Read as frames are drawn, too.
+  setProperties({ speed, confine, ...rest }) {
     super.setProperties(rest);
     this.speed = typeof(speed) === "number" ? speed : null;
+    this.confine = !!confine;
   }
 
   initialUnobservables() {
     const result = super.initialUnobservables();
     // Per animating element - see startAnimations().
     result.springs = new Map();
+    // Elements lifted above their siblings while something in them appears,
+    // with the inline z-index and position they had - see lift().
+    result.lifted = new Map();
     // Where each tracked element lies in the current layout.
     result.layout = new Map();
     // Leaving elements, fading out - see removeAsGhosts().
@@ -155,6 +173,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const { element } of leaving) {
       const rect = drawnAt.get(element);
       if (!rect) continue;
+      // Not lifted any more - nor anything in it: the style it's saved with
+      // is its own, and comes back if it does.
+      for (const lifted of [...u.lifted.keys()]) {
+        if (lifted === element || element.contains(lifted)) this.unlift(lifted);
+      }
       const savedStyle = element.getAttribute("style");
       const look = looks.get(element);
       element.querySelectorAll("*").forEach((each) => { each.style.transform = ""; });
@@ -278,6 +301,55 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const [element, ghost] of u.ghosts) {
       element.style.opacity = String(Math.max(0, Math.min(1, ghost.opacity)));
     }
+    this.lift();
+  }
+
+  // Lift every appearing element, and every animated element it's inside,
+  // above its siblings - so what moves around it never covers it (see the
+  // class doc). The whole chain, since an animated element is a stacking
+  // context of its own: lifted inside it alone, the newcomer would still be
+  // covered by whatever comes after it. A z-index needs a position that
+  // isn't static; one that is becomes relative meanwhile.
+  //
+  // And none of them clips: one drawn smaller than it now is, on its way
+  // to its new size, would cut off what's already drawn where it will be -
+  // at rest, it fits. Only what clips, though (`overflow: hidden` or
+  // `clip`): what scrolls (`auto`, `scroll`) keeps scrolling.
+  //
+  // Put back as it was as soon as nothing in it is appearing any more - or
+  // right away, if the container confines what appears.
+  lift() {
+    const u = this.unobservable;
+    const lifting = new Set();
+    let ancestorOf = null;
+    const confine = withoutRecording(() => this.confine);
+    for (const [element, spring] of confine ? [] : u.springs) {
+      if (!(spring.o < -0.001)) continue;
+      if (!ancestorOf) ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
+      for (let each = element; each && !lifting.has(each); each = ancestorOf.get(each)) lifting.add(each);
+    }
+    for (const element of [...u.lifted.keys()]) {
+      if (!lifting.has(element)) this.unlift(element);
+    }
+    for (const element of lifting) {
+      if (u.lifted.has(element)) continue;
+      u.lifted.set(element, { zIndex: element.style.zIndex, position: element.style.position, overflow: element.style.overflow });
+      const style = element.ownerDocument.defaultView.getComputedStyle(element);
+      const clips = (value) => value === "hidden" || value === "clip";
+      if (!style.position || style.position === "static") element.style.position = "relative";
+      if (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) element.style.overflow = "visible";
+      element.style.zIndex = "1";
+    }
+  }
+
+  unlift(element) {
+    const u = this.unobservable;
+    const saved = u.lifted.get(element);
+    if (!saved) return;
+    element.style.zIndex = saved.zIndex;
+    element.style.position = saved.position;
+    element.style.overflow = saved.overflow;
+    u.lifted.delete(element);
   }
 
   requestFrame() {
@@ -320,6 +392,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   stopAll() {
     const u = this.unobservable;
     u.springs.clear();
+    for (const element of [...u.lifted.keys()]) this.unlift(element);
     for (const { element } of u.tracked) {
       element.style.transform = "";
       element.style.transformOrigin = "";

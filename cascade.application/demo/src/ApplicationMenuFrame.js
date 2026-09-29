@@ -1,7 +1,8 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { a, div, img, span, text, providingElement, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { a, button, div, img, span, text, providingElement, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, portal, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
+import { versionNotice, showVersionNotice } from "./versionNotice.js";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -204,6 +205,7 @@ class ApplicationMenuFrameLayout extends Component {
       // title (see src/components/pageActions.js).
       frame.topBarPortal,
       div({ key: "label", style: { fontWeight: "bold" } }, page.title),
+      versionNoticeButton({ marginLeft: "auto" }),
     );
 
     const workArea = providingElement({
@@ -361,6 +363,27 @@ function groupHeader(name) {
       },
     },
     text({ key: "group" + name + "Text", text: name }),
+  );
+}
+
+// A small warning sign, at the top bar's right end, showing the version notice
+// again (see versionNotice.js) - while it's dismissed, where there is one.
+function versionNoticeButton(style) {
+  if (!versionNotice.available || versionNotice.shown) return null;
+  return button(
+    {
+      key: "versionNotice",
+      type: "button",
+      title: "This demo may not match your installed version",
+      onclick: callback("showVersionNotice", () => showVersionNotice()),
+      style: {
+        display: "flex", alignItems: "center", justifyContent: "center", width: "24px", height: "24px", padding: 0, flex: "none",
+        border: "none", borderRadius: "4px", background: "transparent", color: "#ffc940", cursor: "pointer",
+        ...style,
+      },
+    },
+    span({ key: "versionNoticeIcon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", userSelect: "none" } },
+      text({ key: "versionNoticeIconName", text: "warning" })),
   );
 }
 

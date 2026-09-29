@@ -5,6 +5,9 @@
 //
 // Plain DOM, outside the app: it sits above #application, which the app
 // fills (its root measures #application, so it adapts when the notice goes).
+// Once dismissed, the app offers a button showing it again (see
+// ApplicationMenuFrame.js) - reading `versionNotice`, observable for that.
+import { deeplyObservable } from "@liquefy/cascade.component";
 
 const deployedAt = { origin: "https://erobwen.github.io", path: "/liquefy/cascade/" };
 const dismissedKey = "cascade-demo-version-notice-dismissed";
@@ -24,13 +27,37 @@ function rememberDismissed() {
   try { sessionStorage.setItem(dismissedKey, "true"); } catch { /* not remembered, then */ }
 }
 
-export function showVersionNotice(application) {
-  if (!isDeployedDemo() || wasDismissed()) return;
+// Whether there's a notice to show here at all, and whether it's showing.
+export const versionNotice = deeplyObservable({ available: isDeployedDemo(), shown: false });
+
+let application = null;
+let notice = null;
+
+// Where the notice goes: above this element. Shown straight away - unless
+// dismissed before, in this session.
+export function setUpVersionNotice(element) {
+  application = element;
+  if (versionNotice.available && !wasDismissed()) showVersionNotice();
+}
+
+export function showVersionNotice() {
+  if (!versionNotice.available || versionNotice.shown) return;
+  if (!notice) notice = createNotice();
 
   // The notice and the app share the body's height: the app takes the rest.
   Object.assign(document.body.style, { display: "flex", flexDirection: "column" });
   Object.assign(application.style, { height: "auto", flex: "1 1 auto", minHeight: "0" });
+  application.before(notice);
+  versionNotice.shown = true;
+}
 
+function dismissVersionNotice() {
+  rememberDismissed();
+  notice.remove();
+  versionNotice.shown = false;
+}
+
+function createNotice() {
   const notice = document.createElement("div");
   notice.setAttribute("role", "note");
   Object.assign(notice.style, {
@@ -75,11 +102,8 @@ export function showVersionNotice(application) {
     cursor: "pointer",
     padding: "0 4px",
   });
-  close.addEventListener("click", () => {
-    rememberDismissed();
-    notice.remove();
-  });
+  close.addEventListener("click", dismissVersionNotice);
 
   notice.append(message, close);
-  application.before(notice);
+  return notice;
 }

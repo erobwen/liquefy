@@ -7,9 +7,8 @@ import assert from "assert";
 // with a genuinely different value is deliberately not invalidated on the
 // spot: it's flagged instead (flagRepeaterEntry), left exactly where it
 // was, and only actually re-examined later - either opportunistically,
-// when linkRepeater happens to reach it, or as exitTimeLevel's own
-// backstop sweep (resolveFlaggedRepeatersAtLevel), right before a time
-// level would otherwise be declared settled.
+// when linkRepeater happens to reach it, or when the scheduler reaches it
+// in its pipeline (processRepeater() -> resolveFlaggedRepeater()).
 //
 // This is the concrete A/B/C shape from the design discussion that
 // motivated it: A changes something, B (running right after A, in the
@@ -78,7 +77,7 @@ describe("flagged repeaters (deferred recheck instead of an immediate invalidati
 
     model.trigger = true;
 
-    assert.equal(cRunCount, 2, "C's flagged dependency must still be resolved - here by exitTimeLevel's own backstop sweep, since nothing ever calls linkRepeater on C in this test - and found genuinely different");
+    assert.equal(cRunCount, 2, "C's flagged dependency must still be resolved - though nothing ever calls linkRepeater on C in this test - and found genuinely different");
     assert.equal(cSeenValue, "changedByA");
   });
 

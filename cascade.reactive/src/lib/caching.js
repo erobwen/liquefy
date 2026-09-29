@@ -1,5 +1,29 @@
-
-export function createCachingFunction(observable) {
+/**
+ * caching(f) - f, with its results cached per argument list, for as long
+ * as what they were computed from stays the same. Flow's cache: a value is
+ * computed inside an invalidator (invalidateOnChange()), not a repeater -
+ * the first change of anything it read just clears it out, and nothing is
+ * kept alive for it. So only what someone actually asks for again is ever
+ * computed again, and a value nobody asks for any more leaves no observer
+ * behind. Whoever reads a cached value depends on the cache entry, so it's
+ * notified when the entry is cleared.
+ *
+ * Arguments are told apart by identity for observables and by value for
+ * numbers and strings; anything else is compared element by element in a
+ * bucket of its own signature.
+ *
+ * When to use it - memory over speed. The alternative is a repeater that
+ * keeps the value up to date (as cascade.component's RenderContext does for
+ * inherit()): it lives as long as whatever owns it, keeping its value and
+ * its dependencies whether anyone still reads them or not - but when its
+ * inputs change and it recomputes the same value, nobody who read it is
+ * disturbed. Here it's the other way round: an entry costs nothing once
+ * it's cleared, but clearing it invalidates everyone who read it, even if
+ * the value computed again turns out the same. So use this for many values
+ * that are read now and then, by few - and a repeater for values that are
+ * read all the time, by many, whose inputs change without changing them.
+ */
+export function createCachingFunction(observable, invalidateOnChange, withoutRecording, objectMetaProperty) {
 
   function compareArraysShallow(a, b) {
     if( typeof a !== typeof b )
@@ -45,7 +69,7 @@ export function createCachingFunction(observable) {
 
   function getExistingRecord(signaturesCaches, {signature, unique, argumentList}) {
     if (unique) {
-      return signaturesCaches[signature]
+      return signaturesCaches[signature].value;
     } else {
       let signaturesCacheBucket = signaturesCaches[signature];
       for (let i=0; i < signaturesCacheBucket.length; i++) {
@@ -63,7 +87,7 @@ export function createCachingFunction(observable) {
     } else {
       let signaturesCacheBucket = signaturesCaches[signature];
       for (let i=0; i < signaturesCacheBucket.length; i++) {
-        if (compareArraysShallow(signaturesCacheBucket[i].argumentList, functionArguments)) {
+        if (compareArraysShallow(signaturesCacheBucket[i].argumentList, argumentList)) {
           signaturesCacheBucket.splice(i, 1);
           return;
         }
@@ -73,7 +97,7 @@ export function createCachingFunction(observable) {
 
   function createNewRecord(signaturesCaches, {signature, unique, argumentList}, value) {
     if (unique) {
-      signaturesCaches[signature] = value;
+      signaturesCaches[signature] = { value };
     } else {
       let signaturesCacheBucket = signaturesCaches[signature];
       if (!signaturesCacheBucket) {
@@ -89,8 +113,9 @@ export function createCachingFunction(observable) {
     let signature  = "";
     argumentList.forEach(function (argument, index) {
       if (index > 0) signature += ",";
-      if (typeof(argument.causality) !== 'undefined') {
-        signature += "{id=" + argument.causality.id + "}";
+      const meta = argument !== null && typeof(argument) === "object" ? argument[objectMetaProperty] : undefined;
+      if (typeof(meta) !== 'undefined') {
+        signature += "{id=" + meta.id + "}";
       } else if (typeof(argument) === 'number' || typeof(argument) === 'string') {
         signature += argument;
       } else {
@@ -105,10 +130,12 @@ export function createCachingFunction(observable) {
   function caching(targetFunction) {
     const signaturesCaches = observable({});
 
-    return () => {
-      let argumentsList = argumentsToArray(arguments);
+    return function (...argumentList) {
       let argumentSignature = getArgumentSignature(argumentList);
-      if (!cacheRecordExists(signaturesCaches, argumentSignature)) {
+      // Whether it's there is not what the caller depends on - its value is
+      // (read below, after it's been computed): a reader depending on its
+      // absence would be invalidated by the very write that fills it.
+      if (!withoutRecording(() => cacheRecordExists(signaturesCaches, argumentSignature))) {
         invalidateOnChange(
           () => { 
             const value = targetFunction.apply(null, argumentList); // TODO: deal with already bound functions.

@@ -74,7 +74,7 @@ describe("writing reuse guard (a reused writing with live observers is retired, 
 
     model.trigger = true;
 
-    assert.equal(cRunCount, 2, "C's flagged dependency must still be resolved - by exitTimeLevel's own backstop sweep, since nothing ever calls linkRepeater on C in this test - and found genuinely different");
+    assert.equal(cRunCount, 2, "C's flagged dependency must still be resolved - though nothing ever calls linkRepeater on C in this test - and found genuinely different");
     assert.equal(cSeenValue, "changed");
   });
 

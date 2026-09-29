@@ -39,6 +39,14 @@ import { observable, repeat, refreshIfNeeded, accessInitialValues, withoutRecord
  * it fetches again, and only a different result invalidates those who read
  * it. A reader pulls the fetch before reading (refreshIfNeeded()), so it
  * never reads a result that is about to change.
+ *
+ * Speed over memory, deliberately: a fetch repeater lives as long as its
+ * context, whether its value is still read or not - the price of a
+ * re-pointed link (a provider removed upstream) that finds the same value
+ * disturbing no one. cascade.reactive's caching() is the memory-saving
+ * alternative, ready to use should that price ever matter more: entries
+ * cleared on the first change, gone until asked for again - at the cost of
+ * invalidating every reader on each change along the chain.
  */
 export class RenderContext {
   constructor(provided = null, parent = null) {

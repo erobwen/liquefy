@@ -2,8 +2,6 @@ import { argumentsToArray, configSignature, mergeInto } from "./lib/utility.js";
 import { objectlog } from "./lib/objectlog.js";
 import { createCachingFunction } from "./lib/caching.js";
 import { defaultDependencyInterfaceCreator } from "./lib/defaultDependencyInterface.js";
-// import { traceWarnings } from "../flow.core/Flow.js";
-// import { logMark } from "../flow.core/utility.js";
 const defaultObjectlog = objectlog;
 
 
@@ -18,7 +16,6 @@ const defaultConfiguration = {
   requireRepeaterName: false,
   requireInvalidatorName: false,
   warnOnNestedRepeater: true,
-  alwaysDependOnParentRepeater: false,
 
   timeLevels: 4,
 
@@ -90,8 +87,6 @@ function createWorld(configuration) {
     // Repeaters
     inRepeater: null,
     refreshingAllDirtyRepeaters: false,
-    workOnTimeLevel: [...Array(configuration.timeLevels).keys()].map(() => 0),
-    revalidationTimeLock: -1,
 
     // The repeater work scheduler - see "Repeater scheduling: pipelines,
     // wavefronts, parking" below for the full design. One {active, parked}
@@ -103,12 +98,7 @@ function createWorld(configuration) {
       active: { first: null, last: null },
       parked: { first: null, last: null },
     })),
-    // Separate from revalidationTimeLock above (which belongs to the
-    // older, general context-enter/exit bookkeeping - see enterTimeLevel/
-    // exitTimeLevel - and is left alone here specifically so this new
-    // scheduler's own lock can't be perturbed by that unrelated
-    // machinery, the same bug class already found and fixed once this
-    // session when the two were briefly conflated).
+    // How far the current wave has got - see "Repeater scheduling" below.
     workQueueTimeLock: -1,
     // The chainHead currently being drained by drainActivePipeline(), if
     // any - see scheduleWork()'s own use of it to detect "is new work
@@ -147,7 +137,6 @@ function createWorld(configuration) {
     observable,
     deeplyObservable,
     isObservable,
-    create: observable, // observable alias
     invalidateOnChange,
     repeat,
     linkRepeater,
@@ -165,20 +154,17 @@ function createWorld(configuration) {
     refreshIfNeeded,
 
     // Transaction
-    doWhileInvalidationsPostponed: postponeInvalidationsAndDo,
     transaction : postponeInvalidationsAndDo,
     postponeInvalidations,
     continueInvalidations,
 
     // Debugging and testing
-    clearRepeaterLists,
     
     // Logging (these log commands do automatic withoutRecording to avoid your logs destroying your test-setup) 
     log,
     loge : (string) => { usedObjectlog.loge(string) }, // "event"
     logs : () => { usedObjectlog.logs() }, // "separator"
     logss : () => { usedObjectlog.logss() },
-    logsss : () => { usedObjectlog.logss() },
     logGroup,
     logUngroup,
     logToString,
@@ -194,16 +180,10 @@ function createWorld(configuration) {
     seekTimelineWriting: seekWriting,
     enumerationTimelineKey,
     proceedWithPostponedInvalidations, 
-    nextObserverId: () => { return state.observerId++ },
 
     // Libraries
-    caching: createCachingFunction(observable),
-
-    // Time levels 
-    enterTimeLevel,
-    exitTimeLevel,
-    workOnTimeLevel
-  }; 
+    caching: createCachingFunction(observable, invalidateOnChange, withoutRecording, configuration.objectMetaProperty),
+  };  
 
 
   /***************************************************************
@@ -420,47 +400,6 @@ function createWorld(configuration) {
 
   /**********************************
    *
-   *   Time Levels
-   *
-   **********************************/
-
-  function enterTimeLevel(level) {
-    if (typeof(level) !== "number") {
-      const context = level; 
-      level = (typeof(context.time) === "function") ? context.time() : 0;
-    }
-    state.workOnTimeLevel[level]++
-  } 
-
-  function exitTimeLevel(level) {
-    if (typeof(level) !== "number") {
-      const context = level; 
-      level = (typeof(context.time) === "function") ? context.time() : 0;
-    }
-    state.workOnTimeLevel[level]--
-
-    // Handle finished time levels.
-    let first = true;
-    while (level < state.workOnTimeLevel.length && state.workOnTimeLevel[level] === 0) {
-      // if (!first) logMark("No work on next level, signaling early finish.");
-      if (typeof(configuration.onFinishedTimeLevel) === "function") {
-        configuration.onFinishedTimeLevel(level, first);
-      }
-      state.revalidationTimeLock = level;
-      level++;
-      first = false;
-    }
-  }
-
-  function workOnTimeLevel(level, action) {
-    enterTimeLevel(level);
-    action();
-    exitTimeLevel(level);
-  }
-
-
-  /**********************************
-   *
    *   Causality Global stacklets
    *
    **********************************/
@@ -470,34 +409,20 @@ function createWorld(configuration) {
     state.inRepeater = (state.context && state.context.type === "partial") ? state.context.repeater : null;
   }
 
-  // function stackDescription() {
-  //   const descriptions = [];
-  //   let context = state.context;
-  //   while (context) {
-  //     descriptions.unshift(context.description);
-  //     context = context.parent;
-  //   }
-  //   return descriptions.join(" | ");
-  // }
-
   function enterContext(enteredContext) {
-    // console.log("stack: [" + stackDescription() + "]");
     enteredContext.parent = state.context;
     state.context = enteredContext;
     updateContextState();
-    enterTimeLevel(enteredContext);
     return enteredContext;
   }
 
   function leaveContext( activeContext ) {
-    // console.log("stack: [" + stackDescription() + "]");
     if( state.context && activeContext === state.context ) {
       state.context = state.context.parent;
     } else {
       throw new Error("Context missmatch");
     }
     updateContextState();
-    exitTimeLevel(activeContext);
   }
 
 
@@ -2307,11 +2232,6 @@ function createWorld(configuration) {
           // created fresh instead, and the established one is disposed (see
           // finishRebuilding()'s dispose pass).
           && Object.getPrototypeOf(repeater.buildIdObjectMap[buildId][objectMetaProperty].target) === Object.getPrototypeOf(target)
-          && (!repeater.options.rebuildShapeAnalysis // Note: reject identity reuse if objects are too different (allowMatch() returns false)
-            || !repeater.options.rebuildShapeAnalysis.allowMatch 
-            || withoutRecording(
-              () => repeater.options.rebuildShapeAnalysis.allowMatch(repeater.buildIdObjectMap[buildId], proxy)
-            ))
           ) {
 
           // Build identity previously created
@@ -2480,7 +2400,6 @@ function createWorld(configuration) {
             state.lastObserverToInvalidate = null;
           }
           observer.invalidateAction();
-          exitTimeLevel(observer);
         }
       } finally {
         state.postponeRefreshRepeaters--;
@@ -2514,24 +2433,12 @@ function createWorld(configuration) {
     }
 
     if (!observerActive) {
-      // if( trace.contextMismatch && state.context && state.context.id ){
-      //   console.log("invalidateObserver mismatch " + observer.type, observer.id||'');
-      //   if( !state.context ) console.log('current state.context null');
-      //   else {
-      //     console.log("current state.context " + state.context.type, state.context.id||'');
-      //     if( state.context.parent ){
-      //       console.log("parent state.context " + state.context.parent.type, state.context.parent.id||'');
-      //     }
-      //   }
-      // }
-      
       observer.invalidatedInContext = state.context;
       observer.invalidatedByKey = key;
       observer.invalidatedByObject = proxy;
       observer.dispose(); // Cannot be any more dirty than it already is!
 
       if (state.postponeInvalidation > 0) {
-        enterTimeLevel(observer);
         if (state.lastObserverToInvalidate !== null) {
           state.lastObserverToInvalidate.nextToNotify = observer;
         } else {
@@ -2564,10 +2471,7 @@ function createWorld(configuration) {
 
   function defaultCreateInvalidator(description, doAfterChange) {
     return {
-      createdCount:0,
-      createdTemporaryCount:0,
-      removedCount:0,
-      isRecording: true,  
+      isRecording: true,    
       type: 'invalidator',
       id: state.observerId++,
       description: description,
@@ -3179,10 +3083,7 @@ function createWorld(configuration) {
 
   function defaultCreateRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding) {
     return {
-      createdCount:0,
-      createdTemporaryCount:0,
-      removedCount:0,
-      isRecording: true,
+      isRecording: true,  
       type: "repeater",
       id: state.observerId++,
       firstTime: true,
@@ -3288,7 +3189,7 @@ function createWorld(configuration) {
       inHeap: false,
       inATimeBucket: false,
       nextToNotify: null,
-      repeaterAction : modifyRepeaterAction(repeaterAction, options),
+      repeaterAction,
       nonRecordedAction: repeaterNonRecordingAction,
       options: options ? options : {},
       finishRebuilding() {
@@ -3319,13 +3220,6 @@ function createWorld(configuration) {
         const effectString = "" + this.description + "";
 
         return "(" + contextString + ")" + causeString + " --> " +  effectString;
-      },
-      creationString() {
-        let result = "{";
-        result += "created: " + this.createdCount + ", ";
-        result += "createdTemporary:" + this.createdTemporaryCount + ", ";
-        result += "removed:" + this.removedCount + "}";
-        return result;
       },
       sourcesString() {
         let result = "";
@@ -3436,28 +3330,12 @@ function createWorld(configuration) {
         }
         this.currentPartial = null;
       },
-      notifyDisposeToCreatedObjects() {
-        if (this.idObjectShapeMap) {
-          for(let id in this.idObjectShapeMap) {
-            dispose(this.idObjectShapeMap[id]);
-          }
-        } else if (this.buildIdObjectMap) {
-          for (let key in this.buildIdObjectMap) {
-            dispose(this.buildIdObjectMap[key]);
-          }
-        }
-      },
-      lastRepeatTime: 0,
-      waitOnNonRecordedAction: 0,
       refresh() {
         const repeater = this; 
         const options = repeater.options;
         if (options.onRefresh) options.onRefresh(repeater);
         
         repeater.finishedRebuilding = false;
-        repeater.createdCount = 0;
-        repeater.createdTemporaryCount = 0;
-        repeater.removedCount = 0;
 
         // Reconciliation (if any) starts from the front of the previous
         // run's still-fully-intact sequence, consumed one partial/child at
@@ -3544,20 +3422,7 @@ function createWorld(configuration) {
         finalizeChildren(repeater);
 
         // Non recorded action (only effect)
-        const { debounce=0, fireImmediately=true } = options; 
-        if (repeater.nonRecordedAction !== null) {
-          if (debounce === 0 || this.firstTime) {
-            if (fireImmediately || !this.firstTime) repeater.nonRecordedAction( repeater.returnValue );
-          } else {
-            if (repeater.waitOnNonRecordedAction) clearTimeout(repeater.waitOnNonRecordedAction);
-            repeater.waitOnNonRecordedAction = setTimeout(() => {
-              repeater.nonRecordedAction( repeater.returnValue );
-              repeater.waitOnNonRecordedAction = null;
-            }, debounce);
-          }
-        } else if (debounce > 0) {
-          throw new Error("Debounce has to be used together with a non-recorded action.");
-        }
+        if (repeater.nonRecordedAction !== null) repeater.nonRecordedAction( repeater.returnValue );
 
         this.firstTime = false;
         } catch (error) {
@@ -3996,24 +3861,6 @@ function createWorld(configuration) {
     return object; 
   }
 
-  function modifyRepeaterAction(repeaterAction, {throttle=0}) {
-    if (throttle > 0) {
-      return function(repeater) {
-        let time = Date.now();
-        const timeSinceLastRepeat = time - repeater.lastRepeatTime;
-        if (throttle > timeSinceLastRepeat) {
-          const waiting = throttle - timeSinceLastRepeat;
-          setTimeout(() => { repeater.restart() }, waiting);
-        } else {
-          repeater.lastRepeatTime = time;
-          return repeaterAction();
-        }
-      }
-    } 
-
-    return repeaterAction;
-  }
-
   function repeat() { // description(optional), action
     // Arguments
     let description = '';
@@ -4309,7 +4156,7 @@ function createWorld(configuration) {
   function scheduleThroughPuller(repeater) {
     const pulledBy = repeater.options.pulledBy;
     const puller = typeof(pulledBy) === "function" ? pulledBy() : pulledBy;
-    if (!puller || puller.disposed) return false;
+    if (!puller) return false;
     if (puller.retracted) return true;
     // Running right now: its action is executing (isRecording). Walking
     // state.context up to it isn't enough on its own - a write at initial
@@ -4392,18 +4239,6 @@ function createWorld(configuration) {
     refreshAllDirtyRepeaters();
   }
 
-  function clearRepeaterLists() {
-    state.observerId = 0;
-    state.workQueue.forEach((levelBuckets) => {
-      levelBuckets.active.first = null;
-      levelBuckets.active.last = null;
-      levelBuckets.parked.first = null;
-      levelBuckets.parked.last = null;
-    });
-    state.workQueueTimeLock = -1;
-    state.activePipeline = null;
-    state.waveRetreated = false;
-  }
 
   // Record that `entry` (still sitting, untouched, in
   // `previousWriting.observers`) might belong on a closer writing instead
@@ -4626,7 +4461,7 @@ function createWorld(configuration) {
   // input not yet invalidated, get its stale result, and have to rerun
   // once more when its own partial finally closes.
   function refreshIfNeeded(repeater) {
-    if (repeater.retracted || repeater.disposed) return repeater;
+    if (repeater.retracted) return repeater;
     if (state.context !== null && state.context.type === "partial") {
       finalizeTouchedStaleWritings(state.context);
     }
@@ -4707,7 +4542,7 @@ function createWorld(configuration) {
     while (chainHead.heap.length > 0) {
       const repeater = heapPopMin(chainHead.heap);
       repeater.inHeap = false;
-      if (repeater.disposed || repeater.retracted) continue; // gone since it was queued
+      if (repeater.retracted) continue; // gone since it was queued
       if (repeater.workStatus === null) continue; // the lazy-pruning discard - an ancestor's own refresh already reached and handled it
       chainHead.wavefront = repeater.firstPartial;
       processRepeater(repeater);

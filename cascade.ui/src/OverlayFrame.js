@@ -118,22 +118,11 @@ export class OverlayFrame extends Component {
     }
   }
 
-  // Replace this frame's own static content in place - used when the
-  // *same* modalSubFrame is reused for new overlay content (see build()
-  // below) rather than tearing the sub-frame down and recreating it,
-  // which would also retract and rebuild everything recursively nested
-  // inside it for no reason.
-  setStaticContent(staticContent) {
-    this.staticContent = frozen(staticContent instanceof Array ? staticContent : [staticContent]);
-  }
-
   build() {
     if (this.assignedOverlayContent && this.receivedOverlayContent) {
       throw new Error("Cannot both assign overlay content via showOverlay() and set it as a property on the same overlay frame.");
     }
     const overlayContent = this.assignedOverlayContent || this.receivedOverlayContent;
-
-    // const u = this.unobservable;
 
     const children = [...this.staticContent];
 

@@ -15,6 +15,7 @@ import { StorePage } from "./src/pages/StorePage.js";
 import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
 import { ToolbarEllipsisPage } from "./src/pages/ToolbarEllipsisPage.js";
 import { rootServiceLocator } from "./src/services.js";
+import { showVersionNotice } from "./src/versionNotice.js";
 import faviconSvg from "../../cascade/images/favicon.svg";
 import faviconPng from "../../cascade/images/favicon.png";
 
@@ -39,8 +40,11 @@ for (const [rel, type, href, sizes] of [
 // div lands as a *direct* child of #application, with no intermediate
 // bridging div in between.
 //
-// Where it all goes: the #application element.
-const target = DOMElementTarget.forElement(document.getElementById("application"));
+// Where it all goes: the #application element - below a notice, where the
+// demo is the one deployed from main (see src/versionNotice.js).
+const application = document.getElementById("application");
+showVersionNotice(application);
+const target = DOMElementTarget.forElement(application);
 
 // The services every component in the app gets (HTML elements, the current
 // theme's widgets, ...) are provided from here, by the root render context

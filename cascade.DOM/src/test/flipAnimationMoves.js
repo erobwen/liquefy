@@ -489,6 +489,33 @@ describe("FlipAnimationContainer animations", function () {
     assert.ok(half > full * 1.7 && half < full * 2.3, "full speed " + full + " frames, half speed " + half);
   });
 
+  it("a container's own speed overrides FlipAnimationContainer.speed - and changing it places nothing again", function () {
+    class Paced extends Component {
+      initializeState() {
+        return { a: ["one", "two", "three"], speed: 1 };
+      }
+      build() {
+        const item = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
+        return flipAnimationContainer({ key: "flip", speed: this.speed }, div({ key: "listA" }, this.a.map(item)));
+      }
+    }
+    const framesToRest = (speed) => {
+      FlipAnimationContainer.speed = 1;
+      container.innerHTML = "";
+      const paced = new Paced();
+      paced.renderOnto(new DOMElementTarget(container));
+      paced.speed = speed;
+      assert.equal(frames.length, 0, "a new speed alone animates nothing");
+      paced.a = ["three", "one", "two"];
+      let count = 0;
+      while (frames.length > 0 && count < 1000) { runFrames(1); count++; }
+      return count;
+    };
+    const full = framesToRest(1);
+    const half = framesToRest(0.5);
+    assert.ok(half > full * 1.7 && half < full * 2.3, "full speed " + full + " frames, half speed " + half);
+  });
+
   it("while the container isn't in the page, it just places - nothing animates", function () {
     const { lists, element } = setup();
     container.remove();

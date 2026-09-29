@@ -1,5 +1,5 @@
 import { Component, callback, deeplyObservable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
-import { div, text, button as htmlButton, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, span, text, input, button as htmlButton, flipAnimationContainer } from "@liquefy/cascade.dom";
 import {
   button, card, controlPanel, icon, iconButton, alert, textField, checkbox,
   row, column, filler, fitContainerStyle, themeColor,
@@ -46,8 +46,8 @@ const information = {
 export class ReactiveFormPage extends Component {
   initializeState() {
     // Whether Submit has been pressed (so errors are shown), whether to
-    // animate, and the message after a successful submit.
-    return { verifying: false, animate: true, sent: null };
+    // animate - and how fast - and the message after a successful submit.
+    return { verifying: false, animate: true, speed: 1, sent: null };
   }
 
   addTraveler() {
@@ -129,7 +129,7 @@ export class ReactiveFormPage extends Component {
       div(
         { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
         this.animate
-          ? flipAnimationContainer({ key: "form", style: formStyle }, form)
+          ? flipAnimationContainer({ key: "form", style: formStyle, speed: this.speed }, form)
           : column({ key: "plainForm", style: formStyle }, form),
       ),
       // Beside the form, not in it: how the demo is shown, and the model's
@@ -138,7 +138,29 @@ export class ReactiveFormPage extends Component {
         { key: "side", style: { gap: pageGap, flex: "none", width: wide ? "40%" : "auto", maxWidth: "420px", height: "100%", boxSizing: "border-box" } },
         card(
           { key: "demoControls", style: { margin: "2px 2px 0 0" } },
-          checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
+          row(
+            { key: "demoControlsRow", style: { alignItems: "center", gap: "12px", flexWrap: "wrap" } },
+            checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
+            // How fast the animation runs - 1 is its springs' natural pace.
+            row(
+              { key: "speed", style: { alignItems: "center", gap: "8px", flex: "1 1 160px", opacity: this.animate ? 1 : 0.5 } },
+              span({ key: "speedLabel" }, text({ key: "speedLabelText", text: "Speed" })),
+              input({
+                key: "speedSlider",
+                type: "range",
+                min: 0.1,
+                max: 2,
+                step: 0.1,
+                value: this.speed,
+                disabled: !this.animate,
+                title: "Animation speed",
+                oninput: callback("speed", (event) => { this.speed = Number(event.target.value); }),
+                style: { flex: "1 1 auto", minWidth: "80px", margin: 0, accentColor: themeColor.chrome },
+              }),
+              span({ key: "speedValue", style: { minWidth: "36px", textAlign: "right", fontVariantNumeric: "tabular-nums" } },
+                text({ key: "speedValueText", text: this.speed.toFixed(1) + "×" })),
+            ),
+          ),
         ),
         new ModelDataDisplay({ key: "modelData" }).show(wide),
       ),

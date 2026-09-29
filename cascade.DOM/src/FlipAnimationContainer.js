@@ -1,3 +1,4 @@
+import { withoutRecording } from "@liquefy/cascade.component";
 import { DOMPlacingContainer } from "./DOMPlacingContainer.js";
 import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 
@@ -47,6 +48,16 @@ export function flipAnimationContainer(...parameters) {
  * element, in the box the container gives them.
  */
 export class FlipAnimationContainer extends DOMPlacingContainer {
+  // `speed`: how fast its animations run - a factor, like
+  // FlipAnimationContainer.speed (below), which it overrides for this
+  // container: 1 is the springs' natural pace. Only read as frames are
+  // drawn, so changing it never places anything again - animations under
+  // way just go on at the new pace.
+  setProperties({ speed, ...rest }) {
+    super.setProperties(rest);
+    this.speed = typeof(speed) === "number" ? speed : null;
+  }
+
   initialUnobservables() {
     const result = super.initialUnobservables();
     // Per animating element - see startAnimations().
@@ -283,8 +294,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     if (u.springs.size === 0 && u.ghosts.size === 0) return;
     const now = FlipAnimationContainer.clock.now();
     // Capped, so a frame after the tab was in the background doesn't fling
-    // everything past its target; slowed down by SPEED.
-    let remaining = Math.min((now - u.lastFrameTime) / 1000, 0.05) * FlipAnimationContainer.speed;
+    // everything past its target; scaled by its speed.
+    const speed = withoutRecording(() => this.speed);
+    let remaining = Math.min((now - u.lastFrameTime) / 1000, 0.05) * (speed !== null && typeof(speed) === "number" ? speed : FlipAnimationContainer.speed);
     while (remaining > 0) {
       const step = Math.min(remaining, SPRING_STEP);
       for (const spring of u.springs.values()) advanceSpring(spring, step);
@@ -332,8 +344,9 @@ FlipAnimationContainer.clock = {
   requestFrame: (callback) => requestAnimationFrame(callback),
 };
 
-// How fast animations run: 1 is the springs' natural pace; the demo runs at
-// half that, so what happens is easier to follow.
+// How fast animations run, unless a container says otherwise (its `speed`):
+// 1 is the springs' natural pace; the demo runs at half that, so what
+// happens is easier to follow.
 FlipAnimationContainer.speed = 0.5;
 
 // Its islands' holders are marked as its own.

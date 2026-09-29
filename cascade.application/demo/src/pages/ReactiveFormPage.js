@@ -1,8 +1,8 @@
 import { Component, callback, deeplyObservable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
-import { div, span, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, button as htmlButton, flipAnimationContainer } from "@liquefy/cascade.dom";
 import {
   button, card, controlPanel, icon, iconButton, alert, textField, checkbox,
-  row, column, filler, fitContainerStyle,
+  row, column, filler, fitContainerStyle, themeColor,
 } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { pageGap, pagePadding, sectionTitle } from "../components/layout.js";
@@ -222,66 +222,130 @@ class TravelerForm extends Component {
         count: traveler.luggages.length,
         isOpen: this.showLuggage,
         toggleOpen: callback("toggleLuggage", () => { this.showLuggage = !this.showLuggage; }),
-        content: traveler.luggages.map((luggage) => new LuggageForm({
+        onAdd: callback("addLuggage", () => this.addLuggage()),
+        content: traveler.luggages.map((luggage, index) => new LuggageForm({
           key: "luggage" + luggage.id,
           luggage,
+          number: index + 1,
           onRemove: callback("removeLuggage" + luggage.id, () => { traveler.luggages.splice(traveler.luggages.indexOf(luggage), 1); }),
         })),
-      }).show(traveler.luggages.length > 0),
-
-      row(
-        { key: "addLuggageRow" },
-        filler({ key: "addLuggageFiller" }),
-        button(
-          { key: "addLuggage" },
-          icon({ key: "addLuggageIcon", name: "add" }),
-          text({ key: "addLuggageText", text: "Add luggage" }),
-          callback("addLuggage", () => this.addLuggage()),
-        ),
-      ).show(traveler.luggages.length === 0 || this.showLuggage),
+      }),
     );
   }
 }
 
+const luggageCardWidth = "150px";
+
 /**
- * Luggage drawer - a button opening and closing it, and the luggage in it.
+ * Luggage drawer - a header opening and closing it (a title and a count on
+ * the left, a chevron on the right, the whole header clickable), and the
+ * luggage in it: a card each, side by side until they wrap, and a tile
+ * adding another at the end.
+ *
+ * With no luggage there's nothing to open: the header just says so, and
+ * the add button takes the chevron's place, small. It's one and the same
+ * button in both places (built here, by key), so adding the first piece
+ * of luggage moves it - and grows it - into the list, rather than
+ * replacing it.
  */
 class LuggageDrawer extends Component {
-  setProperties({ count, isOpen, toggleOpen, content }) {
+  setProperties({ count, isOpen, toggleOpen, onAdd, content }) {
     this.count = count;
     this.isOpen = !!isOpen;
     this.toggleOpen = toggleOpen;
+    this.onAdd = onAdd;
     this.content = content || [];
   }
 
   build() {
+    const empty = this.count === 0;
+    // Its click mustn't reach the header: adding the first piece rebuilds
+    // straight away, while the click is still on its way up - and by then
+    // the header toggles, and would close the drawer just opened.
+    const onAdd = callback("add", (event) => {
+      event.stopPropagation();
+      this.onAdd();
+    });
+    const add = htmlButton(
+      {
+        key: "add",
+        title: "Add luggage",
+        onclick: onAdd,
+        style: {
+          display: "flex", flexDirection: empty ? "row" : "column", alignItems: "center", justifyContent: "center", gap: empty ? "4px" : "2px",
+          ...(empty ? { height: "32px", padding: "0 12px 0 8px" } : { width: luggageCardWidth, minHeight: "96px", padding: "8px" }),
+          boxSizing: "border-box", margin: 0, font: "inherit", fontSize: "13px", color: themeColor.textSoft, background: "transparent",
+          border: "2px dashed " + themeColor.borderStrong, borderRadius: "8px", cursor: "pointer",
+        },
+      },
+      icon({ key: "addIcon", name: "add", style: { fontSize: empty ? "20px" : "40px" } }),
+      text({ key: "addText", text: "Add luggage" }),
+    );
+
     return column(
-      { key: "drawer", style: { gap: "10px" } },
-      button(
-        { key: "toggle", style: { justifyContent: "space-between" } },
-        span({ key: "toggleLabel" }, text({ key: "toggleText", text: this.isOpen ? "Hide luggage" : "Show luggage (" + this.count + ")" })),
-        icon({ key: "toggleIcon", name: this.isOpen ? "expand_less" : "expand_more" }),
-        this.toggleOpen,
+      { key: "drawer", style: { gap: "10px", paddingTop: "8px", borderTop: "1px solid " + themeColor.border } },
+      // A click on the chevron reaches the header too: one toggle, and the
+      // chevron is what the keyboard focuses.
+      row(
+        {
+          key: "header",
+          onclick: empty ? null : this.toggleOpen,
+          style: { alignItems: "center", gap: "8px", minHeight: "36px", cursor: empty ? "default" : "pointer", userSelect: "none" },
+        },
+        icon({ key: "headerIcon", name: empty ? "no_luggage" : "luggage", style: { color: themeColor.textSoft } }),
+        div(
+          { key: "headerTitle", style: { fontWeight: 500, color: empty ? themeColor.textSoft : "inherit" } },
+          text({ key: "headerTitleText", text: empty ? "No luggage" : "Luggage" }),
+        ),
+        div(
+          {
+            key: "count",
+            style: {
+              minWidth: "20px", padding: "1px 7px", borderRadius: "10px", boxSizing: "border-box", textAlign: "center",
+              fontSize: "12px", fontWeight: "bold", background: themeColor.accentSoft, color: themeColor.accentDark,
+            },
+          },
+          text({ key: "countText", text: String(this.count) }),
+        ).show(!empty),
+        filler({ key: "headerFiller" }),
+        empty
+          ? add
+          : iconButton({ key: "toggle", icon: this.isOpen ? "expand_less" : "expand_more", title: this.isOpen ? "Hide luggage" : "Show luggage" }),
       ),
-      column({ key: "luggageList", style: { gap: "10px" } }, this.content).show(this.isOpen),
+      div(
+        { key: "luggageList", style: { display: "flex", flexWrap: "wrap", gap: "10px" } },
+        ...this.content,
+        empty ? null : add,
+      ).show(this.isOpen && !empty),
     );
   }
 }
 
 /**
- * Luggage form - one piece of luggage: its weight.
+ * Luggage form - one piece of luggage, on a card of its own: its weight,
+ * and a button removing it at the top right.
  */
 class LuggageForm extends Component {
-  setProperties({ luggage, onRemove }) {
+  setProperties({ luggage, number, onRemove }) {
     this.luggage = luggage;
+    this.number = number;
     this.onRemove = onRemove;
   }
 
   build() {
     const luggage = this.luggage;
-    return row(
-      { key: "luggage", style: { alignItems: "center", gap: "12px" } },
-      icon({ key: "luggageIcon", name: "luggage", style: { flex: "none" } }),
+    return card(
+      {
+        key: "luggage",
+        variant: "filled",
+        style: { display: "flex", flexDirection: "column", gap: "4px", width: luggageCardWidth, padding: "4px 4px 12px 12px" },
+      },
+      row(
+        { key: "luggageHeader", style: { alignItems: "center", gap: "6px" } },
+        icon({ key: "luggageIcon", name: "luggage", style: { fontSize: "20px", color: themeColor.textSoft } }),
+        filler({ key: "luggageTitle", style: { fontSize: "13px", fontWeight: 500 } }, text({ key: "luggageTitleText", text: "Bag " + this.number })),
+        iconButton({ key: "remove", icon: "close", title: "Remove luggage", onClick: this.onRemove }),
+      ),
       textField({
         key: "weight",
         label: "Weight",
@@ -290,8 +354,6 @@ class LuggageForm extends Component {
         value: luggage.weight,
         onInput: callback("weight", (value) => { if (value !== "") luggage.weight = Number(value); }),
       }),
-      filler({ key: "luggageFiller" }),
-      iconButton({ key: "remove", icon: "close", title: "Remove luggage", onClick: this.onRemove }),
     );
   }
 }

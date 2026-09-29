@@ -1,6 +1,6 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { Component, RenderContext, observable } from "@liquefy/cascade.component";
+import { Component, observable } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { OverflowContainer, DOMElementSlot } from "../OverflowContainer.js";
 import { div, span } from "../HTMLTags.js";
@@ -47,8 +47,9 @@ describe("OverflowContainer", function () {
   // what doesn't fit - the count reported, as a toolbar would show it.
   function setup(widths, rowWidth) {
     layout.rowWidth = rowWidth;
-    // The width a bounds provider around it would provide.
-    const context = new RenderContext(observable({ width: rowWidth }));
+    // Placed on a measured element, as a bounds provider would place it.
+    const target = new DOMElementTarget(container);
+    target.timeless = observable({ width: rowWidth });
     const reported = [];
     class Toolbar extends Component {
       initialUnobservables() {
@@ -67,10 +68,10 @@ describe("OverflowContainer", function () {
       }
     }
     const toolbar = new Toolbar();
-    toolbar.renderOnto(new DOMElementTarget(container), context);
+    toolbar.renderOnto(target);
     const names = (element) => Array.from(element.children).map((each) => each.textContent);
     return {
-      context, reported,
+      target, reported,
       inRow: () => names(rowElement),
       inSlot: () => names(toolbar.unobservable.slot.ensureNode()),
     };
@@ -99,14 +100,14 @@ describe("OverflowContainer", function () {
   });
 
   it("follows its width: narrower, fewer - wider again, all back - the same elements throughout", function () {
-    const { context, inRow, inSlot, reported } = setup([40, 60, 40, 50], 1000);
+    const { target, inRow, inSlot, reported } = setup([40, 60, 40, 50], 1000);
     const first = Array.from(rowElement.children);
     layout.rowWidth = 150;
-    context.provided.width = 150;
+    target.timeless.width = 150;
     assert.deepEqual(inRow(), ["t0", "t1", "..."]);
     assert.deepEqual(inSlot(), ["t2", "t3"]);
     layout.rowWidth = 1000;
-    context.provided.width = 1000;
+    target.timeless.width = 1000;
     assert.deepEqual(inRow(), ["t0", "t1", "t2", "t3"]);
     assert.deepEqual(Array.from(rowElement.children), first, "the very same elements");
     assert.deepEqual(reported, [2, 0]);

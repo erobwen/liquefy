@@ -61,9 +61,10 @@ export class OverflowContainer extends DOMPlacingContainer {
   render(target, context) {
     super.render(target, context);
     const u = this.unobservable;
-    // Read, so that a resize (a bounds provider around it measuring) lays
-    // it out again - though the room itself is measured on its own element.
-    this.inherit("width");
+    // Read, so that a resize (a bounds provider around it measuring the
+    // element it's placed in) lays it out again - though the room itself
+    // is measured on its own element.
+    if (target.timeless) target.timeless.width;
 
     const { placements, placedBefore } = this.expandSubtree(context);
     const ellipsisPlacements = [];

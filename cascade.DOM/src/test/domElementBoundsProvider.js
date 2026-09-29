@@ -1,14 +1,37 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { RenderContext, Component } from "@liquefy/cascade.component";
+import { Component } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMElementBoundsProvider } from "../DOMElementBoundsProvider.js";
+import { div } from "../HTMLTags.js";
 
-// jsdom does no real layout, so getBoundingClientRect() always reports
-// {width: 0, height: 0, ...} - fine for the first assertion below (only
-// the plumbing is under test, not real measurement - see menuFrame.js's
-// own test for the same caveat), and stubbed with a fake value afterwards
-// to exercise the resize-driven re-measurement path.
+// jsdom does no layout and has no ResizeObserver - so a stand-in one,
+// reporting whatever size a test says an element has, as a browser's would
+// after layout (see DOMElementTarget.observeBounds()).
+class FakeResizeObserver {
+  constructor(callback) {
+    this.callback = callback;
+    this.elements = new Set();
+    FakeResizeObserver.all.add(this);
+  }
+  observe(element) {
+    this.elements.add(element);
+  }
+  disconnect() {
+    this.elements.clear();
+    FakeResizeObserver.all.delete(this);
+  }
+  static report(element, width, height) {
+    for (const observer of FakeResizeObserver.all) {
+      if (observer.elements.has(element)) observer.callback([{ target: element, contentRect: { width, height } }]);
+    }
+  }
+  static observing(element) {
+    return [...FakeResizeObserver.all].some((observer) => observer.elements.has(element));
+  }
+}
+FakeResizeObserver.all = new Set();
+
 describe("DOMElementBoundsProvider", function () {
   let container;
   let dom;
@@ -17,58 +40,73 @@ describe("DOMElementBoundsProvider", function () {
     dom = new JSDOM("<!DOCTYPE html><body></body>");
     global.document = dom.window.document;
     global.window = dom.window;
+    dom.window.ResizeObserver = FakeResizeObserver;
+    FakeResizeObserver.all.clear();
     container = document.createElement("div");
+    document.body.appendChild(container);
   });
 
-  // Inherits the bounds from build() rather than render() - exercised end
-  // to end here rather than just at the unit level.
+  // Reads the size of the element it's placed in from build().
   class Probe extends Component {
     build() {
       this.unobservable.buildCount = (this.unobservable.buildCount || 0) + 1;
-      this.unobservable.lastWidth = this.inherit("width");
-      this.unobservable.lastHeight = this.inherit("height");
+      this.unobservable.lastWidth = this.fromTarget("width");
+      this.unobservable.lastHeight = this.fromTarget("height");
       return null;
     }
   }
 
-  it("provides measured bounds to its child, found with inherit() from build()", function () {
-    const target = new DOMElementTarget(container);
+  it("its child's first build already gets the size - and the observer follows every change after that", function () {
     const probe = new Probe();
-    const provider = new DOMElementBoundsProvider({ className: "bounds-provider", child: probe });
-
-    provider.renderOnto(target);
-
+    const provider = new DOMElementBoundsProvider({ className: "bounds-provider", style: { width: "640px", height: "480px" }, child: probe });
+    provider.renderOnto(new DOMElementTarget(container));
+    const element = provider.unobservable.element;
+    assert.equal(container.querySelector(".bounds-provider"), element);
+    assert.ok(FakeResizeObserver.observing(element));
     assert.equal(probe.unobservable.buildCount, 1);
-    assert.equal(probe.unobservable.lastWidth, 0);
-    assert.equal(probe.unobservable.lastHeight, 0);
-    assert.equal(container.querySelector(".bounds-provider"), provider.unobservable.element);
-  });
-
-  it("re-measures on window resize and reruns the child that read the bounds", function () {
-    const target = new DOMElementTarget(container);
-    const probe = new Probe();
-    const provider = new DOMElementBoundsProvider({ child: probe });
-
-    provider.renderOnto(target);
-    assert.equal(probe.unobservable.buildCount, 1);
-
-    provider.unobservable.element.getBoundingClientRect = () => ({ width: 640, height: 480 });
-    dom.window.dispatchEvent(new dom.window.Event("resize"));
-
-    // measure() writes width then height as two separate, unbatched writes
-    // (see DOMElementBoundsProvider.js's own comment on why they can't be
-    // batched here), so a child reading both - like Probe - reruns once per
-    // field: a harmless extra rerun on a momentarily torn pair, not a
-    // correctness issue, since both fields are consistent by the last one.
-    assert.equal(probe.unobservable.buildCount, 3);
-    assert.equal(probe.unobservable.lastWidth, 640);
+    assert.equal(probe.unobservable.lastWidth, 640, "measured when first rendered");
     assert.equal(probe.unobservable.lastHeight, 480);
+
+    FakeResizeObserver.report(element, 640, 480);
+    assert.equal(probe.unobservable.buildCount, 1, "the observer's first report finds the same size: nothing to build");
+
+    FakeResizeObserver.report(element, 300, 480);
+    assert.equal(probe.unobservable.lastWidth, 300);
+    assert.equal(probe.unobservable.buildCount, 2);
   });
 
-  it("still follows resizes after being rendered again - by a rebuild of its creator, say (a theme switch)", function () {
-    // Rendered again, it measures again - that measurement must land where
-    // the resize listener's do, or every resize after it would be shadowed
-    // by it and never reach the child.
+  it("measures its content box: a border-box element's padding and border aren't room", function () {
+    const probe = new Probe();
+    const provider = new DOMElementBoundsProvider({
+      style: { boxSizing: "border-box", width: "240px", height: "140px", padding: "10px", border: "10px solid black" },
+      child: probe,
+    });
+    provider.renderOnto(new DOMElementTarget(container));
+    assert.equal(probe.unobservable.lastWidth, 200);
+    assert.equal(probe.unobservable.lastHeight, 100);
+  });
+
+  it("not in the page: no size", function () {
+    const detached = document.createElement("div");
+    const probe = new Probe();
+    new DOMElementBoundsProvider({ style: { width: "640px" }, child: probe }).renderOnto(new DOMElementTarget(detached));
+    assert.equal(probe.unobservable.lastWidth, undefined);
+  });
+
+  it("only what's placed on its element is measured - an element in between is a target of its own", function () {
+    const probe = new Probe();
+    class Wrapped extends Component {
+      build() {
+        return div({ key: "between" }, probe);
+      }
+    }
+    const provider = new DOMElementBoundsProvider({ child: new Wrapped() });
+    provider.renderOnto(new DOMElementTarget(container));
+    FakeResizeObserver.report(provider.unobservable.element, 640, 480);
+    assert.equal(probe.unobservable.lastWidth, undefined);
+  });
+
+  it("still follows its size after being rendered again - by a rebuild of its creator, say (a theme switch)", function () {
     const probe = new Probe();
     class Holder extends Component {
       initializeState() {
@@ -81,36 +119,17 @@ describe("DOMElementBoundsProvider", function () {
     const holder = new Holder();
     holder.renderOnto(new DOMElementTarget(container));
     const element = () => holder.newBuild.unobservable.element;
-
-    element().getBoundingClientRect = () => ({ width: 300, height: 200 });
+    FakeResizeObserver.report(element(), 300, 200);
     holder.color = "blue";
     assert.equal(element().style.color, "blue", "rendered again");
-    assert.equal(probe.unobservable.lastWidth, 300, "and measured again");
+    assert.equal(probe.unobservable.lastWidth, 300);
 
-    element().getBoundingClientRect = () => ({ width: 640, height: 480 });
-    dom.window.dispatchEvent(new dom.window.Event("resize"));
-    assert.equal(probe.unobservable.lastWidth, 640);
-    assert.equal(probe.unobservable.lastHeight, 480);
-
-    element().getBoundingClientRect = () => ({ width: 800, height: 600 });
-    dom.window.dispatchEvent(new dom.window.Event("resize"));
-    assert.equal(probe.unobservable.lastWidth, 800, "and every resize after that");
+    FakeResizeObserver.report(element(), 800, 600);
+    assert.equal(probe.unobservable.lastWidth, 800, "and every change after that");
+    assert.equal(probe.unobservable.lastHeight, 600);
   });
 
-  it("removes its resize listener once dropped from its own build()-owning parent", function () {
-    let addCount = 0;
-    let removeCount = 0;
-    const originalAdd = dom.window.addEventListener.bind(dom.window);
-    const originalRemove = dom.window.removeEventListener.bind(dom.window);
-    dom.window.addEventListener = (type, listener) => {
-      if (type === "resize") addCount++;
-      originalAdd(type, listener);
-    };
-    dom.window.removeEventListener = (type, listener) => {
-      if (type === "resize") removeCount++;
-      originalRemove(type, listener);
-    };
-
+  it("stops observing once dropped from its own build()-owning parent", function () {
     class Frame extends Component {
       setProperties({ shown, child }) {
         this.shown = shown;
@@ -120,16 +139,24 @@ describe("DOMElementBoundsProvider", function () {
         return this.shown ? new DOMElementBoundsProvider({ key: "bounds", child: this.child }) : null;
       }
     }
-
-    const target = new DOMElementTarget(container);
     const frame = new Frame({ shown: true, child: new Probe() });
-    frame.renderOnto(target);
-    assert.equal(addCount, 1);
-    assert.equal(removeCount, 0);
+    frame.renderOnto(new DOMElementTarget(container));
+    const element = frame.newBuild.unobservable.element;
+    assert.ok(FakeResizeObserver.observing(element));
 
     frame.shown = false; // drops the keyed DOMElementBoundsProvider - disposed
+    assert.ok(!FakeResizeObserver.observing(element));
+  });
 
-    assert.equal(removeCount, 1);
+  it("without a ResizeObserver, measures again on window resizes", function () {
+    delete dom.window.ResizeObserver;
+    const probe = new Probe();
+    const provider = new DOMElementBoundsProvider({ style: { width: "200px", height: "100px" }, child: probe });
+    provider.renderOnto(new DOMElementTarget(container));
+    assert.equal(probe.unobservable.lastWidth, 200);
+    provider.unobservable.element.style.width = "150px";
+    dom.window.dispatchEvent(new dom.window.Event("resize"));
+    assert.equal(probe.unobservable.lastWidth, 150);
   });
 
   // Fully styleable by its creator (see the class's own doc) - and correctly
@@ -138,7 +165,7 @@ describe("DOMElementBoundsProvider", function () {
   // element, not linger (a real bug in an earlier version of this file,
   // where a plain Object.assign(element.style, style) only ever added/
   // overwrote keys, never removed one that disappeared).
-  it("re-applies style and className from its creator on every rebuild, clearing whatever is no longer given", function () {
+  it("re-applies style and className from its creator on every rebuild, clearing whatever is no longer given - size-contained unless told otherwise", function () {
     class Frame extends Component {
       setProperties({ style, className, child }) {
         this.style = style;
@@ -150,28 +177,29 @@ describe("DOMElementBoundsProvider", function () {
       }
     }
 
-    const target = new DOMElementTarget(container);
     const frame = new Frame({
       style: { position: "relative", height: "100%" },
       className: "frame-a",
       child: new Probe(),
     });
-    frame.renderOnto(target);
+    frame.renderOnto(new DOMElementTarget(container));
 
     const element = container.querySelector("div");
     assert.equal(element.style.position, "relative");
     assert.equal(element.style.height, "100%");
+    assert.equal(element.style.contain, "size layout");
     assert.equal(element.className, "frame-a");
 
     // A rebuild that drops `position`, changes `height`, and adds `width` -
     // a creator restyling its child to fit a different layout, exactly the
     // scenario the whole "fully styleable" property is for.
-    frame.style = { height: "50%", width: "10px" };
+    frame.style = { height: "50%", width: "10px", contain: "inline-size layout" };
     frame.className = "frame-b";
 
     assert.equal(element.style.position, "", "a style property dropped from the new style object must be cleared, not left stale");
     assert.equal(element.style.height, "50%");
     assert.equal(element.style.width, "10px");
+    assert.equal(element.style.contain, "inline-size layout");
     assert.equal(element.className, "frame-b", "className must also update, not stick to its first value");
   });
 });

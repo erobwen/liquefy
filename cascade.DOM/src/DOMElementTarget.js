@@ -1,4 +1,4 @@
-import { observable } from "@liquefy/cascade.component";
+import { observable, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
 
 /**
  * DOMElementTarget wraps one real DOM element that components render children
@@ -29,7 +29,99 @@ export class DOMElementTarget {
   constructor(element) {
     this.element = element;
     this.lastChild = null;
+    // What's timeless about this target - see observeBounds(). None, unless
+    // its element is measured.
+    this.timeless = null;
     return observable(this);
+  }
+
+  /**
+   * Bounds - opt in: measure this target's element, and keep its size as a
+   * timeless property of the target, `timeless.width`/`timeless.height` -
+   * what a component rendered onto it reads from build() with
+   * this.fromTarget("width") (see cascade.component's Component). Its
+   * layout size - the content box, the room there is for what's inside, as
+   * laid out: not as drawn, so a transform (a FlipAnimationContainer's
+   * scale, say) never changes it.
+   *
+   * An advanced feature, for an element set up to know its size when it's
+   * rendered: sized from outside (size-contained - see
+   * DOMElementBoundsProvider), and with nothing added next to it later in
+   * the same pass. So it's measured right away, once, when observing starts
+   * - the first build already gets the real size - and a ResizeObserver
+   * follows every real resize after that: it reports after layout and
+   * before paint, so what's built again from a new size is never drawn
+   * with the old one.
+   *
+   * Its first report, right after observing, then finds the size it was
+   * measured with, and changes nothing. If it doesn't - the element's size
+   * did change within the frame it was first measured in (a sibling added
+   * after it, or a height following content the first build changed) - the
+   * new size is simply taken, and what read the old one is built again:
+   * graceful degradation, not the way it's meant to be used. The browser
+   * may then log "ResizeObserver loop completed with undelivered
+   * notifications" - the notification for the size the rebuild itself
+   * caused comes a frame later. Harmless; the same message a size that
+   * keeps changing itself (a build growing the element it reads the size
+   * of) would give, when the browser cuts the loop off.
+   *
+   * Written at the baseline, only when it changes: a size has one value
+   * per pass (see cascade.component's RenderContext.js on why timeless
+   * values are safe for a build to read). Undefined while the element
+   * isn't in the page.
+   *
+   * Where there is no ResizeObserver, a window resize listener measures
+   * what it can.
+   */
+  observeBounds() {
+    const meta = this.causality;
+    if (meta.boundsObserver) return;
+    const element = this.element;
+    const view = element.ownerDocument.defaultView;
+    const timeless = observable({ width: undefined, height: undefined });
+    accessInitialValues(() => { this.timeless = timeless; });
+    const write = (width, height) => {
+      if (withoutRecording(() => timeless.width === width && timeless.height === height)) return;
+      accessInitialValues(() => {
+        timeless.width = width;
+        timeless.height = height;
+      });
+    };
+    // Its content box as laid out - from the computed style, which is the
+    // layout size, to the fraction of a pixel a ResizeObserver reports.
+    const measure = () => {
+      if (!view || !element.isConnected) return;
+      const style = view.getComputedStyle(element);
+      const px = (value) => parseFloat(value) || 0;
+      let width = px(style.width);
+      let height = px(style.height);
+      if (style.boxSizing === "border-box") {
+        width -= px(style.paddingLeft) + px(style.paddingRight) + px(style.borderLeftWidth) + px(style.borderRightWidth);
+        height -= px(style.paddingTop) + px(style.paddingBottom) + px(style.borderTopWidth) + px(style.borderBottomWidth);
+      }
+      write(width, height);
+    };
+    measure();
+    if (view && typeof(view.ResizeObserver) === "function") {
+      const observer = new view.ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === element && element.isConnected) write(entry.contentRect.width, entry.contentRect.height);
+        }
+      });
+      observer.observe(element);
+      meta.boundsObserver = () => observer.disconnect();
+    } else if (view) {
+      view.addEventListener("resize", measure);
+      meta.boundsObserver = () => view.removeEventListener("resize", measure);
+    }
+  }
+
+  // No longer measured - its element is gone for good.
+  stopObservingBounds() {
+    const meta = this.causality;
+    if (!meta.boundsObserver) return;
+    meta.boundsObserver();
+    meta.boundsObserver = null;
   }
 
   // Create a new real DOM element, insert it immediately after whatever

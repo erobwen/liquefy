@@ -29,8 +29,8 @@ const GAP = 2;
  * The toolbar's width comes from cascade.dom's elementBoundsProvider(), the
  * toolbar its direct child: resized, it renders again. (The card goes
  * around the bounds provider, not between it and the toolbar: an element
- * gives what it renders a render context of its own, without the measured
- * width.)
+ * is a target of its own, and only the provider's is measured.) Its height
+ * follows the toolbar, so only its width is contained.
  */
 export class ToolbarEllipsisPage extends Component {
   build() {
@@ -64,7 +64,7 @@ export class ToolbarEllipsisPage extends Component {
         { key: "toolbarCard", style: { flex: "none", padding: "8px" } },
         elementBoundsProvider({
           key: "toolbarBounds",
-          style: { width: "100%" },
+          style: { width: "100%", contain: "inline-size layout" },
           child: new EllipsisToolbar({ key: "toolbar", children: tools }),
         }),
       ),

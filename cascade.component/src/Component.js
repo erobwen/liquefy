@@ -444,6 +444,9 @@ export class Component {
   //  - its target, kept as plain bookkeeping (unobservable.renderTarget):
   //    what the render repeater renders onto. Never readable reactively -
   //    a build has no business with the target, which is temporal.
+  //  - the target's timeless side, if it has one (`target.timeless` - see
+  //    fromTarget()): what a build may read of where it's placed. Written
+  //    at the baseline, and only when it changes, like the context.
   //  - its context (this.renderContext): what it inherits from (see
   //    inherit()), readable from build(). Written at the baseline
   //    (accessInitialValues()), and only when it changes: a context is
@@ -467,6 +470,11 @@ export class Component {
     context = this.enteredContext(context);
     u.renderTarget = target;
     u.renderParent = renderParent;
+    const timeless = (target && withoutRecording(() => target.timeless)) || null;
+    if (u.targetTimeless !== timeless) {
+      u.targetTimeless = timeless;
+      accessInitialValues(() => { this.renderTimeless = timeless; });
+    }
     if (u.renderContext !== context) {
       u.renderContext = context;
       accessInitialValues(() => { this.renderContext = context; });
@@ -479,6 +487,21 @@ export class Component {
     }
     u.childContext = u.ownContext || context;
     return u.childContext;
+  }
+
+  // A timeless property of the target this component is placed on - the
+  // one thing of the target a build may read. A target is temporal (what's
+  // been placed on it so far this pass - see render()), but it may also
+  // hold values with one value per pass about where things are placed, on
+  // an object of their own: `target.timeless`. cascade.dom's
+  // DOMElementTarget does, for an element whose size is measured - its
+  // layout size, as `width`/`height` (see its observeBounds()). Undefined
+  // if the target has no such property: placed somewhere that isn't
+  // measured, say. A tracked read, from build() or anywhere else: placed
+  // on another target, or the value changing, a build follows.
+  fromTarget(name) {
+    const timeless = this.renderTimeless;
+    return timeless ? timeless[name] : undefined;
   }
 
   // Whether this component can be expanded - composed purely through

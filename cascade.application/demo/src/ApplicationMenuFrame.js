@@ -32,10 +32,9 @@ const TOP_BAR_HEIGHT = 48;
  * DOMElementBoundsProvider (cascade.dom), which also owns the one window
  * resize listener that measurement needs. build() below wraps this frame's
  * actual layout in one of those, as ApplicationMenuFrameLayout - the direct
- * child that inherits the measurement it provides (`width`/`height`),
- * from build(). Anything deeper inherits the nearest bounds provider's
- * instead - the work area's own room is handed to the pages as
- * `usableWidth`/`usableHeight`, by name.
+ * child, placed on its measured element, which reads the size from build()
+ * with this.fromTarget(). The work area's own room is handed on to the
+ * pages as `usableWidth`/`usableHeight`, provided by name.
  *
  * This is the frame's own root, rendered directly by index.js, which hands
  * it a DOMElementTarget to begin with - so DOMElementBoundsProvider's
@@ -156,7 +155,7 @@ export class ApplicationMenuFrame extends Component {
 }
 
 // The direct child of the DOMElementBoundsProvider ApplicationMenuFrame
-// builds above - which inherits the measured bounds it provides (see
+// builds above - placed on its measured element, whose size it reads (see
 // ApplicationMenuFrame's own class doc).
 // Everything state-related (chosen page, menu open/closed) still belongs to
 // `frame`, reached the same way MenuList already reaches it below.
@@ -167,10 +166,10 @@ class ApplicationMenuFrameLayout extends Component {
 
   build() {
     const { frame } = this;
-    const bounds = { width: this.inherit("width"), height: this.inherit("height") };
-    if (typeof(bounds.width) !== "number") {
-      throw new Error("ApplicationMenuFrameLayout requires bounds from a DOMElementBoundsProvider ancestor.");
-    }
+    const bounds = { width: this.fromTarget("width"), height: this.fromTarget("height") };
+    // Not measured - its element not in the page (yet): nothing to lay
+    // out.
+    if (typeof(bounds.width) !== "number") return null;
 
     const menuIsModal = bounds.width < MENU_WIDTH * 3;
     // The room inside a page's margins (16px each side - see

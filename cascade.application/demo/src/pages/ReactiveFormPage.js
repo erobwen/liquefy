@@ -95,15 +95,16 @@ export class ReactiveFormPage extends Component {
         onRemove: callback("remove" + traveler.id, () => this.removeTraveler(traveler)),
       })),
 
-      row(
-        { key: "addTravelerRow" },
-        filler({ key: "addTravelerFiller" }),
-        button(
-          { key: "addTraveler" },
-          icon({ key: "addTravelerIcon", name: "add" }),
-          text({ key: "addTravelerText", text: "Traveler" }),
-          callback("addTraveler", () => this.addTraveler()),
-        ),
+      // The whole width of the form - as high as the luggage's own add tile.
+      htmlButton(
+        {
+          key: "addTraveler",
+          title: "Add traveler",
+          onclick: callback("addTraveler", () => this.addTraveler()),
+          style: { ...addButtonStyle, flexDirection: "column", gap: "2px", alignSelf: "stretch", minHeight: addTileHeight, padding: "8px" },
+        },
+        icon({ key: "addTravelerIcon", name: "add", style: { fontSize: "40px" } }),
+        text({ key: "addTravelerText", text: "Add traveler" }),
       ),
 
       new ErrorSummary({ key: "errors", verifying: this.verifying }),
@@ -236,6 +237,16 @@ class TravelerForm extends Component {
 
 const luggageCardWidth = "150px";
 
+// The look of what adds something to the form - a traveler, a piece of
+// luggage: a dashed frame around a plus, standing apart from the cards
+// holding what's already there.
+const addButtonStyle = {
+  display: "flex", alignItems: "center", justifyContent: "center",
+  boxSizing: "border-box", margin: 0, font: "inherit", fontSize: "13px", color: themeColor.textSoft, background: "transparent",
+  border: "2px dashed " + themeColor.borderStrong, borderRadius: "8px", cursor: "pointer",
+};
+const addTileHeight = "96px";
+
 /**
  * Luggage drawer - a header opening and closing it (a title and a count on
  * the left, a chevron on the right, the whole header clickable), and the
@@ -272,10 +283,9 @@ class LuggageDrawer extends Component {
         title: "Add luggage",
         onclick: onAdd,
         style: {
-          display: "flex", flexDirection: empty ? "row" : "column", alignItems: "center", justifyContent: "center", gap: empty ? "4px" : "2px",
-          ...(empty ? { height: "32px", padding: "0 12px 0 8px" } : { width: luggageCardWidth, minHeight: "96px", padding: "8px" }),
-          boxSizing: "border-box", margin: 0, font: "inherit", fontSize: "13px", color: themeColor.textSoft, background: "transparent",
-          border: "2px dashed " + themeColor.borderStrong, borderRadius: "8px", cursor: "pointer",
+          ...addButtonStyle,
+          flexDirection: empty ? "row" : "column", gap: empty ? "4px" : "2px",
+          ...(empty ? { height: "32px", padding: "0 12px 0 8px" } : { width: luggageCardWidth, minHeight: addTileHeight, padding: "8px" }),
         },
       },
       icon({ key: "addIcon", name: "add", style: { fontSize: empty ? "20px" : "40px" } }),

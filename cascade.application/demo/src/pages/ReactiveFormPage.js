@@ -44,7 +44,7 @@ const information = {
  * the way.
  */
 export class ReactiveFormPage extends Component {
-  initializeState() {
+  initialState() {
     // Whether Submit has been pressed (so errors are shown), whether to
     // animate - how fast, and whether what appears is confined to what it
     // appears in - and the message after a successful submit.
@@ -181,7 +181,7 @@ class TravelerForm extends Component {
     this.onRemove = onRemove || null;
   }
 
-  initializeState() {
+  initialState() {
     return { showLuggage: true };
   }
 

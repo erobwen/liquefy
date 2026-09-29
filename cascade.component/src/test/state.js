@@ -2,16 +2,16 @@ import { Component } from "../Component.js";
 import assert from "assert";
 
 // Component state (see README.md, "Component state and properties"):
-// initializeState() declares it, a rebuild never resets it, setState()
+// initialState() declares it, a rebuild never resets it, setState()
 // writes it from inside a pipeline - and a dropped component is retracted
 // on dispose, before any stale rerun of it can run.
-describe("Component state (initializeState/setState)", function () {
+describe("Component state (initialState/setState)", function () {
 
   class Counter extends Component {
     setProperties({ step }) {
       this.step = step;
     }
-    initializeState() {
+    initialState() {
       // A default derived from a property - setProperties() has already run.
       return { count: this.step * 10 };
     }
@@ -50,7 +50,7 @@ describe("Component state (initializeState/setState)", function () {
 
   it("setState() writes state from inside another component's render(), and rejects undeclared properties", function () {
     class Frame extends Component {
-      initializeState() { return { assigned: null }; }
+      initialState() { return { assigned: null }; }
       render() { this.unobservable.seen = this.assigned; }
     }
     class Opener extends Component {

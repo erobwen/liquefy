@@ -99,7 +99,7 @@ export class StorePage extends Component {
 
 // The shelf, and the chosen products - shown in the cart portal.
 class ProductList extends Component {
-  initializeState() {
+  initialState() {
     return { chosen: [] };
   }
 
@@ -152,7 +152,7 @@ class ProductList extends Component {
 // be hidden; whatever is put into it waits there. Both are its own - created,
 // established and disposed of here (see Component.establish()).
 class StatusBar extends Component {
-  initializeState() {
+  initialState() {
     return { cartShown: true };
   }
 

@@ -155,7 +155,7 @@ export class HybridModalDialog extends Component {
 // point of the demo: it must read the same value whether the dialog
 // enclosing it is currently docked or modal.
 class DialogContent extends Component {
-  initializeState() {
+  initialState() {
     return { counter: 0 };
   }
 

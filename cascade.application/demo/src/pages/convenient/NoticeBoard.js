@@ -39,7 +39,7 @@ export class NoticeBoard extends Component {
 
 // Deep inside - and puts its notice on the board, by the board's name.
 class Poster extends Component {
-  initializeState() {
+  initialState() {
     return { posted: false };
   }
 

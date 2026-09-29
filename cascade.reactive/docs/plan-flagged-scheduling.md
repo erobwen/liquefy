@@ -680,8 +680,8 @@ consequences:
   involved. `declareState()` registers the names on the twin's meta too,
   so the write guard reads the same on both sides.
 
-`Component.initializeState()` returns the defaults; the constructor calls
-`declareState(me, me.initializeState())` right after `setProperties()`,
+`Component.initialState()` returns the defaults; the constructor calls
+`declareState(me, me.initialState())` right after `setProperties()`,
 so a default may derive from a property.
 
 ## Status
@@ -706,7 +706,7 @@ rerun race (a dropped child's own inherited invalidation reaching the
 heap before the retraction that should have preempted it - fixed by
 `retractRepeater()` on dispose, via `Component.onDispose()`), and state
 properties (`declareState()`: a write guard in `setHandlerObject()` and a
-`mergeInto()` exemption, surfaced as `Component.initializeState()`/
+`mergeInto()` exemption, surfaced as `Component.initialState()`/
 `setState()`). Verified against the real demo app
 (`cascade.application/demo`) in an actual browser, including the
 original reconciliation-breaking scenario (menu/hamburger breakpoint

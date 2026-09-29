@@ -33,7 +33,7 @@ describe("renderOnto() under a different context after retraction", function () 
         super();
         this.leaf = leaf;
       }
-      initializeState() {
+      initialState() {
         return { slot: "a" };
       }
       render() {
@@ -74,7 +74,7 @@ describe("renderOnto() under a different context after retraction", function () 
     const contextB = ({ name: "b" });
 
     class Leaf extends Component {
-      initializeState() {
+      initialState() {
         return { counter: 0 };
       }
       initialUnobservables() {
@@ -107,7 +107,7 @@ describe("renderOnto() under a different context after retraction", function () 
         this.slotA = new Slot(this, "a", leaf, contextA);
         this.slotB = new Slot(this, "b", leaf, contextB);
       }
-      initializeState() {
+      initialState() {
         return { slot: "a" };
       }
       render(target) {

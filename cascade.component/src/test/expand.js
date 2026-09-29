@@ -137,7 +137,7 @@ describe("expand / enterTree", function () {
   it("keyed children keep their identity and state across expansions", function () {
     const model = observable({ label: "one" });
     class Stateful extends Leaf {
-      initializeState() {
+      initialState() {
         return { count: 0 };
       }
     }

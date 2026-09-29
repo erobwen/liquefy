@@ -51,7 +51,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
       this.workArea = workArea;
     }
 
-    initializeState() {
+    initialState() {
       return { menuOpen: false };
     }
 

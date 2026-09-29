@@ -101,7 +101,7 @@ export class Component {
   // Properties, by contrast, are re-set from the constructing context on
   // every rebuild - like a function's arguments. Components without state
   // leave this alone.
-  initializeState() {
+  initialState() {
     return {};
   }
 
@@ -118,7 +118,7 @@ export class Component {
     const declared = this.causality.stateProperties;
     for (const key in values) {
       if (!declared || !declared.has(key)) {
-        throw new Error("setState(): '" + key + "' is not a state property of this component - declare it in initializeState().");
+        throw new Error("setState(): '" + key + "' is not a state property of this component - declare it in initialState().");
       }
     }
     accessInitialValues(() => {
@@ -169,7 +169,7 @@ export class Component {
     // throwaway twin (see cascade.reactive's setHandlerObject/forwardTo),
     // and mergeInto() then skips state when copying the twin back - so
     // the gate lives there, in one place, not in every constructor.
-    declareState(me, me.initializeState());
+    declareState(me, me.initialState());
     return me;
   }
 

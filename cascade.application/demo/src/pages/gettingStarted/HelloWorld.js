@@ -4,7 +4,7 @@ import { button, column } from "@liquefy/cascade.ui";
 
 export class HelloWorld extends Component {
   // State: set up once, then changed by the user - here, by the button.
-  initializeState() {
+  initialState() {
     return { count: 0 };
   }
 

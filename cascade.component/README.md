@@ -26,7 +26,7 @@ class Counter extends Component {
   }
 
   // State: established once, then changed only by the user.
-  initializeState() {
+  initialState() {
     return { count: 0 };
   }
 
@@ -93,7 +93,7 @@ If a component is created by its creator the following needs to hold.
 
    Being in charge of the lifecycle means doing what the rebuild process does for components built in a build function: call `establish()` on the component where it is created (that calls its `onEstablish()`, where it can acquire external resources), and `dispose()` on it once the creator is done with it - typically in the creator's own `onDispose()`, before `super.onDispose()`. Disposing is not optional: a component that reads observable data that never changes again is never invalidated, so without `dispose()` its repeaters stay subscribed, and keep everything they built, for as long as that data lives. A component created on the top level, outside any component, is established by whoever creates it, and disposed by them if it doesn't live as long as the app does.
 
-   Create such components in `initialUnobservables()`, not in `initializeState()`: `initializeState()` also runs for the throwaway object constructed during a rebuild, so a component created and established there would be thrown away without ever being disposed. `initialUnobservables()` runs lazily, the first time the unobservables are read - which, unless the constructor itself reads them, is on the established object.
+   Create such components in `initialUnobservables()`, not in `initialState()`: `initialState()` also runs for the throwaway object constructed during a rebuild, so a component created and established there would be thrown away without ever being disposed. `initialUnobservables()` runs lazily, the first time the unobservables are read - which, unless the constructor itself reads them, is on the established object.
 
 WARNING: There is a danger in combining both these methods. If a component is created during the creatprs build call, it will be registered in the rebuild process, and even if the creator keeps track of a reference to the component, the rebuild system might depose it. 
 
@@ -110,7 +110,7 @@ One thing a key does that matching can't: references outside of what build() ret
 
 ### A dropped keyed child is gone forever
 
-We do not keep keyed instances around indefinitely. If a build() call does not construct a given key on some run, that key's slot is gone - permanently, not just for that one run. If the same key is constructed again on some later run, there is nothing left to reconcile against: it is built as a brand new instance, with fresh `initializeState()` defaults, not the one that was there before. This is expected, not a bug - a build() that conditionally guards a child's construction with an `if` is choosing, deliberately, to let that child's identity (and state) lapse whenever the condition is false.
+We do not keep keyed instances around indefinitely. If a build() call does not construct a given key on some run, that key's slot is gone - permanently, not just for that one run. If the same key is constructed again on some later run, there is nothing left to reconcile against: it is built as a brand new instance, with fresh `initialState()` defaults, not the one that was there before. This is expected, not a bug - a build() that conditionally guards a child's construction with an `if` is choosing, deliberately, to let that child's identity (and state) lapse whenever the condition is false.
 
 If a UI genuinely needs to keep a keyed child alive - visible or not - across such a toggle, there are two ways:
 
@@ -133,7 +133,7 @@ The component state howerver, is only initialized once upon component establishm
 
 It is important that state is not overwritten during re-creation. In Flow, there was a weak convention based idea that the constructor of a component should never touch the component state associated object properties. This led to the awkward idea that the constructor could not even add default values or declare them in some way. 
 
-In cascade we will introduce a more robust mechanism. We will have a separate function called initializeState() that each component can override to define its state properties. This one will be run in the constructor after the call to "me.setProperties(properties)"; The function will return an object whose properties will determine the state properties of this component, containing names and default values (that could be based off other component properties).
+In cascade we will introduce a more robust mechanism. We will have a separate function called initialState() that each component can override to define its state properties. This one will be run in the constructor after the call to "me.setProperties(properties)"; The function will return an object whose properties will determine the state properties of this component, containing names and default values (that could be based off other component properties).
 
 The key point is that a state property should only ever be possible to write in initialization time. Writing it by some later pipeline repeater should result in error. For this purpose, we need a cascade.reactive mechanism for doing so. 
 
@@ -145,7 +145,7 @@ So already in cascade.reactive there needs to be an awarance of state properties
 
 ### Implementation
 
-- `Component.initializeState()` - override it to return `{name: default, ...}`. It runs in the constructor right after `setProperties()`, so a default may derive from a property. The constructor hands the result to cascade.reactive's `declareState(object, defaults)`, which marks the names as state on the object's meta and writes the defaults at the baseline position (time 0, no writer) - like construction data, not tied to whichever repeater happened to be constructing the component.
+- `Component.initialState()` - override it to return `{name: default, ...}`. It runs in the constructor right after `setProperties()`, so a default may derive from a property. The constructor hands the result to cascade.reactive's `declareState(object, defaults)`, which marks the names as state on the object's meta and writes the defaults at the baseline position (time 0, no writer) - like construction data, not tied to whichever repeater happened to be constructing the component.
 - Writing a state property from inside a repeater throws (`setHandlerObject` in cascade.reactive). Event handlers run outside any repeater and can just assign. From anywhere else, use `Component.setState({name: value})` - it wraps `accessInitialValues()`, so the write lands on the baseline writing the state already lives at, and it rejects names that were never declared.
 - During rebuild, `mergeInto()` (cascade.reactive/src/lib/utility.js) skips state properties when copying the throwaway object's properties onto the established one. That is the only gate - the constructor never tries to detect a rebuild, it just writes its defaults (they go to the throwaway, and are not copied back).
 - A dropped sub component (its key no longer constructed by the creator's build) is retracted immediately, in `Component.onDispose()` via `retractRepeater()`, so no already-queued stale rerun of it can run first. A component overriding `onDispose()` must call `super.onDispose()`.

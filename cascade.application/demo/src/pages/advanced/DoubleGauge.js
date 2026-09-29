@@ -61,7 +61,7 @@ export class DoubleGauge extends Component {
 
 // Using it - between two ordinary siblings, all in one row.
 export class DoubleGaugeDemo extends Component {
-  initializeState() {
+  initialState() {
     return { left: 64, right: 30, swapped: false };
   }
 

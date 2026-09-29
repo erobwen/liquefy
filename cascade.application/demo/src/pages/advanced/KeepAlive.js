@@ -8,7 +8,7 @@ class Tally extends Component {
     this.label = label;
   }
 
-  initializeState() {
+  initialState() {
     return { count: 0 };
   }
 
@@ -19,7 +19,7 @@ class Tally extends Component {
 
 // Two tabs, and the tab bar to switch between them.
 class Tabs extends Component {
-  initializeState() {
+  initialState() {
     return { tab: "first" };
   }
 

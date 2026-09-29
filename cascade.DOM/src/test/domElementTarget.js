@@ -246,7 +246,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         this.first = first;
         this.second = second;
       }
-      initializeState() {
+      initialState() {
         return { firstOnTop: true };
       }
       render(target, context) {
@@ -302,7 +302,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         this.first = first;
         this.second = second;
       }
-      initializeState() {
+      initialState() {
         return { firstOnTop: true };
       }
       render(target, context) {

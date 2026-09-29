@@ -61,7 +61,7 @@ const panel = (key, list, style) => card(
 export class AnimationPage extends Component {
   // The lists are state, changed only by the buttons - each change a new
   // array, rather than one mutated in place.
-  initializeState() {
+  initialState() {
     return { store: [...items], listA: [], listB: [] };
   }
 

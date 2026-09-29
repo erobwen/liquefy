@@ -22,7 +22,7 @@ class Hello extends Component {
     this.to = to;
   }
 
-  initializeState() {
+  initialState() {
     return { count: 0 };
   }
 

@@ -109,7 +109,7 @@ describe("DOMElementBoundsProvider", function () {
   it("still follows its size after being rendered again - by a rebuild of its creator, say (a theme switch)", function () {
     const probe = new Probe();
     class Holder extends Component {
-      initializeState() {
+      initialState() {
         return { color: "red" };
       }
       build() {

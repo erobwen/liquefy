@@ -64,7 +64,7 @@ const themes = [
 const SIDE_BY_SIDE_WIDTH = 760;
 
 export class ThemesPage extends Component {
-  initializeState() {
+  initialState() {
     return { tab: "material" };
   }
 
@@ -194,7 +194,7 @@ class ColorSchemeEditor extends Component {
 
 // Every themed widget, as whichever theme is in the context provides it.
 class SampleButtons extends Component {
-  initializeState() {
+  initialState() {
     return { chosen: "inbox", dialogOpen: false, popoverOpen: false, anchor: null, favorite: false };
   }
 

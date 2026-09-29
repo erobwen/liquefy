@@ -31,7 +31,7 @@ export function gaugeSvg(value, color = "#2e86c1") {
 
 // Using it - like any other component.
 export class GaugeDemo extends Component {
-  initializeState() {
+  initialState() {
     return { value: 64 };
   }
 

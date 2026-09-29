@@ -71,7 +71,7 @@ export class OverlayFrame extends Component {
   // which is exactly where setState() in show/hideOverlay writes it back
   // to - the same writing, reused, not a fresh one spliced in ahead of a
   // reader that could never actually reach it (see their comment).
-  initializeState() {
+  initialState() {
     return { assignedOverlayContent: null, assignedOverlayContext: null };
   }
 
@@ -98,7 +98,7 @@ export class OverlayFrame extends Component {
   // frame, without flicker - see docs/plan-flagged-scheduling.md).
   // setState() (Component.js) makes the write land at the baseline
   // position (before everything), reusing the exact writing
-  // initializeState() above set up rather than splicing a new one in
+  // initialState() above set up rather than splicing a new one in
   // ahead of it that could never reach OverlayFrame's own reader either
   // way - it's also the only way a state property *may* be written from
   // inside a repeater at all - and flush() makes sure the resulting

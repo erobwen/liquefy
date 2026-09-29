@@ -51,7 +51,7 @@ export class Portal extends Component {
   // What some PortalContents has assigned is state: changed only by
   // show()/hide(), never reset by a rebuild - and the context they're
   // shown with, that PortalContents'.
-  initializeState() {
+  initialState() {
     return { contents: null, contentsContext: null };
   }
 

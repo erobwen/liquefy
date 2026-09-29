@@ -47,7 +47,7 @@ const information = {
  *  - component hierarchy inheritance (provide()/inherit() - see
  *    Component.js) - every Item reads the *same* shared value, provided
  *    once by RecursiveDemo itself, however deep it's nested;
- *  - stable local state across a rebuild (initializeState() - see
+ *  - stable local state across a rebuild (initialState() - see
  *    Component.js/README.md) - each Item's own local number, entered once
  *    and never touched again by any rebuild, however many times its own
  *    build() reruns for unrelated reasons (a sibling level being added or
@@ -57,7 +57,7 @@ export class RecursiveDemo extends Component {
   // The number of levels (More/Less), and the value every Item shares -
   // both changed only by the user (the buttons, the shared-value input's
   // own oninput handler), never reset by a rebuild.
-  initializeState() {
+  initialState() {
     return { levels: 1, sharedValue: 42 };
   }
 
@@ -136,7 +136,7 @@ class ListItem extends Component {
 
   // Local to this one Item, established once - never reset by whatever
   // rebuild caused this component's own build() to rerun again.
-  initializeState() {
+  initialState() {
     return { value: 42 };
   }
 

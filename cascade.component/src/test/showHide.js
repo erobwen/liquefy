@@ -29,7 +29,7 @@ describe("onShow / onHide", function () {
       super();
       this.watched = watched;
     }
-    initializeState() {
+    initialState() {
       return { showing: true };
     }
     render(renderContext) {
@@ -52,7 +52,7 @@ describe("onShow / onHide", function () {
 
   it("an ordinary rerun is neither", function () {
     class Counting extends Watched {
-      initializeState() {
+      initialState() {
         return { count: 0 };
       }
       render() {

@@ -105,7 +105,7 @@ describe("FlipAnimationContainer animations", function () {
   const runToRest = () => runFrames(500);
 
   class Lists extends Component {
-    initializeState() {
+    initialState() {
       return { a: ["one", "two", "three"], b: ["four"] };
     }
     build() {
@@ -149,7 +149,7 @@ describe("FlipAnimationContainer animations", function () {
     // the wide one leaves, the others' boxes narrow - their text must not
     // be squashed along. Moving to the smaller-font list, one does shrink.
     class Stretched extends Component {
-      initializeState() {
+      initialState() {
         return { a: ["wide", "one", "two"], b: [] };
       }
       build() {
@@ -246,7 +246,7 @@ describe("FlipAnimationContainer animations", function () {
 
   it("a moving element's contents move with it, not twice as far", function () {
     class Nested extends Component {
-      initializeState() {
+      initialState() {
         return { order: ["x", "y"] };
       }
       build() {
@@ -304,7 +304,7 @@ describe("FlipAnimationContainer animations", function () {
 
   it("told to confine what appears, it leaves the elements around it as they are: clipped, not lifted", function () {
     class Confined extends Component {
-      initializeState() {
+      initialState() {
         return { a: ["one", "two", "three"] };
       }
       build() {
@@ -362,7 +362,7 @@ describe("FlipAnimationContainer animations", function () {
 
   it("a leaving element that comes back after it has faded out comes back as itself - no ghost style left on it - and fades in", function () {
     class Toggled extends Component {
-      initializeState() {
+      initialState() {
         return { show: true };
       }
       build() {
@@ -397,7 +397,7 @@ describe("FlipAnimationContainer animations", function () {
 
   it("a leaving element that comes back while fading is restored, and moves on from where its ghost was", function () {
     class Toggled extends Component {
-      initializeState() {
+      initialState() {
         return { show: true };
       }
       build() {
@@ -430,7 +430,7 @@ describe("FlipAnimationContainer animations", function () {
 
   it("a resized element is drawn at its old size, then grows to its new one - its contents not stretched along", function () {
     class Sized extends Component {
-      initializeState() {
+      initialState() {
         return { wide: false };
       }
       build() {
@@ -467,7 +467,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     class WithIsland extends Component {
-      initializeState() {
+      initialState() {
         return { islandFirst: false };
       }
       build() {
@@ -498,7 +498,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     class Cards extends Component {
-      initializeState() {
+      initialState() {
         return { order: ["a", "b"] };
       }
       build() {
@@ -543,7 +543,7 @@ describe("FlipAnimationContainer animations", function () {
 
   it("a container's own speed overrides FlipAnimationContainer.speed - and changing it places nothing again", function () {
     class Paced extends Component {
-      initializeState() {
+      initialState() {
         return { a: ["one", "two", "three"], speed: 1 };
       }
       build() {

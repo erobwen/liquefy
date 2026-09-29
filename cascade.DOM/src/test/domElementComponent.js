@@ -31,7 +31,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
   });
 
   class Page extends Component {
-    initializeState() {
+    initialState() {
       return { heading: "Hello", highlighted: false };
     }
 
@@ -117,7 +117,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
   // elements already have, just for a leaf text node instead of a tag.
   it("text({key, text}) reconciles to the same real Text node across a rerun, mutating its data in place - unlike an unkeyed loose string child", function () {
     class KeyedPage extends Component {
-      initializeState() {
+      initialState() {
         return { count: 1 };
       }
       build() {
@@ -179,7 +179,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
     }
 
     class Chain extends Component {
-      initializeState() {
+      initialState() {
         return { shared: 1 };
       }
       build() {
@@ -263,7 +263,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
     }
 
     class Chain extends Component {
-      initializeState() {
+      initialState() {
         return { maxDepth: 1, shared: 1 };
       }
       build() {
@@ -328,7 +328,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
     }
 
     class Chain extends Component {
-      initializeState() {
+      initialState() {
         return { maxDepth: 3 };
       }
       build() {

@@ -91,7 +91,7 @@ describe("independent build repeaters", function () {
     // left pending while hidden, revalidated - keys intact - when shown.
     const model = observable({ label: "a" });
     class Counter extends Component {
-      initializeState() {
+      initialState() {
         return { count: 0 };
       }
       render() {}
@@ -103,7 +103,7 @@ describe("independent build repeaters", function () {
       }
     }
     class Switch extends Component {
-      initializeState() {
+      initialState() {
         return { show: true };
       }
       setProperties({ child }) {
@@ -143,7 +143,7 @@ describe("independent build repeaters", function () {
       }
     }
     class Outer extends Component {
-      initializeState() {
+      initialState() {
         return { includeInner: true };
       }
       build() {

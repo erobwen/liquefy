@@ -37,7 +37,7 @@ export class InformationButton extends Component {
     this.points = points || [];
   }
 
-  initializeState() {
+  initialState() {
     return { open: false, anchor: null };
   }
 

@@ -92,7 +92,7 @@ describe("Component.inherit() (through the render context chain)", function () {
       setProperties({ child }) {
         this.child = child;
       }
-      initializeState() {
+      initialState() {
         return { color: "red" };
       }
       provide() {

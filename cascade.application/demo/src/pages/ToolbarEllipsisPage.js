@@ -74,7 +74,7 @@ export class ToolbarEllipsisPage extends Component {
 
 // A tool whose width changes by itself: from 9 to 10 is a digit wider.
 class SizePicker extends Component {
-  initializeState() {
+  initialState() {
     return { size: 9 };
   }
 
@@ -102,7 +102,7 @@ export class EllipsisToolbar extends Component {
     this.tools = children || [];
   }
 
-  initializeState() {
+  initialState() {
     return { overflowCount: 0, menuOpen: false, anchor: null };
   }
 

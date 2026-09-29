@@ -73,7 +73,7 @@ export class ApplicationMenuFrame extends Component {
   // user - the hamburger and the backdrop (see ApplicationMenuFrameLayout
   // below) are event handlers, outside any repeater - and never reset by a
   // rebuild.
-  initializeState() {
+  initialState() {
     return { menuOpen: false };
   }
 

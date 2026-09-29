@@ -24,7 +24,7 @@ class FruitList extends Component {
 
 // Animated - by the one line around it.
 export class ShuffleList extends Component {
-  initializeState() {
+  initialState() {
     return { items: fruit.slice(0, 5) };
   }
 

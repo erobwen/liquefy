@@ -50,7 +50,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
   const same = ({ plainRoot, flipRoot }, message) => assert.equal(normalized(flipRoot), normalized(plainRoot), message);
 
   class Item extends Component {
-    initializeState() {
+    initialState() {
       return { count: 0 };
     }
     build() {
@@ -59,7 +59,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
   }
 
   class List extends Component {
-    initializeState() {
+    initialState() {
       return { order: ["a", "b", "c"], title: "Title", big: true };
     }
     build() {
@@ -157,7 +157,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
 
   it("islands - components that can only be rendered - render normally inside it, and edit without rerunning the container", function () {
     class Counter extends DOMNodeRenderComponent {
-      initializeState() {
+      initialState() {
         return { value: 0 };
       }
       renderElement(target, existingElement) {

@@ -19,7 +19,7 @@ describe("a component shown again keeps its place", function () {
     global.document = dom.window.document;
     const container = document.createElement("div");
     class Page extends Component {
-      initializeState() {
+      initialState() {
         return { width: 610 };
       }
       build() {

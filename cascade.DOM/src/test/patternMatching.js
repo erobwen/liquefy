@@ -29,7 +29,7 @@ describe("Pattern matching (rebuilding without keys)", function () {
     setProperties({ label }) {
       this.label = label;
     }
-    initializeState() {
+    initialState() {
       return { count: 0 };
     }
     build() {

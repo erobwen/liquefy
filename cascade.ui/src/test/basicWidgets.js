@@ -25,7 +25,7 @@ describe("basic theme widgets", function () {
   // A page building whatever `build` returns, with state it can change.
   const page = (build, state = {}) => {
     class Page extends Component {
-      initializeState() {
+      initialState() {
         return state;
       }
       build() {

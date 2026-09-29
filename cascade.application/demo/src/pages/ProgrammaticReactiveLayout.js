@@ -33,7 +33,7 @@ const GAP = "6px";
  * element in between is a target of its own, which isn't measured.)
  */
 export class ProgrammaticReactiveLayout extends Component {
-  initializeState() {
+  initialState() {
     return { rows: 3, columns: 3 };
   }
 
@@ -144,7 +144,7 @@ class StringDisplay extends Component {
 class FixedAspectRatioDisplay extends Component {
   static cellStyle = { border: "1px solid " + themeColor.border, backgroundColor: themeColor.page };
 
-  initializeState() {
+  initialState() {
     return { aspectRatio: (Math.random() * 4 + 1) / (Math.random() * 4 + 1) };
   }
 

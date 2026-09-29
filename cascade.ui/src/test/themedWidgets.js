@@ -36,7 +36,7 @@ describe("themed widgets", function () {
   };
 
   class Counter extends Component {
-    initializeState() {
+    initialState() {
       return { count: 0 };
     }
     build() {

@@ -9,7 +9,7 @@ import {
 // at the app's root) while `showing` - built right here, next to the
 // button, wherever that is in the app.
 export class ConfirmDelete extends Component {
-  initializeState() {
+  initialState() {
     return { asking: false, deleted: 0 };
   }
 

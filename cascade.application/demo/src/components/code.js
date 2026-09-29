@@ -58,7 +58,7 @@ export class CodeButton extends Component {
     this.fileName = fileName || "";
   }
 
-  initializeState() {
+  initialState() {
     return { open: false };
   }
 

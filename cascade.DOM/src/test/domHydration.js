@@ -36,7 +36,7 @@ describe("hydration (a document of service queries, built into components)", fun
   });
 
   class Page extends Component {
-    initializeState() {
+    initialState() {
       return { title: "Hydrated" };
     }
     build() {

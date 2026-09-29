@@ -44,7 +44,7 @@ export class Popover extends Component {
   // `moved`: counts the frames after a resize or a scroll, while it's
   // shown and anchored to an element - so it's built, and placed, again
   // (see follow()).
-  initializeState() {
+  initialState() {
     return { moved: 0 };
   }
 

@@ -1890,7 +1890,7 @@ function createWorld(configuration) {
     if (this.meta.stateProperties && this.meta.stateProperties.has(key) && state.inRepeater !== null) {
       throw new Error(
         "Cannot write state property '" + key + "' from inside a repeater. " +
-        "State is written at initialization (declareState/initializeState), from an event handler outside any repeater, " +
+        "State is written at initialization (declareState/initialState), from an event handler outside any repeater, " +
         "or deliberately at initial time via accessInitialValues()/setState()."
       );
     }

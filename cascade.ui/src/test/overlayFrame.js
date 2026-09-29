@@ -45,7 +45,7 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
 
   it("an overlay whose content changes while it's shown shows the new content (a modal window becoming full screen)", function () {
     class Page extends Component {
-      initializeState() {
+      initialState() {
         return { fullScreen: false };
       }
       build() {

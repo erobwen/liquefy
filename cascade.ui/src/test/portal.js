@@ -23,7 +23,7 @@ describe("portals", function () {
     setProperties({ pages }) {
       this.pages = pages;
     }
-    initializeState() {
+    initialState() {
       return { chosen: 0 };
     }
     initialUnobservables() {
@@ -46,7 +46,7 @@ describe("portals", function () {
     setProperties({ name }) {
       this.name = name;
     }
-    initializeState() {
+    initialState() {
       return { label: this.name + " action", clicks: 0 };
     }
     build() {
@@ -65,7 +65,7 @@ describe("portals", function () {
     setProperties({ label }) {
       this.label = label;
     }
-    initializeState() {
+    initialState() {
       return { count: 0 };
     }
     build() {
@@ -185,7 +185,7 @@ describe("portals", function () {
       }
     }
     class Store extends Component {
-      initializeState() {
+      initialState() {
         return { chosen: [] };
       }
       initialUnobservables() {
@@ -251,7 +251,7 @@ describe("portals", function () {
 
   it("empty contents show the portal's own default, as no contents do", function () {
     class Shelf extends Component {
-      initializeState() {
+      initialState() {
         return { chosen: [] };
       }
       initialUnobservables() {
@@ -308,7 +308,7 @@ describe("portals", function () {
       setProperties({ pages }) {
         this.pages = pages;
       }
-      initializeState() {
+      initialState() {
         return { chosen: 0 };
       }
       initialUnobservables() {

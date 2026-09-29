@@ -126,10 +126,10 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
     // pipeline, created from inside its render repeater - accessInitialValues
     // gives a top-level repeater from inside another one today (see
     // docs/plan-flagged-scheduling.md). Before the parallel-pipeline rule,
-    // render read `newBuild` as undefined: the build pipeline's chain was
+    // render read `currentBuild` as undefined: the build pipeline's chain was
     // created later, so its writing sorted after render's read.
     const { observable, repeat, accessInitialValues } = world();
-    const component = observable({ newBuild: undefined });
+    const component = observable({ currentBuild: undefined });
     const context = observable({ locator: null });
     let buildRepeater = null;
     let seenByRender;
@@ -141,11 +141,11 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
         accessInitialValues(() => {
           buildRepeater = repeat("build", () => {
             seenByBuild = context.locator; // ...the build reads it (latest)...
-            component.newBuild = "built with " + context.locator;
+            component.currentBuild = "built with " + context.locator;
           });
         });
       }
-      seenByRender = component.newBuild; // ...and render reads the build's result (latest).
+      seenByRender = component.currentBuild; // ...and render reads the build's result (latest).
     });
 
     assert.equal(seenByBuild, "L1");

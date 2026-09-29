@@ -22,7 +22,7 @@ export function getCreator() {
 // creator's) - not to be used by a subclass's initialUnobservables().
 const reservedUnobservables = new Set([
   "repeater", "buildRepeater", "pullingComponent", "renderTarget", "renderContext", "renderParent",
-  "ownContext", "childContext", "targetTimeless", "callbacks",
+  "ownContext", "childContext", "renderTimeless", "callbacks",
 ]);
 
 const renderStack = [];
@@ -30,11 +30,17 @@ function getRenderParent() {
   return renderStack.length > 0 ? renderStack[renderStack.length - 1] : null;
 }
 
-// Ties a build()-composed child back to whoever's build() call produced
-// it - see reactiveBuildEquivalent() below, and aggregateToString() for
-// what reads `equivalentCreator` back (inheritance doesn't: it follows
-// the render context - see inherit()). `built` is whatever build() returned - a single
-// component, an array of them, or null/undefined (nothing to tie back).
+// Ties what a build() returned - its roots - back to the component whose
+// build returned them: `equivalentCreator`. Only the roots: an element
+// deeper inside is part of what its root renders, not a stand-in for the
+// component. Not the same as `creator` (whose build was running when a
+// component was constructed): content one component constructs and
+// another's build returns (a portal's contents, returned by its scope) is
+// the root of the second one's build, not of the first's. What reads it:
+// aggregateToString() below, for the debug ids on real elements - an id
+// names every component an element stands in for. `built` is whatever
+// build() returned - a single component, an array of them, or
+// null/undefined (nothing to tie back).
 function assignEquivalentCreator(built, creator) {
   if (!built) return;
   const children = built instanceof Array ? built : [built];
@@ -150,7 +156,7 @@ export class Component {
   // constructor call site itself can't be parsed.
   //
   // `key`, once resolved, is this component's *build identity* - see
-  // build()/reactiveBuildEquivalent() below. It's cascade.reactive's own
+  // build()/buildOneStep() below. It's cascade.reactive's own
   // observable(target, buildId) mechanism (already fully built - see
   // cascade.reactive/src/test/rebuild.js): constructing a component with a
   // key that matches one from the enclosing repeater's *previous* run
@@ -159,7 +165,7 @@ export class Component {
   // this fresh one, but its identity - unobservable.repeater included -
   // completely untouched). A component with no key constructed in a
   // build() is reconciled too, by pattern matching instead - the same
-  // class in the same place (see reactiveBuildEquivalent()'s
+  // class in the same place (see buildOneStep()'s
   // rebuildShapeAnalysis, and README.md's "Keys and pattern matching").
   // Outside any build (the hardcoded-child-reference style - see
   // cascade.component/src/test/toolbarMainFrame.js) there's nothing to
@@ -171,7 +177,7 @@ export class Component {
     // inherit() below for what it's for. Deliberately *not* a stack push/
     // pop around this constructor itself: flow's own creator is "whoever
     // was executing its own build()/lifecycle callback when `new X()` ran",
-    // not "whoever constructed me" in general - see reactiveBuildEquivalent(),
+    // not "whoever constructed me" in general - see buildOneStep(),
     // the actual push/pop site, and its own comment on why.
     this.creator = getCreator();
     this.key = extractProperty(properties, "key") || null;
@@ -235,7 +241,7 @@ export class Component {
   // discussion of both styles). Return a child component (or an array of
   // them), each typically constructed with its own key so cascade can
   // tell across rebuilds which new one corresponds to which established
-  // one - see reactiveBuildEquivalent() and the constructor's `key` docs
+  // one - see buildOneStep() and the constructor's `key` docs
   // above. Not implemented by default; a component overrides this OR
   // render() (see the default render() below), not both.
   //
@@ -243,7 +249,7 @@ export class Component {
   // key keeps being constructed, run after run - a key that drops out for
   // even one run is gone for good, not just for that run (see
   // README.md's own "A dropped keyed child is gone forever"). Guard a
-  // child's *visibility*, not its construction, with .show(condition) to
+  // child's *visibility*, not its construction, with .showIf(condition) to
   // keep it alive while hidden instead.
   build() {
     throw new Error(this.constructor.name + " must implement build() or render(context)");
@@ -284,12 +290,12 @@ export class Component {
   // when the render comes back and pulls it. Only a component dropped for
   // good has its build repeater stopped (see onDispose()).
   //
-  // The result is stashed on `this.newBuild` - an ordinary *observable*
+  // The result is stashed on `this.currentBuild` - an ordinary *observable*
   // property (matching flow.core's own naming), not something on
   // `unobservable`: buildRepeater is the sole writer and render() the
   // reader, so a rebuild invalidates render() through that ordinary
   // dependency.
-  reactiveBuildEquivalent() {
+  buildOneStep() {
     const u = this.unobservable;
     u.pullingComponent = getRenderParent();
     // First time only: a repeat() call's first pass runs synchronously,
@@ -309,17 +315,17 @@ export class Component {
         // build() call captures that component as its creator.
         creators.push(this);
         try {
-          this.newBuild = this.build();
+          this.currentBuild = this.build();
         } finally {
           // Same reasoning as renderStack's own push/pop in renderOnto()
           // below - `creators` is a single, module-level stack shared by
           // every component in the process, so a build() that throws
           // without this would leave a stale entry on it, corrupting
-          // inherit()'s own creator walk for every component built
+          // the creator of every component built
           // afterward.
           creators.pop();
         }
-        assignEquivalentCreator(this.newBuild, this);
+        assignEquivalentCreator(this.currentBuild, this);
       }, {
         independent: true,
         // Only ever run when this component's render repeater pulls it
@@ -348,11 +354,11 @@ export class Component {
         // disappear among its siblings does. See cascade.reactive's
         // "Rebuild shape analysis" for how.
         rebuildShapeAnalysis: {
-          shapeRoot: () => this.newBuild,
+          shapeRoot: () => this.currentBuild,
           signature: (object) => (typeof(object.tagName) === "string" ? object.tagName.toLowerCase() : null),
           // The build, with every matched component replaced by the
           // established one it was matched to.
-          setShapeRoot: (root) => { this.newBuild = root; },
+          setShapeRoot: (root) => { this.currentBuild = root; },
         },
       });
     } else {
@@ -360,7 +366,7 @@ export class Component {
       // it was flagged), run it now - pushed onto the context stack above
       // this render, returning here with a fresh result - rather than
       // whenever the scheduler reaches its pipeline. The caller uses
-      // `this.newBuild` immediately (e.g. a component that measures, writes
+      // `this.currentBuild` immediately (e.g. a component that measures, writes
       // an input, then builds/renders off the result, all synchronously in
       // tree order - see cascade.application/demo's ApplicationMenuFrame).
       //
@@ -381,7 +387,7 @@ export class Component {
       this.refreshCreatorBuild();
       refreshIfNeeded(u.buildRepeater);
     }
-    return this.newBuild;
+    return this.currentBuild;
   }
 
   // A component's properties are written by its creator's build (the one
@@ -419,14 +425,14 @@ export class Component {
   // render() has to do with it. (What this component itself inherits is
   // read through inherit() - from the context it was given.)
   //
-  // Default implementation: build one step (see reactiveBuildEquivalent()
+  // Default implementation: build one step (see buildOneStep()
   // above) and renderOnto() each resulting child in turn, in order - the
   // build()-based composition style. Override render() directly instead
   // (skipping build() entirely) for the hardcoded-child-reference style,
   // or to interleave custom work (measurement, etc.) between children -
   // see cascade.DOM's DOMNodeComponent-based demos for exactly that.
   render(target, context) {
-    const equivalent = this.reactiveBuildEquivalent();
+    const equivalent = this.buildOneStep();
     const children = equivalent instanceof Array ? equivalent : [equivalent];
     for (const child of children) {
       // null/undefined/false - typically another component's own
@@ -484,8 +490,8 @@ export class Component {
     u.renderTarget = target;
     u.renderParent = renderParent;
     const timeless = (target && withoutRecording(() => target.timeless)) || null;
-    if (u.targetTimeless !== timeless) {
-      u.targetTimeless = timeless;
+    if (u.renderTimeless !== timeless) {
+      u.renderTimeless = timeless;
       accessInitialValues(() => { this.renderTimeless = timeless; });
     }
     if (u.renderContext !== context) {
@@ -526,7 +532,7 @@ export class Component {
     return this.render === Component.prototype.render;
   }
 
-  // Build this component not just one step (reactiveBuildEquivalent()) but
+  // Build this component not just one step (buildOneStep()) but
   // as far down as the caller wants: through whatever it builds, and
   // whatever that builds, until each component left is either a leaf -
   // whatever `isLeaf(component)` says it is - or can't be expanded (see
@@ -550,7 +556,7 @@ export class Component {
     const childContext = this.enterTree(target, context, renderParent);
     if (visited) visited.add(this);
     if (isLeaf(this) || !this.isExpandable()) return [this];
-    const built = this.reactiveBuildEquivalent();
+    const built = this.buildOneStep();
     const children = built instanceof Array ? built : [built];
     const result = [];
     for (const child of children) {
@@ -774,7 +780,7 @@ export class Component {
     // (see RenderContext.js). Nothing below it is in the tree any more.
     if (u.ownContext) disposeObject(u.ownContext);
     // Gone for good (unlike a component that's merely not rendered for a
-    // while - see reactiveBuildEquivalent()), so its build stops for good
+    // while - see buildOneStep()), so its build stops for good
     // too, instead of staying subscribed to whatever it read.
     if (u.buildRepeater) {
       retractRepeater(u.buildRepeater);
@@ -797,7 +803,7 @@ export class Component {
   }
 
   // Ported from flow.core's Component.js verbatim - a conditional-
-  // inclusion helper for a build() result: `parent(a, b.show(cond), c)`
+  // inclusion helper for a build() result: `parent(a, b.showIf(cond), c)`
   // includes `b` only if `cond` is true, `null` (dropped - see the
   // default render()'s own `equivalent instanceof Array` handling, and
   // implicitProperties.js's own null/undefined-skipping) otherwise. Not
@@ -806,7 +812,7 @@ export class Component {
   // which - like everything else here - inherits this too, but under a
   // different, narrower name for its own thing, precisely to avoid
   // colliding with this one).
-  show(value) {
+  showIf(value) {
     return value ? this : null;
   }
 
@@ -841,11 +847,11 @@ export class Component {
 }
 
 // Ported from flow.DOM's own DOMNode.js (aggregateToString()) - walks
-// equivalentCreator (whoever's build() produced this component - see
-// reactiveBuildEquivalent() above) from `component` up to the root,
+// equivalentCreator (whose build() returned this component as one of its
+// roots - see assignEquivalentCreator() above) from `component` up,
 // joining each one's own toString() with " | ". cascade.DOM writes this
 // onto a freshly-created real element's own `id` attribute (see
-// DOMElementNode.js) - unconditionally, no debug-mode flag, matching
+// DOMNodeComponent.js) - unconditionally, no debug-mode flag, matching
 // flow's own choice: open DevTools, click an element, read its id, and
 // you have exactly which component (and which component built it, and
 // which built *that*, ...) produced it, matched straight against the

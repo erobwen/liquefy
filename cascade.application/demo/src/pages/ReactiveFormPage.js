@@ -116,7 +116,7 @@ export class ReactiveFormPage extends Component {
           filler({ key: "sentText" }, text({ key: "sentMessage", text: this.sent || "" })),
           iconButton({ key: "dismiss", icon: "close", title: "Dismiss", onClick: callback("dismiss", () => { this.sent = null; }) }),
         ),
-      ).show(!!this.sent),
+      ).showIf(!!this.sent),
 
       button({ key: "submit", variant: "filled" }, text({ key: "submitText", text: "Submit" }), callback("submit", () => this.submit())),
     ];
@@ -163,7 +163,7 @@ export class ReactiveFormPage extends Component {
             ),
           ),
         ),
-        new ModelDataDisplay({ key: "modelData" }).show(wide),
+        new ModelDataDisplay({ key: "modelData" }).showIf(wide),
       ),
     );
   }
@@ -211,7 +211,7 @@ class TravelerForm extends Component {
         icon({ key: "personIcon", name: fellow ? "group" : "person" }),
         div({ key: "cardTitle", style: { fontWeight: "bold" } }, text({ key: "cardTitleText", text: fellow ? "Fellow traveler" : "Traveler" })),
         filler({ key: "cardHeaderFiller" }),
-        iconButton({ key: "remove", icon: "close", title: "Remove traveler", onClick: this.onRemove }).show(fellow),
+        iconButton({ key: "remove", icon: "close", title: "Remove traveler", onClick: this.onRemove }).showIf(fellow),
       ),
 
       field(traveler, "name", "Name"),
@@ -223,7 +223,7 @@ class TravelerForm extends Component {
         label: "Is child",
         checked: traveler.isChild,
         onChange: callback("isChild", (checked) => { traveler.isChild = checked; }),
-      }).show(fellow),
+      }).showIf(fellow),
       textField({
         key: "age",
         label: "Age",
@@ -231,7 +231,7 @@ class TravelerForm extends Component {
         unit: "years",
         value: traveler.age,
         onInput: callback("age", (value) => { if (value !== "") traveler.age = Number(value); }),
-      }).show(fellow && traveler.isChild),
+      }).showIf(fellow && traveler.isChild),
 
       // The address: the main traveler only.
       column(
@@ -239,7 +239,7 @@ class TravelerForm extends Component {
         field(traveler.address, "address", "Address"),
         field(traveler.address, "zipCode", "Zip code"),
         field(traveler.address, "city", "City"),
-      ).show(!fellow),
+      ).showIf(!fellow),
 
       new LuggageDrawer({
         key: "luggageDrawer",
@@ -339,7 +339,7 @@ class LuggageDrawer extends Component {
             },
           },
           text({ key: "countText", text: String(this.count) }),
-        ).show(!empty),
+        ).showIf(!empty),
         filler({ key: "headerFiller" }),
         empty
           ? add
@@ -349,7 +349,7 @@ class LuggageDrawer extends Component {
         { key: "luggageList", style: { display: "flex", flexWrap: "wrap", gap: "10px" } },
         ...this.content,
         empty ? null : add,
-      ).show(this.isOpen && !empty),
+      ).showIf(this.isOpen && !empty),
     );
   }
 }
@@ -400,7 +400,7 @@ class ErrorSummary extends Component {
 
   build() {
     return alert({ key: "errors", severity: "error" }, text({ key: "errorsText", text: "Some fields need filling in - see the marked ones above." }))
-      .show(this.verifying && anyErrors(data));
+      .showIf(this.verifying && anyErrors(data));
   }
 }
 

@@ -68,7 +68,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
         heading({ key: "heading" }, text({ key: "headingText", text: this.title })),
         p({ key: "intro" }, "Loose text, ", span({ key: "inline" }, text("inline")), " and more."),
         ul({ key: "list" }, this.order.map((key) => new Item({ key, label: key.toUpperCase() }))),
-        p({ key: "hidden" }, text("not shown")).show(false),
+        p({ key: "hidden" }, text("not shown")).showIf(false),
       ];
     }
   }
@@ -87,7 +87,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
 
   function listOf(appComponent) {
     // App -> root (div/container) -> the List it was built with.
-    return appComponent.newBuild.children[0];
+    return appComponent.currentBuild.children[0];
   }
 
   it("renders the same DOM as rendering normally - nested builds, arrays, loose and keyed text, show(false)", function () {
@@ -128,7 +128,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
   it("an item's own state survives its container's rebuilds", function () {
     const both = renderBoth(app(() => [new List({ key: "list" })]));
     const list = listOf(both.flip);
-    const flipItems = () => list.newBuild[2].children;
+    const flipItems = () => list.currentBuild[2].children;
     flipItems()[1].count = 5;
     list.order = ["b", "a", "c"];
     assert.equal(both.flipRoot.querySelectorAll("li")[0].textContent, "B: 5");
@@ -183,7 +183,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     }, CountingContainer));
     same(both);
 
-    const flipContainer = both.flip.newBuild;
+    const flipContainer = both.flip.currentBuild;
     assert.ok(flipContainer instanceof FlipAnimationContainer);
     const runsBefore = flipContainer.unobservable.runs;
 
@@ -195,7 +195,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
 
   it("while hidden, the builds of the components it expanded don't run - they're pulled, and revalidated once, when it's shown again", function () {
     // The container is what pulls those builds (they're never rendered
-    // themselves - see Component.reactiveBuildEquivalent()'s pulledBy), so
+    // themselves - see Component.buildOneStep()'s pulledBy), so
     // while it's hidden they wait, like any hidden component's build.
     const model = observable({ show: true, label: "one" });
     class Labelled extends Component {
@@ -269,7 +269,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     class App extends Component {
       build() {
         const drawer = ul({ key: "drawer" }, model.items.map((item) => li({ key: item }, text({ key: item + "Text", text: item }))))
-          .show(model.items.length > 0);
+          .showIf(model.items.length > 0);
         return model.animate ? flipAnimationContainer({ key: "flip" }, drawer) : div({ key: "plain" }, drawer);
       }
     }

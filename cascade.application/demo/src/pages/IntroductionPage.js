@@ -38,7 +38,7 @@ box.label = "Wide box";
  *
  * Implements only build() - Component's own default render() already
  * builds one step and renderOnto()'s each result in turn (see
- * Component.js), which is all a page reached via DOMContextContainer
+ * Component.js), which is all a page reached via DOMProvidingElement
  * (see ApplicationMenuFrame.js's own `workArea`) needs.
  */
 export class IntroductionPage extends Component {

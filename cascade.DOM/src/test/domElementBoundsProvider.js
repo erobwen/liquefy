@@ -118,7 +118,7 @@ describe("DOMElementBoundsProvider", function () {
     }
     const holder = new Holder();
     holder.renderOnto(new DOMElementTarget(container));
-    const element = () => holder.newBuild.unobservable.node;
+    const element = () => holder.currentBuild.unobservable.node;
     FakeResizeObserver.report(element(), 300, 200);
     holder.color = "blue";
     assert.equal(element().style.color, "blue", "rendered again");
@@ -141,7 +141,7 @@ describe("DOMElementBoundsProvider", function () {
     }
     const frame = new Frame({ shown: true, child: new Probe() });
     frame.renderOnto(new DOMElementTarget(container));
-    const element = frame.newBuild.unobservable.node;
+    const element = frame.currentBuild.unobservable.node;
     assert.ok(FakeResizeObserver.observing(element));
 
     frame.shown = false; // drops the keyed DOMElementBoundsProvider - disposed

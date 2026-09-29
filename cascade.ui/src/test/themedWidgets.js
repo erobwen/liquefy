@@ -92,9 +92,7 @@ describe("themed widgets", function () {
 
   it("switching the theme from a button inside the app, reached through inherit(), rebuilds cleanly", function () {
     // The demo's own shape (ThemesPage/ThemedServiceLocator): a switch found
-    // through inherit() - whose walk up the component hierarchy reads
-    // renderParent/equivalentCreator along the way, written by both render
-    // and build pipelines - clicked from inside the app, writing the theme's
+    // through inherit() - clicked from inside the app, writing the theme's
     // name and then the theme itself. Found in the browser: a build
     // invalidated by the switch had its writings (the properties of
     // everything it built) retracted, and an element it had built was

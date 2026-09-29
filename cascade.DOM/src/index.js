@@ -3,7 +3,7 @@ export { BrowserLocation, browserLocation } from "./BrowserLocation.js";
 export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator, hydrate, locateDOMComponent } from "./DOMServiceLocator.js";
 export { SingleNodeComponent } from "./SingleNodeComponent.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
-export { DOMContextContainer, contextContainer } from "./DOMContextContainer.js";
+export { DOMProvidingElement, providingElement } from "./DOMProvidingElement.js";
 export { DOMElementBoundsProvider, elementBoundsProvider } from "./DOMElementBoundsProvider.js";
 export { FlipAnimationContainer, flipAnimationContainer } from "./FlipAnimationContainer.js";
 export { DOMPlacingContainer } from "./DOMPlacingContainer.js";

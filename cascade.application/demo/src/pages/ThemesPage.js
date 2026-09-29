@@ -179,7 +179,7 @@ class ColorSchemeEditor extends Component {
       row(
         { key: "heading", style: { alignItems: "baseline", gap: "8px", flexWrap: "wrap" } },
         div({ key: "title", style: { fontWeight: "bold", fontSize: "17px" } }, text({ key: "titleText", text: this.title })),
-        div({ key: "appTheme", style: { fontSize: "13px", color: themeColor.textSoft } }, text({ key: "appThemeText", text: "the app's theme" })).show(this.isAppTheme),
+        div({ key: "appTheme", style: { fontSize: "13px", color: themeColor.textSoft } }, text({ key: "appThemeText", text: "the app's theme" })).showIf(this.isAppTheme),
       ),
       row(
         { key: "colors", style: { alignItems: "center", gap: "8px 16px", flexWrap: "wrap", overflow: "visible" } },

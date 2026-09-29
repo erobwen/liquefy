@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component, ObservableCompoundServiceLocator, observable, accessInitialValues } from "@liquefy/cascade.component";
-import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer, contextContainer } from "@liquefy/cascade.dom";
+import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer, providingElement } from "@liquefy/cascade.dom";
 import { portal, portalContents, button, basicTheme } from "../index.js";
 
 // portal()/portalContents(): a page putting its own buttons into the app's
@@ -90,7 +90,7 @@ describe("portals", function () {
 
   it("switching pages swaps the contents; each page's own come back with their state", function () {
     const { app, pages } = setup();
-    const counterOf = (page) => page.newBuild.children[1].portalChildren[0];
+    const counterOf = (page) => page.currentBuild.children[1].portalChildren[0];
     counterOf(pages[0]).count = 5;
     assert.equal(topBar(), "first action 5");
 
@@ -323,7 +323,7 @@ describe("portals", function () {
         return div(
           { key: "app" },
           div({ key: "topBar" }, this.unobservable.topBar),
-          contextContainer({ key: "workArea", child: page, context: { path: page.name } }),
+          providingElement({ key: "workArea", child: page, context: { path: page.name } }),
         );
       }
     }

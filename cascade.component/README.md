@@ -44,7 +44,7 @@ class Counter extends Component {
 
 - **Keys** give what a build returns a stable identity: built again with the
   same key, a component is the *same* component, its state and elements kept.
-- **`.show(condition)`** leaves a child out without dropping it.
+- **`.showIf(condition)`** leaves a child out without dropping it.
 - **`callback(key, fn)`** is a named, stable callback - passed as a property, it
   doesn't count as a change on every rebuild (a plain closure is fine for a
   quick prototype).
@@ -102,7 +102,7 @@ WARNING: There is a danger in combining both these methods. If a component is cr
 When a build() runs again, what it constructs is matched to what it constructed the previous time, so that the same component stays the same component - its state, its DOM elements, everything it built itself. Two ways:
 
 - **Pattern matching**, for anything without a key: a component constructed in the same place as before - the same property of the same parent, the same position among its siblings - and of the same class (for a DOM element, with the same tag) is the one from before. So static structure needs no keys at all.
-- **A key**, for whatever can move, appear or disappear among its siblings - the items of a list. Among an array's children, those without a key are paired in order, skipping the keyed ones, so an item inserted at the front would otherwise be matched to what used to be first. Also for a component built but not shown (`.show(false)` - it's not in the result, so there's nothing to match it against), and for two components of the same class taking turns in the same place (without keys, the second would carry on as the first).
+- **A key**, for whatever can move, appear or disappear among its siblings - the items of a list. Among an array's children, those without a key are paired in order, skipping the keyed ones, so an item inserted at the front would otherwise be matched to what used to be first. Also for a component built but not shown (`.showIf(false)` - it's not in the result, so there's nothing to match it against), and for two components of the same class taking turns in the same place (without keys, the second would carry on as the first).
 
 A matched component is merged into the established one exactly as a keyed one is (see "State during rebuild" below): its properties copied over, its state never. The matching reads the new build through its proxies, without recording any dependencies, and matches it against a plain-data snapshot of the previous build taken at the end of each run - the previous build's own properties are retracted once it's invalidated, so they can't be read back (see cascade.reactive's "Rebuild shape analysis").
 
@@ -115,11 +115,11 @@ We do not keep keyed instances around indefinitely. If a build() call does not c
 If a UI genuinely needs to keep a keyed child alive - visible or not - across such a toggle, there are two ways:
 
 1. **Build the child in initialization and take full control of its own lifecycle** - the second pattern from "Building Sub Components" above: hold it on a property or an unobservable, own its own render/retract calls directly, and never let its construction be guarded by an `if` inside anyone's build().
-2. **Keep it keyed, but hidden, using `.show()`.** Instead of guarding a keyed child's *construction* with an `if`, build it unconditionally every run and use `.show(condition)` on the result to control whether it's actually included in what build() returns:
+2. **Keep it keyed, but hidden, using `.showIf()`.** Instead of guarding a keyed child's *construction* with an `if`, build it unconditionally every run and use `.showIf(condition)` on the result to control whether it's actually included in what build() returns:
    ```js
-   buildMySubComponent().show(condition)
+   buildMySubComponent().showIf(condition)
    ```
-   Since it's constructed every run regardless of `condition`, its build identity is always present in `newBuildIdObjectMap` - it never drops out, so it's never gone. `.show(false)` only removes it from *this run's returned tree* (see `Component.show()`), which is a render-level decision, not a build-identity one.
+   Since it's constructed every run regardless of `condition`, its build identity is always present in `newBuildIdObjectMap` - it never drops out, so it's never gone. `.showIf(false)` only removes it from *this run's returned tree* (see `Component.showIf()`), which is a render-level decision, not a build-identity one.
 
 This is also why `cascade.application/demo`'s own RecursiveDemo page loses a deeper level's local state when you decrease the level count and then increase it again past where it was - that level's own key genuinely dropped out of its parent's build() for at least one run. That's the correct, intended behavior for the pattern that demo uses (a plain `if` guarding construction), not something the demo works around.
 

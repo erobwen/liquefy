@@ -121,10 +121,10 @@ export class AdvancedUsagePage extends Component {
         "Count up in each, switch tab, and switch back - the first forgets, the other two remember:",
       ),
       stage("keepAliveStage", new KeepAlive({ key: "keepAlive" })),
-      h3("1. Build them in every build - and show them with .show()"),
+      h3("1. Build them in every build - and show them with .showIf()"),
       p(
         "Create your children in build(), with a key - but don't hide them behind an ", name("if", "if"), ". Build them ",
-        "every time, and leave them out with ", name("show", ".show(condition)"), " instead: a child built but not ",
+        "every time, and leave them out with ", name("show", ".showIf(condition)"), " instead: a child built but not ",
         "shown is only hidden, while its key keeps it alive.",
       ),
       h3("2. Take full control"),

@@ -61,7 +61,7 @@ describe("expand / enterTree", function () {
     const owner = new Island();
     const top = new Top();
     const [leaf] = top.expand(target, renderContext, owner, isLeaf);
-    const middle = top.newBuild;
+    const middle = top.currentBuild;
 
     for (const component of [top, middle, leaf]) {
       assert.equal(component.renderContext, renderContext);
@@ -108,7 +108,7 @@ describe("expand / enterTree", function () {
     const renderContext = context();
     const top = new Top();
     const [leaf] = top.expand(target, renderContext, null, isLeaf);
-    const provider = top.newBuild;
+    const provider = top.currentBuild;
     // Its own lookups see only what it was given.
     assert.equal(leaf.label, "undefined/light");
     assert.equal(provider.renderContext, renderContext);

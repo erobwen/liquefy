@@ -16,7 +16,7 @@ import { DOMTextComponent } from "./DOMTextComponent.js";
 //  - `{ type: "textNode", properties }`: a Text node - what text() asks for.
 //  - `{ type: "domComponent", name, properties }`: the platform's other
 //    components (see registerDOMComponent() below) - what their factory
-//    functions (contextContainer(), flipAnimationContainer(), ...) ask for.
+//    functions (providingElement(), flipAnimationContainer(), ...) ask for.
 // Only what an application builds goes through here: inside this package,
 // components construct each other directly (a DOMElementComponent its
 // Text children, say) - whoever wants another implementation of one of

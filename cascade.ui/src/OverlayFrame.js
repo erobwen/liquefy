@@ -46,7 +46,7 @@ export class OverlayFrame extends Component {
     // frame can be handed its modal content directly as a property
     // instead, for a frame that's dedicated to one specific modal rather
     // than a general, shared one any Overlay can find via inherit().
-    this.receivedOverlayContent = overlayContent || null;
+    this.propertyContent = overlayContent || null;
     // A sub-frame showing an Overlay's content: the context of where that
     // Overlay stands - what the content inherits from (see build()).
     this.originContext = originContext || null;
@@ -72,7 +72,7 @@ export class OverlayFrame extends Component {
   // to - the same writing, reused, not a fresh one spliced in ahead of a
   // reader that could never actually reach it (see their comment).
   initialState() {
-    return { assignedOverlayContent: null, assignedOverlayContext: null };
+    return { shownContent: null, shownContext: null };
   }
 
   initialUnobservables() {
@@ -89,7 +89,7 @@ export class OverlayFrame extends Component {
   // *later* in this same pipeline than OverlayFrame's own build() (a
   // descendant calling back up to an ancestor). A plain write here could
   // never actually reach OverlayFrame's own already-registered dependency
-  // on `assignedOverlayContent`: "time as tree position" means a
+  // on `shownContent`: "time as tree position" means a
   // later-positioned write can never overtake an earlier-positioned
   // reader, by construction (see cascade.reactive's own
   // migrateOvertakenObserversFor) - this is exactly the motivating case
@@ -109,20 +109,20 @@ export class OverlayFrame extends Component {
   // (see the class doc).
   showOverlay(contentProvider, overlayContent, context) {
     this.unobservable.assigningContentProvider = contentProvider;
-    flush(() => this.setState({ assignedOverlayContent: overlayContent, assignedOverlayContext: context || null }));
+    flush(() => this.setState({ shownContent: overlayContent, shownContext: context || null }));
   }
 
   hideOverlay(contentProvider) {
     if (this.unobservable.assigningContentProvider === contentProvider) {
-      flush(() => this.setState({ assignedOverlayContent: null, assignedOverlayContext: null }));
+      flush(() => this.setState({ shownContent: null, shownContext: null }));
     }
   }
 
   build() {
-    if (this.assignedOverlayContent && this.receivedOverlayContent) {
+    if (this.shownContent && this.propertyContent) {
       throw new Error("Cannot both assign overlay content via showOverlay() and set it as a property on the same overlay frame.");
     }
-    const overlayContent = this.assignedOverlayContent || this.receivedOverlayContent;
+    const overlayContent = this.shownContent || this.propertyContent;
 
     const children = [...this.staticContent];
 
@@ -132,7 +132,7 @@ export class OverlayFrame extends Component {
         // Content an Overlay assigned keeps the context of where it came
         // from; content handed over as a property is this frame's creator's
         // own, and is simply shown with this frame's.
-        originContext: this.assignedOverlayContent ? this.assignedOverlayContext : null,
+        originContext: this.shownContent ? this.shownContext : null,
         style: {
           position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
           pointerEvents: "none",

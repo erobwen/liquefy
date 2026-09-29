@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { a, div, img, span, text, contextContainer, elementBoundsProvider } from "@liquefy/cascade.dom";
+import { a, div, img, span, text, providingElement, elementBoundsProvider } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, portal, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
 
@@ -44,7 +44,7 @@ const TOP_BAR_HEIGHT = 48;
  * still routed through an intermediate bridging div here).
  *
  * The work area's own page content (Introduction/ProgrammaticReactiveLayout)
- * is reached via contextContainer() (see cascade.DOM/src/DOMContextContainer.js),
+ * is reached via providingElement() (see cascade.DOM/src/DOMProvidingElement.js),
  * which owns `workArea`'s own real, styled div and hands the page a fresh
  * context providing usableWidth/usableHeight - not a bridge between two
  * different target abstractions (there's only DOMElementTarget now), just a
@@ -199,14 +199,14 @@ class ApplicationMenuFrameLayout extends Component {
         title: "Menu",
         onClick: callback("toggleMenu", () => { frame.menuOpen = !frame.menuOpen; }),
         style: { color: "white" },
-      }).show(menuIsModal && !frame.menuOpen),
+      }).showIf(menuIsModal && !frame.menuOpen),
       // The shown page's own buttons - information, code - just before its
       // title (see src/components/pageActions.js).
       frame.topBarPortal,
       div({ key: "label", style: { fontWeight: "bold" } }, page.title),
     );
 
-    const workArea = contextContainer({
+    const workArea = providingElement({
       key: "workArea",
       child: page.component,
       style: {
@@ -283,7 +283,7 @@ function buildModalMenuDrawer(frame) {
 // wherever it's needed rather than reparented between them. It carries no
 // state worth preserving across such a move (no scroll position, no
 // focus), so recreating it is harmless - unlike the page components in
-// the work area, which is why those go through contextContainer() instead,
+// the work area, which is why those go through providingElement() instead,
 // keeping the same component (and its own state) across such a move.
 class MenuList extends Component {
   // Both plain properties, passed in fresh on every rebuild. (A dropped

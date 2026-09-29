@@ -8,7 +8,7 @@ import { text } from "../DOMTextComponent.js";
 // Pattern matching: what a rebuild constructs without a key is matched to
 // what the previous build constructed in the same place - same class, and
 // for a DOM element the same tag - and keeps its identity, state and DOM,
-// as a key would have (see Component.reactiveBuildEquivalent()'s
+// as a key would have (see Component.buildOneStep()'s
 // rebuildShapeAnalysis, and cascade.reactive's "Rebuild shape analysis").
 describe("Pattern matching (rebuilding without keys)", function () {
   let container;
@@ -52,7 +52,7 @@ describe("Pattern matching (rebuilding without keys)", function () {
       if (value instanceof Counter) found.push(value);
       else if (value && value.children) walk(value.children);
     };
-    walk(page.newBuild);
+    walk(page.currentBuild);
     return found;
   }
 
@@ -155,13 +155,13 @@ describe("Pattern matching (rebuilding without keys)", function () {
       build() {
         return div(
           p(text(model.title)),
-          div({ key: "drawer" }, new Counter({ label: "inside" })).show(model.open),
+          div({ key: "drawer" }, new Counter({ label: "inside" })).showIf(model.open),
         );
       }
     }
     const page = new Page();
     render(page);
-    const panel = page.newBuild.children[1];
+    const panel = page.currentBuild.children[1];
     panel.children[0].count = 6;
 
     model.open = false;
@@ -201,7 +201,7 @@ describe("Pattern matching (rebuilding without keys)", function () {
     const page = new Page();
     render(page);
     model.title = "two";
-    const root = page.newBuild;
+    const root = page.currentBuild;
     assert.ok(Object.isFrozen(root.children), "still frozen after its references were replaced");
     assert.equal(html(), "<div><p>two</p><span>static</span></div>");
   });

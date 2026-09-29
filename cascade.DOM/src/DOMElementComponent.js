@@ -162,7 +162,7 @@ export class DOMElementComponent extends DOMNodeComponent {
       while (u.node.firstChild) u.node.removeChild(u.node.firstChild);
     }
     (this.children || []).forEach((child) => {
-      // null/undefined/false - typically Component.show(false)'s own
+      // null/undefined/false - typically Component.showIf(false)'s own
       // "don't include me at all" result (see its own doc) - simply
       // isn't renderOnto()'d this pass, same as any other child that
       // stops appearing in the children array; if it was previously

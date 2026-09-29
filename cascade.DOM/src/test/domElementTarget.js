@@ -56,11 +56,11 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       // (whose render() never re-executes) would either lose its
       // lastChild tracking or simply never see a freshly-constructed
       // context object at all (relinking can't - see RenderContext.js).
-      if (!u.innerTarget) {
-        u.innerTarget = DOMElementTarget.forElement(el);
+      if (!u.childTarget) {
+        u.childTarget = DOMElementTarget.forElement(el);
       }
-      this.toolbar.renderOnto(u.innerTarget);
-      this.contentArea.renderOnto(u.innerTarget);
+      this.toolbar.renderOnto(u.childTarget);
+      this.contentArea.renderOnto(u.childTarget);
       return el;
     }
   }
@@ -148,17 +148,17 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         const u = this.unobservable;
         const el = existingElement || target.appendElement("div");
         el.className = "main-frame";
-        if (!u.innerTarget) {
-          u.innerTarget = DOMElementTarget.forElement(el);
+        if (!u.childTarget) {
+          u.childTarget = DOMElementTarget.forElement(el);
         }
-        this.toolbar.renderOnto(u.innerTarget);
+        this.toolbar.renderOnto(u.childTarget);
         // jsdom does no real layout, so this stands in for a real
         // getBoundingClientRect() measurement - the point being proven is
         // that writing a *different* value into the same, persistent
         // context object is what invalidates the child, same as any other
         // reactive write - not the renderOnto() call itself.
-        u.innerTarget.spaceLeft = this.unobservable.simulatedSpaceLeft;
-        this.contentArea.renderOnto(u.innerTarget);
+        u.childTarget.spaceLeft = this.unobservable.simulatedSpaceLeft;
+        this.contentArea.renderOnto(u.childTarget);
         return el;
       }
     }

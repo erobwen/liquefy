@@ -59,20 +59,20 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
       const u = this.unobservable;
       const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
-      if (!u.innerTarget) {
-        u.innerTarget = DOMElementTarget.forElement(el);
+      if (!u.childTarget) {
+        u.childTarget = DOMElementTarget.forElement(el);
       }
 
-      this.menu.renderOnto(u.innerTarget);
+      this.menu.renderOnto(u.childTarget);
 
       // jsdom does no real layout, so these stand in for real
       // getBoundingClientRect() measurements (see cascade.application/demo
       // for the version measuring an actual browser). The point being
       // proven is the dedup behavior below, not the measurement itself.
-      u.innerTarget.usableWidth = this.unobservable.simulatedFrameWidth - this.unobservable.simulatedMenuWidth;
-      u.innerTarget.usableHeight = this.unobservable.simulatedFrameHeight;
+      u.childTarget.usableWidth = this.unobservable.simulatedFrameWidth - this.unobservable.simulatedMenuWidth;
+      u.childTarget.usableHeight = this.unobservable.simulatedFrameHeight;
 
-      this.workArea.renderOnto(u.innerTarget);
+      this.workArea.renderOnto(u.childTarget);
 
       return el;
     }

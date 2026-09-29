@@ -59,25 +59,25 @@ describe("MenuFrame modal/docked breakpoint", function () {
       const u = this.unobservable;
       const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
-      if (!u.innerTarget) {
-        u.innerTarget = DOMElementTarget.forElement(el);
+      if (!u.childTarget) {
+        u.childTarget = DOMElementTarget.forElement(el);
       }
 
       const menuIsModal = target.usableWidth < MENU_WIDTH * 3;
-      u.innerTarget.menuIsOverlay = menuIsModal;
+      u.childTarget.menuIsOverlay = menuIsModal;
 
       if (menuIsModal) {
-        u.innerTarget.usableWidth = target.usableWidth;
-        this.workArea.renderOnto(u.innerTarget);
+        u.childTarget.usableWidth = target.usableWidth;
+        this.workArea.renderOnto(u.childTarget);
         if (this.menuOpen) {
-          this.menu.renderOnto(u.innerTarget);
+          this.menu.renderOnto(u.childTarget);
         }
         // else: not rendered at all this pass - retracted automatically
         // if it was previously docked or previously open as an overlay.
       } else {
-        this.menu.renderOnto(u.innerTarget);
-        u.innerTarget.usableWidth = target.usableWidth - MENU_WIDTH;
-        this.workArea.renderOnto(u.innerTarget);
+        this.menu.renderOnto(u.childTarget);
+        u.childTarget.usableWidth = target.usableWidth - MENU_WIDTH;
+        this.workArea.renderOnto(u.childTarget);
       }
 
       return el;

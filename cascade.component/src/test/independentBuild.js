@@ -5,7 +5,7 @@ import assert from "assert";
 
 // A component's build repeater is an *independent* repeater (see
 // cascade.reactive's repeat({independent: true}) and Component.js's
-// reactiveBuildEquivalent()): its own pipeline at the render's time level,
+// buildOneStep()): its own pipeline at the render's time level,
 // not a child of the render repeater - so render pipeline operations never
 // visit build repeaters. Render and build are parallel pipelines, each
 // reading the other's latest writings; the build's lifecycle follows the
@@ -46,7 +46,7 @@ describe("independent build repeaters", function () {
     // The render repeater's own children are just the leaf's render repeater.
     const children = repeaterChildren(render);
     assert.equal(children.length, 1);
-    assert.equal(children[0], parent.newBuild.unobservable.repeater);
+    assert.equal(children[0], parent.currentBuild.unobservable.repeater);
   });
 
   it("build() sees the render context's latest values, and a change there rebuilds and rerenders", function () {
@@ -59,12 +59,12 @@ describe("independent build repeaters", function () {
     const renderContext = context();
     const themed = new Themed();
     themed.renderOnto(target, renderContext);
-    assert.equal(themed.newBuild.key, "leaf-light");
+    assert.equal(themed.currentBuild.key, "leaf-light");
 
     renderContext.provided.theme = "dark";
     assert.equal(themed.unobservable.buildCount, 2);
-    assert.equal(themed.newBuild.key, "leaf-dark");
-    assert.equal(themed.newBuild.unobservable.sawTheme, "dark");
+    assert.equal(themed.currentBuild.key, "leaf-dark");
+    assert.equal(themed.currentBuild.unobservable.sawTheme, "dark");
   });
 
   it("a render rerun that doesn't change the build's inputs doesn't rebuild", function () {
@@ -117,7 +117,7 @@ describe("independent build repeaters", function () {
     const toggle = new Switch({ child: labelled });
     toggle.renderOnto(target, context());
     const buildRepeater = labelled.unobservable.buildRepeater;
-    const counter = labelled.newBuild;
+    const counter = labelled.currentBuild;
     counter.count = 5;
 
     toggle.show = false;
@@ -129,7 +129,7 @@ describe("independent build repeaters", function () {
     toggle.show = true;
     assert.equal(labelled.unobservable.buildRepeater, buildRepeater, "the same build repeater");
     assert.equal(labelled.unobservable.buildCount, 2, "revalidated once, when shown again");
-    assert.equal(labelled.newBuild, counter, "the same keyed child object");
+    assert.equal(labelled.currentBuild, counter, "the same keyed child object");
     assert.equal(counter.count, 5, "with its state");
     assert.equal(counter.label, "b", "and its properties rebuilt from what changed while hidden");
   });
@@ -152,7 +152,7 @@ describe("independent build repeaters", function () {
     }
     const outer = new Outer();
     outer.renderOnto(target, context());
-    const inner = outer.newBuild;
+    const inner = outer.currentBuild;
     assert.ok(inner instanceof Inner);
 
     outer.includeInner = false;

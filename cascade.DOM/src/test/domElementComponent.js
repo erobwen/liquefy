@@ -186,7 +186,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
         return new Level({ key: "root", depth: 1, maxDepth: 3, shared: this.shared });
       }
       render(target, context) {
-        this.reactiveBuildEquivalent().renderOnto(target, context);
+        this.buildOneStep().renderOnto(target, context);
       }
     }
 
@@ -270,7 +270,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
         return new Level({ key: "root", depth: 1, maxDepth: this.maxDepth, shared: this.shared });
       }
       render(target, context) {
-        this.reactiveBuildEquivalent().renderOnto(target, context);
+        this.buildOneStep().renderOnto(target, context);
       }
     }
 
@@ -335,7 +335,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
         return new Level({ key: "root", depth: 1, maxDepth: this.maxDepth });
       }
       render(target, context) {
-        this.reactiveBuildEquivalent().renderOnto(target, context);
+        this.buildOneStep().renderOnto(target, context);
       }
     }
 

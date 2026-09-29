@@ -55,7 +55,7 @@ const MODAL_HEIGHT = 420;
  * constructor ("constructing a component with a key that matches one
  * from the enclosing repeater's previous run discards this freshly-
  * constructed instance and returns the established one instead"). Both
- * branches are always evaluated - only .show(condition)/`showing:` (which
+ * branches are always evaluated - only .showIf(condition)/`showing:` (which
  * never clone or wrap, just return the same reference or null/nothing)
  * decide which one is actually visible in the rendered tree at any given
  * moment, so the object is transplanted between the two potential
@@ -142,7 +142,7 @@ export class HybridModalDialog extends Component {
       // too, the overlay (still shown as this build runs) would render it
       // there once more, taking its element back from the docked slot just
       // before the overlay closes - and the dialog would be gone.
-      dialog.show(showDialog && mode === "docked"),
+      dialog.showIf(showDialog && mode === "docked"),
       overlay(
         { key: "dialogOverlay", showing: showDialog && mode !== "docked" },
         mode === "docked" ? null : mode === "fullScreen" ? fullScreenPresentation(dialog) : modalPresentation(dialog, close),

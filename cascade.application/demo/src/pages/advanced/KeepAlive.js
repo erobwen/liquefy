@@ -47,14 +47,14 @@ export class Guarded extends Tabs {
   }
 }
 
-// 1. Built in every build, with a key - and shown or not with .show().
+// 1. Built in every build, with a key - and shown or not with .showIf().
 export class Shown extends Tabs {
   build() {
     return column(
       { style: { gap: "12px" } },
       this.tabBar(),
-      new Tally({ key: "first", label: "First" }).show(this.tab === "first"),
-      new Tally({ key: "second", label: "Second" }).show(this.tab === "second"),
+      new Tally({ key: "first", label: "First" }).showIf(this.tab === "first"),
+      new Tally({ key: "second", label: "Second" }).showIf(this.tab === "second"),
     );
   }
 }
@@ -97,7 +97,7 @@ export class KeepAlive extends Component {
     return row(
       { style: { gap: "16px", flexWrap: "wrap", alignItems: "stretch" } },
       variant("if - forgets", new Guarded()),
-      variant("1. .show() - remembers", new Shown()),
+      variant("1. .showIf() - remembers", new Shown()),
       variant("2. Owned - remembers", new Owned()),
     );
   }

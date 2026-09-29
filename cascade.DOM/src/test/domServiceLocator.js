@@ -54,7 +54,7 @@ describe("DOM service locators (reached through the render context)", function (
 
   const contextWith = (serviceLocator) => new RenderContext({ serviceLocator });
 
-  it("the platform's other components - flipAnimationContainer(), contextContainer(), ... - are located too, so another locator can replace one wholesale", function () {
+  it("the platform's other components - flipAnimationContainer(), providingElement(), ... - are located too, so another locator can replace one wholesale", function () {
     // Say, an app that turns animation off: every flipAnimationContainer()
     // becomes a plain div around the same children.
     class NoAnimation {
@@ -70,13 +70,13 @@ describe("DOM service locators (reached through the render context)", function (
     }
     const app = new App();
     app.renderOnto(new DOMElementTarget(container), contextWith(new CompoundServiceLocator(new NoAnimation(), new DOMServiceLocator())));
-    assert.ok(!(app.newBuild instanceof FlipAnimationContainer));
+    assert.ok(!(app.currentBuild instanceof FlipAnimationContainer));
     assert.equal(container.innerHTML.replace(/ id="[^"]*"/g, ""), "<div><p>still here</p></div>");
 
     const plain = new App();
     container.innerHTML = "";
     plain.renderOnto(new DOMElementTarget(container), contextWith(new DOMServiceLocator()));
-    assert.ok(plain.newBuild instanceof FlipAnimationContainer, "and by default, it's the real one");
+    assert.ok(plain.currentBuild instanceof FlipAnimationContainer, "and by default, it's the real one");
   });
 
   it("every tag (and text) built anywhere in the tree - nested components included - goes through the render context's own locator", function () {

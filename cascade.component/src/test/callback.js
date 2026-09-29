@@ -33,7 +33,7 @@ describe("callback()", function () {
     }
     const parent = new Parent();
     parent.renderOnto(({ name: "target" }));
-    return { model, child: parent.newBuild, picked };
+    return { model, child: parent.currentBuild, picked };
   }
 
   it("a named callback is the same function across rebuilds - and calls the closure from the latest one", function () {

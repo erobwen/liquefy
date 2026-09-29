@@ -55,7 +55,7 @@ class Poster extends Component {
       portalContents(
         { key: "notice", portal: "noticeBoard" },
         text("Posted from deep inside - shown up here."),
-      ).show(this.posted),
+      ).showIf(this.posted),
     );
   }
 }

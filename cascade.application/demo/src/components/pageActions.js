@@ -76,6 +76,6 @@ export function informationBox({ key, summary, points }, style) {
     ul(
       { key: key + "Points", style: { margin: "8px 0 0 0", paddingLeft: "20px" } },
       (points || []).map((point, index) => li({ key: key + "Point" + index }, text({ key: key + "PointText" + index, text: point }))),
-    ).show(!!points && points.length > 0),
+    ).showIf(!!points && points.length > 0),
   );
 }

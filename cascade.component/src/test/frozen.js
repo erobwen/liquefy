@@ -49,7 +49,7 @@ describe("frozen properties", function () {
     }
     const parent = new Parent();
     parent.renderOnto(({ name: "target" }));
-    const child = parent.newBuild;
+    const child = parent.currentBuild;
     return { model, child, renders: () => child.unobservable.renders };
   }
 

@@ -19,7 +19,7 @@ import { DOMNodeComponent } from "./DOMNodeComponent.js";
  * component that should still count as "a real DOM node" to anything
  * upstream; extend DOMNodeComponent directly only for the other style -
  * hardcoded child references, or owning the one real element yourself (see
- * DOMElementComponent/DOMTextComponent/DOMContextContainer).
+ * DOMElementComponent/DOMTextComponent/DOMProvidingElement).
  */
 export class SingleNodeComponent extends Component {
   // render() below only verifies what build() returns before rendering it
@@ -30,10 +30,10 @@ export class SingleNodeComponent extends Component {
   }
 
   render(target, context) {
-    // reactiveBuildEquivalent() is cached per run (see its own comment) -
+    // buildOneStep() is cached per run (see its own comment) -
     // calling it here to verify, then again via super.render() below, does
     // not run build() twice.
-    const equivalent = this.reactiveBuildEquivalent();
+    const equivalent = this.buildOneStep();
     if (!(equivalent instanceof DOMNodeComponent)) {
       const got = equivalent === null || typeof(equivalent) === "undefined"
         ? String(equivalent)

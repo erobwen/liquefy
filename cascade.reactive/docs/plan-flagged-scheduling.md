@@ -528,7 +528,7 @@ Arrays (`invalidateArrayObservers`) still have no position gate of any
 kind today - left explicitly open, same reasoning, tracked in
 `docs/plan-array-timelines.md`.
 
-## `reactiveBuildEquivalent()`: a nested buildRepeater whose own caller
+## `buildOneStep()`: a nested buildRepeater whose own caller
 ## needs its result synchronously
 
 Found building `cascade.application/demo`'s `ApplicationMenuFrame` -
@@ -542,8 +542,8 @@ genuine rerun it finds has that rerun deliberately left for the sortedQueue to
 pick up later (see `linkRepeater`'s own comment, above). Fine for a
 caller that only needs the disposal to have happened before its own next
 write (`renderOnto.js`'s original motivating case) - wrong for
-`reactiveBuildEquivalent()`'s own very next line, which hands
-`this.newBuild` straight to its caller, used immediately.
+`buildOneStep()`'s own very next line, which hands
+`this.currentBuild` straight to its caller, used immediately.
 
 **First attempt**: skip the separate buildRepeater entirely - call
 `build()` directly, inline, reconciling naturally against the *caller's
@@ -576,7 +576,7 @@ refresh(); }`, mirroring `processRepeater()`'s own 'invalid' branch
 exactly). `drainActivePipeline()`'s own sortedQueue loop already discards a
 repeater it later pops whose `workStatus` has gone back to `null` in the
 meantime, so this can never cause buildRepeater to run twice. See
-`cascade.component/src/Component.js`'s own `reactiveBuildEquivalent()`.
+`cascade.component/src/Component.js`'s own `buildOneStep()`.
 
 ## Retraction losing a race against a stale, already-queued rerun
 
@@ -619,7 +619,7 @@ buildRepeater or render-repeater refreshes anyway, reading back
 `undefined` for whatever property depended on the now-unlinked writing,
 with no exception at the write site to explain it - reproduced in
 isolation (no real DOM at all) in under 10 lines, confirmed independent
-of the `reactiveBuildEquivalent()` fix above (reproduces identically with
+of the `buildOneStep()` fix above (reproduces identically with
 or without it).
 
 **First fix (since replaced)**: write the affected property via
@@ -639,7 +639,7 @@ it gets called, via `Component.onDispose()`: the moment a keyed
 component's build identity is known to have vanished, its render-repeater
 is retracted (cascading to its buildRepeater and everything rendered
 underneath), *before* the sortedQueue ever gets to any stale rerun of it. With
-`reactiveBuildEquivalent()`'s synchronous refresh above, that
+`buildOneStep()`'s synchronous refresh above, that
 `finishRebuilding()` runs inside the parent's own `render()`, ahead of
 the sortedQueue loop - so the scheduler's own `if (repeater.retracted) continue`
 check finally sees the flag in time. All three `accessInitialValues()`
@@ -655,7 +655,7 @@ properties"): some of a component's properties aren't properties at all.
 A *property* comes from the constructing context on every rebuild, like a
 function argument. *State* is established once and thereafter changes
 only through the user (an event handler) or an event that causes - and a
-rebuild must never reset it. `OverlayFrame.assignedOverlayContent` was
+rebuild must never reset it. `OverlayFrame.shownContent` was
 already being hand-positioned at the baseline via `accessInitialValues()`
 for exactly this reason, without a name for it.
 
@@ -699,7 +699,7 @@ lock-reset-on-idle fix that came with it), `accessInitialValues()`
 (reaching backward through position rather than scheduling, reusing the
 existing external-write baseline), enumeration's own dependency tracking
 made position-aware (downstream-only invalidation on key add/remove),
-`reactiveBuildEquivalent()`'s own deferred-refresh fix (force a flagged-
+`buildOneStep()`'s own deferred-refresh fix (force a flagged-
 then-genuinely-invalid buildRepeater's refresh to complete synchronously
 rather than leaving it for the sortedQueue), the retraction-vs-stale-queued-
 rerun race (a dropped child's own inherited invalidation reaching the

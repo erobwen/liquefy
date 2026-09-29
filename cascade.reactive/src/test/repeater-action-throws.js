@@ -7,7 +7,7 @@ import assert from "assert";
 // later tests in the same process. Root cause was in repeater.refresh()
 // itself, not in Component.js (which has its own, separate try/finally
 // around renderStack/creators - see Component.js's renderOnto()/
-// reactiveBuildEquivalent()): enterContext(partial) was followed by
+// buildOneStep()): enterContext(partial) was followed by
 // repeater.repeaterAction(repeater) with no try/finally, so a throwing
 // action left state.context - a single, module-level pointer, not scoped
 // to this repeater or this call - permanently pointing at this run's own

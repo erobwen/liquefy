@@ -73,16 +73,16 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
   render(target, context) {
     super.render(target, context);
     const u = this.unobservable;
-    if (!u.innerTarget) {
-      u.innerTarget = DOMElementTarget.forElement(u.node);
-      u.innerTarget.observeBounds();
+    if (!u.childTarget) {
+      u.childTarget = DOMElementTarget.forElement(u.node);
+      u.childTarget.observeBounds();
     }
-    this.child.renderOnto(u.innerTarget, context);
+    this.child.renderOnto(u.childTarget, context);
   }
 
   onDispose() {
     super.onDispose();
-    if (this.unobservable.innerTarget) this.unobservable.innerTarget.stopObservingBounds();
+    if (this.unobservable.childTarget) this.unobservable.childTarget.stopObservingBounds();
   }
 }
 

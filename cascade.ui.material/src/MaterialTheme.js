@@ -118,11 +118,11 @@ class MaterialDialog extends Component {
             ? { padding: "8px 16px 8px 4px", minHeight: "56px", flex: "none", alignItems: "center", gap: "8px", fontSize: "22px" }
             : { padding: "8px 8px 0 24px", flex: "none", alignItems: "center", gap: "8px", fontSize: "20px" },
         },
-        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).show(this.fullScreen),
+        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).showIf(this.fullScreen),
         // text(): a lone string starting lowercase (a file name, say)
         // would be taken for an implicit key.
         filler({ key: "title" }, text({ key: "titleText", text: this.title })),
-        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).show(!this.fullScreen),
+        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).showIf(!this.fullScreen),
       ),
       // Sized by its content, scrolling once the dialog has a height of its own.
       column({ key: "body", style: { flex: "1 1 auto", minHeight: 0, overflow: "auto" } }, this.dialogChildren),
@@ -166,7 +166,7 @@ class MaterialTextField extends Component {
       wrapper(
         { key: "error", style: { fontSize: "12px", padding: "0 16px", color: "rgb(var(--mdui-color-error))" } },
         text({ key: "errorText", text: this.error || "" }),
-      ).show(!!this.error),
+      ).showIf(!!this.error),
     );
   }
 }

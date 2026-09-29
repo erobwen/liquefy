@@ -178,11 +178,11 @@ class BasicDialog extends Component {
             background: c.chromeDark, color: c.onChrome, flex: "none", alignItems: "center", gap: "8px", fontWeight: "bold",
           },
         },
-        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).show(this.fullScreen),
+        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).showIf(this.fullScreen),
         // text(): a lone string starting lowercase (a file name, say)
         // would be taken for an implicit key.
         filler({ key: "title" }, text({ key: "titleText", text: this.title })),
-        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).show(!this.fullScreen),
+        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).showIf(!this.fullScreen),
       ),
       // Sized by its content, scrolling once the dialog has a height of its own.
       column({ key: "body", style: { flex: "1 1 auto", minHeight: 0, overflow: "auto" } }, this.dialogChildren),
@@ -208,7 +208,7 @@ class BasicTextField extends Component {
     ensureStyleSheet();
     return htmlLabel(
       { key: "field", style: { display: "flex", flexDirection: "column", gap: "4px", ...this.style } },
-      span({ key: "label", style: { fontSize: "13px", opacity: 0.8 } }, text({ key: "labelText", text: this.label })).show(!!this.label),
+      span({ key: "label", style: { fontSize: "13px", opacity: 0.8 } }, text({ key: "labelText", text: this.label })).showIf(!!this.label),
       row(
         { key: "inputRow", style: { alignItems: "center", gap: "6px" } },
         htmlInput({
@@ -222,7 +222,7 @@ class BasicTextField extends Component {
         }),
         this.unit ? span({ key: "unit" }, text({ key: "unitText", text: this.unit })) : null,
       ),
-      div({ key: "error", style: { fontSize: "12px", color: c.error } }, text({ key: "errorText", text: this.error || "" })).show(!!this.error),
+      div({ key: "error", style: { fontSize: "12px", color: c.error } }, text({ key: "errorText", text: this.error || "" })).showIf(!!this.error),
     );
   }
 }

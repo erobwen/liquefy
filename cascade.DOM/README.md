@@ -63,7 +63,7 @@ lowercase letter is taken for a key.
 - **`overflowContainer()`** - places its children one by one, measuring each
   where it really is, and moves what doesn't fit into an overflow slot (an
   ellipsis toolbar, say).
-- **`contextContainer()`** - keeps a component, its state and its elements,
+- **`providingElement()`** - keeps a component, its state and its elements,
   wherever it's shown next.
 - **`browserLocation()`** - routing: the URL as observable state.
 - **`hydrate()`** - a UI written as a document: plain data, a tree of service

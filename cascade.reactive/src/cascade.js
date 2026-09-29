@@ -4145,7 +4145,7 @@ function createWorld(configuration) {
   // before it does and read them as missing; pulled by its render
   // repeater instead, it always runs first - the render repeater comes
   // before everything it renders (see Component.js's
-  // reactiveBuildEquivalent()).
+  // buildOneStep()).
   //
   // A retracted puller (a component that isn't being rendered right now)
   // leaves the work pending: nothing needs this repeater's results while

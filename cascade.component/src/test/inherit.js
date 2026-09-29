@@ -84,7 +84,7 @@ describe("Component.inherit() (through the render context chain)", function () {
     }
     const frame = new BuildingFrame();
     frame.renderOnto(target);
-    assert.equal(frame.newBuild.unobservable.found, frame);
+    assert.equal(frame.currentBuild.unobservable.found, frame);
   });
 
   it("a getter provided follows what it reads", function () {

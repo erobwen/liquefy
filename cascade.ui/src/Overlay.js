@@ -16,7 +16,7 @@ import { Component, withoutRecording } from "@liquefy/cascade.component";
  * cascade's direct-render model has no equivalent for yet. `showing` here
  * is Overlay's own, narrower concept: set this to true/false directly
  * (or via the properties bag - `overlay(content, {showing: true})`) to
- * control it, not flow's generic `.show(value)` helper (which just
+ * control it, not flow's generic `.showIf(value)` helper (which just
  * conditionally includes a component in a build() result at all -
  * ported separately, unchanged, onto Component itself).
  */

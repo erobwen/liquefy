@@ -74,7 +74,7 @@ describe("disposing what a dropped component built", function () {
     expanding.renderOnto(context());
     assert.deepEqual(expanding.unobservable.labels, ["form 1", "item 3"]);
 
-    const item = list.newBuild[0].newBuild[1];
+    const item = list.currentBuild[0].currentBuild[1];
     first.open = false;
     assert.deepEqual(expanding.unobservable.labels, ["form 1"], "closed: the item built, but left out");
 

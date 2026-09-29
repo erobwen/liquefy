@@ -53,7 +53,7 @@ describe("the lifecycle of an owned component", function () {
     const data = observable({ showOwner: true });
     const parent = new Parent({ data });
     parent.renderOnto(context());
-    const owned = parent.newBuild.unobservable.owned;
+    const owned = parent.currentBuild.unobservable.owned;
     assert.equal(owned.unobservable.established, 1);
     assert.equal(owned.unobservable.builds, 1);
 
@@ -90,7 +90,7 @@ describe("the lifecycle of an owned component", function () {
     builder.renderOnto(context());
     assert.equal(established, 1);
     // The same establish() the rebuild used: established already.
-    builder.newBuild.establish();
+    builder.currentBuild.establish();
     assert.equal(established, 1);
     data.showOwner = false;
     data.showOwner = true;

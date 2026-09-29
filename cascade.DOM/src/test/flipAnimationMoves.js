@@ -369,7 +369,7 @@ describe("FlipAnimationContainer animations", function () {
         return flipAnimationContainer(
           { key: "flip" },
           div({ key: "first" }, text({ key: "firstText", text: "first" })),
-          div({ key: "middle", style: { color: "red" } }, text({ key: "middleText", text: "middle" })).show(this.show),
+          div({ key: "middle", style: { color: "red" } }, text({ key: "middleText", text: "middle" })).showIf(this.show),
         );
       }
     }
@@ -404,7 +404,7 @@ describe("FlipAnimationContainer animations", function () {
         return flipAnimationContainer(
           { key: "flip" },
           div({ key: "first" }, text({ key: "firstText", text: "first" })),
-          div({ key: "middle", style: { color: "red" } }, text({ key: "middleText", text: "middle" })).show(this.show),
+          div({ key: "middle", style: { color: "red" } }, text({ key: "middleText", text: "middle" })).showIf(this.show),
           div({ key: "last" }, text({ key: "lastText", text: "last" })),
         );
       }

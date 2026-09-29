@@ -54,7 +54,7 @@ describe("build()-based composition with key reconciliation", function () {
     const mainFrame = new MainFrame("main", 50, true);
 
     mainFrame.renderOnto(target);
-    const [toolbar1, contentArea1] = mainFrame.newBuild;
+    const [toolbar1, contentArea1] = mainFrame.currentBuild;
 
     assert.equal(contentArea1.unobservable.seenAvailableHeight, 350);
     assert.equal(toolbar1.unobservable.renderCount, 1);
@@ -66,7 +66,7 @@ describe("build()-based composition with key reconciliation", function () {
     // instances from the first build.
     mainFrame.toolbarHeight = 80;
 
-    const [toolbar2, contentArea2] = mainFrame.newBuild;
+    const [toolbar2, contentArea2] = mainFrame.currentBuild;
     assert.equal(toolbar2, toolbar1); // same identity, not a fresh instance
     assert.equal(contentArea2, contentArea1); // same identity
     assert.equal(toolbar1.height, 80); // new constructor arg merged onto the established instance
@@ -79,11 +79,11 @@ describe("build()-based composition with key reconciliation", function () {
     const target = observable({ remainingHeight: 400 });
     const mainFrame = new MainFrame("main", 50, true);
     mainFrame.renderOnto(target);
-    const [, contentArea] = mainFrame.newBuild;
+    const [, contentArea] = mainFrame.currentBuild;
 
     mainFrame.showContent = false; // content area no longer built at all
 
-    assert.equal(mainFrame.newBuild.length, 1);
+    assert.equal(mainFrame.currentBuild.length, 1);
     assert.ok(contentArea.unobservable.disposed);
   });
 
@@ -94,17 +94,17 @@ describe("build()-based composition with key reconciliation", function () {
 // component that gets retracted (simply not renderOnto()'d for a run or
 // more - e.g. swapped out of a page switcher, or crossing a responsive
 // breakpoint) and later renderOnto()'d again threw when its own
-// build()-composed content was rendered, because reactiveBuildEquivalent()
+// build()-composed content was rendered, because buildOneStep()
 // handed back `undefined` instead of the rebuilt tree.
-describe("build()-based composition surviving retraction (reactiveBuildEquivalent() itself, not just render())", function () {
+describe("build()-based composition surviving retraction (buildOneStep() itself, not just render())", function () {
 
   class Leaf extends Component {
     render(target) {
       // Deliberately not delegating to Component's own default render()
       // (which would renderOnto() the result) - this test is specifically
-      // about what reactiveBuildEquivalent() itself hands back, not about
+      // about what buildOneStep() itself hands back, not about
       // rendering a further tree underneath it.
-      this.unobservable.lastEquivalent = this.reactiveBuildEquivalent();
+      this.unobservable.lastEquivalent = this.buildOneStep();
     }
 
     build() {
@@ -125,7 +125,7 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
       if (this.showLeaf) this.leaf.renderOnto(target);
       // else: leaf simply isn't renderOnto()'d this pass - its render
       // repeater is retracted (its build repeater is kept - see
-      // Component.js's reactiveBuildEquivalent()).
+      // Component.js's buildOneStep()).
     }
   }
 
@@ -140,7 +140,7 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
     parent.showLeaf = false; // leaf's render repeater retracted
     parent.showLeaf = true; // renderOnto()'d again - relinked and reattached
 
-    // (Once, a retracted build repeater's own writing - `newBuild` - was
+    // (Once, a retracted build repeater's own writing - `currentBuild` - was
     // unlinked, and reattaching handed back undefined.) Nothing build()
     // reads changed while hidden, so its result is still current: the
     // same build repeater, not rerun, still handing back what it built.
@@ -181,13 +181,13 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
 // instead of the established one's, and creates a redundant new render-
 // repeater instead of relinking the real one - orphaning Parent's whole
 // previously-established subtree (GC included), silently, with no
-// exception anywhere. See Component.js's own reactiveBuildEquivalent()
+// exception anywhere. See Component.js's own buildOneStep()
 // for the actual fix: keep the separate buildRepeater (so
 // finishRebuilding() runs promptly, before this method's own caller ever
 // sees the result) but force its refresh to complete synchronously
 // (clear workStatus, call refresh() directly) rather than leaving it for
 // the sortedQueue.
-describe("reactiveBuildEquivalent(), nested two levels deep through components it itself constructs and renders", function () {
+describe("buildOneStep(), nested two levels deep through components it itself constructs and renders", function () {
 
   // Grandchild: reads a property Parent's own build() sets fresh each run.
   class GC extends Component {
@@ -199,7 +199,7 @@ describe("reactiveBuildEquivalent(), nested two levels deep through components i
     }
   }
 
-  // Parent: the default build()-then-renderOnto() flow (reactiveBuildEquivalent()),
+  // Parent: the default build()-then-renderOnto() flow (buildOneStep()),
   // reconstructed fresh every time Grandparent's own build() runs.
   class Parent extends Component {
     setProperties({ items }) {
@@ -213,7 +213,7 @@ describe("reactiveBuildEquivalent(), nested two levels deep through components i
   }
 
   // Grandparent: overrides render() directly (measure/write, then
-  // reactiveBuildEquivalent()) - ApplicationMenuFrame's own shape.
+  // buildOneStep()) - ApplicationMenuFrame's own shape.
   class Grandparent extends Component {
     build() {
       const parent = new Parent({ key: "parent", items: [this.n] });
@@ -223,7 +223,7 @@ describe("reactiveBuildEquivalent(), nested two levels deep through components i
 
     render(target) {
       this.n = "run" + ((this.unobservable.renderCount = (this.unobservable.renderCount || 0) + 1));
-      const equivalent = this.reactiveBuildEquivalent();
+      const equivalent = this.buildOneStep();
       equivalent.renderOnto(target);
     }
   }

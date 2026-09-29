@@ -25,7 +25,7 @@ describe("Component state (initialState/setState)", function () {
       return new Counter({ key: "counter", step: this.step });
     }
     render(target) {
-      const counter = this.reactiveBuildEquivalent();
+      const counter = this.buildOneStep();
       this.unobservable.counter = counter;
       counter.renderOnto(target);
     }
@@ -92,7 +92,7 @@ describe("a dropped component is retracted on dispose, before any stale rerun of
       return { marker: this.owner.items.join(",") }; // throws if `owner` has been unlinked
     }
     render() {
-      this.reactiveBuildEquivalent();
+      this.buildOneStep();
     }
   }
 
@@ -128,7 +128,7 @@ describe("a dropped component is retracted on dispose, before any stale rerun of
       const n = (this.unobservable.renderCount = (this.unobservable.renderCount || 0) + 1);
       this.items = ["run" + n]; // unlinks the previous run's writings on dispose, `owner` included
       this.modal = n >= 2; // drops Sibling on the second run - the breakpoint flipping
-      this.reactiveBuildEquivalent().renderOnto(target);
+      this.buildOneStep().renderOnto(target);
     }
   }
 

@@ -75,10 +75,10 @@ export class DOMPlacingContainer extends DOMNodeComponent {
 
   // The target its children are expanded onto - its own element. Cached:
   // the same target object every time.
-  innerTarget() {
+  childTarget() {
     const u = this.unobservable;
-    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.node);
-    return u.innerTarget;
+    if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.node);
+    return u.childTarget;
   }
 
   // Expand `children` (default: its own) into nodes, afresh, with `context`
@@ -92,7 +92,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
     const placements = [];
     const placedBefore = u.placed;
     u.placed = new Set();
-    this.expandChildren(this, u.node, this.innerTarget(), context, children, null, placements);
+    this.expandChildren(this, u.node, this.childTarget(), context, children, null, placements);
     return { placements, placedBefore };
   }
 

@@ -88,8 +88,8 @@ export class DOMDebugServiceLocator {
 }
 
 // What HTMLTags.js falls back to when the building component's render
-// context has no locator of its own (a bare `new RenderContext(target)` -
-// every test in this package, for instance - or a component constructed
+// context provides no locator (something rendered with no context at all -
+// most tests in this package, for instance - or a component constructed
 // outside anyone's build()). Plain and fixed: nothing here ever changes.
 export const defaultDOMServiceLocator = new CompoundServiceLocator(
   new DOMServiceLocator(),

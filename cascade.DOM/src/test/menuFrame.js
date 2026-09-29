@@ -30,19 +30,19 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   });
 
   class Menu extends DOMNodeRenderComponent {
-    renderElement(context, existingElement) {
-      const el = existingElement || context.target.appendElement("div");
+    renderElement(target, existingElement) {
+      const el = existingElement || target.appendElement("div");
       el.className = "menu";
       return el;
     }
   }
 
   class WorkArea extends DOMNodeRenderComponent {
-    renderElement(context, existingElement) {
+    renderElement(target, existingElement) {
       workAreaRenderCount++;
-      seenUsableWidth = context.usableWidth;
-      seenUsableHeight = context.usableHeight;
-      const el = existingElement || context.target.appendElement("div");
+      seenUsableWidth = target.usableWidth;
+      seenUsableHeight = target.usableHeight;
+      const el = existingElement || target.appendElement("div");
       el.className = "work-area";
       return el;
     }
@@ -55,37 +55,37 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
       this.workArea = workArea;
     }
 
-    renderElement(context, existingElement) {
+    renderElement(target, existingElement) {
       const u = this.unobservable;
-      const el = existingElement || context.target.appendElement("div");
+      const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
-      if (!u.innerContext) {
-        u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
+      if (!u.innerTarget) {
+        u.innerTarget = DOMElementTarget.forElement(el);
       }
 
-      this.menu.renderOnto(u.innerContext);
+      this.menu.renderOnto(u.innerTarget);
 
       // jsdom does no real layout, so these stand in for real
       // getBoundingClientRect() measurements (see cascade.application/demo
       // for the version measuring an actual browser). The point being
       // proven is the dedup behavior below, not the measurement itself.
-      u.innerContext.usableWidth = this.unobservable.simulatedFrameWidth - this.unobservable.simulatedMenuWidth;
-      u.innerContext.usableHeight = this.unobservable.simulatedFrameHeight;
+      u.innerTarget.usableWidth = this.unobservable.simulatedFrameWidth - this.unobservable.simulatedMenuWidth;
+      u.innerTarget.usableHeight = this.unobservable.simulatedFrameHeight;
 
-      this.workArea.renderOnto(u.innerContext);
+      this.workArea.renderOnto(u.innerTarget);
 
       return el;
     }
   }
 
   it("passes real usable bounds down to the work area after measuring the menu", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     menuFrame.unobservable.simulatedFrameWidth = 1000;
     menuFrame.unobservable.simulatedFrameHeight = 700;
     menuFrame.unobservable.simulatedMenuWidth = 220;
 
-    menuFrame.renderOnto(context);
+    menuFrame.renderOnto(root);
 
     assert.equal(seenUsableWidth, 780);
     assert.equal(seenUsableHeight, 700);
@@ -93,12 +93,12 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   });
 
   it("an unrelated rebuild that produces the same usable bounds does not rerun the work area", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     menuFrame.unobservable.simulatedFrameWidth = 1000;
     menuFrame.unobservable.simulatedFrameHeight = 700;
     menuFrame.unobservable.simulatedMenuWidth = 220;
-    menuFrame.renderOnto(context);
+    menuFrame.renderOnto(root);
     assert.equal(workAreaRenderCount, 1);
 
     menuFrame.unobservable.repeater.restart(); // same measurements every time
@@ -107,12 +107,12 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   });
 
   it("a genuinely different measurement reruns the work area with the new bounds", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
     menuFrame.unobservable.simulatedFrameWidth = 1000;
     menuFrame.unobservable.simulatedFrameHeight = 700;
     menuFrame.unobservable.simulatedMenuWidth = 220;
-    menuFrame.renderOnto(context);
+    menuFrame.renderOnto(root);
     assert.equal(workAreaRenderCount, 1);
 
     menuFrame.unobservable.simulatedFrameWidth = 800; // window resized narrower

@@ -45,7 +45,7 @@ describe("hydration (a document of service queries, built into components)", fun
   }
 
   const render = (component, serviceLocator) =>
-    component.renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator }));
+    component.renderOnto(new DOMElementTarget(container), new RenderContext({ serviceLocator }));
 
   it("recognizes service queries: plain objects with a string type", function () {
     assert.ok(isServiceQuery(el("div", {})));
@@ -106,7 +106,7 @@ describe("hydration (a document of service queries, built into components)", fun
 
   it("a locator can hydrate a document outside any build(), too", function () {
     const tree = new CompoundServiceLocator(new DOMServiceLocator()).hydrate(article("Standalone"));
-    tree.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    tree.renderOnto(new DOMElementTarget(container));
     assert.equal(container.querySelector("h1").textContent, "Standalone");
   });
 });

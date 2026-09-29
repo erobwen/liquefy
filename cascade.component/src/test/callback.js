@@ -1,7 +1,6 @@
 import assert from "assert";
 import { observable } from "../Cascade.js";
 import { Component } from "../Component.js";
-import { RenderContext } from "../RenderContext.js";
 import { frozen } from "../frozen.js";
 import { callback } from "../callback.js";
 
@@ -33,7 +32,7 @@ describe("callback()", function () {
       }
     }
     const parent = new Parent();
-    parent.renderOnto(new RenderContext({ name: "target" }));
+    parent.renderOnto(({ name: "target" }));
     return { model, child: parent.newBuild, picked };
   }
 

@@ -58,16 +58,16 @@ export class OverflowContainer extends DOMPlacingContainer {
     return result;
   }
 
-  render(context) {
-    super.render(context);
+  render(target, context) {
+    super.render(target, context);
     const u = this.unobservable;
     // Read, so that a resize (a bounds provider around it measuring) lays
     // it out again - though the room itself is measured on its own element.
-    this.renderContext && this.renderContext.width;
+    this.inherit("width");
 
     const { placements, placedBefore } = this.expandSubtree(context);
     const ellipsisPlacements = [];
-    if (this.ellipsis) this.expandChildren(this, u.element, this.innerContext(context), [this.ellipsis], null, ellipsisPlacements);
+    if (this.ellipsis) this.expandChildren(this, u.element, this.innerTarget(), context, [this.ellipsis], null, ellipsisPlacements);
     // Everything below the top level is put in order as always; the top
     // level is laid out by layout().
     for (const { parent, nodes } of [...placements.slice(1), ...ellipsisPlacements.slice(1)]) this.placeInOrder(parent, nodes);

@@ -156,7 +156,7 @@ const SIDE_PANEL_WIDTH = 900;
 
 export class HydrationPage extends Component {
   build() {
-    const wide = (this.renderContext.usableWidth || 1000) >= SIDE_PANEL_WIDTH;
+    const wide = (this.inherit("usableWidth") || 1000) >= SIDE_PANEL_WIDTH;
     const sourcePanel = card(
       {
         key: "sourcePanel",

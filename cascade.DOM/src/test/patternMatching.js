@@ -19,7 +19,7 @@ describe("Pattern matching (rebuilding without keys)", function () {
     container = document.createElement("div");
   });
 
-  const render = (component) => component.renderOnto(new RenderContext(new DOMElementTarget(container)));
+  const render = (component) => component.renderOnto(new DOMElementTarget(container));
   const html = () => container.innerHTML.replace(/ id="[^"]*"/g, "");
 
   // Counts its builds, and remembers every one of its instances that got

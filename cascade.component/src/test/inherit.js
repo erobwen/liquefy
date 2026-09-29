@@ -1,179 +1,241 @@
 import { observable } from "../Cascade.js";
 import { Component } from "../Component.js";
+import { RenderContext } from "../RenderContext.js";
 import assert from "assert";
 
-// inherit() (ported from flow.core's Component.js - see its own
-// inheritUncached) is the mechanism a recursive modal/overlay frame needs:
-// "find the nearest ancestor that provides X," where "ancestor" has to
-// mean something that actually works regardless of how a component was
-// composed. Three separate hierarchies, tried in this exact order:
-//
-//  1. provide() - does this component provide the property itself?
-//  2. equivalentCreator - whoever's build() produced this component.
-//  3. renderParent - whoever actually renderOnto()'d this component as a
-//     child (checked after equivalentCreator, for the same reason flow's
-//     own version does - a hardcoded-child-reference component never
-//     gets an equivalentCreator at all, so this is what actually reaches
-//     it).
-//  4. creator - whoever was executing its own build() when this
-//     component was constructed - a fallback for something constructed
-//     inside build() but never itself returned from it or rendered as
-//     anyone's child.
-describe("Component.inherit() (structural/build/creator ancestor lookup)", function () {
+// inherit() - the nearest value of a name provided above a component,
+// found through the render context it's placed in: a chain with one link
+// per component that provides something (see Component.provide(),
+// RenderContext.js). Wherever it's placed from - built or hardcoded, in a
+// build() or a render() - the chain follows where it's placed.
+describe("Component.inherit() (through the render context chain)", function () {
+  const target = { name: "target" };
 
-  it("finds a property a component provides on itself, without needing to walk anywhere", function () {
-    class SelfProviding extends Component {
-      constructor() {
-        super();
-        this.frame = this;
-      }
-      render() {}
+  // Provides itself as "frame" to what's below it, and renders `child`.
+  class Frame extends Component {
+    constructor(child) {
+      super();
+      this.child = child;
     }
-
-    const frame = new SelfProviding();
-    frame.renderOnto(observable({}));
-
-    assert.equal(frame.inherit("frame"), frame);
-  });
-
-  it("a hardcoded-child-reference component (no build() involved at all) inherits via renderParent", function () {
-    class Frame extends Component {
-      constructor(child) {
-        super();
-        this.frame = this;
-        this.child = child;
-      }
-      render(target) {
-        this.child.renderOnto(target);
-      }
+    provide() {
+      return { frame: this };
     }
-    class Leaf extends Component {
-      render() {
-        this.unobservable.foundFrame = this.inherit("frame");
-      }
+    render(target, context) {
+      if (this.child) this.child.renderOnto(target, context);
     }
+  }
 
+  class Leaf extends Component {
+    render() {
+      this.unobservable.foundFrame = this.inherit("frame");
+    }
+  }
+
+  it("finds what's provided above it - never what it provides itself", function () {
     const leaf = new Leaf();
     const frame = new Frame(leaf);
-    frame.renderOnto(observable({}));
-
+    frame.renderOnto(target);
     assert.equal(leaf.unobservable.foundFrame, frame);
-    assert.equal(leaf.equivalentCreator, undefined, "never built via anyone's build() - this path genuinely isn't involved here");
+    assert.equal(frame.inherit("frame"), undefined, "its own is for its children");
   });
 
   it("a lookup starting deep inside nested frames finds the nearest one, not an outer one - the recursive-modal-frame case", function () {
-    class Frame extends Component {
-      constructor(child) {
-        super();
-        this.frame = this;
-        this.child = child;
-      }
-      render(target) {
-        this.child.renderOnto(target);
-      }
-    }
-    class Leaf extends Component {
-      render() {
-        this.unobservable.foundFrame = this.inherit("frame");
-      }
-    }
-
     const leaf = new Leaf();
     const innerFrame = new Frame(leaf);
     const outerFrame = new Frame(innerFrame);
-    outerFrame.renderOnto(observable({}));
-
+    outerFrame.renderOnto(target);
     assert.equal(leaf.unobservable.foundFrame, innerFrame);
-    assert.notEqual(leaf.unobservable.foundFrame, outerFrame);
+    assert.equal(innerFrame.inherit("frame"), outerFrame, "a frame itself finds the one around it");
   });
 
-  it("equivalentCreator (who built me) is checked before renderParent (who actually rendered me)", function () {
-    // Deliberately makes the two differ: `frame` builds `leaf` via
-    // build(), but hands the built result off to a separate wrapper to
-    // actually renderOnto() - so leaf's renderParent ends up being that
-    // wrapper, not `frame` itself, even though `frame` is what built it.
-    class Wrapper extends Component {
+  it("only a provider adds a link: the rest pass on the context they were given", function () {
+    class Plain extends Component {
       constructor(child) {
         super();
         this.child = child;
       }
-      render(target) {
-        this.child.renderOnto(target);
+      render(target, context) {
+        this.child.renderOnto(target, context);
       }
     }
-    class ProvidingFrame extends Component {
-      constructor(childFactory) {
-        super();
-        this.frame = this;
-        this.childFactory = childFactory;
-      }
-      build() {
-        return this.childFactory();
-      }
-      render(target) {
-        const built = this.reactiveBuildEquivalent();
-        const wrapper = new Wrapper(built);
-        this.unobservable.wrapper = wrapper;
-        wrapper.renderOnto(target);
-      }
-    }
-    class Leaf extends Component {
-      render() {
-        this.unobservable.foundFrame = this.inherit("frame");
-      }
-    }
-
     const leaf = new Leaf();
-    const frame = new ProvidingFrame(() => leaf);
-    frame.renderOnto(observable({}));
-
-    assert.equal(leaf.equivalentCreator, frame);
-    assert.notEqual(leaf.renderParent, frame, "renderParent should be the Wrapper, not frame itself");
-    assert.equal(leaf.unobservable.foundFrame, frame, "found via equivalentCreator, proving it's checked before renderParent");
+    const plain = new Plain(leaf);
+    const frame = new Frame(plain);
+    frame.renderOnto(target);
+    assert.equal(plain.renderContext, leaf.renderContext);
+    assert.equal(leaf.renderContext.parent, RenderContext.empty);
+    assert.equal(leaf.unobservable.foundFrame, frame);
   });
 
-  it("a component constructed inside build() but never itself built or rendered as anyone's child inherits via creator", function () {
-    class SideLeaf extends Component {
-      render() {}
+  it("through build() as well: what a provider builds inherits from it", function () {
+    class Reader extends Component {
+      build() {
+        this.unobservable.found = this.inherit("frame");
+        return null;
+      }
     }
-    class Placeholder extends Component {
-      render() {}
-    }
-    class CreatorFrame extends Component {
-      constructor() {
-        super();
-        this.frame = this;
+    class BuildingFrame extends Component {
+      provide() {
+        return { frame: this };
       }
       build() {
-        // Constructed here, inside build() - captures `this` as its
-        // creator (see the constructor/reactiveBuildEquivalent's own
-        // creators-stack push) - but stashed aside, never returned from
-        // build() (so no equivalentCreator) and never renderOnto()'d by
-        // anyone (so no renderParent) either.
-        this.unobservable.sideConstructed = new SideLeaf();
-        return new Placeholder();
+        return new Reader({ key: "reader" });
       }
     }
-
-    const frame = new CreatorFrame();
-    frame.renderOnto(observable({}));
-    const sideLeaf = frame.unobservable.sideConstructed;
-
-    assert.equal(sideLeaf.creator, frame);
-    assert.equal(sideLeaf.equivalentCreator, undefined);
-    assert.equal(sideLeaf.renderParent, undefined);
-    assert.equal(sideLeaf.inherit("frame"), frame);
+    const frame = new BuildingFrame();
+    frame.renderOnto(target);
+    assert.equal(frame.newBuild.unobservable.found, frame);
   });
 
-  it("returns undefined when nothing anywhere in any of the three hierarchies provides the property", function () {
+  it("a getter provided follows what it reads", function () {
+    class Source extends Component {
+      setProperties({ child }) {
+        this.child = child;
+      }
+      initializeState() {
+        return { color: "red" };
+      }
+      provide() {
+        const source = this;
+        return { get color() { return source.color; } };
+      }
+      render(target, context) {
+        this.child.renderOnto(target, context);
+      }
+    }
+    class Reader extends Component {
+      initialUnobservables() {
+        return { seen: [] };
+      }
+      build() {
+        this.unobservable.seen.push(this.inherit("color"));
+        return null;
+      }
+    }
+    const reader = new Reader();
+    const source = new Source({ child: reader });
+    source.renderOnto(target);
+    source.color = "blue";
+    assert.deepEqual(reader.unobservable.seen, ["red", "blue"]);
+  });
+
+  it("a provider removed upstream: the context below is re-pointed, not replaced - and only a different result is followed", function () {
+    const data = observable({ withMiddle: true });
+    class Reader extends Component {
+      initialUnobservables() {
+        return { builds: 0, found: null };
+      }
+      build() {
+        this.unobservable.builds++;
+        this.unobservable.found = this.inherit("frame");
+        return null;
+      }
+    }
+    // Provides something else - between the outer frame and what's below.
+    class Middle extends Component {
+      constructor(child) {
+        super();
+        this.child = child;
+      }
+      provide() {
+        return { other: "value" };
+      }
+      render(target, context) {
+        this.child.renderOnto(target, context);
+      }
+    }
+    class Inner extends Component {
+      constructor(child) {
+        super();
+        this.child = child;
+      }
+      provide() {
+        return { inner: true };
+      }
+      render(target, context) {
+        this.child.renderOnto(target, context);
+      }
+    }
+    const reader = new Reader();
+    const inner = new Inner(reader);
+    const middle = new Middle(inner);
+    class Root extends Component {
+      provide() {
+        return { frame: this };
+      }
+      render(target, context) {
+        (data.withMiddle ? middle : inner).renderOnto(target, context);
+      }
+    }
+    const root = new Root();
+    root.renderOnto(target);
+    const innerContext = inner.unobservable.ownContext;
+    assert.equal(reader.unobservable.found, root);
+    assert.equal(innerContext.parent, middle.unobservable.ownContext);
+    assert.equal(reader.unobservable.builds, 1);
+
+    data.withMiddle = false;
+    assert.equal(inner.unobservable.ownContext, innerContext, "the same context");
+    assert.equal(innerContext.parent, root.unobservable.ownContext, "re-pointed");
+    assert.equal(reader.unobservable.found, root);
+    assert.equal(reader.unobservable.builds, 1, "found the same frame - nothing to rebuild");
+  });
+
+  it("a nearer provider removed upstream: what's below finds the next one up, and follows", function () {
+    const data = observable({ withMiddle: true });
+    class Reader extends Component {
+      initialUnobservables() {
+        return { found: [] };
+      }
+      build() {
+        this.unobservable.found.push(this.inherit("frame"));
+        return null;
+      }
+    }
+    class Inner extends Component {
+      constructor(child) {
+        super();
+        this.child = child;
+      }
+      provide() {
+        return { inner: true };
+      }
+      render(target, context) {
+        this.child.renderOnto(target, context);
+      }
+    }
+    const reader = new Reader();
+    const inner = new Inner(reader);
+    const middle = new Frame(inner);
+    class Root extends Component {
+      provide() {
+        return { frame: this };
+      }
+      render(target, context) {
+        (data.withMiddle ? middle : inner).renderOnto(target, context);
+      }
+    }
+    const root = new Root();
+    root.renderOnto(target);
+    data.withMiddle = false;
+    assert.deepEqual(reader.unobservable.found, [middle, root]);
+    data.withMiddle = true;
+    assert.deepEqual(reader.unobservable.found, [middle, root, middle]);
+  });
+
+  it("returns undefined when nothing provides it - and refuses before it's in the tree", function () {
     class Lonely extends Component {
       render() {}
     }
-
     const lonely = new Lonely();
-    lonely.renderOnto(observable({}));
-
+    assert.throws(() => lonely.inherit("anything"), /not in the tree yet/);
+    lonely.renderOnto(target);
     assert.equal(lonely.inherit("somethingNobodyProvides"), undefined);
   });
 
+  it("the root context provides what it's given", function () {
+    const leaf = new Leaf();
+    leaf.renderOnto(target, new RenderContext({ frame: "root frame" }));
+    assert.equal(leaf.unobservable.foundFrame, "root frame");
+  });
 });

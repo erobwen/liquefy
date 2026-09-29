@@ -39,7 +39,7 @@ describe("a component shown again keeps its place", function () {
       }
     }
     const page = new Page();
-    page.renderOnto(new RenderContext(new DOMElementTarget(container), {
+    page.renderOnto(new DOMElementTarget(container), new RenderContext({
       serviceLocator: new CompoundServiceLocator(new DOMServiceLocator(), basicTheme),
     }));
     const titleBar = () => Array.from(container.querySelector("[id*='(titleBar)']").children).map((each) => each.title || each.textContent).join(",");

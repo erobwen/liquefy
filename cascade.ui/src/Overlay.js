@@ -34,7 +34,7 @@ export class Overlay extends Component {
   }
 
   initialUnobservables() {
-    return { visibleOnFrame: null, shownChild: null };
+    return { visibleOnFrame: null, shownChild: null, shownContext: null };
   }
 
   // Build-only (like PortalContents - see Portal.js): a build only runs
@@ -67,16 +67,22 @@ export class Overlay extends Component {
     const u = this.unobservable;
     if (this.showing) {
       const overlayFrame = this.inherit("overlayFrame");
+      // What its content is shown with: the context this Overlay passes on
+      // - so a dialog inherits from where it's opened (see OverlayFrame).
+      const context = u.childContext;
       if (overlayFrame && u.visibleOnFrame !== overlayFrame) {
         if (u.visibleOnFrame) u.visibleOnFrame.hideOverlay(this);
         u.visibleOnFrame = overlayFrame;
         u.shownChild = this.overlayChild;
-        overlayFrame.showOverlay(this, this.overlayChild);
-      } else if (overlayFrame && u.shownChild !== this.overlayChild) {
+        u.shownContext = context;
+        overlayFrame.showOverlay(this, this.overlayChild, context);
+      } else if (overlayFrame && (u.shownChild !== this.overlayChild || u.shownContext !== context)) {
         // Shown already, with other content: a modal window becoming full
-        // screen, say - hand the frame the new content.
+        // screen, say - hand the frame the new content. Or placed
+        // elsewhere: the content follows.
         u.shownChild = this.overlayChild;
-        overlayFrame.showOverlay(this, this.overlayChild);
+        u.shownContext = context;
+        overlayFrame.showOverlay(this, this.overlayChild, context);
       }
     } else {
       this.onHide();

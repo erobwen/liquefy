@@ -49,7 +49,7 @@ describe("themed widgets", function () {
   }
 
   const render = (component, serviceLocator) =>
-    component.renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator }));
+    component.renderOnto(new DOMElementTarget(container), new RenderContext({ serviceLocator }));
 
   it("the basic theme provides a plain, styled HTML button; a loose function is its onClick", function () {
     const counter = new Counter();
@@ -135,7 +135,12 @@ describe("themed widgets", function () {
     }
     class Root extends Component {
       setProperties({ services }) {
-        this.services = services; // provided to everything below (provide() is the component itself)
+        this.services = services;
+      }
+      // Provided to everything below.
+      provide() {
+        const root = this;
+        return { get services() { return root.services; } };
       }
       build() {
         return div({ key: "root" }, new Page({ key: "page" }));

@@ -1,11 +1,14 @@
 import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, withoutRecording, establish as establishObject, dispose as disposeObject } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
+import { RenderContext } from "./RenderContext.js";
 
 /**
  * Two separate stacks, both ported from flow.core's Component.js
  * (`creators`, plus the render-time half its own DOMNode/PrimitiveComponent
- * machinery tracked as `renderParent`) - see inherit() below for why both
- * exist rather than just one. Module-level, not on `state`: nothing
+ * machinery tracked as `renderParent`): whose build() is running (what a
+ * component constructed right now is created by, and which render context
+ * a service is looked up in - see ServiceLocator.js), and whose render() is
+ * (what a component rendered right now is placed by). Module-level, not on `state`: nothing
  * outside this file ever needs to read either stack directly, only
  * whichever single component happens to be on top when a constructor or
  * renderOnto() call is in progress - see getCreator()/getRenderParent().
@@ -21,8 +24,9 @@ function getRenderParent() {
 }
 
 // Ties a build()-composed child back to whoever's build() call produced
-// it - see reactiveBuildEquivalent() below, and inherit()'s own use of
-// `equivalentCreator`. `built` is whatever build() returned - a single
+// it - see reactiveBuildEquivalent() below, and aggregateToString() for
+// what reads `equivalentCreator` back (inheritance doesn't: it follows
+// the render context - see inherit()). `built` is whatever build() returned - a single
 // component, an array of them, or null/undefined (nothing to tie back).
 function assignEquivalentCreator(built, creator) {
   if (!built) return;
@@ -177,52 +181,40 @@ export class Component {
     Object.assign(this, properties);
   }
 
-  // Override to hand inherit() (below) a different object to check for
-  // "do I provide this myself" - default is flow.core's own: this
-  // component's own fields directly, so a component "provides" a value
-  // for some property just by having a same-named field (see e.g. a
-  // ModalFrame-style component setting `this.modalFrame = this;` in its
-  // own setProperties() - inherit("modalFrame") then finds it here,
-  // before ever walking further up).
+  // Override to provide something to this component's subtree: return an
+  // object whose fields are what's provided - plain values, getters (read
+  // afresh at every lookup, so a getter over this component's own
+  // properties follows them), or an observable object's fields. Its
+  // subtree then finds each by name with inherit() (below). Called once,
+  // when this component first enters the tree - its result is this
+  // component's own render context (see RenderContext.js, and enterTree()
+  // below), kept for its whole life: whether it provides, and what object
+  // it provides, never changes; what that object holds may.
+  //
+  // Null - the default - provides nothing: no context of its own, and its
+  // children are given the context this component was given itself. Never
+  // the component itself: a component and its context are kept apart, so
+  // nothing it merely has (a style, a label) is ever inherited by accident.
   provide() {
-    return this;
+    return null;
   }
 
-  // Ported from flow.core's Component.js (inheritUncached there) - walk
-  // three separate hierarchies, in this exact order, until one of them
-  // provides `property`:
+  // The nearest value of `name` provided above this component - found in
+  // the render context it was given (see RenderContext.js): by whatever
+  // provided it closest above where this component is placed. Never what
+  // this component provides itself - that's for its children: a frame
+  // inside a frame finds the outer one. Undefined if nothing does.
   //
-  //  1. This component itself (provide(), above) - the nearest possible
-  //     answer always wins, which is what makes a recursive structure
-  //     (a frame inside a frame inside a frame) resolve correctly: each
-  //     one provides itself, so a lookup starting from deep inside stops
-  //     at the *closest* one, never skipping past it to an outer one.
-  //  2. equivalentCreator - whoever's build() produced this component
-  //     (see reactiveBuildEquivalent() below).
-  //  3. renderParent - whoever actually renderOnto()'d this component as
-  //     a child (see renderOnto() below) - checked *after*
-  //     equivalentCreator, not before, for the same reason flow's own
-  //     version does: a component composed via a hardcoded child
-  //     reference (never returned from anyone's build()) has no
-  //     equivalentCreator at all, so this is what actually reaches it.
-  //  4. creator - whoever was executing its own build() (or, once one
-  //     exists, another lifecycle callback) when this component was
-  //     constructed (see the constructor above) - a fallback for
-  //     anything constructed but never actually built or rendered as a
-  //     child of anyone (e.g. stored on a field and never returned from
-  //     build() at all).
-  //
-  // No caching layer (flow's own inheritCached/invalidateOnChange) -
-  // every read here already goes through cascade's own dependency
-  // tracking directly, so a plain, uncached walk is still fully
-  // reactive; add caching only if this ever turns out to be a hot path.
-  inherit(property) {
-    const providedValue = this.provide()[property];
-    if (typeof(providedValue) !== "undefined") return providedValue;
-    if (this.equivalentCreator) return this.equivalentCreator.inherit(property);
-    if (this.renderParent) return this.renderParent.inherit(property);
-    if (this.creator) return this.creator.inherit(property);
-    return undefined;
+  // Only once it has entered the tree (rendered, or expanded by a
+  // container placing its subtree itself) - before that, it has no place
+  // to inherit from at all. A tracked read, from build() or anywhere else:
+  // placed somewhere else, a component that inherited something follows.
+  inherit(name) {
+    const context = this.renderContext;
+    if (!context) {
+      throw new Error(this.toString() + ".inherit(\"" + name + "\"): not in the tree yet - a component inherits from where it's placed, once it's rendered.");
+    }
+    return context.inherit(name);
   }
 
   // Override to compose this component from children - the alternative
@@ -401,14 +393,18 @@ export class Component {
     refreshIfNeeded(creatorBuild);
   }
 
-  // Override: do this component's own real-time work against `context` -
-  // reading/writing its target, and rendering any children onto it (or
-  // onto a context of the component's own construction - see
-  // RenderContext) via their own renderOnto(). `context` is opaque to
-  // this base class - by convention it's a RenderContext (a target plus
-  // whatever situational information a parent chose to hand down), but
-  // nothing here requires that shape; a bare target works too, if a
-  // component has nothing extra to pass its children.
+  // Override: do this component's own real-time work against `target` -
+  // reading/writing it (placing its own node on it, say), and rendering any
+  // children onto it (or onto a target of its own - its own element, for
+  // its children) via their own renderOnto(target, context). `target` is
+  // opaque to this base class - cascade.dom's is a DOMElementTarget, but
+  // nothing here requires a shape: it's whatever the platform renders onto,
+  // and everything temporal (what's been placed on it so far this pass)
+  // lives there. `context` is what its children are to be rendered with:
+  // this component's own render context if it provides something (see
+  // provide()), the one it was given otherwise - so passing it on is all a
+  // render() has to do with it. (What this component itself inherits is
+  // read through inherit() - from the context it was given.)
   //
   // Default implementation: build one step (see reactiveBuildEquivalent()
   // above) and renderOnto() each resulting child in turn, in order - the
@@ -416,7 +412,7 @@ export class Component {
   // (skipping build() entirely) for the hardcoded-child-reference style,
   // or to interleave custom work (measurement, etc.) between children -
   // see cascade.DOM's DOMNodeRenderComponent-based demos for exactly that.
-  render(context) {
+  render(target, context) {
     const equivalent = this.reactiveBuildEquivalent();
     const children = equivalent instanceof Array ? equivalent : [equivalent];
     for (const child of children) {
@@ -425,44 +421,64 @@ export class Component {
       // renderOnto()'d this pass, same as build() no longer returning it
       // at all.
       if (child === null || typeof(child) === "undefined" || child === false) continue;
-      child.renderOnto(context);
+      child.renderOnto(target, context);
     }
   }
 
-  // Give this component its place in the tree - the render context it's
-  // rendered with, and who rendered it - without rendering it. renderOnto()
-  // does this first, every time; a component that places others itself,
-  // without calling their render() (see cascade.dom's
-  // FlipAnimationContainer, which expands its subtree with
-  // expand() below), does it instead - so builds find their
-  // services (a theme, a platform - see ServiceLocator.js) and inherit()
-  // walks the same hierarchy either way.
+  // Override to enter the tree with another context than the one given -
+  // for what is placed somewhere other than where it comes from: a portal's
+  // contents, rendered on the portal's target but with the context of
+  // where they were put into it (see ContextScope below, and cascade.ui's
+  // Portal/OverlayFrame). Read when entering, so a change of what it
+  // returns places the component again. Default: the context given.
+  enteredContext(given) {
+    return given;
+  }
+
+  // Entering the tree - the one step every component goes through at its
+  // place in it, whether it's rendered (renderOnto()) or placed by a
+  // container that expands its subtree itself (expand() - cascade.dom's
+  // FlipAnimationContainer), so the two can never differ in what a
+  // component gets:
   //
-  //  - renderParent: see inherit()'s own comment on why this (not
-  //    equivalentCreator) is the one that actually, reliably reaches a
-  //    hardcoded-child-reference component.
-  //  - this.renderContext: readable from build() too (a plain property read,
-  //    so build()'s own zero-argument signature never has to change). Set
-  //    fresh on every call, relink included, so it always reflects the most
-  //    recent context - matches RenderContext's own stable-identity-across-
-  //    reruns requirement (see RenderContext.js), since a parent that wants
-  //    its children to see a changed value mutates its cached instance in
-  //    place rather than handing down a new one.
-  //  - unobservable.renderContext: the same value again, as plain
-  //    bookkeeping - what the render repeater renders against, and what
-  //    service lookups read. Not this.renderContext itself: that's an
-  //    observable property, written from the *parent's* partial, so a
-  //    parent rerun's own dispose() retires that writing - and a child whose
-  //    own rerun was already queued can run before the parent gets as far
-  //    as writing it again, reading it back as undefined (the documented
-  //    "property written at construction, unlinked by the parent's next
-  //    dispose()" race - see cascade.reactive/docs/plan-flagged-scheduling.md).
-  //    An unobservable field has neither problem: never retired, never a
-  //    dependency, always whatever was most recently handed in.
-  provideContext(context, renderParent) {
-    this.renderParent = renderParent;
-    this.renderContext = context;
-    this.unobservable.renderContext = context;
+  //  - its target, kept as plain bookkeeping (unobservable.renderTarget):
+  //    what the render repeater renders onto. Never readable reactively -
+  //    a build has no business with the target, which is temporal.
+  //  - its context (this.renderContext): what it inherits from (see
+  //    inherit()), readable from build(). Written at the baseline
+  //    (accessInitialValues()), and only when it changes: a context is
+  //    non-temporal, so the latest writing is always the right one, and a
+  //    baseline writing is never retired by a parent's rerun - read back
+  //    undefined by a child whose own rerun was already queued, as an
+  //    ordinary writing from the parent's partial would be.
+  //  - who placed it (unobservable.renderParent).
+  //  - its own context, for its children, if it provides anything (see
+  //    provide()): created the first time, and kept - only its parent link
+  //    is re-pointed when it's placed under another context (a provider
+  //    removed upstream, say), at the baseline too. Returned: the context
+  //    its children are to be given - its own, or the one it was given.
+  //
+  // Visibility (onShow()/onHide()) is told by whoever places it: rendering
+  // does (see renderOnto()/onRetract()), a placing container does (see
+  // cascade.dom's DOMPlacingContainer.notifyPlaced()) - after this step, so
+  // what it does when shown can already inherit.
+  enterTree(target, context, renderParent) {
+    const u = this.unobservable;
+    context = this.enteredContext(context);
+    u.renderTarget = target;
+    u.renderParent = renderParent;
+    if (u.renderContext !== context) {
+      u.renderContext = context;
+      accessInitialValues(() => { this.renderContext = context; });
+    }
+    if (typeof(u.ownContext) === "undefined") {
+      const provided = withoutRecording(() => this.provide());
+      u.ownContext = provided ? new RenderContext(provided, context) : null;
+    } else if (u.ownContext && withoutRecording(() => u.ownContext.parent) !== context) {
+      accessInitialValues(() => { u.ownContext.parent = context; });
+    }
+    u.childContext = u.ownContext || context;
+    return u.childContext;
   }
 
   // Whether this component can be expanded - composed purely through
@@ -483,19 +499,19 @@ export class Component {
   // component's: it only means something to a particular consumer on a
   // particular platform (cascade.dom's FlipAnimationContainer stops at
   // components that can hand over their own DOM node, say). Every
-  // component on the way is given its place in the tree first
-  // (provideContext()), exactly as rendering it would have, so builds find
-  // the same services either way. Returns a flat list: a build may return
-  // several components (or none).
+  // component on the way enters the tree first (enterTree()), exactly as
+  // rendering it would have, so builds find the same context either way.
+  // Returns a flat list: a build may return several components (or none).
   //
   // Only this chain is expanded - a leaf's own children (a DOM element's,
-  // say) are the caller's business too, since only it knows what they are.
+  // say) are the caller's business too, since only it knows what they are:
+  // they're given the leaf's unobservable.childContext.
   //
   // `visited`, when given, is a Set every component on the way is added
   // to - the leaves and everything in between - for a caller that needs to
   // know what it placed (to call onShow()/onHide() for them, say).
-  expand(context, renderParent, isLeaf = () => false, visited = null) {
-    this.provideContext(context, renderParent);
+  expand(target, context, renderParent, isLeaf = () => false, visited = null) {
+    const childContext = this.enterTree(target, context, renderParent);
     if (visited) visited.add(this);
     if (isLeaf(this) || !this.isExpandable()) return [this];
     const built = this.reactiveBuildEquivalent();
@@ -503,21 +519,27 @@ export class Component {
     const result = [];
     for (const child of children) {
       if (child === null || typeof(child) === "undefined" || child === false) continue;
-      result.push(...child.expand(context, this, isLeaf, visited));
+      result.push(...child.expand(target, childContext, this, isLeaf, visited));
     }
     return result;
   }
 
-  renderOnto(context) {
+  // Render this component onto `target` (see render()), with `context` -
+  // what it inherits from (see RenderContext.js). Something rendered on
+  // its own, at the root, can leave the context out: it then inherits
+  // nothing.
+  renderOnto(target, context = RenderContext.empty) {
     const u = this.unobservable;
     // Captured synchronously, right here - correct regardless of whether
     // render() itself ends up running synchronously below or is deferred
     // (see the restart() call further down): this parent/child relationship
     // doesn't change just because the actual execution is scheduled for
     // slightly later. Unconditional, so no component can forget to record
-    // its context or reach it via the wrong hook.
-    const contextChanged = u.renderContext !== context;
-    this.provideContext(context, getRenderParent());
+    // its place or reach it via the wrong hook.
+    const previousTarget = u.renderTarget;
+    const previousContext = u.renderContext;
+    this.enterTree(target, context, getRenderParent());
+    const placementChanged = u.renderTarget !== previousTarget || u.renderContext !== previousContext;
     if (u.repeater) {
       // A repeater that was genuinely retracted (not renderOnto()'d some
       // prior run) stays fully intact and re-linkable - see
@@ -529,7 +551,7 @@ export class Component {
         // onReattach() is one missing half - the one moment to redo
         // whatever onRetract() undid, caught here before the retracted
         // flag itself gets cleared by the relink above.
-        this.onReattach(context);
+        this.onReattach(target);
         // The other half: retraction clears this component's own read
         // dependencies entirely (removeAllSources, as part of the same
         // retraction that called onRetract()). Anything it used to depend
@@ -549,18 +571,18 @@ export class Component {
         // handles a flagged child the same way, on the spot.)
         u.repeater.restart();
         refreshIfNeeded(u.repeater);
-      } else if (contextChanged) {
+      } else if (placementChanged) {
         // Not retracted - reclaimed by the same parent at the same
-        // position - but handed a genuinely different context object
+        // position - but handed a genuinely different target or context
         // (a parent that owns two targets moving a child between them,
-        // say). A clean relink never re-executes render(), so nothing
-        // else would ever render this component against the new context
-        // - its element would simply stay under the old target. Same
-        // treatment as reattachment, minus onReattach(): the element was
-        // never removed, and renderElement()'s own reattachElement() on
-        // the new target is what moves it. The common case - the same
-        // cached context object every time, per RenderContext's own
-        // stable-identity rule - stays the free no-op it always was. Run
+        // say, or a provider upstream gone). A clean relink never
+        // re-executes render(), so nothing else would ever render this
+        // component in its new place - its element would simply stay
+        // under the old target. Same treatment as reattachment, minus
+        // onReattach(): the element was never removed, and
+        // renderElement()'s own reattachElement() on the new target is
+        // what moves it. The common case - the same cached target and
+        // context every time - stays the free no-op it always was. Run
         // right here too, in tree order, as above.
         u.repeater.restart();
         refreshIfNeeded(u.repeater);
@@ -586,20 +608,17 @@ export class Component {
         this.refreshCreatorBuild();
         renderStack.push(this);
         try {
-          // this.renderContext, not the `context` argument this closure
-          // was created with: that argument is whatever the *first*
-          // renderOnto() call passed, forever. A component retracted and
-          // later renderOnto()'d under a different parent (a dialog moving
-          // between a docked slot and a modal overlay, say - see
-          // cascade.application/demo's HybridModalDialog) is relinked and
-          // restart()ed above with the new context, but this callback is
-          // what restart() actually reruns - rendering against the stale
-          // captured context put its fresh elements back under the old
-          // parent's target. renderOnto() sets u.renderContext fresh on
-          // every call, so it always names the current one - and see its
-          // own comment there on why the unobservable copy rather than the
-          // observable this.renderContext.
-          this.render(u.renderContext);
+          // What enterTree() recorded, not the arguments this closure was
+          // created with: those are whatever the *first* renderOnto() call
+          // passed, forever. A component retracted and later renderOnto()'d
+          // under a different parent (a dialog moving between a docked
+          // slot and a modal overlay, say - see cascade.application/demo's
+          // HybridModalDialog) is relinked and restart()ed above with its
+          // new place, but this callback is what restart() actually reruns
+          // - rendering against the stale captured target put its fresh
+          // elements back under the old parent's. enterTree() records them
+          // fresh on every call, so they always name the current ones.
+          this.render(u.renderTarget, u.childContext);
         } finally {
           // Must run even if render() throws - renderStack is a single,
           // module-level stack shared by every component in the process,
@@ -640,7 +659,7 @@ export class Component {
   // re-inserts its own element (removed by onRetract()) since relinking
   // itself never re-executes render() to do it another way. Calls onShow()
   // by default - an override calls super.onReattach() to keep that.
-  onReattach(context) {
+  onReattach(target) {
     this.onShow();
   }
 
@@ -715,6 +734,9 @@ export class Component {
   onDispose() {
     const u = this.unobservable;
     if (u.repeater) retractRepeater(u.repeater);
+    // Its own context goes with it - and whatever lookups are cached on it
+    // (see RenderContext.js). Nothing below it is in the tree any more.
+    if (u.ownContext) disposeObject(u.ownContext);
     // Gone for good (unlike a component that's merely not rendered for a
     // while - see reactiveBuildEquivalent()), so its build stops for good
     // too, instead of staying subscribed to whatever it read.
@@ -802,4 +824,34 @@ export function aggregateToString(component) {
     }
   });
   return parts.join(" | ");
+}
+
+/**
+ * ContextScope - what's inside enters the tree with `context`, not with
+ * the context of where the scope is placed: for what is shown somewhere
+ * other than where it comes from. A portal renders its contents on its own
+ * target, but inside a scope with the context of where they were put into
+ * it - so they inherit from there, what that place provides for them (a
+ * style, say) included (see cascade.ui's Portal). Build-only, so a
+ * container that expands its subtree (cascade.dom's FlipAnimationContainer)
+ * expands right through it, as through anything else. No context given:
+ * the one it's placed in, as for anything else.
+ */
+export class ContextScope extends Component {
+  setProperties({ context, children }) {
+    this.scopeContext = context || null;
+    this.scopeChildren = children || [];
+  }
+
+  enteredContext(given) {
+    return this.scopeContext || given;
+  }
+
+  build() {
+    return this.scopeChildren;
+  }
+}
+
+export function contextScope(...parameters) {
+  return new ContextScope(...parameters);
 }

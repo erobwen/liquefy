@@ -65,23 +65,24 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
   }
 
   // The container's own element, placed like any other rendered node.
-  renderElement(context, existingElement) {
+  renderElement(target, existingElement) {
     const u = this.unobservable;
     const element = existingElement || document.createElement("div");
-    context.target.reattachElement(element);
+    target.reattachElement(element);
     u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
     return element;
   }
 
-  // The context its children are expanded with - its own element as their
-  // target. Cached: the same context object every time.
-  innerContext(context) {
+  // The target its children are expanded onto - its own element. Cached:
+  // the same target object every time.
+  innerTarget() {
     const u = this.unobservable;
-    if (!u.innerContext) u.innerContext = context.derive(DOMElementTarget.forElement(u.element));
-    return u.innerContext;
+    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.element);
+    return u.innerTarget;
   }
 
-  // Expand `children` (default: its own) into nodes, afresh: returns the
+  // Expand `children` (default: its own) into nodes, afresh, with `context`
+  // - what its children are given (see Component.render()): returns the
   // placements - one { parent, nodes } per element whose children it
   // expanded, this container's own first - and who was placed before (for
   // notifyPlaced()). u.tracked lists every placed element afterwards.
@@ -91,15 +92,16 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
     const placements = [];
     const placedBefore = u.placed;
     u.placed = new Set();
-    this.expandChildren(this, u.element, this.innerContext(context), children, null, placements);
+    this.expandChildren(this, u.element, this.innerTarget(), context, children, null, placements);
     return { placements, placedBefore };
   }
 
   // Expand `children` (the children of `owner`, whose node is
-  // `parentElement`) into nodes, recording where each element's children
-  // go in `placements` (placed afterwards, all at once). `ancestor` is the
+  // `parentElement` - `target` its target) into nodes, each entering the
+  // tree with `context`, and record where each element's children go in
+  // `placements` (placed afterwards, all at once). `ancestor` is the
   // nearest placed element above them (null directly under the container).
-  expandChildren(owner, parentElement, context, children, ancestor, placements) {
+  expandChildren(owner, parentElement, target, context, children, ancestor, placements) {
     const nodes = [];
     placements.push({ parent: parentElement, nodes });
     children.forEach((child, index) => {
@@ -108,16 +110,18 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
         nodes.push(this.looseText(owner, index, child).ensureNode());
         return;
       }
-      for (const expanded of child.expand(context, owner, (component) => this.isLeaf(component), this.unobservable.placed)) {
-        nodes.push(this.nodeOf(expanded, context, ancestor, placements));
+      for (const expanded of child.expand(target, context, owner, (component) => this.isLeaf(component), this.unobservable.placed)) {
+        nodes.push(this.nodeOf(expanded, ancestor, placements));
       }
     });
   }
 
-  nodeOf(component, context, ancestor, placements) {
+  // A component expanded to (it has entered the tree already, see
+  // Component.expand()) - its node.
+  nodeOf(component, ancestor, placements) {
     const isUnit = this.isUnit && this.isUnit(component);
     if (isUnit || !(component instanceof DOMNodeRenderComponent && component.providesNode())) {
-      const holder = this.renderIsland(component, context);
+      const holder = this.renderIsland(component);
       // Rendered, not placed: rendering tells it when it's shown or hidden.
       this.unobservable.placed.delete(component);
       this.unobservable.tracked.push({ element: holder, ancestor });
@@ -128,14 +132,14 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
       this.unobservable.tracked.push({ element: node, ancestor });
       const u = component.unobservable;
       // Cached, like DOMElementComponent's own render() does - the same
-      // context object every time, so expanding again changes nothing any
-      // build depends on. Dropped when the element is replaced (a tag
-      // change - see DOMElementComponent.replaceElement()).
-      if (!u.childContext) u.childContext = context.derive(DOMElementTarget.forElement(node));
+      // target object every time. Dropped when the element is replaced (a
+      // tag change - see DOMElementComponent.replaceElement()).
+      if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(node);
       // Its children are placed here, not rendered - see
-      // DOMElementComponent.render(), for when it's rendered again.
+      // DOMElementComponent.render(), for when it's rendered again - with
+      // the context it passes on (see Component.enterTree()).
       u.childrenPlaced = true;
-      this.expandChildren(component, node, u.childContext, component.children || [], node, placements);
+      this.expandChildren(component, node, u.childTarget, u.childContext, component.children || [], node, placements);
     }
     return node;
   }
@@ -158,15 +162,16 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
   }
 
   // An island is rendered normally, into a plain block element the
-  // container provides - which gives it a box to be placed as a unit.
-  renderIsland(component, context) {
+  // container provides - which gives it a box to be placed as a unit - with
+  // the context it entered the tree with while being expanded.
+  renderIsland(component) {
     const u = component.unobservable;
     if (!u.islandElement) {
       u.islandElement = document.createElement("div");
       u.islandElement.setAttribute(this.constructor.islandAttribute, "");
-      u.islandContext = context.derive(DOMElementTarget.forElement(u.islandElement));
+      u.islandTarget = DOMElementTarget.forElement(u.islandElement);
     }
-    component.renderOnto(u.islandContext);
+    component.renderOnto(u.islandTarget, u.renderContext);
     return u.islandElement;
   }
 

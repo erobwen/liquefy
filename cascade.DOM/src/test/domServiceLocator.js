@@ -9,8 +9,8 @@ import { div, span, p, button, h1, h2, element } from "../HTMLTags.js";
 import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
 import { text } from "../DOMTextComponent.js";
 
-// The service locator travels in the render context (RenderContext.derive()
-// forwards it to every nested context), and HTMLTags asks it for
+// The service locator is provided in the render context (the root one, or
+// a serviceProvider() on the way), and HTMLTags asks it for
 // `{ type: "htmlElement", name, properties }` from whichever component's
 // build() is running.
 describe("DOM service locators (reached through the render context)", function () {
@@ -52,8 +52,7 @@ describe("DOM service locators (reached through the render context)", function (
     }
   }
 
-  const contextWith = (serviceLocator, target) =>
-    new RenderContext(target || new DOMElementTarget(container), { serviceLocator });
+  const contextWith = (serviceLocator) => new RenderContext({ serviceLocator });
 
   it("the platform's other components - flipAnimationContainer(), contextContainer(), ... - are located too, so another locator can replace one wholesale", function () {
     // Say, an app that turns animation off: every flipAnimationContainer()
@@ -70,13 +69,13 @@ describe("DOM service locators (reached through the render context)", function (
       }
     }
     const app = new App();
-    app.renderOnto(contextWith(new CompoundServiceLocator(new NoAnimation(), new DOMServiceLocator())));
+    app.renderOnto(new DOMElementTarget(container), contextWith(new CompoundServiceLocator(new NoAnimation(), new DOMServiceLocator())));
     assert.ok(!(app.newBuild instanceof FlipAnimationContainer));
     assert.equal(container.innerHTML.replace(/ id="[^"]*"/g, ""), "<div><p>still here</p></div>");
 
     const plain = new App();
     container.innerHTML = "";
-    plain.renderOnto(contextWith(new DOMServiceLocator()));
+    plain.renderOnto(new DOMElementTarget(container), contextWith(new DOMServiceLocator()));
     assert.ok(plain.newBuild instanceof FlipAnimationContainer, "and by default, it's the real one");
   });
 
@@ -93,7 +92,7 @@ describe("DOM service locators (reached through the render context)", function (
     }
 
     const locator = new RecordingDOMServiceLocator();
-    new Outer().renderOnto(contextWith(locator));
+    new Outer().renderOnto(new DOMElementTarget(container), contextWith(locator));
 
     // text("inner") is an argument of span(), so it's asked for first.
     assert.deepEqual(locator.asked, ["htmlElement:div", "textNode", "htmlElement:span"]);
@@ -106,7 +105,7 @@ describe("DOM service locators (reached through the render context)", function (
         return div({ key: "plain" }, text("works"));
       }
     }
-    new Plain().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    new Plain().renderOnto(new DOMElementTarget(container));
     assert.equal(container.textContent, "works");
     assert.deepEqual(warnings, []);
   });
@@ -118,7 +117,7 @@ describe("DOM service locators (reached through the render context)", function (
       }
     }
     const locator = new CompoundServiceLocator(new RedButtons(), new DOMServiceLocator());
-    new Buttons().renderOnto(contextWith(locator));
+    new Buttons().renderOnto(new DOMElementTarget(container), contextWith(locator));
 
     assert.equal(container.querySelector("button").style.color, "red");
     assert.equal(container.querySelector("span").style.color, "");
@@ -134,7 +133,7 @@ describe("DOM service locators (reached through the render context)", function (
       { locate: (query) => query.name === "div" ? new DOMServiceLocator().locate(query) : undefined },
       new DOMDebugServiceLocator(),
     );
-    new Unknown().renderOnto(contextWith(nothingButDebug));
+    new Unknown().renderOnto(new DOMElementTarget(container), contextWith(nothingButDebug));
 
     assert.equal(container.querySelectorAll("[title='Unresolved service: htmlElement x-missing']").length, 2);
     assert.ok(container.textContent.includes("[htmlElement x-missing]"));
@@ -150,7 +149,7 @@ describe("DOM service locators (reached through the render context)", function (
     }
     const locator = new ObservableCompoundServiceLocator(new DOMServiceLocator());
     const buttons = new Buttons();
-    buttons.renderOnto(contextWith(locator));
+    buttons.renderOnto(new DOMElementTarget(container), contextWith(locator));
     assert.equal(container.querySelector("button").style.color, "");
 
     locator.locators.unshift(new RedButtons());
@@ -171,7 +170,7 @@ describe("DOM service locators (reached through the render context)", function (
     }
     const locator = new CompoundServiceLocator(new DOMServiceLocator());
     const buttons = new Buttons();
-    buttons.renderOnto(contextWith(locator));
+    buttons.renderOnto(new DOMElementTarget(container), contextWith(locator));
 
     locator.locators.unshift(new RedButtons()); // not observable: nothing reacts
     assert.equal(buttons.unobservable.buildCount, 1);
@@ -194,8 +193,7 @@ describe("DOM service locators (reached through the render context)", function (
       }
     }
     const root = contextWith(new DOMServiceLocator());
-    root.usableWidth = 300;
-    new App().renderOnto(root);
+    new App().renderOnto(new DOMElementTarget(container), root);
 
     const [plain, red] = container.querySelectorAll("button");
     assert.equal(plain.textContent, "plain");
@@ -235,7 +233,7 @@ describe("DOM service locators (reached through the render context)", function (
           : div({ key: "column" }, div({ key: "bar" }, text({ key: "barText", text: "bar" })), sections[0]);
       }
     }
-    new Page().renderOnto(contextWith(new DOMServiceLocator()));
+    new Page().renderOnto(new DOMElementTarget(container), contextWith(new DOMServiceLocator()));
     const shown = () => Array.from(container.firstChild.children).map((each) => each.textContent);
     assert.deepEqual(shown(), ["A", "B"]);
     layout.wide = false;
@@ -253,7 +251,7 @@ describe("DOM service locators (reached through the render context)", function (
         return div({ key: "page" }, span({ key: "before" }), tag({ key: "title" }, text({ key: "titleText", text: model.title })), span({ key: "after" }));
       }
     }
-    new Heading().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    new Heading().renderOnto(new DOMElementTarget(container));
     const page = container.firstChild;
     const oldTitle = page.children[1];
     const textNode = oldTitle.firstChild;

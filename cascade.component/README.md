@@ -48,18 +48,38 @@ class Counter extends Component {
 - **`callback(key, fn)`** is a named, stable callback - passed as a property, it
   doesn't count as a change on every rebuild (a plain closure is fine for a
   quick prototype).
-- **`this.inherit(name)`** finds a value provided by a component further up.
+- **`provide()` / `this.inherit(name)`** - a component returns an object from
+  `provide()` (null, the default, provides nothing); anything below it finds
+  each of its fields by name with `inherit()` - the nearest provider above
+  where it's placed.
 - **Services** - every element and widget is asked for through the render
   context's service locator (`CompoundServiceLocator`,
   `ObservableCompoundServiceLocator`, `serviceProvider()`), so themes can
   replace whole components, and any part of an app can have services of its
   own.
-- **`render(context)`** is there for a component that needs to do real work at
-  render time (measuring, say); most only implement `build()`.
+- **`render(target, context)`** is there for a component that needs to do real
+  work at render time (measuring, say); most only implement `build()`.
 
 # Design notes
 
 ## Invariants
+
+### Render target and render context
+
+A component is rendered onto a *target* with a *context* - `renderOnto(target, context)` - and the two are kept apart:
+
+- The **target** holds everything temporal: where things go, and what has been placed so far this pass (a DOM target's `lastChild`, space left after the siblings before). Only render repeaters read and write it, in pipeline order. A build never sees it - a component keeps its target as plain bookkeeping only.
+- The **context** holds only non-temporal information - services, a location, an overlay frame, portals, a measured size: values with one value per render pass. A build repeater is a pipeline of its own, unrelated in time to rendering, and reads the latest writing of whatever it reads - for such values, the right one. So builds may read the context (`this.renderContext`, `inherit()`).
+
+A context is a chain with one link per component that actually provides something (`provide()` returning an object - `null` by default). A component that provides nothing adds no link: its children get the context it was given. A component and its context are separate objects - `provide()` never returns the component itself - so nothing a component merely has is inherited by accident.
+
+1. A context is created once, by its component, when it first enters the tree, and kept - its identity never changes. It is disposed of with its component (`onDispose()`), together with the lookups cached on it.
+2. Its parent link can change: a provider removed or inserted upstream re-points the links below it during reconciliation. It's observable, so only the lookups that went through it follow.
+3. Everything written to a context - the parent link, provided values, a component's own context pointer - is written at the baseline (`accessInitialValues()`), and only when it changes.
+4. A component's own lookups see only the context it was given, never what it provides itself - that is for its children. A frame inside a frame finds the outer one.
+5. `inherit()` is cached per context: the first lookup of a name starts a small, independent repeater that fetches it from the parent and keeps the result there, for every later lookup from that level or below. It fetches again when something it read changes, and only a different result invalidates the readers. A reader pulls it before reading.
+6. Every shown component has one current target and context, given by the same step (`enterTree()`) whether it is rendered or expanded by a container that places its subtree itself - so the two can never differ.
+7. What is shown elsewhere than where it comes from (portal contents, an overlay's dialog) enters with the context of where it came from - what its entrance hands its children - not the context where it ends up (`enteredContext()`, `contextScope()`).
 
 ### Building Sub Components
 

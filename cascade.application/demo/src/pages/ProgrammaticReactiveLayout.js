@@ -28,10 +28,9 @@ const GAP = "6px";
  * Unlike Flow, nothing here computes bounds: the grid is plain flexbox - a
  * column of filler rows of filler cells - and every cell is an
  * elementBoundsProvider(), styled as the cell, measuring itself. Its direct
- * child, the cell's content, reads what it measured as
- * this.renderContext.width/height, from build(). (Directly: an element in
- * between would give the content a render context of its own, without the
- * measurement.)
+ * child, the cell's content, inherits what it measured as
+ * this.inherit("width")/this.inherit("height"), from build() - the nearest
+ * bounds provider's, however deep the content is.
  */
 export class ProgrammaticReactiveLayout extends Component {
   initializeState() {
@@ -109,7 +108,7 @@ class BoundsDisplay extends Component {
   };
 
   build() {
-    const { width, height } = this.renderContext;
+    const width = this.inherit("width"), height = this.inherit("height");
     return fittedText({
       key: "bounds",
       text: "Bounds: " + Math.round(width) + " x " + Math.round(height),
@@ -127,7 +126,7 @@ class StringDisplay extends Component {
   static cellStyle = { border: "1px solid " + themeColor.border, backgroundColor: themeColor.surface, color: themeColor.text };
 
   build() {
-    const { width, height } = this.renderContext;
+    const width = this.inherit("width"), height = this.inherit("height");
     return fittedText({
       key: "string",
       text: "Text that fits the width of its container",
@@ -150,7 +149,7 @@ class FixedAspectRatioDisplay extends Component {
   }
 
   build() {
-    const { width: cellWidth, height: cellHeight } = this.renderContext;
+    const cellWidth = this.inherit("width"), cellHeight = this.inherit("height");
     const padding = Math.min(10, cellWidth * 0.1, cellHeight * 0.1);
     let width = Math.max(0, cellWidth - padding * 2);
     let height = width / this.aspectRatio;
@@ -185,7 +184,7 @@ class ResponsiveDisplay extends Component {
   static cellStyle = { border: "1px solid " + themeColor.chromeDark, backgroundColor: themeColor.chrome, color: themeColor.onChrome };
 
   build() {
-    const { width, height } = this.renderContext;
+    const width = this.inherit("width"), height = this.inherit("height");
     const glyph = (size) => icon({ key: "icon", name: "dashboard", style: { fontSize: size + "px", flex: "none" } });
     if (width < 140 || height < 60) {
       return glyph(Math.max(12, Math.min(48, width * 0.5, height * 0.6)));

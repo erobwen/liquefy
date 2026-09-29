@@ -19,7 +19,7 @@ describe("basic theme widgets", function () {
 
   const services = (...themes) => new CompoundServiceLocator(new DOMServiceLocator(), ...themes);
   const render = (component, serviceLocator = services(basicTheme)) => {
-    component.renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator }));
+    component.renderOnto(new DOMElementTarget(container), new RenderContext({ serviceLocator }));
     return component;
   };
   // A page building whatever `build` returns, with state it can change.

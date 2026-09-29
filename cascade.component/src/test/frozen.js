@@ -1,7 +1,6 @@
 import assert from "assert";
 import { observable } from "../Cascade.js";
 import { Component } from "../Component.js";
-import { RenderContext } from "../RenderContext.js";
 import { frozen } from "../frozen.js";
 
 // Values as properties: frozen() in setProperties() makes a property a
@@ -49,7 +48,7 @@ describe("frozen properties", function () {
       }
     }
     const parent = new Parent();
-    parent.renderOnto(new RenderContext({ name: "target" }));
+    parent.renderOnto(({ name: "target" }));
     const child = parent.newBuild;
     return { model, child, renders: () => child.unobservable.renders };
   }

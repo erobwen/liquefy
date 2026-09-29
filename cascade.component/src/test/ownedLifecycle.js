@@ -1,14 +1,13 @@
 import assert from "assert";
 import { observable } from "../Cascade.js";
 import { Component } from "../Component.js";
-import { RenderContext } from "../RenderContext.js";
 
 // A component its creator owns itself - created in initialization, not
 // built in a build() - has nothing but its owner to establish and dispose
 // of it. Not disposed, one reading data that never changes again is never
 // invalidated: its build stays subscribed to that data for good.
 describe("the lifecycle of an owned component", function () {
-  const context = () => new RenderContext({ name: "target" });
+  const context = () => ({ name: "target" });
 
   // Read by the owned component, and never changed while the owner is dropped.
   const global = observable({ text: "hello" });

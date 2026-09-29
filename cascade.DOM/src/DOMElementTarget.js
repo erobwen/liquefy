@@ -21,8 +21,9 @@ import { observable } from "@liquefy/cascade.component";
  * spaceLeft example, just for DOM insertion order instead of a number.
  *
  * (Services - which component an HTML tag or a themed widget turns into -
- * aren't a target's business: they travel in the render context, see
- * cascade.component's ServiceLocator.js and RenderContext.derive().)
+ * aren't a target's business: they're provided in the render context, see
+ * cascade.component's ServiceLocator.js and RenderContext.js. A target holds
+ * what is temporal - what's been placed on it so far - and nothing else.)
  */
 export class DOMElementTarget {
   constructor(element) {

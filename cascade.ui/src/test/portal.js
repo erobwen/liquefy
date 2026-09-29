@@ -17,7 +17,8 @@ describe("portals", function () {
   });
 
   // Which page is shown, a top bar with the portal first, then the page.
-  // The portal is the app's own (created by it, provided for inherit()).
+  // The portal is the app's own (created by it, provided for inherit() -
+  // see Component.provide()).
   class App extends Component {
     setProperties({ pages }) {
       this.pages = pages;
@@ -28,8 +29,9 @@ describe("portals", function () {
     initialUnobservables() {
       return { topBar: portal({ key: "topBarPortal" }, text({ key: "empty", text: "(nothing)" })) };
     }
-    get topBarPortal() {
-      return this.unobservable.topBar;
+    provide() {
+      const component = this;
+      return { get topBarPortal() { return component.unobservable.topBar; } };
     }
     build() {
       return div(
@@ -76,7 +78,7 @@ describe("portals", function () {
   const setup = () => {
     const pages = [new Page({ key: "first", name: "first" }), new Page({ key: "second", name: "second" })];
     const app = new App({ pages });
-    app.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    app.renderOnto(new DOMElementTarget(container));
     return { app, pages };
   };
 
@@ -129,7 +131,7 @@ describe("portals", function () {
         );
       }
     }
-    new Both().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    new Both().renderOnto(new DOMElementTarget(container));
     assert.equal(container.textContent, "B");
   });
 
@@ -163,7 +165,7 @@ describe("portals", function () {
     }
     const services = new ObservableCompoundServiceLocator(new DOMServiceLocator(), basicTheme);
     const app = new App({ pages: [new ThemedPage({ key: "themed" })] });
-    app.renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator: services }));
+    app.renderOnto(new DOMElementTarget(container), new RenderContext({ serviceLocator: services }));
     assert.equal(topBar(), "ab");
 
     services.locators.splice(1, 1, fancyTheme);
@@ -189,8 +191,9 @@ describe("portals", function () {
       initialUnobservables() {
         return { bar: new Bar({ key: "bar" }) };
       }
-      get cart() {
-        return this.unobservable.bar.unobservable.cart;
+      provide() {
+        const component = this;
+        return { get cart() { return component.unobservable.bar.unobservable.cart; } };
       }
       build() {
         const item = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
@@ -198,13 +201,13 @@ describe("portals", function () {
         return flipAnimationContainer(
           { key: "flip" },
           div({ key: "shelf" }, all.filter((name) => !this.chosen.includes(name)).map(item)),
-          portalContents({ key: "chosen", portal: this.inherit("cart") }, this.chosen.map(item)),
+          portalContents({ key: "chosen", portal: "cart" }, this.chosen.map(item)),
           this.unobservable.bar,
         );
       }
     }
     const store = new Store();
-    store.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    store.renderOnto(new DOMElementTarget(container));
     const shelf = () => container.querySelector("[id*='(shelf)']");
     const cart = () => container.querySelector("[id*='(cart)']");
     const pear = Array.from(shelf().children).find((each) => each.textContent === "pear");
@@ -229,13 +232,13 @@ describe("portals", function () {
       initialUnobservables() {
         return { actions: portalContents({ key: "actions", portal: "topBarPortal" }, text({ key: "renderedText", text: "rendered action" })) };
       }
-      render(context) {
-        this.unobservable.actions.renderOnto(context);
+      render(target, context) {
+        this.unobservable.actions.renderOnto(target, context);
       }
     }
     const pages = [new Page({ key: "first", name: "first" }), new RenderedPage({ key: "rendered" })];
     const app = new App({ pages });
-    app.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    app.renderOnto(new DOMElementTarget(container));
     assert.equal(topBar(), "first action 0");
 
     app.chosen = 1;
@@ -254,8 +257,9 @@ describe("portals", function () {
       initialUnobservables() {
         return { cart: portal({ key: "cart" }, text({ key: "empty", text: "empty" })) };
       }
-      get cart() {
-        return this.unobservable.cart;
+      provide() {
+        const component = this;
+        return { get cart() { return component.unobservable.cart; } };
       }
       build() {
         return div(
@@ -266,7 +270,7 @@ describe("portals", function () {
       }
     }
     const shelf = new Shelf();
-    shelf.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    shelf.renderOnto(new DOMElementTarget(container));
     assert.equal(container.textContent, "empty");
     shelf.chosen = ["pear"];
     assert.equal(container.textContent, "pear");
@@ -295,7 +299,7 @@ describe("portals", function () {
       build() {
         return div(
           { key: "page" },
-          text({ key: "where", text: "at " + this.renderContext.path }),
+          text({ key: "where", text: "at " + this.inherit("path") }),
           portalContents({ key: "actions", portal: "topBarPortal" }, new Labelled({ key: "labelled", labels: [this.name, "!"] })),
         );
       }
@@ -310,8 +314,9 @@ describe("portals", function () {
       initialUnobservables() {
         return { topBar: portal({ key: "topBarPortal" }) };
       }
-      get topBarPortal() {
-        return this.unobservable.topBar;
+      provide() {
+        const component = this;
+        return { get topBarPortal() { return component.unobservable.topBar; } };
       }
       build() {
         const page = this.pages[this.chosen];
@@ -324,7 +329,7 @@ describe("portals", function () {
     }
     const pages = [new ContextPage({ key: "first", name: "first" }), new ContextPage({ key: "second", name: "second" })];
     const app = new ContextApp({ pages });
-    app.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    app.renderOnto(new DOMElementTarget(container));
     assert.equal(topBar(), "first!");
     app.chosen = 1;
     assert.equal(topBar(), "second!");

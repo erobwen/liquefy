@@ -79,15 +79,15 @@ const MODAL_HEIGHT = 420;
  */
 export class HybridModalDialog extends Component {
   build() {
-    const context = this.renderContext || {};
-    const usableWidth = typeof(context.usableWidth) === "number" ? context.usableWidth : 1000;
-    const appWidth = typeof(context.appWidth) === "number" ? context.appWidth : usableWidth;
+    const inherited = (name) => this.inherit(name);
+    const usableWidth = typeof(inherited("usableWidth")) === "number" ? inherited("usableWidth") : 1000;
+    const appWidth = typeof(inherited("appWidth")) === "number" ? inherited("appWidth") : usableWidth;
     const mode = usableWidth >= DOCKED_MIN_WIDTH ? "docked" : appWidth < FULL_SCREEN_BELOW ? "fullScreen" : "modal";
 
     // This page's part of the URL: "dialog" while the dialog is open.
     const location = this.inherit("location");
-    const basePath = context.basePath || "";
-    const showDialog = (context.path || "").split("/")[0] === "dialog";
+    const basePath = inherited("basePath") || "";
+    const showDialog = (inherited("path") || "").split("/")[0] === "dialog";
     const open = callback("open", () => location.navigate(basePath + "/dialog"));
     const close = callback("close", () => location.back(basePath));
 

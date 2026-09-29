@@ -14,12 +14,13 @@ import { Component, getCreator } from "./Component.js";
  * are different queries. Which fields a locator looks at is up to that
  * locator.
  *
- * A locator travels down the tree in the render context
- * (`renderContext.serviceLocator`, forwarded to nested contexts by
- * RenderContext.derive()), so finding one is a single property read, and
- * it's contextual: a subtree can be rendered with a different locator (see
- * ServiceProvider below) - a component that only works with one theme can
- * have it, inside an app using another.
+ * A locator is provided like anything else inherited - as `serviceLocator`,
+ * by the root context or by a component on the way (see RenderContext.js,
+ * and ServiceProvider below) - so it's contextual: a subtree can be
+ * rendered with a different locator in front of the one around it - a
+ * component that only works with one theme can have it, inside an app
+ * using another. Unlike other inherited values, locators compose: one that
+ * doesn't provide what's asked for falls through to the next one up.
  */
 
 // Asks each of its locators in order; the first one that provides
@@ -69,21 +70,25 @@ function describeQuery(query) {
   return "{ " + parts.join(", ") + " }";
 }
 
-// Look `query` up through the service locator of the component whose
-// build() is running right now - found on its own render context (the
-// unobservable copy renderOnto() keeps: the *current* context object,
-// never a retracted writing). Reading `serviceLocator` off that context is
-// an ordinary observable read, so a build() depends on which locator its
-// context holds. `fallbackLocator` answers if there's no creator (a
-// component constructed eagerly, outside anyone's build()), no locator in
-// the context, or nothing in it provides `query` - a platform's own
-// default, typically ending in a debug locator that degrades gracefully
-// rather than failing (see cascade.dom's DOMDebugServiceLocator).
+// Look `query` up through the service locators provided where the
+// component whose build() is running right now is placed - the nearest
+// first, each falling through to the next (see RenderContext's
+// serviceLocators()). Ordinary tracked reads, so a build() depends on which
+// locators its context holds. `fallbackLocator` answers if there's no
+// creator (a component constructed eagerly, outside anyone's build()), no
+// locator in its context, or none of them provides `query` - a platform's
+// own default, typically ending in a debug locator that degrades
+// gracefully rather than failing (see cascade.dom's DOMDebugServiceLocator).
 export function locateService(query, fallbackLocator) {
   const creator = getCreator();
-  const context = creator ? creator.unobservable.renderContext : null;
-  const locator = context ? context.serviceLocator : undefined;
-  let result = locator ? locator.locate(query) : undefined;
+  const context = creator ? creator.renderContext : null;
+  let result;
+  if (context) {
+    for (const locator of context.serviceLocators()) {
+      result = locator.locate(query);
+      if (result !== undefined) break;
+    }
+  }
   if (result === undefined && fallbackLocator) result = fallbackLocator.locate(query);
   if (result === undefined) {
     throw new Error("No service locator provides " + describeQuery(query) + " - add one to the render context's serviceLocator.");
@@ -146,11 +151,10 @@ export function serviceProvider(...parameters) {
 
 /**
  * ServiceProvider: renders `child` with `serviceLocator` in front of
- * whatever locator the surrounding context already has - it answers first,
- * and anything it doesn't provide is still found the usual way. Same
- * target, no element of its own: only the services change, not where
- * things are rendered. Every other field of the surrounding context is
- * passed through as it is.
+ * whatever locators the surrounding context already has - it answers first,
+ * and anything it doesn't provide is still found the usual way, further up.
+ * Same target, no element of its own: only the services change, not where
+ * things are rendered.
  */
 export class ServiceProvider extends Component {
   setProperties({ serviceLocator, child }) {
@@ -158,25 +162,13 @@ export class ServiceProvider extends Component {
     this.child = child;
   }
 
-  render(context) {
-    const u = this.unobservable;
-    const own = this.serviceLocator;
-    const inherited = context.serviceLocator;
-    // Rebuilt only when either side actually changes - handing the child's
-    // context a new compound on every render would invalidate every build()
-    // below that looked anything up through it.
-    if (!u.compound || u.own !== own || u.inherited !== inherited) {
-      u.own = own;
-      u.inherited = inherited;
-      u.compound = inherited ? new CompoundServiceLocator(own, inherited) : own;
-    }
-    if (!u.providedContext) u.providedContext = context.derive(context.target);
-    // Everything but the services, passed through - the target included:
-    // moved to another parent, a provider renders its child there too.
-    for (const key of Object.keys(context)) {
-      if (key !== "serviceLocator") u.providedContext[key] = context[key];
-    }
-    u.providedContext.serviceLocator = u.compound;
-    this.child.renderOnto(u.providedContext);
+  // A getter: a locator swapped on a rebuild is found from then on.
+  provide() {
+    const provider = this;
+    return { get serviceLocator() { return provider.serviceLocator; } };
+  }
+
+  render(target, context) {
+    this.child.renderOnto(target, context);
   }
 }

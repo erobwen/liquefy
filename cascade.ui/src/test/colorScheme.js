@@ -56,7 +56,7 @@ describe("color schemes", function () {
 
     const serviceLocator = new CompoundServiceLocator(new DOMServiceLocator(), theme);
     colorSchemeScope({ key: "scope" }, text({ key: "inside", text: "Inside" }))
-      .renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator }));
+      .renderOnto(new DOMElementTarget(container), new RenderContext({ serviceLocator }));
     const scope = container.firstChild;
     assert.equal(scope.style.getPropertyValue("--cascade-chrome"), "#34495e");
     assert.equal(scope.textContent, "Inside");
@@ -77,7 +77,7 @@ describe("color schemes", function () {
     const other = new BasicThemeServiceLocator();
     other.colorScheme.base = "#c2185b";
     serviceProvider({ key: "provider", serviceLocator: other, child: colorSchemeScope({ key: "scope" }) })
-      .renderOnto(new RenderContext(new DOMElementTarget(container), { serviceLocator: new CompoundServiceLocator(new DOMServiceLocator(), app) }));
+      .renderOnto(new DOMElementTarget(container), new RenderContext({ serviceLocator: new CompoundServiceLocator(new DOMServiceLocator(), app) }));
     assert.equal(container.firstChild.style.getPropertyValue("--cascade-base"), "#c2185b");
   });
 });

@@ -29,7 +29,7 @@ export class DOMNodeComponent extends Component {
     return true;
   }
 
-  render(context) {
+  render(target, context) {
     // reactiveBuildEquivalent() is cached per run (see its own comment) -
     // calling it here to verify, then again via super.render() below, does
     // not run build() twice.
@@ -44,6 +44,6 @@ export class DOMNodeComponent extends Component {
         this.constructor.name + ".build() must return exactly one DOMNodeRenderComponent, not " + got
       );
     }
-    super.render(context);
+    super.render(target, context);
   }
 }

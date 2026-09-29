@@ -65,7 +65,7 @@ describe("browserLocation", function () {
       }
     }
     const container = document.createElement("div");
-    new Page().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    new Page().renderOnto(new DOMElementTarget(container));
     assert.equal(container.textContent, "/");
 
     location.navigate(["store"]);

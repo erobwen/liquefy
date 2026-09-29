@@ -61,11 +61,16 @@ export class RecursiveDemo extends Component {
     return { levels: 1, sharedValue: 42 };
   }
 
-  // provide()'s own default already returns `this` - inherit("sharedValue")
-  // from anywhere underneath finds it here, on whichever RecursiveDemo
-  // instance is nearest (there's only ever one in this demo, but the
-  // mechanism is the same one OverlayFrame/inherit("overlayFrame") use for
-  // genuinely recursive nesting - see cascade.ui/src/OverlayFrame.js).
+  // inherit("sharedValue") from anywhere underneath finds it here, on
+  // whichever RecursiveDemo instance is nearest (there's only ever one in
+  // this demo, but the mechanism is the same one
+  // OverlayFrame/inherit("overlayFrame") use for genuinely recursive
+  // nesting - see cascade.ui/src/OverlayFrame.js). A getter: it follows the
+  // state it reads.
+  provide() {
+    const demo = this;
+    return { get sharedValue() { return demo.sharedValue; } };
+  }
 
   build() {
     return pageColumn(

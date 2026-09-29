@@ -75,7 +75,7 @@ export class ReactiveFormPage extends Component {
   }
 
   build() {
-    const wide = (this.renderContext.usableWidth || 1000) >= 820;
+    const wide = (this.inherit("usableWidth") || 1000) >= 820;
     const count = travelerCount(data);
     const form = [
       controlPanel(

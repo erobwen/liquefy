@@ -1,4 +1,4 @@
-import { frozen } from "@liquefy/cascade.component";
+import { frozen, observable, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
@@ -10,12 +10,15 @@ export function contextContainer(...parameters) {
 
 /**
  * DOMContextContainer: a real, styleable element (DOMNodeRenderComponent),
- * whose sole further job is handing its own `child` a fresh RenderContext -
- * rooted at this element, so the child's own DOMElementTarget writes (lastChild,
- * appendElement/reattachElement) are scoped to it rather than to whatever
- * target this container itself was rendered onto - with `context` merged
- * in as extra fields (see ApplicationMenuFrame.js's own `workArea`, which
- * hands its page usableWidth/usableHeight this way).
+ * whose sole further job is rendering its own `child` onto it - on a
+ * target rooted at this element, so the child's own DOMElementTarget writes
+ * (lastChild, appendElement/reattachElement) are scoped to it rather than to
+ * whatever target this container itself was rendered onto - and providing
+ * the fields of `context` to that child's subtree (see
+ * ApplicationMenuFrame.js's own `workArea`, which hands its page
+ * usableWidth/usableHeight this way). They're kept up to date as they
+ * change - at the baseline, as everything a context holds (see
+ * cascade.component's RenderContext.js).
  *
  * Was DOMLegacyBridge, back when cascade.dom had two separate target
  * abstractions (DOMElementTarget's reactive appendElement()/reattachElement() vs.
@@ -34,10 +37,17 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
   setProperties({ child, style, context }) {
     this.child = child;
     this.style = frozen(style || null);
-    // Extra fields to merge onto the inner RenderContext on every render -
-    // e.g. usableWidth/usableHeight (see ApplicationMenuFrame.js's own
-    // `workArea`).
+    // What it provides - e.g. usableWidth/usableHeight (see
+    // ApplicationMenuFrame.js's own `workArea`).
     this.contextExtra = frozen(context || null);
+  }
+
+  // An observable object of its own, holding what it provides: created
+  // with every field already in it, then only rewritten (see render()).
+  provide() {
+    const u = this.unobservable;
+    if (!u.provided) u.provided = observable({ ...(this.contextExtra || {}) });
+    return u.provided;
   }
 
   initialUnobservables() {
@@ -46,23 +56,34 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
     return result;
   }
 
-  renderElement(context, existingElement) {
-    const element = existingElement || context.target.appendElement("div");
-    if (existingElement) context.target.reattachElement(existingElement);
+  renderElement(target, existingElement) {
+    const element = existingElement || target.appendElement("div");
+    if (existingElement) target.reattachElement(existingElement);
     const u = this.unobservable;
     u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
     return element;
   }
 
-  render(context) {
-    super.render(context);
+  render(target, context) {
+    super.render(target, context);
     const u = this.unobservable;
-    if (!u.innerContext) {
-      u.innerContext = context.derive(DOMElementTarget.forElement(u.element));
-    }
-    if (this.contextExtra) Object.assign(u.innerContext, this.contextExtra);
-    this.child.renderOnto(u.innerContext);
+    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.element);
+    provideAtBaseline(u.provided, this.contextExtra);
+    this.child.renderOnto(u.innerTarget, context);
   }
 }
 
 registerDOMComponent("contextContainer", DOMContextContainer);
+
+// Write `values` into `provided` - a context's provided object - at the
+// baseline, only where they differ: what a context holds has one value per
+// render pass, so the latest writing is always the right one (see
+// cascade.component's RenderContext.js).
+export function provideAtBaseline(provided, values) {
+  if (!values) return;
+  const changed = withoutRecording(() => Object.keys(values).filter((key) => provided[key] !== values[key]));
+  if (changed.length === 0) return;
+  accessInitialValues(() => {
+    for (const key of changed) provided[key] = values[key];
+  });
+}

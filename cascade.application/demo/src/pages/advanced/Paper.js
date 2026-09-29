@@ -1,4 +1,4 @@
-import { Component, RenderContext, observable } from "@liquefy/cascade.component";
+import { Component, observable } from "@liquefy/cascade.component";
 
 // A render target of your own - no DOM anywhere: a paper, whose state is
 // where the next word goes.
@@ -18,8 +18,7 @@ class Word extends Component {
     this.text = text;
   }
 
-  render(context) {
-    const paper = context.target;
+  render(paper) {
     let { line, column } = paper;
     if (column > 0 && column + this.text.length > paper.width) {
       line = line + 1;
@@ -42,7 +41,7 @@ class Sentence extends Component {
 }
 
 const words = observable({ words: ["Temporal", "signals", "lay", "out", "words", "on", "paper"] });
-new Sentence({ words }).renderOnto(new RenderContext(new Paper(20)));
+new Sentence({ words }).renderOnto(new Paper(20));
 //   "Temporal" - line 1, column 0
 //   "signals" - line 1, column 9
 //   "lay" - line 1, column 17

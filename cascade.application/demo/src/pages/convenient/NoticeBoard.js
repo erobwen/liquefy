@@ -22,8 +22,8 @@ export class NoticeBoard extends Component {
   }
 
   // Found by inherit("noticeBoard") from anywhere below.
-  get noticeBoard() {
-    return this.unobservable.board;
+  provide() {
+    return { noticeBoard: this.unobservable.board };
   }
 
   build() {

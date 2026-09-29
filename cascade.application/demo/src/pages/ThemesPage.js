@@ -69,7 +69,7 @@ export class ThemesPage extends Component {
   }
 
   build() {
-    const wide = (this.renderContext.usableWidth || 1000) >= SIDE_BY_SIDE_WIDTH;
+    const wide = (this.inherit("usableWidth") || 1000) >= SIDE_BY_SIDE_WIDTH;
     const root = this.inherit("rootServiceLocator");
     // Both sections, every build - only which are shown depends on the
     // width: a section left out of a build would be gone, and come back

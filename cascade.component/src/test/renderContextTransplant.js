@@ -1,6 +1,5 @@
 import assert from "assert";
 import { Component } from "../Component.js";
-import { RenderContext } from "../RenderContext.js";
 
 // A component retracted from one parent and later renderOnto()'d by a
 // *different* one - the "transplant" shape cascade.application/demo's
@@ -15,17 +14,17 @@ import { RenderContext } from "../RenderContext.js";
 // context, which is exactly why this never surfaced before.
 describe("renderOnto() under a different context after retraction", function () {
   it("a component transplanted between two parents renders against the new parent's context, not the first one's", function () {
-    const contextA = new RenderContext({ name: "a" });
-    const contextB = new RenderContext({ name: "b" });
+    const contextA = ({ name: "a" });
+    const contextB = ({ name: "b" });
 
     class Leaf extends Component {
       initialUnobservables() {
         return { seenTarget: null, renderCount: 0 };
       }
-      render(context) {
+      render(target) {
         const u = this.unobservable;
         u.renderCount++;
-        u.seenTarget = context.target.name;
+        u.seenTarget = target.name;
       }
     }
 
@@ -48,7 +47,7 @@ describe("renderOnto() under a different context after retraction", function () 
 
     const leaf = new Leaf();
     const parent = new Parent(leaf);
-    parent.renderOnto(new RenderContext({ name: "root" }));
+    parent.renderOnto(({ name: "root" }));
 
     assert.equal(leaf.unobservable.seenTarget, "a");
     assert.equal(leaf.unobservable.renderCount, 1);
@@ -71,8 +70,8 @@ describe("renderOnto() under a different context after retraction", function () 
     // and slot B renderOnto()s it afresh under a different context - the
     // retract/reattach path, not the same-parent relink the case above
     // exercises. Both must land on the new context.
-    const contextA = new RenderContext({ name: "a" });
-    const contextB = new RenderContext({ name: "b" });
+    const contextA = ({ name: "a" });
+    const contextB = ({ name: "b" });
 
     class Leaf extends Component {
       initializeState() {
@@ -81,8 +80,8 @@ describe("renderOnto() under a different context after retraction", function () 
       initialUnobservables() {
         return { seenTarget: null, retractions: 0 };
       }
-      render(context) {
-        this.unobservable.seenTarget = context.target.name;
+      render(target) {
+        this.unobservable.seenTarget = target.name;
       }
       onRetract() {
         this.unobservable.retractions++;
@@ -111,15 +110,15 @@ describe("renderOnto() under a different context after retraction", function () 
       initializeState() {
         return { slot: "a" };
       }
-      render(context) {
-        this.slotA.renderOnto(context);
-        this.slotB.renderOnto(context);
+      render(target) {
+        this.slotA.renderOnto(target);
+        this.slotB.renderOnto(target);
       }
     }
 
     const leaf = new Leaf();
     const root = new Root(leaf);
-    root.renderOnto(new RenderContext({ name: "root" }));
+    root.renderOnto(({ name: "root" }));
     assert.equal(leaf.unobservable.seenTarget, "a");
 
     leaf.counter = 3; // state set while docked in A

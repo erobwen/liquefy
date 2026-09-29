@@ -28,7 +28,7 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
     }
 
     const frame = new Frame();
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
 
     const frameEl = container.children[0];
     assert.equal(frameEl.children.length, 1, "nothing shown yet - just the static content");
@@ -56,7 +56,7 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
       }
     }
     const page = new Page();
-    page.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    page.renderOnto(new DOMElementTarget(container));
     const shown = () => container.children[0].children[1] && container.children[0].children[1].textContent;
     assert.equal(shown(), "window");
     page.fullScreen = true;
@@ -79,7 +79,7 @@ describe("OverlayFrame/Overlay (recursive modal frame)", function () {
     }
 
     const frame = new Frame();
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
 
     const rootFrameEl = container.children[0];
     assert.equal(rootFrameEl.children.length, 1, "nothing shown yet");

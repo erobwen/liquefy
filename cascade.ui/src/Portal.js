@@ -1,4 +1,4 @@
-import { Component, flush, withoutRecording, frozen } from "@liquefy/cascade.component";
+import { Component, flush, withoutRecording, frozen, contextScope } from "@liquefy/cascade.component";
 import { wrapper } from "./Layout.js";
 
 /**
@@ -16,7 +16,10 @@ import { wrapper } from "./Layout.js";
  *    it builds, so it can be created before it has a place in the tree
  *    instead, and once it isn't (it's hidden, or its page is switched
  *    away from), they're taken back out - see Component.onShow()/onHide().
- *    The last one shown wins.
+ *    The last one shown wins. Its children keep the context of where it
+ *    stands - what it passes on to its own children - so what's put
+ *    through a portal inherits from where it came from, not from where it
+ *    ends up (see Component.enteredContext(), ContextScope).
  *
  * The same mechanism as OverlayFrame/Overlay (see OverlayFrame.js - an
  * overlay frame is a portal with a modal layer): the contents are
@@ -46,9 +49,10 @@ export class Portal extends Component {
   }
 
   // What some PortalContents has assigned is state: changed only by
-  // show()/hide(), never reset by a rebuild.
+  // show()/hide(), never reset by a rebuild - and the context they're
+  // shown with, that PortalContents'.
   initializeState() {
-    return { contents: null };
+    return { contents: null, contentsContext: null };
   }
 
   initialUnobservables() {
@@ -58,10 +62,12 @@ export class Portal extends Component {
   // Called from a PortalContents render: what is shown now is read
   // without recording, so that render never depends on it - two contents
   // taking turns would otherwise keep rerunning each other.
-  show(contentsProvider, contents) {
+  show(contentsProvider, contents, context) {
     this.unobservable.assignedBy = contentsProvider;
-    const current = withoutRecording(() => this.contents);
-    if (current !== contents) flush(() => this.setState({ contents }));
+    const current = withoutRecording(() => [this.contents, this.contentsContext]);
+    if (current[0] !== contents || current[1] !== (context || null)) {
+      flush(() => this.setState({ contents, contentsContext: context || null }));
+    }
   }
 
   // Only the PortalContents that assigned what's shown can take it back -
@@ -71,12 +77,15 @@ export class Portal extends Component {
     const u = this.unobservable;
     if (u.assignedBy !== contentsProvider) return;
     u.assignedBy = null;
-    flush(() => this.setState({ contents: null }));
+    flush(() => this.setState({ contents: null, contentsContext: null }));
   }
 
   build() {
     const assigned = this.contents && this.contents.length > 0;
-    return wrapper({ key: "portal", style: this.style || {} }, assigned ? this.contents : this.defaultContents);
+    return wrapper(
+      { key: "portal", style: this.style || {} },
+      assigned ? contextScope({ key: "contents", context: this.contentsContext }, this.contents) : this.defaultContents,
+    );
   }
 }
 
@@ -125,7 +134,7 @@ export class PortalContents extends Component {
       u.shownIn = null;
     }
     if (portal) {
-      portal.show(this, this.portalChildren);
+      portal.show(this, this.portalChildren, u.childContext);
       u.shownIn = portal;
     }
   }

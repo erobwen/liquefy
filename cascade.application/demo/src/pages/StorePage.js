@@ -70,13 +70,10 @@ export class StorePage extends Component {
   }
 
   // Provided for portalContents({ portal: "cartPortal" }) - see
-  // Component.inherit().
-  get cartPortal() {
-    return this.unobservable.statusBar.unobservable.cart;
-  }
-
-  get cartSummaryPortal() {
-    return this.unobservable.statusBar.unobservable.summary;
+  // Component.provide().
+  provide() {
+    const bar = this.unobservable.statusBar.unobservable;
+    return { cartPortal: bar.cart, cartSummaryPortal: bar.summary };
   }
 
   build() {

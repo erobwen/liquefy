@@ -32,18 +32,13 @@ const TOP_BAR_HEIGHT = 48;
  * DOMElementBoundsProvider (cascade.dom), which also owns the one window
  * resize listener that measurement needs. build() below wraps this frame's
  * actual layout in one of those, as ApplicationMenuFrameLayout - the direct
- * child that reads the measurement back out via `this.renderContext` (see
- * Component.js's own renderOnto(), which sets that unconditionally on every
- * component from whatever context it was actually renderOnto()'d with).
- * That "direct child" placement isn't incidental: bounds measured this way
- * only mean anything one hop down from where they were measured, which is
- * exactly the render()-per-hop, RenderContext-based propagation gives you -
- * unlike a named inherit()/provide() lookup, which would keep resolving to
- * this same DOMElementBoundsProvider regardless of how many further layout
- * boundaries a deeper descendant sits behind.
+ * child that inherits the measurement it provides (`width`/`height`),
+ * from build(). Anything deeper inherits the nearest bounds provider's
+ * instead - the work area's own room is handed to the pages as
+ * `usableWidth`/`usableHeight`, by name.
  *
  * This is the frame's own root, rendered directly by index.js, which hands
- * it a DOMElementTarget-based context to begin with - so DOMElementBoundsProvider's
+ * it a DOMElementTarget to begin with - so DOMElementBoundsProvider's
  * own div ends up as a *direct* child of #application, no unstyled
  * intermediate div for a percentage height to get lost in (see this file's
  * own git history for the bug that came from exactly that, when this frame
@@ -52,14 +47,13 @@ const TOP_BAR_HEIGHT = 48;
  * The work area's own page content (Introduction/ProgrammaticReactiveLayout)
  * is reached via contextContainer() (see cascade.DOM/src/DOMContextContainer.js),
  * which owns `workArea`'s own real, styled div and hands the page a fresh
- * context extended with usableWidth/usableHeight - not a bridge between two
+ * context providing usableWidth/usableHeight - not a bridge between two
  * different target abstractions (there's only DOMElementTarget now), just a
  * container that adds situational context for what it renders.
  */
 export class ApplicationMenuFrame extends Component {
-  // rootServiceLocator: provided to the whole app from here (provide()'s
-  // default is the component itself, so any field can be inherited) - the
-  // one way a component can change the app's services, by
+  // rootServiceLocator: provided to the whole app from here (see provide())
+  // - the one way a component can change the app's services, by
   // inherit("rootServiceLocator"). See src/services.js.
   //
   // location: the browser's location (cascade.dom's browserLocation()) -
@@ -68,7 +62,7 @@ export class ApplicationMenuFrame extends Component {
   // link to a page all just work, as in Flow's demo. What's left of the
   // path is the page's own business: it's handed down in the page's render
   // context (see ApplicationMenuFrameLayout's workArea), and the location
-  // itself is found by inherit("location") (a field is all it takes).
+  // itself is found by inherit("location").
   setProperties({ pages, rootServiceLocator, location }) {
     this.pages = pages;
     this.rootServiceLocator = rootServiceLocator || null;
@@ -102,10 +96,19 @@ export class ApplicationMenuFrame extends Component {
     super.onDispose();
   }
 
-  // Provided for inherit("topBarPortal") (provide()'s default is the
-  // component itself, so a getter is all it takes).
   get topBarPortal() {
     return this.unobservable.topBarPortal;
+  }
+
+  // What the whole app inherits from here - its root services, the
+  // location, and the top bar's portal. Getters: they follow the frame.
+  provide() {
+    const frame = this;
+    return {
+      get rootServiceLocator() { return frame.rootServiceLocator; },
+      get location() { return frame.location; },
+      get topBarPortal() { return frame.topBarPortal; },
+    };
   }
 
   // A page's path: the first page is the app's own root.
@@ -153,8 +156,8 @@ export class ApplicationMenuFrame extends Component {
 }
 
 // The direct child of the DOMElementBoundsProvider ApplicationMenuFrame
-// builds above - the one place entitled to read the measured bounds back
-// out of `this.renderContext` (see ApplicationMenuFrame's own class doc).
+// builds above - which inherits the measured bounds it provides (see
+// ApplicationMenuFrame's own class doc).
 // Everything state-related (chosen page, menu open/closed) still belongs to
 // `frame`, reached the same way MenuList already reaches it below.
 class ApplicationMenuFrameLayout extends Component {
@@ -164,8 +167,8 @@ class ApplicationMenuFrameLayout extends Component {
 
   build() {
     const { frame } = this;
-    const bounds = this.renderContext;
-    if (!bounds || typeof(bounds.width) !== "number") {
+    const bounds = { width: this.inherit("width"), height: this.inherit("height") };
+    if (typeof(bounds.width) !== "number") {
       throw new Error("ApplicationMenuFrameLayout requires bounds from a DOMElementBoundsProvider ancestor.");
     }
 

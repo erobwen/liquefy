@@ -47,7 +47,7 @@ const target = DOMElementTarget.forElement(document.getElementById("app"));
 // The service locator - here, the basic theme: it provides the themed
 // widgets your components ask for (button(), card(), ...). HTML elements
 // (div(), h1(), ...) are real DOM elements unless a locator says otherwise.
-new HelloWorld().renderOnto(new RenderContext(target, { serviceLocator: basicTheme }));`;
+new HelloWorld().renderOnto(target, new RenderContext({ serviceLocator: basicTheme }));`;
 
 const runIt = `npm run dev`;
 
@@ -59,7 +59,7 @@ const materialTheme = `npm install @liquefy/cascade.ui.material`;
 
 const materialMainJs = `import { materialTheme } from "@liquefy/cascade.ui.material";
 
-new HelloWorld().renderOnto(new RenderContext(target, { serviceLocator: materialTheme }));`;
+new HelloWorld().renderOnto(target, new RenderContext({ serviceLocator: materialTheme }));`;
 
 const codeStyle = { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" };
 
@@ -100,9 +100,10 @@ export class GettingStartedPage extends Component {
 
       h2("3. The render target and the service locator"),
       p(
-        "Two things tie an app to the page, both handed down to every component through the render context. The ",
+        "Two things tie an app to the page. The ",
         emphasis("render target"), " is where it all goes: here, the ", file("appId", "#app"), " element. The ",
-        emphasis("service locator"), " is where components get what they build with - here, the basic theme, providing ",
+        emphasis("service locator"), ", provided to every component through the render context, is where components ",
+        "get what they build with - here, the basic theme, providing ",
         "a themed widget when they ask for ", file("buttonCall", "button()"),
         ". Nothing in an app names a theme: change the service locator, and the whole app changes with it.",
       ),

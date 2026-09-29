@@ -4,9 +4,9 @@ import { button, row, column } from "@liquefy/cascade.ui";
 import { gaugeSvg } from "./Gauge.js";
 
 // Two nodes, side by side - no wrapper around them. So it renders itself:
-// render(context) puts both straight on context.target, the element its
-// parent renders into, right after target.lastChild - and then advances
-// lastChild to the last of them.
+// render(target) puts both straight on the target, the element its parent
+// renders into, right after target.lastChild - and then advances lastChild
+// to the last of them.
 //
 // lastChild is a temporal signal: each component reads it as the one
 // rendered just before it left it. So whatever comes after the double gauge
@@ -20,7 +20,7 @@ export class DoubleGauge extends Component {
     this.swapped = swapped;
   }
 
-  render(context) {
+  render(target) {
     const u = this.unobservable;
     if (!u.leftElement) {
       u.leftElement = document.createElement("div");
@@ -28,7 +28,7 @@ export class DoubleGauge extends Component {
     }
     u.leftElement.innerHTML = gaugeSvg(this.left);
     u.rightElement.innerHTML = gaugeSvg(this.right, "#27ae60");
-    this.place(context.target);
+    this.place(target);
   }
 
   place(target) {
@@ -53,9 +53,9 @@ export class DoubleGauge extends Component {
     super.onRetract();
   }
 
-  onReattach(context) {
-    if (this.unobservable.leftElement) this.place(context.target);
-    super.onReattach(context);
+  onReattach(target) {
+    if (this.unobservable.leftElement) this.place(target);
+    super.onReattach(target);
   }
 }
 

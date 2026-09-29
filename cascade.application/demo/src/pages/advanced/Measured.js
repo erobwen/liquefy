@@ -6,7 +6,7 @@ import { icon } from "@liquefy/cascade.ui";
 // by side when there's room, stacked when there isn't.
 class Profile extends Component {
   build() {
-    const { width } = this.renderContext; // measured by the provider around it
+    const width = this.inherit("width"); // measured by the provider around it
     const wide = width >= 420;
     return div(
       {
@@ -26,7 +26,7 @@ class Profile extends Component {
 
 // The provider measures its own element - here one you can resize: drag
 // its corner - and hands the size to its child, as
-// this.renderContext.width and height.
+// what it provides: this.inherit("width") and this.inherit("height").
 export class Measured extends Component {
   build() {
     return elementBoundsProvider({

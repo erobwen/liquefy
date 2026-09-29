@@ -25,7 +25,7 @@ describe("Material theme", function () {
         return div({ key: "page" }, button({ key: "save", variant: "tonal" }, text("Save"), () => { clicks++; }));
       }
     }
-    new Page().renderOnto(new RenderContext(new DOMElementTarget(container), {
+    new Page().renderOnto(new DOMElementTarget(container), new RenderContext({
       serviceLocator: new CompoundServiceLocator(new DOMServiceLocator(), materialTheme),
     }));
 
@@ -43,7 +43,7 @@ describe("Material theme", function () {
         return build();
       }
     }
-    new Page().renderOnto(new RenderContext(new DOMElementTarget(container), {
+    new Page().renderOnto(new DOMElementTarget(container), new RenderContext({
       serviceLocator: new CompoundServiceLocator(new DOMServiceLocator(), materialTheme),
     }));
   };

@@ -50,7 +50,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
 
   it("renders a real DOM tree matching the built structure, including loose string children as text nodes", function () {
     const page = new Page();
-    page.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    page.renderOnto(new DOMElementTarget(container));
 
     const rootDiv = container.children[0];
     assert.equal(rootDiv.tagName, "DIV");
@@ -73,8 +73,8 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
 
   it("diffs attributes/style on a rerun: a style that's no longer set is cleared, not just left stale", function () {
     const page = new Page();
-    const context = new RenderContext(new DOMElementTarget(container));
-    page.renderOnto(context);
+    const root = new DOMElementTarget(container);
+    page.renderOnto(root);
 
     const pEl = container.children[0].children[1];
     assert.equal(pEl.style.backgroundColor, "");
@@ -88,8 +88,8 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
 
   it("a rerun that changes an unrelated leaf's own text does not recreate the whole tree's real elements", function () {
     const page = new Page();
-    const context = new RenderContext(new DOMElementTarget(container));
-    page.renderOnto(context);
+    const root = new DOMElementTarget(container);
+    page.renderOnto(root);
 
     const rootDivBefore = container.children[0];
     const ulElBefore = rootDivBefore.children[2];
@@ -129,7 +129,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
     }
 
     const page = new KeyedPage();
-    page.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    page.renderOnto(new DOMElementTarget(container));
 
     const rootEl = container.children[0];
     const textNodeBefore = rootEl.childNodes[0];
@@ -185,13 +185,13 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
       build() {
         return new Level({ key: "root", depth: 1, maxDepth: 3, shared: this.shared });
       }
-      render(context) {
-        this.reactiveBuildEquivalent().renderOnto(context);
+      render(target, context) {
+        this.reactiveBuildEquivalent().renderOnto(target, context);
       }
     }
 
     const chain = new Chain();
-    chain.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    chain.renderOnto(new DOMElementTarget(container));
 
     // Walk down: level(1) > [leaf(1), level(2) > [leaf(2), level(3) > [leaf(3)]]]
     const level1El = container.children[0];
@@ -269,13 +269,13 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
       build() {
         return new Level({ key: "root", depth: 1, maxDepth: this.maxDepth, shared: this.shared });
       }
-      render(context) {
-        this.reactiveBuildEquivalent().renderOnto(context);
+      render(target, context) {
+        this.reactiveBuildEquivalent().renderOnto(target, context);
       }
     }
 
     const chain = new Chain();
-    chain.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    chain.renderOnto(new DOMElementTarget(container));
 
     const level1El = container.children[0];
     const leaf1El = level1El.children[0];
@@ -334,13 +334,13 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
       build() {
         return new Level({ key: "root", depth: 1, maxDepth: this.maxDepth });
       }
-      render(context) {
-        this.reactiveBuildEquivalent().renderOnto(context);
+      render(target, context) {
+        this.reactiveBuildEquivalent().renderOnto(target, context);
       }
     }
 
     const chain = new Chain();
-    chain.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    chain.renderOnto(new DOMElementTarget(container));
 
     let moveCount = 0;
     const NodePrototype = document.defaultView.Node.prototype;

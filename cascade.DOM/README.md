@@ -53,8 +53,8 @@ lowercase letter is taken for a key.
 - **Every HTML element** as a function - `div()`, `span()`, `input()`, ... -
   keyed, styled with plain objects (`style: { padding: "20px" }`), and asked
   for through the render context's service locator.
-- **`elementBoundsProvider()`** - measures its own element and hands the
-  result to its child as `this.renderContext.width`/`height`, following
+- **`elementBoundsProvider()`** - measures its own element and provides the
+  result to what's inside it, as `this.inherit("width")`/`("height")`, following
   every change of its size: programmatic, reactive layout without CSS media
   queries.
 - **`flipAnimationContainer()`** - animates every change in the subtree inside

@@ -60,7 +60,7 @@ export class AdvancedUsagePage extends Component {
       codeBlock("gaugeCode", gaugeSource),
       h3("Is one node not enough for your component?"),
       p(
-        "Then implement render() itself. A component renders onto ", name("target", "context.target"), " - the element ",
+        "Then implement render() itself. A component renders onto its ", name("target", "target"), " - the element ",
         "its parent renders into - and can put there as many nodes as it likes: right after ",
         name("lastChild", "target.lastChild"), ", the node rendered just before it, and then it advances lastChild to ",
         "the last of its own. This double gauge is two nodes, side by side in the row, with no wrapper around them.",

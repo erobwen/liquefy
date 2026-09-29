@@ -27,19 +27,19 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   class Menu extends DOMNodeRenderComponent {
-    renderElement(context, existingElement) {
-      const el = existingElement || context.target.appendElement("div");
+    renderElement(target, existingElement) {
+      const el = existingElement || target.appendElement("div");
       el.className = "menu";
-      el.dataset.overlay = context.menuIsOverlay ? "true" : "false";
+      el.dataset.overlay = target.menuIsOverlay ? "true" : "false";
       return el;
     }
   }
 
   class WorkArea extends DOMNodeRenderComponent {
-    renderElement(context, existingElement) {
-      const el = existingElement || context.target.appendElement("div");
+    renderElement(target, existingElement) {
+      const el = existingElement || target.appendElement("div");
       el.className = "work-area";
-      el.dataset.usableWidth = context.usableWidth;
+      el.dataset.usableWidth = target.usableWidth;
       return el;
     }
   }
@@ -55,29 +55,29 @@ describe("MenuFrame modal/docked breakpoint", function () {
       return { menuOpen: false };
     }
 
-    renderElement(context, existingElement) {
+    renderElement(target, existingElement) {
       const u = this.unobservable;
-      const el = existingElement || context.target.appendElement("div");
+      const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
-      if (!u.innerContext) {
-        u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
+      if (!u.innerTarget) {
+        u.innerTarget = DOMElementTarget.forElement(el);
       }
 
-      const menuIsModal = context.usableWidth < MENU_WIDTH * 3;
-      u.innerContext.menuIsOverlay = menuIsModal;
+      const menuIsModal = target.usableWidth < MENU_WIDTH * 3;
+      u.innerTarget.menuIsOverlay = menuIsModal;
 
       if (menuIsModal) {
-        u.innerContext.usableWidth = context.usableWidth;
-        this.workArea.renderOnto(u.innerContext);
+        u.innerTarget.usableWidth = target.usableWidth;
+        this.workArea.renderOnto(u.innerTarget);
         if (this.menuOpen) {
-          this.menu.renderOnto(u.innerContext);
+          this.menu.renderOnto(u.innerTarget);
         }
         // else: not rendered at all this pass - retracted automatically
         // if it was previously docked or previously open as an overlay.
       } else {
-        this.menu.renderOnto(u.innerContext);
-        u.innerContext.usableWidth = context.usableWidth - MENU_WIDTH;
-        this.workArea.renderOnto(u.innerContext);
+        this.menu.renderOnto(u.innerTarget);
+        u.innerTarget.usableWidth = target.usableWidth - MENU_WIDTH;
+        this.workArea.renderOnto(u.innerTarget);
       }
 
       return el;
@@ -85,11 +85,11 @@ describe("MenuFrame modal/docked breakpoint", function () {
   }
 
   it("docks the menu when there's enough width", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
-    context.usableWidth = 1000; // >= MENU_WIDTH * 3 (660)
-    menuFrame.renderOnto(context);
+    root.usableWidth = 1000; // >= MENU_WIDTH * 3 (660)
+    menuFrame.renderOnto(root);
 
     assert.ok(container.querySelector(".menu"));
     assert.equal(container.querySelector(".menu").dataset.overlay, "false");
@@ -97,14 +97,14 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("goes modal and retracts the menu when width is narrow", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
-    context.usableWidth = 1000;
-    menuFrame.renderOnto(context);
+    root.usableWidth = 1000;
+    menuFrame.renderOnto(root);
     assert.ok(container.querySelector(".menu")); // docked initially
 
-    context.usableWidth = 500; // < 660 -> modal, and menuOpen is false
+    root.usableWidth = 500; // < 660 -> modal, and menuOpen is false
     menuFrame.unobservable.repeater.restart();
 
     assert.ok(!container.querySelector(".menu")); // retracted, not just hidden
@@ -112,11 +112,11 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("opens the menu as an overlay on request while modal, and retracts it again on close", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
-    context.usableWidth = 500; // modal from the start
-    menuFrame.renderOnto(context);
+    root.usableWidth = 500; // modal from the start
+    menuFrame.renderOnto(root);
     assert.ok(!container.querySelector(".menu"));
 
     menuFrame.menuOpen = true;
@@ -129,19 +129,19 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("re-docks correctly after having gone modal - the element is reattached, not left orphaned", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
-    context.usableWidth = 1000;
-    menuFrame.renderOnto(context);
+    root.usableWidth = 1000;
+    menuFrame.renderOnto(root);
     const originalMenuElement = menuFrame.menu.unobservable.element;
     assert.ok(container.querySelector(".menu"));
 
-    context.usableWidth = 500; // modal - menu retracted, element removed
+    root.usableWidth = 500; // modal - menu retracted, element removed
     menuFrame.unobservable.repeater.restart();
     assert.ok(!container.querySelector(".menu"));
 
-    context.usableWidth = 1000; // back to docked
+    root.usableWidth = 1000; // back to docked
     menuFrame.unobservable.repeater.restart();
 
     assert.ok(container.querySelector(".menu")); // reattached, not missing
@@ -156,10 +156,10 @@ describe("MenuFrame modal/docked breakpoint", function () {
   });
 
   it("reopening the overlay after closing it also reattaches its element correctly", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
-    context.usableWidth = 500;
-    menuFrame.renderOnto(context);
+    root.usableWidth = 500;
+    menuFrame.renderOnto(root);
 
     menuFrame.menuOpen = true;
     const originalMenuElement = menuFrame.menu.unobservable.element;
@@ -181,15 +181,15 @@ describe("MenuFrame modal/docked breakpoint", function () {
     // true), then opened as an overlay. The stale value from its last
     // real execution (false) differs from the current one (true) - only
     // a real rerun on reattachment, not just relinking, gets this right.
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
 
-    context.usableWidth = 1000; // docked - menu renders with menuIsOverlay=false
-    menuFrame.renderOnto(context);
+    root.usableWidth = 1000; // docked - menu renders with menuIsOverlay=false
+    menuFrame.renderOnto(root);
     const originalMenuElement = menuFrame.menu.unobservable.element;
     assert.equal(container.querySelector(".menu").dataset.overlay, "false");
 
-    context.usableWidth = 500; // modal, closed - menu retracted without ever seeing menuIsOverlay=true
+    root.usableWidth = 500; // modal, closed - menu retracted without ever seeing menuIsOverlay=true
     menuFrame.unobservable.repeater.restart();
     assert.ok(!container.querySelector(".menu"));
 

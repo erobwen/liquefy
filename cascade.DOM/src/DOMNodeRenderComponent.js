@@ -1,7 +1,7 @@
 import { Component, aggregateToString } from "@liquefy/cascade.component";
 
 /**
- * DOMNodeRenderComponent: a cascade.component Component whose render(context) owns
+ * DOMNodeRenderComponent: a cascade.component Component whose render(target, context) owns
  * exactly one real DOM element, reused (not recreated) across reruns.
  *
  * A rerun's own reactive reads/writes get reconciled automatically by
@@ -18,10 +18,10 @@ import { Component, aggregateToString } from "@liquefy/cascade.component";
  * usual case) or make a new one (e.g. its tag needs to change).
  */
 export class DOMNodeRenderComponent extends Component {
-  render(context) {
+  render(target, context) {
     const u = this.unobservable;
     const wasFresh = !u.element;
-    u.element = this.renderElement(context, u.element || null);
+    u.element = this.renderElement(target, u.element || null);
     // Ported from flow.DOM's own DOMNode.js (ensureDomNodeExists()'s
     // domNode.id = aggregateToString(this)) - a real DOM element's own
     // debug identity: open DevTools, click an element, read its id, and
@@ -47,13 +47,13 @@ export class DOMNodeRenderComponent extends Component {
   //    (cascade.dom's FlipAnimationContainer) can use directly. Ordinary rendering then
   //    just places the node (the default renderElement() below), so the
   //    component itself never knows which of the two it's in.
-  //  - renderElement(context, existingElement) - do both at once, however
-  //    it likes (measuring, owning a context for its children, ...). Such a
+  //  - renderElement(target, existingElement) - do both at once, however
+  //    it likes (measuring, owning a target for its children, ...). Such a
   //    component can only be rendered, never placed by someone else.
   //
   // ensureNode() keeps unobservable.element up to date itself.
   ensureNode() {
-    throw new Error(this.constructor.name + " must implement ensureNode() or renderElement(context, existingElement)");
+    throw new Error(this.constructor.name + " must implement ensureNode() or renderElement(target, existingElement)");
   }
 
   // Whether this component can hand over its node without being rendered
@@ -70,7 +70,7 @@ export class DOMNodeRenderComponent extends Component {
   }
 
   // Default: ensure the node, then put it at the current position in
-  // context.target (typically a RenderContext's DOMElementTarget) - on every
+  // `target` (a DOMElementTarget) - on every
   // render, not just when it's new. A reused node still needs its position
   // reconfirmed even though nothing here moves it: cascade.reactive retracts
   // a repeater's prior writings - including ones made onto a foreign, shared
@@ -81,9 +81,9 @@ export class DOMNodeRenderComponent extends Component {
   // the baseline and be inserted before this node instead of after it.
   // reattachElement() itself skips the real DOM move when the node is
   // already exactly where it belongs.
-  renderElement(context, existingElement) {
+  renderElement(target, existingElement) {
     const node = this.ensureNode();
-    context.target.reattachElement(node);
+    target.reattachElement(node);
     return node;
   }
 
@@ -104,8 +104,8 @@ export class DOMNodeRenderComponent extends Component {
   // existing repeater without rerunning render() - so nothing else would
   // ever put the element back. Put it back at the current position, the
   // same way appendElement would for a brand new one.
-  onReattach(context) {
-    if (this.unobservable.element) context.target.reattachElement(this.unobservable.element);
-    super.onReattach(context);
+  onReattach(target) {
+    if (this.unobservable.element) target.reattachElement(this.unobservable.element);
+    super.onReattach(target);
   }
 }

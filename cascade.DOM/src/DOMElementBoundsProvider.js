@@ -1,4 +1,4 @@
-import { accessInitialValues, frozen } from "@liquefy/cascade.component";
+import { accessInitialValues, frozen, observable } from "@liquefy/cascade.component";
 import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
@@ -6,12 +6,10 @@ import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js
 
 /**
  * DOMElementBoundsProvider: owns one real DOM element, measures it with
- * getBoundingClientRect(), and renders `child` onto a RenderContext that
- * carries the result as `width`/`height` - readable by that child (and, by
- * default forwarding, anything further down its subtree that doesn't sit
- * behind another render() override) as `this.renderContext.width`/`height`,
- * from build() or render() alike (see Component.js's own renderOnto(),
- * which sets `this.renderContext` unconditionally for every component).
+ * getBoundingClientRect(), renders `child` onto it, and provides the result
+ * as `width`/`height` - found by that child, and anything further down its
+ * subtree, as `this.inherit("width")`/`this.inherit("height")`, from build()
+ * or render() alike, until a nearer bounds provider provides its own.
  *
  * Fully styleable, same as flow's own unwritten "every component takes
  * `style`" convention (see cascade.DOM/src/applyStyle.js's own doc) - its
@@ -47,12 +45,20 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
   initialUnobservables() {
     const result = super.initialUnobservables();
     result.previouslySetStyle = {};
+    // What it provides, and what it last measured - created with both
+    // fields in, only rewritten after that (see measure()).
+    result.bounds = observable({ width: 0, height: 0 });
+    result.measured = { width: 0, height: 0 };
     return result;
   }
 
-  renderElement(context, existingElement) {
-    const element = existingElement || context.target.appendElement("div");
-    if (existingElement) context.target.reattachElement(existingElement);
+  provide() {
+    return this.unobservable.bounds;
+  }
+
+  renderElement(target, existingElement) {
+    const element = existingElement || target.appendElement("div");
+    if (existingElement) target.reattachElement(existingElement);
     // Unconditional (not `if (this.className)`) - a className that goes
     // from set to unset across a rebuild must clear the real attribute too,
     // not leave the old one stuck (same reasoning applyStyle below has for
@@ -63,39 +69,22 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
     return element;
   }
 
-  render(context) {
-    super.render(context);
+  // Measured before its child is rendered, so the child's first build
+  // already sees the real size.
+  render(target, context) {
+    super.render(target, context);
     const u = this.unobservable;
-    if (!u.innerContext) {
-      // The one and only write to a fresh RenderContext's own width/height
-      // must happen through its constructor's `extra` (applied via a plain
-      // Object.assign before observable() ever wraps it - see
-      // RenderContext.js), not as a follow-up assignment through the
-      // now-reactive object immediately afterward: writing a *freshly
-      // introduced* key through the wrapper a second time in the very same
-      // pass that first introduced it leaves that key permanently unable to
-      // propagate any *later* write (verified empirically - a real,
-      // reproducible limitation of the underlying proxy, not a style
-      // preference). measure() (below) is only safe to call again once
-      // width/height already exist as ordinary tracked keys from a genuinely
-      // separate, later pass - which this real initial measurement, folded
-      // into construction itself, guarantees for every call after this one.
-      const rect = u.element.getBoundingClientRect();
-      u.innerContext = context.derive(DOMElementTarget.forElement(u.element), { width: rect.width, height: rect.height });
-      u.measured = { width: rect.width, height: rect.height };
-    } else {
-      this.measure();
-    }
+    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.element);
+    this.measure();
     this.observeSize();
-    this.child.renderOnto(u.innerContext);
+    this.child.renderOnto(u.innerTarget, context);
   }
 
-  // Re-measures an *already-established* innerContext - called on every
-  // render() after the first (in case something other than a resize changed
-  // this element's real size) and directly from the resize listener, an
-  // ordinary event handler outside any repeater. (Width/height are neither
-  // properties nor state - see cascade.component/README.md - but situational
-  // fields on this component's own cached RenderContext.)
+  // Measures again - called on every render() (in case something other
+  // than a resize changed this element's real size) and directly from the
+  // resize listener, an ordinary event handler outside any repeater.
+  // (Width/height are neither properties nor state - see
+  // cascade.component/README.md - but what this component provides.)
   //
   // Written at initial time (accessInitialValues()) wherever it's called
   // from, so both callers write the same slot: the listener's writes land
@@ -107,13 +96,13 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
   measure() {
     const u = this.unobservable;
     const rect = u.element.getBoundingClientRect();
-    // Compared with what it last wrote, kept unobservable: reading the
-    // context itself here would make render() depend on what it writes.
+    // Compared with what it last wrote, kept unobservable: reading what it
+    // provides here would make render() depend on what it writes.
     if (u.measured.width === rect.width && u.measured.height === rect.height) return;
     u.measured = { width: rect.width, height: rect.height };
     accessInitialValues(() => {
-      u.innerContext.width = rect.width;
-      u.innerContext.height = rect.height;
+      u.bounds.width = rect.width;
+      u.bounds.height = rect.height;
     });
   }
 

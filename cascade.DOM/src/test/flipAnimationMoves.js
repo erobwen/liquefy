@@ -120,7 +120,7 @@ describe("FlipAnimationContainer animations", function () {
 
   function setup() {
     const lists = new Lists();
-    lists.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    lists.renderOnto(new DOMElementTarget(container));
     const element = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.firstChild && each.firstChild.nodeType === 3 && each.textContent === name);
     return { lists, element };
   }
@@ -163,7 +163,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const stretched = new Stretched();
-    stretched.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    stretched.renderOnto(new DOMElementTarget(container));
     const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
     const two = named("two");
     const one = named("one");
@@ -257,7 +257,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const nested = new Nested();
-    nested.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    nested.renderOnto(new DOMElementTarget(container));
     const inner = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "y" && each.children.length === 0);
     const before = drawnAt(inner);
 
@@ -324,7 +324,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const toggled = new Toggled();
-    toggled.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    toggled.renderOnto(new DOMElementTarget(container));
     const middle = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "middle");
 
     toggled.show = false;
@@ -358,7 +358,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const toggled = new Toggled();
-    toggled.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    toggled.renderOnto(new DOMElementTarget(container));
     const middle = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "middle");
     const before = drawnAt(middle);
 
@@ -389,7 +389,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const sized = new Sized();
-    sized.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    sized.renderOnto(new DOMElementTarget(container));
     const box = container.querySelector("[title]");
     const inner = box.firstElementChild;
 
@@ -407,9 +407,9 @@ describe("FlipAnimationContainer animations", function () {
 
   it("an island moves as a unit, in the box the container gives it", function () {
     class Island extends DOMNodeRenderComponent {
-      renderElement(context, existingElement) {
+      renderElement(target, existingElement) {
         const element = existingElement || document.createElement("output");
-        context.target.reattachElement(element);
+        target.reattachElement(element);
         element.textContent = this.key;
         return element;
       }
@@ -425,7 +425,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const withIsland = new WithIsland();
-    withIsland.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    withIsland.renderOnto(new DOMElementTarget(container));
     const holder = container.querySelector("[data-flip-island]");
     const before = drawnAt(holder);
 
@@ -457,7 +457,7 @@ describe("FlipAnimationContainer animations", function () {
       }
     }
     const cards = new Cards();
-    cards.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    cards.renderOnto(new DOMElementTarget(container));
     const holders = () => Array.from(container.querySelectorAll("[data-flip-island]"));
     assert.equal(holders().length, 2, "each card in a box of its own");
     const [a, b] = holders();

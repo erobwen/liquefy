@@ -60,8 +60,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     return result;
   }
 
-  render(context) {
-    super.render(context);
+  render(target, context) {
+    super.render(target, context);
     const u = this.unobservable;
 
     // Only meaningful while the container is in the page: hidden, nothing

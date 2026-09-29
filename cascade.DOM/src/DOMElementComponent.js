@@ -80,13 +80,13 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
   // every attribute/style re-applied from scratch (none of them are set on
   // the new element yet).
   //
-  // The children get a fresh target and context for the new element (see
-  // render(), which creates them when missing) rather than having the old
+  // The children get a fresh target for the new element (see render(),
+  // which creates it when missing) rather than having the old
   // target repointed: repointing would be a write by this component's
   // render repeater, retracted on its next rerun and never rewritten (the
   // tag doesn't change again), leaving the target pointing back at the old,
   // detached element - children rendering into it would vanish from the
-  // page. Handed a different context, every child is re-rendered onto it
+  // page. Handed a different target, every child is re-rendered onto it
   // (see Component.renderOnto()) and reattaches its own node there.
   replaceElement(oldElement) {
     const u = this.unobservable;
@@ -94,7 +94,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     if (oldElement.id) newElement.id = oldElement.id;
     while (oldElement.firstChild) newElement.appendChild(oldElement.firstChild);
     if (oldElement.parentNode) oldElement.parentNode.replaceChild(newElement, oldElement);
-    u.childContext = null;
+    u.childTarget = null;
     u.previouslySetAttributes = {};
     u.previouslySetStyle = {};
     return newElement;
@@ -147,15 +147,12 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     u.previouslySetStyle = diffApplyStyle(element, newStyle, u.previouslySetStyle);
   }
 
-  render(context) {
-    super.render(context);
+  // Its children are rendered onto its own element - with the context it
+  // was given: an element provides nothing, so it adds no context of its own.
+  render(target, context) {
+    super.render(target, context);
     const u = this.unobservable;
-    if (!u.childContext) {
-      // A RenderContext, not the bare DOMElementTarget - renderElement() (this
-      // class's own, and anything else's) reads context.target, exactly
-      // like the context this component itself was handed.
-      u.childContext = context.derive(DOMElementTarget.forElement(u.element));
-    }
+    if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.element);
     // Rendered again after a placing container (see DOMPlacingContainer)
     // placed its children: whatever that left in its element is no
     // rendered child's - a node of a child removed while this element was
@@ -182,7 +179,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       const childComponent = (typeof(child) === "string" || typeof(child) === "number")
         ? new DOMTextComponent({ text: child })
         : child;
-      childComponent.renderOnto(u.childContext);
+      childComponent.renderOnto(u.childTarget, context);
     });
   }
 }

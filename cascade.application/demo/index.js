@@ -39,9 +39,13 @@ for (const [rel, type, href, sizes] of [
 // div lands as a *direct* child of #application, with no intermediate
 // bridging div in between.
 //
+// Where it all goes: the #application element.
+const target = DOMElementTarget.forElement(document.getElementById("application"));
+
 // The services every component in the app gets (HTML elements, the current
-// theme's widgets, ...) travel down from here - see src/services.js.
-const context = new RenderContext(DOMElementTarget.forElement(document.getElementById("application")), { serviceLocator: rootServiceLocator });
+// theme's widgets, ...) are provided from here, by the root render context
+// - see src/services.js.
+const context = new RenderContext({ serviceLocator: rootServiceLocator });
 
 // Handed to the root component too, which provides it to the whole app as
 // `rootServiceLocator` - the only way to *change* the app's services (see
@@ -72,4 +76,4 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage().establish() },
   ],
 }).establish();
-applicationMenuFrame.renderOnto(context);
+applicationMenuFrame.renderOnto(target, context);

@@ -42,8 +42,8 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     const flipRoot = document.createElement("div");
     const plain = makeApp(false);
     const flip = makeApp(true);
-    plain.renderOnto(new RenderContext(new DOMElementTarget(plainRoot), { serviceLocator }));
-    flip.renderOnto(new RenderContext(new DOMElementTarget(flipRoot), { serviceLocator }));
+    plain.renderOnto(new DOMElementTarget(plainRoot), new RenderContext({ serviceLocator }));
+    flip.renderOnto(new DOMElementTarget(flipRoot), new RenderContext({ serviceLocator }));
     return { plainRoot, flipRoot, plain, flip };
   }
 
@@ -160,9 +160,9 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
       initializeState() {
         return { value: 0 };
       }
-      renderElement(context, existingElement) {
+      renderElement(target, existingElement) {
         const element = existingElement || document.createElement("output");
-        context.target.reattachElement(element);
+        target.reattachElement(element);
         element.textContent = "value " + this.value;
         return element;
       }
@@ -170,9 +170,9 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     // Counts its own runs - a subclass, since patching render() on an
     // instance would itself be a write the container's render depends on.
     class CountingContainer extends FlipAnimationContainer {
-      render(context) {
+      render(target, context) {
         this.unobservable.runs = (this.unobservable.runs || 0) + 1;
-        super.render(context);
+        super.render(target, context);
       }
     }
     let counters = [];
@@ -206,13 +206,13 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     }
     const labelled = new Labelled({ key: "labelled" });
     class Frame extends Component {
-      render(context) {
-        if (model.show) this.flip.renderOnto(context);
+      render(target, context) {
+        if (model.show) this.flip.renderOnto(target, context);
       }
     }
     const frame = new Frame();
     frame.flip = flipAnimationContainer({ key: "flip" }, labelled);
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
     assert.equal(labelled.unobservable.builds, 1);
 
     model.show = false;
@@ -244,7 +244,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
         return model.animate ? flipAnimationContainer({ key: "flip" }, child) : div({ key: "plain" }, child);
       }
     }
-    new App().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    new App().renderOnto(new DOMElementTarget(container));
     const label = () => container.querySelector("p").textContent;
     model.label = "two";
     assert.equal(label(), "two", "in the container");
@@ -273,7 +273,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
         return model.animate ? flipAnimationContainer({ key: "flip" }, drawer) : div({ key: "plain" }, drawer);
       }
     }
-    new App().renderOnto(new RenderContext(new DOMElementTarget(container)));
+    new App().renderOnto(new DOMElementTarget(container));
     const items = () => Array.from(container.querySelectorAll("li")).map((each) => each.textContent);
     assert.deepEqual(items(), ["a"]);
     model.items = [];
@@ -287,13 +287,13 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     const model = observable({ show: true });
     const list = new List({ key: "list" });
     class Frame extends Component {
-      render(context) {
-        if (model.show) this.flip.renderOnto(context);
+      render(target, context) {
+        if (model.show) this.flip.renderOnto(target, context);
       }
     }
     const frame = new Frame();
     frame.flip = flipAnimationContainer({ key: "flip" }, list);
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
     const items = Array.from(container.querySelectorAll("li"));
     list.title = "Before hiding";
 
@@ -326,8 +326,8 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     const model = observable({ inTree: true, pageShown: true });
     const watched = new Watched({ key: "watched" });
     class Frame extends Component {
-      render(context) {
-        if (model.pageShown) this.flip.renderOnto(context);
+      render(target, context) {
+        if (model.pageShown) this.flip.renderOnto(target, context);
       }
     }
     class Holder extends Component {
@@ -337,7 +337,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     }
     const frame = new Frame();
     frame.flip = flipAnimationContainer({ key: "flip" }, new Holder({ key: "holder" }));
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
     const events = () => watched.unobservable.events;
     assert.deepEqual(events(), ["show"], "placed: shown");
     assert.equal(container.querySelector("p").textContent, "watched");

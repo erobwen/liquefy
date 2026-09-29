@@ -1,5 +1,6 @@
 import { observable } from "../Cascade.js";
 import { Component } from "../Component.js";
+import { RenderContext } from "../RenderContext.js";
 import assert from "assert";
 
 // A component's build repeater is an *independent* repeater (see
@@ -11,7 +12,8 @@ import assert from "assert";
 // render's by hand (retracted with it, rebuilt fresh on reattachment,
 // retracted when the component is dropped).
 describe("independent build repeaters", function () {
-  const context = () => observable({ theme: "light" });
+  const context = () => new RenderContext(observable({ theme: "light" }));
+  const target = { name: "target" };
 
   function repeaterChildren(repeater) {
     const children = [];
@@ -22,9 +24,9 @@ describe("independent build repeaters", function () {
   }
 
   class Leaf extends Component {
-    render(renderContext) {
+    render() {
       this.unobservable.renderCount = (this.unobservable.renderCount || 0) + 1;
-      this.unobservable.sawTheme = renderContext.theme;
+      this.unobservable.sawTheme = this.inherit("theme");
     }
   }
 
@@ -35,7 +37,7 @@ describe("independent build repeaters", function () {
       }
     }
     const parent = new Parent();
-    parent.renderOnto(context());
+    parent.renderOnto(target, context());
 
     const { repeater: render, buildRepeater: build } = parent.unobservable;
     assert.equal(build.parentRepeater, null);
@@ -51,15 +53,15 @@ describe("independent build repeaters", function () {
     class Themed extends Component {
       build() {
         this.unobservable.buildCount = (this.unobservable.buildCount || 0) + 1;
-        return new Leaf({ key: "leaf-" + this.renderContext.theme });
+        return new Leaf({ key: "leaf-" + this.inherit("theme") });
       }
     }
     const renderContext = context();
     const themed = new Themed();
-    themed.renderOnto(renderContext);
+    themed.renderOnto(target, renderContext);
     assert.equal(themed.newBuild.key, "leaf-light");
 
-    renderContext.theme = "dark";
+    renderContext.provided.theme = "dark";
     assert.equal(themed.unobservable.buildCount, 2);
     assert.equal(themed.newBuild.key, "leaf-dark");
     assert.equal(themed.newBuild.unobservable.sawTheme, "dark");
@@ -73,7 +75,7 @@ describe("independent build repeaters", function () {
       }
     }
     const parent = new Parent();
-    parent.renderOnto(context());
+    parent.renderOnto(target, context());
     parent.unobservable.repeater.restart();
     parent.unobservable.repeater.restart();
     assert.equal(parent.unobservable.buildCount, 1);
@@ -107,13 +109,13 @@ describe("independent build repeaters", function () {
       setProperties({ child }) {
         this.child = child;
       }
-      render(renderContext) {
-        if (this.show) this.child.renderOnto(renderContext);
+      render(target, context) {
+        if (this.show) this.child.renderOnto(target, context);
       }
     }
     const labelled = new Labelled();
     const toggle = new Switch({ child: labelled });
-    toggle.renderOnto(context());
+    toggle.renderOnto(target, context());
     const buildRepeater = labelled.unobservable.buildRepeater;
     const counter = labelled.newBuild;
     counter.count = 5;
@@ -149,7 +151,7 @@ describe("independent build repeaters", function () {
       }
     }
     const outer = new Outer();
-    outer.renderOnto(context());
+    outer.renderOnto(target, context());
     const inner = outer.newBuild;
     assert.ok(inner instanceof Inner);
 

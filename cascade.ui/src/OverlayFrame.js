@@ -12,13 +12,19 @@ import { div } from "@liquefy/cascade.dom";
  * Any component nested arbitrarily deep underneath an OverlayFrame -
  * through any mix of build() and hardcoded child references - can find
  * *this* one specifically via `this.inherit("overlayFrame")` (see
- * Component.inherit()): every OverlayFrame provides itself
- * (`this.overlayFrame = this`), so the walk always resolves to the
- * *nearest* one, never skipping past it to an outer frame. That's what
- * makes recursive modality work: a dialog opened from inside another
- * modal's own content finds *that* modal's own frame, not the page's
- * top-level one, so a third modal opened from inside it stacks correctly
- * on top of the second, not the first.
+ * Component.inherit()): every OverlayFrame provides itself as
+ * `overlayFrame`, so a lookup always finds the *nearest* one, never
+ * skipping past it to an outer frame. That's what makes recursive modality
+ * work: a dialog opened from inside another modal's own content finds
+ * *that* modal's own frame, not the page's top-level one, so a third modal
+ * opened from inside it stacks correctly on top of the second, not the
+ * first.
+ *
+ * The content an Overlay shows keeps the context of where the Overlay
+ * stands - so a dialog inherits what its page provides - with the frame it
+ * is shown in on top: the sub-frame showing it enters the tree with the
+ * Overlay's context (see Component.enteredContext()), and provides itself
+ * as `overlayFrame` on top of that.
  *
  * A frame's own real children are its static content plus, when
  * something is currently showing a modal on it, exactly one nested
@@ -33,7 +39,7 @@ export function overlayFrame(...parameters) {
 }
 
 export class OverlayFrame extends Component {
-  setProperties({ style, children, overlayContent }) {
+  setProperties({ style, children, overlayContent, originContext }) {
     this.style = frozen(style || null);
     this.staticContent = frozen(children || []);
     // The alternative to showOverlay()/hideOverlay() below: an overlay
@@ -41,8 +47,19 @@ export class OverlayFrame extends Component {
     // instead, for a frame that's dedicated to one specific modal rather
     // than a general, shared one any Overlay can find via inherit().
     this.receivedOverlayContent = overlayContent || null;
-    // Provides itself for inherit("overlayFrame") - see Component.provide().
-    this.overlayFrame = this;
+    // A sub-frame showing an Overlay's content: the context of where that
+    // Overlay stands - what the content inherits from (see build()).
+    this.originContext = originContext || null;
+  }
+
+  // Found by inherit("overlayFrame") from anywhere below - see
+  // Component.provide().
+  provide() {
+    return { overlayFrame: this };
+  }
+
+  enteredContext(given) {
+    return this.originContext || given;
   }
 
   // What some Overlay has currently assigned to this frame is *state* (see
@@ -55,7 +72,7 @@ export class OverlayFrame extends Component {
   // to - the same writing, reused, not a fresh one spliced in ahead of a
   // reader that could never actually reach it (see their comment).
   initializeState() {
-    return { assignedOverlayContent: null };
+    return { assignedOverlayContent: null, assignedOverlayContext: null };
   }
 
   initialUnobservables() {
@@ -87,14 +104,17 @@ export class OverlayFrame extends Component {
   // inside a repeater at all - and flush() makes sure the resulting
   // rebuild happens within this same wave rather than waiting for the
   // next one.
-  showOverlay(contentProvider, overlayContent) {
+  //
+  // `context` is where the Overlay stands: the content is shown with it
+  // (see the class doc).
+  showOverlay(contentProvider, overlayContent, context) {
     this.unobservable.assigningContentProvider = contentProvider;
-    flush(() => this.setState({ assignedOverlayContent: overlayContent }));
+    flush(() => this.setState({ assignedOverlayContent: overlayContent, assignedOverlayContext: context || null }));
   }
 
   hideOverlay(contentProvider) {
     if (this.unobservable.assigningContentProvider === contentProvider) {
-      flush(() => this.setState({ assignedOverlayContent: null }));
+      flush(() => this.setState({ assignedOverlayContent: null, assignedOverlayContext: null }));
     }
   }
 
@@ -120,6 +140,10 @@ export class OverlayFrame extends Component {
     if (overlayContent) {
       children.push(new OverlayFrame(overlayContent, {
         key: "modalSubFrame",
+        // Content an Overlay assigned keeps the context of where it came
+        // from; content handed over as a property is this frame's creator's
+        // own, and is simply shown with this frame's.
+        originContext: this.assignedOverlayContent ? this.assignedOverlayContext : null,
         style: {
           position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
           pointerEvents: "none",

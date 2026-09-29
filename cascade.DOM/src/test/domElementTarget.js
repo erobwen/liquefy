@@ -24,8 +24,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       this.label = label;
     }
 
-    renderElement(context, existingElement) {
-      const el = existingElement || context.target.appendElement("div");
+    renderElement(target, existingElement) {
+      const el = existingElement || target.appendElement("div");
       el.className = "toolbar";
       el.textContent = this.label;
       return el;
@@ -33,8 +33,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
   }
 
   class ContentArea extends DOMNodeRenderComponent {
-    renderElement(context, existingElement) {
-      const el = existingElement || context.target.appendElement("div");
+    renderElement(target, existingElement) {
+      const el = existingElement || target.appendElement("div");
       el.className = "content";
       return el;
     }
@@ -47,31 +47,31 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       this.contentArea = contentArea;
     }
 
-    renderElement(context, existingElement) {
+    renderElement(target, existingElement) {
       const u = this.unobservable;
-      const el = existingElement || context.target.appendElement("div");
+      const el = existingElement || target.appendElement("div");
       el.className = "main-frame";
       // Both the inner target and the context wrapping it have to persist
       // across reruns, the same way `el` does - otherwise a relinked child
       // (whose render() never re-executes) would either lose its
       // lastChild tracking or simply never see a freshly-constructed
       // context object at all (relinking can't - see RenderContext.js).
-      if (!u.innerContext) {
-        u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
+      if (!u.innerTarget) {
+        u.innerTarget = DOMElementTarget.forElement(el);
       }
-      this.toolbar.renderOnto(u.innerContext);
-      this.contentArea.renderOnto(u.innerContext);
+      this.toolbar.renderOnto(u.innerTarget);
+      this.contentArea.renderOnto(u.innerTarget);
       return el;
     }
   }
 
   it("renders real DOM elements in tree order into the container", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const toolbar = new Toolbar("Toolbar");
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
 
-    mainFrame.renderOnto(context);
+    mainFrame.renderOnto(root);
 
     assert.equal(container.children.length, 1);
     const frameElement = container.children[0];
@@ -85,11 +85,11 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
   });
 
   it("relinking without structural change leaves the real DOM untouched (no duplicate elements)", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const toolbar = new Toolbar("Toolbar");
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
-    mainFrame.renderOnto(context);
+    mainFrame.renderOnto(root);
 
     const originalFrameElement = mainFrame.unobservable.element;
     const originalToolbarElement = toolbar.unobservable.element;
@@ -103,11 +103,11 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
   });
 
   it("a component's own rerun replaces its element in place, without duplicating or reordering siblings", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const toolbar = new Toolbar("Toolbar v1");
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
-    mainFrame.renderOnto(context);
+    mainFrame.renderOnto(root);
 
     const frameElement = mainFrame.unobservable.element;
     const originalContentElement = contentArea.unobservable.element;
@@ -121,16 +121,16 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
   });
 
   it("passes a real measurement down to the content area, and reruns it when a re-measurement changes the value", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const root = new DOMElementTarget(container);
     const toolbar = new Toolbar("Toolbar");
 
     let seenSpaceLeft;
     let renderCount = 0;
     class MeasuringContentArea extends DOMNodeRenderComponent {
-      renderElement(childContext, existingElement) {
+      renderElement(target, existingElement) {
         renderCount++;
-        seenSpaceLeft = childContext.spaceLeft;
-        const el = existingElement || childContext.target.appendElement("div");
+        seenSpaceLeft = target.spaceLeft;
+        const el = existingElement || target.appendElement("div");
         el.className = "content";
         return el;
       }
@@ -144,28 +144,28 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         this.contentArea = contentArea;
       }
 
-      renderElement(parentContext, existingElement) {
+      renderElement(target, existingElement) {
         const u = this.unobservable;
-        const el = existingElement || parentContext.target.appendElement("div");
+        const el = existingElement || target.appendElement("div");
         el.className = "main-frame";
-        if (!u.innerContext) {
-          u.innerContext = new RenderContext(DOMElementTarget.forElement(el));
+        if (!u.innerTarget) {
+          u.innerTarget = DOMElementTarget.forElement(el);
         }
-        this.toolbar.renderOnto(u.innerContext);
+        this.toolbar.renderOnto(u.innerTarget);
         // jsdom does no real layout, so this stands in for a real
         // getBoundingClientRect() measurement - the point being proven is
         // that writing a *different* value into the same, persistent
         // context object is what invalidates the child, same as any other
         // reactive write - not the renderOnto() call itself.
-        u.innerContext.spaceLeft = this.unobservable.simulatedSpaceLeft;
-        this.contentArea.renderOnto(u.innerContext);
+        u.innerTarget.spaceLeft = this.unobservable.simulatedSpaceLeft;
+        this.contentArea.renderOnto(u.innerTarget);
         return el;
       }
     }
     const mainFrame = new MeasuringMainFrame(toolbar, contentArea);
     mainFrame.unobservable.simulatedSpaceLeft = 300;
 
-    mainFrame.renderOnto(context);
+    mainFrame.renderOnto(root);
     assert.equal(seenSpaceLeft, 300);
     assert.equal(renderCount, 1);
 
@@ -233,9 +233,9 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       setProperties({ label }) {
         this.label = label;
       }
-      renderElement(context, existingElement) {
-        const element = existingElement || context.target.appendElement("div");
-        if (existingElement) context.target.reattachElement(existingElement);
+      renderElement(target, existingElement) {
+        const element = existingElement || target.appendElement("div");
+        if (existingElement) target.reattachElement(existingElement);
         element.textContent = this.label;
         return element;
       }
@@ -249,16 +249,16 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       initializeState() {
         return { firstOnTop: true };
       }
-      render(context) {
+      render(target, context) {
         // No after-the-fact insertChild/reattachElement reassertion here -
         // just render whichever child comes first this time, then the
         // other one.
         if (this.firstOnTop) {
-          this.first.renderOnto(context);
-          this.second.renderOnto(context);
+          this.first.renderOnto(target, context);
+          this.second.renderOnto(target, context);
         } else {
-          this.second.renderOnto(context);
-          this.first.renderOnto(context);
+          this.second.renderOnto(target, context);
+          this.first.renderOnto(target, context);
         }
       }
     }
@@ -266,7 +266,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const a = new Leaf({ label: "a" });
     const b = new Leaf({ label: "b" });
     const frame = new Frame({ first: a, second: b });
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
 
     function order() {
       return [...container.children].map((c) => c.textContent);
@@ -289,9 +289,9 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         this.label = label;
         this.value = value;
       }
-      renderElement(context, existingElement) {
-        const element = existingElement || context.target.appendElement("div");
-        if (existingElement) context.target.reattachElement(existingElement);
+      renderElement(target, existingElement) {
+        const element = existingElement || target.appendElement("div");
+        if (existingElement) target.reattachElement(existingElement);
         element.textContent = this.label + ":" + this.value;
         return element;
       }
@@ -305,13 +305,13 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       initializeState() {
         return { firstOnTop: true };
       }
-      render(context) {
+      render(target, context) {
         if (this.firstOnTop) {
-          this.first.renderOnto(context);
-          this.second.renderOnto(context);
+          this.first.renderOnto(target, context);
+          this.second.renderOnto(target, context);
         } else {
-          this.second.renderOnto(context);
-          this.first.renderOnto(context);
+          this.second.renderOnto(target, context);
+          this.first.renderOnto(target, context);
         }
       }
     }
@@ -319,7 +319,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const a = new Leaf({ label: "a", value: 1 });
     const b = new Leaf({ label: "b", value: 1 });
     const frame = new Frame({ first: a, second: b });
-    frame.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    frame.renderOnto(new DOMElementTarget(container));
 
     function order() {
       return [...container.children].map((c) => c.textContent);
@@ -362,11 +362,11 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         this.row = row;
         this.col = col;
       }
-      renderElement(context, existingElement) {
+      renderElement(target, existingElement) {
         const key = `r${this.row}c${this.col}`;
         renderCounts[key] = (renderCounts[key] || 0) + 1;
-        const element = existingElement || context.target.appendElement("div");
-        if (existingElement) context.target.reattachElement(existingElement);
+        const element = existingElement || target.appendElement("div");
+        if (existingElement) target.reattachElement(existingElement);
         element.textContent = key;
         return element;
       }
@@ -398,7 +398,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     };
     renderCounts = {};
     const grid = new Grid({ rows: 3, cols: 3 });
-    grid.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    grid.renderOnto(new DOMElementTarget(container));
     assert.deepEqual(renderCounts, {
       r0c0: 1, r0c1: 1, r0c2: 1, r1c0: 1, r1c1: 1, r1c2: 1, r2c0: 1, r2c1: 1, r2c2: 1,
     });

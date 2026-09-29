@@ -1,13 +1,12 @@
 import assert from "assert";
 import { Component } from "../Component.js";
-import { RenderContext } from "../RenderContext.js";
 
 // onShow()/onHide(): told when a component starts and stops being shown -
 // by rendering itself (first render, retraction, reattachment), with no
 // rendering mechanics attached, so a component that places others itself
 // can make the same calls for them (see cascade.DOM's FlipAnimationContainer).
 describe("onShow / onHide", function () {
-  const context = () => new RenderContext({ name: "target" });
+  const context = () => ({ name: "target" });
 
   // Records its own notifications; renders nothing.
   class Watched extends Component {

@@ -1,6 +1,6 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { Component, RenderContext } from "@liquefy/cascade.component";
+import { Component, RenderContext, observable } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { OverflowContainer, DOMElementSlot } from "../OverflowContainer.js";
 import { div, span } from "../HTMLTags.js";
@@ -18,8 +18,8 @@ describe("OverflowContainer", function () {
 
   // The container - its element known to the fake layout as the row.
   class RowContainer extends OverflowContainer {
-    renderElement(context, existingElement) {
-      rowElement = super.renderElement(context, existingElement);
+    renderElement(target, existingElement) {
+      rowElement = super.renderElement(target, existingElement);
       return rowElement;
     }
   }
@@ -47,7 +47,8 @@ describe("OverflowContainer", function () {
   // what doesn't fit - the count reported, as a toolbar would show it.
   function setup(widths, rowWidth) {
     layout.rowWidth = rowWidth;
-    const context = new RenderContext(new DOMElementTarget(container), { width: rowWidth });
+    // The width a bounds provider around it would provide.
+    const context = new RenderContext(observable({ width: rowWidth }));
     const reported = [];
     class Toolbar extends Component {
       initialUnobservables() {
@@ -66,7 +67,7 @@ describe("OverflowContainer", function () {
       }
     }
     const toolbar = new Toolbar();
-    toolbar.renderOnto(context);
+    toolbar.renderOnto(new DOMElementTarget(container), context);
     const names = (element) => Array.from(element.children).map((each) => each.textContent);
     return {
       context, reported,
@@ -101,11 +102,11 @@ describe("OverflowContainer", function () {
     const { context, inRow, inSlot, reported } = setup([40, 60, 40, 50], 1000);
     const first = Array.from(rowElement.children);
     layout.rowWidth = 150;
-    context.width = 150;
+    context.provided.width = 150;
     assert.deepEqual(inRow(), ["t0", "t1", "..."]);
     assert.deepEqual(inSlot(), ["t2", "t3"]);
     layout.rowWidth = 1000;
-    context.width = 1000;
+    context.provided.width = 1000;
     assert.deepEqual(inRow(), ["t0", "t1", "t2", "t3"]);
     assert.deepEqual(Array.from(rowElement.children), first, "the very same elements");
     assert.deepEqual(reported, [2, 0]);

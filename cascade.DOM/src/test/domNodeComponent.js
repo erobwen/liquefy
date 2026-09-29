@@ -32,7 +32,7 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
     }
 
     const card = new Card({ label: "hello" });
-    card.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    card.renderOnto(new DOMElementTarget(container));
 
     assert.equal(container.children.length, 1);
     assert.equal(container.children[0].textContent, "hello");
@@ -47,7 +47,7 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
 
     const broken = new BrokenMultiple();
     assert.throws(
-      () => broken.renderOnto(new RenderContext(new DOMElementTarget(container))),
+      () => broken.renderOnto(new DOMElementTarget(container)),
       /BrokenMultiple\.build\(\) must return exactly one DOMNodeRenderComponent, not an array of 2/
     );
   });
@@ -61,7 +61,7 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
 
     const broken = new BrokenNull();
     assert.throws(
-      () => broken.renderOnto(new RenderContext(new DOMElementTarget(container))),
+      () => broken.renderOnto(new DOMElementTarget(container)),
       /BrokenNull\.build\(\) must return exactly one DOMNodeRenderComponent, not null/
     );
   });
@@ -81,7 +81,7 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
 
     const broken = new BrokenWrongType();
     assert.throws(
-      () => broken.renderOnto(new RenderContext(new DOMElementTarget(container))),
+      () => broken.renderOnto(new DOMElementTarget(container)),
       /BrokenWrongType\.build\(\) must return exactly one DOMNodeRenderComponent, not NotARealNode/
     );
   });

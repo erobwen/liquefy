@@ -1,7 +1,6 @@
 import assert from "assert";
 import { observable } from "../Cascade.js";
 import { Component } from "../Component.js";
-import { RenderContext } from "../RenderContext.js";
 
 // A component dropped for good takes everything its build constructed with
 // it - also what it built but wasn't showing. Otherwise, inside a container
@@ -10,7 +9,7 @@ import { RenderContext } from "../RenderContext.js";
 // more after its creator is gone - its properties, that creator's writings,
 // retracted: undefined.
 describe("disposing what a dropped component built", function () {
-  const context = () => new RenderContext({ name: "target" });
+  const context = () => ({ name: "target" });
   const isLeaf = (component) => component instanceof Leaf;
 
   class Leaf extends Component {
@@ -61,8 +60,8 @@ describe("disposing what a dropped component built", function () {
     initialUnobservables() {
       return { labels: [] };
     }
-    render(renderContext) {
-      this.unobservable.labels = this.list.expand(renderContext, this, isLeaf).map((leaf) => leaf.label);
+    render(target, context) {
+      this.unobservable.labels = this.list.expand(target, context, this, isLeaf).map((leaf) => leaf.label);
     }
   }
 

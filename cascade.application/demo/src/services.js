@@ -9,9 +9,9 @@ import { materialTheme } from "@liquefy/cascade.ui.material";
  * ServiceLocator.js). It reaches components two different ways, on
  * purpose:
  *
- *  - Using it: through the render context (index.js puts it in the root
- *    context; RenderContext.derive() carries it down). Every component
- *    reads it, cheaply, and a subtree can have different services
+ *  - Using it: through the render context (index.js provides it in the
+ *    root context). Every component finds it where it's placed, and a
+ *    subtree can have different services in front of it
  *    (serviceProvider()).
  *  - Changing it: only through inheritance - the root component provides it
  *    as `rootServiceLocator` (see ApplicationMenuFrame), so a component has

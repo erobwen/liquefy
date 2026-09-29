@@ -20,26 +20,23 @@ describe("DOMElementBoundsProvider", function () {
     container = document.createElement("div");
   });
 
-  // Reads `this.renderContext` from build() rather than render() - the
-  // whole point of Component.renderOnto() now setting it unconditionally
-  // (see Component.js), exercised end to end here rather than just at the
-  // unit level.
+  // Inherits the bounds from build() rather than render() - exercised end
+  // to end here rather than just at the unit level.
   class Probe extends Component {
     build() {
-      const bounds = this.renderContext;
       this.unobservable.buildCount = (this.unobservable.buildCount || 0) + 1;
-      this.unobservable.lastWidth = bounds.width;
-      this.unobservable.lastHeight = bounds.height;
+      this.unobservable.lastWidth = this.inherit("width");
+      this.unobservable.lastHeight = this.inherit("height");
       return null;
     }
   }
 
-  it("passes measured bounds to the direct child via this.renderContext, readable from build()", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+  it("provides measured bounds to its child, found with inherit() from build()", function () {
+    const target = new DOMElementTarget(container);
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ className: "bounds-provider", child: probe });
 
-    provider.renderOnto(context);
+    provider.renderOnto(target);
 
     assert.equal(probe.unobservable.buildCount, 1);
     assert.equal(probe.unobservable.lastWidth, 0);
@@ -48,11 +45,11 @@ describe("DOMElementBoundsProvider", function () {
   });
 
   it("re-measures on window resize and reruns the child that read the bounds", function () {
-    const context = new RenderContext(new DOMElementTarget(container));
+    const target = new DOMElementTarget(container);
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ child: probe });
 
-    provider.renderOnto(context);
+    provider.renderOnto(target);
     assert.equal(probe.unobservable.buildCount, 1);
 
     provider.unobservable.element.getBoundingClientRect = () => ({ width: 640, height: 480 });
@@ -82,7 +79,7 @@ describe("DOMElementBoundsProvider", function () {
       }
     }
     const holder = new Holder();
-    holder.renderOnto(new RenderContext(new DOMElementTarget(container)));
+    holder.renderOnto(new DOMElementTarget(container));
     const element = () => holder.newBuild.unobservable.element;
 
     element().getBoundingClientRect = () => ({ width: 300, height: 200 });
@@ -124,9 +121,9 @@ describe("DOMElementBoundsProvider", function () {
       }
     }
 
-    const context = new RenderContext(new DOMElementTarget(container));
+    const target = new DOMElementTarget(container);
     const frame = new Frame({ shown: true, child: new Probe() });
-    frame.renderOnto(context);
+    frame.renderOnto(target);
     assert.equal(addCount, 1);
     assert.equal(removeCount, 0);
 
@@ -153,13 +150,13 @@ describe("DOMElementBoundsProvider", function () {
       }
     }
 
-    const context = new RenderContext(new DOMElementTarget(container));
+    const target = new DOMElementTarget(container);
     const frame = new Frame({
       style: { position: "relative", height: "100%" },
       className: "frame-a",
       child: new Probe(),
     });
-    frame.renderOnto(context);
+    frame.renderOnto(target);
 
     const element = container.querySelector("div");
     assert.equal(element.style.position, "relative");

@@ -276,19 +276,28 @@ function createWorld(configuration) {
    *
    **********************************/
 
+  // Every one of these adjusts process-wide state for the duration of a
+  // callback - and puts it back even if the callback throws (try/finally):
+  // left wrong, it would silently corrupt everything that runs afterwards,
+  // anywhere in the process, not just what threw.
   function withoutRecording(action) {
     state.recordingPaused++;
     updateContextState();
-    const result = action();
-    state.recordingPaused--;
-    updateContextState();
-    return result; 
+    try {
+      return action();
+    } finally {
+      state.recordingPaused--;
+      updateContextState();
+    }
   }
 
   function postponeInvalidationsAndDo(callback) {
     state.postponeInvalidation++;
-    callback();
-    state.postponeInvalidation--;
+    try {
+      callback();
+    } finally {
+      state.postponeInvalidation--;
+    }
     proceedWithPostponedInvalidations();
   }
 
@@ -303,8 +312,11 @@ function createWorld(configuration) {
 
   function withoutReactionsDo(callback) {
     state.blockInvalidation++;
-    callback();
-    state.blockInvalidation--;
+    try {
+      callback();
+    } finally {
+      state.blockInvalidation--;
+    }
   }
 
   // Give the application control over wave direction: while flushing > 0,
@@ -320,9 +332,11 @@ function createWorld(configuration) {
   // termination depends on the logic inside it eventually settling.
   function flush(callback) {
     state.flushing++;
-    const result = callback();
-    state.flushing--;
-    return result;
+    try {
+      return callback();
+    } finally {
+      state.flushing--;
+    }
   }
 
   // Read/write as though genuinely outside any repeater, regardless of
@@ -350,10 +364,12 @@ function createWorld(configuration) {
     const savedContext = state.context;
     state.context = null;
     updateContextState();
-    const result = callback();
-    state.context = savedContext;
-    updateContextState();
-    return result;
+    try {
+      return callback();
+    } finally {
+      state.context = savedContext;
+      updateContextState();
+    }
   }
 
   // Declare some of an observable's properties as *state*, as opposed to
@@ -2449,22 +2465,26 @@ function createWorld(configuration) {
   function proceedWithPostponedInvalidations() {
     if (state.postponeInvalidation == 0) {
       state.postponeRefreshRepeaters++;
-      while (state.nextObserverToInvalidate !== null) {
-        let observer = state.nextObserverToInvalidate; 
-        state.nextObserverToInvalidate = null; 
-        const nextToNotify = observer.nextToNotify; 
-        if (nextToNotify) {
-          observer.nextToNotify = null;
-          state.nextObserverToInvalidate = nextToNotify;
-        } else {
-          state.lastObserverToInvalidate = null; 
+      // An invalidation action that throws leaves the rest queued (the next
+      // one is already the head of the list) for the next time round - and
+      // refreshing possible again.
+      try {
+        while (state.nextObserverToInvalidate !== null) {
+          let observer = state.nextObserverToInvalidate;
+          state.nextObserverToInvalidate = null;
+          const nextToNotify = observer.nextToNotify;
+          if (nextToNotify) {
+            observer.nextToNotify = null;
+            state.nextObserverToInvalidate = nextToNotify;
+          } else {
+            state.lastObserverToInvalidate = null;
+          }
+          observer.invalidateAction();
+          exitTimeLevel(observer);
         }
-        // blockSideEffects(function() {
-        observer.invalidateAction();
-        exitTimeLevel(observer);
-        // });
+      } finally {
+        state.postponeRefreshRepeaters--;
       }
-      state.postponeRefreshRepeaters--;
       refreshAllDirtyRepeaters();
     }
   }
@@ -2560,9 +2580,11 @@ function createWorld(configuration) {
       record : function( action ){
         if( state.context == this || this.isRemoved ) return action();
         const activeContext = enterContext(this);
-        const value = action();
-        leaveContext( activeContext );
-        return value;
+        try {
+          return action();
+        } finally {
+          leaveContext( activeContext );
+        }
       },
       returnValue: null,
       causalityString() {
@@ -2594,8 +2616,11 @@ function createWorld(configuration) {
     // Recorder context
     const invalidator = createInvalidator(description, doAfterChange)
     enterContext(invalidator);
-    invalidator.returnValue = doFirst( invalidator );
-    leaveContext(invalidator);
+    try {
+      invalidator.returnValue = doFirst( invalidator );
+    } finally {
+      leaveContext(invalidator);
+    }
 
     return invalidator;
   }
@@ -3484,6 +3509,12 @@ function createWorld(configuration) {
         // the one we entered above, not `partial` itself.
         const finalPartial = repeater.currentPartial;
 
+        // Everything from here on runs with this repeater's context still
+        // entered too - finishing the rebuild (whose onEstablish()/
+        // onDispose() calls are anyone's code), the non-recorded action -
+        // so it's unwound the same way as for a throwing action above.
+        try {
+
         // Finish rebuilding while the final partial is still open, before
         // any of this run's stale writings are settled or abandoned below.
         // Merging a rebuilt twin back into its established object (see
@@ -3529,6 +3560,12 @@ function createWorld(configuration) {
         }
 
         this.firstTime = false;
+        } catch (error) {
+          while (state.context !== null && state.context !== contextBeforeThisRun) {
+            leaveContext(state.context);
+          }
+          throw error;
+        }
         leaveContext( finalPartial );
         // Invalidated while it ran, by a read it had already made (see
         // invalidateRepeater()): run again, as for any invalidation that
@@ -4748,11 +4785,29 @@ function createWorld(configuration) {
         if (anyWorkQueued()) {
           state.refreshingAllDirtyRepeaters = true;
           let chainHead;
-          while ((chainHead = findNextPipeline()) !== null) {
-            unlinkFromLevelList(chainHead, chainHead.time, 'active');
-            chainHead.queueMembership = null;
-            state.activePipeline = chainHead;
-            drainActivePipeline();
+          try {
+            while ((chainHead = findNextPipeline()) !== null) {
+              unlinkFromLevelList(chainHead, chainHead.time, 'active');
+              chainHead.queueMembership = null;
+              state.activePipeline = chainHead;
+              drainActivePipeline();
+            }
+          } catch (error) {
+            // A repeater threw. The error is its caller's - but the
+            // scheduler must go on working: left marked as refreshing,
+            // nothing would ever be refreshed again. The pipeline it was
+            // draining goes back to the front of its level, with whatever
+            // it still had to do; the repeater that threw is off the queue
+            // until something invalidates it again.
+            const interrupted = state.activePipeline;
+            state.activePipeline = null;
+            if (interrupted !== null && interrupted.queueMembership === null
+              && (interrupted.heap.length > 0 || interrupted.parkedPartials.length > 0 || interrupted.rootRepeater.workStatus !== null)) {
+              prependToLevelList(interrupted, interrupted.time, 'active');
+              interrupted.queueMembership = 'active';
+            }
+            state.refreshingAllDirtyRepeaters = false;
+            throw error;
           }
           // Genuinely idle - nothing left anywhere, active or parked (see
           // findNextPipeline()). Without this, the lock would stay
@@ -4775,20 +4830,16 @@ function createWorld(configuration) {
    ***************************************************************/
    
   function log(entity, pattern) {
-    state.recordingPaused++;
-    updateContextState();
-    usedObjectlog.log(entity, pattern);
-    // console.log(entity, pattern);
-    state.recordingPaused--;  
-    updateContextState();
+    withoutRecording(() => {
+      usedObjectlog.log(entity, pattern);
+      // console.log(entity, pattern);
+    });
   }
   
   function logGroup(entity, pattern) {
-    state.recordingPaused++;
-    updateContextState();
-    usedObjectlog.group(entity, pattern);
-    state.recordingPaused--;
-    updateContextState();
+    withoutRecording(() => {
+      usedObjectlog.group(entity, pattern);
+    });
   } 
   
   function logUngroup() {
@@ -4796,12 +4847,7 @@ function createWorld(configuration) {
   } 
 
   function logToString(entity, pattern) {
-    state.recordingPaused++;
-    updateContextState();
-    let result = usedObjectlog.logToString(entity, pattern);
-    state.recordingPaused--;
-    updateContextState();
-    return result;
+    return withoutRecording(() => usedObjectlog.logToString(entity, pattern));
   }
 
 

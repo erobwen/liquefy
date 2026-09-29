@@ -10,21 +10,32 @@
 // stuck at its old value - a plain Object.assign(element.style, newStyle)
 // only ever adds/overwrites keys, never removes them.
 
-// No unit is ever implied for a bare number in CSS, so every numeric style
-// value is suffixed "px" - matches flow's own convention (a style object can
-// mix plain numbers and unit strings interchangeably, e.g. {height: 300}
-// or {height: "100%"}).
-export function defaultToPx(value) {
+// Properties whose bare numbers are numbers, not lengths - `opacity: 0.5`,
+// `zIndex: 2`, `flexGrow: 1`, `fontWeight: 700`, `lineHeight: 1.5` (a
+// factor, where 1.5px would mean something else). The same list React uses.
+const unitless = new Set([
+  "animationIterationCount", "aspectRatio", "borderImageOutset", "borderImageSlice", "borderImageWidth",
+  "boxFlex", "boxFlexGroup", "boxOrdinalGroup", "columnCount", "columns", "flex", "flexGrow", "flexPositive",
+  "flexShrink", "flexNegative", "flexOrder", "gridArea", "gridRow", "gridRowEnd", "gridRowSpan", "gridRowStart",
+  "gridColumn", "gridColumnEnd", "gridColumnSpan", "gridColumnStart", "fontWeight", "lineClamp", "lineHeight",
+  "opacity", "order", "orphans", "scale", "tabSize", "widows", "zIndex", "zoom",
+  "fillOpacity", "floodOpacity", "stopOpacity", "strokeDasharray", "strokeDashoffset", "strokeMiterlimit",
+  "strokeOpacity", "strokeWidth",
+]);
+
+// A style value as CSS: a bare number is a length in px - flow's own
+// convention (a style object can mix plain numbers and unit strings
+// interchangeably, e.g. {height: 300} or {height: "100%"}) - unless the
+// property takes a plain number (see `unitless`), or is a custom property,
+// whose unit is its user's business. Without `property`, every number is
+// taken as a length.
+export function defaultToPx(value, property) {
   if (typeof(value) === "undefined" || value === null) return "";
-  return typeof(value) === "number" ? value + "px" : value;
+  if (typeof(value) !== "number") return value;
+  if (property && (unitless.has(property) || property.startsWith("--"))) return String(value);
+  return value + "px";
 }
 
-// Applies `newStyle` onto `element.style`, diffed against `previouslySetStyle`
-// (whatever this same function returned last time, or {} the first time) -
-// clears a property that's no longer present, only touches the DOM for a
-// property whose value actually changed. Returns the next `previouslySetStyle`
-// for the caller to store (typically on `this.unobservable`) and pass back in
-// next time.
 // CSS custom properties ("--mdui-color-outline") can only be set through
 // setProperty(): assigned like the others, they are silently ignored.
 function setStyleProperty(elementStyle, property, value) {
@@ -36,6 +47,12 @@ function setStyleProperty(elementStyle, property, value) {
   }
 }
 
+// Applies `newStyle` onto `element.style`, diffed against `previouslySetStyle`
+// (whatever this same function returned last time, or {} the first time) -
+// clears a property that's no longer present, only touches the DOM for a
+// property whose value actually changed. Returns the next `previouslySetStyle`
+// for the caller to store (typically on `this.unobservable`) and pass back in
+// next time.
 export function applyStyle(element, newStyle, previouslySetStyle) {
   const elementStyle = element.style;
   const currentlySet = previouslySetStyle || {};
@@ -50,7 +67,7 @@ export function applyStyle(element, newStyle, previouslySetStyle) {
   for (const property in newStyle) {
     const value = newStyle[property];
     if (currentlySet[property] !== value) {
-      setStyleProperty(elementStyle, property, defaultToPx(value));
+      setStyleProperty(elementStyle, property, defaultToPx(value, property));
     }
     nextPreviouslySet[property] = value;
   }

@@ -110,11 +110,13 @@ export function defaultDependencyInterfaceCreator(causality) {
   }
 
   function invalidateObservers(observers, proxy, key) {
-    state.postponeInvalidation++;
-
+    // Checked before postponing: returning after it would leave every
+    // later invalidation postponed for good.
     if (state.blockInvalidation > 0) {
       return;
     }
+
+    state.postponeInvalidation++;
 
     let contents = observers.contents;
     for (let id in contents) {

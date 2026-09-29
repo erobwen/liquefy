@@ -34,13 +34,16 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     if (!this.tagName) throw new Error("DOMElementComponent requires a tagName.");
     this.children = frozen(extractProperty(properties, "children") || null);
 
-    // Real element properties are lowercase (element.onclick, not
-    // element.onClick - the latter is silently a no-op, not a stylistic
+    // Event handlers are lowercase element properties (element.onclick,
+    // not element.onClick - the latter is silently a no-op, not a stylistic
     // choice), so every remaining property is normalized the same way
-    // flow's own version did.
+    // flow's own version did - after the two whose DOM names differ from
+    // their JS ones (className, htmlFor), which would otherwise land as
+    // meaningless "classname"/"htmlfor". See applyAttributes() for how each
+    // then reaches the element.
     const attributes = {};
     for (const key in properties) {
-      attributes[key.toLowerCase()] = properties[key];
+      attributes[attributeAliases[key] || key.toLowerCase()] = properties[key];
     }
     this.attributes = frozen(attributes);
   }
@@ -114,7 +117,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
         if (key === "style") {
           this.applyStyle(element, {});
         } else {
-          element[key] = "";
+          clearAttribute(element, key);
         }
       }
     }
@@ -125,14 +128,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       if (key === "style") {
         this.applyStyle(element, value || {});
       } else if (u.previouslySetAttributes[key] !== value) {
-        if (key === "class") {
-          // setAttribute, not element.class (not a real DOM property) or
-          // element.className (breaks the lowercase-everything rule
-          // above) - matches flow's own special case for this one key.
-          element.setAttribute("class", value);
-        } else {
-          element[key] = value;
-        }
+        setAttribute(element, key, value);
       }
       nextPreviouslySet[key] = value;
     }
@@ -182,6 +178,49 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       childComponent.renderOnto(u.childTarget, context);
     });
   }
+}
+
+// JS names whose DOM attribute is called something else.
+const attributeAliases = { className: "class", htmlFor: "for" };
+
+// How a property given to an element reaches it: as the element's own
+// property where it has one by that name (onclick, value, checked,
+// disabled, title, ...) - live state, not just the initial attribute - and
+// as an attribute otherwise: class, for, aria-*, data-*, and every
+// attribute whose property is spelled differently (tabindex, readonly,
+// colspan, ...). An attribute given false, null or undefined is absent,
+// true present and empty (a boolean attribute), anything else its text.
+// A custom element (a tag with a dash in it - mdui-button) gets
+// properties either way: before its definition is loaded, it doesn't have
+// them yet, and a property set on it then is taken up when it upgrades -
+// an attribute would only carry text.
+function isElementProperty(element, key) {
+  if (key === "class" || key === "for" || key.includes("-")) return false;
+  return key in element || element.localName.includes("-");
+}
+
+function setAttribute(element, key, value) {
+  if (isElementProperty(element, key)) {
+    element[key] = value;
+  } else if (value === false || value === null || typeof(value) === "undefined") {
+    element.removeAttribute(key);
+  } else {
+    element.setAttribute(key, value === true ? "" : String(value));
+  }
+}
+
+// No longer given: gone - the attribute removed, and a property back to
+// what an element without it has.
+function clearAttribute(element, key) {
+  if (!isElementProperty(element, key)) {
+    element.removeAttribute(key);
+    return;
+  }
+  const current = element[key];
+  if (typeof(current) === "boolean") element[key] = false;
+  else if (typeof(current) === "function" || key.startsWith("on")) element[key] = null;
+  else element[key] = "";
+  if (element.hasAttribute(key)) element.removeAttribute(key);
 }
 
 export function taggedElement(tagName, properties) {

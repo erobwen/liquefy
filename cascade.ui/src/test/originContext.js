@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { Component, observable } from "@liquefy/cascade.component";
 import { DOMElementTarget, div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { portal, portalContents, overlayFrame, overlay } from "../index.js";
+import { portal, portalSource, overlayFrame, overlay } from "../index.js";
 
 // What's shown somewhere other than where it comes from - through a portal,
 // or in an overlay - inherits from where it came from (see
@@ -63,7 +63,7 @@ describe("content shown elsewhere keeps the context it came from", function () {
               child: div(
                 { key: "pageArea" },
                 new Toned({ key: "onPage" }),
-                portalContents({ key: "entrance", portal: "bar" }, new Toned({ key: "throughPortal" })),
+                portalSource({ key: "entrance", portal: "bar" }, new Toned({ key: "throughPortal" })),
               ),
             }),
           ];
@@ -86,7 +86,7 @@ describe("content shown elsewhere keeps the context it came from", function () {
         return { tone: "entrance" };
       }
       build() {
-        return portalContents({ key: "contents", portal: "bar" }, this.entranceChildren);
+        return portalSource({ key: "contents", portal: "bar" }, this.entranceChildren);
       }
     }
     class App extends Component {
@@ -159,7 +159,7 @@ describe("a portal name nothing provides", function () {
       const state = observable({ label: "a" });
       class Page extends Component {
         build() {
-          return div({ key: "page" }, portalContents({ key: "actions", portal: "topBarPortl" }, text({ key: "label", text: state.label })));
+          return div({ key: "page" }, portalSource({ key: "actions", portal: "topBarPortl" }, text({ key: "label", text: state.label })));
         }
       }
       new Page().renderOnto(new DOMElementTarget(document.createElement("div")));

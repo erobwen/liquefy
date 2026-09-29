@@ -43,7 +43,7 @@ export class ConvenientUsagePage extends Component {
       h2("Portals"),
       p(
         "A component can show content somewhere else entirely: ", name("portal", "portal()"), " is a place for it, ",
-        name("portalContents", "portalContents()"), " puts content there, from anywhere - found by name, nothing ",
+        name("portalSource", "portalSource()"), " puts content there, from anywhere - found by name, nothing ",
         "handed down. This demo's pages put their buttons in the top bar the same way.",
       ),
       stage("noticeStage", new NoticeBoard({ key: "noticeBoard" })),

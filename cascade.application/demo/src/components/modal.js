@@ -1,5 +1,5 @@
 import { div } from "@liquefy/cascade.dom";
-import { centerMiddle, zStack, wrapper, fitContainerStyle, zStackElementStyle } from "@liquefy/cascade.ui";
+import { centerMiddle, zStack, wrapper, fitContainerStyle } from "@liquefy/cascade.ui";
 
 // Showing a dialog (cascade.ui's themed dialog()) modally - shared by the
 // demo's pages. Pass the result to overlay().
@@ -15,9 +15,9 @@ export function modalPresentation(dialog, close) {
     div({
       key: "backdrop",
       onclick: () => close(),
-      style: { ...zStackElementStyle, pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" },
+      style: { pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" },
     }),
-    centerMiddle(dialog, { key: "centered", style: { ...zStackElementStyle, pointerEvents: "none" } }),
+    centerMiddle(dialog, { key: "centered", style: { pointerEvents: "none" } }),
   );
 }
 

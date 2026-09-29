@@ -1,11 +1,11 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { p, ul, li, text } from "@liquefy/cascade.dom";
-import { iconButton, alert, popover, portalContents } from "@liquefy/cascade.ui";
+import { iconButton, alert, popover, portalSource } from "@liquefy/cascade.ui";
 import { CodeButton } from "./code.js";
 
 /**
  * A page's own buttons in the app's top bar, just before the page title -
- * ported from the Flow demo's per-page portalContents(informationButton(),
+ * ported from the Flow demo's per-page portalSource(informationButton(),
  * displayCodeButton()) (there, they sat off to the right). Put the result
  * anywhere in the page's build() - or, for a page that renders itself,
  * create it in initialization and render it: it renders nothing where it
@@ -22,7 +22,7 @@ import { CodeButton } from "./code.js";
  *    page's module imports itself for it: `import source from "./X.js?raw"`.
  */
 export function pageActions({ information, source, fileName }) {
-  return portalContents(
+  return portalSource(
     { key: "pageActions", portal: "topBarPortal" },
     information ? new InformationButton({ key: "information", ...information }) : null,
     new CodeButton({ key: "code", source, fileName }),

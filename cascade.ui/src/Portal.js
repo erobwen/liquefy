@@ -4,13 +4,13 @@ import { wrapper } from "./Layout.js";
 /**
  * Portals - ported from flow.ui/basic/src/Portals.js: a place in the tree
  * (portal()) whose content is supplied from somewhere else entirely
- * (portalContents()) - a page putting its own buttons in the app's top
+ * (portalSource()) - a page putting its own buttons in the app's top
  * bar, say, which the page knows nothing else about.
  *
  *  - portal({ style, children }): a div, showing whatever is currently
  *    assigned to it - or its own children (a default) when nothing is, or
  *    nothing but an empty list (an empty cart).
- *  - portalContents({ portal, children }): builds nothing where it
+ *  - portalSource({ portal, children }): builds nothing where it
  *    stands; while it's shown, its children are shown in `portal` - a
  *    portal, or the name of one to inherit() ("topBarPortal"), found when
  *    it builds, so it can be created before it has a place in the tree
@@ -38,8 +38,8 @@ export function portal(...parameters) {
   return new Portal(...parameters);
 }
 
-export function portalContents(...parameters) {
-  return new PortalContents(...parameters);
+export function portalSource(...parameters) {
+  return new PortalSource(...parameters);
 }
 
 export class Portal extends Component {
@@ -48,9 +48,9 @@ export class Portal extends Component {
     this.defaultContents = frozen(children || []);
   }
 
-  // What some PortalContents has assigned is state: changed only by
+  // What some PortalSource has assigned is state: changed only by
   // show()/hide(), never reset by a rebuild - and the context they're
-  // shown with, that PortalContents'.
+  // shown with, that PortalSource'.
   initialState() {
     return { contents: null, contentsContext: null };
   }
@@ -59,7 +59,7 @@ export class Portal extends Component {
     return { assignedBy: null };
   }
 
-  // Called from a PortalContents render: what is shown now is read
+  // Called from a PortalSource render: what is shown now is read
   // without recording, so that render never depends on it - two contents
   // taking turns would otherwise keep rerunning each other.
   show(contentsProvider, contents, context) {
@@ -70,7 +70,7 @@ export class Portal extends Component {
     }
   }
 
-  // Only the PortalContents that assigned what's shown can take it back -
+  // Only the PortalSource that assigned what's shown can take it back -
   // one that has since been taken over by another doesn't clear its
   // successor's.
   hide(contentsProvider) {
@@ -89,7 +89,7 @@ export class Portal extends Component {
   }
 }
 
-export class PortalContents extends Component {
+export class PortalSource extends Component {
   setProperties({ portal, children }) {
     this.portal = portal || null;
     this.portalChildren = frozen(children || []);
@@ -133,7 +133,7 @@ export class PortalContents extends Component {
     // it: its contents are shown nowhere. Said once, not silently.
     if (!portal && typeof(this.portal) === "string" && !u.warnedMissing) {
       u.warnedMissing = true;
-      console.warn("portalContents(): nothing provides a portal named \"" + this.portal + "\" where it's placed - its contents aren't shown.");
+      console.warn("portalSource(): nothing provides a portal named \"" + this.portal + "\" where it's placed - its contents aren't shown.");
     }
     if (u.shownIn && u.shownIn !== portal) {
       u.shownIn.hide(this);

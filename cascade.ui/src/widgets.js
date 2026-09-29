@@ -1,5 +1,5 @@
 import { toProperties, toPropertiesWithChildren, findImplicitChildren, locateService } from "@liquefy/cascade.component";
-import { defaultDOMServiceLocator } from "@liquefy/cascade.dom";
+import { defaultDOMServiceLocator, text } from "@liquefy/cascade.dom";
 
 /**
  * Themed widgets - ported from flow.ui/themed: app code calls `button(...)`
@@ -82,11 +82,28 @@ export function toButtonProperties(parameters) {
   return properties;
 }
 
+// A button given nothing to show - `button("save", () => save())`, where
+// the leading lowercase string is its key (see cascade.component's
+// implicitProperties.js) - shows its key as its label, as words:
+// "save" -> "Save", "openDialog" -> "Open dialog".
+function withKeyAsLabel(properties) {
+  const hasContent = (properties.children && properties.children.length > 0) || (properties.componentContent && properties.componentContent.length > 0);
+  if (!hasContent && typeof(properties.key) === "string" && properties.key !== "") {
+    properties.children = [text({ key: properties.key + ".label", text: keyAsLabel(properties.key) })];
+  }
+  return properties;
+}
+
+export function keyAsLabel(key) {
+  const words = key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[-_]+/g, " ").trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function widget(name, properties) {
   return locateService({ type: "widget", name, properties }, defaultDOMServiceLocator);
 }
 
-export const button = (...parameters) => widget("button", toButtonProperties(parameters));
+export const button = (...parameters) => widget("button", withKeyAsLabel(toButtonProperties(parameters)));
 export const icon = (...parameters) => widget("icon", toProperties(parameters));
 export const iconButton = (...parameters) => widget("iconButton", toButtonProperties(parameters));
 export const card = (...parameters) => widget("card", toPropertiesWithChildren(parameters));

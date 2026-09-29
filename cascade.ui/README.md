@@ -70,4 +70,4 @@ return button({ key: "green" }, text({ key: "greenText", text: "Go green" }), ()
   (`fillerStyle`, `fitContainerStyle`, ...).
 - `overlayFrame()` and `overlay()` - modal content over the app.
 - `popover()` - beside an element, following it when it moves.
-- `portal()` and `portalContents()` - content placed somewhere else in the tree.
+- `portal()` and `portalSource()` - content placed somewhere else in the tree.

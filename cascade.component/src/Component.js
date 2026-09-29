@@ -77,7 +77,7 @@ export class Component {
   // Created on first access - which can be anywhere: inside some other
   // component's render, say. So initialUnobservables() runs at initial time
   // whenever that is (accessInitialValues()): a component created there (a
-  // portal this one owns, its portalContents - see
+  // portal this one owns, its portalSource - see
   // cascade.component/README.md on creating a sub-component directly, in
   // initialization) has its properties as baseline values, not as the
   // writings of whichever repeater happened to touch this first - retracted
@@ -713,7 +713,7 @@ export class Component {
   // these are only notifications, with no rendering mechanics attached, so
   // whoever places a component can make them for it - Flow's isVisible,
   // as two events. For whatever a component does only while it's visible:
-  // cascade.ui's PortalContents shows its contents in its portal. Called
+  // cascade.ui's PortalSource shows its contents in its portal. Called
   // from inside whoever is rendering - reads here are recorded against
   // that render unless wrapped in withoutRecording(). No-ops by default.
   onShow() {}

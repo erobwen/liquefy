@@ -44,14 +44,24 @@ import { div } from "@liquefy/cascade.dom";
 
 // --- Basic layout styles ---
 
+// No overflow: hidden, unlike flow's: flow clipped every layout container,
+// for a strict top-down layout that made bounds easier to calculate further
+// down - measured bounds (cascade.dom's elementBoundsProvider()) do that job
+// now. What it did for flex layout is kept, though: min-width/min-height 0
+// let a container shrink below its content's size in the row or column
+// it's in (flex items don't, by default - they'd push the row wider
+// instead). Its content then overflows, visibly, where it doesn't fit;
+// clip it where that's wanted (overflow: "hidden" in its style). And text
+// in it can be selected, like text anywhere else.
+const shrinkable = { minWidth: 0, minHeight: 0 };
+
 export const flexContainerStyle = {
-  overflow: "hidden",
+  ...shrinkable,
   boxSizing: "border-box",
   display: "flex",
   alignItems: "stretch",
   justifyContent: "flex-start",
   whiteSpace: "normal",
-  userSelect: "none",
 };
 
 export const rowStyle = { ...flexContainerStyle, flexDirection: "row" };
@@ -69,24 +79,24 @@ export const naturalSizeStyle = { overflow: "visible", flexGrow: "0", flexShrink
 
 // Fill 100% of the parent's own box - absolute sizing, no flex participation
 // implied (works inside or outside a flex container).
-export const fitContainerStyle = { overflow: "hidden", boxSizing: "border-box", width: "100%", height: "100%" };
+export const fitContainerStyle = { ...shrinkable, boxSizing: "border-box", width: "100%", height: "100%" };
 
 // Grow/shrink to take an equal share of whatever room is left in a flex
 // row/column, ignoring its own content's natural size - scroll panels,
 // equal space distribution.
-export const fillerStyle = { overflow: "hidden", boxSizing: "border-box", flexGrow: "1", flexShrink: "1", flexBasis: "0" };
+export const fillerStyle = { ...shrinkable, boxSizing: "border-box", flexGrow: "1", flexShrink: "1", flexBasis: "0" };
 
 // Same, but based on its own content's natural size rather than an equal
 // 0-basis share - grows/shrinks around whatever it would naturally be.
-export const autoFillerStyle = { overflow: "hidden", boxSizing: "border-box", flexGrow: "1", flexShrink: "1", flexBasis: "auto" };
+export const autoFillerStyle = { ...shrinkable, boxSizing: "border-box", flexGrow: "1", flexShrink: "1", flexBasis: "auto" };
 
 // Visualizes a component's own bounds during development - not meant to
 // ship.
 export const layoutBorderStyle = { borderStyle: "solid", borderColor: "light-gray", borderWidth: "1px", boxSizing: "border-box" };
 
-// Opts back out of fitContainerStyle/fillerStyle's own overflow: hidden -
-// for content that must be allowed to overflow its own box (an animation,
-// a popover, ...).
+// Content allowed to overflow its own box - what every layout container
+// here does already (there's no clipping by default any more); kept for
+// what's written against the old default.
 export const overflowVisibleStyle = { overflow: "visible" };
 
 // --- styledDiv: the shared mechanism behind every function below ---
@@ -115,6 +125,29 @@ export const filler = (...parameters) => styledDiv(fillerStyle, parameters);
 
 // --- zStack: children stacked on top of each other, edge to edge ---
 
+// What each child of a zStack gets - by the zStack itself (a class, and a
+// stylesheet rule for its direct children), so its children need no style
+// of their own for it. A child's own style still wins: it can deviate.
 export const zStackElementStyle = { ...fitContainerStyle, position: "absolute", top: 0, left: 0, width: "100%", height: "100%" };
 
-export const zStack = (...parameters) => styledDiv({ position: "relative" }, parameters);
+const zStackClass = "cascade-z-stack";
+const documentsStyled = new WeakSet();
+
+function ensureZStackRule() {
+  if (typeof(document) === "undefined" || !document.head || documentsStyled.has(document)) return;
+  documentsStyled.add(document);
+  const element = document.createElement("style");
+  element.setAttribute("data-cascade-layout", "");
+  element.textContent = "." + zStackClass + " > * { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-sizing: border-box; min-width: 0; min-height: 0; }";
+  document.head.appendChild(element);
+}
+
+export const zStack = (...parameters) => {
+  ensureZStackRule();
+  const properties = toPropertiesWithChildren(parameters);
+  const given = properties.className || properties.class;
+  delete properties.className;
+  properties.class = given ? zStackClass + " " + given : zStackClass;
+  properties.style = { position: "relative", ...properties.style };
+  return div(properties);
+};

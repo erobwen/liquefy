@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { button, card, icon, iconButton, row, portal, portalContents, themeColor } from "@liquefy/cascade.ui";
+import { button, card, icon, iconButton, row, portal, portalSource, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import source from "./StorePage.js?raw";
@@ -40,11 +40,11 @@ const price = (amount) => "$" + amount.toFixed(2);
  *    knows nothing about products.
  *  - ProductList: owns which products are chosen. The ones that aren't are
  *    on its shelf; the chosen ones, and the summary, it puts into the
- *    status bar's portals with portalContents().
+ *    status bar's portals with portalSource().
  *  - StorePage: puts them together, owns the status bar (created in
  *    initialization, placed as a plain child reference - see
  *    cascade.component/README.md), and provides its portals by name for
- *    portalContents() to find: `cartPortal`, `cartSummaryPortal`.
+ *    portalSource() to find: `cartPortal`, `cartSummaryPortal`.
  *
  * The animation: one FlipAnimationContainer around it all. A product is a
  * keyed tile built by ProductList - the same component, and so the same
@@ -69,7 +69,7 @@ export class StorePage extends Component {
     super.onDispose();
   }
 
-  // Provided for portalContents({ portal: "cartPortal" }) - see
+  // Provided for portalSource({ portal: "cartPortal" }) - see
   // Component.provide().
   provide() {
     const bar = this.unobservable.statusBar.unobservable;
@@ -135,8 +135,8 @@ class ProductList extends Component {
         { key: "shelf", style: { display: "flex", flexWrap: "wrap", gap: "16px", alignContent: "flex-start", flex: "1 1 auto", overflow: "visible" } },
         products.filter((product) => !this.chosen.includes(product.id)).map((product) => this.tile(product, false)),
       ),
-      portalContents({ key: "cartContents", portal: "cartPortal" }, chosen.map((product) => this.tile(product, true))),
-      portalContents(
+      portalSource({ key: "cartContents", portal: "cartPortal" }, chosen.map((product) => this.tile(product, true))),
+      portalSource(
         { key: "summaryContents", portal: "cartSummaryPortal" },
         chosen.length > 0 ? [
           text({ key: "summaryText", text: chosen.length + (chosen.length === 1 ? " item, " : " items, ") + price(total) }),

@@ -1,4 +1,4 @@
-import { Component, flush, frozen } from "@liquefy/cascade.component";
+import { Component, flush, frozen, withoutRecording } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 
 /**
@@ -109,13 +109,17 @@ export class OverlayFrame extends Component {
   // (see the class doc).
   showOverlay(contentProvider, overlayContent, context) {
     this.unobservable.assigningContentProvider = contentProvider;
-    flush(() => this.setState({ shownContent: overlayContent, shownContext: context || null }));
+    const current = withoutRecording(() => [this.shownContent, this.shownContext]);
+    if (current[0] !== overlayContent || current[1] !== (context || null)) {
+      flush(() => this.setState({ shownContent: overlayContent, shownContext: context || null }));
+    }
   }
 
   hideOverlay(contentProvider) {
-    if (this.unobservable.assigningContentProvider === contentProvider) {
-      flush(() => this.setState({ shownContent: null, shownContext: null }));
-    }
+    const u = this.unobservable;
+    if (u.assigningContentProvider !== contentProvider) return;
+    u.assigningContentProvider = null;
+    flush(() => this.setState({ shownContent: null, shownContext: null }));
   }
 
   build() {

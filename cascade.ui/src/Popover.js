@@ -1,7 +1,7 @@
 import { Component, frozen, callback } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { overlay } from "./Overlay.js";
-import { zStack, wrapper, fitContainerStyle, zStackElementStyle } from "./Layout.js";
+import { zStack, wrapper, fitContainerStyle } from "./Layout.js";
 
 /**
  * Popover - ported from flow.ui/basic/src/popover.js: content shown next to
@@ -146,7 +146,7 @@ export class Popover extends Component {
         div({
           key: "outside",
           onmousedown: callback("outside", () => this.close && this.close()),
-          style: { ...zStackElementStyle, pointerEvents: "auto" },
+          style: { pointerEvents: "auto" },
         }),
         wrapper(
           { key: "content", style: { position: "fixed", pointerEvents: "auto", maxWidth: "min(800px, 90vw)", ...this.placement(), ...this.style } },

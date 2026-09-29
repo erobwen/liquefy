@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, card, column, portal, portalContents } from "@liquefy/cascade.ui";
+import { button, card, column, portal, portalSource } from "@liquefy/cascade.ui";
 
 // Owns a portal - a place for others to put things in - and provides it by
 // name, for anything below to find. Owns it for real: created here, not in
@@ -52,7 +52,7 @@ class Poster extends Component {
         callback("toggle", () => { this.posted = !this.posted; }),
       ),
       // Keyed: built even while it isn't shown, and kept alive by its key.
-      portalContents(
+      portalSource(
         { key: "notice", portal: "noticeBoard" },
         text("Posted from deep inside - shown up here."),
       ).showIf(this.posted),

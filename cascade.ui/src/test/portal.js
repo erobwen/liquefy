@@ -2,9 +2,9 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component, ObservableCompoundServiceLocator, observable, accessInitialValues } from "@liquefy/cascade.component";
 import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer, providingElement } from "@liquefy/cascade.dom";
-import { portal, portalContents, button, basicTheme } from "../index.js";
+import { portal, portalSource, button, basicTheme } from "../index.js";
 
-// portal()/portalContents(): a page putting its own buttons into the app's
+// portal()/portalSource(): a page putting its own buttons into the app's
 // top bar, rendered before it - the shape the demo uses them in. Every leaf
 // string goes through text(), away from the implicit-key convention.
 describe("portals", function () {
@@ -53,7 +53,7 @@ describe("portals", function () {
       return div(
         { key: "page" },
         text({ key: "content", text: this.name + " content" }),
-        portalContents(
+        portalSource(
           { key: "actions", portal: this.inherit("topBarPortal") },
           new Counter({ key: "counter", label: this.label }),
         ),
@@ -126,8 +126,8 @@ describe("portals", function () {
         return div(
           { key: "both" },
           this.unobservable.shared,
-          portalContents({ key: "a", portal: target }, text({ key: "aText", text: "A" })),
-          portalContents({ key: "b", portal: target }, text({ key: "bText", text: "B" })),
+          portalSource({ key: "a", portal: target }, text({ key: "aText", text: "A" })),
+          portalSource({ key: "b", portal: target }, text({ key: "bText", text: "B" })),
         );
       }
     }
@@ -159,7 +159,7 @@ describe("portals", function () {
         return div(
           { key: "page" },
           button({ key: "pageButton" }, text({ key: "pageButtonText", text: "page" })),
-          portalContents({ key: "actions", portal: this.inherit("topBarPortal") }, new Labelled({ key: "labelled", labels: ["a", "b"] })),
+          portalSource({ key: "actions", portal: this.inherit("topBarPortal") }, new Labelled({ key: "labelled", labels: ["a", "b"] })),
         );
       }
     }
@@ -201,7 +201,7 @@ describe("portals", function () {
         return flipAnimationContainer(
           { key: "flip" },
           div({ key: "shelf" }, all.filter((name) => !this.chosen.includes(name)).map(item)),
-          portalContents({ key: "chosen", portal: "cart" }, this.chosen.map(item)),
+          portalSource({ key: "chosen", portal: "cart" }, this.chosen.map(item)),
           this.unobservable.bar,
         );
       }
@@ -230,7 +230,7 @@ describe("portals", function () {
     // run, which doesn't construct it again).
     class RenderedPage extends Component {
       initialUnobservables() {
-        return { actions: portalContents({ key: "actions", portal: "topBarPortal" }, text({ key: "renderedText", text: "rendered action" })) };
+        return { actions: portalSource({ key: "actions", portal: "topBarPortal" }, text({ key: "renderedText", text: "rendered action" })) };
       }
       render(target, context) {
         this.unobservable.actions.renderOnto(target, context);
@@ -265,7 +265,7 @@ describe("portals", function () {
         return div(
           { key: "shelf" },
           this.unobservable.cart,
-          portalContents({ key: "contents", portal: "cart" }, this.chosen.map((name) => text({ key: name, text: name }))),
+          portalSource({ key: "contents", portal: "cart" }, this.chosen.map((name) => text({ key: name, text: name }))),
         );
       }
     }
@@ -300,7 +300,7 @@ describe("portals", function () {
         return div(
           { key: "page" },
           text({ key: "where", text: "at " + this.inherit("path") }),
-          portalContents({ key: "actions", portal: "topBarPortal" }, new Labelled({ key: "labelled", labels: [this.name, "!"] })),
+          portalSource({ key: "actions", portal: "topBarPortal" }, new Labelled({ key: "labelled", labels: [this.name, "!"] })),
         );
       }
     }

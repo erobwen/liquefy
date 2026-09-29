@@ -1,7 +1,7 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, p, text } from "@liquefy/cascade.dom";
 import {
-  button, dialog, overlay, row, column, centerMiddle, zStack, fitContainerStyle, zStackElementStyle,
+  button, dialog, overlay, row, column, centerMiddle, zStack, fitContainerStyle,
 } from "@liquefy/cascade.ui";
 
 // A button that asks first - in a modal dialog, over everything else.
@@ -27,9 +27,9 @@ export class ConfirmDelete extends Component {
         zStack(
           { style: { ...fitContainerStyle, pointerEvents: "none" } },
           // A click beside the dialog closes it.
-          div({ onclick: close, style: { ...zStackElementStyle, pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" } }),
+          div({ onclick: close, style: { pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" } }),
           centerMiddle(
-            { style: { ...zStackElementStyle, pointerEvents: "none" } },
+            { style: { pointerEvents: "none" } },
             dialog(
               { title: "Are you sure?", close, style: { width: "340px" } },
               column(

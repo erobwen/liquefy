@@ -1,4 +1,4 @@
-import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, withoutRecording } from "./Cascade.js";
+import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, withoutRecording, establish as establishObject, dispose as disposeObject } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 
 /**
@@ -659,6 +659,48 @@ export class Component {
 
   onHide() {}
 
+  // The lifecycle of a component its creator manages itself (see
+  // README.md, "Never combine the two ways of creating a sub-component") -
+  // one created in initialization and kept as an unobservable, say, rather
+  // than constructed in a build(). A component built in a build() is
+  // established and disposed by its creator's build (cascade.reactive's
+  // finishRebuilding() calls onEstablish() and onDispose()); one created
+  // any other way has nothing to do that for it, so whoever owns it does:
+  // establish() once, where it's created, and dispose() once it's done
+  // with it - in its own onDispose(), typically. Without dispose(), one
+  // that reads data that never changes again is never invalidated, and so
+  // never lets go of what it built and subscribed to.
+  //
+  //   initialUnobservables() {
+  //     return { board: portal({ key: "board" }).establish() };
+  //   }
+  //
+  //   onDispose() {
+  //     this.unobservable.board.dispose();
+  //     super.onDispose();
+  //   }
+  //
+  // Both are cascade.reactive's own establish()/dispose() - the very
+  // functions the rebuild establishes and disposes of built components
+  // with - so an owned component's lifecycle is exactly a built one's:
+  // the same flag, the same events, the same hooks. establish() does
+  // nothing for a component already established, and returns the
+  // component, so it can be called right on the construction.
+  establish() {
+    return establishObject(this);
+  }
+
+  dispose() {
+    disposeObject(this);
+  }
+
+  // Override: this component is established - built for the first time
+  // by its creator's build, or established by its owner (establish()
+  // above). Where to acquire what it needs from outside, and let go of it
+  // again in onDispose(). A subclass overriding this must call
+  // super.onEstablish(). No-op by default.
+  onEstablish() {}
+
   // Called by cascade.reactive (see finishRebuilding()) when this
   // component's build identity is gone: whoever's build() constructed it
   // with a key has rerun without constructing that key again, so this
@@ -690,7 +732,7 @@ export class Component {
       if (built) {
         for (const key in built) {
           const object = built[key];
-          if (object !== this && typeof(object.onDispose) === "function") object.onDispose();
+          if (object !== this) disposeObject(object);
         }
       }
     }

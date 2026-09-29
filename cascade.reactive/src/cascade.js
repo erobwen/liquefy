@@ -152,6 +152,8 @@ function createWorld(configuration) {
     repeat,
     linkRepeater,
     finalize,
+    establish,
+    dispose,
 
     // Modifiers
     withoutRecording,
@@ -3412,17 +3414,11 @@ function createWorld(configuration) {
       notifyDisposeToCreatedObjects() {
         if (this.idObjectShapeMap) {
           for(let id in this.idObjectShapeMap) {
-            let object = this.idObjectShapeMap[id];
-  
-            // Send dispose event
-            if (typeof(object[objectMetaProperty].target.onDispose) === "function") {
-              object.onDispose();
-            }
+            dispose(this.idObjectShapeMap[id]);
           }
         } else if (this.buildIdObjectMap) {
           for (let key in this.buildIdObjectMap) {
-            const object = this.buildIdObjectMap[key]; 
-            if (typeof(object.onDispose) === "function") object.onDispose();
+            dispose(this.buildIdObjectMap[key]);
           }
         }
       },
@@ -3850,8 +3846,7 @@ function createWorld(configuration) {
             emitCreationEvent(object[objectMetaProperty].handler);
           }
 
-          // Send establish event
-          sendOnEstablishedEvent(object);
+          establish(object);
         }
       }
 
@@ -3861,10 +3856,7 @@ function createWorld(configuration) {
       if (repeater.idObjectShapeMap) {
         for (let id in repeater.idObjectShapeMap) {
           if (repeater.newIdObjectShapeMap[id] !== repeater.idObjectShapeMap[id]) {
-            const object = repeater.idObjectShapeMap[id];
-            const objectTarget = object[objectMetaProperty].target;
-            emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectTarget.onDispose) === "function") object.onDispose();
+            dispose(repeater.idObjectShapeMap[id]);
           }
         }
       }
@@ -3886,8 +3878,7 @@ function createWorld(configuration) {
           temporaryObject[objectMetaProperty].isBeingRebuilt = false; 
           mergeInto(created, temporaryObject);
         } else {
-          // Send establish event
-          sendOnEstablishedEvent(created)
+          establish(created);
         }
       }
 
@@ -3899,11 +3890,7 @@ function createWorld(configuration) {
           // present this run too, but holds the replacement - the established
           // object it replaced is gone just the same.
           if (repeater.newBuildIdObjectMap[buildId] !== repeater.buildIdObjectMap[buildId]) {
-            const object = repeater.buildIdObjectMap[buildId];
-            const objectTarget = object[objectMetaProperty].target;
-            // console.log("Dispose object: " + objectTarget.constructor.name + "." + object[objectMetaProperty].id)
-            emitDisposeEvent(object[objectMetaProperty].handler);
-            if (typeof(objectTarget.onDispose) === "function") object.onDispose();
+            dispose(repeater.buildIdObjectMap[buildId]);
           }
         }
       }
@@ -3921,15 +3908,33 @@ function createWorld(configuration) {
     if (options.onEndBuildUpdate) options.onEndBuildUpdate();
   }
 
-  function sendOnEstablishedEvent(object) {
-    const objectMeta = object[objectMetaProperty]
+  /**
+   * An object's lifecycle: established once, disposed once it's gone for
+   * good - with onEstablish()/onDispose() called on it, if it has them.
+   * What a build constructs gets both from the rebuild (finishRebuilding(),
+   * finalize()); an object created any other way - one that a component
+   * creates and keeps itself, say - gets them from whoever owns it,
+   * calling these very same functions (see cascade.component's
+   * Component.establish()/dispose()). So an owned object's lifecycle is
+   * exactly a built one's, events and all.
+   *
+   * establish() does nothing for an object already established (unless a
+   * rebuild has it pending - see observable()), and returns the object.
+   */
+  function establish(object) {
+    const objectMeta = object[objectMetaProperty];
     if (objectMeta.pendingOnEstablishCall || !objectMeta.established) {
       delete objectMeta.pendingOnEstablishCall;
-      objectMeta.established = true; 
-      if (typeof(objectMeta.target.onEstablish) === "function"){
-        object.onEstablish();  
-      }
-    } 
+      objectMeta.established = true;
+      if (typeof(objectMeta.target.onEstablish) === "function") object.onEstablish();
+    }
+    return object;
+  }
+
+  function dispose(object) {
+    const objectMeta = object[objectMetaProperty];
+    emitDisposeEvent(objectMeta.handler);
+    if (typeof(objectMeta.target.onDispose) === "function") object.onDispose();
   }
 
   function finalize(object) {
@@ -3948,7 +3953,7 @@ function createWorld(configuration) {
 
     } else {
       // A new build, send create on establish message (if we were just created with key in a repeater)
-      sendOnEstablishedEvent(object);
+      establish(object);
     }
 
     return object; 

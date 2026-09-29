@@ -71,6 +71,10 @@ If a component is created by its creator the following needs to hold.
 
 2. A component can be created in the creators initialization function, or using some other way by a reactive mechanism. Such a component could be kept track of using a property or an unobserveable property, and the creator is in charge of the lifecycle.  
 
+   Being in charge of the lifecycle means doing what the rebuild process does for components built in a build function: call `establish()` on the component where it is created (that calls its `onEstablish()`, where it can acquire external resources), and `dispose()` on it once the creator is done with it - typically in the creator's own `onDispose()`, before `super.onDispose()`. Disposing is not optional: a component that reads observable data that never changes again is never invalidated, so without `dispose()` its repeaters stay subscribed, and keep everything they built, for as long as that data lives. A component created on the top level, outside any component, is established by whoever creates it, and disposed by them if it doesn't live as long as the app does.
+
+   Create such components in `initialUnobservables()`, not in `initializeState()`: `initializeState()` also runs for the throwaway object constructed during a rebuild, so a component created and established there would be thrown away without ever being disposed. `initialUnobservables()` runs lazily, the first time the unobservables are read - which, unless the constructor itself reads them, is on the established object.
+
 WARNING: There is a danger in combining both these methods. If a component is created during the creatprs build call, it will be registered in the rebuild process, and even if the creator keeps track of a reference to the component, the rebuild system might depose it. 
 
 ### Keys and pattern matching

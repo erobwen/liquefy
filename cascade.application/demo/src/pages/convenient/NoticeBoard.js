@@ -3,15 +3,22 @@ import { div, text } from "@liquefy/cascade.dom";
 import { button, card, column, portal, portalContents } from "@liquefy/cascade.ui";
 
 // Owns a portal - a place for others to put things in - and provides it by
-// name, for anything below to find.
+// name, for anything below to find. Owns it for real: created here, not in
+// a build(), so it's this board that establishes it and disposes of it (see
+// Component.establish()).
 export class NoticeBoard extends Component {
   initialUnobservables() {
     return {
       board: portal(
         { style: { padding: "10px 14px", borderRadius: "8px", background: "#fff4e5", color: "#663c00" } },
         text("No notices."),
-      ),
+      ).establish(),
     };
+  }
+
+  onDispose() {
+    this.unobservable.board.dispose();
+    super.onDispose();
   }
 
   // Found by inherit("noticeBoard") from anywhere below.

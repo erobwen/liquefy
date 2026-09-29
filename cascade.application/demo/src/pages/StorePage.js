@@ -61,7 +61,12 @@ const price = (amount) => "$" + amount.toFixed(2);
  */
 export class StorePage extends Component {
   initialUnobservables() {
-    return { statusBar: new StatusBar({ key: "statusBar" }) };
+    return { statusBar: new StatusBar({ key: "statusBar" }).establish() };
+  }
+
+  onDispose() {
+    this.unobservable.statusBar.dispose();
+    super.onDispose();
   }
 
   // Provided for portalContents({ portal: "cartPortal" }) - see
@@ -147,7 +152,8 @@ class ProductList extends Component {
 
 // A status bar with a cart: two portals of its own - the cart's items and
 // its summary - filled by whoever has something to put there. The cart can
-// be hidden; whatever is put into it waits there.
+// be hidden; whatever is put into it waits there. Both are its own - created,
+// established and disposed of here (see Component.establish()).
 class StatusBar extends Component {
   initializeState() {
     return { cartShown: true };
@@ -158,9 +164,15 @@ class StatusBar extends Component {
       cart: portal(
         { key: "cart", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", flex: "1 1 auto", minWidth: 0, overflow: "visible" } },
         text({ key: "emptyText", text: "Your cart is empty - click a product to add it." }),
-      ),
-      summary: portal({ key: "summary", style: { display: "flex", alignItems: "center", gap: "12px", flex: "none" } }),
+      ).establish(),
+      summary: portal({ key: "summary", style: { display: "flex", alignItems: "center", gap: "12px", flex: "none" } }).establish(),
     };
+  }
+
+  onDispose() {
+    this.unobservable.cart.dispose();
+    this.unobservable.summary.dispose();
+    super.onDispose();
   }
 
   build() {

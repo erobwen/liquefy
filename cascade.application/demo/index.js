@@ -50,23 +50,26 @@ const context = new RenderContext(DOMElementTarget.forElement(document.getElemen
 // from (Vite's base).
 const location = browserLocation({ base: import.meta.env.BASE_URL });
 
+// The root and its pages are created here, not built by anyone - so they're
+// established here (see cascade.component's Component.establish()). They
+// live as long as the app does: nothing to dispose of.
 const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
   location,
   pages: [
-    { key: "introduction", title: "Introduction", icon: "info", component: new IntroductionPage() },
-    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage() },
-    { key: "convenient-usage", title: "Convenient Usage", component: new ConvenientUsagePage() },
-    { key: "advanced-usage", title: "Advanced Usage", component: new AdvancedUsagePage() },
-    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout() },
-    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage() },
-    { key: "recursive-demo", group: "Examples", title: "Recursive Demo", component: new RecursiveDemo() },
-    { key: "reactive-form", group: "Examples", title: "Reactive Form", component: new ReactiveFormPage() },
-    { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", component: new HybridModalDialog() },
-    { key: "hydration", group: "Examples", title: "Hydration", component: new HydrationPage() },
-    { key: "animation", group: "Examples", title: "Animation", component: new AnimationPage() },
-    { key: "store", group: "Examples", title: "Web Store", component: new StorePage() },
-    { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage() },
+    { key: "introduction", title: "Introduction", icon: "info", component: new IntroductionPage().establish() },
+    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage().establish() },
+    { key: "convenient-usage", title: "Convenient Usage", component: new ConvenientUsagePage().establish() },
+    { key: "advanced-usage", title: "Advanced Usage", component: new AdvancedUsagePage().establish() },
+    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout().establish() },
+    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage().establish() },
+    { key: "recursive-demo", group: "Examples", title: "Recursive Demo", component: new RecursiveDemo().establish() },
+    { key: "reactive-form", group: "Examples", title: "Reactive Form", component: new ReactiveFormPage().establish() },
+    { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", component: new HybridModalDialog().establish() },
+    { key: "hydration", group: "Examples", title: "Hydration", component: new HydrationPage().establish() },
+    { key: "animation", group: "Examples", title: "Animation", component: new AnimationPage().establish() },
+    { key: "store", group: "Examples", title: "Web Store", component: new StorePage().establish() },
+    { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage().establish() },
   ],
-});
+}).establish();
 applicationMenuFrame.renderOnto(context);

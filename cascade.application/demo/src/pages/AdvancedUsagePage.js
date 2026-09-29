@@ -25,16 +25,16 @@ import source from "./AdvancedUsagePage.js?raw";
  */
 
 // How this demo keeps its pages - an excerpt of its own index.js.
-const pagesExcerpt = `// Created once, outside of any build - and handed to the frame.
+const pagesExcerpt = `// Created once, outside of any build - established here, and handed to the frame.
 const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
   location,
   pages: [
-    { key: "introduction", title: "Introduction", component: new IntroductionPage() },
-    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage() },
+    { key: "introduction", title: "Introduction", component: new IntroductionPage().establish() },
+    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage().establish() },
     // ...
   ],
-});`;
+}).establish();`;
 
 export class AdvancedUsagePage extends Component {
   build() {
@@ -129,17 +129,19 @@ export class AdvancedUsagePage extends Component {
       ),
       h3("2. Take full control"),
       p(
-        "Create them yourself, once, in ", name("initialUnobservables", "initialUnobservables()"), ", and dispose them ",
-        "in ", name("onDispose", "onDispose()"), ". Unobservables, because nothing needs to observe the references - ",
-        "an observable property for them would only be overhead. Then build() just places them, where and when it ",
-        "likes.",
+        "Create them yourself, once, in ", name("initialUnobservables", "initialUnobservables()"), " - and since no build ",
+        "does it for you, call ", name("establish", "establish()"), " on them there, and ", name("dispose", "dispose()"), " in ",
+        "your own ", name("onDispose", "onDispose()"), ". Skip the dispose, and a child reading data that never changes ",
+        "again is never invalidated - it holds on to all it built and subscribed to, for good. Unobservables, because ",
+        "nothing needs to observe the references - an observable property for them would only be overhead. Then ",
+        "build() just places them, where and when it likes.",
       ),
       codeBlock("keepAliveCode", keepAliveSource),
       h3("3. Outside of Cascade altogether"),
       p(
         "Create them where no build ever sees them being created - in a module, or anywhere else outside of any ",
-        "component - and hand them in as properties. That's how this very demo keeps its pages. Nothing disposes ",
-        "them, so it's for what lives as long as the app does.",
+        "component - and hand them in as properties. That's how this very demo keeps its pages. Establish them ",
+        "where you create them; nothing disposes them, so it's for what lives as long as the app does.",
       ),
       codeBlock("pagesCode", pagesExcerpt),
       p(

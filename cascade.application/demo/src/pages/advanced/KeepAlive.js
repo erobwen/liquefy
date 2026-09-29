@@ -59,20 +59,21 @@ export class Shown extends Tabs {
   }
 }
 
-// 2. Full control: created once, in initialization, and disposed when this
-// is. Kept as unobservables - nothing needs to observe the references, so
+// 2. Full control: created once, in initialization - and established
+// there, and disposed when this is, since no build() does either for them
+// (see Component.establish()). Kept as unobservables - nothing needs to observe the references, so
 // an observable property for them would only be overhead.
 export class Owned extends Tabs {
   initialUnobservables() {
     return {
-      first: new Tally({ key: "first", label: "First" }),
-      second: new Tally({ key: "second", label: "Second" }),
+      first: new Tally({ key: "first", label: "First" }).establish(),
+      second: new Tally({ key: "second", label: "Second" }).establish(),
     };
   }
 
   onDispose() {
-    this.unobservable.first.onDispose();
-    this.unobservable.second.onDispose();
+    this.unobservable.first.dispose();
+    this.unobservable.second.dispose();
     super.onDispose();
   }
 

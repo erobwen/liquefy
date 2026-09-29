@@ -17,6 +17,8 @@ export const {
   repeat,
   linkRepeater,
   finalize,
+  establish,
+  dispose,
   withoutRecording,
   sameAsPreviousDeep,
   invalidateOnChange,

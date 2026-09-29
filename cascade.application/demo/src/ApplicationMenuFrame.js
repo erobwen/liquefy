@@ -88,12 +88,18 @@ export class ApplicationMenuFrame extends Component {
   // src/components/pageActions.js). Created here, once, and owned by this
   // frame - not built in a build() and referenced as well (see
   // cascade.component/README.md) - and placed by ApplicationMenuFrameLayout
-  // as a plain child reference.
+  // as a plain child reference. Owned, so established here and disposed of
+  // with the frame (see Component.establish()).
   initialUnobservables() {
     return {
       ...super.initialUnobservables(),
-      topBarPortal: portal({ key: "topBarPortal", style: { display: "flex", alignItems: "center", gap: "4px", flex: "none" } }),
+      topBarPortal: portal({ key: "topBarPortal", style: { display: "flex", alignItems: "center", gap: "4px", flex: "none" } }).establish(),
     };
+  }
+
+  onDispose() {
+    this.unobservable.topBarPortal.dispose();
+    super.onDispose();
   }
 
   // Provided for inherit("topBarPortal") (provide()'s default is the

@@ -108,8 +108,15 @@ export class EllipsisToolbar extends Component {
 
   initialUnobservables() {
     return {
-      overflowSlot: elementSlot({ key: "overflowSlot", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: GAP + "px" } }),
+      overflowSlot: elementSlot({ key: "overflowSlot", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: GAP + "px" } }).establish(),
     };
+  }
+
+  // The slot is this toolbar's own, not built by a build() - so it's
+  // disposed of here (see Component.establish()).
+  onDispose() {
+    this.unobservable.overflowSlot.dispose();
+    super.onDispose();
   }
 
   build() {

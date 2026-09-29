@@ -1,5 +1,5 @@
 import { frozen } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { DOMElementComponent } from "./DOMElementComponent.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
@@ -17,7 +17,7 @@ import { applyStyle } from "./applyStyle.js";
  * every component on the way given its render context, so services such
  * as a theme are found exactly as when rendering normally) down to
  * components that can hand over their own node (providesNode() - see
- * DOMNodeRenderComponent), each of those asked for its node
+ * DOMNodeComponent), each of those asked for its node
  * (ensureNode()), and a DOM element's own children expanded the same way,
  * recursively - see expandSubtree(). Where each element's child nodes go is
  * recorded as a list of placements, which a subclass then puts in order
@@ -38,7 +38,7 @@ import { applyStyle } from "./applyStyle.js";
  * What it places, it tells when it's shown and hidden - as rendering would
  * have (see Component.onShow()/onHide(), and notifyPlaced()).
  */
-export class DOMPlacingContainer extends DOMNodeRenderComponent {
+export class DOMPlacingContainer extends DOMNodeComponent {
   setProperties({ children, style, isUnit }) {
     this.children = frozen(children || []);
     this.style = frozen(style || null);
@@ -48,7 +48,7 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
   // Where expanding stops (see Component.expand()): at what the app wants
   // placed as one piece, and otherwise at what can hand over its own node.
   isLeaf(component) {
-    return (this.isUnit && this.isUnit(component)) || (component instanceof DOMNodeRenderComponent && component.providesNode());
+    return (this.isUnit && this.isUnit(component)) || (component instanceof DOMNodeComponent && component.providesNode());
   }
 
   initialUnobservables() {
@@ -65,7 +65,7 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
   }
 
   // The container's own element, placed like any other rendered node.
-  renderElement(target, existingElement) {
+  renderNode(target, existingElement) {
     const u = this.unobservable;
     const element = existingElement || document.createElement("div");
     target.reattachElement(element);
@@ -77,7 +77,7 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
   // the same target object every time.
   innerTarget() {
     const u = this.unobservable;
-    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.element);
+    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.node);
     return u.innerTarget;
   }
 
@@ -92,7 +92,7 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
     const placements = [];
     const placedBefore = u.placed;
     u.placed = new Set();
-    this.expandChildren(this, u.element, this.innerTarget(), context, children, null, placements);
+    this.expandChildren(this, u.node, this.innerTarget(), context, children, null, placements);
     return { placements, placedBefore };
   }
 
@@ -120,7 +120,7 @@ export class DOMPlacingContainer extends DOMNodeRenderComponent {
   // Component.expand()) - its node.
   nodeOf(component, ancestor, placements) {
     const isUnit = this.isUnit && this.isUnit(component);
-    if (isUnit || !(component instanceof DOMNodeRenderComponent && component.providesNode())) {
+    if (isUnit || !(component instanceof DOMNodeComponent && component.providesNode())) {
       const holder = this.renderIsland(component);
       // Rendered, not placed: rendering tells it when it's shown or hidden.
       this.unobservable.placed.delete(component);

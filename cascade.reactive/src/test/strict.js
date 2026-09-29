@@ -5,10 +5,10 @@ const { observable } = getWorld();
 describe("Proxy object traps", function () {
   const box = observable();
 
-  it('forwardTo',  function () {
-    box.causality.forwardTo = observable({ name: "forwardTo"});
+  it('rebuildTwin',  function () {
+    box.causality.rebuildTwin = observable({ name: "rebuildTwin"});
     box.other = null;
-    box.causality.forwardTo = null;
+    box.causality.rebuildTwin = null;
   });
 
   it('nochange',  function () {
@@ -36,10 +36,10 @@ describe("Proxy object traps", function () {
 describe("Array object traps", function () {
   const stack = observable([]);
 
-  it('forwardTo',  function () {
-    stack.causality.forwardTo = observable(['aa','bb']);
+  it('rebuildTwin',  function () {
+    stack.causality.rebuildTwin = observable(['aa','bb']);
     stack[2] = false;
-    stack.causality.forwardTo = null;
+    stack.causality.rebuildTwin = null;
   });
 
 

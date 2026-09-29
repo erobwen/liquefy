@@ -179,7 +179,7 @@ export class Component {
     me.setProperties(properties);
     // Unconditionally - no attempt to detect a rebuild here. During one,
     // `me` is the established object but its writes are redirected to the
-    // throwaway twin (see cascade.reactive's setHandlerObject/forwardTo),
+    // throwaway twin (see cascade.reactive's setHandlerObject/rebuildTwin),
     // and mergeInto() then skips state when copying the twin back - so
     // the gate lives there, in one place, not in every constructor.
     declareState(me, me.initialState());
@@ -368,7 +368,7 @@ export class Component {
       // keeps reconciliation correct for whatever build() constructs, not
       // just the value returned: reconciling a keyed child
       // (observable(target, buildId)) points the *established* object's
-      // forwardTo at the freshly-constructed, about-to-be-discarded one
+      // rebuildTwin at the freshly-constructed, about-to-be-discarded one
       // until finishRebuilding() clears it at the end of that refresh.
       // Rendering the result before then would read the throwaway twin's
       // own empty unobservable bag, find no repeater there, and create a
@@ -424,7 +424,7 @@ export class Component {
   // build()-based composition style. Override render() directly instead
   // (skipping build() entirely) for the hardcoded-child-reference style,
   // or to interleave custom work (measurement, etc.) between children -
-  // see cascade.DOM's DOMNodeRenderComponent-based demos for exactly that.
+  // see cascade.DOM's DOMNodeComponent-based demos for exactly that.
   render(target, context) {
     const equivalent = this.reactiveBuildEquivalent();
     const children = equivalent instanceof Array ? equivalent : [equivalent];
@@ -616,7 +616,7 @@ export class Component {
         // component in its new place - its element would simply stay
         // under the old target. Same treatment as reattachment, minus
         // onReattach(): the element was never removed, and
-        // renderElement()'s own reattachElement() on the new target is
+        // renderNode()'s own reattachElement() on the new target is
         // what moves it. The common case - the same cached target and
         // context every time - stays the free no-op it always was. Run
         // right here too, in tree order, as above.
@@ -662,9 +662,9 @@ export class Component {
           // throws without this would leave a stale entry on it forever,
           // corrupting getRenderParent() for every component rendered
           // afterward, in any test or any part of the app, for the rest of
-          // the process. Found via a DOMNodeComponent test that
+          // the process. Found via a SingleNodeComponent test that
           // deliberately throws from render() (see
-          // cascade.DOM/src/test/domNodeComponent.js) to check its own
+          // cascade.DOM/src/test/singleNodeComponent.js) to check its own
           // build()-result guard - that alone was enough to break unrelated
           // later tests in the same run.
           renderStack.pop();
@@ -678,7 +678,7 @@ export class Component {
   // retracted - simply not renderOnto()'d some run (see the
   // retract/reconcile discussion in docs/plan-partial-repeaters.md,
   // cascade.reactive). Undo the rendering's own side effects the reactive
-  // system has no visibility into - see cascade.DOM's DOMNodeRenderComponent
+  // system has no visibility into - see cascade.DOM's DOMNodeComponent
   // for the concrete case (removing its own element). Calls onHide() by
   // default - an override calls super.onRetract() to keep that. If it's
   // later renderOnto()'d again, retraction being fully reversible is
@@ -691,7 +691,7 @@ export class Component {
   // Override: the other half of onRetract() - called when this component
   // is renderOnto()'d again after having been retracted, right as it's
   // relinked (never on an ordinary rerun or a first-ever render). Redo
-  // whatever onRetract() undid - see cascade.DOM's DOMNodeRenderComponent, which
+  // whatever onRetract() undid - see cascade.DOM's DOMNodeComponent, which
   // re-inserts its own element (removed by onRetract()) since relinking
   // itself never re-executes render() to do it another way. Calls onShow()
   // by default - an override calls super.onReattach() to keep that.

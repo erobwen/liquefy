@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
-import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "../DOMNodeComponent.js";
 
 // Responsive breakpoint behavior from flow's ApplicationMenuFrame, scoped
 // down: the menu docks as a side panel when there's enough width, or goes
@@ -26,8 +26,8 @@ describe("MenuFrame modal/docked breakpoint", function () {
     container = document.createElement("div");
   });
 
-  class Menu extends DOMNodeRenderComponent {
-    renderElement(target, existingElement) {
+  class Menu extends DOMNodeComponent {
+    renderNode(target, existingElement) {
       const el = existingElement || target.appendElement("div");
       el.className = "menu";
       el.dataset.overlay = target.menuIsOverlay ? "true" : "false";
@@ -35,8 +35,8 @@ describe("MenuFrame modal/docked breakpoint", function () {
     }
   }
 
-  class WorkArea extends DOMNodeRenderComponent {
-    renderElement(target, existingElement) {
+  class WorkArea extends DOMNodeComponent {
+    renderNode(target, existingElement) {
       const el = existingElement || target.appendElement("div");
       el.className = "work-area";
       el.dataset.usableWidth = target.usableWidth;
@@ -44,7 +44,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     }
   }
 
-  class MenuFrame extends DOMNodeRenderComponent {
+  class MenuFrame extends DOMNodeComponent {
     constructor(menu, workArea) {
       super();
       this.menu = menu;
@@ -55,7 +55,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
       return { menuOpen: false };
     }
 
-    renderElement(target, existingElement) {
+    renderNode(target, existingElement) {
       const u = this.unobservable;
       const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
@@ -134,7 +134,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
 
     root.usableWidth = 1000;
     menuFrame.renderOnto(root);
-    const originalMenuElement = menuFrame.menu.unobservable.element;
+    const originalMenuElement = menuFrame.menu.unobservable.node;
     assert.ok(container.querySelector(".menu"));
 
     root.usableWidth = 500; // modal - menu retracted, element removed
@@ -162,7 +162,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     menuFrame.renderOnto(root);
 
     menuFrame.menuOpen = true;
-    const originalMenuElement = menuFrame.menu.unobservable.element;
+    const originalMenuElement = menuFrame.menu.unobservable.node;
     menuFrame.menuOpen = false;
     assert.ok(!container.querySelector(".menu"));
 
@@ -186,7 +186,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
 
     root.usableWidth = 1000; // docked - menu renders with menuIsOverlay=false
     menuFrame.renderOnto(root);
-    const originalMenuElement = menuFrame.menu.unobservable.element;
+    const originalMenuElement = menuFrame.menu.unobservable.node;
     assert.equal(container.querySelector(".menu").dataset.overlay, "false");
 
     root.usableWidth = 500; // modal, closed - menu retracted without ever seeing menuIsOverlay=true

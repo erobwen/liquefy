@@ -91,7 +91,7 @@ function createWorld(configuration) {
     // The repeater work scheduler - see "Repeater scheduling: pipelines,
     // wavefronts, parking" below for the full design. One {active, parked}
     // pair of FIFOs per time level, holding *pipelines* (chainHeads), not
-    // individual repeaters - a chainHead's own internal heap/parkedPartials
+    // individual repeaters - a chainHead's own internal sortedQueue/parkedRepeaters
     // (see createChainHead()) is where the actual repeaters needing
     // attention live.
     workQueue: [...Array(configuration.timeLevels).keys()].map(() => ({
@@ -370,7 +370,7 @@ function createWorld(configuration) {
   //     rebuild can never reset state back to its defaults. This is the one
   //     place the distinction is gated: during a rebuild the constructed
   //     object is a throwaway anyway (setHandlerObject redirects its writes
-  //     there via forwardTo), so a constructor is free to write defaults
+  //     there via rebuildTwin), so a constructor is free to write defaults
   //     unconditionally without knowing whether it's a rebuild - it simply
   //     doesn't get copied back.
   //
@@ -388,9 +388,9 @@ function createWorld(configuration) {
     };
     register(meta);
     // While being rebuilt, writes to `object` land on its temporary twin
-    // (see setHandlerObject's forwardTo redirect) - register there too, so
+    // (see setHandlerObject's rebuildTwin redirect) - register there too, so
     // the write guard below treats both sides consistently.
-    if (meta.forwardTo !== null) register(meta.forwardTo[objectMetaProperty]);
+    if (meta.rebuildTwin !== null) register(meta.rebuildTwin[objectMetaProperty]);
     accessInitialValues(() => {
       Object.keys(defaults).forEach((key) => { object[key] = defaults[key]; });
     });
@@ -605,9 +605,9 @@ function createWorld(configuration) {
 
     if (key === objectMetaProperty) {
       return this.meta;
-    } else if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.get.apply(forwardToHandler, [forwardToHandler.target, key]);
+    } else if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.get.apply(twinHandler, [twinHandler.target, key]);
     } 
 
     if (onReadGlobal && !onReadGlobal(this, target, key)) { 
@@ -625,9 +625,9 @@ function createWorld(configuration) {
   function setHandlerArray(target, key, value) {
     if (key === objectMetaProperty) throw new Error("Cannot set the dedicated meta property '" + objectMetaProperty + "'");
 
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.set.apply(forwardToHandler, [forwardToHandler.target, key, value]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.set.apply(twinHandler, [twinHandler.target, key, value]);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
@@ -674,10 +674,10 @@ function createWorld(configuration) {
   }
 
   function deletePropertyHandlerArray(target, key) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.deleteProperty.apply(
-        forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.deleteProperty.apply(
+        twinHandler, [twinHandler.target, key]);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
@@ -699,10 +699,10 @@ function createWorld(configuration) {
   }
 
   function ownKeysHandlerArray(target) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.ownKeys.apply(
-        forwardToHandler, [forwardToHandler.target]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.ownKeys.apply(
+        twinHandler, [twinHandler.target]);
     }
 
     if (onReadGlobal && !onReadGlobal(this, target)) { 
@@ -716,9 +716,9 @@ function createWorld(configuration) {
   }
 
   function hasHandlerArray(target, key) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.has.apply(forwardToHandler, [target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.has.apply(twinHandler, [target, key]);
     }
 
     if (onReadGlobal && !onReadGlobal(this, target, key)) { 
@@ -730,10 +730,10 @@ function createWorld(configuration) {
   }
 
   function definePropertyHandlerArray(target, key, oDesc) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.defineProperty.apply(
-        forwardToHandler, [forwardToHandler.target, key, oDesc]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.defineProperty.apply(
+        twinHandler, [twinHandler.target, key, oDesc]);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
@@ -745,10 +745,10 @@ function createWorld(configuration) {
   }
 
   function getOwnPropertyDescriptorHandlerArray(target, key) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.getOwnPropertyDescriptor.apply(
-        forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.getOwnPropertyDescriptor.apply(
+        twinHandler, [twinHandler.target, key]);
     }
 
     if (onReadGlobal && !onReadGlobal(this, target, key)) { 
@@ -924,17 +924,17 @@ function createWorld(configuration) {
       rootRepeater: rootRepeater,
 
       // This pipeline's own work, this wave - see "Repeater scheduling"
-      // below for the full design. heap: repeaters needing attention,
+      // below for the full design. sortedQueue: repeaters needing attention,
       // sorted by repeater.firstPartial's live orderNumber (see
-      // heapInsert/heapPopMin) - never the root repeater itself, which is
+      // sortedQueueInsert/sortedQueuePopMin) - never the root repeater itself, which is
       // always earlier than anything that could be in here and is checked
-      // directly instead (see drainActivePipeline). parkedPartials:
+      // directly instead (see drainActivePipeline). parkedRepeaters:
       // repeaters that arrived behind this pipeline's own wavefront,
       // waiting for the next wave (see scheduleWork). wavefront: the
       // firstPartial of the last-processed repeater this active session -
       // only meaningful while this chainHead === state.activePipeline.
-      heap: [],
-      parkedPartials: [],
+      sortedQueue: [],
+      parkedRepeaters: [],
       wavefront: null,
 
       // This chainHead's own membership in state.workQueue[time] - which
@@ -1786,9 +1786,9 @@ function createWorld(configuration) {
       return this.meta;
     } else if (key === objectTimelinesProperty) {
       return this.timelines;
-    } else if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      let result = forwardToHandler.get.apply(forwardToHandler, [forwardToHandler.target, key]);
+    } else if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      let result = twinHandler.get.apply(twinHandler, [twinHandler.target, key]);
       return result;
     }
 
@@ -1820,9 +1820,9 @@ function createWorld(configuration) {
     if (key === objectMetaProperty) throw new Error("Cannot set the dedicated meta property '" + objectMetaProperty + "'");
     if (key === objectTimelinesProperty) throw new Error("Cannot set the dedicated timelines property '" + objectTimelinesProperty + "'");
 
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.set.apply(forwardToHandler, [forwardToHandler.target, key, value]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.set.apply(twinHandler, [twinHandler.target, key, value]);
     }
 
     // State properties (see declareState()) may only be written outside
@@ -2002,10 +2002,10 @@ function createWorld(configuration) {
   }
 
   function deletePropertyHandlerObject(target, key) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      forwardToHandler.deleteProperty.apply(
-        forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      twinHandler.deleteProperty.apply(
+        twinHandler, [twinHandler.target, key]);
       return true;
     }
 
@@ -2040,10 +2040,10 @@ function createWorld(configuration) {
   }
 
   function ownKeysHandlerObject(target, key) { // Not inherited?
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.ownKeys.apply(
-        forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.ownKeys.apply(
+        twinHandler, [twinHandler.target, key]);
     }
 
     if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
@@ -2062,10 +2062,10 @@ function createWorld(configuration) {
   }
 
   function hasHandlerObject(target, key) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.has.apply(
-        forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.has.apply(
+        twinHandler, [twinHandler.target, key]);
     }
 
     if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
@@ -2080,10 +2080,10 @@ function createWorld(configuration) {
   }
 
   function definePropertyHandlerObject(target, key, descriptor) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.defineProperty.apply(
-        forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.defineProperty.apply(
+        twinHandler, [twinHandler.target, key]);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
@@ -2095,10 +2095,10 @@ function createWorld(configuration) {
   }
 
   function getOwnPropertyDescriptorHandlerObject(target, key) {
-    if (this.meta.forwardTo !== null) {
-      let forwardToHandler = this.meta.forwardTo[objectMetaProperty].handler;
-      return forwardToHandler.getOwnPropertyDescriptor
-        .apply(forwardToHandler, [forwardToHandler.target, key]);
+    if (this.meta.rebuildTwin !== null) {
+      let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
+      return twinHandler.getOwnPropertyDescriptor
+        .apply(twinHandler, [twinHandler.target, key]);
     }
 
     if (onReadGlobal && !onReadGlobal(this, target, key)) { //Used for ensureInitialized, registerActivity & canRead
@@ -2205,13 +2205,13 @@ function createWorld(configuration) {
       world: world,
       id: "not yet", // Wait for rebuild analysis
       buildId : buildId,
-      forwardTo : null,
+      rebuildTwin : null,
       target: target,
       handler : handler,
       proxy : proxy,
 
       // Here to avoid prevent events being sent to objects being rebuilt.
-      isBeingRebuilt: false,
+      isRebuildTwin: false,
     };
 
     if (!(target instanceof Array)) {
@@ -2241,10 +2241,10 @@ function createWorld(configuration) {
           ) {
 
           // Build identity previously created
-          handler.meta.isBeingRebuilt = true;
+          handler.meta.isRebuildTwin = true;
           let establishedObject = repeater.buildIdObjectMap[buildId];
-          establishedObject[objectMetaProperty].forwardTo = proxy;
-          if (repeater.options.rebuildShapeAnalysis) handler.meta.copyTo = establishedObject;
+          establishedObject[objectMetaProperty].rebuildTwin = proxy;
+          if (repeater.options.rebuildShapeAnalysis) handler.meta.establishedOriginal = establishedObject;
           
           handler.meta.id = "temp-" + state.nextTempObjectId++;
           repeater.newBuildIdObjectMap[buildId] = establishedObject;
@@ -2368,7 +2368,7 @@ function createWorld(configuration) {
     event.object = handler.meta.proxy;
     event.objectId = handler.meta.id;
 
-    if (!emitReBuildEvents && handler.meta.isBeingRebuilt) {
+    if (!emitReBuildEvents && handler.meta.isRebuildTwin) {
       return;
     }
 
@@ -3055,7 +3055,7 @@ function createWorld(configuration) {
   // rerun even gets as far as noticing the child is gone. If the child is
   // also being dropped from the tree in this same rerun, finalizeChildren
   // only ever reaches it once whatever renders it next actually reruns -
-  // which the heap can easily get to *after* the child's own stale,
+  // which the sortedQueue can easily get to *after* the child's own stale,
   // already-scheduled rerun. Retracting it here instead, the moment its
   // build identity is known to have vanished (see finishRebuilding()'s
   // dispose-event branch, and Component.onDispose()), is what makes the
@@ -3070,7 +3070,7 @@ function createWorld(configuration) {
     // was ever claimed, since it never reran) is genuinely gone.
     finalizeStaleWritings(node);
     // Pure hygiene, not a correctness requirement - a disposed/
-    // retracted repeater found sitting in a heap is already
+    // retracted repeater found sitting in a sortedQueue is already
     // unconditionally discarded regardless of workStatus (see
     // drainActivePipeline()), but there's no reason to leave a
     // dangling workStatus/flagRecords around on something that will
@@ -3109,11 +3109,11 @@ function createWorld(configuration) {
       // This repeater's own *first* partial of its current/latest run -
       // set fresh every refresh() (see there), never left pointing at a
       // stale object across reruns. The position used for this repeater's
-      // own heap entry (see "Repeater scheduling" below) - has to be the
+      // own sortedQueue entry (see "Repeater scheduling" below) - has to be the
       // first partial, not rightmostPartial: a child's first partial is
       // always created strictly after its parent's own first partial
       // begins (the parent's own action is what creates the child), so
-      // first-partial ordering guarantees a parent's heap entry always
+      // first-partial ordering guarantees a parent's sortedQueue entry always
       // sorts before any of its descendants' - exactly what makes the
       // lazy-pruning discard in drainActivePipeline() correct.
       // rightmostPartial has the opposite property (by construction it's
@@ -3188,11 +3188,11 @@ function createWorld(configuration) {
       // Two separate dedup flags, for the two different places a repeater
       // can be waiting in the scheduler - see scheduleWork(). A root
       // repeater (parentRepeater === null) only ever uses inATimeBucket;
-      // inHeap stays false for it forever, since a root never enters a
-      // heap (see drainActivePipeline() - it's always checked directly
+      // inSortedQueue stays false for it forever, since a root never enters a
+      // sortedQueue (see drainActivePipeline() - it's always checked directly
       // instead, being unconditionally the earliest position in its own
-      // pipeline). A nested repeater only ever uses inHeap.
-      inHeap: false,
+      // pipeline). A nested repeater only ever uses inSortedQueue.
+      inSortedQueue: false,
       inATimeBucket: false,
       nextToNotify: null,
       repeaterAction,
@@ -3261,10 +3261,10 @@ function createWorld(configuration) {
       // },
       dispose() {
         // No explicit removal from the scheduler needed here (unlike the
-        // old detatchRepeater() this replaced) - workStatus/inHeap/
+        // old detatchRepeater() this replaced) - workStatus/inSortedQueue/
         // inATimeBucket are what track "is this repeater scheduled" now,
         // not list membership toggled from inside dispose(), and a
-        // disposed-or-retracted repeater found sitting in a heap gets
+        // disposed-or-retracted repeater found sitting in a sortedQueue gets
         // discarded for free at pop time (see drainActivePipeline()).
         // Idempotent: a repeater already sitting dirty (e.g. through a
         // legitimate dependency invalidation) can also be reached directly
@@ -3368,7 +3368,7 @@ function createWorld(configuration) {
           // mis-attributed to this defunct position, corrupting completely
           // unrelated components' own reconciliation (a component's
           // render() or build() throwing is the common real-world trigger -
-          // see cascade.DOM/src/test/domNodeComponent.js). Unwind back to
+          // see cascade.DOM/src/test/singleNodeComponent.js). Unwind back to
           // wherever this repeater's own context was entered from, the
           // same as the success path eventually does (just immediately,
           // not after finalizeTouchedStaleWritings/finalizeChildren/
@@ -3550,8 +3550,8 @@ function createWorld(configuration) {
     let anyMatch = false;
 
     function setAsMatch(establishedObject, newObject) {
-      establishedObject[objectMetaProperty].forwardTo = newObject;
-      newObject[objectMetaProperty].copyTo = establishedObject;
+      establishedObject[objectMetaProperty].rebuildTwin = newObject;
+      newObject[objectMetaProperty].establishedOriginal = establishedObject;
       // Not created after all - recreated.
       delete newObject[objectMetaProperty].pendingCreationEvent;
       delete newObject[objectMetaProperty].pendingOnEstablishCall;
@@ -3575,7 +3575,7 @@ function createWorld(configuration) {
       }
       const established = shape.object;
       if (hasBuildId(value) || hasBuildId(established)) return;
-      if (established[objectMetaProperty].forwardTo !== null) return; // Matched already.
+      if (established[objectMetaProperty].rebuildTwin !== null) return; // Matched already.
       if (Object.getPrototypeOf(value) !== shape.prototype) return;
       if (shapeSignature(shapeAnalysis, value) !== shape.signature) return;
       setAsMatch(established, value);
@@ -3675,8 +3675,8 @@ function createWorld(configuration) {
       if (Object.isFrozen(reference)) Object.freeze(translated);
       return translated;
     }
-    if (isObservable(reference) && reference[objectMetaProperty].copyTo) {
-      return reference[objectMetaProperty].copyTo;
+    if (isObservable(reference) && reference[objectMetaProperty].establishedOriginal) {
+      return reference[objectMetaProperty].establishedOriginal;
     }
     return reference;
   }
@@ -3702,7 +3702,7 @@ function createWorld(configuration) {
         // constructed, now refers to the established one.
         for (let id in repeater.newIdObjectShapeMap) {
           const object = repeater.newIdObjectShapeMap[id];
-          const temporaryObject = object[objectMetaProperty].forwardTo;
+          const temporaryObject = object[objectMetaProperty].rebuildTwin;
           const holder = temporaryObject ? temporaryObject : object;
           const target = holder[objectMetaProperty].target;
           const handler = holder[objectMetaProperty].handler;
@@ -3734,11 +3734,11 @@ function createWorld(configuration) {
       // their established objects.
       for(let id in repeater.newIdObjectShapeMap) {
         let object = repeater.newIdObjectShapeMap[id];
-        const temporaryObject = object[objectMetaProperty].forwardTo;
+        const temporaryObject = object[objectMetaProperty].rebuildTwin;
         if (temporaryObject) {
-          temporaryObject[objectMetaProperty].copyTo = null;
-          temporaryObject[objectMetaProperty].isBeingRebuilt = false;
-          object[objectMetaProperty].forwardTo = null;
+          temporaryObject[objectMetaProperty].establishedOriginal = null;
+          temporaryObject[objectMetaProperty].isRebuildTwin = false;
+          object[objectMetaProperty].rebuildTwin = null;
           mergeInto(object, temporaryObject);
 
           // Send recreate event (for a match by shape - one by build id
@@ -3778,12 +3778,12 @@ function createWorld(configuration) {
       // Merge those with build ids. 
       for (let buildId in repeater.newBuildIdObjectMap) {
         let created = repeater.newBuildIdObjectMap[buildId];
-        const temporaryObject = created[objectMetaProperty].forwardTo;
+        const temporaryObject = created[objectMetaProperty].rebuildTwin;
         if (temporaryObject !== null) {
           // Push changes to established object.
-          created[objectMetaProperty].forwardTo = null;
-          // created[objectMetaProperty].isBeingRebuilt = false; // Consider? Should this be done on 
-          temporaryObject[objectMetaProperty].isBeingRebuilt = false; 
+          created[objectMetaProperty].rebuildTwin = null;
+          // created[objectMetaProperty].isRebuildTwin = false; // Consider? Should this be done on 
+          temporaryObject[objectMetaProperty].isRebuildTwin = false; 
           mergeInto(created, temporaryObject);
         } else {
           establish(created);
@@ -3849,12 +3849,12 @@ function createWorld(configuration) {
     // Note: We cannot throw error if no build id, as this might be called externally with non-build id objects
     // Note: This might be inside the first run, so we cannot assume a temporary object. 
     // Note: We cannot make any sensible test if we are in a repeater, since we do not know the identity of the repeater anyway 
-    const temporaryObject = object[objectMetaProperty].forwardTo;
+    const temporaryObject = object[objectMetaProperty].rebuildTwin;
     if (temporaryObject !== null) {
       
       // A re-build, push changes to established object.
-      object[objectMetaProperty].forwardTo = null;
-      temporaryObject[objectMetaProperty].isBeingRebuilt = false; 
+      object[objectMetaProperty].rebuildTwin = null;
+      temporaryObject[objectMetaProperty].isRebuildTwin = false; 
       mergeInto(object, temporaryObject);
 
       
@@ -3949,11 +3949,11 @@ function createWorld(configuration) {
   // a checkpoint for resolving anything either: whether oldRepeater is
   // dirty, flagged, or clean, that's settled entirely by
   // drainActivePipeline()'s own position-ordered walk of its pipeline's
-  // heap, not by however a parent's own execution happens to reach it.
+  // sortedQueue, not by however a parent's own execution happens to reach it.
   // That walk already guarantees a repeater is always processed relative
   // to everything else at the correct position - a child's firstPartial
   // is always later than its parent's (the parent's own execution is what
-  // creates the child), so the heap alone puts every repeater in the
+  // creates the child), so the sortedQueue alone puts every repeater in the
   // right order without linkRepeater needing to do anything about it. If
   // oldRepeater is (now, or already) dirty or flagged, cascade's own
   // scheduler refreshes/resolves it on its own schedule, independent of
@@ -3964,23 +3964,23 @@ function createWorld(configuration) {
   // primitive.
   // Pure reattachment as far as a genuinely *invalid* oldRepeater is
   // concerned - cascade's own scheduler refreshes it on its own schedule
-  // (via the heap), independent of when this is called, exactly as
+  // (via the sortedQueue), independent of when this is called, exactly as
   // documented below. But a merely *flagged* one is different: this is
   // the wavefront genuinely arriving at oldRepeater's own position (its
   // parent's execution reaching this exact call is what "the wavefront
   // reaches here" means), and it may be the *only* place that arrival is
-  // ever detected - draining the heap only happens after the whole
+  // ever detected - draining the sortedQueue only happens after the whole
   // *root's* refresh() already returns, which is too late if the parent's
   // own later code (right after this call) needs to see the effect of
   // resolving oldRepeater's flag (see renderOnto.js's case 1: the
   // "after" write needs a flagged sibling's writing already retracted,
   // not still linked, and that can only happen if the flag is resolved
-  // right here, inline, not deferred to the heap). So a flagged
+  // right here, inline, not deferred to the sortedQueue). So a flagged
   // oldRepeater is resolved on the spot, via the same processRepeater()
-  // the heap itself uses - if that finds a genuine change, it calls
+  // the sortedQueue itself uses - if that finds a genuine change, it calls
   // invalidateRepeater() (dispose() runs immediately; the repeater's own
-  // *refresh* is left for the heap to pick up later, same as ever - see
-  // scheduleWork()'s own inHeap dedup, which naturally lets this happen
+  // *refresh* is left for the sortedQueue to pick up later, same as ever - see
+  // scheduleWork()'s own inSortedQueue dedup, which naturally lets this happen
   // without double-scheduling).
   function linkRepeater(oldRepeater) {
     if (oldRepeater.workStatus === 'flagged') {
@@ -4001,29 +4001,29 @@ function createWorld(configuration) {
    *  (its chainHead), not an individual repeater - "a pipeline is really
    *  just an invalidated repeater from the outside". A pipeline's own
    *  internal work - which of its repeaters actually need attention - is
-   *  tracked on the chainHead itself: `heap` (position-ordered, by each
-   *  repeater's firstPartial), `parkedPartials` (repeaters that arrived
+   *  tracked on the chainHead itself: `sortedQueue` (position-ordered, by each
+   *  repeater's firstPartial), `parkedRepeaters` (repeaters that arrived
    *  behind this pipeline's own wavefront this wave, waiting for the
    *  next), and `wavefront` (how far this pipeline has gotten, this
    *  active session).
    *
-   *  Only repeaters ever occupy a heap/parkedPartials slot - a partial
+   *  Only repeaters ever occupy a sortedQueue/parkedRepeaters slot - a partial
    *  can never usefully run on its own, so a flagged *reading* (tracked
    *  per-entry, on repeater.flagRecords) always resolves to "does the
    *  whole owning repeater need to rerun", never to running a partial in
    *  isolation. And the pipeline's own root repeater never occupies a
-   *  heap slot either - nothing can have an earlier position than the
+   *  sortedQueue slot either - nothing can have an earlier position than the
    *  thing that created everything else in its own tree, so
    *  drainActivePipeline() checks it directly, unconditionally, before
-   *  ever touching the heap.
+   *  ever touching the sortedQueue.
    *
    *  Each repeater carries workStatus (null | 'invalid' | 'flagged') -
    *  'invalid' always wins and is never downgraded back to 'flagged' (see
    *  flagRepeaterEntry()) - plus two separate dedup flags for the two
-   *  different places a repeater can be waiting: inHeap for a nested
-   *  repeater sitting in its chainHead's heap, inATimeBucket for a root
+   *  different places a repeater can be waiting: inSortedQueue for a nested
+   *  repeater sitting in its chainHead's sortedQueue, inATimeBucket for a root
    *  repeater whose chainHead is sitting in a workQueue bucket. A root
-   *  repeater's own inHeap stays false forever - it never enters a heap -
+   *  repeater's own inSortedQueue stays false forever - it never enters a sortedQueue -
    *  so anything that needs "is this repeater already scheduled" has to
    *  ask the right one of the two, not assume either applies uniformly.
    *
@@ -4032,11 +4032,11 @@ function createWorld(configuration) {
    *  currently being drained, at or before wherever it's already gotten
    *  to (the back-reference case: something later just wrote to
    *  something earlier); and new work arriving for a pipeline that's
-   *  merely sitting *parked* (its own heap emptied this wave, but it's
-   *  still waiting on leftover parkedPartials) - even if the new work is
+   *  merely sitting *parked* (its own sortedQueue emptied this wave, but it's
+   *  still waiting on leftover parkedRepeaters) - even if the new work is
    *  entirely unrelated to why it was parked, it still waits for the same
    *  next wave, no early reactivation. Either way it goes into
-   *  parkedPartials, not the heap - waves move strictly forward, and
+   *  parkedRepeaters, not the sortedQueue - waves move strictly forward, and
    *  nothing is allowed to make one backtrack.
    *
    *  ...except flush() (see there), the one deliberate escape hatch: while
@@ -4049,24 +4049,24 @@ function createWorld(configuration) {
    *
    ***************************************************************/
 
-  // A stand-in for a real heap, given how small a pipeline's own pending
+  // A stand-in for a real sortedQueue, given how small a pipeline's own pending
   // work is expected to be in practice - a plain array kept sorted by
   // each repeater's firstPartial, compared live via compareWriterOrder
   // (never a cached order number - see createChainHead()'s own comment on
   // why that matters once releaseChainPressure can renumber neighbors out
-  // from under a stored value). Worth revisiting with an actual heap if a
-  // pipeline's own heap ever turns out to hold enough repeaters at once
+  // from under a stored value). Worth revisiting with an actual sortedQueue if a
+  // pipeline's own sortedQueue ever turns out to hold enough repeaters at once
   // for the O(n) insert/pop here to matter.
-  function heapInsert(heap, repeater) {
-    let i = heap.length;
-    while (i > 0 && compareWriterOrder(heap[i - 1].firstPartial, repeater.firstPartial) > 0) {
+  function sortedQueueInsert(sortedQueue, repeater) {
+    let i = sortedQueue.length;
+    while (i > 0 && compareWriterOrder(sortedQueue[i - 1].firstPartial, repeater.firstPartial) > 0) {
       i--;
     }
-    heap.splice(i, 0, repeater);
+    sortedQueue.splice(i, 0, repeater);
   }
 
-  function heapPopMin(heap) {
-    return heap.shift();
+  function sortedQueuePopMin(sortedQueue) {
+    return sortedQueue.shift();
   }
 
   function appendToLevelList(chainHead, level, which) {
@@ -4188,8 +4188,8 @@ function createWorld(configuration) {
       ensurePipelineActiveOrParked(chainHead);
       return;
     }
-    if (repeater.inHeap) return;
-    repeater.inHeap = true;
+    if (repeater.inSortedQueue) return;
+    repeater.inSortedQueue = true;
     ensurePipelineActiveOrParked(chainHead);
     const withinActivePipeline = chainHead === state.activePipeline;
     const behindWavefront = withinActivePipeline
@@ -4198,16 +4198,16 @@ function createWorld(configuration) {
     // flush(): a back-reference within the pipeline currently being
     // drained would normally park until the next wave - reprocess it
     // within this same wave instead. No need to actually move
-    // chainHead.wavefront back for this: heapInsert already places the
-    // repeater at its correct position, so the heap-loop's next pop picks
+    // chainHead.wavefront back for this: sortedQueueInsert already places the
+    // repeater at its correct position, so the sortedQueue-loop's next pop picks
     // it up in order regardless of where wavefront currently sits.
     if (behindWavefront && withinActivePipeline && state.flushing > 0) {
       state.waveRetreated = true;
-      heapInsert(chainHead.heap, repeater);
+      sortedQueueInsert(chainHead.sortedQueue, repeater);
     } else if (behindWavefront) {
-      chainHead.parkedPartials.push(repeater);
+      chainHead.parkedRepeaters.push(repeater);
     } else {
-      heapInsert(chainHead.heap, repeater);
+      sortedQueueInsert(chainHead.sortedQueue, repeater);
     }
   }
 
@@ -4273,7 +4273,7 @@ function createWorld(configuration) {
   // Called only from processRepeater() - reached either opportunistically,
   // via linkRepeater() the instant its parent's own execution arrives at
   // repeater's position, or later via drainActivePipeline()'s own
-  // position-ordered walk of its pipeline's heap - which has already
+  // position-ordered walk of its pipeline's sortedQueue - which has already
   // confirmed repeater.workStatus === 'flagged', meaning nothing has
   // invalidated this repeater for real since it was flagged
   // (invalidateRepeater() always wins over a mere flag and is never
@@ -4487,8 +4487,8 @@ function createWorld(configuration) {
   // rerun changes will mark exactly what needs attention through the
   // ordinary invalidation/migration/flagging path, same as ever; this
   // pipeline's own already-completed work is left untouched, not
-  // discarded. heap/parkedPartials already hold exactly the repeaters
-  // known to need it, so folding parkedPartials into heap and handing the
+  // discarded. sortedQueue/parkedRepeaters already hold exactly the repeaters
+  // known to need it, so folding parkedRepeaters into sortedQueue and handing the
   // whole pipeline back - at the front of its own level's bucket, so it
   // resumes before anything else waiting there - is all that's needed.
   //
@@ -4501,8 +4501,8 @@ function createWorld(configuration) {
     if (!state.waveRetreated) return false;
     state.waveRetreated = false;
     if (state.workQueueTimeLock >= chainHead.time - 1) return false;
-    chainHead.parkedPartials.forEach((r) => heapInsert(chainHead.heap, r));
-    chainHead.parkedPartials = [];
+    chainHead.parkedRepeaters.forEach((r) => sortedQueueInsert(chainHead.sortedQueue, r));
+    chainHead.parkedRepeaters = [];
     chainHead.wavefront = null;
     state.activePipeline = null;
     prependToLevelList(chainHead, chainHead.time, 'active');
@@ -4515,7 +4515,7 @@ function createWorld(configuration) {
   // handing it over): the root repeater first, unconditionally and
   // directly - nothing can have an earlier position than the thing that
   // created everything else in its own tree, so there's no need to pay
-  // for a heap comparison to know it goes first - then the heap itself,
+  // for a sortedQueue comparison to know it goes first - then the sortedQueue itself,
   // strictly in position order, advancing chainHead.wavefront as it goes
   // so scheduleWork() can correctly tell newly-arising work apart into
   // "ahead, process it this wave" vs "behind, park it for the next".
@@ -4531,7 +4531,7 @@ function createWorld(configuration) {
     // get left set and parked for yet another wave. wavefront is
     // deliberately left untouched here (not reset to reflect the root) -
     // the root is always position-zero, so it never advances the
-    // wavefront; only real heap items do, below.
+    // wavefront; only real sortedQueue items do, below.
     //
     // Cleared up front as well as inside the loop: the root may have been
     // brought up to date out of band (refreshIfNeeded()) after its
@@ -4545,9 +4545,9 @@ function createWorld(configuration) {
       if (checkWaveRetreat(chainHead)) return;
     }
 
-    while (chainHead.heap.length > 0) {
-      const repeater = heapPopMin(chainHead.heap);
-      repeater.inHeap = false;
+    while (chainHead.sortedQueue.length > 0) {
+      const repeater = sortedQueuePopMin(chainHead.sortedQueue);
+      repeater.inSortedQueue = false;
       if (repeater.retracted) continue; // gone since it was queued
       if (repeater.workStatus === null) continue; // the lazy-pruning discard - an ancestor's own refresh already reached and handled it
       chainHead.wavefront = repeater.firstPartial;
@@ -4558,15 +4558,15 @@ function createWorld(configuration) {
     state.activePipeline = null;
     // Whatever's still pending - root re-flagged/re-invalidated mid-drain
     // (a back-reference targeting the root itself, which never goes
-    // through parkedPartials - see scheduleWork()'s own root branch), or
-    // genuine parkedPartials content - means this pipeline isn't done for
+    // through parkedRepeaters - see scheduleWork()'s own root branch), or
+    // genuine parkedRepeaters content - means this pipeline isn't done for
     // this wave; park it (unconditionally - not ensurePipelineActiveOrParked's
     // lock-relative decision, which would be wrong here: this pipeline's
     // own level is still the current, not-yet-locked one, so that
     // function would put it right back in `active`, findable again within
     // the very same wave).
     const rootStillPending = root.workStatus !== null;
-    if (chainHead.parkedPartials.length > 0 || rootStillPending) {
+    if (chainHead.parkedRepeaters.length > 0 || rootStillPending) {
       appendToLevelList(chainHead, chainHead.time, 'parked');
       chainHead.queueMembership = 'parked';
     }
@@ -4584,8 +4584,8 @@ function createWorld(configuration) {
   // it passes them, exactly like the old firstDirtyRepeater() did.
   // Reaching the end with nothing actionable doesn't necessarily mean
   // idle, though - some levels may hold parked-only pipelines (their own
-  // heap emptied this wave, but parkedPartials didn't) - so before giving
-  // up, fold every one of those back into action (parkedPartials -> heap,
+  // sortedQueue emptied this wave, but parkedRepeaters didn't) - so before giving
+  // up, fold every one of those back into action (parkedRepeaters -> sortedQueue,
   // moved from parked into active) and start a fresh wave
   // (workQueueTimeLock reset to -1) if that produced anything. Only once
   // that turns up nothing either is this genuinely idle.
@@ -4605,8 +4605,8 @@ function createWorld(configuration) {
       while (node !== null) {
         const next = node.nextQueued;
         unlinkFromLevelList(node, l, 'parked');
-        node.parkedPartials.forEach((r) => heapInsert(node.heap, r));
-        node.parkedPartials = [];
+        node.parkedRepeaters.forEach((r) => sortedQueueInsert(node.sortedQueue, r));
+        node.parkedRepeaters = [];
         appendToLevelList(node, l, 'active');
         node.queueMembership = 'active';
         foldedAny = true;
@@ -4643,7 +4643,7 @@ function createWorld(configuration) {
             const interrupted = state.activePipeline;
             state.activePipeline = null;
             if (interrupted !== null && interrupted.queueMembership === null
-              && (interrupted.heap.length > 0 || interrupted.parkedPartials.length > 0 || interrupted.rootRepeater.workStatus !== null)) {
+              && (interrupted.sortedQueue.length > 0 || interrupted.parkedRepeaters.length > 0 || interrupted.rootRepeater.workStatus !== null)) {
               prependToLevelList(interrupted, interrupted.time, 'active');
               interrupted.queueMembership = 'active';
             }

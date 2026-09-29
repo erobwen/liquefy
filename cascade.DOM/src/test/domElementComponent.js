@@ -229,7 +229,7 @@ describe("DOMElementComponent/HTMLTags (build()-composed real DOM elements)", fu
     // every Leaf inherits (rerunning each Leaf's build(), reusing its
     // existing real element throughout, per the test above), then add a
     // *new* Level as a later sibling of the existing one. Without
-    // DOMElementComponent.renderElement() reconfirming a reused element's
+    // DOMElementComponent.renderNode() reconfirming a reused element's
     // position on every render (not just on creation), the existing
     // Level's earlier write to target.lastChild gets silently retracted
     // the moment its own repeater is invalidated for that rerun - it never

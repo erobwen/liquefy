@@ -95,7 +95,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
     // Only meaningful while the container is in the page: hidden, nothing
     // has a position - it just places, and whatever was animating stops.
-    const animate = u.element.isConnected && u.hasRendered;
+    const animate = u.node.isConnected && u.hasRendered;
 
     // Where every tracked element (and every fading ghost) is drawn right
     // now, before anything changes - including the attribute/style updates
@@ -140,7 +140,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     } else {
       this.stopAll();
     }
-    u.hasRendered = u.element.isConnected;
+    u.hasRendered = u.node.isConnected;
     this.notifyPlaced(placedBefore);
   }
 
@@ -167,7 +167,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   removeAsGhosts(leaving, drawnAt, looks) {
     const u = this.unobservable;
     if (leaving.length === 0) return;
-    const root = u.element;
+    const root = u.node;
     if (root.ownerDocument.defaultView.getComputedStyle(root).position === "static") root.style.position = "relative";
     const rootRect = rectOf(root);
     for (const { element } of leaving) {

@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
-import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "../DOMNodeComponent.js";
 
 // Same toolbar/main-frame shape as cascade.component's own vertical-slice
 // test, but rendering real DOM elements this time - proving the mechanism
@@ -18,13 +18,13 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     container = document.createElement("div");
   });
 
-  class Toolbar extends DOMNodeRenderComponent {
+  class Toolbar extends DOMNodeComponent {
     constructor(label) {
       super();
       this.label = label;
     }
 
-    renderElement(target, existingElement) {
+    renderNode(target, existingElement) {
       const el = existingElement || target.appendElement("div");
       el.className = "toolbar";
       el.textContent = this.label;
@@ -32,22 +32,22 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     }
   }
 
-  class ContentArea extends DOMNodeRenderComponent {
-    renderElement(target, existingElement) {
+  class ContentArea extends DOMNodeComponent {
+    renderNode(target, existingElement) {
       const el = existingElement || target.appendElement("div");
       el.className = "content";
       return el;
     }
   }
 
-  class MainFrame extends DOMNodeRenderComponent {
+  class MainFrame extends DOMNodeComponent {
     constructor(toolbar, contentArea) {
       super();
       this.toolbar = toolbar;
       this.contentArea = contentArea;
     }
 
-    renderElement(target, existingElement) {
+    renderNode(target, existingElement) {
       const u = this.unobservable;
       const el = existingElement || target.appendElement("div");
       el.className = "main-frame";
@@ -77,8 +77,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const frameElement = container.children[0];
     assert.equal(frameElement.className, "main-frame");
     assert.equal(frameElement.children.length, 2);
-    assert.equal(frameElement.children[0], toolbar.unobservable.element);
-    assert.equal(frameElement.children[1], contentArea.unobservable.element);
+    assert.equal(frameElement.children[0], toolbar.unobservable.node);
+    assert.equal(frameElement.children[1], contentArea.unobservable.node);
     assert.equal(frameElement.children[0].className, "toolbar");
     assert.equal(frameElement.children[0].textContent, "Toolbar");
     assert.equal(frameElement.children[1].className, "content");
@@ -91,8 +91,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(root);
 
-    const originalFrameElement = mainFrame.unobservable.element;
-    const originalToolbarElement = toolbar.unobservable.element;
+    const originalFrameElement = mainFrame.unobservable.node;
+    const originalToolbarElement = toolbar.unobservable.node;
 
     mainFrame.unobservable.repeater.restart();
 
@@ -109,14 +109,14 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(root);
 
-    const frameElement = mainFrame.unobservable.element;
-    const originalContentElement = contentArea.unobservable.element;
+    const frameElement = mainFrame.unobservable.node;
+    const originalContentElement = contentArea.unobservable.node;
 
     toolbar.label = "Toolbar v2"; // toolbar's own input changes
 
     assert.equal(frameElement.children.length, 2); // still exactly 2, no duplicate
     assert.equal(frameElement.children[0].textContent, "Toolbar v2"); // replaced in place
-    assert.equal(frameElement.children[0], toolbar.unobservable.element);
+    assert.equal(frameElement.children[0], toolbar.unobservable.node);
     assert.equal(frameElement.children[1], originalContentElement); // content area untouched, same element
   });
 
@@ -126,8 +126,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
 
     let seenSpaceLeft;
     let renderCount = 0;
-    class MeasuringContentArea extends DOMNodeRenderComponent {
-      renderElement(target, existingElement) {
+    class MeasuringContentArea extends DOMNodeComponent {
+      renderNode(target, existingElement) {
         renderCount++;
         seenSpaceLeft = target.spaceLeft;
         const el = existingElement || target.appendElement("div");
@@ -137,14 +137,14 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     }
     const contentArea = new MeasuringContentArea();
 
-    class MeasuringMainFrame extends DOMNodeRenderComponent {
+    class MeasuringMainFrame extends DOMNodeComponent {
       constructor(toolbar, contentArea) {
         super();
         this.toolbar = toolbar;
         this.contentArea = contentArea;
       }
 
-      renderElement(target, existingElement) {
+      renderNode(target, existingElement) {
         const u = this.unobservable;
         const el = existingElement || target.appendElement("div");
         el.className = "main-frame";
@@ -202,7 +202,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
 
     // b is already target.lastChild, already last - reconfirming it (the
     // way a rerun that reuses its element, but didn't move it, still does
-    // every time - see DOMElementComponent.renderElement()'s own comment) must
+    // every time - see DOMElementComponent.renderNode()'s own comment) must
     // not move it again.
     target.reattachElement(b);
     assert.equal(moveCount, 0, "b was already exactly where it belongs");
@@ -229,11 +229,11 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     // positions itself relative to whatever actually ran immediately before
     // it, and now correctly re-examines that reading whenever its own
     // position (not just its own value) has genuinely changed.
-    class Leaf extends DOMNodeRenderComponent {
+    class Leaf extends DOMNodeComponent {
       setProperties({ label }) {
         this.label = label;
       }
-      renderElement(target, existingElement) {
+      renderNode(target, existingElement) {
         const element = existingElement || target.appendElement("div");
         if (existingElement) target.reattachElement(existingElement);
         element.textContent = this.label;
@@ -284,12 +284,12 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     // Same shape as the test above, but each Leaf's own displayed value
     // also genuinely changes on every pass. Proves the fix holds up across
     // repeated reorders, not just a single flip and flip-back.
-    class Leaf extends DOMNodeRenderComponent {
+    class Leaf extends DOMNodeComponent {
       setProperties({ label, value }) {
         this.label = label;
         this.value = value;
       }
-      renderElement(target, existingElement) {
+      renderNode(target, existingElement) {
         const element = existingElement || target.appendElement("div");
         if (existingElement) target.reattachElement(existingElement);
         element.textContent = this.label + ":" + this.value;
@@ -357,12 +357,12 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     // unlinks regardless of which object it was actually setting a
     // property on - see cascade.component's own README.md on properties vs.
     // state, and this file's own git history).
-    class Cell extends DOMNodeRenderComponent {
+    class Cell extends DOMNodeComponent {
       setProperties({ row, col }) {
         this.row = row;
         this.col = col;
       }
-      renderElement(target, existingElement) {
+      renderNode(target, existingElement) {
         const key = `r${this.row}c${this.col}`;
         renderCounts[key] = (renderCounts[key] || 0) + 1;
         const element = existingElement || target.appendElement("div");

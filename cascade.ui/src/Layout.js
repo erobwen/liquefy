@@ -38,7 +38,7 @@ import { div } from "@liquefy/cascade.dom";
  * hook yet (setProperties() has no special case for it, so passing one
  * through today would just land as a meaningless "componenttypename" DOM
  * attribute instead). Every element built here still gets a real, unique
- * debug id from DOMNodeRenderComponent's own aggregateToString() fallback
+ * debug id from DOMNodeComponent's own aggregateToString() fallback
  * (this.constructor.name-based) - just not one that says "row" vs "column".
  */
 

@@ -467,7 +467,7 @@ Explicitly deferred, not needed by any concrete case yet:
 **Since this doc was written**, a substantial amount of further work
 landed on top of everything below - excessive-invalidation avoidance
 across a broken reconciliation, deferred ("flagged") invalidation for
-tree-ordered readers, and a full pipeline/heap/wavefront scheduler
+tree-ordered readers, and a full pipeline/sortedQueue/wavefront scheduler
 replacing the flat dirty-repeater queue this doc's own step 6 still
 describes. See `docs/plan-flagged-scheduling.md` for all of that; nothing
 below this point has been rewritten to match it, since it remains an

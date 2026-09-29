@@ -1,7 +1,7 @@
 import { Component, aggregateToString } from "@liquefy/cascade.component";
 
 /**
- * DOMNodeRenderComponent: a cascade.component Component whose render(target, context) owns
+ * DOMNodeComponent: a cascade.component Component whose render(target, context) owns
  * exactly one real DOM element, reused (not recreated) across reruns.
  *
  * A rerun's own reactive reads/writes get reconciled automatically by
@@ -12,16 +12,16 @@ import { Component, aggregateToString } from "@liquefy/cascade.component";
  * from under them, any child that was merely *relinked* rather than
  * rerun (its own inputs unchanged - the common case) would still be
  * parented under the old, now-detached element, since relinking never
- * re-executes render(). So renderElement() is always handed this
+ * re-executes render(). So renderNode() is always handed this
  * component's own previous element (or null, first time) and decides for
  * itself whether to reuse it (patch attributes/content in place - the
  * usual case) or make a new one (e.g. its tag needs to change).
  */
-export class DOMNodeRenderComponent extends Component {
+export class DOMNodeComponent extends Component {
   render(target, context) {
     const u = this.unobservable;
-    const wasFresh = !u.element;
-    u.element = this.renderElement(target, u.element || null);
+    const wasFresh = !u.node;
+    u.node = this.renderNode(target, u.node || null);
     // Ported from flow.DOM's own DOMNode.js (ensureDomNodeExists()'s
     // domNode.id = aggregateToString(this)) - a real DOM element's own
     // debug identity: open DevTools, click an element, read its id, and
@@ -33,8 +33,8 @@ export class DOMNodeRenderComponent extends Component {
     // all) - reusing an existing one never touches it again, same as
     // flow's own version never re-derives it on a later rerun either.
     // Unconditional, no debug-mode flag, matching flow's own choice.
-    if (wasFresh && u.element && u.element.nodeType === 1 && !u.element.id) {
-      u.element.id = aggregateToString(this);
+    if (wasFresh && u.node && u.node.nodeType === 1 && !u.node.id) {
+      u.node.id = aggregateToString(this);
     }
   }
 
@@ -45,21 +45,21 @@ export class DOMNodeRenderComponent extends Component {
   //    placing it anywhere. That makes it a component that provides its node
   //    (see providesNode()): something a component placing nodes itself
   //    (cascade.dom's FlipAnimationContainer) can use directly. Ordinary rendering then
-  //    just places the node (the default renderElement() below), so the
+  //    just places the node (the default renderNode() below), so the
   //    component itself never knows which of the two it's in.
-  //  - renderElement(target, existingElement) - do both at once, however
+  //  - renderNode(target, existingElement) - do both at once, however
   //    it likes (measuring, owning a target for its children, ...). Such a
   //    component can only be rendered, never placed by someone else.
   //
-  // ensureNode() keeps unobservable.element up to date itself.
+  // ensureNode() keeps unobservable.node up to date itself.
   ensureNode() {
-    throw new Error(this.constructor.name + " must implement ensureNode() or renderElement(target, existingElement)");
+    throw new Error(this.constructor.name + " must implement ensureNode() or renderNode(target, existingElement)");
   }
 
   // Whether this component can hand over its node without being rendered
   // - it implements ensureNode().
   providesNode() {
-    return this.ensureNode !== DOMNodeRenderComponent.prototype.ensureNode;
+    return this.ensureNode !== DOMNodeComponent.prototype.ensureNode;
   }
 
   // For a component that sets a new element's own debug id itself (see
@@ -81,7 +81,7 @@ export class DOMNodeRenderComponent extends Component {
   // the baseline and be inserted before this node instead of after it.
   // reattachElement() itself skips the real DOM move when the node is
   // already exactly where it belongs.
-  renderElement(target, existingElement) {
+  renderNode(target, existingElement) {
     const node = this.ensureNode();
     target.reattachElement(node);
     return node;
@@ -95,7 +95,7 @@ export class DOMNodeRenderComponent extends Component {
   // on the reactive side while its element just sits there, orphaned,
   // still fully attached to the DOM.
   onRetract() {
-    if (this.unobservable.element) this.unobservable.element.remove();
+    if (this.unobservable.node) this.unobservable.node.remove();
     super.onRetract();
   }
 
@@ -105,7 +105,7 @@ export class DOMNodeRenderComponent extends Component {
   // ever put the element back. Put it back at the current position, the
   // same way appendElement would for a brand new one.
   onReattach(target) {
-    if (this.unobservable.element) target.reattachElement(this.unobservable.element);
+    if (this.unobservable.node) target.reattachElement(this.unobservable.node);
     super.onReattach(target);
   }
 }

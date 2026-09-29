@@ -60,7 +60,7 @@ describe("DOMElementBoundsProvider", function () {
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ className: "bounds-provider", style: { width: "640px", height: "480px" }, child: probe });
     provider.renderOnto(new DOMElementTarget(container));
-    const element = provider.unobservable.element;
+    const element = provider.unobservable.node;
     assert.equal(container.querySelector(".bounds-provider"), element);
     assert.ok(FakeResizeObserver.observing(element));
     assert.equal(probe.unobservable.buildCount, 1);
@@ -102,7 +102,7 @@ describe("DOMElementBoundsProvider", function () {
     }
     const provider = new DOMElementBoundsProvider({ child: new Wrapped() });
     provider.renderOnto(new DOMElementTarget(container));
-    FakeResizeObserver.report(provider.unobservable.element, 640, 480);
+    FakeResizeObserver.report(provider.unobservable.node, 640, 480);
     assert.equal(probe.unobservable.lastWidth, undefined);
   });
 
@@ -118,7 +118,7 @@ describe("DOMElementBoundsProvider", function () {
     }
     const holder = new Holder();
     holder.renderOnto(new DOMElementTarget(container));
-    const element = () => holder.newBuild.unobservable.element;
+    const element = () => holder.newBuild.unobservable.node;
     FakeResizeObserver.report(element(), 300, 200);
     holder.color = "blue";
     assert.equal(element().style.color, "blue", "rendered again");
@@ -141,7 +141,7 @@ describe("DOMElementBoundsProvider", function () {
     }
     const frame = new Frame({ shown: true, child: new Probe() });
     frame.renderOnto(new DOMElementTarget(container));
-    const element = frame.newBuild.unobservable.element;
+    const element = frame.newBuild.unobservable.node;
     assert.ok(FakeResizeObserver.observing(element));
 
     frame.shown = false; // drops the keyed DOMElementBoundsProvider - disposed
@@ -154,7 +154,7 @@ describe("DOMElementBoundsProvider", function () {
     const provider = new DOMElementBoundsProvider({ style: { width: "200px", height: "100px" }, child: probe });
     provider.renderOnto(new DOMElementTarget(container));
     assert.equal(probe.unobservable.lastWidth, 200);
-    provider.unobservable.element.style.width = "150px";
+    provider.unobservable.node.style.width = "150px";
     dom.window.dispatchEvent(new dom.window.Event("resize"));
     assert.equal(probe.unobservable.lastWidth, 150);
   });

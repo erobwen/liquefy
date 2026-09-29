@@ -1,27 +1,27 @@
 import { extractProperty, locateService } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { defaultDOMServiceLocator } from "./DOMServiceLocator.js";
 
 /**
  * A real Text node, ported from flow.DOM/src/DOMTextNode.js's own role -
  * what a loose string/number child (see DOMElementComponent's own children
- * handling) gets wrapped into, so it's a real DOMNodeRenderComponent like any
+ * handling) gets wrapped into, so it's a real DOMNodeComponent like any
  * other child, not a bare JS value renderOnto() can't call anything on.
  */
-export class DOMTextComponent extends DOMNodeRenderComponent {
+export class DOMTextComponent extends DOMNodeComponent {
   setProperties(properties) {
     this.text = extractProperty(properties, "text");
   }
 
-  // Provides its node (see DOMNodeRenderComponent): its own Text node, created
-  // once, its data patched in place. Placed by the default renderElement()
+  // Provides its node (see DOMNodeComponent): its own Text node, created
+  // once, its data patched in place. Placed by the default renderNode()
   // when rendered, or by whoever places it otherwise.
   ensureNode() {
     const u = this.unobservable;
-    if (!u.element) u.element = document.createTextNode("");
+    if (!u.node) u.node = document.createTextNode("");
     const data = String(this.text);
-    if (u.element.data !== data) u.element.data = data;
-    return u.element;
+    if (u.node.data !== data) u.node.data = data;
+    return u.node;
   }
 }
 

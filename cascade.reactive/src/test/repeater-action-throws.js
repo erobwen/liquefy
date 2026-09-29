@@ -2,7 +2,7 @@ import { getWorld } from "../cascade.js";
 import assert from "assert";
 
 // Found via a cascade.component/cascade.DOM test that deliberately throws
-// from a component's render() (see cascade.DOM/src/test/domNodeComponent.js)
+// from a component's render() (see cascade.DOM/src/test/singleNodeComponent.js)
 // to check a build()-result guard: that alone was enough to break unrelated
 // later tests in the same process. Root cause was in repeater.refresh()
 // itself, not in Component.js (which has its own, separate try/finally

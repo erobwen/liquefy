@@ -1,5 +1,5 @@
 import { frozen, observable, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
@@ -9,7 +9,7 @@ export function contextContainer(...parameters) {
 }
 
 /**
- * DOMContextContainer: a real, styleable element (DOMNodeRenderComponent),
+ * DOMContextContainer: a real, styleable element (DOMNodeComponent),
  * whose sole further job is rendering its own `child` onto it - on a
  * target rooted at this element, so the child's own DOMElementTarget writes
  * (lastChild, appendElement/reattachElement) are scoped to it rather than to
@@ -33,7 +33,7 @@ export function contextContainer(...parameters) {
  * just "own a styled div, hand my child an extended context" - no bridging
  * of anything.
  */
-export class DOMContextContainer extends DOMNodeRenderComponent {
+export class DOMContextContainer extends DOMNodeComponent {
   setProperties({ child, style, context }) {
     this.child = child;
     this.style = frozen(style || null);
@@ -56,7 +56,7 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
     return result;
   }
 
-  renderElement(target, existingElement) {
+  renderNode(target, existingElement) {
     const element = existingElement || target.appendElement("div");
     if (existingElement) target.reattachElement(existingElement);
     const u = this.unobservable;
@@ -67,7 +67,7 @@ export class DOMContextContainer extends DOMNodeRenderComponent {
   render(target, context) {
     super.render(target, context);
     const u = this.unobservable;
-    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.element);
+    if (!u.innerTarget) u.innerTarget = DOMElementTarget.forElement(u.node);
     provideAtBaseline(u.provided, this.contextExtra);
     this.child.renderOnto(u.innerTarget, context);
   }

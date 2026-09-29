@@ -45,7 +45,7 @@ export class DoubleGauge extends Component {
     target.lastChild = second; // what's rendered next goes after both
   }
 
-  // Not rendered for a while (see DOMNodeRenderComponent, which does the
+  // Not rendered for a while (see DOMNodeComponent, which does the
   // same for one node): take the nodes out - and put them back, in place.
   onRetract() {
     this.unobservable.leftElement?.remove();

@@ -2,17 +2,17 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { Component, RenderContext } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
-import { DOMNodeComponent } from "../DOMNodeComponent.js";
+import { SingleNodeComponent } from "../SingleNodeComponent.js";
 import { div, p } from "../HTMLTags.js";
 import { text } from "../DOMTextComponent.js";
 
-// DOMNodeComponent (abstract) vs DOMNodeRenderComponent (the render-owning
+// SingleNodeComponent (abstract) vs DOMNodeComponent (the render-owning
 // base DOMElementComponent/DOMTextComponent/DOMContextContainer extend
 // directly): this one is for a build()-composed component that should still
 // count as "one real DOM node" to anything upstream - checked here, not
 // left to surface later as a mysterious failure wherever that guarantee was
 // assumed to hold.
-describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", function () {
+describe("SingleNodeComponent (abstract build()-composed real-node guarantee)", function () {
   let container;
 
   beforeEach(function () {
@@ -21,8 +21,8 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
     container = document.createElement("div");
   });
 
-  it("renders normally when build() returns exactly one DOMNodeRenderComponent", function () {
-    class Card extends DOMNodeComponent {
+  it("renders normally when build() returns exactly one DOMNodeComponent", function () {
+    class Card extends SingleNodeComponent {
       setProperties({ label }) {
         this.label = label;
       }
@@ -38,8 +38,8 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
     assert.equal(container.children[0].textContent, "hello");
   });
 
-  it("throws if build() returns an array instead of a single DOMNodeRenderComponent", function () {
-    class BrokenMultiple extends DOMNodeComponent {
+  it("throws if build() returns an array instead of a single DOMNodeComponent", function () {
+    class BrokenMultiple extends SingleNodeComponent {
       build() {
         return [div({ key: "a" }), div({ key: "b" })];
       }
@@ -48,12 +48,12 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
     const broken = new BrokenMultiple();
     assert.throws(
       () => broken.renderOnto(new DOMElementTarget(container)),
-      /BrokenMultiple\.build\(\) must return exactly one DOMNodeRenderComponent, not an array of 2/
+      /BrokenMultiple\.build\(\) must return exactly one DOMNodeComponent, not an array of 2/
     );
   });
 
   it("throws if build() returns null", function () {
-    class BrokenNull extends DOMNodeComponent {
+    class BrokenNull extends SingleNodeComponent {
       build() {
         return null;
       }
@@ -62,18 +62,18 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
     const broken = new BrokenNull();
     assert.throws(
       () => broken.renderOnto(new DOMElementTarget(container)),
-      /BrokenNull\.build\(\) must return exactly one DOMNodeRenderComponent, not null/
+      /BrokenNull\.build\(\) must return exactly one DOMNodeComponent, not null/
     );
   });
 
-  it("throws if build() returns an ordinary Component that isn't itself a DOMNodeRenderComponent", function () {
+  it("throws if build() returns an ordinary Component that isn't itself a DOMNodeComponent", function () {
     class NotARealNode extends Component {
       build() {
         return [];
       }
     }
 
-    class BrokenWrongType extends DOMNodeComponent {
+    class BrokenWrongType extends SingleNodeComponent {
       build() {
         return new NotARealNode();
       }
@@ -82,7 +82,7 @@ describe("DOMNodeComponent (abstract build()-composed real-node guarantee)", fun
     const broken = new BrokenWrongType();
     assert.throws(
       () => broken.renderOnto(new DOMElementTarget(container)),
-      /BrokenWrongType\.build\(\) must return exactly one DOMNodeRenderComponent, not NotARealNode/
+      /BrokenWrongType\.build\(\) must return exactly one DOMNodeComponent, not NotARealNode/
     );
   });
 });

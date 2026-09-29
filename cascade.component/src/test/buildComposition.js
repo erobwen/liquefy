@@ -163,21 +163,21 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
 //
 // linkRepeater() only guarantees a flagged buildRepeater's *disposal*
 // happens inline; a genuine rerun it finds is deliberately left for the
-// heap to run later (see linkRepeater's own comment). An abandoned first
+// sortedQueue to run later (see linkRepeater's own comment). An abandoned first
 // fix attempt (Component.js's own buildOnce(), since removed - see git
 // history) sidestepped that by calling build() directly, with no separate
 // repeater at all - but that broke something subtler than the deferred-
 // refresh symptom it was fixing: reconciling a keyed child sets the
-// *established* object's own forwardTo to point at the freshly
+// *established* object's own rebuildTwin to point at the freshly
 // constructed, about-to-be-discarded twin, and every read of anything but
 // its causality/timelines meta gets transparently redirected through
-// forwardTo until finishRebuilding() clears it - which only happens once
+// rebuildTwin until finishRebuilding() clears it - which only happens once
 // whichever repeater did the constructing finishes its own refresh(). A
 // bare, repeater-less build() call means that never happens until
 // Grandparent's *own* enclosing render-repeater finishes - too late, if
 // build()'s result gets renderOnto()'d before then, in that same call:
 // Parent.renderOnto() reads Parent's own .unobservable while it's still
-// mid-forwardTo, finds its temporary twin's own, empty unobservable bag
+// mid-rebuildTwin, finds its temporary twin's own, empty unobservable bag
 // instead of the established one's, and creates a redundant new render-
 // repeater instead of relinking the real one - orphaning Parent's whole
 // previously-established subtree (GC included), silently, with no
@@ -186,7 +186,7 @@ describe("build()-based composition surviving retraction (reactiveBuildEquivalen
 // finishRebuilding() runs promptly, before this method's own caller ever
 // sees the result) but force its refresh to complete synchronously
 // (clear workStatus, call refresh() directly) rather than leaving it for
-// the heap.
+// the sortedQueue.
 describe("reactiveBuildEquivalent(), nested two levels deep through components it itself constructs and renders", function () {
 
   // Grandchild: reads a property Parent's own build() sets fresh each run.

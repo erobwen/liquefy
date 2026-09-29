@@ -1,6 +1,6 @@
 import { frozen } from "@liquefy/cascade.component";
 import { DOMPlacingContainer } from "./DOMPlacingContainer.js";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { applyStyle } from "./applyStyle.js";
 import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 
@@ -68,7 +68,7 @@ export class OverflowContainer extends DOMPlacingContainer {
 
     const { placements, placedBefore } = this.expandSubtree(context);
     const ellipsisPlacements = [];
-    if (this.ellipsis) this.expandChildren(this, u.element, this.innerTarget(), context, [this.ellipsis], null, ellipsisPlacements);
+    if (this.ellipsis) this.expandChildren(this, u.node, this.innerTarget(), context, [this.ellipsis], null, ellipsisPlacements);
     // Everything below the top level is put in order as always; the top
     // level is laid out by layout().
     for (const { parent, nodes } of [...placements.slice(1), ...ellipsisPlacements.slice(1)]) this.placeInOrder(parent, nodes);
@@ -84,7 +84,7 @@ export class OverflowContainer extends DOMPlacingContainer {
   // when a node changes size (see observe()).
   layout() {
     const u = this.unobservable;
-    const row = u.element;
+    const row = u.node;
     const nodes = u.nodes;
     const overflowTarget = this.overflowSlot ? this.overflowSlot.ensureNode() : null;
     let cut = nodes.length;
@@ -177,7 +177,7 @@ function rightOf(node) {
  * shows it wherever they belong (in a popover) - its contents stay whatever
  * was placed there, shown or not.
  */
-export class DOMElementSlot extends DOMNodeRenderComponent {
+export class DOMElementSlot extends DOMNodeComponent {
   setProperties({ style }) {
     this.style = frozen(style || null);
   }
@@ -190,9 +190,9 @@ export class DOMElementSlot extends DOMNodeRenderComponent {
 
   ensureNode() {
     const u = this.unobservable;
-    if (!u.element) u.element = document.createElement("div");
-    u.previouslySetStyle = applyStyle(u.element, this.style || {}, u.previouslySetStyle);
-    return u.element;
+    if (!u.node) u.node = document.createElement("div");
+    u.previouslySetStyle = applyStyle(u.node, this.style || {}, u.previouslySetStyle);
+    return u.node;
   }
 }
 

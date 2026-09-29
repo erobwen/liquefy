@@ -18,8 +18,8 @@ describe("OverflowContainer", function () {
 
   // The container - its element known to the fake layout as the row.
   class RowContainer extends OverflowContainer {
-    renderElement(target, existingElement) {
-      rowElement = super.renderElement(target, existingElement);
+    renderNode(target, existingElement) {
+      rowElement = super.renderNode(target, existingElement);
       return rowElement;
     }
   }

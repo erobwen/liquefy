@@ -135,11 +135,11 @@ export class DOMElementTarget {
   }
 
   // Same positioning as appendElement, but for an *existing* element
-  // rather than a fresh one - see DOMNodeRenderComponent.onReattach(): a component
+  // rather than a fresh one - see DOMNodeComponent.onReattach(): a component
   // relinked after being retracted needs its own previously-removed
   // element put back, without rerunning render() (relinking never does)
   // to create a new one. Also called on every render of a *reused* element
-  // (see DOMElementComponent.renderElement()'s own comment) purely to keep
+  // (see DOMElementComponent.renderNode()'s own comment) purely to keep
   // target.lastChild's write positioned correctly - which, for the very
   // common case where nothing structurally changed, means `element` is
   // already exactly where it belongs. Real DOM elements don't need to be

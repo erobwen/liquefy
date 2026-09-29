@@ -3,7 +3,7 @@ import assert from "assert";
 import { Component, RenderContext, ObservableCompoundServiceLocator, observable } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMServiceLocator } from "../DOMServiceLocator.js";
-import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "../DOMNodeComponent.js";
 import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
 import { div, span, p, button, h1, h2, ul, li } from "../HTMLTags.js";
 import { text } from "../DOMTextComponent.js";
@@ -156,11 +156,11 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
   });
 
   it("islands - components that can only be rendered - render normally inside it, and edit without rerunning the container", function () {
-    class Counter extends DOMNodeRenderComponent {
+    class Counter extends DOMNodeComponent {
       initialState() {
         return { value: 0 };
       }
-      renderElement(target, existingElement) {
+      renderNode(target, existingElement) {
         const element = existingElement || document.createElement("output");
         target.reattachElement(element);
         element.textContent = "value " + this.value;

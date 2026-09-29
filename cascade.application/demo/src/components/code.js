@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "@liquefy/cascade.dom";
+import { DOMNodeComponent } from "@liquefy/cascade.dom";
 import { overlay, iconButton, dialog } from "@liquefy/cascade.ui";
 import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
@@ -24,7 +24,7 @@ hljs.registerLanguage("bash", bash);
 // set (DOMElementComponent lowercases every property name, and
 // element.innerhtml is nothing). Highlighted again only when the source
 // changes.
-export class HighlightedCode extends DOMNodeRenderComponent {
+export class HighlightedCode extends DOMNodeComponent {
   setProperties({ source, language, style }) {
     this.source = source || "";
     this.language = language || "javascript";
@@ -33,20 +33,20 @@ export class HighlightedCode extends DOMNodeRenderComponent {
 
   ensureNode() {
     const u = this.unobservable;
-    if (!u.element) {
-      u.element = document.createElement("pre");
-      u.element.style.margin = "0";
+    if (!u.node) {
+      u.node = document.createElement("pre");
+      u.node.style.margin = "0";
       u.code = document.createElement("code");
       u.code.className = "hljs language-" + this.language;
       Object.assign(u.code.style, { display: "inline-block", minWidth: "100%", boxSizing: "border-box", padding: "15px", fontSize: "14px", userSelect: "text" });
-      u.element.appendChild(u.code);
+      u.node.appendChild(u.code);
     }
     if (u.highlighted !== this.source) {
       u.code.innerHTML = hljs.highlight(this.source, { language: this.language }).value;
       u.highlighted = this.source;
     }
-    Object.assign(u.element.style, this.style || {});
-    return u.element;
+    Object.assign(u.node.style, this.style || {});
+    return u.node;
   }
 }
 

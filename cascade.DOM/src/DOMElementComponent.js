@@ -1,5 +1,5 @@
 import { extractProperty, frozen } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { DOMTextComponent } from "./DOMTextComponent.js";
 import { applyStyle as diffApplyStyle } from "./applyStyle.js";
@@ -14,14 +14,14 @@ import { applyStyle as diffApplyStyle } from "./applyStyle.js";
  * top-level properties directly, the shape every call in
  * flow.application/demo/src/pages/introductionPage.js already uses.
  *
- * Rebuilt on top of DOMNodeRenderComponent's render()/renderElement() rather
+ * Rebuilt on top of DOMNodeComponent's render()/renderNode() rather
  * than flow's separate build-then-render pass. `children` are rendered
- * directly here (see render() below) - a plain DOMNodeRenderComponent (e.g. a
+ * directly here (see render() below) - a plain DOMNodeComponent (e.g. a
  * component that owns one element but composes no others) has no generic
  * notion of children at all, so that's this class's own addition, not
  * the base's.
  */
-export class DOMElementComponent extends DOMNodeRenderComponent {
+export class DOMElementComponent extends DOMNodeComponent {
   // All three are *properties*, not state (see cascade.component/README.md):
   // they come from the build() call constructing this node and are meant
   // to change on every rebuild - applyAttributes() diffs them for exactly
@@ -55,14 +55,14 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     return result;
   }
 
-  // Provides its node (see DOMNodeRenderComponent): its own element, created once
-  // and patched in place - placed by the default renderElement() when
+  // Provides its node (see DOMNodeComponent): its own element, created once
+  // and patched in place - placed by the default renderNode() when
   // rendered (its children then rendered by render() below), or by whoever
   // places it otherwise (cascade.dom's FlipAnimationContainer, which also
   // places its children).
   ensureNode() {
     const u = this.unobservable;
-    let element = u.element;
+    let element = u.node;
     // A reconciled component whose tag changed (a theme swap turning a
     // `button` into an `mdui-button` under the same key, say) can't keep its
     // element - a real element's tag is fixed for life.
@@ -73,7 +73,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
       element = document.createElement(this.tagName);
       this.assignDebugId(element);
     }
-    u.element = element;
+    u.node = element;
     this.applyAttributes(element);
     return element;
   }
@@ -148,7 +148,7 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
   render(target, context) {
     super.render(target, context);
     const u = this.unobservable;
-    if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.element);
+    if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.node);
     // Rendered again after a placing container (see DOMPlacingContainer)
     // placed its children: whatever that left in its element is no
     // rendered child's - a node of a child removed while this element was
@@ -156,10 +156,10 @@ export class DOMElementComponent extends DOMNodeRenderComponent {
     // was hidden, say), never retracted, since it was never rendered. So
     // start from an empty element: every child rendered below puts its
     // own node back (they aren't rendered yet either - a retracted one is
-    // reattached, see DOMNodeRenderComponent.onReattach()).
+    // reattached, see DOMNodeComponent.onReattach()).
     if (u.childrenPlaced) {
       u.childrenPlaced = false;
-      while (u.element.firstChild) u.element.removeChild(u.element.firstChild);
+      while (u.node.firstChild) u.node.removeChild(u.node.firstChild);
     }
     (this.children || []).forEach((child) => {
       // null/undefined/false - typically Component.show(false)'s own

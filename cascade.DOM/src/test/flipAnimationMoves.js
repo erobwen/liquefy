@@ -4,7 +4,7 @@ import { Component, RenderContext, postponeInvalidations, continueInvalidations 
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
 import { div } from "../HTMLTags.js";
-import { DOMNodeRenderComponent } from "../DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "../DOMNodeComponent.js";
 import { text } from "../DOMTextComponent.js";
 
 // FlipAnimationContainer's animations: an element that changes place (or
@@ -458,8 +458,8 @@ describe("FlipAnimationContainer animations", function () {
   });
 
   it("an island moves as a unit, in the box the container gives it", function () {
-    class Island extends DOMNodeRenderComponent {
-      renderElement(target, existingElement) {
+    class Island extends DOMNodeComponent {
+      renderNode(target, existingElement) {
         const element = existingElement || document.createElement("output");
         target.reattachElement(element);
         element.textContent = this.key;

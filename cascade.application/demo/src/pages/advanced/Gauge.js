@@ -1,20 +1,20 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent, input } from "@liquefy/cascade.dom";
+import { DOMNodeComponent, input } from "@liquefy/cascade.dom";
 import { row } from "@liquefy/cascade.ui";
 
 // A render component: it makes its own DOM - here an SVG gauge, written as
 // a template literal - and keeps it up to date. Cascade decides when:
 // whenever something it read changes (this.value).
-export class Gauge extends DOMNodeRenderComponent {
+export class Gauge extends DOMNodeComponent {
   setProperties({ value }) {
     this.value = value; // 0 - 100
   }
 
   ensureNode() {
     const u = this.unobservable;
-    if (!u.element) u.element = document.createElement("div");
-    u.element.innerHTML = gaugeSvg(this.value);
-    return u.element;
+    if (!u.node) u.node = document.createElement("div");
+    u.node.innerHTML = gaugeSvg(this.value);
+    return u.node;
   }
 }
 

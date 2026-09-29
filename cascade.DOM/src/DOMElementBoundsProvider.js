@@ -1,5 +1,5 @@
 import { frozen } from "@liquefy/cascade.component";
-import { DOMNodeRenderComponent } from "./DOMNodeRenderComponent.js";
+import { DOMNodeComponent } from "./DOMNodeComponent.js";
 import { DOMElementTarget } from "./DOMElementTarget.js";
 import { applyStyle } from "./applyStyle.js";
 import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
@@ -42,7 +42,7 @@ export function elementBoundsProvider(...parameters) {
   return locateDOMComponent("elementBoundsProvider", parameters);
 }
 
-export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
+export class DOMElementBoundsProvider extends DOMNodeComponent {
   setProperties({ child, style, className }) {
     this.child = child;
     this.style = frozen(style || null);
@@ -55,7 +55,7 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
     return result;
   }
 
-  renderElement(target, existingElement) {
+  renderNode(target, existingElement) {
     const element = existingElement || target.appendElement("div");
     if (existingElement) target.reattachElement(existingElement);
     // Unconditional (not `if (this.className)`) - a className that goes
@@ -74,7 +74,7 @@ export class DOMElementBoundsProvider extends DOMNodeRenderComponent {
     super.render(target, context);
     const u = this.unobservable;
     if (!u.innerTarget) {
-      u.innerTarget = DOMElementTarget.forElement(u.element);
+      u.innerTarget = DOMElementTarget.forElement(u.node);
       u.innerTarget.observeBounds();
     }
     this.child.renderOnto(u.innerTarget, context);

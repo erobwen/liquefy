@@ -192,7 +192,7 @@ child, an "after" write - the padding pattern from
 - by the "between" write, say - may need resolving *before* the root's
 own later code (the "after" write) continues, not merely "sometime
 later, once the whole root refresh returns". Deferring that resolution to
-the heap (see below) is too late - the heap only drains after the
+the sortedQueue (see below) is too late - the sortedQueue only drains after the
 *whole* root's `refresh()` call returns. `linkRepeater` being called,
 exactly when the parent's own execution arrives at that child's
 position, is itself the wavefront arriving there - and it may be the
@@ -203,8 +203,8 @@ calls `processRepeater(oldRepeater)` inline before reattaching. If that
 finds a genuine change, `invalidateRepeater` runs `dispose()` immediately
 (which is the part the parent's own later code actually needs to see -
 e.g. a sibling's writing correctly unlinked) - but the repeater's actual
-*refresh* is still left for the heap to pick up in its own turn, exactly
-as ever (`scheduleWork`'s own `inHeap` dedup guard means this never
+*refresh* is still left for the sortedQueue to pick up in its own turn, exactly
+as ever (`scheduleWork`'s own `inSortedQueue` dedup guard means this never
 double-schedules).
 
 Confirmed necessary, not just plausible, by tracing `renderOnto.js`'s own
@@ -246,27 +246,27 @@ with actionable work right now) and `parked` (pipelines whose own work
 emptied this wave, but not all of it settled - see "Parking" below).
 Each `chainHead` carries its *own* pipeline-scoped work:
 
-- `heap`: repeaters needing attention, this pipeline, this wave -
+- `sortedQueue`: repeaters needing attention, this pipeline, this wave -
   position-ordered by each repeater's `firstPartial` (set fresh every
   `refresh()` - the *first* partial specifically, not `rightmostPartial`,
   because a child's first partial is always created strictly after its
   parent's own first partial begins, which is what guarantees a parent's
-  heap entry always sorts before any of its descendants'). Compared live
+  sortedQueue entry always sorts before any of its descendants'). Compared live
   via `compareWriterOrder`, never a cached order number - `orderNumber`
   can be renumbered by `releaseChainPressure` (see
   `docs/plan-partial-repeaters.md`'s "Step 6") while something sits in
-  this heap, so nothing may ever store one directly; every reference here
+  this sortedQueue, so nothing may ever store one directly; every reference here
   is to the partial itself.
-- `parkedPartials`: repeaters that arrived behind this pipeline's own
+- `parkedRepeaters`: repeaters that arrived behind this pipeline's own
   wavefront this wave (see below), waiting for the next one.
 - `wavefront`: the `firstPartial` of the last-processed repeater this
   active session - meaningful only while this chainHead is
   `state.activePipeline`.
 
-The pipeline's own **root repeater never occupies a heap slot**. Nothing
+The pipeline's own **root repeater never occupies a sortedQueue slot**. Nothing
 can have an earlier position than the thing that created everything else
 in its own tree, so `drainActivePipeline` checks it directly,
-unconditionally, before ever touching the heap - as a `while` loop, not a
+unconditionally, before ever touching the sortedQueue - as a `while` loop, not a
 single check, since resolving a flagged root can itself turn up a genuine
 change (via `invalidateRepeater`, called from inside
 `resolveFlaggedRepeater`) that still has to actually run this same
@@ -274,9 +274,9 @@ session, not get left set and parked for yet another wave.
 
 Two separate dedup flags reflect the two different places a repeater can
 be waiting: `inATimeBucket` for a root repeater (whose *pipeline* sits in
-an outer bucket), `inHeap` for a nested one (which sits in its own
-chainHead's heap). A root's `inHeap` stays `false` forever - it never
-enters a heap.
+an outer bucket), `inSortedQueue` for a nested one (which sits in its own
+chainHead's sortedQueue). A root's `inSortedQueue` stays `false` forever - it never
+enters a sortedQueue.
 
 ### Draining
 
@@ -285,7 +285,7 @@ earliest still-unlocked level with anything in its `active` FIFO
 (locking levels as it passes them, same shape the old flat
 `firstDirtyRepeater()` used), extracts that pipeline as
 `state.activePipeline`, and calls `drainActivePipeline()`: the root
-first (in the loop above), then the heap, strictly in position order,
+first (in the loop above), then the sortedQueue, strictly in position order,
 advancing `chainHead.wavefront` as it goes.
 
 ### Parking, at two levels
@@ -293,19 +293,19 @@ advancing `chainHead.wavefront` as it goes.
 New work discovered *within* the pipeline currently being drained routes
 through `scheduleWork(repeater)`: strictly after `chainHead.wavefront`
 (`compareWriterOrder(repeater.firstPartial, chainHead.wavefront) > 0`) ->
-the heap, ordinary case. At or before it -> `chainHead.parkedPartials`,
-not the heap. This is the back-reference case: something later just
+the sortedQueue, ordinary case. At or before it -> `chainHead.parkedRepeaters`,
+not the sortedQueue. This is the back-reference case: something later just
 wrote to something earlier, and the wave must not backtrack to pick it
 up this pass.
 
-If `drainActivePipeline` finishes its session with `parkedPartials`
+If `drainActivePipeline` finishes its session with `parkedRepeaters`
 non-empty (or the root itself ended up re-pending, mid-session, via the
 same back-reference path applied to the root - see above), the whole
 *pipeline* gets parked too: moved into its level's `parked` FIFO, not
 `active`. This is the second level of parking - not individual readings
 this time, but an entire pipeline that isn't done for this wave. New
 work arriving for an already-parked pipeline - even something entirely
-unrelated to why it was parked - also goes to `parkedPartials`, not back
+unrelated to why it was parked - also goes to `parkedRepeaters`, not back
 into `active`: once parked, a pipeline waits for the wave boundary no
 matter what, with no early reactivation.
 
@@ -323,8 +323,8 @@ along the way" below for why that separation matters).
 `findNextPipeline()`, once every level's `active` FIFO comes up empty,
 doesn't necessarily conclude the system is idle: any level's `parked`
 FIFO may still hold pipelines waiting on real, if held-back, work. If so,
-every one of them gets folded back into action - `parkedPartials` moved
-into `heap`, moved from `parked` into `active` - and the lock resets to
+every one of them gets folded back into action - `parkedRepeaters` moved
+into `sortedQueue`, moved from `parked` into `active` - and the lock resets to
 `-1`: a new wave begins. Only once that produces nothing either is the
 system genuinely idle.
 
@@ -367,10 +367,10 @@ happened, set by either of two distinct places:
   passed), `state.workQueueTimeLock` retreats to `chainHead.time - 1` and
   the chainHead is placed into `active` as usual.
 - **`scheduleWork`**, for a back-reference *within* the pipeline
-  currently being drained: instead of `chainHead.parkedPartials`, the
-  repeater goes straight into `chainHead.heap`. Nothing needs to move
-  `chainHead.wavefront` back explicitly for this - `heapInsert` already
-  places the repeater at its correct position, so the ongoing heap-loop's
+  currently being drained: instead of `chainHead.parkedRepeaters`, the
+  repeater goes straight into `chainHead.sortedQueue`. Nothing needs to move
+  `chainHead.wavefront` back explicitly for this - `sortedQueueInsert` already
+  places the repeater at its correct position, so the ongoing sortedQueue-loop's
   next pop naturally reaches it in order, and popping it is what updates
   `wavefront` to reflect the new, retreated position anyway.
 
@@ -386,10 +386,10 @@ this pipeline" (always true, harmlessly), it's whether the lock fell
 *further* back than that: `workQueueTimeLock < chainHead.time - 1`.
 
 - If not - the retreat stayed within, or exactly at, this pipeline's own
-  level - nothing more to do; the heap-insertion above already handles it
+  level - nothing more to do; the sortedQueue-insertion above already handles it
   correctly on its own.
 - If so, the wave moved to before this whole pipeline's level. This
-  session is abandoned: `parkedPartials` folds into `heap` (ready for next
+  session is abandoned: `parkedRepeaters` folds into `sortedQueue` (ready for next
   time, wavefront concept reset), and the whole chainHead is requeued at
   the *front* of its own level's `active` bucket (`prependToLevelList`,
   new alongside `appendToLevelList`) - so it resumes ahead of anything
@@ -538,7 +538,7 @@ using the default build()-then-renderOnto() flow, but which still needs
 `build()`'s own key-based reconciliation for the declarative tree it
 composes underneath. `linkRepeater(u.buildRepeater)` only guarantees a
 *flagged* buildRepeater's disposal happens inline, right there - a
-genuine rerun it finds has that rerun deliberately left for the heap to
+genuine rerun it finds has that rerun deliberately left for the sortedQueue to
 pick up later (see `linkRepeater`'s own comment, above). Fine for a
 caller that only needs the disposal to have happened before its own next
 write (`renderOnto.js`'s original motivating case) - wrong for
@@ -551,16 +551,16 @@ own* repeater/partial instead (a `buildOnce()` method, briefly added to
 `Component.js`). This does dodge the deferred-refresh problem (no
 separate repeater to ever fall out of order with the scheduler's own
 walk) - but breaks something subtler: reconciling a keyed child sets the
-*established* object's own `forwardTo` to point at the freshly
+*established* object's own `rebuildTwin` to point at the freshly
 constructed, about-to-be-discarded twin (see `observable()`'s own build-
 identity branch); every read of anything but that object's own
-causality/timelines meta is transparently redirected through `forwardTo`
+causality/timelines meta is transparently redirected through `rebuildTwin`
 until `finishRebuilding()` clears it - which only happens once whichever
 repeater did the constructing finishes its own `refresh()`. Building
 without any repeater at all means that never happens until the *caller's
 own* enclosing render-repeater finishes - too late if `build()`'s result
 gets `renderOnto()`'d before then, in the same call: reading
-`.unobservable` on a component still mid-`forwardTo` hits its temporary
+`.unobservable` on a component still mid-`rebuildTwin` hits its temporary
 twin's own, empty `unobservable` bag instead of the established one's, so
 `renderOnto()` finds no repeater there and silently creates a redundant
 new one instead of relinking the real one - orphaning that component's
@@ -573,7 +573,7 @@ ever sees the result) but force its refresh to complete synchronously
 when `linkRepeater()` leaves it merely disposed-and-scheduled rather than
 actually rerun (`if (workStatus === 'invalid') { workStatus = null;
 refresh(); }`, mirroring `processRepeater()`'s own 'invalid' branch
-exactly). `drainActivePipeline()`'s own heap loop already discards a
+exactly). `drainActivePipeline()`'s own sortedQueue loop already discards a
 repeater it later pops whose `workStatus` has gone back to `null` in the
 meantime, so this can never cause buildRepeater to run twice. See
 `cascade.component/src/Component.js`'s own `reactiveBuildEquivalent()`.
@@ -613,7 +613,7 @@ where each happens to land in tree position, and the child's own
 inherited invalidation, having been scheduled first (as a direct
 consequence of the ancestor's own dispose(), which runs before the
 ancestor's build() even starts producing the new tree the retraction
-would come from), routinely reaches the heap - and gets processed - well
+would come from), routinely reaches the sortedQueue - and gets processed - well
 before the retraction that should have preempted it. The child's stale
 buildRepeater or render-repeater refreshes anyway, reading back
 `undefined` for whatever property depended on the now-unlinked writing,
@@ -638,10 +638,10 @@ dispose-event branch (a buildId absent from the new run's map) is where
 it gets called, via `Component.onDispose()`: the moment a keyed
 component's build identity is known to have vanished, its render-repeater
 is retracted (cascading to its buildRepeater and everything rendered
-underneath), *before* the heap ever gets to any stale rerun of it. With
+underneath), *before* the sortedQueue ever gets to any stale rerun of it. With
 `reactiveBuildEquivalent()`'s synchronous refresh above, that
 `finishRebuilding()` runs inside the parent's own `render()`, ahead of
-the heap loop - so the scheduler's own `if (repeater.retracted) continue`
+the sortedQueue loop - so the scheduler's own `if (repeater.retracted) continue`
 check finally sees the flag in time. All three `accessInitialValues()`
 workarounds reverted to plain property writes. Still open: an *unkeyed*
 child (no buildId, so no dispose event) dropped the same way has no such
@@ -673,7 +673,7 @@ consequences:
 - `mergeInto()` (lib/utility.js) skips state when a rebuild copies a
   reconciled twin's properties onto the established object. This is the
   *only* gate: during a rebuild the constructed object is a throwaway
-  whose writes already go to the twin (setHandlerObject's `forwardTo`
+  whose writes already go to the twin (setHandlerObject's `rebuildTwin`
   redirect), so a constructor writes its defaults unconditionally, with
   no need to detect a rebuild - deliberately, since rebuild-ness isn't
   reliably knowable at construction time once pattern matching is
@@ -692,7 +692,7 @@ Done: migration (a farther dependency correctly catches up to a closer
 writing), flagging (deferred, not eager, invalidation for tree-ordered
 readers), the writing-reuse guard (reuse only when nothing needs
 deferred treatment), `linkRepeater`'s opportunistic inline resolution,
-the full pipeline/heap/wavefront/parking scheduler replacing the old
+the full pipeline/sortedQueue/wavefront/parking scheduler replacing the old
 flat dirty/flagged lists, `flush()` (deliberate wave retreat, with
 `checkWaveRetreat`'s still-inside-vs-before-this-pipeline split and the
 lock-reset-on-idle fix that came with it), `accessInitialValues()`
@@ -701,9 +701,9 @@ existing external-write baseline), enumeration's own dependency tracking
 made position-aware (downstream-only invalidation on key add/remove),
 `reactiveBuildEquivalent()`'s own deferred-refresh fix (force a flagged-
 then-genuinely-invalid buildRepeater's refresh to complete synchronously
-rather than leaving it for the heap), the retraction-vs-stale-queued-
+rather than leaving it for the sortedQueue), the retraction-vs-stale-queued-
 rerun race (a dropped child's own inherited invalidation reaching the
-heap before the retraction that should have preempted it - fixed by
+sortedQueue before the retraction that should have preempted it - fixed by
 `retractRepeater()` on dispose, via `Component.onDispose()`), and state
 properties (`declareState()`: a write guard in `setHandlerObject()` and a
 `mergeInto()` exemption, surfaced as `Component.initialState()`/
@@ -734,8 +734,8 @@ Explicitly deferred, not needed by any concrete case yet:
   separate, later, opt-in layer (a `setTimeout`/microtask yield point
   between waves), since so much of what's built assumes synchronous
   settling (a write returning only once everything has fully resolved).
-- **A real heap for `chainHead.heap`.** Currently a plain array kept
-  sorted by linear insertion (`heapInsert`/`heapPopMin`) - fine while a
+- **A real sortedQueue for `chainHead.sortedQueue`.** Currently a plain array kept
+  sorted by linear insertion (`sortedQueueInsert`/`sortedQueuePopMin`) - fine while a
   pipeline's own pending work is small, worth revisiting if that ever
   isn't true.
 - **Generalizing `timeLevels` beyond a small, fixed-size array.** Raised

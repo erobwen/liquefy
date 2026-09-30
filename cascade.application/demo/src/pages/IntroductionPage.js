@@ -12,24 +12,27 @@ import keyConcepts from "../../../../cascade/images/key-concepts.svg";
 // Temporal signals in their smallest form - its printouts as they really
 // are (run it with @liquefy/cascade.reactive).
 const temporalSignalsExample = `import getWorld from "@liquefy/cascade.reactive";
-const { observable, repeat } = getWorld({ timeLevels: 2 });
+const { observable, repeat } = getWorld({ timeLevels: 3 });
 
-const box = observable({ width: 100, label: "Box" });
+const heading = observable({ text: "hello world", size: 16 });
 
-// Time 0: gives the box a 20px border - by adding it to its own width.
-repeat(() => { box.width = box.width + 20; }, { time: 0 });
+// Time 0: capitalizes the text - writing the very property it reads.
+repeat(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });
 
-// Time 1: sees the box as time 0 left it.
-repeat(() => console.log(box.label, box.width), { time: 1 });
-// Box 120
+// Time 1: headings are twice the size - the same, for the size.
+repeat(() => { heading.size = heading.size * 2; }, { time: 1 });
 
-box.width = 200;
-// Box 220 - time 0 reads the new 200, not its own 120:
-// no second border, and no endless loop.
+// Time 2: sees the heading as times 0 and 1 left it.
+repeat(() => console.log(heading.text, heading.size + "px"), { time: 2 });
+// HELLO WORLD 32px
 
-box.label = "Wide box";
-// Wide box 220 - only time 1 reads the label,
-// so only time 1 runs again.`;
+heading.text = "temporal signals";
+// TEMPORAL SIGNALS 32px - times 0 and 2 run again,
+// time 1 doesn't: it never read the text.
+
+heading.size = 20;
+// TEMPORAL SIGNALS 40px - times 1 and 2 run again, time 0 doesn't.
+// Time 1 reads the new 20, not its own 32: no doubling twice.`;
 
 /**
  * Introduction Page - what Cascade is, and what's new about it: temporal
@@ -85,9 +88,17 @@ export class IntroductionPage extends Component {
         })
       ),
       p(
-        "In its smallest form: two readers and writers of the same object, at two fixed times. The first adds a border ",
-        "to the box's width - by writing the width it reads - and the second sees the result. With ordinary signals, ",
-        "a reader writing what it reads would set itself off again, adding the border over and over.",
+        "In a small form: three readers and writers of the same object, in a pipeline, at three fixed times. The first ",
+        "capitalizes the heading's text and the second doubles its size - each by writing the very property it reads - ",
+        "and the third sees the result. Change one property, and only the steps that read it along the way run again: ",
+        "two of the three, never all of them.",
+      ),
+      p(
+        "With ordinary signals - one value per property - a step can't tell its input from its own output. Reading ",
+        "back the size it just doubled, it would either set itself off again, doubling over and over (MobX, for one, ",
+        "gives up after 100 rounds), or, where a reaction can't trigger itself, the original size would be lost for ",
+        "good, and the next time the step runs it doubles its own result. The way around it is a signal of its own for ",
+        "every intermediate value - an explicit dependency graph, built by hand.",
       ),
       new HighlightedCode({
         key: "temporalSignalsExample",
@@ -116,8 +127,8 @@ export class IntroductionPage extends Component {
         li(emphasis("Hydration"), " - a UI can be written as a document: plain data, a tree of service queries, turned into components by the same service locators (see the Hydration page)."),
         li(emphasis("DOM transition animations"), " - elements moving within or between parents, resizing, appearing and leaving all animate, with no changes to the components animated (see the Animation page)."),
         li(emphasis("Portals"), " - a component can put content somewhere else in the tree, as this demo's pages do with their buttons in the top bar."),
-        li(emphasis("JavaScript first"), " - no JSX, no CSS files: the user interface is built with plain JavaScript functions."),
-        li(emphasis("Future JSX support?"), " - Through the hydration mechanism it could be possible to add if enough people want it."),
+        li(emphasis("JavaScript first"), " - no CSS files, and no compile step required: the user interface is built with plain JavaScript functions."),
+        li(emphasis("JSX support"), " - for those who prefer it: JSX tags compile to service queries, a document that hydrate() turns into components, just like on the Hydration page (see the JSX page)."),
       ),
       
       h2("Key concepts"),
@@ -140,7 +151,7 @@ export class IntroductionPage extends Component {
           ul(
             li("Call the component constructor directly"), 
             li("Call one of many convenience functions that indirectly gets the component from the service locator OR in some cases constructs them directly"),
-            li("In the future we might add support for JSX inside your component, that would indirectly create a compound request object that is then sent to the service locator")
+            li("Write JSX inside your component, which compiles to a compound request object - a document of service queries - that hydrate() hands to the service locator")
           )
         ),
         li("Building children in the build function is a convenience and allows for the use of keys to maintain a stable object identity, but a parent can also construct a child child during its initialization and dispose of it when the parent itself is disposed. Components can also be constructed entirely outside of the framework."), 

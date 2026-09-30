@@ -3,7 +3,7 @@ import { div, hydrate } from "@liquefy/cascade.dom";
 import { card, row, fitContainerStyle, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { HighlightedCode } from "../components/code.js";
-import { accentColor, pageColumn, pageGap, pagePadding, sectionTitle } from "../components/layout.js";
+import { accentColor, pageColumn, pageGap, pagePadding, pageRoom, sectionTitle } from "../components/layout.js";
 import source from "./HydrationPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -156,7 +156,7 @@ const SIDE_PANEL_WIDTH = 900;
 
 export class HydrationPage extends Component {
   build() {
-    const wide = (this.inherit("usableWidth") || 1000) >= SIDE_PANEL_WIDTH;
+    const wide = (pageRoom(this) || 1000) >= SIDE_PANEL_WIDTH;
     const sourcePanel = card(
       {
         key: "sourcePanel",

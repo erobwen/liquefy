@@ -19,9 +19,10 @@ export {
   blockquote, dd, div, dl, dt, figcaption, figure, hr, li, menu, ol, p, pre, ul,
   a, abbr, b, bdi, bdo, br, cite, code, data, dfn, em, i, kbd, mark, q, rp, rt, ruby, s, samp, small,
   span, strong, sub, sup, time, u, htmlVar, wbr,
-  area, audio, img, map, track, video, embed, iframe, object, picture, portal, source, svg, math,
+  area, audio, img, map, track, video, embed, iframe, object, picture, htmlPortal, source, svg, math,
   canvas, noscript, script, del, ins,
   caption, col, colgroup, table, tbody, td, tfoot, th, thead, tr,
   button, datalist, fieldset, form, input, label, legend, meter, optgroup, option, output, progress,
   select, textarea, details, dialog, summary, slot, template,
 } from "./HTMLTags.js";
+export { portal, portalSource, Portal, PortalSource } from "./Portal.js";

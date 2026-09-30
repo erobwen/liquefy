@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text } from "@liquefy/cascade.dom";
-import { button, card, column, portal, portalSource, themeColor } from "@liquefy/cascade.ui";
+import { div, text, portal, portalSource } from "@liquefy/cascade.dom";
+import { button, card, column, themeColor } from "@liquefy/cascade.ui";
 
 // Owns a portal - a place for others to put things in - and provides it by
 // name, for anything below to find. Owns it for real: created here, not in

@@ -1,9 +1,8 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { p, text } from "@liquefy/cascade.dom";
-import { button, card, dialog as themedDialog, overlay, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
-import { modalPresentation, fullScreenPresentation } from "../components/modal.js";
+import { button, card, dialog as themedDialog, overlay, modalAssembly, row, column, centerMiddle, fitContainerStyle, fillerStyle, overflowVisibleStyle } from "@liquefy/cascade.ui";
 import { pageActions, informationBox } from "../components/pageActions.js";
-import { pagePadding } from "../components/layout.js";
+import { pagePadding, pageRoom } from "../components/layout.js";
 import source from "./HybridModalDialog.js?raw";
 
 // What this page is about - first on the page, on its panel (see
@@ -20,18 +19,19 @@ const information = {
 // them. Resize the browser window while the dialog is open to see it move
 // between them.
 //
-//  - Docked, beside the controls, while the page itself (its usableWidth,
-//    handed down by ApplicationMenuFrame's workArea from a real
-//    measurement) has room for both: at least DOCKED_MIN_WIDTH. That's high
+//  - Docked, beside the controls, while the page itself (its own room,
+//    measured - see components/layout.js's pageRoom()) has room for both:
+//    at least DOCKED_MIN_WIDTH. That's high
 //    enough to be decided only while the app's menu is docked too - the
 //    menu going modal gives the page ~200px more at once, and a threshold
 //    below that jump would flip the dialog back and forth as the window is
 //    narrowed past it.
-//  - A modal window otherwise.
+//  - A modal window otherwise - cascade.ui's modalAssembly(): a backdrop,
+//    and the dialog centered on it.
 //  - Full screen - the whole app, like a phone app's screen - when the app
-//    itself (appWidth, not the page) is narrower than FULL_SCREEN_BELOW. By
-//    the app's width, which follows the window, not the page's, which jumps
-//    with the menu.
+//    is narrower than FULL_SCREEN_BELOW: modalAssembly() measures the
+//    overlay frame it's shown in (the whole app), and the themed dialog in
+//    it follows, back arrow and all.
 const PANEL_WIDTH = 520;
 const DOCKED_MIN_WIDTH = 920;
 const FULL_SCREEN_BELOW = 600;
@@ -80,9 +80,7 @@ const MODAL_HEIGHT = 420;
 export class HybridModalDialog extends Component {
   build() {
     const inherited = (name) => this.inherit(name);
-    const usableWidth = typeof(inherited("usableWidth")) === "number" ? inherited("usableWidth") : 1000;
-    const appWidth = typeof(inherited("appWidth")) === "number" ? inherited("appWidth") : usableWidth;
-    const mode = usableWidth >= DOCKED_MIN_WIDTH ? "docked" : appWidth < FULL_SCREEN_BELOW ? "fullScreen" : "modal";
+    const docked = (pageRoom(this) || 1000) >= DOCKED_MIN_WIDTH;
 
     // This page's part of the URL: "dialog" while the dialog is open.
     const location = this.inherit("location");
@@ -92,7 +90,7 @@ export class HybridModalDialog extends Component {
     const close = callback("close", () => location.back(basePath));
 
     // Constructed unconditionally, every rebuild, regardless of
-    // showDialog/mode - only where it's shown below is conditional. A
+    // showDialog/docked - only where it's shown below is conditional. A
     // key that drops out for even one rebuild is gone for good (see
     // cascade.component/README.md), so skipping this construction while
     // the dialog happens to be closed would silently reset its state
@@ -102,12 +100,10 @@ export class HybridModalDialog extends Component {
       key: "dialog",
       title: "Hybrid Modal Dialog",
       close,
-      fullScreen: mode === "fullScreen",
-      style: {
-        docked: { ...fillerStyle },
-        modal: { width: MODAL_WIDTH + "px", height: MODAL_HEIGHT + "px", flex: "none" },
-        fullScreen: {},
-      }[mode],
+      // Filling its place: the rest of the row, docked - or the modal's
+      // window. Full screen or not, it decides itself, from the modal it's
+      // shown in.
+      style: { ...fillerStyle, minHeight: 0 },
       children: [content],
     });
 
@@ -125,7 +121,7 @@ export class HybridModalDialog extends Component {
         {
           style: {
             display: "flex", flexDirection: "column", gap: "16px", boxSizing: "border-box",
-            ...(mode === "docked" ? { width: PANEL_WIDTH + "px", flex: "none" } : { ...fillerStyle }),
+            ...(docked ? { width: PANEL_WIDTH + "px", flex: "none" } : { ...fillerStyle }),
           },
         },
         informationBox(information),
@@ -141,10 +137,10 @@ export class HybridModalDialog extends Component {
       // too, the overlay (still shown as this build runs) would render it
       // there once more, taking its element back from the docked slot just
       // before the overlay closes - and the dialog would be gone.
-      dialog.showIf(showDialog && mode === "docked"),
+      dialog.showIf(showDialog && docked),
       overlay(
-        { showing: showDialog && mode !== "docked" },
-        mode === "docked" ? null : mode === "fullScreen" ? fullScreenPresentation(dialog) : modalPresentation(dialog, close),
+        { showing: showDialog && !docked },
+        docked ? null : modalAssembly({ close, fullScreenBelow: FULL_SCREEN_BELOW, width: MODAL_WIDTH, height: MODAL_HEIGHT }, dialog),
       ),
     );
   }

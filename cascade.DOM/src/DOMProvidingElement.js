@@ -15,30 +15,17 @@ export function providingElement(...parameters) {
  * (lastChild, appendElement/reattachElement) are scoped to it rather than to
  * whatever target this container itself was rendered onto - and providing
  * the fields of `context` to that child's subtree (see
- * ApplicationMenuFrame.js's own `workArea`, which hands its page
- * usableWidth/usableHeight this way). They're kept up to date as they
- * change - at the baseline, as everything a context holds (see
- * cascade.component's RenderContext.js).
- *
- * Was DOMLegacyBridge, back when cascade.dom had two separate target
- * abstractions (DOMElementTarget's reactive appendElement()/reattachElement() vs.
- * DOMTargetElement's direct createChild()/insertChild()) and this class's
- * actual job was crossing between them. That second abstraction is gone
- * now that cascade.reactive's own engine correctly reconciles a
- * repositioned repeater's stale dependency on a moved-away predecessor's
- * writing (see cascade.reactive's own attachToCurrentParent()/
- * flagOverlapWithMovedPredecessor(), and cascade.dom/src/test/domElementTarget.js's
- * own reordering/grid-resize tests) - the actual reason DOMTargetElement
- * existed at all. With only one target kind left, what remains here is
- * just "own a styled div, hand my child an extended context" - no bridging
- * of anything.
+ * ApplicationMenuFrame.js's own `workArea`, which hands its page its part
+ * of the URL this way). They're kept up to date as they change - at the
+ * baseline, as everything a context holds (see cascade.component's
+ * RenderContext.js). What it provides must be timeless - never a measured
+ * size, which belongs to the render target (see DOMElementBoundsProvider).
  */
 export class DOMProvidingElement extends DOMNodeComponent {
   setProperties({ child, style, context }) {
     this.child = child;
     this.style = frozen(style || null);
-    // What it provides - e.g. usableWidth/usableHeight (see
-    // ApplicationMenuFrame.js's own `workArea`).
+    // What it provides (see ApplicationMenuFrame.js's own `workArea`).
     this.contextExtra = frozen(context || null);
   }
 

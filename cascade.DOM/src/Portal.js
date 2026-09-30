@@ -1,5 +1,5 @@
 import { Component, flush, withoutRecording, frozen, contextScope } from "@liquefy/cascade.component";
-import { wrapper } from "./Layout.js";
+import { div } from "./HTMLTags.js";
 
 /**
  * Portals - ported from flow.ui/basic/src/Portals.js: a place in the tree
@@ -82,7 +82,7 @@ export class Portal extends Component {
 
   build() {
     const assigned = this.contents && this.contents.length > 0;
-    return wrapper(
+    return div(
       { key: "portal", style: this.style || {} },
       assigned ? contextScope({ key: "contents", context: this.contentsContext }, this.contents) : this.defaultContents,
     );

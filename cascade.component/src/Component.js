@@ -722,7 +722,7 @@ export class Component {
   // these are only notifications, with no rendering mechanics attached, so
   // whoever places a component can make them for it - Flow's isVisible,
   // as two events. For whatever a component does only while it's visible:
-  // cascade.ui's PortalSource shows its contents in its portal. Called
+  // cascade.dom's PortalSource shows its contents in its portal. Called
   // from inside whoever is rendering - reads here are recorded against
   // that render unless wrapped in withoutRecording(). No-ops by default.
   onShow() {}
@@ -883,7 +883,7 @@ export function aggregateToString(component) {
  * other than where it comes from. A portal renders its contents on its own
  * target, but inside a scope with the context of where they were put into
  * it - so they inherit from there, what that place provides for them (a
- * style, say) included (see cascade.ui's Portal). Build-only, so a
+ * style, say) included (see cascade.dom's Portal). Build-only, so a
  * container that expands its subtree (cascade.dom's FlipAnimationContainer)
  * expands right through it, as through anything else. No context given:
  * the one it's placed in, as for anything else.

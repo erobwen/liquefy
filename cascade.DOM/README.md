@@ -63,6 +63,8 @@ argument that starts with a lowercase letter for a key - so wrap text in
   where it really is, and moves what doesn't fit into an overflow slot (an
   ellipsis toolbar, say) - an `elementSlot()`, an element for it to fill,
   shown wherever the overflow belongs (a popover).
+- **`portal()`** and **`portalSource()`** - content placed somewhere else in
+  the tree: a page's buttons in the app's top bar, say.
 - **`providingElement()`** - keeps a component, its state and its elements,
   wherever it's shown next.
 - **`browserLocation()`** - routing: the URL as observable state.

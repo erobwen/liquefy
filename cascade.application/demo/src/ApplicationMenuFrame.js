@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { a, button, div, img, span, text, providingElement, elementBoundsProvider } from "@liquefy/cascade.dom";
-import { overlayFrame, iconButton, portal, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
+import { a, button, div, img, span, text, providingElement, elementBoundsProvider, portal } from "@liquefy/cascade.dom";
+import { overlayFrame, iconButton, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
 import { versionNotice, showVersionNotice } from "./versionNotice.js";
 
@@ -34,8 +34,10 @@ const TOP_BAR_HEIGHT = 48;
  * resize listener that measurement needs. build() below wraps this frame's
  * actual layout in one of those, as ApplicationMenuFrameLayout - the direct
  * child, placed on its measured element, which reads the size from build()
- * with this.fromTarget(). The work area's own room is handed on to the
- * pages as `usableWidth`/`usableHeight`, provided by name.
+ * with this.fromTarget(). The work area is a measured element of its own:
+ * a page placed on it reads its own room the same way, this.fromTarget()
+ * (see components/layout.js's pageRoom()) - measured sizes are the
+ * target's, never the context's, where anything deep down would read them.
  *
  * This is the frame's own root, rendered directly by index.js, which hands
  * it a DOMElementTarget to begin with - so DOMElementBoundsProvider's
@@ -44,12 +46,11 @@ const TOP_BAR_HEIGHT = 48;
  * own git history for the bug that came from exactly that, when this frame
  * still routed through an intermediate bridging div here).
  *
- * The work area's own page content (Introduction/ProgrammaticReactiveLayout)
- * is reached via providingElement() (see cascade.DOM/src/DOMProvidingElement.js),
- * which owns `workArea`'s own real, styled div and hands the page a fresh
- * context providing usableWidth/usableHeight - not a bridge between two
- * different target abstractions (there's only DOMElementTarget now), just a
- * container that adds situational context for what it renders.
+ * The page is reached via providingElement() (see
+ * cascade.DOM/src/DOMProvidingElement.js), which owns `workArea`'s own
+ * styled div and hands the page a context providing its part of the URL -
+ * with an elementBoundsProvider() inside it, the element the page is
+ * placed on and measures.
  */
 export class ApplicationMenuFrame extends Component {
   // rootServiceLocator: provided to the whole app from here (see provide())
@@ -172,10 +173,6 @@ class ApplicationMenuFrameLayout extends Component {
     if (typeof(bounds.width) !== "number") return null;
 
     const menuIsModal = bounds.width < MENU_WIDTH * 3;
-    // The room inside a page's margins (16px each side - see
-    // components/layout.js's pagePadding).
-    const workAreaWidth = (menuIsModal ? bounds.width : bounds.width - MENU_WIDTH) - 32;
-    const workAreaHeight = bounds.height - TOP_BAR_HEIGHT - 32;
 
     // Wide, the drawer is docked, and `menuOpen` means nothing - so it's
     // only ever read together with menuIsModal, never reset from here:
@@ -202,21 +199,21 @@ class ApplicationMenuFrameLayout extends Component {
     );
 
     const workArea = providingElement({
-      child: page.component,
+      // The page on a measured element: its own room is what it reads (see
+      // components/layout.js's pageRoom()).
+      child: elementBoundsProvider({ style: { width: "100%", height: "100%" }, child: page.component }),
       style: {
         // Never scrolls: each page owns its scrolling, and its margins (see
         // components/layout.js).
         flex: "1 1 auto", minHeight: 0, boxSizing: "border-box",
         background: themeColor.page, color: themeColor.text, overflow: "hidden",
       },
-      // The page's own pixel budget - and the whole app's size, for what
-      // covers the whole app (a full-screen dialog, say). And its part of
-      // the URL: `path`, what's left after the page's own segment - for
-      // whatever in the page picks it up, as the next segment down - and
-      // `basePath`, the page's own, to navigate relative to. Both strings,
-      // so they only count as changed when they are.
+      // The page's part of the URL: `path`, what's left after the page's
+      // own segment - for whatever in the page picks it up, as the next
+      // segment down - and `basePath`, the page's own, to navigate
+      // relative to. Both strings, so they only count as changed when they
+      // are.
       context: {
-        usableWidth: workAreaWidth, usableHeight: workAreaHeight, appWidth: bounds.width, appHeight: bounds.height,
         basePath: frame.pathOf(page).join("/"),
         path: frame.location.path.slice(frame.pathOf(page).length).join("/"),
       },

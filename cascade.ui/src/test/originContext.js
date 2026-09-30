@@ -2,7 +2,8 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { Component, observable } from "@liquefy/cascade.component";
 import { DOMElementTarget, div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { portal, portalSource, overlayFrame, overlay } from "../index.js";
+import { portal, portalSource } from "@liquefy/cascade.dom";
+import { overlayFrame, overlay } from "../index.js";
 
 // What's shown somewhere other than where it comes from - through a portal,
 // or in an overlay - inherits from where it came from (see

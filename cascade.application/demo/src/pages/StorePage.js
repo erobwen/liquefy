@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { button, card, icon, iconButton, row, portal, portalSource, themeColor } from "@liquefy/cascade.ui";
+import { div, text, flipAnimationContainer, portal, portalSource } from "@liquefy/cascade.dom";
+import { button, card, icon, iconButton, row, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import source from "./StorePage.js?raw";
@@ -35,7 +35,7 @@ const price = (amount) => "$" + amount.toFixed(2);
  * cart in it. Choosing a product sends it flying into the cart.
  *
  * Three components, none knowing more than it needs to:
- *  - StatusBar: a bar with two portals of its own (see cascade.ui's
+ *  - StatusBar: a bar with two portals of its own (see cascade.dom's
  *    Portal.js) - the cart, and the cart's summary - and nothing else. It
  *    knows nothing about products.
  *  - ProductList: owns which products are chosen. The ones that aren't are

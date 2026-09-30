@@ -1,13 +1,12 @@
 import { Component, serviceProvider, callback } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
 import {
-  button, widget, icon, iconButton, card, controlPanel, alert, listItem, dialog, popover, overlay, colorField, tabBar, textField, checkbox,
+  button, widget, icon, iconButton, card, controlPanel, alert, listItem, dialog, popover, overlay, modalAssembly, colorField, tabBar, textField, checkbox,
   row, column, filler, basicTheme, fillerStyle, overflowVisibleStyle, colorSchemeScope, currentColorScheme, themeColor,
 } from "@liquefy/cascade.ui";
-import { modalPresentation } from "../components/modal.js";
 import { materialTheme } from "@liquefy/cascade.ui.material";
 import { pageActions, informationBox } from "../components/pageActions.js";
-import { pageColumn, sectionTitle } from "../components/layout.js";
+import { pageColumn, pageRoom, sectionTitle } from "../components/layout.js";
 import source from "./ThemesPage.js?raw";
 
 // What this page is about - first on the page (see
@@ -69,7 +68,7 @@ export class ThemesPage extends Component {
   }
 
   build() {
-    const wide = (this.inherit("usableWidth") || 1000) >= SIDE_BY_SIDE_WIDTH;
+    const wide = (pageRoom(this) || 1000) >= SIDE_BY_SIDE_WIDTH;
     const root = this.inherit("rootServiceLocator");
     // Both sections, every build - only which are shown depends on the
     // width: a section left out of a build would be gone, and come back
@@ -241,16 +240,16 @@ class SampleButtons extends Component {
           text("A popover: shown beside what was clicked, over everything else. Click outside it to close it.")),
       ),
       overlay(
-        modalPresentation(
+        modalAssembly(
+          { close: closeDialog, width: 360, fullScreenBelow: 480 },
           dialog(
-            { key: "dialog", title: "A themed dialog", close: closeDialog, style: { width: "360px", flex: "none" } },
+            { key: "dialog", title: "A themed dialog", close: closeDialog },
             column(
               { style: { padding: "16px", gap: "12px" } },
               text("Title bar, close button and body - all from the theme."),
               button(text("Done"), closeDialog),
             ),
           ),
-          closeDialog,
         ),
         { key: "dialogOverlay", showing: this.dialogOpen },
       ),

@@ -39,6 +39,14 @@ function scrollPanel(key, content) {
   return div({ key: key ? key + "Scroll" : undefined, style: { ...fitContainerStyle, overflowY: "auto", padding: pagePadding } }, content);
 }
 
+// The room a page has inside its margins (pagePadding, each side): the
+// width of the element it's placed on - measured (see ApplicationMenuFrame's
+// work area) - or null while it isn't.
+export function pageRoom(page) {
+  const width = page.fromTarget("width");
+  return typeof(width) === "number" ? width - 2 * parseFloat(pagePadding) : null;
+}
+
 // Emphasis - the accent color of the theme's color scheme.
 export const accentColor = themeColor.accent;
 

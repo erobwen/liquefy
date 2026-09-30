@@ -37,7 +37,7 @@ export class Overlay extends Component {
     return { visibleOnFrame: null, shownChild: null, shownContext: null };
   }
 
-  // Build-only (like PortalSource - see Portal.js): a build only runs
+  // Build-only (like PortalSource - see cascade.dom's Portal.js): a build only runs
   // while something is showing this component, so building is where the
   // content is handed to the frame - again whenever showing changes.
   // Builds nothing where it stands.

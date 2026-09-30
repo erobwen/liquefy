@@ -5,7 +5,7 @@ import {
   row, column, filler, fitContainerStyle, themeColor,
 } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
-import { pageGap, pagePadding, sectionTitle } from "../components/layout.js";
+import { pageGap, pagePadding, pageRoom, sectionTitle } from "../components/layout.js";
 import source from "./ReactiveFormPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -76,7 +76,7 @@ export class ReactiveFormPage extends Component {
   }
 
   build() {
-    const wide = (this.inherit("usableWidth") || 1000) >= 820;
+    const wide = (pageRoom(this) || 1000) >= 820;
     const count = travelerCount(data);
     const form = [
       controlPanel(

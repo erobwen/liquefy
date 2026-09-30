@@ -1,12 +1,11 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { DOMNodeComponent } from "@liquefy/cascade.dom";
-import { overlay, iconButton, dialog } from "@liquefy/cascade.ui";
+import { overlay, modalAssembly, iconButton, dialog } from "@liquefy/cascade.ui";
 import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
 import xml from "highlight.js/lib/languages/xml";
 import bash from "highlight.js/lib/languages/bash";
 import "highlight.js/styles/github.css";
-import { modalPresentation } from "./modal.js";
 
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("html", xml);
@@ -67,7 +66,7 @@ export class CodeButton extends Component {
     const codeDialog = dialog({
       title: this.fileName,
       close,
-      style: { width: "80%", maxWidth: "1000px", height: "80%", flex: "none" },
+      style: { flex: "1 1 auto", minHeight: 0 },
       children: [new HighlightedCode({ source: this.source })],
     });
     return [
@@ -77,7 +76,7 @@ export class CodeButton extends Component {
         onClick: callback("open", () => { this.open = true; }),
         style: { color: "#7bed9f" },
       }),
-      overlay(modalPresentation(codeDialog, close), { showing: this.open }),
+      overlay(modalAssembly({ close, width: "80%", height: "80%", fullScreenBelow: 600, style: { maxWidth: "1000px" } }, codeDialog), { showing: this.open }),
     ];
   }
 }

@@ -1,5 +1,5 @@
 import { Component, flush, frozen, withoutRecording } from "@liquefy/cascade.component";
-import { div } from "@liquefy/cascade.dom";
+import { div, elementBoundsProvider } from "@liquefy/cascade.dom";
 
 /**
  * OverlayFrame - ported from flow.ui/basic/src/overlay.js's own
@@ -39,7 +39,7 @@ export function overlayFrame(...parameters) {
 }
 
 export class OverlayFrame extends Component {
-  setProperties({ style, children, overlayContent, originContext }) {
+  setProperties({ style, children, overlayContent, originContext, isLayer }) {
     this.style = frozen(style || null);
     this.staticContent = frozen(children || []);
     // The alternative to showOverlay()/hideOverlay() below: an overlay
@@ -50,6 +50,8 @@ export class OverlayFrame extends Component {
     // A sub-frame showing an Overlay's content: the context of where that
     // Overlay stands - what the content inherits from (see build()).
     this.originContext = originContext || null;
+    // One this frame opens itself, to show overlay content on (see build()).
+    this.isLayer = !!isLayer;
   }
 
   // Found by inherit("overlayFrame") from anywhere below - see
@@ -128,11 +130,21 @@ export class OverlayFrame extends Component {
     }
     const overlayContent = this.shownContent || this.propertyContent;
 
-    const children = [...this.staticContent];
+    // A layer (a sub-frame showing what an overlay assigned - see below)
+    // shows its content on a measured element, covering the frame: what's
+    // shown there reads the frame's size with this.fromTarget() (see
+    // modalAssembly(), which goes full screen below a width).
+    const children = this.isLayer
+      ? this.staticContent.map((content) => elementBoundsProvider({
+        style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" },
+        child: content,
+      }))
+      : [...this.staticContent];
 
     if (overlayContent) {
       children.push(new OverlayFrame(overlayContent, {
         key: "modalSubFrame",
+        isLayer: true,
         // Content an Overlay assigned keeps the context of where it came
         // from; content handed over as a property is this frame's creator's
         // own, and is simply shown with this frame's.

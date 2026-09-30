@@ -52,7 +52,8 @@ export class ConvenientUsagePage extends Component {
       p(
         name("overlay()"), " shows its content over the whole app - on the overlay frame at the app's root ",
         "(", name("overlayFrame()"), ") - while it's built right where it belongs, next to the button ",
-        "that opens it.",
+        "that opens it. What it shows here is a ", name("modalAssembly()"), ": a backdrop, and the dialog ",
+        "centered on it - or, on a phone-sized screen, the dialog full screen.",
       ),
       stage(new ConfirmDelete()),
       codeBlock(confirmSource),

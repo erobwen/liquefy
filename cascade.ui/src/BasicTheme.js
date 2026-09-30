@@ -154,14 +154,17 @@ class BasicDialog extends Component {
   setProperties({ title, close, fullScreen, style, children }) {
     this.title = title || "";
     this.close = close || null;
-    this.fullScreen = !!fullScreen;
+    // Given, or - unset - as the modal() it's shown in presents it (see
+    // cascade.ui's Modal.js).
+    this.fullScreen = typeof(fullScreen) === "boolean" ? fullScreen : null;
     this.style = frozen(style || null);
     this.dialogChildren = frozen(children || []);
   }
 
   build() {
+    const fullScreen = this.fullScreen !== null ? this.fullScreen : this.inherit("modalPresentation") === "fullScreen";
     const close = callback("close", () => this.close && this.close());
-    const frame = this.fullScreen
+    const frame = fullScreen
       ? { width: "100%", height: "100%" }
       : { borderRadius: "10px", boxShadow: dialogShadow };
     return column(
@@ -173,16 +176,16 @@ class BasicDialog extends Component {
         {
           key: "titleBar",
           style: {
-            padding: this.fullScreen ? "6px 16px 6px 6px" : "6px 6px 6px 16px",
-            ...(this.fullScreen ? { minHeight: "48px" } : {}),
+            padding: fullScreen ? "6px 16px 6px 6px" : "6px 6px 6px 16px",
+            ...(fullScreen ? { minHeight: "48px" } : {}),
             background: c.chromeDark, color: c.onChrome, flex: "none", alignItems: "center", gap: "8px", fontWeight: "bold",
           },
         },
-        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).showIf(this.fullScreen),
+        iconButton({ key: "back", icon: "arrow_back", title: "Back", onClick: close }).showIf(fullScreen),
         // text(): a lone string starting lowercase (a file name, say)
         // would be taken for an implicit key.
         filler({ key: "title" }, text({ key: "titleText", text: this.title })),
-        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).showIf(!this.fullScreen),
+        iconButton({ key: "close", icon: "close", title: "Close", onClick: close }).showIf(!fullScreen),
       ),
       // Sized by its content, scrolling once the dialog has a height of its own.
       column({ key: "body", style: { flex: "1 1 auto", minHeight: 0, overflow: "auto" } }, this.dialogChildren),

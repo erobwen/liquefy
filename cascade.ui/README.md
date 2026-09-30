@@ -1,6 +1,6 @@
 # cascade.ui
 
-Themed widgets, layout, overlays, portals, popovers and color schemes for
+Themed widgets, layout, overlays, modals, popovers and color schemes for
 [Cascade](https://github.com/erobwen/liquefy#readme) - and its basic theme.
 
 ```console
@@ -68,6 +68,17 @@ return button(text("Go green"), () => { scheme.base = "#2e7d32"; });
 
 - `row`, `column`, `filler`, `centerMiddle`, `zStack`, ... and their styles
   (`fillerStyle`, `fitContainerStyle`, ...).
-- `overlayFrame()` and `overlay()` - modal content over the app.
+- `overlayFrame()` and `overlay()` - content over the app, shown from
+  wherever it's built: any content, custom or animated.
+- `modalAssembly()` - what an `overlay()` usually shows: a backdrop (a click
+  on it closes) and the content in a centered window - full screen, without
+  the backdrop, in a frame narrower than `fullScreenBelow`, and a themed
+  `dialog()` in it follows, back arrow and all. Its parts on their own:
+  `modalBackdrop()` and `modal()`.
+
+  ```js
+  overlay({ showing: this.open },
+    modalAssembly({ close, width: 360, fullScreenBelow: 600 },
+      dialog({ title: "Settings", close }, ...)))
+  ```
 - `popover()` - beside an element, following it when it moves.
-- `portal()` and `portalSource()` - content placed somewhere else in the tree.

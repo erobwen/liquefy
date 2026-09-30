@@ -1,5 +1,6 @@
 export { OverlayFrame, overlayFrame } from "./OverlayFrame.js";
 export { Overlay, overlay } from "./Overlay.js";
+export { ModalBackdrop, Modal, ModalAssembly, modalBackdrop, modal, modalAssembly, modalBackdropColor } from "./Modal.js";
 export {
   flexContainerStyle, rowStyle, columnStyle,
   centerStyle, middleStyle, centerMiddleStyle,
@@ -9,7 +10,6 @@ export {
 } from "./Layout.js";
 export { widget, button, icon, iconButton, card, controlPanel, alert, listItem, dialog, textField, checkbox, colorField, tabBar, alertSeverities, toButtonProperties, keyAsLabel } from "./widgets.js";
 export { popover } from "./Popover.js";
-export { portal, portalSource, Portal, PortalSource } from "./Portal.js";
 export { BasicThemeServiceLocator, basicTheme, basicShadow } from "./BasicTheme.js";
 export {
   ColorScheme, ColorSchemeScope, colorSchemeScope, currentColorScheme, themeColor, deriveColors, colorVariables, defaultColors,

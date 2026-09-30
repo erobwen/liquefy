@@ -7,11 +7,13 @@ import { observable, repeat, refreshIfNeeded, accessInitialValues, withoutRecord
  * nothing adds no link: its children get the context it was given itself.
  *
  * Only non-temporal information belongs here - a location, an overlay
- * frame, portals, services, a measured size: things with one value per
+ * frame, portals, services: things with one value per
  * render pass. What changes as the pass goes along (the last node placed
  * on an element, the space left after the siblings rendered so far) is the
  * render target's business (see Component.renderOnto()), never the
- * context's. That's what makes a context safe to read from build(): a build
+ * context's - and so is a measured size (see Component.fromTarget()),
+ * which read deep down would mean nothing. That's what makes a context
+ * safe to read from build(): a build
  * repeater is a pipeline of its own, unrelated in time to rendering, and
  * reads the latest writing of whatever it reads - for a value that only
  * changes between passes, the right one.

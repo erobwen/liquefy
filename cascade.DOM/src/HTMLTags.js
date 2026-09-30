@@ -109,7 +109,8 @@ export const embed = (...parameters) => locateElement("embed", toPropertiesWithC
 export const iframe = (...parameters) => locateElement("iframe", toPropertiesWithChildren(parameters));
 export const object = (...parameters) => locateElement("object", toPropertiesWithChildren(parameters));
 export const picture = (...parameters) => locateElement("picture", toPropertiesWithChildren(parameters));
-export const portal = (...parameters) => locateElement("portal", toPropertiesWithChildren(parameters));
+// The <portal> tag - named apart from portal() (see Portal.js), as var is.
+export const htmlPortal = (...parameters) => locateElement("portal", toPropertiesWithChildren(parameters));
 export const source = (...parameters) => locateElement("source", toPropertiesWithChildren(parameters));
 export const svg = (...parameters) => locateElement("svg", toPropertiesWithChildren(parameters));
 export const math = (...parameters) => locateElement("math", toPropertiesWithChildren(parameters));

@@ -2,7 +2,8 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { RenderContext, Component, ObservableCompoundServiceLocator, observable, accessInitialValues } from "@liquefy/cascade.component";
 import { DOMElementTarget, DOMServiceLocator, div, text, element, flipAnimationContainer, providingElement } from "@liquefy/cascade.dom";
-import { portal, portalSource, button, basicTheme } from "../index.js";
+import { portal, portalSource } from "@liquefy/cascade.dom";
+import { button, basicTheme } from "../index.js";
 
 // portal()/portalSource(): a page putting its own buttons into the app's
 // top bar, rendered before it - the shape the demo uses them in. Every leaf

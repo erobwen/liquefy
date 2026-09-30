@@ -48,13 +48,15 @@ describe("popover", function () {
     document.body.appendChild(host);
     const app = new App();
     app.renderOnto(new DOMElementTarget(host), new RenderContext({ serviceLocator: new CompoundServiceLocator(new DOMServiceLocator(), basicTheme) }));
-    assert.equal(resizeListeners, 1);
+    // The popover's own listener - and its overlay layer's, which measures.
+    const shown = resizeListeners;
+    assert.ok(shown >= 1);
 
     app.onPage = false;
     assert.equal(resizeListeners, 0, "not shown: not following");
 
     app.onPage = true;
-    assert.equal(resizeListeners, 1, "shown again: following again");
+    assert.equal(resizeListeners, shown, "shown again: following again");
     assert.ok(host.textContent.includes("content"));
   });
 });

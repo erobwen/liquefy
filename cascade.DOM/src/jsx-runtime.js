@@ -27,9 +27,10 @@ import { Component } from "@liquefy/cascade.component";
  *  - a member expression (`<widget.button>`): whatever that function
  *    returns - serviceQueries() below makes whole namespaces of query
  *    functions, `widget = serviceQueries("widget")`.
- *  - a Component class (`<HighlightedCode source={...} />`): constructed
- *    right away, as `new HighlightedCode(...)` in a build() would be - a
- *    document may hold built components beside its queries.
+ *  - a Component class (`<HighlightedCode source={...} />`): a query
+ *    naming the class itself, `{ type: "component", name, componentClass,
+ *    properties }` - hydrate() constructs it, as `new HighlightedCode(...)`
+ *    in a build() would be, once its own JSX children are hydrated.
  *  - any other function: called with the properties.
  *
  * Properties pass through untouched - callbacks included, plain closures
@@ -47,7 +48,7 @@ export function jsx(type, props, key) {
     else delete properties.children;
   }
   if (typeof(type) === "string") return { type: "htmlElement", name: type, properties };
-  if (type.prototype instanceof Component) return new type(properties);
+  if (type.prototype instanceof Component) return { type: "component", name: type.name, componentClass: type, properties };
   return type(properties);
 }
 

@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, input, text } from "@liquefy/cascade.dom";
-import { button, card, row, column } from "@liquefy/cascade.ui";
+import { button, card, row, column, themeColor } from "@liquefy/cascade.ui";
 
 // As many nodes as `count` says - zero, one or many, side by side, with no
 // wrapper around them. So it renders itself: render(target) puts them
@@ -58,7 +58,7 @@ export function thermometerSvg(temperature) {
   const top = 14 + (1 - level) * 96;
   return `
     <svg viewBox="0 0 40 160" width="40" height="160" role="img" aria-label="${temperature}°">
-      <rect x="13" y="8" width="14" height="112" rx="7" fill="#dfe6ee" />
+      <rect x="13" y="8" width="14" height="112" rx="7" style="fill: ${themeColor.border}" />
       <circle cx="20" cy="124" r="14" fill="#e74c3c" />
       <rect x="17" y="${top}" width="6" height="${124 - top}" rx="3" fill="#e74c3c" />
       <text x="20" y="156" text-anchor="middle" font-size="12" font-weight="bold" fill="currentColor">${temperature}°</text>

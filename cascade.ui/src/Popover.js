@@ -1,4 +1,4 @@
-import { Component, frozen, callback } from "@liquefy/cascade.component";
+import { Component, frozen, callback, withoutRecording } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { overlay } from "./Overlay.js";
 import { zStack, wrapper, fitContainerStyle } from "./Layout.js";
@@ -115,6 +115,19 @@ export class Popover extends Component {
     this.unfollow();
   }
 
+  // Shown again (its page switched back to, say): an up-to-date build
+  // doesn't rerun, so follow the element again here. Read without
+  // recording - this runs inside whoever is rendering.
+  onShow() {
+    withoutRecording(() => {
+      if (this.showing && this.followsElement()) this.follow();
+    });
+  }
+
+  followsElement() {
+    return this.anchor !== null && typeof(this.anchor.getBoundingClientRect) === "function";
+  }
+
   onDispose() {
     super.onDispose();
     this.unfollow();
@@ -136,7 +149,7 @@ export class Popover extends Component {
 
   build() {
     this.moved; // Placed again when its anchor element has moved - see follow().
-    const followsElement = this.anchor !== null && typeof(this.anchor.getBoundingClientRect) === "function";
+    const followsElement = this.followsElement();
     if (this.showing && followsElement) this.follow();
     else this.unfollow();
     return overlay(

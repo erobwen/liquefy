@@ -79,9 +79,12 @@ export function toProperties(arglist) {
   if (!(arglist instanceof Array)) throw new Error("toProperties expects an array");
 
   // Shortcut if the only argument is already a single properties object.
+  // A copy of it - never the caller's own object: the constructor takes
+  // things out of it (key, componentContent), and the caller may reuse it
+  // in the next build, or have frozen it.
   const first = arglist[0];
   if (arglist.length === 1 && first !== null && typeof(first) === "object" && !(first instanceof Array) && !isObservable(first)) {
-    return first;
+    return { ...first };
   }
 
   return buildPropertiesObject(arglist);
@@ -113,8 +116,10 @@ function buildPropertiesObject(arglist) {
 
     if (typeof(current) === "object" && !current.causality) {
       if (current instanceof Array) {
+        // A copy: what follows is pushed onto it, and the array is the
+        // caller's (often a component's own children, or frozen).
         if (!content) {
-          content = current;
+          content = [...current];
         } else {
           current.forEach((element) => content.push(element));
         }
@@ -122,7 +127,7 @@ function buildPropertiesObject(arglist) {
         if (properties) {
           throw new Error("Cannot have two properties objects in one argument list.");
         }
-        properties = current;
+        properties = { ...current };
       }
     }
   }

@@ -141,6 +141,15 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       this.stopAll();
     }
     u.hasRendered = u.node.isConnected;
+    // What each island shows, as this render left it: its component takes
+    // its own nodes out when it's retracted - before the next render, that
+    // makes a ghost of the island, even starts.
+    u.islandContents = new Map();
+    for (const { element } of u.tracked) {
+      if (element.nodeType === 1 && element.hasAttribute(this.constructor.islandAttribute)) {
+        u.islandContents.set(element, [...element.childNodes]);
+      }
+    }
     this.notifyPlaced(placedBefore);
   }
 
@@ -178,6 +187,25 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       for (const lifted of [...u.lifted.keys()]) {
         if (lifted === element || element.contains(lifted)) this.unlift(lifted);
       }
+      // Islands - the leaving element itself, or ones inside it - fade out
+      // showing what they showed, as copies: their components take their
+      // own nodes out when they're retracted (and may yet put them back).
+      const islandAttribute = this.constructor.islandAttribute;
+      const islands = element.nodeType === 1 && element.hasAttribute(islandAttribute) ? [element] : [];
+      islands.push(...element.querySelectorAll("[" + islandAttribute + "]"));
+      const copies = [];
+      for (const island of islands) {
+        const shown = u.islandContents ? u.islandContents.get(island) : null;
+        if (island.childNodes.length === 0) {
+          if (shown) for (const node of shown) copies.push(island.appendChild(node.cloneNode(true)));
+        } else {
+          for (const node of [...island.childNodes]) {
+            const copy = node.cloneNode(true);
+            island.replaceChild(copy, node);
+            copies.push(copy);
+          }
+        }
+      }
       const savedStyle = element.getAttribute("style");
       const look = looks.get(element);
       element.querySelectorAll("*").forEach((each) => { each.style.transform = ""; });
@@ -195,14 +223,16 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       });
       root.appendChild(element);
       u.springs.delete(element);
-      u.ghosts.set(element, { savedStyle, opacity: 1, velocity: 0 });
+      u.ghosts.set(element, { savedStyle, copies, opacity: 1, velocity: 0 });
       GHOSTS.add(element);
     }
   }
 
   restoreGhost(element) {
     const u = this.unobservable;
-    const { savedStyle } = u.ghosts.get(element);
+    const { savedStyle, copies } = u.ghosts.get(element);
+    // Back in the tree: its islands' components put their own nodes back.
+    for (const copy of copies) copy.remove();
     if (savedStyle === null) element.removeAttribute("style"); else element.setAttribute("style", savedStyle);
     u.ghosts.delete(element);
     GHOSTS.delete(element);

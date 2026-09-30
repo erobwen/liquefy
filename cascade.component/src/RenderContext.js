@@ -83,15 +83,26 @@ export class RenderContext {
     } else {
       entry = { slot: null, repeater: null };
       meta.inheritCache.set(name, entry);
-      entry.repeater = repeat(() => {
-        const parent = this.parent;
-        const value = parent ? parent.inherit(name) : undefined;
-        if (!entry.slot) {
-          entry.slot = observable({ value });
-        } else if (withoutRecording(() => entry.slot.value) !== value) {
-          accessInitialValues(() => { entry.slot.value = value; });
-        }
-      }, { independent: true });
+      let started = null;
+      try {
+        entry.repeater = repeat((repeater) => {
+          started = repeater;
+          const parent = this.parent;
+          const value = parent ? parent.inherit(name) : undefined;
+          if (!entry.slot) {
+            entry.slot = observable({ value });
+          } else if (withoutRecording(() => entry.slot.value) !== value) {
+            accessInitialValues(() => { entry.slot.value = value; });
+          }
+        }, { independent: true });
+      } catch (error) {
+        // The first fetch failed (a provider's getter threw): nothing is
+        // cached, so the next inherit() tries again - instead of finding a
+        // half-made entry for good.
+        meta.inheritCache.delete(name);
+        if (started) retractRepeater(started);
+        throw error;
+      }
     }
     return entry.slot.value;
   }

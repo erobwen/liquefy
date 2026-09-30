@@ -1,6 +1,6 @@
 import { Component } from "@liquefy/cascade.component";
 import { div, text, elementBoundsProvider } from "@liquefy/cascade.dom";
-import { icon } from "@liquefy/cascade.ui";
+import { icon, themeColor } from "@liquefy/cascade.ui";
 
 // Lays itself out by the room it really has - measured, not guessed: side
 // by side when there's room, stacked when there isn't.
@@ -33,7 +33,7 @@ export class Measured extends Component {
     return elementBoundsProvider({
       style: {
         width: "100%", maxWidth: "100%", minWidth: "220px", boxSizing: "border-box", contain: "inline-size layout",
-        resize: "horizontal", overflow: "auto", border: "1px solid #cdd7e2", borderRadius: "8px",
+        resize: "horizontal", overflow: "auto", border: "1px solid " + themeColor.border, borderRadius: "8px",
       },
       child: new Profile(),
     });

@@ -92,7 +92,7 @@ export const autoFillerStyle = { ...shrinkable, boxSizing: "border-box", flexGro
 
 // Visualizes a component's own bounds during development - not meant to
 // ship.
-export const layoutBorderStyle = { borderStyle: "solid", borderColor: "light-gray", borderWidth: "1px", boxSizing: "border-box" };
+export const layoutBorderStyle = { borderStyle: "solid", borderColor: "lightgray", borderWidth: "1px", boxSizing: "border-box" };
 
 // Content allowed to overflow its own box - what every layout container
 // here does already (there's no clipping by default any more); kept for

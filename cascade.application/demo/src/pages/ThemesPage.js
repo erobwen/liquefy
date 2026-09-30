@@ -1,7 +1,7 @@
 import { Component, serviceProvider, callback } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
 import {
-  button, widget, icon, iconButton, card, controlPanel, alert, listItem, dialog, popover, overlay, colorField, tabBar,
+  button, widget, icon, iconButton, card, controlPanel, alert, listItem, dialog, popover, overlay, colorField, tabBar, textField, checkbox,
   row, column, filler, basicTheme, fillerStyle, overflowVisibleStyle, colorSchemeScope, currentColorScheme, themeColor,
 } from "@liquefy/cascade.ui";
 import { modalPresentation } from "../components/modal.js";
@@ -195,7 +195,7 @@ class ColorSchemeEditor extends Component {
 // Every themed widget, as whichever theme is in the context provides it.
 class SampleButtons extends Component {
   initialState() {
-    return { chosen: "inbox", dialogOpen: false, popoverOpen: false, anchor: null, favorite: false };
+    return { chosen: "inbox", dialogOpen: false, popoverOpen: false, anchor: null, favorite: false, name: "", subscribed: true };
   }
 
   build() {
@@ -218,6 +218,12 @@ class SampleButtons extends Component {
       heading("alertsHeading", "Alerts"),
       ...["info", "success", "warning", "error"].map((severity) =>
         alert({ key: severity + "Alert", severity }, text({ key: severity + "Text", text: "An alert of severity " + severity + "." }))),
+      heading("fieldsHeading", "Fields"),
+      row(
+        { style: { gap: "12px", alignItems: "center", flexWrap: "wrap", overflow: "visible" } },
+        textField({ label: "Name", placeholder: "Your name", value: this.name, onInput: callback("name", (value) => { this.name = value; }) }),
+        checkbox({ label: "Subscribe", checked: this.subscribed, onChange: callback("subscribed", (checked) => { this.subscribed = checked; }) }),
+      ),
       heading("cardsHeading", "Cards"),
       row(
         { key: "cards", style: { gap: "12px", overflow: "visible" } },

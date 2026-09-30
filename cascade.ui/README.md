@@ -61,7 +61,7 @@ import { button, currentColorScheme } from "@liquefy/cascade.ui";
 // button giving it another base color. Everything inside a
 // colorSchemeScope() of that theme follows (put one around your app).
 const scheme = currentColorScheme();
-return button({ key: "green" }, text({ key: "greenText", text: "Go green" }), () => { scheme.base = "#2e7d32"; });
+return button(text("Go green"), () => { scheme.base = "#2e7d32"; });
 ```
 
 ## Layout and the rest

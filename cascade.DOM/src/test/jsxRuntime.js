@@ -33,13 +33,37 @@ describe("JSX runtime (tags compiled to service queries)", function () {
     assert.deepEqual(jsx(widget.button, { variant: "filled" }), { type: "widget", name: "button", properties: { variant: "filled" } });
   });
 
-  it("constructs a Component class right away", function () {
+  it("makes a Component class a query naming the class - constructed when hydrated", function () {
     class Box extends Component {
       setProperties({ label }) { this.label = label; }
     }
-    const box = jsx(Box, { label: "a" });
+    const query = jsx(Box, { label: "a" });
+    assert.equal(query.type, "component");
+    assert.equal(query.componentClass, Box);
+    const box = hydrate(query);
     assert.ok(box instanceof Box);
     assert.equal(box.label, "a");
+  });
+
+  it("a Component tag's own JSX children are hydrated too - nested, or at the root", function () {
+    class Box extends Component {
+      setProperties({ children }) { this.boxChildren = children || []; }
+      build() { return hydrate(jsx("div", { className: "box", children: this.boxChildren })); }
+    }
+    class Page extends Component {
+      build() {
+        return hydrate(jsx("section", { children: jsx(Box, { children: jsx("span", { children: "hi" }) }) }));
+      }
+    }
+    render(new Page());
+    assert.equal(container.querySelector("section > div.box > span").textContent, "hi");
+
+    container.innerHTML = "";
+    class Root extends Component {
+      build() { return hydrate(jsx(Box, { children: jsx("b", { children: "root" }) })); }
+    }
+    render(new Root());
+    assert.equal(container.querySelector(".box b").textContent, "root");
   });
 
   it("carries a callback from the tag to the element, and hydrates the whole document", function () {

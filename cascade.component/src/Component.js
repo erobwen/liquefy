@@ -98,10 +98,10 @@ export class Component {
 
   // Override to seed additional non-observable bookkeeping fields (render
   // counters, cached measurements, ...) - anything that must survive a
-  // rerun without itself being reactive. See docs/... in cascade.reactive
-  // for why a plain observable property doesn't work for this (a fresh
-  // read of it can fall through once retraction is involved, even though
-  // the component's own identity hasn't changed).
+  // rerun without itself being reactive. A plain observable property
+  // doesn't work for this: a fresh read of it can fall through once
+  // retraction is involved, even though the component's own identity
+  // hasn't changed.
   initialUnobservables() {
     return {};
   }
@@ -239,10 +239,10 @@ export class Component {
   // Override to compose this component from children - the alternative
   // to hardcoding child references as fields (see renderOnto.js's own
   // discussion of both styles). Return a child component (or an array of
-  // them), each typically constructed with its own key so cascade can
-  // tell across rebuilds which new one corresponds to which established
-  // one - see buildOneStep() and the constructor's `key` docs
-  // above. Not implemented by default; a component overrides this OR
+  // them). Across rebuilds, each new one is matched to the established
+  // one it corresponds to - by pattern (the same class in the same place),
+  // or by key, for what can move, appear or disappear (see README.md,
+  // "Keys and pattern matching", and buildOneStep()). Not implemented by default; a component overrides this OR
   // render() (see the default render() below), not both.
   //
   // A keyed child's identity (and state) survives only as long as its own
@@ -252,7 +252,7 @@ export class Component {
   // child's *visibility*, not its construction, with .showIf(condition) to
   // keep it alive while hidden instead.
   build() {
-    throw new Error(this.constructor.name + " must implement build() or render(context)");
+    throw new Error(this.constructor.name + " must implement build() or render(target, context)");
   }
 
   // Build this component's immediate equivalent - one step only, not all
@@ -314,8 +314,17 @@ export class Component {
         // exactly: a component constructed directly inside another's
         // build() call captures that component as its creator.
         creators.push(this);
+        const u = this.unobservable;
+        u.callbackBuild = (u.callbackBuild || 0) + 1;
         try {
           this.currentBuild = this.build();
+          // Named callbacks this build no longer made are dropped (see
+          // callback.js) - a list's per-item callbacks don't pile up.
+          if (u.callbacks) {
+            for (const [key, stable] of u.callbacks) {
+              if (stable.build !== u.callbackBuild) u.callbacks.delete(key);
+            }
+          }
         } finally {
           // Same reasoning as renderStack's own push/pop in renderOnto()
           // below - `creators` is a single, module-level stack shared by
@@ -436,7 +445,7 @@ export class Component {
     const children = equivalent instanceof Array ? equivalent : [equivalent];
     for (const child of children) {
       // null/undefined/false - typically another component's own
-      // show(false) result (see that method's own doc) - simply isn't
+      // showIf(false) result (see that method's own doc) - simply isn't
       // renderOnto()'d this pass, same as build() no longer returning it
       // at all.
       if (child === null || typeof(child) === "undefined" || child === false) continue;
@@ -721,7 +730,7 @@ export class Component {
   onHide() {}
 
   // The lifecycle of a component its creator manages itself (see
-  // README.md, "Never combine the two ways of creating a sub-component") -
+  // README.md, "Building Sub Components" and its warning) -
   // one created in initialization and kept as an unobservable, say, rather
   // than constructed in a build(). A component built in a build() is
   // established and disposed by its creator's build (cascade.reactive's

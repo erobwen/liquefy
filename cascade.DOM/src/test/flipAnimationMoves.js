@@ -568,6 +568,38 @@ describe("FlipAnimationContainer animations", function () {
     assert.ok(half > full * 1.7 && half < full * 2.3, "full speed " + full + " frames, half speed " + half);
   });
 
+  it("a leaving island fades out showing what it showed - not as an empty box - and comes back as itself", function () {
+    class Island extends DOMNodeComponent {
+      renderNode(target, existingElement) {
+        const element = existingElement || document.createElement("output");
+        target.reattachElement(element);
+        element.textContent = "island";
+        return element;
+      }
+    }
+    class WithIsland extends Component {
+      initialState() {
+        return { show: true };
+      }
+      build() {
+        const other = div({ key: "other" }, text("other"));
+        // Kept alive while hidden - so the same one comes back.
+        return flipAnimationContainer({ key: "flip" }, other, new Island({ key: "island" }).showIf(this.show));
+      }
+    }
+    const withIsland = new WithIsland();
+    withIsland.renderOnto(new DOMElementTarget(container));
+    const holder = container.querySelector("[data-flip-island]");
+
+    withIsland.show = false;
+    assert.equal(holder.style.position, "absolute", "a ghost");
+    assert.equal(holder.textContent, "island", "showing its island's content");
+
+    withIsland.show = true;
+    assert.equal(container.querySelectorAll("output").length, 1, "back as itself: its own node, no copy left beside it");
+    runToRest();
+  });
+
   it("while the container isn't in the page, it just places - nothing animates", function () {
     const { lists, element } = setup();
     container.remove();

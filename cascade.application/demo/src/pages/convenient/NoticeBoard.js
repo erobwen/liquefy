@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, card, column, portal, portalSource } from "@liquefy/cascade.ui";
+import { button, card, column, portal, portalSource, themeColor } from "@liquefy/cascade.ui";
 
 // Owns a portal - a place for others to put things in - and provides it by
 // name, for anything below to find. Owns it for real: created here, not in
@@ -10,7 +10,7 @@ export class NoticeBoard extends Component {
   initialUnobservables() {
     return {
       board: portal(
-        { style: { padding: "12px", minHeight: "48px", border: "2px dashed #cdd7e2", borderRadius: "8px" } },
+        { style: { padding: "12px", minHeight: "48px", border: "2px dashed " + themeColor.border, borderRadius: "8px" } },
         div({ style: { opacity: 0.6 } }, text("No notices - the board is empty.")),
       ).establish(),
     };
@@ -30,8 +30,8 @@ export class NoticeBoard extends Component {
     return card(
       { style: { display: "flex", flexDirection: "column", gap: "12px" } },
       this.unobservable.board,
-      div({ style: { padding: "12px", border: "1px dashed #cdd7e2", borderRadius: "8px" } },
-        div({ style: { padding: "12px", border: "1px dashed #cdd7e2", borderRadius: "8px" } },
+      div({ style: { padding: "12px", border: "1px dashed " + themeColor.border, borderRadius: "8px" } },
+        div({ style: { padding: "12px", border: "1px dashed " + themeColor.border, borderRadius: "8px" } },
           new Poster())),
     );
   }

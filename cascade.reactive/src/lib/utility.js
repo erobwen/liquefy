@@ -176,6 +176,16 @@ export function configSignature(configuration) {
   }
 }
 
+// Each function its own identity in a signature: two configurations
+// differing only in a callback (onEventGlobal, customCreateRepeater, ...)
+// are two worlds, not one.
+const functionIds = new WeakMap();
+let nextFunctionId = 0;
+function functionId(fn) {
+  if (!functionIds.has(fn)) functionIds.set(fn, nextFunctionId++);
+  return functionIds.get(fn);
+}
+
 export function normalizeConfig(object) {
   if (typeof(object) === "object") {
     if (object === null) return "null";  
@@ -188,10 +198,12 @@ export function normalizeConfig(object) {
     let sortedObject = {};
     keys.forEach(function(key) {
       let value = object[key];
-      if (typeof(value) === 'object') value = normalizeConfig(value);
+      if (typeof(value) === 'object' || typeof(value) === 'function') value = normalizeConfig(value);
       sortedObject[key] = value;
     });
     return sortedObject;
+  } else if (typeof(object) === "function") {
+    return "[function " + functionId(object) + "]";
   } else {
     return "[" + typeof(object) + "]";
   }

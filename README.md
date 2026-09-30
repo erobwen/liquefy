@@ -33,7 +33,8 @@ that actually changed.
 - **Service locators throughout**: themes that replace whole components at
   runtime - and are their colors too, all made from a base and an accent.
 - **Portals, routing, hydration** (a UI written as plain data), and
-  **JavaScript first** - no JSX, no CSS files.
+  **JavaScript first** - no CSS files, no compile step required - and **JSX**
+  for those who prefer it.
 
 | Package | |
 |---|---|
@@ -48,8 +49,8 @@ npm install @liquefy/cascade.ui @liquefy/cascade.dom @liquefy/cascade.component 
 ```
 
 ```js
-import { Component, RenderContext, CompoundServiceLocator } from "@liquefy/cascade.component";
-import { DOMElementTarget, DOMServiceLocator, div, h1, p, text } from "@liquefy/cascade.dom";
+import { Component, RenderContext } from "@liquefy/cascade.component";
+import { DOMElementTarget, div, h1, p, text } from "@liquefy/cascade.dom";
 import { button, basicTheme } from "@liquefy/cascade.ui";
 
 class Hello extends Component {
@@ -57,24 +58,25 @@ class Hello extends Component {
     this.to = to;
   }
 
-  initializeState() {
+  initialState() {
     return { count: 0 };
   }
 
   build() {
     return div(
-      { key: "hello", style: { padding: "20px" } },
-      h1({ key: "title" }, text({ key: "titleText", text: "Hello " + this.to })),
-      p({ key: "count" }, text({ key: "countText", text: "Clicked " + this.count + " times" })),
-      button({ key: "click" }, text({ key: "clickText", text: "Click me!" }), () => { this.count++; }),
+      { style: { padding: "20px" } },
+      h1(text("Hello " + this.to)),
+      p(text("Clicked " + this.count + " times")),
+      button(text("Click me!"), () => { this.count++; }),
     );
   }
 }
 
-const services = new CompoundServiceLocator(new DOMServiceLocator(), basicTheme);
-new Hello({ to: "World" }).renderOnto(
-  new RenderContext(DOMElementTarget.forElement(document.getElementById("app")), { serviceLocator: services }),
-);
+// The render target: where it all goes. The service locator - the basic
+// theme - provides the themed widgets (button(), ...); HTML elements are
+// real DOM elements unless a locator says otherwise.
+const target = DOMElementTarget.forElement(document.getElementById("app"));
+new Hello({ to: "World" }).establish().renderOnto(target, new RenderContext({ serviceLocator: basicTheme }));
 ```
 
 ## Flow

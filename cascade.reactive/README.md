@@ -147,7 +147,7 @@ For example:
         time: 1
     })
 
-To do this, causality has a limited number of time levels to divide repeaters into. When you execute a repeat operation, you can set the time of it. The implementation works with a short array, so you should not have more than 8 different time levels in your application. 
+To do this, causality has a limited number of time levels to divide repeaters into. When you execute a repeat operation, you can set the time of it: an integer from 0 up to, but not including, the world's `timeLevels` (4 by default - `getWorld({ timeLevels })` sets another). A time outside that range is an error. A repeater created inside another's run is part of that one's pipeline, and its own `time` is ignored - it runs where its creator places it.
 
 Also, in addition to using time levels. causality internally uses a queue for repeater updates, and this by itself is a heuristic that makes it more likley for changes to propagate breadth first. But depending on your dependencies, reevaluation at some stage could potentially occur, so time levels helps to enforce some degree of breadth first.  
 
@@ -156,7 +156,7 @@ A repeater can mix cause and effect, and there are some preventive measures in p
 
     repeater([description for debug], recordedAction, nonRecordedAction, options)
 
-The options object contains further configurations for the non-recorded action. Namley debounce and fireImmediatley. 
+The options object contains further configurations for the repeater (`time`, `independent`, ...).
 
 The return value of the recorded action will be sent as an argument to the nonRecorded action, similar to how reaction works in MobX.
 
@@ -216,12 +216,12 @@ Somtimes you just need to observe objects, and record events. For this purpose y
 Activating sendEventsToObjects will also cause causality to try to send events directly to your observable objects. If your objects implement the following callbacks, causality will then try to call them.  
 
  - onChange
- - onBuildCreate
- - onBuildRemove
+ - onEstablish
+ - onDispose
 
-onChange will receive a message, containing information about any change that happened to the object.
+onChange will receive a message, containing information about any change that happened to the object - including, when doing data structure rebuilding, events of type `create`, `reCreate` and `dispose`.
 
-The onBuildCreate and onBuildRemove events will be sent specifically when doing data structure rebuilding. They correspond to the React concepts of componentDidMount and componentWillUnmount but for a generalized data structure re building framework.
+onEstablish and onDispose are called on an object built in a rebuild when it is first established, and when a rebuild no longer creates it. They correspond to the React concepts of componentDidMount and componentWillUnmount, but for a generalized data structure rebuilding framework.
 
 ## causality.rebuildTwin
 
@@ -243,7 +243,7 @@ Warning: A transaction should typically only write data, as reading data inside 
 
 Causality is comparable to MobX. 
 
-Some perhaps non-conclusive experiments indicate that causality could potentially be almost twice as fast as MobX. Causality also takes full advantage of ES6/proxies which makes it comparable to MobX version 5 and above. 
+Early, non-conclusive experiments indicated that causality, the library this one grew from, could be almost twice as fast as MobX; the temporal signals added since have not been benchmarked. Causality also takes full advantage of ES6/proxies which makes it comparable to MobX version 5 and above. 
 
 Causality also offers some experimental features that can not be found in MobX, such as data structure rebuilding using rebuild keys. On the other hand, MobX is a more mature library with a large supporting community and better integration with other libraries.
 

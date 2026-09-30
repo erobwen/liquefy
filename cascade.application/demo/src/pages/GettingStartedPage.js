@@ -47,7 +47,7 @@ const target = DOMElementTarget.forElement(document.getElementById("app"));
 // The service locator - here, the basic theme: it provides the themed
 // widgets your components ask for (button(), card(), ...). HTML elements
 // (div(), h1(), ...) are real DOM elements unless a locator says otherwise.
-new HelloWorld().renderOnto(target, new RenderContext({ serviceLocator: basicTheme }));`;
+new HelloWorld().establish().renderOnto(target, new RenderContext({ serviceLocator: basicTheme }));`;
 
 const runIt = `npm run dev`;
 
@@ -59,7 +59,7 @@ const materialTheme = `npm install @liquefy/cascade.ui.material`;
 
 const materialMainJs = `import { materialTheme } from "@liquefy/cascade.ui.material";
 
-new HelloWorld().renderOnto(target, new RenderContext({ serviceLocator: materialTheme }));`;
+new HelloWorld().establish().renderOnto(target, new RenderContext({ serviceLocator: materialTheme }));`;
 
 const codeStyle = { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" };
 

@@ -58,4 +58,24 @@ describe("callback()", function () {
     const fn = () => {};
     assert.equal(callback("loose", fn), fn);
   });
+
+  it("a callback a build no longer makes is dropped - a list's don't pile up", function () {
+    const model = observable({ ids: ["a", "b"] });
+    class Item extends Component {
+      setProperties({ onPick }) {
+        this.onPick = onPick;
+      }
+      render() {}
+    }
+    class List extends Component {
+      build() {
+        return model.ids.map((id) => new Item({ key: id, onPick: callback(id + "Pick", () => id) }));
+      }
+    }
+    const list = new List();
+    list.renderOnto({ name: "target" });
+    assert.deepEqual([...list.unobservable.callbacks.keys()], ["aPick", "bPick"]);
+    for (let i = 0; i < 20; i++) model.ids = ["item" + i];
+    assert.deepEqual([...list.unobservable.callbacks.keys()], ["item19Pick"]);
+  });
 });

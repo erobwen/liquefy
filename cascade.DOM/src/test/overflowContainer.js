@@ -53,7 +53,11 @@ describe("OverflowContainer", function () {
     const reported = [];
     class Toolbar extends Component {
       initialUnobservables() {
-        return { slot: new DOMElementSlot({ key: "slot" }) };
+        return { slot: new DOMElementSlot({ key: "slot" }).establish() };
+      }
+      onDispose() {
+        this.unobservable.slot.dispose();
+        super.onDispose();
       }
       build() {
         const tools = widths.map((width, index) =>
@@ -118,5 +122,64 @@ describe("OverflowContainer", function () {
     assert.deepEqual(inRow(), ["..."]);
     assert.deepEqual(inSlot(), ["t0", "t1"]);
     assert.deepEqual(reported, [2]);
+  });
+
+  // Tools replaced by new ones (`generation`), and the row dropped
+  // altogether (`showRow`) - with a ResizeObserver that counts what it
+  // watches.
+  function setupReplaceable() {
+    const observed = new Set();
+    global.ResizeObserver = class {
+      observe(node) { observed.add(node); }
+      unobserve(node) { observed.delete(node); }
+      disconnect() { observed.clear(); }
+    };
+    layout.rowWidth = 100;
+    const target = new DOMElementTarget(container);
+    target.timeless = observable({ width: 100 });
+    class Toolbar extends Component {
+      initialState() {
+        return { generation: 0, showRow: true };
+      }
+      initialUnobservables() {
+        return { slot: new DOMElementSlot({ key: "slot" }).establish() };
+      }
+      onDispose() {
+        this.unobservable.slot.dispose();
+        super.onDispose();
+      }
+      build() {
+        if (!this.showRow) return div({ key: "empty" });
+        const tools = [0, 1, 2, 3, 4].map((index) =>
+          div({ key: "tool" + this.generation + "_" + index, title: "40" }, text("g" + this.generation + "t" + index)));
+        return new RowContainer({
+          key: "row",
+          children: tools,
+          ellipsis: div({ key: "ellipsis", title: "10" }, text("...")),
+          overflowSlot: this.unobservable.slot,
+        });
+      }
+    }
+    const toolbar = new Toolbar();
+    toolbar.renderOnto(target);
+    return { toolbar, observed, slot: toolbar.unobservable.slot.ensureNode() };
+  }
+
+  afterEach(function () {
+    delete global.ResizeObserver;
+  });
+
+  it("children replaced by new ones are no longer watched", function () {
+    const { toolbar, observed } = setupReplaceable();
+    assert.equal(observed.size, 5);
+    for (let generation = 1; generation <= 5; generation++) toolbar.generation = generation;
+    assert.equal(observed.size, 5, "only the current five");
+  });
+
+  it("a row dropped takes what overflowed out of the slot", function () {
+    const { toolbar, slot } = setupReplaceable();
+    assert.deepEqual(Array.from(slot.children).map((each) => each.textContent), ["g0t2", "g0t3", "g0t4"]);
+    toolbar.showRow = false;
+    assert.equal(slot.children.length, 0, "no nodes of children that are gone");
   });
 });

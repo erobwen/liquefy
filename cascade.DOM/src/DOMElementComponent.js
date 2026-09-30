@@ -125,6 +125,8 @@ export class DOMElementComponent extends DOMNodeComponent {
     const nextPreviouslySet = {};
     for (const key in newAttributes) {
       const value = newAttributes[key];
+      // Given as undefined: not given at all - cleared above, if it was.
+      if (typeof(value) === "undefined") continue;
       if (key === "style") {
         this.applyStyle(element, value || {});
       } else if (u.previouslySetAttributes[key] !== value) {
@@ -201,7 +203,10 @@ function isElementProperty(element, key) {
 
 function setAttribute(element, key, value) {
   if (isElementProperty(element, key)) {
-    element[key] = value;
+    // null: absent, as for an attribute - not the text "null" (title,
+    // placeholder, value, ... turn whatever they're given into text).
+    if (value === null) clearAttribute(element, key);
+    else element[key] = value;
   } else if (value === false || value === null || typeof(value) === "undefined") {
     element.removeAttribute(key);
   } else {

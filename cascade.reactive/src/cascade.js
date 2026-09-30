@@ -277,8 +277,10 @@ function createWorld(configuration) {
       callback();
     } finally {
       state.postponeInvalidation--;
+      // Even when the callback throws: what it did write before throwing
+      // is written, and what depends on it must not stay stale.
+      proceedWithPostponedInvalidations();
     }
-    proceedWithPostponedInvalidations();
   }
 
   function postponeInvalidations() {
@@ -492,24 +494,27 @@ function createWorld(configuration) {
       },
 
       copyWithin: function(target, start, end) {
-        if( !start ) start = 0;
-        if( !end ) end = this.target.length;
-        if (target < 0) { start = this.target.length - target; }
-        if (start < 0) { start = this.target.length - start; }
-        if (end < 0) { start = this.target.length - end; }
-        end = Math.min(end, this.target.length);
-        start = Math.min(start, this.target.length);
-        if (start >= end) {
-          return;
-        }
-        let removed = this.target.slice(target, target + end - start);
-        let added = this.target.slice(start, end);
-        let result = this.target.copyWithin(target, start, end);
+        // Indices as the native one takes them: negative ones from the end,
+        // clamped to the array.
+        const length = this.target.length;
+        const index = (value, otherwise) => {
+          if (typeof(value) === "undefined") return otherwise;
+          value = Math.trunc(Number(value)) || 0;
+          return value < 0 ? Math.max(length + value, 0) : Math.min(value, length);
+        };
+        target = index(target, 0);
+        start = index(start, 0);
+        end = index(end, length);
+        const count = Math.min(end - start, length - target);
+        if (count <= 0) return this.proxy;
+        let removed = this.target.slice(target, target + count);
+        let added = this.target.slice(start, start + count);
+        this.target.copyWithin(target, start, start + count);
 
         invalidateArrayObservers(this, "copyWithin");
-        if (emitEvents) emitSpliceEvent(this, target, added, removed);
+        if (emitEvents) emitSpliceEvent(this, target, removed, added);
 
-        return result;
+        return this.proxy;
       }
     };
 
@@ -740,8 +745,9 @@ function createWorld(configuration) {
       return;
     } 
 
+    const result = Reflect.defineProperty(target, key, oDesc);
     invalidateArrayObservers(this, key);
-    return target;
+    return result;
   }
 
   function getOwnPropertyDescriptorHandlerArray(target, key) {
@@ -825,6 +831,8 @@ function createWorld(configuration) {
       stale: false,
       hasNextValue: false,
       nextValue: undefined,
+      // Whether the buffered write sets the property (false: deletes it).
+      nextSet: false,
     };
   }
 
@@ -1439,7 +1447,7 @@ function createWorld(configuration) {
   // nextValue until its owning partial closes - see
   // finalizeTouchedStaleWritings()).
   function writingEffectiveValue(writing) {
-    if (writing.hasNextValue) return { set: true, value: writing.nextValue };
+    if (writing.hasNextValue) return { set: writing.nextSet, value: writing.nextSet ? writing.nextValue : undefined };
     return { set: writing.set, value: writing.value };
   }
 
@@ -1716,14 +1724,14 @@ function createWorld(configuration) {
     // value regardless of who's asking; only the *notification* of
     // whether it net-changed from before is deferred, not its visibility
     // to a fresh read.
-    return writing.hasNextValue || writing.set;
+    return writing.hasNextValue ? writing.nextSet : writing.set;
   }
 
   function readTimelineValue(handler, key, time, writer) {
     const timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') return undefined;
     const writing = seekWriting(timeline, time, writer);
-    if (writing.hasNextValue) return writing.nextValue;
+    if (writing.hasNextValue) return writing.nextSet ? writing.nextValue : undefined;
     return writing.set ? writing.value : undefined;
   }
 
@@ -1780,8 +1788,6 @@ function createWorld(configuration) {
 
 
   function getHandlerObject(target, key) {
-    key = key.toString();
-
     if (key === objectMetaProperty) {
       return this.meta;
     } else if (key === objectTimelinesProperty) {
@@ -1855,9 +1861,17 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
+    return writeProperty(this, key, value, true);
+  }
+
+  // A write of `key` at the current time and writer - setting it to
+  // `value`, or (isSet false) deleting it: a writing of its own either
+  // way, so a delete from inside a repeater is seen only by what comes
+  // after it, and undone when it reruns or is retracted, just like a set.
+  function writeProperty(handler, key, value, isSet) {
     const time = currentTime();
     const writer = currentWriter();
-    const timeline = getOrCreateTimeline(this, key);
+    const timeline = getOrCreateTimeline(handler, key);
     const context = state.context;
 
     // Did this exact partial already write this exact timeline earlier in
@@ -1954,7 +1968,8 @@ function createWorld(configuration) {
       // - see finalizeTouchedStaleWritings()'s own comment on why it has
       // to wait until this writing's own before/after is settled first.
       writing.hasNextValue = true;
-      writing.nextValue = value;
+      writing.nextSet = isSet;
+      writing.nextValue = isSet ? value : undefined;
       writing.writer = writer;
       relinkWriting(writing);
       if (context && context.writings) {
@@ -1963,22 +1978,26 @@ function createWorld(configuration) {
       return true;
     }
 
-    const undefinedKey = !writing.set;
+    const wasSet = writing.set;
     const previousValue = writing.value;
 
-    // If same value as already set, nothing observable changed.
-    if (writing.set && sameAsPrevious(previousValue, value)) {
+    // If same value as already set - or already absent, for a delete -
+    // nothing observable changed.
+    if (isSet && wasSet && sameAsPrevious(previousValue, value)) {
       return true;
     } // TODO: It would be even safer if we write protected non observable data structures that are assigned, if we are using mode: useNonObservablesAsValues
+    if (!isSet && !wasSet && !justInserted && retiredWriting === null) {
+      return true;
+    }
 
-    writing.value = value;
-    writing.set = true;
+    writing.value = isSet ? value : undefined;
+    writing.set = isSet;
 
     if (context && context.writings) {
       context.writings.set(timeline, writing);
     }
 
-    invalidateWritingObservers(writing, this.proxy, key);
+    if (isSet || wasSet) invalidateWritingObservers(writing, handler.proxy, key);
     // Deliberately after invalidateWritingObservers, not before: a brand
     // new writing always fires its own (pre-migration, empty) observers
     // unconditionally on this first write, regardless of value - if a
@@ -1994,9 +2013,12 @@ function createWorld(configuration) {
     // alongside the migration above, against a different (and possibly
     // entirely absent) predecessor.
     if (retiredWriting !== null) retireWritingOnto(retiredWriting, writing);
-    if (undefinedKey) invalidateEnumerateObservers(this, key, time, writer);
+    // Whether the key is there changed - or, for a writing new at this
+    // position, may have, from what the one before it said.
+    if (isSet ? !wasSet : (wasSet || justInserted)) invalidateEnumerateObservers(handler, key, time, writer);
 
-    emitSetEvent(this, key, value, previousValue);
+    if (isSet) emitSetEvent(handler, key, value, previousValue);
+    else emitDeleteEvent(handler, key, previousValue);
 
     return true;
   }
@@ -2015,6 +2037,14 @@ function createWorld(configuration) {
 
     const time = currentTime();
     const writer = currentWriter();
+
+    // From inside a repeater: a writing of its own, at its own position -
+    // never an unset of whatever earlier writing it would read.
+    if (writer !== null) {
+      if (!hasTimelineValue(this, key, time, writer)) return true;
+      return writeProperty(this, key, undefined, false);
+    }
+
     const timelineHasValue = hasTimelineValue(this, key, time, writer);
 
     if (!timelineHasValue && !(key in target)) {
@@ -2083,14 +2113,22 @@ function createWorld(configuration) {
     if (this.meta.rebuildTwin !== null) {
       let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
       return twinHandler.defineProperty.apply(
-        twinHandler, [twinHandler.target, key]);
+        twinHandler, [twinHandler.target, key, descriptor]);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
 
-    invalidateEnumerateObservers(this, "define property", currentTime(), currentWriter());
+    // A data property's value lives in its timeline, like any other
+    // written value - what reads see (its writable/enumerable/configurable
+    // flags aren't kept). A function value, like a method in an object
+    // literal (see moveTargetDataIntoTimelines()), and a getter or setter,
+    // stay on the target.
+    if ("value" in descriptor && typeof(descriptor.value) !== "function") {
+      return writeProperty(this, key, descriptor.value, true);
+    }
+    invalidateEnumerateObservers(this, key, currentTime(), currentWriter());
     return Reflect.defineProperty(target, key, descriptor);
   }
 
@@ -3910,6 +3948,10 @@ function createWorld(configuration) {
     // same way with refreshIfNeeded(). Its lifecycle is the creator's
     // responsibility: retractRepeater() stops it, restart() resumes it.
     const independent = options.independent === true;
+    if (typeof(options.time) !== "undefined"
+      && !(Number.isInteger(options.time) && options.time >= 0 && options.time < configuration.timeLevels)) {
+      throw new Error("repeat(): time " + options.time + " is outside this world's time levels, 0 to " + (configuration.timeLevels - 1) + " - see getWorld({ timeLevels }).");
+    }
     const inheritedTime = (independent && typeof(options.time) === "undefined" && state.context !== null)
       ? currentTime()
       : undefined;
@@ -4354,6 +4396,14 @@ function createWorld(configuration) {
   // (invalidator) observer has no such wavefront to wait for, so it's
   // still notified immediately, same as always.
   function abandonStaleWriting(writing) {
+    // Whether the key is there, from this position on, may change with it
+    // gone: a key this repeater added (or deleted) last run, and no longer
+    // does - so what enumerates after it (Object.keys, in, for-in) reruns.
+    const handler = writing.timeline.handler;
+    const presentNow = seekWriting(writing.timeline, writing.time, writing.writer).set;
+    if (presentNow !== writing.set) {
+      invalidateEnumerateObservers(handler, writing.timeline.key, writing.time, writing.writer);
+    }
     if (writing.observers !== null) {
       collectOvertakenPropertyObservers(writing, () => true).forEach((entry) => {
         if (entry.flagged) return;
@@ -4367,6 +4417,7 @@ function createWorld(configuration) {
     writing.stale = false;
     writing.hasNextValue = false;
     writing.nextValue = undefined;
+    writing.nextSet = false;
   }
 
   // Called whenever a partial closes (see attachToCurrentParent(), and
@@ -4392,12 +4443,18 @@ function createWorld(configuration) {
     if (partial.touchedStaleWritings === null) return;
     partial.touchedStaleWritings.forEach(function(writing) {
       writing.stale = false;
-      if (!sameAsPrevious(writing.value, writing.nextValue)) {
-        writing.value = writing.nextValue;
+      const changed = writing.set !== writing.nextSet
+        || (writing.nextSet && !sameAsPrevious(writing.value, writing.nextValue));
+      if (changed) {
+        const presenceChanged = writing.set !== writing.nextSet;
+        writing.value = writing.nextSet ? writing.nextValue : undefined;
+        writing.set = writing.nextSet;
         invalidateWritingObservers(writing, writing.timeline.handler.proxy, writing.timeline.key);
+        if (presenceChanged) invalidateEnumerateObservers(writing.timeline.handler, writing.timeline.key, writing.time, writing.writer);
       }
       writing.hasNextValue = false;
       writing.nextValue = undefined;
+      writing.nextSet = false;
       // Deliberately after the notify-if-different above, not before (see
       // setHandlerObject's own `justInserted` ordering comment for the
       // same reasoning, one level removed): a reader migrated onto

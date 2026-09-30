@@ -7,7 +7,8 @@ export function defaultDependencyInterfaceCreator(causality) {
   const invalidateObserver = causality.invalidateObserver;
 
   function createObserverSet(description, optionalKey, handler) {
-    if (typeof(optionalKey) !== "string") {
+    // Called with (description, handler) when there is no key.
+    if (arguments.length < 3) {
       handler = optionalKey;
       optionalKey = null;
     }
@@ -118,23 +119,28 @@ export function defaultDependencyInterfaceCreator(causality) {
 
     state.postponeInvalidation++;
 
-    let contents = observers.contents;
-    for (let id in contents) {
-      invalidateObserver(contents[id].observer, proxy, key);
-    }
-
-    if (typeof(observers.first) !== 'undefined') {
-      let chainedObserverChunk = observers.first;
-      while(chainedObserverChunk !== null) {
-        let contents = chainedObserverChunk.contents;
-        for (let id in contents) {
-          invalidateObserver(contents[id].observer, proxy, key);
-        }
-        chainedObserverChunk = chainedObserverChunk.next;
+    try {
+      let contents = observers.contents;
+      for (let id in contents) {
+        invalidateObserver(contents[id].observer, proxy, key);
       }
-    }
 
-    state.postponeInvalidation--;
+      if (typeof(observers.first) !== 'undefined') {
+        // The chunks as they are now: an observer invalidated may remove
+        // itself, emptying - and unlinking - its chunk on the way.
+        const chunks = [];
+        for (let chunk = observers.first; chunk !== null; chunk = chunk.next) chunks.push(chunk);
+        for (const chunk of chunks) {
+          let contents = chunk.contents;
+          for (let id in contents) {
+            invalidateObserver(contents[id].observer, proxy, key);
+          }
+        }
+      }
+    } finally {
+      // Even if an invalidation throws - or every later one stays postponed.
+      state.postponeInvalidation--;
+    }
     causality.proceedWithPostponedInvalidations();
   }
 
@@ -153,13 +159,14 @@ export function defaultDependencyInterfaceCreator(causality) {
           noMoreObservers = true;
         }
       } else {
+        // An emptied chunk is unlinked - the chunks after it stay reachable
+        // from the root.
         if (observerSet.parent.first === observerSet) {
-          observerSet.parent.first === observerSet.next;
+          observerSet.parent.first = observerSet.next;
         }
 
         if (observerSet.parent.last === observerSet) {
-          observerSet.parent.last
-            === observerSet.previous;
+          observerSet.parent.last = observerSet.previous;
         }
 
         if (observerSet.next !== null) {
@@ -175,13 +182,16 @@ export function defaultDependencyInterfaceCreator(causality) {
         observerSet.next = null;
 
         if (observerSet.parent.first === null &&
-            observerSet.parent.last === null) {
+            observerSet.parent.last === null &&
+            observerSet.parent.contentsCounter === 0) {
           noMoreObservers = true;
         }
       }
 
-      if (noMoreObservers && typeof(observerSet.handler.proxy.onRemovedLastObserver) === "function") {
-        observerSet.handler.proxy.onRemovedLastObserver(observerSet.description, observerSet.key)
+      // Only the root has the handler, description and key.
+      const root = observerSet.isRoot ? observerSet : observerSet.parent;
+      if (noMoreObservers && typeof(root.handler.proxy.onRemovedLastObserver) === "function") {
+        root.handler.proxy.onRemovedLastObserver(root.description, root.key)
       }
     }
   }
@@ -204,8 +214,6 @@ export function defaultDependencyInterfaceCreator(causality) {
     },
 
     recordDependencyOnProperty: (observer, handler, key, time, writer) => {
-      // Note: if key == toString this will break!!!
-      if (key === "toString") return;
       const writing = causality.getOrCreateTimelineWriting(handler, key, time, writer);
       if (writing.observers === null) {
         writing.observers = createObserverSet("propertyDependees", key, handler);

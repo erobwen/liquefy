@@ -258,9 +258,13 @@ class MaterialTabBar extends Component {
 }
 
 const widgets = {
-  button({ onClick, children, ...rest }) {
+  // mdui's own default is "filled" - here that marks only the main thing to
+  // do (see cascade.ui's widgets.js); any other button is tonal, as the
+  // basic theme's plain chip is to its filled one.
+  button({ onClick, children, variant, ...rest }) {
     return element("mdui-button", {
       ...rest,
+      variant: variant || "tonal",
       ...onClickOf(onClick),
       children,
     });

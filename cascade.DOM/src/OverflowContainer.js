@@ -55,6 +55,8 @@ export class OverflowContainer extends DOMPlacingContainer {
     result.overflowCount = 0;
     result.observer = null;
     result.sizes = new WeakMap();
+    result.observed = new Set();
+    result.overflowTarget = null;
     return result;
   }
 
@@ -87,6 +89,9 @@ export class OverflowContainer extends DOMPlacingContainer {
     const row = u.node;
     const nodes = u.nodes;
     const overflowTarget = this.overflowSlot ? this.overflowSlot.ensureNode() : null;
+    // Where the overflow went - to take it out again once this row is gone,
+    // when its properties already are.
+    u.overflowTarget = overflowTarget;
     let cut = nodes.length;
     if (row.isConnected) {
       const style = row.ownerDocument.defaultView.getComputedStyle(row);
@@ -113,6 +118,17 @@ export class OverflowContainer extends DOMPlacingContainer {
     for (const node of nodes) {
       this.observe(node);
       if (node.nodeType === 1 && node.isConnected) u.sizes.set(node, sizeOf(node));
+    }
+    // No longer a child: no longer watched.
+    if (u.observer) {
+      const current = new Set(nodes);
+      for (const node of u.observed) {
+        if (!current.has(node)) {
+          u.observer.unobserve(node);
+          u.observed.delete(node);
+          u.sizes.delete(node);
+        }
+      }
     }
 
     const overflowCount = nodes.length - cut;
@@ -148,12 +164,34 @@ export class OverflowContainer extends DOMPlacingContainer {
       });
     }
     u.sizes.set(node, undefined);
+    u.observed.add(node);
     u.observer.observe(node);
   }
 
+  // What overflowed is taken out of the slot along with the row - not left
+  // there, the nodes of children no longer shown (or no longer alive) - and
+  // put back when the row is.
+  emptyOverflowSlot() {
+    const slotNode = this.unobservable.overflowTarget;
+    if (slotNode) this.placeInOrder(slotNode, []);
+  }
+
+  onRetract() {
+    this.emptyOverflowSlot();
+    super.onRetract();
+  }
+
+  onReattach(target) {
+    super.onReattach(target);
+    if (this.unobservable.node) this.layout();
+  }
+
   onDispose() {
+    this.emptyOverflowSlot();
     super.onDispose();
-    if (this.unobservable.observer) this.unobservable.observer.disconnect();
+    const u = this.unobservable;
+    if (u.observer) u.observer.disconnect();
+    u.observed.clear();
   }
 }
 

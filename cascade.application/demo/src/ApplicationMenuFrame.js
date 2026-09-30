@@ -178,15 +178,9 @@ class ApplicationMenuFrameLayout extends Component {
     const workAreaWidth = (menuIsModal ? bounds.width : bounds.width - MENU_WIDTH) - 32;
     const workAreaHeight = bounds.height - TOP_BAR_HEIGHT - 32;
 
-    // Going wide closes an open modal menu - the drawer is docked now, so
-    // there's nothing for `menuOpen` to mean. That's a *state* change on
-    // `frame`, caused by the user resizing rather than by the pipeline
-    // recomputing - setState() (rather than a plain assignment) is what
-    // makes writing it from here, inside this component's own build()
-    // repeater, sanctioned (same shape as cascade.ui's OverlayFrame.
-    // showOverlay(), called from Overlay.render()).
-    if (!menuIsModal) frame.setState({ menuOpen: false });
-
+    // Wide, the drawer is docked, and `menuOpen` means nothing - so it's
+    // only ever read together with menuIsModal, never reset from here:
+    // state is changed by the user, not by a build.
     const page = frame.currentPage();
 
     const topBar = div(

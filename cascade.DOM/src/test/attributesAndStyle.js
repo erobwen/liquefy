@@ -96,4 +96,19 @@ describe("element attributes and style", function () {
     element.click();
     assert.equal(clicks, 1, "the handler is gone");
   });
+
+  it("a property given as undefined or null is cleared - not set to the text \"undefined\"", function () {
+    const holder = render((values) => input({ key: "i", ...values }), { title: "tip", placeholder: "Name", value: "typed" });
+    const element = container.firstChild;
+    assert.equal(element.title, "tip");
+
+    holder.values = { title: undefined, placeholder: null, value: undefined };
+    assert.equal(element.title, "");
+    assert.equal(element.hasAttribute("title"), false);
+    assert.equal(element.placeholder, "");
+    assert.equal(element.value, "");
+
+    holder.values = { title: "again" };
+    assert.equal(element.title, "again", "and set again when given again");
+  });
 });

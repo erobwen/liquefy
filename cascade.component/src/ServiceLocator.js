@@ -123,12 +123,20 @@ export function isServiceQuery(value) {
 }
 
 export function hydrateQuery(query, locator, positionalKey = "h") {
+  // Already built (a component at the root of a document): as it is.
+  if (!isServiceQuery(query)) return query;
   const properties = { ...(query.properties || {}) };
   if (typeof(properties.key) === "undefined" || properties.key === null) properties.key = positionalKey;
   if (typeof(properties.children) !== "undefined") {
     const children = properties.children instanceof Array ? properties.children : [properties.children];
     properties.children = children.map((child, index) =>
       isServiceQuery(child) ? hydrateQuery(child, locator, properties.key + "." + index) : child);
+  }
+  // A component class named in the document itself (a JSX tag - see
+  // cascade.DOM's jsx-runtime.js): constructed directly, its children
+  // already hydrated - nothing to ask a locator for.
+  if (query.type === "component" && typeof(query.componentClass) === "function") {
+    return new query.componentClass(properties);
   }
   const result = locator.locate({ ...query, properties });
   if (result === undefined) {

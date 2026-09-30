@@ -17,8 +17,10 @@ import { getCreator } from "./Component.js";
  * long as that component lives, and always calls the closure from its
  * latest build, so nothing it captures is ever stale.
  *
- * Kept by the component whose build() is running (see getCreator()). Called
- * outside any build, it simply returns `fn`.
+ * Kept by the component whose build() is running (see getCreator()), for
+ * as long as its builds keep making it: one a build no longer makes is
+ * dropped when that build is done. Called outside any build, it simply
+ * returns `fn`.
  */
 export function callback(key, fn) {
   const creator = getCreator();
@@ -31,7 +33,12 @@ export function callback(key, fn) {
       return stable.current.apply(this, parameters);
     };
     u.callbacks.set(key, stable);
+  } else if (stable.build === u.callbackBuild && stable.current !== fn) {
+    // Two in one build under the same key would share one function -
+    // the second silently taking over the first.
+    console.warn("callback(): the key \"" + key + "\" is used twice in one build of " + creator.constructor.name + " - give each its own.");
   }
   stable.current = fn;
+  stable.build = u.callbackBuild;
   return stable;
 }

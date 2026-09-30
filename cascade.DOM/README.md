@@ -7,14 +7,14 @@ reconciling it separately. A rebuild still touches only the nodes that
 actually changed.
 
 ```console
-npm install @liquefy/cascade.dom @liquefy/cascade.component @liquefy/cascade.reactive
+npm install @liquefy/cascade.ui @liquefy/cascade.dom @liquefy/cascade.component @liquefy/cascade.reactive
 ```
 
 ## Hello World
 
 ```js
-import { Component, RenderContext, CompoundServiceLocator } from "@liquefy/cascade.component";
-import { DOMElementTarget, DOMServiceLocator, div, h1, p, text } from "@liquefy/cascade.dom";
+import { Component, RenderContext } from "@liquefy/cascade.component";
+import { DOMElementTarget, div, h1, p, text } from "@liquefy/cascade.dom";
 import { button, basicTheme } from "@liquefy/cascade.ui";
 
 class Hello extends Component {
@@ -28,25 +28,24 @@ class Hello extends Component {
 
   build() {
     return div(
-      { key: "hello", style: { padding: "20px" } },
-      h1({ key: "title" }, text({ key: "titleText", text: "Hello " + this.to })),
-      p({ key: "count" }, text({ key: "countText", text: "Clicked " + this.count + " times" })),
-      button({ key: "click" }, text({ key: "clickText", text: "Click me!" }), () => { this.count++; }),
+      { style: { padding: "20px" } },
+      h1(text("Hello " + this.to)),
+      p(text("Clicked " + this.count + " times")),
+      button(text("Click me!"), () => { this.count++; }),
     );
   }
 }
 
-// What the app's components get when they ask for an HTML element, or a
-// themed widget: real DOM elements, then the basic theme's widgets.
-const services = new CompoundServiceLocator(new DOMServiceLocator(), basicTheme);
-
-new Hello({ to: "World" }).renderOnto(
-  new RenderContext(DOMElementTarget.forElement(document.getElementById("app")), { serviceLocator: services }),
-);
+// The render target: where it all goes. The service locator - the basic
+// theme - provides the themed widgets (button(), ...); HTML elements are
+// real DOM elements unless a locator says otherwise.
+const target = DOMElementTarget.forElement(document.getElementById("app"));
+new Hello({ to: "World" }).establish().renderOnto(target, new RenderContext({ serviceLocator: basicTheme }));
 ```
 
-Use `text({ key, text })` for text: a lone string argument that starts with a
-lowercase letter is taken for a key.
+`text("...")` is always text. An element factory, though, takes a lone string
+argument that starts with a lowercase letter for a key - so wrap text in
+`text()`.
 
 ## What's in it
 
@@ -62,12 +61,17 @@ lowercase letter is taken for a key.
   appearing and leaving. Nothing inside it knows about animation.
 - **`overflowContainer()`** - places its children one by one, measuring each
   where it really is, and moves what doesn't fit into an overflow slot (an
-  ellipsis toolbar, say).
+  ellipsis toolbar, say) - an `elementSlot()`, an element for it to fill,
+  shown wherever the overflow belongs (a popover).
 - **`providingElement()`** - keeps a component, its state and its elements,
   wherever it's shown next.
 - **`browserLocation()`** - routing: the URL as observable state.
 - **`hydrate()`** - a UI written as a document: plain data, a tree of service
   queries, turned into components.
+- **JSX** - tags compile to those same service queries, for `hydrate()`. With
+  Vite (esbuild): `esbuild: { jsx: "automatic", jsxImportSource: "@liquefy/cascade.dom" }`
+  in `vite.config.js`, and `serviceQueries("widget")` for themed widgets
+  (`<widget.button>`).
 - **`fitTextWithinWidth()`**, `textWidth()` - text measured on a canvas.
 
 See the [demo](https://erobwen.github.io/liquefy/cascade/) - every page has a button

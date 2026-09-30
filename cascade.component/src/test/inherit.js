@@ -252,4 +252,13 @@ describe("a disposed render context", function () {
     assert.equal(context.causality.inheritCache, null, "nothing cached on it again");
     assert.ok(cached > 0);
   });
+
+  it("a provider that throws once doesn't break inherit() for good", function () {
+    let broken = true;
+    const root = new RenderContext({ get v() { if (broken) throw new Error("not ready"); return 1; } });
+    const child = new RenderContext({ other: 2 }, root);
+    assert.throws(() => child.inherit("v"), /not ready/);
+    broken = false;
+    assert.equal(child.inherit("v"), 1, "tried again - not a half-made cache entry");
+  });
 });

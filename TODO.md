@@ -6,4 +6,3 @@
 
 * Build a Word processor or XML editor prototype in the Demo using temporal signals. 
 
-* Investigate jsx compatibility. Now that we have full Json representation of components, it is not that far off to have a jsx -> JS step that allow us to write Cascade builds with tags. I am not sure if that is better than the build functions, but it is an idea. 

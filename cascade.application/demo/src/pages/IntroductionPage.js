@@ -154,10 +154,10 @@ export class IntroductionPage extends Component {
             li("Write JSX inside your component, which compiles to a compound request object - a document of service queries - that hydrate() hands to the service locator")
           )
         ),
-        li("Building children in the build function is a convenience and allows for the use of keys to maintain a stable object identity, but a parent can also construct a child child during its initialization and dispose of it when the parent itself is disposed. Components can also be constructed entirely outside of the framework."), 
-        li("Most components delegate their rendering to a sequence of children, but other components could implement the render function directly and take charge of DOM manipulaiton directly."),
+        li("Building children in the build function is a convenience and allows for the use of keys to maintain a stable object identity, but a parent can also construct a child during its initialization and dispose of it when the parent itself is disposed. Components can also be constructed entirely outside of the framework."), 
+        li("Most components delegate their rendering to a sequence of children, but other components could implement the render function directly and take charge of DOM manipulation directly."),
         li("As a rule of thumb, app components build, and library components render. Because if there is a need to take control and render something, it could probably be built into a reusable component. But someone might build a render-oriented application by only implementing the render function for all components, and that could have its merits too."),
-        li("Today there is cascade.DOM that allows for rendering an application on a DOM, but another implementation of the render target could have the same app operate on top of totally different infrastructure. (think React Native and NextJS server side rendering.)"),
+        li("Today there is cascade.DOM that allows for rendering an application on a DOM, but another implementation of the render target could have the same app operate on top of totally different infrastructure. (Think React Native, or server-side rendering as in Next.js.)"),
       ),
 
       h2("Are you a React developer?"),

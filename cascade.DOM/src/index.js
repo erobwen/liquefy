@@ -1,6 +1,7 @@
 export { DOMElementTarget } from "./DOMElementTarget.js";
 export { BrowserLocation, browserLocation } from "./BrowserLocation.js";
 export { DOMServiceLocator, DOMDebugServiceLocator, defaultDOMServiceLocator, hydrate, locateDOMComponent } from "./DOMServiceLocator.js";
+export { serviceQueries } from "./jsx-runtime.js";
 export { SingleNodeComponent } from "./SingleNodeComponent.js";
 export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMProvidingElement, providingElement } from "./DOMProvidingElement.js";

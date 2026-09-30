@@ -10,6 +10,7 @@ import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
 import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
 import { ThemesPage } from "./src/pages/ThemesPage.js";
 import { HydrationPage } from "./src/pages/HydrationPage.js";
+import { JsxPage } from "./src/pages/JsxPage.jsx";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { StorePage } from "./src/pages/StorePage.js";
 import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
@@ -75,6 +76,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "reactive-form", group: "Examples", title: "Reactive Form", component: new ReactiveFormPage().establish() },
     { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", component: new HybridModalDialog().establish() },
     { key: "hydration", group: "Examples", title: "Hydration", component: new HydrationPage().establish() },
+    { key: "jsx", group: "Examples", title: "JSX", component: new JsxPage().establish() },
     { key: "animation", group: "Examples", title: "Animation", component: new AnimationPage().establish() },
     { key: "store", group: "Examples", title: "Web Store", component: new StorePage().establish() },
     { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage().establish() },

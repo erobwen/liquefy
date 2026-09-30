@@ -15,6 +15,12 @@
   "type": "module",
   "main": "./src/index.js",
   "module": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./jsx-runtime": "./src/jsx-runtime.js",
+    "./jsx-dev-runtime": "./src/jsx-dev-runtime.js",
+    "./package.json": "./package.json"
+  },
   "files": [
     "src",
     "!src/test",

@@ -10,8 +10,8 @@ export class NoticeBoard extends Component {
   initialUnobservables() {
     return {
       board: portal(
-        { style: { padding: "10px 14px", borderRadius: "8px", background: "#fff4e5", color: "#663c00" } },
-        text("No notices."),
+        { style: { padding: "12px", minHeight: "48px", border: "2px dashed #cdd7e2", borderRadius: "8px" } },
+        div({ style: { opacity: 0.6 } }, text("No notices - the board is empty.")),
       ).establish(),
     };
   }
@@ -54,7 +54,7 @@ class Poster extends Component {
       // Keyed: built even while it isn't shown, and kept alive by its key.
       portalSource(
         { key: "notice", portal: "noticeBoard" },
-        text("Posted from deep inside - shown up here."),
+        card(text("A notice - posted from deep inside, shown up here.")),
       ).showIf(this.posted),
     );
   }

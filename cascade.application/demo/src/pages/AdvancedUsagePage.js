@@ -4,12 +4,12 @@ import { pageActions } from "../components/pageActions.js";
 import { article, emphasis } from "../components/layout.js";
 import { codeBlock, stage, name } from "../components/examples.js";
 import { GaugeDemo } from "./advanced/Gauge.js";
-import { DoubleGaugeDemo } from "./advanced/DoubleGauge.js";
+import { ThermometersDemo } from "./advanced/Thermometers.js";
 import { TranslationDemo } from "./advanced/Translation.js";
 import { Measured } from "./advanced/Measured.js";
 import { KeepAlive } from "./advanced/KeepAlive.js";
 import gaugeSource from "./advanced/Gauge.js?raw";
-import doubleGaugeSource from "./advanced/DoubleGauge.js?raw";
+import thermometersSource from "./advanced/Thermometers.js?raw";
 import paperSource from "./advanced/Paper.js?raw";
 import translationSource from "./advanced/Translation.js?raw";
 import measuredSource from "./advanced/Measured.js?raw";
@@ -58,22 +58,25 @@ export class AdvancedUsagePage extends Component {
       ),
       stage("gaugeStage", new GaugeDemo({ key: "gaugeDemo" })),
       codeBlock("gaugeCode", gaugeSource),
-      h3("Is one node not enough for your component?"),
+      h3("Not exactly one node?"),
       p(
-        "Then implement render() itself. A component renders onto its ", name("target", "target"), " - the element ",
-        "its parent renders into - and can put there as many nodes as it likes: right after ",
-        name("lastChild", "target.lastChild"), ", the node rendered just before it, and then it advances lastChild to ",
-        "the last of its own. This double gauge is two nodes, side by side in the row, with no wrapper around them.",
+        "Then implement render() itself. A component that renders isn't given a node - it's given a time: its turn ",
+        "in the rendering of the DOM, after what renders before it and before what renders after. What it puts there ",
+        "is up to it - one node, many, or none at all. It renders onto its ", name("target", "target"), " - the ",
+        "element its parent renders into - right after ", name("lastChild", "target.lastChild"), ", the node rendered ",
+        "just before it, and then advances lastChild to the last of its own, or leaves it where it was if it has none. ",
+        "These thermometers are as many nodes as the count says, side by side in the row, with no wrapper around ",
+        "them - and at zero, nothing at all: \"Before\" and \"After\" meet.",
       ),
       p(
         "Here is where temporal signals show their magic. lastChild is one property, written by every component in the ",
-        "row in turn - yet each one reads it as the component just before it left it. So \"After both\" lands after the ",
-        "second gauge, without knowing there are two. Swap the gauges, and lastChild changes for what comes after: the ",
-        "double gauge renders again, and so does \"After both\" - it read lastChild - but \"Before\" doesn't. Move a ",
-        "slider, and lastChild stays the same: only the double gauge renders again.",
+        "row in turn - yet each one reads it as the component just before it left it. So \"After\" lands after the ",
+        "last thermometer, without knowing how many there are, or if there are any. Change the count, and lastChild ",
+        "changes for what comes after: the thermometers render again, and so does \"After\" - it read lastChild - but ",
+        "\"Before\" doesn't. Move the slider, and lastChild stays the same: only the thermometers render again.",
       ),
-      stage("doubleGaugeStage", new DoubleGaugeDemo({ key: "doubleGaugeDemo" })),
-      codeBlock("doubleGaugeCode", doubleGaugeSource),
+      stage("thermometersStage", new ThermometersDemo({ key: "thermometersDemo" })),
+      codeBlock("thermometersCode", thermometersSource),
 
       h2("Not just for rendering on a DOM"),
       p(

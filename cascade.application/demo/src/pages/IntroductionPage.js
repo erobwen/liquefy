@@ -160,6 +160,27 @@ export class IntroductionPage extends Component {
         li("Today there is cascade.DOM that allows for rendering an application on a DOM, but another implementation of the render target could have the same app operate on top of totally different infrastructure. (think React Native and NextJS server side rendering.)"),
       ),
 
+      h2("Are you a React developer?"),
+      p("React and Cascade are very different, but they also share some common DNA - the author of Cascade was a huge fan of React from its very start."),
+      p(emphasis("Similarities")),
+      ul(
+        li("React's render functions with keys are very similar to Cascade's build functions, with keys and pattern matching."),
+        li("Cascade supports JSX syntax, for those who want it."),
+      ),
+      p(emphasis("Differences")),
+      ul(
+        li("React has a black box render cycle, where you can only interact with the DOM between renders. Cascade lets your own code go in and analyze and modify the DOM during the render. So many things that would take several frames in React can be done in a single frame."),
+        li("Cascade has a state management system of its own, based on JS Proxies, whereas React is usually paired up with an external system for its application state."),
+        li(
+          "Object orientation vs. pure functional programming. ", emphasis("\"React went down a path I could not follow.\""), " React started ",
+          "out object oriented, with lifecycle functions, and later shifted towards functional programming. The reason ",
+          "is probably Redux: a state management system based on functional programming, using immutable objects and ",
+          "root identity to detect changes. Cascade, however, can stay object oriented, since its JS Proxies detect ",
+          "changes in any object.",
+        ),
+      ),
+      p("Cascade is what you would get if you took all the capabilities of React and MobX, added temporal signals, and mixed it all together. It can do everything those systems can do - but with temporal signals and sub-frame precision, it takes it to the next level."),
+
       h2("Repository"),
       a(text("https://github.com/erobwen/liquefy"), { href: "https://github.com/erobwen/liquefy" }),
       p("This demo is a work in progress."),

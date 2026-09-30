@@ -148,8 +148,11 @@ export class Popover extends Component {
           onmousedown: callback("outside", () => this.close && this.close()),
           style: { pointerEvents: "auto" },
         }),
+        // Its own size and place - not the whole layer, as the zStack gives
+        // its children (see zStackElementStyle): stretched, the invisible
+        // rest of the box would catch the clicks meant for outside it.
         wrapper(
-          { key: "content", style: { position: "fixed", pointerEvents: "auto", maxWidth: "min(800px, 90vw)", ...this.placement(), ...this.style } },
+          { key: "content", style: { position: "fixed", top: "auto", left: "auto", width: "auto", height: "auto", pointerEvents: "auto", maxWidth: "min(800px, 90vw)", ...this.placement(), ...this.style } },
           this.popoverChildren,
         ),
       ),

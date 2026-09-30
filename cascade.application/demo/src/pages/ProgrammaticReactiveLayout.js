@@ -48,14 +48,12 @@ export class ProgrammaticReactiveLayout extends Component {
     }
 
     return fullPage(
-      { key: "page" },
       pageActions({ information, source, fileName: "src/pages/ProgrammaticReactiveLayout.js" }),
       controlPanel(
-        { key: "controls" },
         this.numberField("rows", "Rows"),
         this.numberField("columns", "Columns"),
       ),
-      column({ key: "grid", style: { ...fillerStyle, gap: GAP } }, rows),
+      column({ style: { ...fillerStyle, gap: GAP } }, rows),
     );
   }
 
@@ -68,13 +66,12 @@ export class ProgrammaticReactiveLayout extends Component {
     return elementBoundsProvider({
       key,
       style: { ...fillerStyle, ...centerMiddleStyle, minWidth: 0, borderRadius: "8px", ...Kind.cellStyle },
-      child: new Kind({ key: key + "Content" }),
+      child: new Kind(),
     });
   }
 
   numberField(property, caption) {
     return textField({
-      key: property + "Field",
       label: caption,
       type: "number",
       value: this[property],
@@ -88,11 +85,11 @@ export class ProgrammaticReactiveLayout extends Component {
 
 // Text on one line, as large as fits `width` - but no larger than
 // `maxFontSize`.
-function fittedText({ key, text: content, width, maxFontSize = Infinity, style }) {
+function fittedText({ text: content, width, maxFontSize = Infinity, style }) {
   const fontSize = Math.min(maxFontSize, fitTextWithinWidth(content, width));
   return span(
-    { key, style: { whiteSpace: "pre", lineHeight: "1.2", fontSize: fontSize + "px", ...style } },
-    text({ key: key + "Text", text: content }),
+    { style: { whiteSpace: "pre", lineHeight: "1.2", fontSize: fontSize + "px", ...style } },
+    text(content),
   );
 }
 
@@ -110,7 +107,6 @@ class BoundsDisplay extends Component {
   build() {
     const width = this.fromTarget("width") || 0, height = this.fromTarget("height") || 0;
     return fittedText({
-      key: "bounds",
       text: "Bounds: " + Math.round(width) + " x " + Math.round(height),
       width: width * 0.8,
       maxFontSize: 16,
@@ -128,7 +124,6 @@ class StringDisplay extends Component {
   build() {
     const width = this.fromTarget("width") || 0, height = this.fromTarget("height") || 0;
     return fittedText({
-      key: "string",
       text: "Text that fits the width of its container",
       // Its border and a margin off - and never taller than the cell.
       width: width - 12,
@@ -159,14 +154,12 @@ class FixedAspectRatioDisplay extends Component {
     }
     return centerMiddle(
       {
-        key: "box",
         style: {
           flex: "none", width: width + "px", height: height + "px", boxSizing: "border-box",
           border: "1px solid " + accentColor, borderRadius: "6px", backgroundColor: themeColor.accentLight, color: themeColor.accentDark, overflow: "hidden",
         },
       },
       fittedText({
-        key: "ratio",
         text: "Width / Height = " + (Math.round(this.aspectRatio * 100) / 100),
         width: width * 0.8,
         maxFontSize: 16,
@@ -193,17 +186,14 @@ class ResponsiveDisplay extends Component {
       return row(
         { key: "compact", style: { alignItems: "center", gap: "8px" } },
         glyph(32),
-        span({ key: "caption", style: { fontWeight: "bold" } }, text({ key: "captionText", text: "Adaptive" })),
+        span({ style: { fontWeight: "bold" } }, text("Adaptive")),
       );
     }
     return column(
       { key: "full", style: { alignItems: "center", gap: "8px", padding: "12px", textAlign: "center" } },
       glyph(48),
-      span({ key: "title", style: { fontWeight: "bold", fontSize: "18px" } }, text({ key: "titleText", text: "Adaptive composition" })),
-      div({ key: "description", style: { fontSize: "13px", opacity: 0.85, maxWidth: "260px" } }, text({
-        key: "descriptionText",
-        text: "With room to spare, this cell shows a whole description. Make it smaller: first a caption, then just the icon.",
-      })),
+      span({ style: { fontWeight: "bold", fontSize: "18px" } }, text("Adaptive composition")),
+      div({ style: { fontSize: "13px", opacity: 0.85, maxWidth: "260px" } }, text("With room to spare, this cell shows a whole description. Make it smaller: first a caption, then just the icon.")),
     );
   }
 }

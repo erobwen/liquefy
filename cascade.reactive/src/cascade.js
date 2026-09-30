@@ -19,15 +19,6 @@ const defaultConfiguration = {
 
   timeLevels: 4,
 
-  // Dev-time-only safety net for the O(1) order-number chain (see
-  // compareWriterOrder()/structuralCompareWriterOrder()): also compute
-  // writer order via the older, structural parent/sibling walk (O(depth),
-  // never optimized, but doesn't depend on the order-number bookkeeping
-  // being correct) and throw if the two disagree. Off by default - it's
-  // a real O(depth) tree walk on every comparison, not something to pay
-  // for outside development.
-  verifyChainOrderStructurally: false,
-
   objectMetaProperty: "causality",
   objectTimelinesProperty: "timelines",
 
@@ -1167,7 +1158,8 @@ function createWorld(configuration) {
   // Order two writers (partials, or null for external code) when they
   // share a chain (the common case - same root tree): prefer the always-
   // correct structural (parent/sibling) walk - see structuralCompareWriterOrder's
-  // own comment - falling back to the O(1) orderNumber only when structural
+  // own comment; O(depth), siblings compared by their position numbers -
+  // falling back to the O(1) orderNumber only when structural
   // genuinely can't tell (neither writer currently findable in a confirmed-
   // or-pending list - e.g. both retracted). Order-number is a fast, best-
   // effort hint, not the source of truth right now: a whole reordered
@@ -1194,8 +1186,8 @@ function createWorld(configuration) {
   // Walk a writer (a partial, or a bare top-level repeater) up to its
   // root purely via structural parent/sibling pointers (parentRepeater,
   // previousSibling/nextSibling on the *confirmed* children list) -
-  // completely independent of orderNumber/chainHead bookkeeping. Used
-  // only by the dev-time shadow verifier below; not on any hot path.
+  // completely independent of orderNumber/chainHead bookkeeping - see
+  // structuralCompareWriterOrder() below.
   function structuralWriterPath(writer) {
     const path = [];
     let node = writer;
@@ -1207,9 +1199,8 @@ function createWorld(configuration) {
   }
 
   // Which of two known siblings (both, at some point, owned by
-  // parentRepeater) comes first - a plain O(siblings) linear scan of its
-  // *confirmed* children list, since this list has no O(1) order primitive
-  // of its own (that's the whole reason the order-number chain exists).
+  // parentRepeater) comes first in its *confirmed* children list - by
+  // their position numbers there (see appendToChildList()), in O(1).
   //
   // A sibling not found there at all is either retracted (genuinely gone,
   // no relative order to report) or still sitting, unclaimed, in
@@ -1221,12 +1212,12 @@ function createWorld(configuration) {
   // Both still pending leaves the question open (no fresh execution order
   // between them yet to compare) - "can't tell structurally", not "equal".
   function structuralCompareSiblings(parentRepeater, a, b) {
-    let node = parentRepeater.children.first;
-    while (node !== null) {
-      if (node === a) return -1;
-      if (node === b) return 1;
-      node = node.nextSibling;
-    }
+    const list = parentRepeater.children;
+    const aConfirmed = a.childList === list;
+    const bConfirmed = b.childList === list;
+    if (aConfirmed && bConfirmed) return a.siblingIndex < b.siblingIndex ? -1 : 1;
+    if (aConfirmed) return -1;
+    if (bConfirmed) return 1;
     const aPending = a.listMembership === "pending";
     const bPending = b.listMembership === "pending";
     if (aPending && !bPending) return 1;
@@ -1234,12 +1225,11 @@ function createWorld(configuration) {
     return null;
   }
 
-  // The pre-order-number algorithm this project used to compare writer
-  // execution order, kept only as an independent, structurally-derived
-  // cross-check (see configuration.verifyChainOrderStructurally) - O(depth
-  // + siblings-at-the-divergence-point), never optimized, and correct by
-  // construction since it never depends on any order-number bookkeeping
-  // being right. Returns -1/0/1, or null when it genuinely can't tell
+  // Writer execution order from the tree itself - what compareWriterOrder()
+  // relies on: O(depth), siblings compared by their position numbers (see
+  // structuralCompareSiblings()), and correct by construction since it
+  // never depends on any order-number bookkeeping being right (which a
+  // reordered subtree can leave wrong). Returns -1/0/1, or null when it genuinely can't tell
   // (different roots entirely, or one/both writers no longer structurally
   // findable - e.g. retracted - in which case there's nothing to check
   // compareWriterOrder's own answer against).
@@ -1263,21 +1253,6 @@ function createWorld(configuration) {
     }
     const commonParent = pathA[ia + 1];
     return structuralCompareSiblings(commonParent, pathA[ia], pathB[ib]);
-  }
-
-  function verifyAgainstStructuralOrder(writerA, writerB, orderNumberResult) {
-    const structural = structuralCompareWriterOrder(writerA, writerB);
-    if (structural === null) return; // can't independently verify this pair right now
-    const orderSign = Math.sign(orderNumberResult);
-    const structuralSign = Math.sign(structural);
-    if (orderSign !== structuralSign) {
-      throw new Error(
-        "Order-number chain disagrees with structural writer order: orderNumber comparison said " +
-        orderSign + ", structural (parent/sibling) comparison said " + structuralSign +
-        " for writers " + (writerA.causalityString ? writerA.causalityString() : String(writerA)) +
-        " vs " + (writerB.causalityString ? writerB.causalityString() : String(writerB))
-      );
-    }
   }
 
   // Parallel pipelines. Two pipelines (different chainHeads) at the same
@@ -2656,9 +2631,16 @@ function createWorld(configuration) {
     return { first: null, last: null };
   }
 
+  // A list is only ever appended to, or unlinked from - never inserted
+  // into in the middle - so a node's position number, one more than the
+  // last one's when it's appended, stays in order for as long as it's in
+  // the list: which of two comes first is a comparison, not a walk (see
+  // structuralCompareSiblings()). `childList` says which list it's in.
   function appendToChildList(list, node) {
     node.previousSibling = list.last;
     node.nextSibling = null;
+    node.siblingIndex = list.last !== null ? list.last.siblingIndex + 1 : 0;
+    node.childList = list;
     if (list.last !== null) {
       list.last.nextSibling = node;
     } else {
@@ -2680,6 +2662,7 @@ function createWorld(configuration) {
     }
     node.previousSibling = null;
     node.nextSibling = null;
+    node.childList = null;
   }
 
   // Create a fresh partial for `repeater`'s current position - either the

@@ -81,10 +81,10 @@ export class ReactiveFormPage extends Component {
     const form = [
       controlPanel(
         { key: "header" },
-        div({ key: "title", style: { fontSize: "18px", fontWeight: "bold" } },
-          text({ key: "titleText", text: "Traveler information" + (count === 1 ? "" : " (" + count + " people)") })),
-        filler({ key: "headerFiller" }),
-        new CostDisplay({ key: "cost" }),
+        div({ style: { fontSize: "18px", fontWeight: "bold" } },
+          text("Traveler information" + (count === 1 ? "" : " (" + count + " people)"))),
+        filler(),
+        new CostDisplay(),
       ),
 
       // Traveler forms.
@@ -104,21 +104,21 @@ export class ReactiveFormPage extends Component {
           onclick: callback("addTraveler", () => this.addTraveler()),
           style: { ...addButtonStyle, flexDirection: "column", gap: "2px", alignSelf: "stretch", minHeight: addTileHeight, padding: "8px" },
         },
-        icon({ key: "addTravelerIcon", name: "add", style: { fontSize: "40px" } }),
-        text({ key: "addTravelerText", text: "Add traveler" }),
+        icon({ name: "add", style: { fontSize: "40px" } }),
+        text("Add traveler"),
       ),
 
       new ErrorSummary({ key: "errors", verifying: this.verifying }),
       alert(
         { key: "sent", severity: "success" },
         row(
-          { key: "sentRow", style: { alignItems: "center", gap: "8px" } },
-          filler({ key: "sentText" }, text({ key: "sentMessage", text: this.sent || "" })),
-          iconButton({ key: "dismiss", icon: "close", title: "Dismiss", onClick: callback("dismiss", () => { this.sent = null; }) }),
+          { style: { alignItems: "center", gap: "8px" } },
+          filler(text(this.sent || "")),
+          iconButton({ icon: "close", title: "Dismiss", onClick: callback("dismiss", () => { this.sent = null; }) }),
         ),
       ).showIf(!!this.sent),
 
-      button({ key: "submit", variant: "filled" }, text({ key: "submitText", text: "Submit" }), callback("submit", () => this.submit())),
+      button({ key: "submit", variant: "filled" }, text("Submit"), callback("submit", () => this.submit())),
     ];
 
     // How the demo is shown, and the model's data - neither is part of the
@@ -127,14 +127,13 @@ export class ReactiveFormPage extends Component {
     const demoControls = card(
       { key: "demoControls", style: { margin: wide ? "2px 2px 0 0" : "2px 4px 0" } },
       row(
-        { key: "demoControlsRow", style: { alignItems: "center", gap: "12px", flexWrap: "wrap" } },
-        checkbox({ key: "animate", label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
+        { style: { alignItems: "center", gap: "12px", flexWrap: "wrap" } },
+        checkbox({ label: "Animate", checked: this.animate, onChange: callback("animate", (checked) => { this.animate = checked; }) }),
         // How fast the animation runs - 1 is its springs' natural pace.
         row(
-          { key: "speed", style: { alignItems: "center", gap: "8px", flex: "1 1 160px", opacity: this.animate ? 1 : 0.5 } },
-          span({ key: "speedLabel" }, text({ key: "speedLabelText", text: "Speed" })),
+          { style: { alignItems: "center", gap: "8px", flex: "1 1 160px", opacity: this.animate ? 1 : 0.5 } },
+          span(text("Speed")),
           input({
-            key: "speedSlider",
             type: "range",
             min: 0.1,
             max: 2,
@@ -145,8 +144,8 @@ export class ReactiveFormPage extends Component {
             oninput: callback("speed", (event) => { this.speed = Number(event.target.value); }),
             style: { flex: "1 1 auto", minWidth: "80px", margin: 0, accentColor: themeColor.chrome },
           }),
-          span({ key: "speedValue", style: { minWidth: "36px", textAlign: "right", fontVariantNumeric: "tabular-nums" } },
-            text({ key: "speedValueText", text: this.speed.toFixed(1) + "×" })),
+          span({ style: { minWidth: "36px", textAlign: "right", fontVariantNumeric: "tabular-nums" } },
+            text(this.speed.toFixed(1) + "×")),
         ),
       ),
     );
@@ -156,10 +155,10 @@ export class ReactiveFormPage extends Component {
     // at its edges.
     const formStyle = { display: "flex", flexDirection: "column", gap: pageGap, padding: "2px 4px 16px", maxWidth: "720px", boxSizing: "border-box" };
     return row(
-      { key: "page", style: { ...fitContainerStyle, gap: pageGap, padding: pagePadding } },
+      { style: { ...fitContainerStyle, gap: pageGap, padding: pagePadding } },
       pageActions({ information, source, fileName: "src/pages/ReactiveFormPage.js" }),
       div(
-        { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
+        { style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
         wide ? null : div({ key: "narrowTop", style: { maxWidth: "720px", paddingBottom: pageGap } }, demoControls),
         this.animate
           ? flipAnimationContainer({ key: "form", style: formStyle, speed: this.speed, confine: this.confine }, form)
@@ -205,7 +204,6 @@ class TravelerForm extends Component {
     const errors = this.verifying ? travelerErrors(traveler) : {};
     const fellow = traveler.isFellowTraveller;
     const field = (object, property, label) => textField({
-      key: property,
       label,
       value: object[property],
       error: errors[property],
@@ -213,12 +211,12 @@ class TravelerForm extends Component {
     });
 
     return card(
-      { key: "card", style: { display: "flex", flexDirection: "column", gap: "12px" } },
+      { style: { display: "flex", flexDirection: "column", gap: "12px" } },
       row(
-        { key: "cardHeader", style: { alignItems: "center", gap: "8px" } },
-        icon({ key: "personIcon", name: fellow ? "group" : "person" }),
-        div({ key: "cardTitle", style: { fontWeight: "bold" } }, text({ key: "cardTitleText", text: fellow ? "Fellow traveler" : "Traveler" })),
-        filler({ key: "cardHeaderFiller" }),
+        { style: { alignItems: "center", gap: "8px" } },
+        icon({ name: fellow ? "group" : "person" }),
+        div({ style: { fontWeight: "bold" } }, text(fellow ? "Fellow traveler" : "Traveler")),
+        filler(),
         iconButton({ key: "remove", icon: "close", title: "Remove traveler", onClick: this.onRemove }).showIf(fellow),
       ),
 
@@ -250,7 +248,6 @@ class TravelerForm extends Component {
       ).showIf(!fellow),
 
       new LuggageDrawer({
-        key: "luggageDrawer",
         count: traveler.luggages.length,
         isOpen: this.showLuggage,
         toggleOpen: callback("toggleLuggage", () => { this.showLuggage = !this.showLuggage; }),
@@ -319,24 +316,23 @@ class LuggageDrawer extends Component {
           ...(empty ? { height: "32px", padding: "0 12px 0 8px" } : { width: luggageCardWidth, minHeight: addTileHeight, padding: "8px" }),
         },
       },
-      icon({ key: "addIcon", name: "add", style: { fontSize: empty ? "20px" : "40px" } }),
-      text({ key: "addText", text: "Add luggage" }),
+      icon({ name: "add", style: { fontSize: empty ? "20px" : "40px" } }),
+      text("Add luggage"),
     );
 
     return column(
-      { key: "drawer", style: { gap: "10px", paddingTop: "8px", borderTop: "1px solid " + themeColor.border } },
+      { style: { gap: "10px", paddingTop: "8px", borderTop: "1px solid " + themeColor.border } },
       // A click on the chevron reaches the header too: one toggle, and the
       // chevron is what the keyboard focuses.
       row(
         {
-          key: "header",
           onclick: empty ? null : this.toggleOpen,
           style: { alignItems: "center", gap: "8px", minHeight: "36px", cursor: empty ? "default" : "pointer", userSelect: "none" },
         },
-        icon({ key: "headerIcon", name: empty ? "no_luggage" : "luggage", style: { color: themeColor.textSoft } }),
+        icon({ name: empty ? "no_luggage" : "luggage", style: { color: themeColor.textSoft } }),
         div(
-          { key: "headerTitle", style: { fontWeight: 500, color: empty ? themeColor.textSoft : "inherit" } },
-          text({ key: "headerTitleText", text: empty ? "No luggage" : "Luggage" }),
+          { style: { fontWeight: 500, color: empty ? themeColor.textSoft : "inherit" } },
+          text(empty ? "No luggage" : "Luggage"),
         ),
         div(
           {
@@ -346,9 +342,9 @@ class LuggageDrawer extends Component {
               fontSize: "12px", fontWeight: "bold", background: themeColor.accentSoft, color: themeColor.accentDark,
             },
           },
-          text({ key: "countText", text: String(this.count) }),
+          text(String(this.count)),
         ).showIf(!empty),
-        filler({ key: "headerFiller" }),
+        filler(),
         empty
           ? add
           : iconButton({ key: "toggle", icon: this.isOpen ? "expand_less" : "expand_more", title: this.isOpen ? "Hide luggage" : "Show luggage" }),
@@ -377,18 +373,16 @@ class LuggageForm extends Component {
     const luggage = this.luggage;
     return card(
       {
-        key: "luggage",
         variant: "filled",
         style: { display: "flex", flexDirection: "column", gap: "4px", width: luggageCardWidth, padding: "4px 4px 12px 12px" },
       },
       row(
-        { key: "luggageHeader", style: { alignItems: "center", gap: "6px" } },
-        icon({ key: "luggageIcon", name: "luggage", style: { fontSize: "20px", color: themeColor.textSoft } }),
-        filler({ key: "luggageTitle", style: { fontSize: "13px", fontWeight: 500 } }, text({ key: "luggageTitleText", text: "Bag " + this.number })),
-        iconButton({ key: "remove", icon: "close", title: "Remove luggage", onClick: this.onRemove }),
+        { style: { alignItems: "center", gap: "6px" } },
+        icon({ name: "luggage", style: { fontSize: "20px", color: themeColor.textSoft } }),
+        filler({ style: { fontSize: "13px", fontWeight: 500 } }, text("Bag " + this.number)),
+        iconButton({ icon: "close", title: "Remove luggage", onClick: this.onRemove }),
       ),
       textField({
-        key: "weight",
         label: "Weight",
         type: "number",
         unit: "kg",
@@ -407,7 +401,7 @@ class ErrorSummary extends Component {
   }
 
   build() {
-    return alert({ key: "errors", severity: "error" }, text({ key: "errorsText", text: "Some fields need filling in - see the marked ones above." }))
+    return alert({ key: "errors", severity: "error" }, text("Some fields need filling in - see the marked ones above."))
       .showIf(this.verifying && anyErrors(data));
   }
 }
@@ -416,7 +410,7 @@ class ErrorSummary extends Component {
 // rebuilds it, not the page.
 class CostDisplay extends Component {
   build() {
-    return div({ key: "cost", style: { fontWeight: "bold" } }, text({ key: "costText", text: "Cost: " + price(calculateCost(data)) }));
+    return div({ style: { fontWeight: "bold" } }, text("Cost: " + price(calculateCost(data))));
   }
 }
 
@@ -431,13 +425,12 @@ class ModelDataDisplay extends Component {
     const fill = this.fill;
     return card(
       {
-        key: "modelData",
         style: { ...(fill ? { flex: "1 1 0", minHeight: 0, margin: "0 2px 2px 0" } : {}), display: "flex", flexDirection: "column", gap: "8px" },
       },
-      sectionTitle("modelDataTitle", "Model data"),
+      sectionTitle("Model data"),
       div(
-        { key: "json", style: { ...(fill ? { flex: "1 1 0" } : {}), overflow: "auto", whiteSpace: "pre", fontFamily: "monospace", fontSize: "12px" } },
-        text({ key: "jsonText", text: JSON.stringify(data, null, 2) }),
+        { style: { ...(fill ? { flex: "1 1 0" } : {}), overflow: "auto", whiteSpace: "pre", fontFamily: "monospace", fontSize: "12px" } },
+        text(JSON.stringify(data, null, 2)),
       ),
     );
   }

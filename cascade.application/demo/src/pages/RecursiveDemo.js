@@ -23,20 +23,21 @@ const information = {
  * deeper - however many levels "count" (a Recursive/List/Item recursion
  * depth, driven by the More/Less buttons) currently calls for.
  *
- * The point, same as flow's own version: every List/Item's own build()
- * reruns *every* time count changes, at *every* level, regardless of
- * whether that particular level's own place in the structure actually
- * changed - but the real DOM barely moves, because:
- *  - every build()-composed element here carries an explicit key, so it
- *    reconciles to the *same* real element across rebuilds instead of
- *    being torn down and recreated (see DOMElementComponent.js's own key-based
- *    reconciliation, and this file's own use of keyed text() nodes -
- *    DOMElementComponent.render()'s own auto-wrap of a loose string/number
- *    child is deliberately *not* used for any text that might actually
- *    change, since that wrap is always fresh and unkeyed);
+ * The point, same as flow's own version: when count changes, every List
+ * level's own build() reruns - each is handed the new count, whether or
+ * not its own place in the structure changed - but the real DOM barely
+ * moves, because:
+ *  - what a rerun build() constructs is matched to what it constructed
+ *    the time before: the same class (for an element, the same tag) in
+ *    the same place is the same component, and keeps its real element,
+ *    rather than being torn down and recreated (see
+ *    cascade.component/README.md, "Keys and pattern matching"). Only the
+ *    levels themselves are keyed: a level that drops out is gone, state
+ *    and all, when count decreases;
  *  - a component whose own inputs didn't genuinely change (same value,
- *    same reference) never reruns its own build() at all - cascade's
- *    ordinary same-value write dedup, not anything special to this demo.
+ *    same reference) never reruns its own build() at all - an Item, say,
+ *    whose depth is the same as before - cascade's ordinary same-value
+ *    write dedup, not anything special to this demo.
  * Open the browser's DevTools (Rendering panel -> "Paint flashing", or
  * just watch the Elements panel) while clicking More/Less or typing in
  * the shared-value field to see this directly: the JS side rebuilds the
@@ -50,8 +51,8 @@ const information = {
  *  - stable local state across a rebuild (initialState() - see
  *    Component.js/README.md) - each Item's own local number, entered once
  *    and never touched again by any rebuild, however many times its own
- *    build() reruns for unrelated reasons (a sibling level being added or
- *    removed further down the chain, say).
+ *    build() reruns (the shared value being edited, say) or its level's
+ *    does (a level being added or removed further down the chain).
  */
 export class RecursiveDemo extends Component {
   // The number of levels (More/Less), and the value every Item shares -
@@ -74,9 +75,9 @@ export class RecursiveDemo extends Component {
 
   build() {
     return pageColumn(
-      { key: "recursiveDemo", style: { maxWidth: "760px" } },
+      { style: { maxWidth: "760px" } },
       pageActions({ information, source, fileName: "src/pages/RecursiveDemo.js" }),
-      new ControlRow({ key: "controlRow", demo: this }),
+      new ControlRow({ demo: this }),
       new ListLevel({ key: "rootList", maxDepth: this.levels, depth: 1 }),
     );
   }
@@ -93,13 +94,11 @@ class ControlRow extends Component {
     // handlers run outside any repeater (a real DOM event), so a plain
     // write to a state property is fine here.
     return controlPanel(
-      { key: "controls" },
-      div({ key: "label", style: { fontWeight: "bold" } }, text({ key: "labelText", text: "Recursive structure" })),
-      button({ key: "more" }, text({ key: "moreText", text: "More" }), callback("more", () => { demo.levels = demo.levels + 1; })),
-      button({ key: "less", disabled: demo.levels <= 1 }, text({ key: "lessText", text: "Less" }), callback("less", () => { if (demo.levels > 1) demo.levels = demo.levels - 1; })),
-      filler({ key: "controlsFiller" }),
+      div({ style: { fontWeight: "bold" } }, text("Recursive structure")),
+      button(text("More"), callback("more", () => { demo.levels = demo.levels + 1; })),
+      button({ disabled: demo.levels <= 1 }, text("Less"), callback("less", () => { if (demo.levels > 1) demo.levels = demo.levels - 1; })),
+      filler(),
       textField({
-        key: "sharedValue",
         label: "Shared value",
         type: "number",
         value: demo.sharedValue,
@@ -118,12 +117,12 @@ class ListLevel extends Component {
   }
 
   build() {
-    const children = [new ListItem({ key: "item", depth: this.depth })];
+    const children = [new ListItem({ depth: this.depth })];
     if (this.depth < this.maxDepth) {
       children.push(new ListLevel({ key: "rest", maxDepth: this.maxDepth, depth: this.depth + 1 }));
     }
     return card(
-      { key: "level", variant: this.depth === 1 ? "elevated" : "outlined", style: { display: "flex", flexDirection: "column", gap: "12px" } },
+      { variant: this.depth === 1 ? "elevated" : "outlined", style: { display: "flex", flexDirection: "column", gap: "12px" } },
       children,
     );
   }
@@ -143,19 +142,18 @@ class ListItem extends Component {
   build() {
     const shared = this.inherit("sharedValue");
     return row(
-      { key: "item", style: { alignItems: "center", gap: "16px", flexWrap: "wrap", overflow: "visible" } },
-      // Keyed text - every Item's own copy of the shared value changes
-      // whenever anyone edits it, and a keyed text() is mutated in place at
-      // each one, never recreated.
-      div({ key: "depth", style: { fontWeight: "bold", minWidth: "64px" } }, text({ key: "depthLabel", text: "Depth " + this.depth })),
+      { style: { alignItems: "center", gap: "16px", flexWrap: "wrap", overflow: "visible" } },
+      // Every Item's own copy of the shared value changes whenever anyone
+      // edits it - the text(), matched to the one before by its place, is
+      // mutated in place at each one, never recreated.
+      div({ style: { fontWeight: "bold", minWidth: "64px" } }, text("Depth " + this.depth)),
       textField({
-        key: "localValue",
         label: "Local value",
         type: "number",
         value: this.value,
         onInput: callback("localValue", (value) => { if (value !== "") this.value = Number(value); }),
       }),
-      text({ key: "sharedLabel", text: "Shared value: " + shared }),
+      text("Shared value: " + shared),
     );
   }
 }

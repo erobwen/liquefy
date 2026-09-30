@@ -1,22 +1,16 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-// The dev-time safety net itself (see cascade.js's
-// verifyChainOrderStructurally / structuralCompareWriterOrder): an
-// independent, O(depth) parent/sibling walk computed in parallel with
-// the O(1) order-number comparison on every compareWriterOrder() call,
-// throwing if they disagree. Exercised here with the verifier explicitly
-// turned on (it's off by default - a real tree walk on every comparison
-// isn't something to pay for outside development) against the same
+// Writer order comes from the tree itself (see cascade.js's
+// structuralCompareWriterOrder): an O(depth) parent/sibling walk, siblings
+// compared by position number. Exercised here against the same
 // reconciliation-breaking shape reconciliation-position-staleness.js
-// covers, plus the pressure-release stress shape, proving the verifier
-// itself agrees with a healthy order-number chain rather than just
-// hoping it would have caught the original bug.
-describe("structural order verifier (dev-time cross-check)", function () {
-  it("agrees with the order-number chain across a reconciliation-breaking modal/docked transition", function () {
+// covers, plus the pressure-release stress shape.
+describe("structural writer order", function () {
+  it("holds across a reconciliation-breaking modal/docked transition", function () {
     const {
       observable, repeat, linkRepeater, postponeInvalidations, continueInvalidations,
-    } = getWorld({ name: "structural-verifier-reconciliation-" + Math.random(), verifyChainOrderStructurally: true });
+    } = getWorld({ name: "structural-verifier-reconciliation-" + Math.random() });
 
     const windowSize = observable({ width: 500, height: 800 });
     const mainFrameContext = observable({ usableWidth: null, usableHeight: null });
@@ -78,9 +72,6 @@ describe("structural order verifier (dev-time cross-check)", function () {
     menuOpen = true;
     menuFrameRepeater.restart();
 
-    // Would throw (see verifyAgainstStructuralOrder) if the order-number
-    // chain and the structural walk ever disagreed about who comes
-    // before whom during this transition.
     windowSize.width = 1200;
     assert.doesNotThrow(() => mainFrameRepeater.restart());
 
@@ -88,10 +79,9 @@ describe("structural order verifier (dev-time cross-check)", function () {
     assert.doesNotThrow(() => mainFrameRepeater.restart());
   });
 
-  it("agrees with the order-number chain across many pressure-release blasts", function () {
+  it("holds across many pressure-release blasts", function () {
     const { observable, repeat, linkRepeater } = getWorld({
       name: "structural-verifier-pressure-" + Math.random(),
-      verifyChainOrderStructurally: true,
     });
 
     const target = observable({ value: 0 });

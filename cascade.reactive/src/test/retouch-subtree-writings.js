@@ -19,7 +19,6 @@ import assert from "assert";
 const { observable, repeat, linkRepeater } = getWorld({
   name: "retouch-subtree-writings",
   timeLevels: 6,
-  verifyChainOrderStructurally: true,
 });
 
 class Node {

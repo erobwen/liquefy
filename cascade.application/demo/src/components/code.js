@@ -65,21 +65,19 @@ export class CodeButton extends Component {
   build() {
     const close = callback("close", () => { this.open = false; });
     const codeDialog = dialog({
-      key: "codeDialog",
       title: this.fileName,
       close,
       style: { width: "80%", maxWidth: "1000px", height: "80%", flex: "none" },
-      children: [new HighlightedCode({ key: "code", source: this.source })],
+      children: [new HighlightedCode({ source: this.source })],
     });
     return [
       iconButton({
-        key: "button",
         icon: "code",
         title: "Show the code for this page",
         onClick: callback("open", () => { this.open = true; }),
         style: { color: "#7bed9f" },
       }),
-      overlay(modalPresentation(codeDialog, close), { key: "codeOverlay", showing: this.open }),
+      overlay(modalPresentation(codeDialog, close), { showing: this.open }),
     ];
   }
 }

@@ -50,11 +50,11 @@ function transaction(action) {
 
 // A panel: a card with the items in it - one under the other. Never
 // quite nothing, even empty: something for items to fly to.
-const panel = (key, list, style) => card(
-  { key, style: { display: "flex", flexDirection: "column", minWidth: "48px", minHeight: "48px", ...style } },
+const panel = (list, style) => card(
+  { style: { display: "flex", flexDirection: "column", minWidth: "48px", minHeight: "48px", ...style } },
   list.map((item) => div(
     { key: item, style: { display: "block", margin: smallSpace, textAlign: "left" } },
-    text({ key: item + "Text", text: item }),
+    text(item),
   )),
 );
 
@@ -104,36 +104,34 @@ export class AnimationPage extends Component {
 
   build() {
     return fullPage(
-      { key: "page" },
       pageActions({ information, source, fileName: "src/pages/AnimationPage.js" }),
       controlPanel(
-        { key: "controls" },
-        button({ key: "add", disabled: this.store.length === 0 }, "Add random", () => this.addRandom()),
-        button({ key: "remove", disabled: this.listA.length === 0 }, "Remove random", () => this.removeRandom()),
-        filler({ key: "controlsFiller" }),
-        button({ key: "randomize" }, "Randomize", () => this.randomize()),
-        button({ key: "juggle" }, "Juggle", () => this.juggle()),
+        button({ disabled: this.store.length === 0 }, "Add random", () => this.addRandom()),
+        button({ disabled: this.listA.length === 0 }, "Remove random", () => this.removeRandom()),
+        filler(),
+        button("Randomize", () => this.randomize()),
+        button("Juggle", () => this.juggle()),
       ),
       flipAnimationContainer(
-        { key: "animated", style: { ...fillerStyle, display: "flex", flexDirection: "column", overflow: "visible" } },
-        filler({ key: "above" }),
+        { style: { ...fillerStyle, display: "flex", flexDirection: "column", overflow: "visible" } },
+        filler(),
         row(
-          { key: "panels", style: { overflow: "visible", ...naturalSizeStyle } },
+          { style: { overflow: "visible", ...naturalSizeStyle } },
           column(
-            { key: "columnA", style: { overflow: "visible" } },
-            filler({ key: "aAbove" }),
-            panel("panelA", this.listA, { fontSize: "40px", lineHeight: "40px", margin: largeSpace, padding: largeSpace, overflow: "visible" }),
-            filler({ key: "aBelow" }),
+            { style: { overflow: "visible" } },
+            filler(),
+            panel(this.listA, { fontSize: "40px", lineHeight: "40px", margin: largeSpace, padding: largeSpace, overflow: "visible" }),
+            filler(),
           ),
-          filler({ key: "between" }),
+          filler(),
           column(
-            { key: "columnB", style: { overflow: "visible" } },
-            filler({ key: "bAbove" }),
-            panel("panelB", this.listB, { fontSize: "20px", lineHeight: "20px", color: accentColor, margin: largeSpace, padding: largeSpace, overflow: "visible" }),
-            filler({ key: "bBelow" }),
+            { style: { overflow: "visible" } },
+            filler(),
+            panel(this.listB, { fontSize: "20px", lineHeight: "20px", color: accentColor, margin: largeSpace, padding: largeSpace, overflow: "visible" }),
+            filler(),
           ),
         ),
-        filler({ key: "below" }),
+        filler(),
       ),
     );
   }

@@ -47,14 +47,12 @@ heading.size = 20;
 export class IntroductionPage extends Component {
   build() {
     return article(
-      { key: "introduction" },
       pageActions({ source, fileName: "src/pages/IntroductionPage.js" }),
       // The banner is see-through: it lies on the theme's own color - so
       // picking another (see the Themes page) recolors it too.
       div(
-        { key: "banner", style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
+        { style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
         img({
-          key: "whatIfEverything",
           src: whatIfEverything,
           alt: "What if everything was reactive?",
           style: { display: "block", width: "100%" },
@@ -79,9 +77,8 @@ export class IntroductionPage extends Component {
       ),
       p("Where signals introduce the space dimension for observation, temporal signals also introduce the time dimension for observation."),
       div(
-        { key: "temporal-signals", style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
+        { style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
         img({
-          key: "temporalSignalsBoard",
           src: temporalSignalsBoard,
           alt: "Temporal signals: components - temporal observers - read (R) and write (W) the properties of data objects, along time. A change written to one property reaches only the readers after it in the pipeline.",
           style: { display: "block", width: "100%", margin: "8px 0 16px 0", borderRadius: "8px" },
@@ -101,7 +98,6 @@ export class IntroductionPage extends Component {
         "every intermediate value - an explicit dependency graph, built by hand.",
       ),
       new HighlightedCode({
-        key: "temporalSignalsExample",
         source: temporalSignalsExample,
         style: { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" },
       }),
@@ -111,7 +107,7 @@ export class IntroductionPage extends Component {
         emphasis("WYSIWYG word processors and other document editors"),
         ", which temporal signals are especially engineered for.",
       ),
-      nextPage({ key: "learnMore", path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
+      nextPage({ path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
 
       h2("Technical features"),
       ul(
@@ -133,9 +129,8 @@ export class IntroductionPage extends Component {
       
       h2("Key concepts"),
       div(
-        { key: "key-concepts", style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
+        { style: { margin: "24px 0 8px 0", borderRadius: "10px", overflow: "hidden", background: themeColor.chrome } },
         img({
-          key: "keyConcepts",
           src: keyConcepts,
           alt: "Key concepts",
           style: { display: "block", width: "100%" },

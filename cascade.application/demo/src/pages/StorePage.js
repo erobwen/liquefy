@@ -83,14 +83,13 @@ export class StorePage extends Component {
     // giving it scroll bars for the moment. (Not at the status bar: a
     // product flying into the cart is drawn inside it, up by the shelf.)
     return fullPage(
-      { key: "page", style: { overflow: "hidden", gap: 0 } },
+      { style: { overflow: "hidden", gap: 0 } },
       pageActions({ information, source, fileName: "src/pages/StorePage.js" }),
       flipAnimationContainer(
         {
-          key: "flip",
           style: { display: "flex", flexDirection: "column", gap: "16px", height: "100%", boxSizing: "border-box" },
         },
-        new ProductList({ key: "products" }),
+        new ProductList(),
         this.unobservable.statusBar,
       ),
     );
@@ -121,9 +120,9 @@ class ProductList extends Component {
           ? { ...common, display: "flex", alignItems: "center", gap: "6px", padding: "4px 10px", flex: "none" }
           : { ...common, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "16px", width: "120px" },
       },
-      icon({ key: product.id + "Icon", name: product.icon, style: { fontSize: inCart ? "20px" : "48px" } }),
-      div({ key: product.id + "Name", style: { fontWeight: "bold" } }, text({ key: product.id + "NameText", text: product.name })),
-      div({ key: product.id + "Price", style: { opacity: 0.7 } }, text({ key: product.id + "PriceText", text: price(product.price) })),
+      icon({ name: product.icon, style: { fontSize: inCart ? "20px" : "48px" } }),
+      div({ style: { fontWeight: "bold" } }, text(product.name)),
+      div({ style: { opacity: 0.7 } }, text(price(product.price))),
     );
   }
 
@@ -132,15 +131,15 @@ class ProductList extends Component {
     const total = chosen.reduce((sum, product) => sum + product.price, 0);
     return [
       div(
-        { key: "shelf", style: { display: "flex", flexWrap: "wrap", gap: "16px", alignContent: "flex-start", flex: "1 1 auto", overflow: "visible" } },
+        { style: { display: "flex", flexWrap: "wrap", gap: "16px", alignContent: "flex-start", flex: "1 1 auto", overflow: "visible" } },
         products.filter((product) => !this.chosen.includes(product.id)).map((product) => this.tile(product, false)),
       ),
-      portalSource({ key: "cartContents", portal: "cartPortal" }, chosen.map((product) => this.tile(product, true))),
+      portalSource({ portal: "cartPortal" }, chosen.map((product) => this.tile(product, true))),
       portalSource(
-        { key: "summaryContents", portal: "cartSummaryPortal" },
+        { portal: "cartSummaryPortal" },
         chosen.length > 0 ? [
-          text({ key: "summaryText", text: chosen.length + (chosen.length === 1 ? " item, " : " items, ") + price(total) }),
-          button({ key: "clear" }, text({ key: "clearText", text: "Clear cart" }), () => { this.chosen = []; }),
+          text(chosen.length + (chosen.length === 1 ? " item, " : " items, ") + price(total)),
+          button(text("Clear cart"), () => { this.chosen = []; }),
         ] : [],
       ),
     ];
@@ -160,7 +159,7 @@ class StatusBar extends Component {
     return {
       cart: portal(
         { key: "cart", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", flex: "1 1 auto", minWidth: 0, overflow: "visible" } },
-        text({ key: "emptyText", text: "Your cart is empty - click a product to add it." }),
+        text("Your cart is empty - click a product to add it."),
       ).establish(),
       summary: portal({ key: "summary", style: { display: "flex", alignItems: "center", gap: "12px", flex: "none" } }).establish(),
     };
@@ -175,22 +174,21 @@ class StatusBar extends Component {
   build() {
     return row(
       {
-        key: "statusBar",
         style: {
           flex: "none", minHeight: "64px", gap: "12px", padding: "8px 16px", alignItems: "center", boxSizing: "border-box",
           overflow: "visible", background: themeColor.chromeDark, color: themeColor.onChrome, borderRadius: "8px",
         },
       },
-      icon({ key: "cartIcon", name: "shopping_cart", style: { fontSize: "28px", flex: "none" } }),
+      icon({ name: "shopping_cart", style: { fontSize: "28px", flex: "none" } }),
       iconButton(
-        { key: "toggleCart", icon: this.cartShown ? "visibility_off" : "visibility", title: this.cartShown ? "Hide the cart" : "Show the cart", style: { color: "white" } },
+        { icon: this.cartShown ? "visibility_off" : "visibility", title: this.cartShown ? "Hide the cart" : "Show the cart", style: { color: "white" } },
         () => { this.cartShown = !this.cartShown; },
       ),
       this.cartShown
         ? this.unobservable.cart
         : div(
-          { key: "hidden", style: { flex: "1 1 auto", fontStyle: "italic", opacity: 0.7 } },
-          text({ key: "hiddenText", text: "The cart is hidden - what you choose waits in it." }),
+          { style: { flex: "1 1 auto", fontStyle: "italic", opacity: 0.7 } },
+          text("The cart is hidden - what you choose waits in it."),
         ),
       this.unobservable.summary,
     );

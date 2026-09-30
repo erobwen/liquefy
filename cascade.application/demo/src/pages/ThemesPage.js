@@ -79,16 +79,14 @@ export class ThemesPage extends Component {
     }));
     // As tall as its content - the work area around it scrolls.
     return pageColumn(
-      { key: "page" },
       pageActions({ source, fileName: "src/pages/ThemesPage.js" }),
       informationBox({ key: "information", ...information }),
-      new ThemeSwitch({ key: "themeSwitch" }),
+      new ThemeSwitch(),
       wide
         ? row({ key: "sections", style: { gap: "24px", alignItems: "flex-start", overflow: "visible" } }, sections)
         : column(
           { key: "tabbed", style: { gap: "16px", overflow: "visible" } },
           tabBar({
-            key: "themeTabs",
             tabs: themes.map(({ key, title }) => ({ key, title })),
             selected: this.tab,
             onSelect: callback("selectTab", (tab) => { this.tab = tab; }),
@@ -96,9 +94,9 @@ export class ThemesPage extends Component {
           sections[themes.findIndex(({ key }) => key === this.tab)],
         ),
       column(
-        { key: "degradation", style: { gap: "8px" } },
-        sectionTitle("degradationLabel", "A widget no theme provides still renders, as a marked placeholder:"),
-        widget("rating", { key: "rating", children: [text({ key: "ratingText", text: "★★★☆☆" })] }),
+        { style: { gap: "8px" } },
+        sectionTitle("A widget no theme provides still renders, as a marked placeholder:"),
+        widget("rating", { children: [text("★★★☆☆")] }),
       ),
     );
   }
@@ -111,17 +109,15 @@ class ThemeSwitch extends Component {
     const root = this.inherit("rootServiceLocator");
     if (!root) {
       return controlPanel(
-        { key: "switch" },
-        text({ key: "notAllowed", text: "Theme switching isn't available here." }),
+        text("Theme switching isn't available here."),
       );
     }
     const themeNames = Object.keys(root.themes);
     const current = root.themeName;
     const next = themeNames[(themeNames.indexOf(current) + 1) % themeNames.length];
     return controlPanel(
-      { key: "switch" },
-      text({ key: "current", text: "Current theme: " + root.themes[current].title }),
-      button({ key: "toggle" }, text({ key: "toggleText", text: "Switch to " + root.themes[next].title }), callback("toggle", () => root.selectTheme(next))),
+      text("Current theme: " + root.themes[current].title),
+      button(text("Switch to " + root.themes[next].title), callback("toggle", () => root.selectTheme(next))),
     );
   }
 }
@@ -137,11 +133,10 @@ class ThemeSection extends Component {
 
   build() {
     return serviceProvider({
-      key: "provider",
       serviceLocator: this.theme,
       child: colorSchemeScope(
-        { key: "scope", style: { ...fillerStyle, ...overflowVisibleStyle, minWidth: 0 } },
-        new ThemeCard({ key: "card", title: this.title, isAppTheme: this.isAppTheme }),
+        { style: { ...fillerStyle, ...overflowVisibleStyle, minWidth: 0 } },
+        new ThemeCard({ title: this.title, isAppTheme: this.isAppTheme }),
       ),
     });
   }
@@ -157,9 +152,9 @@ class ThemeCard extends Component {
 
   build() {
     return card(
-      { key: "themeCard", style: { display: "flex", flexDirection: "column", gap: "16px", overflow: "visible" } },
-      new ColorSchemeEditor({ key: "editor", title: this.title, isAppTheme: this.isAppTheme }),
-      new SampleButtons({ key: "sample" }),
+      { style: { display: "flex", flexDirection: "column", gap: "16px", overflow: "visible" } },
+      new ColorSchemeEditor({ title: this.title, isAppTheme: this.isAppTheme }),
+      new SampleButtons(),
     );
   }
 }
@@ -175,18 +170,18 @@ class ColorSchemeEditor extends Component {
   build() {
     const scheme = currentColorScheme();
     return column(
-      { key: "editor", style: { gap: "10px", overflow: "visible", paddingBottom: "14px", borderBottom: "1px solid " + themeColor.border } },
+      { style: { gap: "10px", overflow: "visible", paddingBottom: "14px", borderBottom: "1px solid " + themeColor.border } },
       row(
-        { key: "heading", style: { alignItems: "baseline", gap: "8px", flexWrap: "wrap" } },
-        div({ key: "title", style: { fontWeight: "bold", fontSize: "17px" } }, text({ key: "titleText", text: this.title })),
-        div({ key: "appTheme", style: { fontSize: "13px", color: themeColor.textSoft } }, text({ key: "appThemeText", text: "the app's theme" })).showIf(this.isAppTheme),
+        { style: { alignItems: "baseline", gap: "8px", flexWrap: "wrap" } },
+        div({ style: { fontWeight: "bold", fontSize: "17px" } }, text(this.title)),
+        div({ key: "appTheme", style: { fontSize: "13px", color: themeColor.textSoft } }, text("the app's theme")).showIf(this.isAppTheme),
       ),
       row(
-        { key: "colors", style: { alignItems: "center", gap: "8px 16px", flexWrap: "wrap", overflow: "visible" } },
-        colorField({ key: "base", label: "Base", value: scheme.base, onInput: callback("base", (value) => { scheme.base = value; }) }),
-        colorField({ key: "accent", label: "Accent", value: scheme.accent, onInput: callback("accent", (value) => { scheme.accent = value; }) }),
-        filler({ key: "colorsFiller" }),
-        button({ key: "reset", disabled: !scheme.isChanged() }, text({ key: "resetText", text: "Reset" }), callback("reset", () => scheme.reset())),
+        { style: { alignItems: "center", gap: "8px 16px", flexWrap: "wrap", overflow: "visible" } },
+        colorField({ label: "Base", value: scheme.base, onInput: callback("base", (value) => { scheme.base = value; }) }),
+        colorField({ label: "Accent", value: scheme.accent, onInput: callback("accent", (value) => { scheme.accent = value; }) }),
+        filler(),
+        button({ disabled: !scheme.isChanged() }, text("Reset"), callback("reset", () => scheme.reset())),
       ),
     );
   }
@@ -199,60 +194,60 @@ class SampleButtons extends Component {
   }
 
   build() {
-    const heading = (key, value) => sectionTitle(key, value);
+    const heading = (value) => sectionTitle(value);
     const closeDialog = () => { this.dialogOpen = false; };
     return column(
-      { key: "sample", style: { gap: "12px", overflow: "visible" } },
+      { style: { gap: "12px", overflow: "visible" } },
       row(
-        { key: "buttons", style: { gap: "12px", alignItems: "center", flexWrap: "wrap", overflow: "visible" } },
-        button({ key: "first" }, text({ key: "firstText", text: "First" })),
-        button({ key: "second", variant: "tonal" }, text({ key: "secondText", text: "Second" })),
-        iconButton({ key: "favorite", icon: this.favorite ? "favorite" : "favorite_border", title: "Favorite" }, () => { this.favorite = !this.favorite; }),
-        iconButton({ key: "info", icon: "info", title: "More information" }, (event) => {
+        { style: { gap: "12px", alignItems: "center", flexWrap: "wrap", overflow: "visible" } },
+        button(text("First")),
+        button({ variant: "tonal" }, text("Second")),
+        iconButton({ icon: this.favorite ? "favorite" : "favorite_border", title: "Favorite" }, () => { this.favorite = !this.favorite; }),
+        iconButton({ icon: "info", title: "More information" }, (event) => {
           // The button itself - the popover follows it, should it move.
           this.anchor = event.currentTarget;
           this.popoverOpen = true;
         }),
-        button({ key: "openDialog" }, text({ key: "openDialogText", text: "Open dialog" }), () => { this.dialogOpen = true; }),
+        button(text("Open dialog"), () => { this.dialogOpen = true; }),
       ),
-      heading("alertsHeading", "Alerts"),
+      heading("Alerts"),
       ...["info", "success", "warning", "error"].map((severity) =>
-        alert({ key: severity + "Alert", severity }, text({ key: severity + "Text", text: "An alert of severity " + severity + "." }))),
-      heading("fieldsHeading", "Fields"),
+        alert({ key: severity + "Alert", severity }, text("An alert of severity " + severity + "."))),
+      heading("Fields"),
       row(
         { style: { gap: "12px", alignItems: "center", flexWrap: "wrap", overflow: "visible" } },
         textField({ label: "Name", placeholder: "Your name", value: this.name, onInput: callback("name", (value) => { this.name = value; }) }),
         checkbox({ label: "Subscribe", checked: this.subscribed, onChange: callback("subscribed", (checked) => { this.subscribed = checked; }) }),
       ),
-      heading("cardsHeading", "Cards"),
+      heading("Cards"),
       row(
-        { key: "cards", style: { gap: "12px", overflow: "visible" } },
+        { style: { gap: "12px", overflow: "visible" } },
         ...["elevated", "filled", "outlined"].map((variant) =>
-          card({ key: variant, variant, style: { flex: "1 1 0" } }, text({ key: variant + "Text", text: "A card, " + variant }))),
+          card({ key: variant, variant, style: { flex: "1 1 0" } }, text("A card, " + variant))),
       ),
-      heading("listHeading", "List items"),
+      heading("List items"),
       card(
-        { key: "list", style: { padding: "4px" } },
+        { style: { padding: "4px" } },
         ...[["inbox", "Inbox"], ["sent", "Sent"], ["drafts", "Drafts"]].map(([key, title]) =>
-          listItem({ key, active: this.chosen === key }, text({ key: key + "Text", text: title }), () => { this.chosen = key; })),
+          listItem({ key, active: this.chosen === key }, text(title), () => { this.chosen = key; })),
       ),
       row(
-        { key: "iconRow", style: { gap: "8px", alignItems: "center" } },
+        { style: { gap: "8px", alignItems: "center" } },
         ...["home", "search", "settings", "shopping_cart"].map((name) => icon({ key: name, name })),
       ),
       popover(
-        { key: "popover", anchor: this.anchor, showing: this.popoverOpen, close: () => { this.popoverOpen = false; } },
-        card({ key: "popoverCard", style: { maxWidth: "320px" } },
-          text({ key: "popoverText", text: "A popover: shown beside what was clicked, over everything else. Click outside it to close it." })),
+        { anchor: this.anchor, showing: this.popoverOpen, close: () => { this.popoverOpen = false; } },
+        card({ style: { maxWidth: "320px" } },
+          text("A popover: shown beside what was clicked, over everything else. Click outside it to close it.")),
       ),
       overlay(
         modalPresentation(
           dialog(
             { key: "dialog", title: "A themed dialog", close: closeDialog, style: { width: "360px", flex: "none" } },
             column(
-              { key: "dialogBody", style: { padding: "16px", gap: "12px" } },
-              text({ key: "dialogText", text: "Title bar, close button and body - all from the theme." }),
-              button({ key: "done" }, text({ key: "doneText", text: "Done" }), closeDialog),
+              { style: { padding: "16px", gap: "12px" } },
+              text("Title bar, close button and body - all from the theme."),
+              button(text("Done"), closeDialog),
             ),
           ),
           closeDialog,

@@ -147,10 +147,9 @@ export class ApplicationMenuFrame extends Component {
   build() {
     const scheme = currentColorScheme();
     return elementBoundsProvider({
-      key: "bounds",
       className: "application-menu-frame",
       style: { ...(scheme ? scheme.variables() : {}), position: "relative", boxSizing: "border-box", height: "100%", overflow: "hidden" },
-      child: new ApplicationMenuFrameLayout({ key: "layout", frame: this }),
+      child: new ApplicationMenuFrameLayout({ frame: this }),
     });
   }
 }
@@ -184,7 +183,7 @@ class ApplicationMenuFrameLayout extends Component {
     const page = frame.currentPage();
 
     const topBar = div(
-      { key: "topBar", style: {
+      { style: {
         height: TOP_BAR_HEIGHT + "px", boxSizing: "border-box", display: "flex", alignItems: "center",
         gap: "12px", padding: "0 16px", background: themeColor.chromeDark, color: themeColor.onChrome, flex: "none",
       } },
@@ -198,12 +197,11 @@ class ApplicationMenuFrameLayout extends Component {
       // The shown page's own buttons - information, code - just before its
       // title (see src/components/pageActions.js).
       frame.topBarPortal,
-      div({ key: "label", style: { fontWeight: "bold" } }, page.title),
+      div({ style: { fontWeight: "bold" } }, text(page.title)),
       versionNoticeButton({ marginLeft: "auto" }),
     );
 
     const workArea = providingElement({
-      key: "workArea",
       child: page.component,
       style: {
         // Never scrolls: each page owns its scrolling, and its margins (see
@@ -225,7 +223,7 @@ class ApplicationMenuFrameLayout extends Component {
     });
 
     const column = div(
-      { key: "column", style: { display: "flex", flexDirection: "column", flex: "1 1 auto", minWidth: 0, height: "100%" } },
+      { style: { display: "flex", flexDirection: "column", flex: "1 1 auto", minWidth: 0, height: "100%" } },
       topBar,
       workArea,
     );
@@ -236,7 +234,6 @@ class ApplicationMenuFrameLayout extends Component {
     });
 
     return overlayFrame(
-      "overlayFrame",
       drawer,
       column,
       {
@@ -258,15 +255,14 @@ class ApplicationMenuFrameLayout extends Component {
 // own ApplicationMenuFrame, which sets this on both for the same reason.
 function buildModalMenuDrawer(frame) {
   return div(
-    { key: "modalDrawer", class: "modal-drawer", style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto" } },
+    { class: "modal-drawer", style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto" } },
     div({
-      key: "backdrop",
       className: "backdrop",
       onclick: callback("closeMenu", () => { frame.menuOpen = false; }),
       style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.3)" },
     }),
     new MenuList({
-      key: "drawerMenu", frame,
+      frame,
       style: { position: "relative", width: MENU_WIDTH + "px", height: "100%", boxShadow: "2px 0 8px rgba(0,0,0,0.3)" },
     }),
   );
@@ -307,7 +303,7 @@ class MenuList extends Component {
       previousGroup = group;
     }
     return div(
-      { key: "list", style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
+      { style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
       logo(),
       ...items,
     );
@@ -338,11 +334,11 @@ class MenuList extends Component {
         fontWeight: active ? "bold" : "normal",
       },
     },
-    span({ key: page.key + "Title", style: { flex: "1 1 auto" } }, text({ key: page.key + "TitleText", text: page.title })),
+    span({ style: { flex: "1 1 auto" } }, text(page.title)),
     // A page's own icon, if it has one (see index.js), to the right - in
     // the menu's own text color, and the same whatever the theme: the
     // icon font's glyph itself, not the theme's icon widget.
-    page.icon ? span({ key: page.key + "Icon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", flex: "none", userSelect: "none" } }, text({ key: page.key + "IconName", text: page.icon })) : null);
+    page.icon ? span({ key: page.key + "Icon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", flex: "none", userSelect: "none" } }, text(page.icon)) : null);
   }
 }
 
@@ -356,7 +352,7 @@ function groupHeader(name) {
         letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.6,
       },
     },
-    text({ key: "group" + name + "Text", text: name }),
+    text(name),
   );
 }
 
@@ -366,7 +362,6 @@ function versionNoticeButton(style) {
   if (!versionNotice.available || versionNotice.shown) return null;
   return button(
     {
-      key: "versionNotice",
       type: "button",
       title: "This demo may not match your installed version",
       onclick: callback("showVersionNotice", () => showVersionNotice()),
@@ -376,8 +371,8 @@ function versionNoticeButton(style) {
         ...style,
       },
     },
-    span({ key: "versionNoticeIcon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", userSelect: "none" } },
-      text({ key: "versionNoticeIconName", text: "warning" })),
+    span({ class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", userSelect: "none" } },
+      text("warning")),
   );
 }
 
@@ -386,7 +381,6 @@ function versionNoticeButton(style) {
 // is, with room around it given here.
 function logo() {
   return img({
-    key: "logo",
     src: menuBarLogo,
     alt: "Cascade",
     style: { display: "block", width: "100%", boxSizing: "border-box", padding: "10px 8px", margin: "0 0 12px 0", flex: "none" },

@@ -64,7 +64,7 @@ describe("partial chain pressure release inside deep nesting", function () {
   }
 
   it("order numbers stay unique and consistent with structural order as levels are added one at a time", function () {
-    const t = build({ verifyChainOrderStructurally: true });
+    const t = build({});
     for (let d = 2; d <= 14; d++) {
       assert.doesNotThrow(() => t.next(), `adding level ${d}`);
       assertLeavesSawPredecessors(t, d);

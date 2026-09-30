@@ -20,7 +20,6 @@ import source from "./ConvenientUsagePage.js?raw";
 export class ConvenientUsagePage extends Component {
   build() {
     return article(
-      { key: "convenientUsage" },
       pageActions({ source, fileName: "src/pages/ConvenientUsagePage.js" }),
       h1("Convenient Usage"),
       p(
@@ -30,35 +29,35 @@ export class ConvenientUsagePage extends Component {
 
       h2("Animation, as a separate concern"),
       p(
-        "Wrap anything in ", name("flip", "flipAnimationContainer()"), ", and every change in it animates: elements ",
+        "Wrap anything in ", name("flipAnimationContainer()"), ", and every change in it animates: elements ",
         "moving, appearing, leaving and resizing. What's inside is entirely unaware of it - this list is just a list, ",
         "and the one line around it is all the animation there is.",
       ),
-      stage("shuffleStage", new ShuffleList({ key: "shuffleList" })),
+      stage(new ShuffleList()),
       p(
         "Note: CSS and transition animations cannot by themselves handle changes in the shape of the DOM tree, which often leads to complicated FLIP animation setups - all of which is automated here.",
       ),
-      codeBlock("shuffleCode", shuffleSource),
+      codeBlock(shuffleSource),
 
       h2("Portals"),
       p(
-        "A component can show content somewhere else entirely: ", name("portal", "portal()"), " is a place for it, ",
-        name("portalSource", "portalSource()"), " puts content there, from anywhere - found by name, nothing ",
+        "A component can show content somewhere else entirely: ", name("portal()"), " is a place for it, ",
+        name("portalSource()"), " puts content there, from anywhere - found by name, nothing ",
         "handed down. This demo's pages put their buttons in the top bar the same way.",
       ),
-      stage("noticeStage", new NoticeBoard({ key: "noticeBoard" })),
-      codeBlock("noticeCode", noticeBoardSource),
+      stage(new NoticeBoard()),
+      codeBlock(noticeBoardSource),
 
       h2("Modals"),
       p(
-        name("overlay", "overlay()"), " shows its content over the whole app - on the overlay frame at the app's root ",
-        "(", name("overlayFrame", "overlayFrame()"), ") - while it's built right where it belongs, next to the button ",
+        name("overlay()"), " shows its content over the whole app - on the overlay frame at the app's root ",
+        "(", name("overlayFrame()"), ") - while it's built right where it belongs, next to the button ",
         "that opens it.",
       ),
-      stage("confirmStage", new ConfirmDelete({ key: "confirmDelete" })),
-      codeBlock("confirmCode", confirmSource),
+      stage(new ConfirmDelete()),
+      codeBlock(confirmSource),
 
-      nextPage({ key: "advanced", path: "advanced-usage", label: "Ready for the hard parts? On to Advanced Usage →" }),
+      nextPage({ path: "advanced-usage", label: "Ready for the hard parts? On to Advanced Usage →" }),
     );
   }
 }

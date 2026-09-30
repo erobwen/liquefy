@@ -164,9 +164,8 @@ export class HydrationPage extends Component {
           ? { width: "44%", maxWidth: "600px", flex: "none", height: "calc(100% - 4px)", margin: "2px 2px 2px 0", display: "flex", flexDirection: "column", gap: "8px" }
           : { display: "flex", flexDirection: "column", gap: "8px" },
       },
-      sectionTitle("sourceTitle", "The document this page was hydrated from"),
+      sectionTitle("The document this page was hydrated from"),
       new HighlightedCode({
-        key: "sourceCode",
         source: documentJson,
         style: {
           fontSize: "12px", border: "1px solid " + themeColor.border, borderRadius: "6px", overflow: "auto",
@@ -181,7 +180,7 @@ export class HydrationPage extends Component {
       actions,
       // The page scrolls, the document beside it on its own.
       div(
-        { key: "scrollPanel", style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box", padding: "0 4px 4px 0" } },
+        { style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box", padding: "0 4px 4px 0" } },
         hydrate(hydrationDocument),
       ),
       sourcePanel,

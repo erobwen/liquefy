@@ -23,9 +23,9 @@ import { CodeButton } from "./code.js";
  */
 export function pageActions({ information, source, fileName }) {
   return portalSource(
-    { key: "pageActions", portal: "topBarPortal" },
+    { portal: "topBarPortal" },
     information ? new InformationButton({ key: "information", ...information }) : null,
-    new CodeButton({ key: "code", source, fileName }),
+    new CodeButton({ source, fileName }),
   );
 }
 
@@ -44,7 +44,6 @@ export class InformationButton extends Component {
   build() {
     return [
       iconButton({
-        key: "button",
         icon: "info",
         title: "About this page",
         style: { color: "#74b9ff" },
@@ -54,9 +53,9 @@ export class InformationButton extends Component {
         this.open = true;
       }),
       popover(
-        { key: "popover", anchor: this.anchor, showing: this.open, close: callback("close", () => { this.open = false; }) },
+        { anchor: this.anchor, showing: this.open, close: callback("close", () => { this.open = false; }) },
         informationBox(
-          { key: "information", summary: this.summary, points: this.points },
+          { summary: this.summary, points: this.points },
           { boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)", maxWidth: "640px" },
         ),
       ),
@@ -67,15 +66,18 @@ export class InformationButton extends Component {
 /**
  * A page's information - `{ summary, points }`, as for pageActions() - in an
  * info alert: shown first on a page that has room for it, and in the
- * information button's popover for one that hasn't.
+ * information button's popover for one that hasn't. A `key` is optional -
+ * given, the box is keyed with it.
  */
 export function informationBox({ key, summary, points }, style) {
+  // The list is keyed, as it may be hidden (showIf), and so are its points.
+  const prefix = key || "information";
   return alert(
     { key, style: { lineHeight: "1.4", flex: "none", ...style } },
-    p({ key: key + "Summary", style: { margin: 0 } }, text({ key: key + "SummaryText", text: summary })),
+    p({ style: { margin: 0 } }, text(summary)),
     ul(
-      { key: key + "Points", style: { margin: "8px 0 0 0", paddingLeft: "20px" } },
-      (points || []).map((point, index) => li({ key: key + "Point" + index }, text({ key: key + "PointText" + index, text: point }))),
+      { key: prefix + "Points", style: { margin: "8px 0 0 0", paddingLeft: "20px" } },
+      (points || []).map((point, index) => li({ key: prefix + "Point" + index }, text(point))),
     ).showIf(!!points && points.length > 0),
   );
 }

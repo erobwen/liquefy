@@ -6,18 +6,19 @@ import { centerMiddle, zStack, wrapper, fitContainerStyle } from "@liquefy/casca
 
 // The modal-window presentation: a full-frame backdrop (click to close)
 // with the dialog centered on top of it. It holds no state of its own
-// (unlike `dialog`, nested inside it, which may) - its keys are only there
-// to keep its elements across rebuilds, and are in the calling build's
-// scope, so one per build.
+// (unlike `dialog`, nested inside it, which may) - its elements are kept
+// across rebuilds by pattern matching. Only its outermost element is keyed,
+// as is fullScreenPresentation()'s: a page may switch between the two in
+// the same place (both are divs), and the keys are in the calling build's
+// scope, so one of each per build.
 export function modalPresentation(dialog, close) {
   return zStack(
     { key: "modalPresentation", style: { ...fitContainerStyle, pointerEvents: "none" } },
     div({
-      key: "backdrop",
       onclick: () => close(),
       style: { pointerEvents: "auto", background: "rgba(0, 0, 0, 0.4)" },
     }),
-    centerMiddle(dialog, { key: "centered", style: { pointerEvents: "none" } }),
+    centerMiddle(dialog, { style: { pointerEvents: "none" } }),
   );
 }
 

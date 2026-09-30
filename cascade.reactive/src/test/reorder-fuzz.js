@@ -19,15 +19,9 @@ import assert from "assert";
 // neighbors, anywhere in the tree, must end up seeing exactly what a
 // fresh, from-scratch evaluation of the *current* structure would produce
 // - never a stale value left over from its old position.
-//
-// verifyChainOrderStructurally is on throughout: a free, independent
-// second check (order-number chain vs. structural parent/sibling walk)
-// layered on top of the value-correctness oracle below - see
-// structural-order-verifier.js for what it alone already catches.
 const { observable, repeat, linkRepeater } = getWorld({
   name: "reorder-fuzz",
   timeLevels: 6,
-  verifyChainOrderStructurally: true,
 });
 
 // mulberry32 - small, dependency-free, deterministic PRNG. Seeded so a

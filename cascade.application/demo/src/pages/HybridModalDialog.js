@@ -115,7 +115,7 @@ export class HybridModalDialog extends Component {
       // Deliberately *not* alignItems: "flex-start" here - the docked
       // dialog's own fillerStyle (flex: 1 1 0) needs this row to give it a
       // definite, stretched height to fill.
-      { key: "page", style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: pagePadding } },
+      { style: { ...fitContainerStyle, ...overflowVisibleStyle, gap: "16px", padding: pagePadding } },
       pageActions({ source, fileName: "src/pages/HybridModalDialog.js" }),
       // The controls, on a panel of their own (an elevated card - white,
       // with a shadow, on the grey page) - its edge is the border between
@@ -123,18 +123,17 @@ export class HybridModalDialog extends Component {
       // dialog isn't docked beside it.
       card(
         {
-          key: "panel",
           style: {
             display: "flex", flexDirection: "column", gap: "16px", boxSizing: "border-box",
             ...(mode === "docked" ? { width: PANEL_WIDTH + "px", flex: "none" } : { ...fillerStyle }),
           },
         },
-        informationBox({ key: "information", ...information }),
+        informationBox(information),
         // A themed widget (cascade.ui's button()) - the app's theme decides
         // what it looks like; only its placement here is set here.
         centerMiddle(
-          { key: "openButtonArea", style: { ...fillerStyle, ...overflowVisibleStyle } },
-          button({ key: "openButton", variant: "filled" }, "Open Hybrid Modal Dialog", open),
+          { style: { ...fillerStyle, ...overflowVisibleStyle } },
+          button({ variant: "filled" }, "Open Hybrid Modal Dialog", open),
         ),
       ),
       // The dialog has one place per build: docked here, or in the
@@ -144,7 +143,7 @@ export class HybridModalDialog extends Component {
       // before the overlay closes - and the dialog would be gone.
       dialog.showIf(showDialog && mode === "docked"),
       overlay(
-        { key: "dialogOverlay", showing: showDialog && mode !== "docked" },
+        { showing: showDialog && mode !== "docked" },
         mode === "docked" ? null : mode === "fullScreen" ? fullScreenPresentation(dialog) : modalPresentation(dialog, close),
       ),
     );
@@ -161,14 +160,14 @@ class DialogContent extends Component {
 
   build() {
     return column(
-      { key: "content", style: { padding: "16px", gap: "12px" } },
-      p({ key: "explanation" },
+      { style: { padding: "16px", gap: "12px" } },
+      p(
         "This counter's value survives moving between docked, modal and full screen - it's the exact same " +
         "component instance each way, not a fresh one.",
       ),
-      p({ key: "counter" }, "Counter: " + this.counter),
+      p("Counter: " + this.counter),
       button(
-        { key: "increment", style: { alignSelf: "flex-start" } },
+        { style: { alignSelf: "flex-start" } },
         "Increment Counter",
         () => { this.counter += 1; },
       ),

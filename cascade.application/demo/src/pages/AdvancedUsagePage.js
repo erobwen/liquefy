@@ -39,7 +39,6 @@ const applicationMenuFrame = new ApplicationMenuFrame({
 export class AdvancedUsagePage extends Component {
   build() {
     return article(
-      { key: "advancedUsage" },
       pageActions({ source, fileName: "src/pages/AdvancedUsagePage.js" }),
       h1("Advanced Usage"),
       p(
@@ -56,14 +55,14 @@ export class AdvancedUsagePage extends Component {
         "and proper invalidation and revalidation - the gauge is drawn again exactly when something it read has ",
         "changed, and only then. How it draws is up to you.",
       ),
-      stage("gaugeStage", new GaugeDemo({ key: "gaugeDemo" })),
-      codeBlock("gaugeCode", gaugeSource),
+      stage(new GaugeDemo()),
+      codeBlock(gaugeSource),
       h3("Not exactly one node?"),
       p(
         "Then implement render() itself. A component that renders isn't given a node - it's given a time: its turn ",
         "in the rendering of the DOM, after what renders before it and before what renders after. What it puts there ",
-        "is up to it - one node, many, or none at all. It renders onto its ", name("target", "target"), " - the ",
-        "element its parent renders into - right after ", name("lastChild", "target.lastChild"), ", the node rendered ",
+        "is up to it - one node, many, or none at all. It renders onto its ", name("target"), " - the ",
+        "element its parent renders into - right after ", name("target.lastChild"), ", the node rendered ",
         "just before it, and then advances lastChild to the last of its own, or leaves it where it was if it has none. ",
         "These thermometers are as many nodes as the count says, side by side in the row, with no wrapper around ",
         "them - and at zero, nothing at all: \"Before\" and \"After\" meet.",
@@ -75,8 +74,8 @@ export class AdvancedUsagePage extends Component {
         "changes for what comes after: the thermometers render again, and so does \"After\" - it read lastChild - but ",
         "\"Before\" doesn't. Move the slider, and lastChild stays the same: only the thermometers render again.",
       ),
-      stage("thermometersStage", new ThermometersDemo({ key: "thermometersDemo" })),
-      codeBlock("thermometersCode", thermometersSource),
+      stage(new ThermometersDemo()),
+      codeBlock(thermometersSource),
 
       h2("Not just for rendering on a DOM"),
       p(
@@ -91,7 +90,7 @@ export class AdvancedUsagePage extends Component {
         "onto its widgets. (Temporal signals work on objects' properties so far - temporal arrays are still to come - ",
         "which is why the paper keeps its state in plain properties.)",
       ),
-      codeBlock("paperCode", paperSource),
+      codeBlock(paperSource),
 
       h2("Implement your own service provider"),
       p(emphasis("Endless configuration of an existing application.")),
@@ -101,17 +100,17 @@ export class AdvancedUsagePage extends Component {
         "without changing a line of it. Here, an existing component - twice: as it is, and inside a service provider ",
         "that hands out every text in Swedish. The same idea styles, instruments or replaces anything, anywhere.",
       ),
-      stage("translationStage", new TranslationDemo({ key: "translationDemo" })),
-      codeBlock("translationCode", translationSource),
+      stage(new TranslationDemo()),
+      codeBlock(translationSource),
 
       h2("Layout from real measurements"),
       p(
-        "A component can lay itself out by the room it really has, measured: ", name("bounds", "elementBoundsProvider()"),
+        "A component can lay itself out by the room it really has, measured: ", name("elementBoundsProvider()"),
         " measures its own element, and hands the size to its child. Drag the frame's corner - no media queries, and ",
         "not the window's size: the component's own.",
       ),
-      stage("measuredStage", new Measured({ key: "measured" })),
-      codeBlock("measuredCode", measuredSource),
+      stage(new Measured()),
+      codeBlock(measuredSource),
 
       h2("How to keep your children alive off screen"),
       p(
@@ -123,30 +122,30 @@ export class AdvancedUsagePage extends Component {
       p(
         "Count up in each, switch tab, and switch back - the first forgets, the other two remember:",
       ),
-      stage("keepAliveStage", new KeepAlive({ key: "keepAlive" })),
+      stage(new KeepAlive()),
       h3("1. Build them in every build - and show them with .showIf()"),
       p(
-        "Create your children in build(), with a key - but don't hide them behind an ", name("if", "if"), ". Build them ",
-        "every time, and leave them out with ", name("show", ".showIf(condition)"), " instead: a child built but not ",
+        "Create your children in build(), with a key - but don't hide them behind an ", name("if"), ". Build them ",
+        "every time, and leave them out with ", name(".showIf(condition)"), " instead: a child built but not ",
         "shown is only hidden, while its key keeps it alive.",
       ),
       h3("2. Take full control"),
       p(
-        "Create them yourself, once, in ", name("initialUnobservables", "initialUnobservables()"), " - and since no build ",
-        "does it for you, call ", name("establish", "establish()"), " on them there, and ", name("dispose", "dispose()"), " in ",
-        "your own ", name("onDispose", "onDispose()"), ". Skip the dispose, and a child reading data that never changes ",
+        "Create them yourself, once, in ", name("initialUnobservables()"), " - and since no build ",
+        "does it for you, call ", name("establish()"), " on them there, and ", name("dispose()"), " in ",
+        "your own ", name("onDispose()"), ". Skip the dispose, and a child reading data that never changes ",
         "again is never invalidated - it holds on to all it built and subscribed to, for good. Unobservables, because ",
         "nothing needs to observe the references - an observable property for them would only be overhead. Then ",
         "build() just places them, where and when it likes.",
       ),
-      codeBlock("keepAliveCode", keepAliveSource),
+      codeBlock(keepAliveSource),
       h3("3. Outside of Cascade altogether"),
       p(
         "Create them where no build ever sees them being created - in a module, or anywhere else outside of any ",
         "component - and hand them in as properties. That's how this very demo keeps its pages. Establish them ",
         "where you create them; nothing disposes them, so it's for what lives as long as the app does.",
       ),
-      codeBlock("pagesCode", pagesExcerpt),
+      codeBlock(pagesExcerpt),
       p(
         emphasis("A word of warning: never combine these methods."),
         " A child constructed inside build() belongs to that build, even if you keep a reference to it as well: the ",

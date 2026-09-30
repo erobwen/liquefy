@@ -37,7 +37,7 @@ export class ToolbarEllipsisPage extends Component {
     // The tools only have to be there, taking room - none of them does
     // anything (but the size picker, which grows by itself).
     const icon = (name, number) => iconButton({ key: name + number, icon: name, title: name + " " + number, style: { flex: "none" } });
-    const textButton = (name) => button({ key: name, style: { flex: "none" } }, text({ key: name + "Text", text: name }));
+    const textButton = (name) => button({ key: name, style: { flex: "none" } }, text(name));
     const tools = [
       icon("search", 1), icon("home", 2),
       textButton("Bold"), textButton("Italic"),
@@ -45,7 +45,7 @@ export class ToolbarEllipsisPage extends Component {
       icon("settings", 3), icon("star", 4),
       select(
         { key: "font", title: "Font", style: { flex: "none", height: "32px", padding: "0 6px", font: "inherit", color: "inherit", border: "1px solid " + themeColor.border, borderRadius: "6px", background: themeColor.surface } },
-        ...["Sans", "Serif", "Monospace"].map((font) => option({ key: font, value: font }, text({ key: font + "Text", text: font }))),
+        ...["Sans", "Serif", "Monospace"].map((font) => option({ key: font, value: font }, text(font))),
       ),
       icon("key", 5), icon("bolt", 6),
       textButton("Underline"),
@@ -55,17 +55,16 @@ export class ToolbarEllipsisPage extends Component {
     ];
 
     return fullPage(
-      { key: "page", style: overflowVisibleStyle },
+      { style: overflowVisibleStyle },
       pageActions({ source, fileName: "src/pages/ToolbarEllipsisPage.js" }),
-      informationBox({ key: "information", ...information }),
-      text({ key: "hint", text: "Try to resize the window to see how the toolbar behaves." }),
-      filler({ key: "space" }),
+      informationBox(information),
+      text("Try to resize the window to see how the toolbar behaves."),
+      filler(),
       card(
-        { key: "toolbarCard", style: { flex: "none", padding: "8px" } },
+        { style: { flex: "none", padding: "8px" } },
         elementBoundsProvider({
-          key: "toolbarBounds",
           style: { width: "100%", contain: "inline-size layout" },
-          child: new EllipsisToolbar({ key: "toolbar", children: tools }),
+          child: new EllipsisToolbar({ children: tools }),
         }),
       ),
     );
@@ -80,10 +79,10 @@ class SizePicker extends Component {
 
   build() {
     return row(
-      { key: "picker", title: "Size", style: { flex: "none", alignItems: "center", gap: "2px" } },
-      iconButton({ key: "smaller", icon: "remove", title: "Smaller", onClick: callback("smaller", () => { this.size = Math.max(1, this.size - 1); }) }),
-      span({ key: "value", style: { minWidth: "1ch", textAlign: "center", fontVariantNumeric: "tabular-nums" } }, text({ key: "valueText", text: String(this.size) })),
-      iconButton({ key: "larger", icon: "add", title: "Larger", onClick: callback("larger", () => { this.size = this.size + 1; }) }),
+      { title: "Size", style: { flex: "none", alignItems: "center", gap: "2px" } },
+      iconButton({ icon: "remove", title: "Smaller", onClick: callback("smaller", () => { this.size = Math.max(1, this.size - 1); }) }),
+      span({ style: { minWidth: "1ch", textAlign: "center", fontVariantNumeric: "tabular-nums" } }, text(String(this.size))),
+      iconButton({ icon: "add", title: "Larger", onClick: callback("larger", () => { this.size = this.size + 1; }) }),
     );
   }
 }
@@ -121,7 +120,6 @@ export class EllipsisToolbar extends Component {
 
   build() {
     const ellipsis = iconButton({
-      key: "menuButton",
       icon: "more_horiz",
       title: this.overflowCount + " more tools",
       style: { flex: "none" },
@@ -133,7 +131,6 @@ export class EllipsisToolbar extends Component {
     });
     return [
       overflowContainer({
-        key: "bar",
         style: { display: "flex", flexDirection: "row", alignItems: "center", gap: GAP + "px", width: "100%", overflow: "hidden" },
         children: this.tools,
         ellipsis,
@@ -145,14 +142,12 @@ export class EllipsisToolbar extends Component {
       }),
       popover(
         {
-          key: "extraToolbarMenu",
           anchor: this.anchor,
           showing: this.menuOpen && this.overflowCount > 0,
           close: callback("closeMenu", () => { this.menuOpen = false; }),
         },
         card(
           {
-            key: "extraMenu",
             // A click on a button in it closes it, too - not one on a field.
             onclick: callback("closeOnPick", (event) => {
               if (event.target.closest("button, mdui-button, mdui-button-icon")) this.menuOpen = false;

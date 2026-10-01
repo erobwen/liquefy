@@ -31,18 +31,22 @@ export function defaultDependencyInterfaceCreator(causality) {
   // needs to tell which of a writing's existing observers a later,
   // closer-inserted writing actually overtakes, rather than having to
   // treat all of them alike.
+  //
+  // Returns the entry - the one just made, or the one this observer
+  // already had here (cascade.js keeps what an array read read on it - see
+  // recordDependencyOnArray).
   function recordDependency(observer, observerSet, optionalKey, time, writer) {
     let observerId = observer.id;
     //console.log("recordDependency", observer, observerSet);
     if (typeof(observerSet.contents[observerId]) !== 'undefined') {
-      return;
+      return observerSet.contents[observerId];
     }
 
     if (observerSet.contentsCounter === sourcesObserverSetChunkSize &&
         observerSet.last !== null) {
       observerSet = observerSet.last;
       if (typeof(observerSet.contents[observerId]) !== 'undefined') {
-        return;
+        return observerSet.contents[observerId];
       }
     }
     if (observerSet.contentsCounter === sourcesObserverSetChunkSize) {
@@ -83,11 +87,16 @@ export function defaultDependencyInterfaceCreator(causality) {
         // being flagged twice over by a second, even-closer writing before
         // the first flag is ever resolved.
         flagged: false,
+        // Set once the entry is gone from its observerSet - see
+        // removeFromObserverSet. A reference to it held elsewhere (a flag
+        // record, say) can tell.
+        removed: false,
       };
 
       // Note dependency in repeater itself (for cleaning up)
       observer.sources.push(observerSet);
     }
+    return observerSetContents[observerId];
   }
 
   // Every entry across an observerSet's root contents plus any chained
@@ -146,6 +155,7 @@ export function defaultDependencyInterfaceCreator(causality) {
 
   function removeFromObserverSet(id, observerSet) {
     let observerSetContents = observerSet['contents'];
+    if (typeof(observerSetContents[id]) !== 'undefined') observerSetContents[id].removed = true;
     delete observerSetContents[id];
     let noMoreObservers = false;
     observerSet.contentsCounter--;
@@ -198,11 +208,15 @@ export function defaultDependencyInterfaceCreator(causality) {
 
   return {
     
-    recordDependencyOnArray: (observer, handler) => {
-      if (handler._arrayObservers === null) {
-        handler._arrayObservers = createObserverSet("arrayDependees", handler);
+    // A read of an array's elements, on the writing of its elements
+    // timeline it resolved to (or, for a partial reading its own writing,
+    // the one before it - see cascade.js's observeArray). Returns the
+    // entry: cascade.js notes on it what was read, and what was seen.
+    recordDependencyOnArray: (observer, handler, writing, time, writer) => {
+      if (writing.observers === null) {
+        writing.observers = createObserverSet("arrayDependees", handler);
       }
-      recordDependency(observer, handler._arrayObservers);//object
+      return recordDependency(observer, writing.observers, undefined, time, writer);
     },
 
     recordDependencyOnEnumeration: (observer, handler, time, writer) => {
@@ -219,12 +233,6 @@ export function defaultDependencyInterfaceCreator(causality) {
         writing.observers = createObserverSet("propertyDependees", key, handler);
       }
       recordDependency(observer, writing.observers, key, time, writer);
-    },
-
-    invalidateArrayObservers: (handler, key) => {
-      if (handler._arrayObservers !== null) {
-        invalidateObservers(handler._arrayObservers, handler.proxy, key);
-      }
     },
 
     invalidatePropertyObservers: (handler, key, time, writer) => {
@@ -283,7 +291,9 @@ export function defaultDependencyInterfaceCreator(causality) {
     // readers `previousWriting` currently has, not a system-wide search.
     // Returns false if the entry wasn't found there anymore (e.g. it was
     // independently cleared by a real invalidation in between) - the
-    // caller has nothing further to do in that case.
+    // caller has nothing further to do in that case. Otherwise returns the
+    // entry as it now stands on `freshWriting` - a new one, or the one the
+    // same observer already had there.
     relocatePropertyObserverEntry: (previousWriting, freshWriting, targetEntry) => {
       if (previousWriting.observers === null) return false;
       const found = collectObserverEntries(previousWriting.observers)
@@ -297,8 +307,7 @@ export function defaultDependencyInterfaceCreator(causality) {
           previousWriting.observers.handler
         );
       }
-      recordDependency(targetEntry.observer, freshWriting.observers, previousWriting.observers.key, targetEntry.time, targetEntry.writer);
-      return true;
+      return recordDependency(targetEntry.observer, freshWriting.observers, previousWriting.observers.key, targetEntry.time, targetEntry.writer);
     },
 
     // Only invalidate readers positioned after this key add/remove (see

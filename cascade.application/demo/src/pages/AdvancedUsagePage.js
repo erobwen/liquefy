@@ -80,15 +80,15 @@ export class AdvancedUsagePage extends Component {
       h2("Not just for rendering on a DOM"),
       p(
         "A render target is where components render - and it can be anything: a subclass of your own, with a state ",
-        "of its own. Here, a paper that words lay themselves out on, in lines - its cursor (where the next word goes) ",
-        "read and written by each word in turn. Change a word, and only it and the words after it lay out again: each ",
-        "word sees the cursor as the word before it left it, which is what temporal signals are for. Not a DOM ",
-        "element anywhere - it runs just as well in Node.",
+        "of its own. Here, a paper that words lay themselves out on, in lines - the words laid out so far kept in an ",
+        "array, that each word reads the last of, and pushes itself onto. A temporal array: each word sees it as the ",
+        "words before it left it. Change a word, and only it and the words after it lay out again - and only as far as ",
+        "something really moved: a word reads nothing but the last one, so once a word lands where it was, the rest ",
+        "stay put. Not a DOM element anywhere - it runs just as well in Node.",
       ),
       p(
         "The same way, a render target could wrap another native UI framework, and have Cascade components render ",
-        "onto its widgets. (Temporal signals work on objects' properties so far - temporal arrays are still to come - ",
-        "which is why the paper keeps its state in plain properties.)",
+        "onto its widgets.",
       ),
       codeBlock(paperSource),
 

@@ -8,27 +8,18 @@ import assert from "assert";
 // moves the wave itself backward, so it's picked up again within this same
 // wave.
 //
-// Both tests below reach "backward" via an *array* mutation
-// (invalidateArrayObservers), not a plain property write - deliberately.
-// "Time as tree position" (see cascade.js's own design notes) means a plain
-// property write's position is always either the writer's tree order
-// (within one chain) or its declared time level (across chains, compared
-// before tree order at all) - and migrateOvertakenObserversFor only ever
-// migrates/flags an observer positioned *after* the new writing, never one
-// positioned before it. So a later-positioned (or later-time-level) write
-// to a plain property can never, by construction, reach an earlier reader
-// - flush() only changes *scheduling*, not that invariant, and shouldn't:
-// rewriting a write's own effective position would be a much bigger,
-// separate change (see accessInitialValues() in access-initial-values.js,
-// which does exactly that, deliberately, by writing as though genuinely
-// external). Arrays still have no position gate at all today
-// (invalidateArrayObservers notifies every registered observer
-// unconditionally, regardless of where it sits) - which is what actually
-// lets these two scenarios reach back, not a principled feature of its
-// own; see docs/plan-array-timelines.md for why that's still open.
-// Enumeration (key composition) used to have the same gap and has since
-// been fixed to be position-aware too - see enumeration-timeline.js.
-const { observable, repeat, flush } = getWorld({ name: "flush", timeLevels: 3 });
+// Both tests below reach "backward": a later writer corrects something an
+// earlier reader already read. "Time as tree position" (see cascade.js's own
+// design notes) means a write - to a property or to an array, which is
+// temporal too (see "Temporal arrays") - is seen only by readers positioned
+// after it: its writer's tree order within one chain, or its declared time
+// level across chains. So the correction is written at initial time, with
+// accessInitialValues() (see access-initial-values.js) - where the earlier
+// reader reads from - and flush() is what makes the earlier reader rerun
+// within this same wave rather than the next. The two are independent:
+// accessInitialValues() changes *where* the write lands, flush() *when* what
+// it invalidates is processed.
+const { observable, repeat, flush, accessInitialValues } = getWorld({ name: "flush", timeLevels: 3 });
 
 describe("flush() (retreat the wave instead of parking, while flushing)", function () {
 
@@ -46,7 +37,7 @@ describe("flush() (retreat the wave instead of parking, while flushing)", functi
       repeat(() => { // "portal" - structurally later; flushes new content back
                      // into the slot the moment it's asked to
         if (model.trigger) {
-          flush(() => { portalSlots.push("content"); });
+          accessInitialValues(() => flush(() => { portalSlots.push("content"); }));
         }
       });
     });
@@ -62,9 +53,6 @@ describe("flush() (retreat the wave instead of parking, while flushing)", functi
   });
 
   it("a later-level pipeline's flush() corrects an earlier-level one and sees the correction settle within the same synchronous write", function () {
-    // selections is an array, not a plain scalar, specifically so the
-    // corrective write below (from the later, time:1 selector) can reach
-    // the earlier, time:0 model at all - see the module comment above.
     const model = observable({ selections: observable(["initial"]) });
     const view = observable({ shown: null });
 
@@ -84,7 +72,7 @@ describe("flush() (retreat the wave instead of parking, while flushing)", functi
         // Discovered an invalid value - reach back to the model level and
         // correct it, rather than rendering the invalid state or waiting
         // for a separate, later fix-up pass.
-        flush(() => { model.selections.push("corrected"); });
+        accessInitialValues(() => flush(() => { model.selections.push("corrected"); }));
       }
     }, { time: 1 });
 

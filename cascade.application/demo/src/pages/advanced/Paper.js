@@ -1,32 +1,37 @@
-import { Component, observable } from "@liquefy/cascade.component";
+import { Component, observable, frozen } from "@liquefy/cascade.component";
 
-// A render target of your own - no DOM anywhere: a paper, whose state is
-// where the next word goes.
+// A render target of your own - no DOM anywhere: a paper, holding the words
+// laid out on it, in order. A temporal array: each word sees it as the
+// words before it left it.
 class Paper {
   constructor(width) {
     this.width = width;
-    this.column = 0;
-    this.line = 1;
+    this.words = observable([]);
     return observable(this);
   }
 }
 
-// A word, laying itself out on the paper: where the one before it left
-// off - on the next line, if it doesn't fit.
+// A word, laying itself out on the paper: right after the last word placed
+// before it - on the next line, if it doesn't fit.
 class Word extends Component {
   setProperties({ text }) {
     this.text = text;
   }
 
   render(paper) {
-    let { line, column } = paper;
+    // Only the last word: it's laid out again only if that one moved or
+    // changed - not for anything else on the paper.
+    const previous = paper.words.at(-1);
+    let line = previous ? previous.line : 1;
+    let column = previous ? previous.column + previous.text.length + 1 : 0;
     if (column > 0 && column + this.text.length > paper.width) {
       line = line + 1;
       column = 0;
     }
     console.log(`  "${this.text}" - line ${line}, column ${column}`);
-    paper.line = line;
-    paper.column = column + this.text.length + 1;
+    // Frozen: a value, compared by content - placed the same as before,
+    // and the word after it doesn't lay out again.
+    paper.words.push(frozen({ text: this.text, line, column }));
   }
 }
 
@@ -41,7 +46,8 @@ class Sentence extends Component {
 }
 
 const words = observable({ words: ["Temporal", "signals", "lay", "out", "words", "on", "paper"] });
-new Sentence({ words }).renderOnto(new Paper(20));
+const paper = new Paper(20);
+new Sentence({ words }).renderOnto(paper);
 //   "Temporal" - line 1, column 0
 //   "signals" - line 1, column 9
 //   "lay" - line 1, column 17
@@ -58,3 +64,13 @@ words.words = ["Temporal", "signals", "gracefully", "out", "words", "on", "paper
 //   "words" - line 2, column 15
 //   "on" - line 3, column 0
 //   "paper" - line 3, column 3
+
+// A word of the same length: it lays out again, and so does the next -
+// which lands where it was, so the rest stay put.
+words.words = ["Temporal", "signals", "gracefully", "put", "words", "on", "paper"];
+//   "put" - line 2, column 11
+//   "words" - line 2, column 15
+
+// Read from outside, the paper holds all of them - as the last word left it.
+console.log(paper.words.map((word) => word.text).join(" "));
+//   Temporal signals gracefully put words on paper

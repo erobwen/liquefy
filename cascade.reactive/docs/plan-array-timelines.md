@@ -1,197 +1,198 @@
-# Plan: virtualizing arrays into timelines
+# Plan: temporal arrays
 
-Status: **planning only, nothing here is implemented yet.** This is a design
-discussion to align on before touching `cascade.js`.
+Status: **implemented.** `src/test/temporal-arrays.js` covers the reader
+kinds and the write semantics below, `src/test/temporal-arrays-fuzz.js`
+checks random trees pushing onto one array against a from-scratch walk.
+The full suite passes (cascade.reactive, and cascade.component/DOM/ui/
+ui.material unchanged). The design lives in cascade.js's own "Temporal
+arrays" section; this doc is the record of how it came to look like it
+does, and where it departs from the plan it replaced.
 
-## Why
+## The idea
 
-Object properties already went through this move: instead of living directly
-on `target`, each property's value now lives in a "writing" on a per-property
-timeline (`handler.timelines`), which is what lets `proxy.timelines.a.first`
-exist and gives us a seam (`currentWriting`, `seekWriting`) for real
-versioning later. Arrays still store their elements the old way, directly on
-a real JS array (`target`). This plan is about closing that gap.
+An array's elements are positioned in time like a property's value: a
+reader sees what was written *before* it - by tree position, by time level
+- never what's written after it. And a reader reruns only when what *it*
+read changed. There are four kinds of reader:
 
-## Where arrays differ from objects
+- **whole** - iteration, `Object.keys`, and the reading methods (`map`,
+  `slice`, `indexOf`, `join`, ...): any change to the elements.
+- **length** - `arr.length`.
+- **index i** - `arr[i]`, `at(i)`, and `shift()` (index 0, the first):
+  that element, and whether it's there.
+- **from the end** - `pop()` (the last), `at(-k)`: the k:th element counted
+  from the end.
 
-- **Objects** have a small, fixed set of named slots. Each slot's whole
-  history is "did we overwrite this value" - trivial to represent as one
-  writing per key.
-- **Arrays** are ordered, bulk data. A single "set index 3" isn't the only
-  kind of change - `push`/`pop`/`shift`/`unshift`/`splice`/`sort`/`reverse`/
-  `fill`/`copyWithin` all reshape many indices at once. Any per-element write
-  model has to be able to represent all of those, which is why a **splice**
-  (`index`, `removed`, `added`) is the natural unit of change here, not a
-  per-index value the way `set` is for objects. `mergeInto`'s
-  `differentialSplices` helper already turns "old array vs new array" into a
-  splice sequence for exactly this reason.
-- Arrays can *also* carry ordinary named properties (`arr.flag = true`), and
-  those behave exactly like object properties. That part should just reuse
-  `handler.timelines` as-is - no new design needed there.
+A change flags every reader positioned after it. A flagged reader, once the
+wavefront reaches it, checks whether its own read really changed: a popper
+only cares whether the last element is still the same, a reader of `arr[2]`
+only whether `arr[2]` is. Other (non-index) properties of an array are
+ordinary properties.
 
-## Proposed shape
+## Storage: an elements timeline of operations
 
-Each array handler gets **two** kinds of storage, not one:
+`handler.elements` is a timeline like a property's - same `(time, writer)`
+positions, same `seekWriting`, splicing, parallel-pipeline ownership,
+`dispose()`/`staleWritings` retraction and reuse across reruns. What a
+writing holds differs:
 
-1. `handler.timelines` - unchanged, reused verbatim from the object work, for
-   any non-index string key (`arr.someFlag = ...`, or any string property
-   that isn't `length`/a numeric index). All the existing helpers
-   (`getOrCreateTimelineWriting`, `hasTimelineValue`, `readTimelineValue`,
-   `timelineDataKeys`, ...) already do the right thing here.
+- The **baseline** (time 0, writer null) holds the content outright
+  (`ops === null`) - construction, and every write from outside any
+  repeater (or inside `accessInitialValues()`).
+- A **repeater's writing** holds the *operations* its partial performed
+  (`ops`: push, pop, splice, set, delete, length, sort, ..., and `assign`
+  for a wholesale replacement). Its content is its predecessor's, with
+  the operations replayed.
 
-2. A new, single **elements timeline** per array handler - e.g.
-   `handler.elementsTimeline` - holding the history of structural changes to
-   the numeric contents. This is *not* nested inside `handler.timelines`,
-   because its writings have a different shape than a property writing (see
-   below); it's a parallel, special-purpose timeline, similar in spirit to
-   the reserved enumeration timeline but for a different reason.
+So writes are relative: a push says "one more, after whatever's before
+me". When something before it changes, the push is replayed on that,
+without its writer running again (`temporal-arrays.js`: "pushers don't
+depend on each other", "a sort is replayed...").
 
-### The elements timeline's writing
+**The cursor.** Contents aren't kept per writing. The timeline holds one
+current content (`cursorContent`) - the elements as of one writing
+(`cursorWriting`) - and `moveArrayCursor()` moves it to wherever a read
+or write needs it: forward by replaying the operations in between, else by
+rebuilding from the baseline. Forward is the common case - repeaters run
+one after another in position order, and so does the wavefront checking
+flagged readers - so a pusher costs one push, and a whole wave one rebuild
+at its start. A change at or before the cursor drops it (it rebuilds when
+next needed); a change after it - looked for a few writings ahead, see
+`arrayWritingIsAfterCursor()` - leaves it be. A writing relinked right
+back after the same predecessor (`retouchSubtreeWritings()` relinks every
+writing of a child the first time it's attached) keeps it too: without
+that, every pusher of a first render rebuilt from the baseline.
 
-```js
-writing = {
-  time: 0,
-  index: <number>,
-  removed: [...],
-  added: [...],
-  observers: null,   // who depends on the array's structure changing
-  next: null,
-  previous: null,
-}
-```
+**Departure from the plan.** The plan proposed one coarse observer set and
+a single "latest splice" writing, with the target array as the one
+materialized content. Neither survives contact with position: a reader at
+position P needs *the content as of P*, and a writer's operations have to
+be replayable for its content to follow a changing predecessor. Hence
+per-writing operations, and a cursor to materialize them where needed.
 
-Every mutating array operation - `push`, `pop`, `shift`, `unshift`, `splice`,
-`copyWithin`, `reverse`, `sort`, `fill`, and a direct index assignment
-(`arr[i] = x`, itself just a 1-for-1 splice at `i`) - normalizes to one of
-these. This is barely new work: the existing static overrides in
-`createStaticArrayOverrides` already compute `index`/`removed`/`added` for
-every one of these operations today (that's exactly what `emitSpliceEvent`
-already consumes) - we'd just be capturing that same computation into a
-timeline writing instead of only an outgoing event.
+(A first version cached a full content per writing instead, as immutable
+snapshots. Simple, but n pushers onto one array held O(n²) elements, and a
+change near the start of a long one was quadratic - 1.5 s for 3000 pushers
+against 0.12 s with the cursor. See `src/experiments/temporal-array-pushers.js`.)
 
-**Open question:** with "only one writing per timeline for now" (mirroring
-the object rule), what does that one writing actually hold once several
-splices have happened? Two options:
-- (a) the writing always holds the *latest* splice only (`index`/`removed`/
-  `added` describe just the most recent operation), and "the current array"
-  lives elsewhere (see `currentShape` below) - splices become purely
-  transient/event-shaped until real multi-version history exists.
-- (b) collapse the writing into a full-snapshot shape (`index: 0, removed:
-  [], added: [...currentShape]`) after every mutation, so it's always
-  self-contained.
-(a) is cheaper and matches "the writing is really just a log entry", but
-means the single writing alone can't reconstruct the array - you need
-`currentShape` too. (b) makes the writing self-sufficient but is wasteful
-work on every mutation for something we throw away immediately (there's only
-one writing, so we recompute the snapshot on every single op). Leaning
-towards (a), but this is worth deciding before writing code.
+**The target** is now only a mirror of the latest content - kept for
+debuggers and Node's `util.inspect`, which look at a proxy's target
+directly, bypassing traps. It's kept in step cheaply when an operation
+lands on the last writing, and otherwise copied over at rest
+(`flushArrayMirrors()`, at the end of a scheduler drain, a top-level
+`repeat()`, or an external write).
 
-### `currentShape`: the materialized cache
+## Readers keep what they found
 
-Unlike objects (where we fully emptied `target` into timelines), the plan
-is to **keep a real, live JS array as a cache** - `currentShape` - that
-always reflects "the array as of `currentWriting`". Every mutating
-operation applies itself to `currentShape` exactly like it applies to
-`target` today (in fact, `currentShape` most likely *is* `target`, just
-given a name that matches the new mental model), in addition to recording
-the splice on the elements timeline.
+The cursor moves on, so a reader can't keep a reference to what it saw -
+it keeps the values themselves, on its dependency entry
+(`entry.arrayRead`): a copy of the elements for a whole read (which costs
+as much as copying them anyway), the length, or one slot - whether there's
+an element there, and which - per index or from-the-end read. Checking a
+read is moving the cursor to the reader's position and comparing -
+`arrayReadChanged()`, with `sameAsPrevious()` per element, so frozen
+plain data compares by value (that's what makes the Paper demo's words,
+each pushing a frozen `{ text, line, column }`, stop the cascade as soon
+as a word lands where it did before). A whole read hands out a copy too -
+it may be iterated, or passed to callbacks, while the cursor moves.
 
-This is a deliberate asymmetry from the object design, and worth calling
-out plainly: for objects, the timeline *is* the storage. For arrays, the
-timeline is a log layered *beside* a materialized cache, because:
+This is what makes everything else simple. Properties need writing-level
+bookkeeping to decide when to notify - `nextValue` buffering,
+`staleWritingNeedsRetirement`, freezing a retired writing's value as a
+comparison reference - because their flagged readers compare *writings*.
+Array readers compare *what they saw*, so nothing has to be kept stable on
+their behalf: a reused writing is simply mutated, and readers decide.
 
-- Native array behavior (`.length`, iteration, spread, `.map`/`.filter`/
-  `.includes`/etc., anything ecosystem code does with a "real array") needs
-  something that behaves like a real array at all times, cheaply.
-- Reconstructing "the current array" by replaying a splice log on every
-  read would be a real performance cliff arrays don't need to pay just to
-  get versioning.
+## Settling: flag everything after a change
 
-`currentShape` would live on the elements timeline (`handler.elementsTimeline
-.currentShape`), the same way `currentWriting` does - both are "the cache
-for right now", just for different questions ("what's the last writing" vs.
-"what does the array look like").
+`settleArrayChange(writing)` - for a write, an insertion, a reclaimed or
+retouched writing - settles every reader positioned after it: those of the
+writing before it that are overtaken, and every reader of it and of every
+writing after it, since all their contents replay through it. Same-pipeline
+readers are flagged (`flagRepeaterEntry`), and checked when the wavefront
+reaches them (`recheckArrayEntry()`, from `resolveFlaggedRepeater`).
+Readers with no wavefront between them and the change - invalidators,
+other pipelines' readers, and anyone at all for an external write - are
+checked right away. A partial's own writes settle once, when it closes
+(`settleTouchedArrayWritings()`, from `finalizeTouchedStaleWritings()`),
+not once per push. An abandoned writing (`abandonStaleArrayWriting()`)
+settles its own readers and everything after where it was.
 
-### `currentWriting`, reused as-is
+Readers after the wavefront stay flagged until it reaches them, so a wave
+of writers rerunning one after another would visit the same flagged
+readers again at every one of them - quadratic. A writing whose readers
+are all flagged already is marked (`observersAllFlagged`) and passed by,
+until a read is recorded on it, an entry is moved onto it, or one of its
+entries is resolved.
 
-Same role as for objects: `handler.elementsTimeline.currentWriting` is the
-writing valid "now". For now it's just the (only) writing, exactly like
-object timelines. This is what would let two operations at the same logical
-time skip straight to the relevant writing instead of walking from `first`,
-once there's real history to walk.
+**Writes that read.** `pop()`/`shift()` read what they remove (from the
+end / index 0). `splice()` reads the elements it removes, and the length
+wherever its range is relative to it. `push()`/`unshift()` return the new
+length but *don't* record reading it - a pusher shouldn't rerun because
+something before it pushed too. A partial reading its *own* writing (after
+its own push, say) is recorded as a whole read of the writing before its
+own: that's what its operations replay on, and its own later operations
+mustn't make it rerun for what it did itself.
 
-### `.length`
+**Rebuilds.** `mergeInto()` writes a rebuilt array's elements into the
+established one with one absolute `assign` (`world.assignArray`), read
+through the twin's proxy without recording - not differential splices
+computed from raw targets, which would be relative to whatever the
+established array happened to hold at the merge's position.
 
-`length` is fully derived - reading it is just `currentShape.length`, and
-writing it (`arr.length = N`) is really a truncating/extending splice, so it
-should route through the same splice path as everything else rather than
-being its own timeline entry. Small side benefit: today, `arr.length = N`
-only emits a generic `set` event (via `setHandlerArray`'s non-numeric-key
-branch), not a proper splice describing what was removed - going through the
-canonical splice path would fix that for free.
+## Two engine fixes the fuzz forced
 
-### Dependency granularity - open question, likely deferred
+Both are general, not array-specific - arrays just reach them far more
+often, because a change flags everything downstream rather than only the
+readers of one writing.
 
-Today, *any* array read (`getHandlerArray`) records one coarse dependency on
-the whole array (`recordDependencyOnArray` / `handler._arrayObservers`),
-regardless of which index was read. The elements timeline's writing having
-an `observers` field invites the question of whether we go per-index (like
-objects) or per-region now. I don't think we should chase that yet:
-indices shift under splice operations (insert/remove change what "index 3"
-means over time), so "does this write affect what I read" isn't a simple
-identity check the way it is for a stable property key - it needs the
-region math done properly, which is a bigger undertaking on its own.
-Proposal: keep it coarse for this pass (one `observers` set on the elements
-timeline's current writing, replacing `_arrayObservers` 1:1), and revisit
-per-region granularity once real multi-version history exists and "does
-this splice's range overlap the read range" actually needs answering.
+1. **A flag that resolves to a real change runs in the same wave.** A
+   flagged repeater resolved at the wavefront and found changed was
+   invalidated and - being *at* the wavefront - parked by `scheduleWork()`
+   for the next wave. By then the readers after it had already been
+   checked against the transient state it was about to correct: in
+   `temporal-arrays.js`'s "a change undone before the wavefront reaches a
+   reader", A changes, B (which reads A's last element) restores it, and
+   C reran anyway. `drainActivePipeline()` now processes it again right
+   there, as its root loop already did for the root.
 
-## Suggested phased approach (mirrors how the object work went)
+2. **Moving an invalidated child retouches its children's writings
+   too.** `retouchSubtreeWritings()` walked a moved child's `.children` -
+   empty if the child had already been disposed (here, by `linkRepeater()`
+   resolving its flags just before reattaching it), leaving the
+   grandchildren's writings where the old order put them. It now includes
+   `pendingChildren`. That needed `structuralCompareSiblings()` to order
+   two siblings both still pending in the same list - by their previous
+   run's position numbers, which are exactly where their writings still
+   are - instead of giving up and falling back to possibly stale order
+   numbers.
 
-1. Add `handler.elementsTimeline` (`first`/`last`/`currentWriting`/
-   `currentShape`) at array-observable creation time, with `currentShape`
-   initialized to (or aliased as) `target`.
-2. Rewrite `createStaticArrayOverrides` methods to also update the elements
-   timeline's writing when they run, using the same `index`/`removed`/
-   `added` they already compute - no behavior change yet, just also
-   recording it.
-3. Swap `handler._arrayObservers` for `handler.elementsTimeline
-   .currentWriting.observers` in `recordDependencyOnArray`/
-   `invalidateArrayObservers`, mirroring exactly what we did for
-   `_enumerateObservers` → the enumeration timeline.
-4. Route non-index string keys on arrays through `handler.timelines`
-   (reuse, no new code) - this is the "properties exist on arrays too" part.
-5. Route `.length` writes through the splice path.
+## Behavior that changed
 
-Each step should be independently testable against the existing array test
-suite (`array.js`, `array-splices.js`) before moving to the next, same as
-the object migration was done test-suite-green the whole way through.
+- An array write from a later position no longer reaches an earlier
+  reader. `test/flush.js` used to rely on exactly that ("arrays still have
+  no position gate", its own note said); its corrections now go through
+  `accessInitialValues()`, the sanctioned way to write backward, the same
+  as for properties.
+- Two parallel pipelines (different chainHeads) can no longer both write
+  one array at the same time level - the property rule, now for elements
+  too.
+- A rebuild's merge into an established array emits one `splice` event
+  (index 0, everything removed, everything added) instead of a series of
+  differential ones.
 
-**A cautionary note from doing this for enumeration** (`docs/plan-flagged-scheduling.md`
-covers it in full): step 3's own "mirroring exactly what we did for
-`_enumerateObservers`" undersells it - that earlier move only changed
-*storage* (a flat set into `handler.timelines[enumerationTimelineKey]`),
-not semantics; every reader still shared one fixed, permanently-reused
-writing, so any key add/remove still invalidated everyone regardless of
-position. Giving *that* real position semantics (only readers positioned
-after a change get invalidated) was attempted the same way this plan
-proposes for arrays - splice a fresh writing per position, migrate
-overtaken observers - and it broke the dev-time structural order verifier:
-a repeater's own writing on this reserved timeline never went through the
-`dispose()`/`staleWritings` cleanup its *property* writings get across
-reruns, so old reruns' writings just accumulated, pointing at partials no
-longer in the live order-number chain. The fix that shipped instead keeps
-one writing (unchanged storage) and is merely *selective*, by position,
-about which of its own observers get invalidated - real multi-version
-history was set aside as the bigger, separate problem it actually is.
-Whatever this plan eventually does for the elements timeline needs its
-own answer to that same reconciliation-across-reruns question - it's not
-free just because the object property machinery already solved it.
+## Open
 
-## Explicitly out of scope for this plan
-
-- Per-index/per-region dependency granularity (see above).
-- Real multi-version history for either objects or arrays (still "one
-  writing, time 0" everywhere).
-- Anything about `rebuildShapeAnalysis`'s raw-target usage for arrays -
-  unrelated pre-existing rough edge, already flagged in `cascade.js`.
+- **Moving the cursor backward rebuilds from the baseline** - O(the
+  operations before the position). Once per wave in the common case; if
+  readers ever jump back and forth a lot, undo information recorded while
+  moving forward, or a few checkpoints, would make it cheaper.
+- **`sort()`'s comparator is replayed** whenever its predecessor changes,
+  without recording - a comparator that reads observables sees whatever
+  they hold at replay time.
+- **Property reordering.** Running `reorder-fuzz.js` (properties, not
+  arrays) with more seeds and steps than it ships with still finds
+  failures - seeds 159 and 245 at 25 steps. Fewer than before the two fixes
+  above (at HEAD it failed from seed 47), but there's a remaining
+  moved-subtree case for property timelines. Not array-specific; not
+  chased here.

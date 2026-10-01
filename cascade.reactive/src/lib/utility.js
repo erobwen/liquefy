@@ -47,14 +47,13 @@ export function mergeInto(target, source) {
   const stateProperties = target.causality.stateProperties || null;
   const isState = (property) => stateProperties !== null && stateProperties.has(property);
   if (source instanceof Array) {
-    let splices = differentialSplices(target.causality.target, source.causality.target);
-    splices.forEach(function(splice) {
-      let spliceArguments = [];
-      spliceArguments.push(splice.index, splice.removed.length);
-      spliceArguments.push.apply(spliceArguments, splice.added);
-      //.map(mapValue))
-      target.splice.apply(target, spliceArguments);
-    });
+    // The elements, as this rebuild built them, written in one go - an
+    // absolute write, not splices relative to whatever the established
+    // array held: what comes before it on its timeline may yet change (see
+    // cascade.js's "Temporal arrays"). Read without recording: a rebuild
+    // never depends on what it built.
+    const world = target.causality.world;
+    world.assignArray(target, world.withoutRecording(() => source.slice()));
     for (let property in source) {
       if (isNaN(property) && !isState(property)) {
         target[property] = source[property];
@@ -67,103 +66,6 @@ export function mergeInto(target, source) {
     }
   }
   return target;
-}
-
-//  The difference between array and previous array
-function differentialSplices(previous, array) {
-  let done = false;
-  let splices = [];
-
-  let previousIndex = 0;
-  let newIndex = 0;
-
-  let addedRemovedLength = 0;
-
-  function add(added) {
-    let splice = {
-      type:'splice',
-      index: previousIndex + addedRemovedLength,
-      removed: [],
-      added: added};
-    addedRemovedLength += added.length;
-    splices.push(splice);
-  }
-
-  function remove(removed) {
-    let splice = {
-      type:'splice',
-      index: previousIndex + addedRemovedLength,
-      removed: removed,
-      added: [] };
-    addedRemovedLength -= removed.length;
-    splices.push(splice);
-  }
-
-  function removeAdd(removed, added) {
-    let splice = {
-      type:'splice',
-      index: previousIndex + addedRemovedLength,
-      removed: removed,
-      added: added};
-    addedRemovedLength -= removed.length;
-    addedRemovedLength += added.length;
-    splices.push(splice);
-  }
-
-  while (!done) {
-    while(
-      previousIndex < previous.length
-        && newIndex < array.length
-        && previous[previousIndex] === array[newIndex]) {
-      previousIndex++;
-      newIndex++;
-    }
-
-    if (previousIndex === previous.length &&
-        newIndex === array.length) {
-      done = true;
-    } else if (newIndex === array.length) {
-      // New array is finished
-      const removed = [];
-      let index = previousIndex;
-      while(index < previous.length) {
-        removed.push(previous[index++]);
-      }
-      remove(removed);
-      done = true;
-    } else if (previousIndex === previous.length) {
-      // Previous array is finished.
-      const added = [];
-      while(newIndex < array.length) {
-        added.push(array[newIndex++]);
-      }
-      add(added);
-      done = true;
-    } else {
-      // Found mid-area of missmatch.
-      let previousScanIndex = previousIndex;
-      let newScanIndex = newIndex;
-      let foundMatchAgain = false;
-
-      while(previousScanIndex < previous.length && !foundMatchAgain) {
-        newScanIndex = newIndex;
-        while(newScanIndex < array.length && !foundMatchAgain) {
-          if (previous[previousScanIndex]
-              === array[newScanIndex]) {
-            foundMatchAgain = true;
-          }
-          if (!foundMatchAgain) newScanIndex++;
-        }
-        if (!foundMatchAgain) previousScanIndex++;
-      }
-      removeAdd(previous.slice(previousIndex, previousScanIndex),
-                array.slice(newIndex, newScanIndex));
-      previousIndex = previousScanIndex;
-      newIndex = newScanIndex;
-    }
-  }
-
-  return splices;
 }
 
 export function configSignature(configuration) {

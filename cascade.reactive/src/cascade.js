@@ -40,7 +40,7 @@ const defaultConfiguration = {
   cannotReadPropertyValue: null,
 
   customObjectlog: null,
-  customDependencyInterfaceCreator: null, //{recordDependencyOnArray, recordDependencyOnEnumeration, recordDependencyOnProperty, recordDependency}
+  customDependencyInterfaceCreator: null, //{recordDependencyOnArray, recordDependencyOnEnumeration, recordDependencyOnProperty, recordDependency, ...} - see lib/defaultDependencyInterface.js
   customCreateInvalidator: null, 
   customCreateRepeater: null,
 }
@@ -169,6 +169,7 @@ function createWorld(configuration) {
     getOrCreateEnumerationTimelineWriting,
     invalidateDownstreamEnumerationObservers,
     seekTimelineWriting: seekWriting,
+    assignArray,
     enumerationTimelineKey,
     proceedWithPostponedInvalidations, 
 
@@ -195,7 +196,6 @@ function createWorld(configuration) {
   const recordDependencyOnArray = dependencyInterface.recordDependencyOnArray;
   const recordDependencyOnEnumeration = dependencyInterface.recordDependencyOnEnumeration;
   const recordDependencyOnProperty = dependencyInterface.recordDependencyOnProperty;
-  const invalidateArrayObservers = dependencyInterface.invalidateArrayObservers;
   const invalidateEnumerateObservers = dependencyInterface.invalidateEnumerateObservers;
   const invalidatePropertyObservers = dependencyInterface.invalidatePropertyObservers;
   const invalidateWritingObservers = dependencyInterface.invalidateWritingObservers;
@@ -419,112 +419,6 @@ function createWorld(configuration) {
   }
 
 
-  /***************************************************************
-   *
-   *  Array causality
-   *
-   ***************************************************************/
-
-  function createStaticArrayOverrides() {
-    const result = {
-      pop : function() {
-        let index = this.target.length - 1;
-        let result = this.target.pop();
-
-        invalidateArrayObservers(this, "pop");
-        if (emitEvents) emitSpliceEvent(this, index, [result], null);
-
-        return result;
-      },
-
-      push : function() {
-        let index = this.target.length;
-        let argumentsArray = argumentsToArray(arguments);
-        this.target.push.apply(this.target, argumentsArray);
-
-        invalidateArrayObservers(this, "push");
-        if (emitEvents) emitSpliceEvent(this, index, null, argumentsArray);
-
-        return this.target.length;
-      },
-
-      shift : function() {
-        let result = this.target.shift();
-        
-        invalidateArrayObservers(this, "shift");
-        if (emitEvents) emitSpliceEvent(this, 0, [result], null);
-
-        return result;
-
-      },
-
-      unshift : function() {
-        let argumentsArray = argumentsToArray(arguments);
-        this.target.unshift.apply(this.target, argumentsArray);
-
-        invalidateArrayObservers(this, "unshift");
-        if (emitEvents) emitSpliceEvent(this, 0, null, argumentsArray);
-
-        return this.target.length;
-      },
-
-      splice : function() {
-        let argumentsArray = argumentsToArray(arguments);
-        let index = argumentsArray[0];
-        let removedCount = argumentsArray[1];
-        if( typeof argumentsArray[1] === 'undefined' )
-          removedCount = this.target.length - index;
-        let added = argumentsArray.slice(2);
-        let removed = this.target.slice(index, index + removedCount);
-        let result = this.target.splice.apply(this.target, argumentsArray);
-
-        invalidateArrayObservers(this, "splice");
-        if (emitEvents) emitSpliceEvent(this, index, removed, added);
-
-        return result; // equivalent to removed
-      },
-
-      copyWithin: function(target, start, end) {
-        // Indices as the native one takes them: negative ones from the end,
-        // clamped to the array.
-        const length = this.target.length;
-        const index = (value, otherwise) => {
-          if (typeof(value) === "undefined") return otherwise;
-          value = Math.trunc(Number(value)) || 0;
-          return value < 0 ? Math.max(length + value, 0) : Math.min(value, length);
-        };
-        target = index(target, 0);
-        start = index(start, 0);
-        end = index(end, length);
-        const count = Math.min(end - start, length - target);
-        if (count <= 0) return this.proxy;
-        let removed = this.target.slice(target, target + count);
-        let added = this.target.slice(start, start + count);
-        this.target.copyWithin(target, start, start + count);
-
-        invalidateArrayObservers(this, "copyWithin");
-        if (emitEvents) emitSpliceEvent(this, target, removed, added);
-
-        return this.proxy;
-      }
-    };
-
-    ['reverse', 'sort', 'fill'].forEach(function(functionName) {
-      result[functionName] = function() {
-        let argumentsArray = argumentsToArray(arguments);
-        let removed = this.target.slice(0);
-        let result = this.target[functionName]
-            .apply(this.target, argumentsArray);
-
-        invalidateArrayObservers(this, functionName);
-        if (emitEvents) emitSpliceEvent(this, 0, removed, this.target.slice(0));
-
-        return result;
-      };
-    });
-
-    return result;
-  }
 
 
   /***************************************************************
@@ -593,29 +487,718 @@ function createWorld(configuration) {
 
   /***************************************************************
    *
+   *  Temporal arrays
+   *
+   *  An array's elements live on a timeline of their own - its
+   *  *elements timeline* (handler.elements) - the same kind of timeline a
+   *  property has, with writings positioned by (time, writer) and the
+   *  same seeking, splicing, staleness and reuse across reruns (see
+   *  "Timelines" below). What differs is what a writing holds:
+   *
+   *   - The baseline writing (time 0, writer null - construction, and
+   *     every write from outside any repeater) holds the array's content
+   *     outright (`ops === null`, `content`).
+   *   - A repeater's writing holds the *operations* its partial performed
+   *     (`ops`: push, pop, splice, an index set, ...), not a content of its
+   *     own. Its content is whatever precedes it with the operations
+   *     replayed on it. So a write is relative: a push from inside a
+   *     repeater says "one more, after what's there", and when something
+   *     before it changes, the push is simply replayed on that, without
+   *     its writer running again.
+   *
+   *  The cursor. Contents aren't kept per writing - the timeline holds one
+   *  *current content* (`cursorContent`), the elements as of one writing
+   *  (`cursorWriting`), and moves it to wherever a read or write needs it
+   *  (moveArrayCursor()): forward by replaying the operations in between,
+   *  which is the common case - repeaters run one after another, in
+   *  position order, and so does the wavefront checking readers - and
+   *  otherwise by rebuilding from the baseline. A change at or before the
+   *  cursor makes it rebuild next time (see arrayWritingLinked()/
+   *  arrayWritingUnlinking()); a change after it doesn't touch it.
+   *
+   *  Readers. A read records, on the writing it resolved to, *what it
+   *  read, and what it found there* (entry.arrayRead):
+   *
+   *   - whole:    iteration, ownKeys, and the reading methods (map, slice,
+   *               indexOf, join, ...) - a copy of the elements.
+   *   - length:   arr.length.
+   *   - index i:  arr[i], at(i), shift() (index 0) - that element, and
+   *               whether it's there.
+   *   - from end: pop() (the last), at(-k) - the k:th element from the end.
+   *
+   *  The cursor moves on, so a reader can't keep a reference to what it
+   *  saw - it keeps the values themselves. A whole read already costs as
+   *  much as copying the elements; the others keep one value each.
+   *
+   *  A change to the elements - a write, a writing inserted, retracted, or
+   *  replayed on a changed predecessor - flags every reader positioned
+   *  after it (settleArrayChange()), and a flagged reader, once the
+   *  wavefront reaches it, checks whether *its* read really changed
+   *  (recheckArrayEntry()): a popper only cares whether the last element
+   *  is still the same one, a reader of arr[2] only whether arr[2] is. A
+   *  reader with no wavefront to wait for (an invalidator, a parallel
+   *  pipeline's reader, or anyone, for a write from outside any repeater)
+   *  is checked right away instead. Nothing is invalidated up front, so
+   *  there's no need for the writing-level same-value bookkeeping
+   *  properties have (staleWritingNeedsRetirement, nextValue) - the reader
+   *  decides, by comparing what it found with what's there now.
+   *
+   *  Writes record reads of their own where they return what they found:
+   *  pop() and shift() (the element removed), splice() (the elements
+   *  removed - and the length, where the range depends on it). push() and
+   *  unshift() return the new length, but don't record reading it: a
+   *  pusher shouldn't rerun because something before it pushed too.
+   *
+   *  Other (non-index) properties of an array are ordinary properties, on
+   *  ordinary property timelines (handler.timelines) - except function
+   *  values (an onChange handler, say), which stay on the target, as for
+   *  objects. The target itself is only a mirror of the latest elements
+   *  (see syncArrayMirror()), kept for debuggers and console output, which
+   *  look at a proxy's target directly.
+   *
+   ***************************************************************/
+
+  // The elements timeline's key - what error messages and causality
+  // strings name it as.
+  const elementsTimelineKey = "(array elements)";
+
+  // Arrays whose mirror (see syncArrayMirror()) may be behind their latest
+  // content - synced by flushArrayMirrors(), at rest.
+  const pendingArrayMirrors = new Set();
+
+  // How far past the cursor a change is looked for, to tell whether it
+  // leaves the cursor as it is (see arrayWritingIsAfterCursor()). Beyond
+  // that it's taken to be before it - the cursor just rebuilds.
+  const cursorLookahead = 8;
+
+  function isArrayIndex(key) {
+    if (typeof(key) !== "string") return false;
+    const index = Number(key);
+    return String(index >>> 0) === key && index !== 4294967295;
+  }
+
+  // What a reader found at one slot: whether there's an element there,
+  // and which.
+  function arraySlot(content, index) {
+    const present = index >= 0 && index in content;
+    return { present, value: present ? content[index] : undefined };
+  }
+
+  function sameArraySlot(slot, content, index) {
+    const present = index >= 0 && index in content;
+    if (slot.present !== present) return false;
+    return !present || sameAsPrevious(slot.value, content[index]);
+  }
+
+  // What a reader read of the elements, and found: a copy of them all
+  // (whole), the length, and slots by index - from the start, and from
+  // the end.
+  function createArrayRead() {
+    return { whole: null, length: null, indices: null, fromEnd: null };
+  }
+
+  function addToArrayRead(read, kind, index, content) {
+    if (kind === "whole") read.whole = content.slice();
+    else if (kind === "length") read.length = content.length;
+    else if (kind === "index") (read.indices || (read.indices = new Map())).set(index, arraySlot(content, index));
+    else if (kind === "fromEnd") (read.fromEnd || (read.fromEnd = new Map())).set(index, arraySlot(content, content.length - index));
+  }
+
+  // `read`'s reads added to `into`'s, with what's found in `content` - which
+  // both have been checked to agree with.
+  function mergeArrayRead(into, read, content) {
+    if (read.whole !== null) addToArrayRead(into, "whole", null, content);
+    if (read.length !== null) addToArrayRead(into, "length", null, content);
+    if (read.indices !== null) read.indices.forEach((slot, index) => addToArrayRead(into, "index", index, content));
+    if (read.fromEnd !== null) read.fromEnd.forEach((slot, index) => addToArrayRead(into, "fromEnd", index, content));
+  }
+
+  // Whether what `read` found differs from what's in `content`.
+  function arrayReadChanged(read, content) {
+    if (read.whole !== null) {
+      const whole = read.whole;
+      if (whole.length !== content.length) return true;
+      for (let i = 0; i < whole.length; i++) {
+        if (!sameArraySlot(arraySlot(whole, i), content, i)) return true;
+      }
+      return false;
+    }
+    if (read.length !== null && read.length !== content.length) return true;
+    if (read.indices !== null) {
+      for (const [index, slot] of read.indices) {
+        if (!sameArraySlot(slot, content, index)) return true;
+      }
+    }
+    if (read.fromEnd !== null) {
+      for (const [index, slot] of read.fromEnd) {
+        if (!sameArraySlot(slot, content, content.length - index)) return true;
+      }
+    }
+    return false;
+  }
+
+  // Perform one recorded operation on a plain array - for the first time,
+  // or replayed (see moveArrayCursor()). Returns what the native method
+  // returns.
+  function applyArrayOp(array, op) {
+    switch (op.kind) {
+      case "push": return Array.prototype.push.apply(array, op.items);
+      case "unshift": return Array.prototype.unshift.apply(array, op.items);
+      case "pop": return array.pop();
+      case "shift": return array.shift();
+      case "splice": return Array.prototype.splice.apply(array, op.args);
+      case "set": array[op.index] = op.value; return op.value;
+      case "delete": return delete array[op.index];
+      case "length": array.length = op.value; return op.value;
+      case "assign":
+        array.length = 0;
+        for (let i = 0; i < op.items.length; i++) {
+          if (i in op.items) array[i] = op.items[i];
+        }
+        array.length = op.items.length;
+        return array;
+      default: return Array.prototype[op.kind].apply(array, op.args); // reverse, sort, fill, copyWithin
+    }
+  }
+
+  // Replays don't record: a sort's comparator replayed here is not the
+  // reading of whoever happened to need the content.
+  function replayArrayOps(content, writings) {
+    state.recordingPaused++;
+    updateContextState();
+    try {
+      writings.forEach((writing) => writing.ops.forEach((op) => applyArrayOp(content, op)));
+    } finally {
+      state.recordingPaused--;
+      updateContextState();
+    }
+  }
+
+  // The elements as of `writing` (after its own operations): the cursor,
+  // moved there - forward, replaying the writings in between, if it's
+  // ahead of the cursor; else rebuilt from the baseline. Returns the
+  // cursor's content - live: read it right away, before anything moves
+  // the cursor again (anything reading this array elsewhere, writing it,
+  // or calling back into code that might); copy it to keep it.
+  function moveArrayCursor(timeline, writing) {
+    if (timeline.cursorWriting === writing) return timeline.cursorContent;
+    if (timeline.cursorWriting !== null) {
+      const path = [];
+      let scan = timeline.cursorWriting.next;
+      while (scan !== null && scan !== writing) {
+        path.push(scan);
+        scan = scan.next;
+      }
+      if (scan === writing) {
+        path.push(writing);
+        replayArrayOps(timeline.cursorContent, path);
+        timeline.cursorWriting = writing;
+        return timeline.cursorContent;
+      }
+    }
+    const baseline = timeline.first;
+    const content = baseline.content.slice();
+    const path = [];
+    if (writing !== baseline) {
+      let scan = baseline.next;
+      while (scan !== null && scan !== writing) {
+        path.push(scan);
+        scan = scan.next;
+      }
+      if (scan === null) throw new Error("Array writing not on its timeline.");
+      path.push(writing);
+    }
+    // Set before replaying, in case the replay throws (a comparator,
+    // say): the cursor then rebuilds next time, rather than being left
+    // half moved.
+    timeline.cursorWriting = null;
+    timeline.cursorContent = null;
+    replayArrayOps(content, path);
+    timeline.cursorWriting = writing;
+    timeline.cursorContent = content;
+    return content;
+  }
+
+  function invalidateArrayCursor(timeline) {
+    timeline.cursorWriting = null;
+    timeline.cursorContent = null;
+  }
+
+  // Whether `writing` (linked) is after the cursor - a change there leaves
+  // the cursor's content as it is. Only looked for a little way past it
+  // (see cursorLookahead) - the common case, a writer right after the last
+  // one read: farther, it's taken to be before, which just costs a rebuild.
+  function arrayWritingIsAfterCursor(timeline, writing) {
+    if (timeline.cursorWriting === null) return true; // nothing to keep
+    let scan = timeline.cursorWriting.next;
+    for (let steps = 0; scan !== null && steps < cursorLookahead; steps++) {
+      if (scan === writing) return true;
+      scan = scan.next;
+    }
+    return false;
+  }
+
+  // A writing just spliced into the elements timeline - inserted, or
+  // relinked somewhere (see spliceWritingIntoTimeline()).
+  function arrayWritingLinked(timeline, writing) {
+    timeline.version++;
+    if (!arrayWritingIsAfterCursor(timeline, writing)) invalidateArrayCursor(timeline);
+    pendingArrayMirrors.add(timeline.handler);
+  }
+
+  // A writing about to be unlinked from the elements timeline (see
+  // unlinkWriting()) - still linked, so where it is can still be told.
+  function arrayWritingUnlinking(timeline, writing) {
+    timeline.version++;
+    if (!arrayWritingIsAfterCursor(timeline, writing)) invalidateArrayCursor(timeline);
+    pendingArrayMirrors.add(timeline.handler);
+  }
+
+  // The mirror (handler.target) follows the latest content - see
+  // "Temporal arrays" above. Copied over only when it has fallen behind.
+  function syncArrayMirror(handler) {
+    const timeline = handler.elements;
+    if (handler.mirrorVersion === timeline.version) return;
+    const content = moveArrayCursor(timeline, timeline.last);
+    const target = handler.target;
+    target.length = 0;
+    for (let i = 0; i < content.length; i++) {
+      if (i in content) target[i] = content[i];
+    }
+    target.length = content.length;
+    handler.mirrorVersion = timeline.version;
+  }
+
+  function flushArrayMirrors() {
+    if (pendingArrayMirrors.size === 0) return;
+    const handlers = [...pendingArrayMirrors];
+    pendingArrayMirrors.clear();
+    handlers.forEach(syncArrayMirror);
+  }
+
+  // Note on `entry` that it read (kind, index) and found it in `content` -
+  // the elements as of the writing it's recorded on. Read before, and the
+  // elements changed since (the timeline's version moved on): what it
+  // found before is checked against what's there now first.
+  function recordArrayRead(entry, timeline, kind, index, content) {
+    if (!entry.arrayRead) {
+      entry.arrayRead = createArrayRead();
+    } else if (entry.arrayVersion !== timeline.version && arrayReadChanged(entry.arrayRead, content)) {
+      invalidateObserver(entry.observer, timeline.handler.proxy, elementsTimelineKey);
+    }
+    entry.arrayVersion = timeline.version;
+    addToArrayRead(entry.arrayRead, kind, index, content);
+  }
+
+  // Read the elements, as of the reader's own position, recording what
+  // was read (see "Temporal arrays" above). Returns the cursor's content
+  // for an index, the length or from the end - live, read it right away -
+  // and a copy for a whole read, which may be iterated, or handed to
+  // callbacks, while the cursor moves on.
+  //
+  // A partial reading its *own* writing - after its own push, say - sees
+  // its own operations, but what that depends on is everything before
+  // them: recorded as a whole read of the writing before its own (that
+  // is where its operations replay from), so that a change there reaches
+  // it, but its own later operations don't (they'd only make it rerun for
+  // what it did itself).
+  function observeArray(handler, kind, index) {
+    const timeline = handler.elements;
+    const time = currentReadTime();
+    const writer = currentWriter();
+    const writing = seekWriting(timeline, time, writer);
+    if (state.inActiveRecording) {
+      let recordOn = writing;
+      let recordKind = kind;
+      if (writer !== null && writing.writer === writer && writing.previous !== null) {
+        recordOn = writing.previous;
+        recordKind = "whole";
+      }
+      const entry = recordDependencyOnArray(state.context, handler, recordOn, time, writer);
+      recordOn.observersAllFlagged = false;
+      recordArrayRead(entry, timeline, recordKind, index, moveArrayCursor(timeline, recordOn));
+    }
+    const content = moveArrayCursor(timeline, writing);
+    return kind === "whole" ? content.slice() : content;
+  }
+
+  // The elements as a write at the current position finds them - which
+  // is not what an external *read* sees (the latest), but the baseline.
+  // Live - see moveArrayCursor().
+  function contentAtWritePosition(handler) {
+    return moveArrayCursor(handler.elements, seekWriting(handler.elements, currentTime(), currentWriter()));
+  }
+
+  // The writing a write to the elements lands on: the current partial's
+  // own (once it has written them this run), else its repeater's own from
+  // its previous run, reclaimed (see repeater.dispose()/staleWritings -
+  // as for properties, by timeline identity, in order), else whatever is
+  // exactly at this position (the baseline, for a write from outside any
+  // repeater), else a new one.
+  function arrayWritingForWrite(handler) {
+    const timeline = handler.elements;
+    const context = state.context;
+    let writing = context && context.writings ? context.writings.get(timeline) : undefined;
+    if (typeof(writing) !== "undefined") return writing;
+
+    const time = currentTime();
+    const writer = currentWriter();
+    const repeater = writer !== null ? writer.repeater : null;
+    const staleQueue = repeater !== null && repeater.staleWritings !== null
+      ? repeater.staleWritings.get(timeline)
+      : undefined;
+    if (staleQueue && staleQueue.length > 0) {
+      writing = staleQueue.shift();
+      if (staleQueue.length === 0) repeater.staleWritings.delete(timeline);
+      writing.stale = false;
+      writing.writer = writer;
+      // This run's operations replace last run's - what changed, readers
+      // decide (see settleTouchedArrayWritings()).
+      writing.ops = [];
+      relinkWriting(writing);
+    } else {
+      writing = findExactWriting(timeline, time, writer);
+      if (writing === null) writing = insertNewWriting(timeline, time, writer);
+    }
+    if (context && context.writings) context.writings.set(timeline, writing);
+    return writing;
+  }
+
+  // Perform `op` on the elements, at the current position. Readers
+  // positioned after it are settled when the writing partial closes (see
+  // settleTouchedArrayWritings(), from finalizeTouchedStaleWritings()) -
+  // all its operations at once - or right away, for a write from outside
+  // any repeater.
+  function mutateArray(handler, op) {
+    const writing = arrayWritingForWrite(handler);
+    const timeline = handler.elements;
+    const mirrorInSync = writing === timeline.last && handler.mirrorVersion === timeline.version;
+    let result;
+    if (writing.ops === null) {
+      // The baseline holds its content outright. The cursor, if it's
+      // there, follows it; anywhere else it's after it, and rebuilds.
+      result = applyArrayOp(writing.content, op);
+      if (timeline.cursorWriting === writing) applyArrayOp(timeline.cursorContent, op);
+      else invalidateArrayCursor(timeline);
+    } else {
+      result = applyArrayOp(moveArrayCursor(timeline, writing), op);
+      writing.ops.push(op);
+    }
+    timeline.version++;
+
+    // The mirror: kept in step cheaply, by the same operation, when it was
+    // in step - except for operations that would call back (a sort's
+    // comparator) or that are cheaper to copy than to redo.
+    if (mirrorInSync && (op.kind === "push" || op.kind === "pop" || op.kind === "set" || op.kind === "length")) {
+      applyArrayOp(handler.target, op);
+      handler.mirrorVersion = timeline.version;
+    } else {
+      pendingArrayMirrors.add(handler);
+    }
+
+    if (writing.writer !== null) {
+      const partial = writing.writer;
+      if (partial.touchedArrayWritings === null) partial.touchedArrayWritings = new Set();
+      partial.touchedArrayWritings.add(writing);
+    } else {
+      settleArrayChange(writing, null);
+      flushArrayMirrors();
+    }
+    return result;
+  }
+
+  // A recorded array read, positioned after a change, at `parkedOn` (the
+  // writing it's recorded on): flag it to be checked when the wavefront
+  // reaches it, or - with no wavefront between the change and it (see
+  // entryNeedsDeferredTreatment()) - check it now.
+  //
+  // Returns whether the entry is left flagged (or gone) - nothing more to
+  // do for it until it's checked.
+  function settleArrayEntry(entry, parkedOn, referenceWriter) {
+    if (entry.flagged || entry.removed || !entry.arrayRead) return true;
+    if (entryNeedsDeferredTreatment(entry, referenceWriter)) {
+      flagRepeaterEntry(entry.observer.repeater, entry, parkedOn);
+      return true;
+    }
+    if (recheckArrayEntry(entry, parkedOn)) {
+      invalidateObserver(entry.observer, parkedOn.timeline.handler.proxy, elementsTimelineKey);
+    }
+    return false;
+  }
+
+  // Settle every reader of `timeline` positioned after (time, writer):
+  // those of `predecessor` (the writing at or before it) positioned after
+  // it - overtaken - and every reader of `from` and every writing after
+  // it, whose contents may all have changed. Collected first, settled
+  // after: settling may move entries between writings.
+  //
+  // A writing whose readers are all flagged already is passed by (see
+  // observersAllFlagged): within a wave, the readers after its wavefront
+  // stay flagged until it reaches them, so the writers rerunning one after
+  // another would otherwise visit every one of them again, each.
+  function settleArrayReadersAfter(predecessor, time, writer, from, referenceWriter, extra) {
+    if (state.blockInvalidation > 0) return;
+    const settle = [];
+    if (predecessor !== null) {
+      collectOvertakenPropertyObservers(
+        predecessor,
+        (entryTime, entryWriter) => compareWritingToReader(time, writer, entryTime, entryWriter) < 0
+      ).forEach((entry) => settle.push([entry, predecessor, null]));
+    }
+    const visited = [];
+    for (let writing = from; writing !== null; writing = writing.next) {
+      if (writing.observersAllFlagged === true) continue;
+      const visit = { writing, allFlagged: true };
+      visited.push(visit);
+      // Being settled: anything that clears it meanwhile (an entry moved
+      // here by a recheck, say) sets it false, and that stays.
+      writing.observersAllFlagged = null;
+      collectOvertakenPropertyObservers(writing, () => true).forEach((entry) => settle.push([entry, writing, visit]));
+    }
+    if (extra) {
+      collectOvertakenPropertyObservers(extra, () => true).forEach((entry) => settle.push([entry, extra, null]));
+    }
+    state.postponeInvalidation++;
+    try {
+      settle.forEach(([entry, parkedOn, visit]) => {
+        const leftFlagged = settleArrayEntry(entry, parkedOn, referenceWriter);
+        if (visit !== null && !leftFlagged) visit.allFlagged = false;
+      });
+      // Before anything postponed runs - a rerun recording a read here
+      // clears it again.
+      visited.forEach((visit) => {
+        if (visit.writing.observersAllFlagged === null) visit.writing.observersAllFlagged = visit.allFlagged;
+      });
+    } finally {
+      state.postponeInvalidation--;
+    }
+    proceedWithPostponedInvalidations();
+  }
+
+  // `writing`'s content - and so every later one's - may have changed: it
+  // was written, inserted, reclaimed, or moved.
+  function settleArrayChange(writing, referenceWriter) {
+    settleArrayReadersAfter(writing.previous, writing.time, writing.writer, writing, referenceWriter, null);
+  }
+
+  // Readers of what a partial wrote, settled once it closes - every
+  // operation it performed, at once (see mutateArray()).
+  function settleTouchedArrayWritings(partial) {
+    if (partial.touchedArrayWritings === null) return;
+    const writings = partial.touchedArrayWritings;
+    partial.touchedArrayWritings = null;
+    writings.forEach((writing) => {
+      if (writing.linked) settleArrayChange(writing, writing.writer);
+    });
+  }
+
+  // A repeater's writing from its previous run, never reclaimed (see
+  // abandonStaleWriting()) - gone, and already unlinked since dispose():
+  // its own readers, and every reader after where it was, see something
+  // else now.
+  function abandonStaleArrayWriting(writing) {
+    writing.stale = false;
+    const predecessor = seekWriting(writing.timeline, writing.time, writing.writer);
+    settleArrayReadersAfter(predecessor, writing.time, writing.writer, predecessor.next, writing.writer, writing);
+  }
+
+  // Check a recorded array read against what it would read now, at its
+  // own position: true if it changed. If not, the entry is moved to the
+  // writing it resolves to now (if that's another one) - nothing it read
+  // differs there.
+  //
+  // A reader positioned at its own writer's writing (it read, and then
+  // wrote, in the same partial) resolves to the writing before it - what
+  // was there when it read (see resolveFlaggedRepeater()'s same rule for
+  // properties).
+  function recheckArrayEntry(entry, parkedOn) {
+    if (entry.removed) return false;
+    const timeline = parkedOn.timeline;
+    let fresh = seekWriting(timeline, entry.time, entry.writer);
+    if (entry.writer !== null && fresh.writer === entry.writer && fresh.previous !== null) {
+      fresh = fresh.previous;
+    }
+    const content = moveArrayCursor(timeline, fresh);
+    if (arrayReadChanged(entry.arrayRead, content)) return true;
+    entry.arrayVersion = timeline.version;
+    if (fresh !== parkedOn) {
+      const landed = relocatePropertyObserverEntry(parkedOn, fresh, entry);
+      if (landed && landed !== entry) {
+        fresh.observersAllFlagged = false;
+        if (!landed.arrayRead) {
+          landed.arrayRead = entry.arrayRead;
+        } else {
+          // The same reader already read `fresh` itself: one entry for
+          // both reads - if what it found there is still there too.
+          if (arrayReadChanged(landed.arrayRead, content)) return true;
+          mergeArrayRead(landed.arrayRead, entry.arrayRead, content);
+        }
+        landed.arrayVersion = timeline.version;
+      }
+    }
+    return false;
+  }
+
+  function createStaticArrayOverrides() {
+    const result = Object.create(null);
+
+    // Writes. `this` is the handler.
+    result.push = function() {
+      const items = argumentsToArray(arguments);
+      const length = mutateArray(this, { kind: "push", items });
+      if (emitEvents) emitSpliceEvent(this, length - items.length, null, items);
+      return length;
+    };
+
+    result.unshift = function() {
+      const items = argumentsToArray(arguments);
+      const length = mutateArray(this, { kind: "unshift", items });
+      if (emitEvents) emitSpliceEvent(this, 0, null, items);
+      return length;
+    };
+
+    result.pop = function() {
+      observeArray(this, "fromEnd", 1);
+      const index = contentAtWritePosition(this).length - 1;
+      const removed = mutateArray(this, { kind: "pop" });
+      if (emitEvents && index >= 0) emitSpliceEvent(this, index, [removed], null);
+      return removed;
+    };
+
+    result.shift = function() {
+      observeArray(this, "index", 0);
+      const length = contentAtWritePosition(this).length;
+      const removed = mutateArray(this, { kind: "shift" });
+      if (emitEvents && length > 0) emitSpliceEvent(this, 0, [removed], null);
+      return removed;
+    };
+
+    result.splice = function() {
+      const args = argumentsToArray(arguments);
+      // What it removes - and returns - is read: those elements, and the
+      // length too, wherever the range is relative to it.
+      const length = contentAtWritePosition(this).length;
+      const relative = (value) => {
+        value = Math.trunc(Number(value)) || 0;
+        return value < 0 ? Math.max(length + value, 0) : Math.min(value, length);
+      };
+      let start = 0;
+      let count = 0;
+      let readsLength = false;
+      if (args.length > 0) {
+        const rawStart = Math.trunc(Number(args[0])) || 0;
+        start = relative(rawStart);
+        if (rawStart < 0 || rawStart > length) readsLength = true;
+        if (args.length === 1) {
+          count = length - start;
+          readsLength = true;
+        } else {
+          const rawCount = Math.trunc(Number(args[1])) || 0;
+          count = Math.min(Math.max(rawCount, 0), length - start);
+          if (rawCount > length - start) readsLength = true;
+        }
+      }
+      if (readsLength) observeArray(this, "length");
+      for (let i = start; i < start + count; i++) observeArray(this, "index", i);
+      const removed = mutateArray(this, { kind: "splice", args });
+      if (emitEvents) emitSpliceEvent(this, start, removed, args.slice(2));
+      return removed;
+    };
+
+    ['reverse', 'sort', 'fill', 'copyWithin'].forEach((functionName) => {
+      result[functionName] = function() {
+        const args = argumentsToArray(arguments);
+        const before = emitEvents ? contentAtWritePosition(this).slice() : null;
+        mutateArray(this, { kind: functionName, args });
+        if (emitEvents) emitSpliceEvent(this, 0, before, contentAtWritePosition(this).slice());
+        return this.proxy;
+      };
+    });
+
+    // Reads of the whole: run on the snapshot, recorded once. A callback
+    // is handed the array itself (the proxy) as its third argument, as
+    // natively - never the snapshot.
+    ['indexOf', 'lastIndexOf', 'includes', 'join', 'slice', 'concat', 'flat', 'entries', 'keys', 'values',
+      'toString', 'toLocaleString', 'toReversed', 'toSorted', 'toSpliced', 'with'].forEach((functionName) => {
+      if (typeof(Array.prototype[functionName]) !== "function") return;
+      result[functionName] = function() {
+        const content = observeArray(this, "whole");
+        return Array.prototype[functionName].apply(content, arguments);
+      };
+    });
+
+    ['forEach', 'map', 'filter', 'some', 'every', 'find', 'findIndex', 'findLast', 'findLastIndex', 'flatMap'].forEach((functionName) => {
+      if (typeof(Array.prototype[functionName]) !== "function") return;
+      result[functionName] = function(callback, thisArgument) {
+        const content = observeArray(this, "whole");
+        if (typeof(callback) !== "function") return Array.prototype[functionName].apply(content, arguments);
+        const proxy = this.proxy;
+        return Array.prototype[functionName].call(content, (value, index) => callback.call(thisArgument, value, index, proxy));
+      };
+    });
+
+    ['reduce', 'reduceRight'].forEach((functionName) => {
+      result[functionName] = function(callback) {
+        const content = observeArray(this, "whole");
+        if (typeof(callback) !== "function") return Array.prototype[functionName].apply(content, arguments);
+        const proxy = this.proxy;
+        const reducer = (accumulator, value, index) => callback(accumulator, value, index, proxy);
+        return arguments.length > 1
+          ? Array.prototype[functionName].call(content, reducer, arguments[1])
+          : Array.prototype[functionName].call(content, reducer);
+      };
+    });
+
+    // One element - from the start, or (negative) from the end.
+    result.at = function(index) {
+      index = Math.trunc(Number(index)) || 0;
+      if (index >= 0) return observeArray(this, "index", index)[index];
+      const content = observeArray(this, "fromEnd", -index);
+      return content[content.length + index];
+    };
+
+    return result;
+  }
+
+
+  /***************************************************************
+   *
    *  Array Handlers
+   *
+   *  Indices and length are the elements (see "Temporal arrays" above);
+   *  any other string key is an ordinary property of the array, on a
+   *  property timeline of its own - the object handlers' own code, reused.
    *
    ***************************************************************/
 
   function getHandlerArray(target, key) {
-
     if (key === objectMetaProperty) {
       return this.meta;
     } else if (this.meta.rebuildTwin !== null) {
       let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
       return twinHandler.get.apply(twinHandler, [twinHandler.target, key]);
-    } 
+    }
 
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { 
+    if (onReadGlobal && !onReadGlobal(this, target, key)) {
       return cannotReadPropertyValue;
     }
 
-    if (staticArrayOverrides[key]) {
-      return staticArrayOverrides[key].bind(this);
-    } else {
-      if (state.inActiveRecording) recordDependencyOnArray(state.context, this);
+    if (typeof(key) === "symbol") {
+      if (key === Symbol.iterator) return staticArrayOverrides.values.bind(this);
       return target[key];
     }
+    if (key === "length") return observeArray(this, "length").length;
+    if (isArrayIndex(key)) {
+      const index = Number(key);
+      return observeArray(this, "index", index)[index];
+    }
+    if (staticArrayOverrides[key]) return staticArrayOverrides[key].bind(this);
+    if (key in Array.prototype || Object.prototype.hasOwnProperty.call(target, key)) return target[key];
+
+    const time = currentReadTime();
+    const writer = currentWriter();
+    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time, writer);
+    return readTimelineValue(this, key, time, writer);
   }
 
   function setHandlerArray(target, key, value) {
@@ -628,45 +1211,43 @@ function createWorld(configuration) {
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
-    } 
-
-    let previousValue = target[key];
-
-    // If same value as already set, do nothing.
-    if (key in target) {
-      if (sameAsPrevious(previousValue, value)) {
-        return true;
-      }
     }
 
-    if (!isNaN(key)) {
-      // Number index
-      if (typeof(key) === 'string') {
-        key = parseInt(key);
-      }
+    if (key === "length") {
+      const length = Number(value);
+      if (length >>> 0 !== length) throw new RangeError("Invalid array length");
+      // Already so, at the baseline: nothing to write. (From inside a
+      // repeater, a write is always written - it's relative to whatever
+      // comes before it, which may yet change.)
+      const visible = contentAtWritePosition(this);
+      if (currentWriter() === null && visible.length === length) return true;
+      const previousLength = visible.length;
+      mutateArray(this, { kind: "length", value: length });
+      emitSetEvent(this, key, length, previousLength);
+      return true;
+    }
+
+    if (isArrayIndex(key)) {
+      const index = Number(key);
+      const visible = contentAtWritePosition(this);
+      const previousValue = visible[index];
+      if (currentWriter() === null && index in visible && sameAsPrevious(previousValue, value)) return true;
+      mutateArray(this, { kind: "set", index, value });
+      emitSpliceReplaceEvent(this, index, value, previousValue);
+      return true;
+    }
+
+    // A function value (an onChange handler, say) and a symbol key stay
+    // on the target, as for objects.
+    if (typeof(key) === "symbol" || typeof(value) === "function") {
       target[key] = value;
-
-      if( target[key] === value || (
-        Number.isNaN(target[key]) && Number.isNaN(value)) ) {
-        invalidateArrayObservers(this, key);
-        emitSpliceReplaceEvent(this, key, value, previousValue);
-      }
-    } else {
-      // String index
-      target[key] = value;
-      if( target[key] === value || (Number.isNaN(target[key]) &&
-                                    Number.isNaN(value)) ) {
-        invalidateArrayObservers(this, key);
-        emitSetEvent(this, key, value, previousValue);
-      }
+      return true;
     }
 
-    if( target[key] !== value && !(Number.isNaN(target[key]) &&
-                                   Number.isNaN(value)) ) {
-      return false;
+    if (this.meta.stateProperties && this.meta.stateProperties.has(key) && state.inRepeater !== null) {
+      throw new Error("Cannot write state property '" + key + "' from inside a repeater.");
     }
-    
-    return true;
+    return writeProperty(this, key, value, true);
   }
 
   function deletePropertyHandlerArray(target, key) {
@@ -678,20 +1259,19 @@ function createWorld(configuration) {
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
-    } 
+    }
 
-    if (!(key in target)) {
+    if (key === "length") return false;
+    if (isArrayIndex(key)) {
+      const index = Number(key);
+      const visible = contentAtWritePosition(this);
+      if (currentWriter() === null && !(index in visible)) return true;
+      const previousValue = visible[index];
+      mutateArray(this, { kind: "delete", index });
+      emitDeleteEvent(this, key, previousValue);
       return true;
     }
-
-    let previousValue = target[key];
-    delete target[key];
-    if(!( key in target )) { // Write protected?
-      invalidateArrayObservers(this, "delete");
-      emitDeleteEvent(this, key, previousValue);
-    }
-    if( key in target ) return false; // Write protected?
-    return true;
+    return deletePropertyHandlerObject.call(this, target, key);
   }
 
   function ownKeysHandlerArray(target) {
@@ -701,44 +1281,61 @@ function createWorld(configuration) {
         twinHandler, [twinHandler.target]);
     }
 
-    if (onReadGlobal && !onReadGlobal(this, target)) { 
+    if (onReadGlobal && !onReadGlobal(this, target)) {
       return cannotReadPropertyValue;
     }
 
-    if (state.inActiveRecording) recordDependencyOnArray(state.context, this);
-    let result   = Object.keys(target);
-    result.push('length');
-    return result;
+    const content = observeArray(this, "whole");
+    const time = currentReadTime();
+    const writer = currentWriter();
+    if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer);
+    const keys = Object.keys(content);
+    keys.push("length");
+    Reflect.ownKeys(target).forEach((key) => {
+      if (key !== "length" && !isArrayIndex(key)) keys.push(key);
+    });
+    timelineDataKeys(this, time, writer).forEach((key) => {
+      if (keys.indexOf(key) === -1) keys.push(key);
+    });
+    return keys;
   }
 
   function hasHandlerArray(target, key) {
     if (this.meta.rebuildTwin !== null) {
       let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
-      return twinHandler.has.apply(twinHandler, [target, key]);
+      return twinHandler.has.apply(twinHandler, [twinHandler.target, key]);
     }
 
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { 
+    if (onReadGlobal && !onReadGlobal(this, target, key)) {
       return cannotReadPropertyValue;
     }
 
-    if (state.inActiveRecording) recordDependencyOnArray(state.context, this);
-    return key in target;
+    if (key === "length") return true;
+    if (isArrayIndex(key)) {
+      const index = Number(key);
+      return index in observeArray(this, "index", index);
+    }
+    if (typeof(key) === "symbol" || key in Array.prototype) return key in target;
+    return hasHandlerObject.call(this, target, key);
   }
 
-  function definePropertyHandlerArray(target, key, oDesc) {
+  function definePropertyHandlerArray(target, key, descriptor) {
     if (this.meta.rebuildTwin !== null) {
       let twinHandler = this.meta.rebuildTwin[objectMetaProperty].handler;
       return twinHandler.defineProperty.apply(
-        twinHandler, [twinHandler.target, key, oDesc]);
+        twinHandler, [twinHandler.target, key, descriptor]);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
-    } 
+    }
 
-    const result = Reflect.defineProperty(target, key, oDesc);
-    invalidateArrayObservers(this, key);
-    return result;
+    if (key === "length" || isArrayIndex(key)) {
+      // An element is a value - no accessors, no flags of its own.
+      if (!("value" in descriptor)) return false;
+      return setHandlerArray.call(this, target, key, descriptor.value);
+    }
+    return definePropertyHandlerObject.call(this, target, key, descriptor);
   }
 
   function getOwnPropertyDescriptorHandlerArray(target, key) {
@@ -748,12 +1345,97 @@ function createWorld(configuration) {
         twinHandler, [twinHandler.target, key]);
     }
 
-    if (onReadGlobal && !onReadGlobal(this, target, key)) { 
+    if (onReadGlobal && !onReadGlobal(this, target, key)) {
       return cannotReadPropertyValue;
     }
 
-    if (state.inActiveRecording) recordDependencyOnArray(state.context, this);
-    return Object.getOwnPropertyDescriptor(target, key);
+    if (key === "length") {
+      // Non-configurable, as on the target - a proxy must say so.
+      return { value: observeArray(this, "length").length, writable: true, enumerable: false, configurable: false };
+    }
+    if (isArrayIndex(key)) {
+      const index = Number(key);
+      const content = observeArray(this, "index", index);
+      if (!(index in content)) return undefined;
+      return { value: content[index], writable: true, enumerable: true, configurable: true };
+    }
+    return getOwnPropertyDescriptorHandlerObject.call(this, target, key);
+  }
+
+  // Elements written as though from outside any repeater, all at once -
+  // what a rebuild merges into an established array (see mergeInto()),
+  // and anything else that replaces an array's content wholesale. An
+  // absolute write: replayed, it ignores whatever came before it.
+  function assignArray(proxy, items) {
+    const handler = proxy[objectMetaProperty].handler;
+    const before = emitEvents ? contentAtWritePosition(handler).slice() : null;
+    mutateArray(handler, { kind: "assign", items: items.slice() });
+    if (emitEvents) emitSpliceEvent(handler, 0, before, items.slice());
+  }
+
+  // Elements as one array's construction gives them: a baseline holding
+  // the target's items, and the target left as the mirror of them.
+  function createElementsTimeline(handler, target) {
+    const timeline = {
+      key: elementsTimelineKey,
+      handler: handler,
+      isArray: true,
+      first: null,
+      last: null,
+      currentWriting: null,
+      // The current content, and the writing it's the elements as of -
+      // see moveArrayCursor(). None yet: built when first needed.
+      cursorWriting: null,
+      cursorContent: null,
+      // Bumped by every change to the elements, anywhere on the timeline -
+      // see recordArrayRead() and syncArrayMirror().
+      version: 0,
+    };
+    reanchorEmptyTimeline(timeline);
+    timeline.first.content = target.slice();
+    handler.mirrorVersion = timeline.version;
+    return timeline;
+  }
+
+  // An array's other own properties (not indices or its length) - see
+  // moveTargetDataIntoTimelines(), which does the same for an object.
+  function moveArrayPropertiesIntoTimelines(handler, target) {
+    Object.keys(target).forEach(function(key) {
+      if (isArrayIndex(key)) return;
+      const descriptor = Object.getOwnPropertyDescriptor(target, key);
+      if (typeof(descriptor.get) === 'function' || typeof(descriptor.set) === 'function') return;
+      if (typeof(descriptor.value) === 'function') return;
+      delete target[key];
+      const writing = getOrCreateTimelineWriting(handler, key, 0, null);
+      writing.value = descriptor.value;
+      writing.set = true;
+    });
+  }
+
+  // finishRebuilding()'s reference translation, for an array: patch the
+  // elements as seen here, silently - the baseline's content, or this
+  // repeater's own writing (made absolute).
+  function translateArrayElementsSilently(handler, translate) {
+    const timeline = handler.elements;
+    const writing = seekWriting(timeline, currentTime(), currentWriter());
+    const content = moveArrayCursor(timeline, writing);
+    let changed = false;
+    const translated = content.slice();
+    for (let i = 0; i < translated.length; i++) {
+      if (!(i in translated)) continue;
+      const value = translate(translated[i]);
+      if (value !== translated[i]) {
+        translated[i] = value;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    if (writing.ops !== null) writing.ops = [{ kind: "assign", items: translated.slice() }];
+    else writing.content = translated.slice();
+    // The cursor is at `writing` - and its content is now this.
+    timeline.cursorContent = translated;
+    timeline.version++;
+    pendingArrayMirrors.add(handler);
   }
 
 
@@ -844,11 +1526,31 @@ function createWorld(configuration) {
     return timeline;
   }
 
+  // A writing on an array's elements timeline holds operations (or, the
+  // baseline, its content outright) instead of a value - see "Temporal
+  // arrays" above.
+  function createWritingFor(timeline, time, writer) {
+    const writing = createTimelineWriting(time, writer);
+    writing.timeline = timeline;
+    if (timeline.isArray) {
+      const baseline = time === 0 && writing.writer === null;
+      writing.ops = baseline ? null : [];
+      writing.content = baseline ? [] : null;
+      // Every reader recorded here is flagged already - pending a check
+      // that will compare against whatever is here by then - so settling
+      // a change before it needn't visit them again (see
+      // settleArrayReadersAfter()). Cleared by anything that could add an
+      // unflagged one: a read recorded here, an entry moved here, or one
+      // of its entries resolved.
+      writing.observersAllFlagged = false;
+    }
+    return writing;
+  }
+
   // Every writing has been retracted - reinstate a fresh time-0 anchor so
   // there is always somewhere to hang a dependency for future reads.
   function reanchorEmptyTimeline(timeline) {
-    const writing = createTimelineWriting(0, null);
-    writing.timeline = timeline;
+    const writing = createWritingFor(timeline, 0, null);
     timeline.first = writing;
     timeline.last = writing;
     timeline.currentWriting = writing;
@@ -1209,8 +1911,12 @@ function createWorld(configuration) {
   // "not yet reattached this run" always sorts after anything already
   // confirmed here, since execution hasn't reached it in the new order -
   // and if the *other* sibling is confirmed, that settles it outright.
-  // Both still pending leaves the question open (no fresh execution order
-  // between them yet to compare) - "can't tell structurally", not "equal".
+  // Both still pending, in the same pending list: no fresh execution order
+  // between them yet, but the previous run's is still there - that list is
+  // the very one that run appended them to (dispose() hands it over
+  // whole), position numbers and all - and it's where their writings
+  // still are, until this run reaches them. Otherwise the question is open
+  // - "can't tell structurally", not "equal".
   function structuralCompareSiblings(parentRepeater, a, b) {
     const list = parentRepeater.children;
     const aConfirmed = a.childList === list;
@@ -1218,6 +1924,8 @@ function createWorld(configuration) {
     if (aConfirmed && bConfirmed) return a.siblingIndex < b.siblingIndex ? -1 : 1;
     if (aConfirmed) return -1;
     if (bConfirmed) return 1;
+    const pendingList = parentRepeater.pendingChildren;
+    if (a.childList === pendingList && b.childList === pendingList) return a.siblingIndex < b.siblingIndex ? -1 : 1;
     const aPending = a.listMembership === "pending";
     const bPending = b.listMembership === "pending";
     if (aPending && !bPending) return 1;
@@ -1369,6 +2077,7 @@ function createWorld(configuration) {
     }
     timeline.currentWriting = writing;
     writing.linked = true;
+    if (timeline.isArray) arrayWritingLinked(timeline, writing);
   }
 
   // See compareWritingToReader(): a timeline's writings at one time level
@@ -1383,7 +2092,7 @@ function createWorld(configuration) {
     const intruder = writing.writer.repeater;
     if (owner.chainHead === intruder.chainHead) return;
     throw new Error(
-      "Property '" + timeline.key + "' is already written at time level " + writing.time +
+      (timeline.isArray ? "Array elements are" : "Property '" + timeline.key + "' is") + " already written at time level " + writing.time +
       " by repeater '" + (owner.chainHead.rootRepeater.description || "unnamed") + "'s pipeline;" +
       " repeater '" + (intruder.description || "unnamed") + "' belongs to a different pipeline at the same" +
       " time level and cannot write it too. Parallel pipelines may read each other's properties" +
@@ -1392,8 +2101,7 @@ function createWorld(configuration) {
   }
 
   function insertNewWriting(timeline, time, writer) {
-    const writing = createTimelineWriting(time, writer);
-    writing.timeline = timeline;
+    const writing = createWritingFor(timeline, time, writer);
     spliceWritingIntoTimeline(timeline, writing);
     return writing;
   }
@@ -1408,11 +2116,27 @@ function createWorld(configuration) {
   // touch, so this still needs to detach it from wherever it currently
   // sits before re-inserting it, the same as an ordinary already-linked
   // writing being moved would.
+  //
+  // An array writing relinked right back after the writing it was after
+  // (retouchSubtreeWritings() relinks every writing of a child attached
+  // for the first time, say) changes no content anywhere - so the
+  // elements' cursor (see moveArrayCursor()), dropped by the unlinking,
+  // is put back as it was.
   function relinkWriting(writing) {
+    const timeline = writing.timeline;
     if (writing.linked) {
+      const previous = writing.previous;
+      const cursorWriting = timeline.isArray ? timeline.cursorWriting : null;
+      const cursorContent = timeline.isArray ? timeline.cursorContent : null;
       unlinkWriting(writing);
+      spliceWritingIntoTimeline(timeline, writing);
+      if (cursorWriting !== null && writing.previous === previous) {
+        timeline.cursorWriting = cursorWriting;
+        timeline.cursorContent = cursorContent;
+      }
+      return;
     }
-    spliceWritingIntoTimeline(writing.timeline, writing);
+    spliceWritingIntoTimeline(timeline, writing);
   }
 
   // A writing's "effective" value for comparison purposes - whatever a
@@ -1554,6 +2278,10 @@ function createWorld(configuration) {
   }
 
   function migrateOvertakenObserversFor(writing) {
+    if (writing.timeline.isArray) {
+      settleArrayChange(writing, writing.writer);
+      return;
+    }
     const previous = writing.previous;
     if (previous === null) return;
     const overtaken = collectOvertakenPropertyObservers(
@@ -1589,10 +2317,10 @@ function createWorld(configuration) {
   }
 
   // Enumeration doesn't get its own multi-writing, spliced timeline the
-  // way properties do (see docs/plan-array-timelines.md - that's a bigger,
-  // separate undertaking, and a repeater's own enumeration writing would
-  // need the same staleWritings-style reconciliation across reruns that
-  // properties get via dispose(); without it, old reruns' writings would
+  // way properties - and array elements (see "Temporal arrays") - do: a
+  // repeater's own enumeration writing would need the same
+  // staleWritings-style reconciliation across reruns that those get via
+  // dispose(), and a writing of its own; without it, old reruns' writings would
   // just accumulate, pointing at partials no longer in the live
   // order-number chain - exactly what an earlier attempt at this ran into,
   // caught by the structural order verifier). There's still just the one,
@@ -1621,6 +2349,7 @@ function createWorld(configuration) {
   // that the property has no value.
   function unlinkWriting(writing) {
     const timeline = writing.timeline;
+    if (timeline.isArray) arrayWritingUnlinking(timeline, writing);
     if (writing.previous !== null) {
       writing.previous.next = writing.next;
     } else {
@@ -2161,7 +2890,13 @@ function createWorld(configuration) {
     let handler;
     if (target instanceof Array) {
       handler = {
-        _arrayObservers : null,
+        // Its other (non-index) properties - see "Array Handlers".
+        timelines : Object.create(null),
+        // Set right below - see createElementsTimeline().
+        elements : null,
+        // The elements timeline's version the target last mirrored - see
+        // syncArrayMirror().
+        mirrorVersion : 0,
         // getPrototypeOf: function () {},
         // setPrototypeOf: function () {},
         // isExtensible: function () {},
@@ -2227,7 +2962,10 @@ function createWorld(configuration) {
       isRebuildTwin: false,
     };
 
-    if (!(target instanceof Array)) {
+    if (target instanceof Array) {
+      handler.elements = createElementsTimeline(handler, target);
+      moveArrayPropertiesIntoTimelines(handler, target);
+    } else {
       moveTargetDataIntoTimelines(handler, target);
     }
 
@@ -2593,6 +3331,10 @@ function createWorld(configuration) {
       // it batched up behind everything the rest of this run's later
       // partials also happen to touch.
       touchedStaleWritings: null,
+      // Array writings this partial wrote - their readers settled when it
+      // closes, all its operations at once (see mutateArray()/
+      // settleTouchedArrayWritings()).
+      touchedArrayWritings: null,
       // Sibling pointers within the owning repeater's children/
       // pendingChildren list (partials and real child repeaters share one
       // list) - see createChildList()/attachToCurrentParent() below.
@@ -2723,14 +3465,23 @@ function createWorld(configuration) {
   // repeater (recurse into its own `.children`, exactly the same mixed
   // partial/repeater list attachToCurrentParent()/createNextPartial()
   // build everywhere else).
-  function collectSubtreeWritings(node, into) {
+  //
+  // `includePending`: also what a repeater's previous run left in
+  // pendingChildren - for a repeater invalidated (disposed, awaiting its
+  // rerun) whose sequence has moved there. Its own partials' writings are
+  // unlinked then, but its child repeaters' are still live, where its
+  // previous run put them - see retouchSubtreeWritings().
+  function collectSubtreeWritings(node, into, includePending) {
     if (node.type === "partial") {
       for (const writing of node.writings.values()) into.push(writing);
     } else {
-      let inner = node.children.first;
-      while (inner !== null) {
-        collectSubtreeWritings(inner, into);
-        inner = inner.nextSibling;
+      const lists = includePending ? [node.children, node.pendingChildren] : [node.children];
+      for (const list of lists) {
+        let inner = list.first;
+        while (inner !== null) {
+          collectSubtreeWritings(inner, into, includePending);
+          inner = inner.nextSibling;
+        }
       }
     }
   }
@@ -2861,7 +3612,12 @@ function createWorld(configuration) {
   // overtaking check it triggers would ask the wrong question.
   function retouchSubtreeWritings(child) {
     const writings = [];
-    collectSubtreeWritings(child, writings);
+    // Including a pending sequence: `child` may have been invalidated
+    // before it got here (linkRepeater() resolving its flags, say) - its
+    // own writings are unlinked, waiting for its rerun, but its children's
+    // are still where its previous run put them, and its rerun relinks
+    // those that still line up without touching them again.
+    collectSubtreeWritings(child, writings, true);
     const byTimeline = new Map();
     for (const writing of writings) {
       if (!writing.linked) continue; // already retired/replaced by something else this run
@@ -3727,23 +4483,17 @@ function createWorld(configuration) {
           const holder = temporaryObject ? temporaryObject : object;
           const target = holder[objectMetaProperty].target;
           const handler = holder[objectMetaProperty].handler;
-          if (target instanceof Array) {
-            for (let property in target) {
-              const value = target[property];
-              const translated = translateReference(value);
-              if (translated !== value) target[property] = translated;
-            }
-          } else {
-            // Through the timeline read/write interface - plain data
-            // properties live in handler.timelines, not on target.
-            const time = currentTime();
-            const writer = currentWriter();
-            timelineDataKeys(handler, time, writer).forEach(function(key) {
-              const value = readTimelineValue(handler, key, time, writer);
-              const translated = translateReference(value);
-              if (translated !== value) writeTimelineValueSilently(handler, key, translated, time, writer);
-            });
-          }
+          if (target instanceof Array) translateArrayElementsSilently(handler, translateReference);
+          // Through the timeline read/write interface - plain data
+          // properties live in handler.timelines, not on target (an
+          // array's other properties too).
+          const time = currentTime();
+          const writer = currentWriter();
+          timelineDataKeys(handler, time, writer).forEach(function(key) {
+            const value = readTimelineValue(handler, key, time, writer);
+            const translated = translateReference(value);
+            if (translated !== value) writeTimelineValueSilently(handler, key, translated, time, writer);
+          });
         }
         if (shapeAnalysis.setShapeRoot) {
           const translatedRoot = translateReference(root);
@@ -3965,6 +4715,7 @@ function createWorld(configuration) {
     // current partial and opening a fresh one for whatever parent code
     // comes next. See attachToCurrentParent().
     if (!independent) attachToCurrentParent(repeater);
+    if (state.context === null) flushArrayMirrors();
     return result;
   }
 
@@ -4319,8 +5070,18 @@ function createWorld(configuration) {
     repeater.flagRecords = null;
     if (records === null || records.length === 0) return;
 
+    let invalidatedByArray = false;
     records.forEach(({ entry, previousWriting }) => {
       entry.flagged = false;
+      if (previousWriting.timeline.isArray) {
+        previousWriting.observersAllFlagged = false;
+        // An array read checks itself - see recheckArrayEntry().
+        if (!invalidatedByArray && recheckArrayEntry(entry, previousWriting)) {
+          invalidatedByArray = true;
+          invalidateRepeater(repeater);
+        }
+        return;
+      }
       let fresh = seekWriting(previousWriting.timeline, entry.time, entry.writer);
       // A read and a later write to the same property, from within the
       // very same partial, share the identical (time, writer) position -
@@ -4379,6 +5140,10 @@ function createWorld(configuration) {
   // (invalidator) observer has no such wavefront to wait for, so it's
   // still notified immediately, same as always.
   function abandonStaleWriting(writing) {
+    if (writing.timeline.isArray) {
+      abandonStaleArrayWriting(writing);
+      return;
+    }
     // Whether the key is there, from this position on, may change with it
     // gone: a key this repeater added (or deleted) last run, and no longer
     // does - so what enumerates after it (Object.keys, in, for-in) reruns.
@@ -4423,6 +5188,7 @@ function createWorld(configuration) {
   // own code finishes, the same as an ordinary (non-stale) write already
   // does.
   function finalizeTouchedStaleWritings(partial) {
+    settleTouchedArrayWritings(partial);
     if (partial.touchedStaleWritings === null) return;
     partial.touchedStaleWritings.forEach(function(writing) {
       writing.stale = false;
@@ -4591,8 +5357,20 @@ function createWorld(configuration) {
       if (repeater.retracted) continue; // gone since it was queued
       if (repeater.workStatus === null) continue; // the lazy-pruning discard - an ancestor's own refresh already reached and handled it
       chainHead.wavefront = repeater.firstPartial;
+      const wasFlagged = repeater.workStatus === 'flagged';
       processRepeater(repeater);
       if (checkWaveRetreat(chainHead)) return;
+      // A flag that resolved to a real change: the wavefront is right
+      // here, so it runs now, in this wave - not parked for the next one
+      // (scheduleWork() parks what's at the wavefront), by which time the
+      // readers after it would already have been checked against what
+      // it's about to change. Its parked entry is discarded when popped,
+      // its workStatus null by then. The root's own loop above does the
+      // same for the root.
+      if (wasFlagged && repeater.workStatus === 'invalid' && !repeater.retracted) {
+        processRepeater(repeater);
+        if (checkWaveRetreat(chainHead)) return;
+      }
     }
 
     state.activePipeline = null;
@@ -4700,6 +5478,9 @@ function createWorld(configuration) {
           state.workQueueTimeLock = -1;
           state.refreshingAllDirtyRepeaters = false;
         }
+        // At rest only - not from inside a repeater still running (an
+        // invalidation settled at one of its partial boundaries, say).
+        if (!state.refreshingAllDirtyRepeaters && state.context === null) flushArrayMirrors();
       }
     }
   }

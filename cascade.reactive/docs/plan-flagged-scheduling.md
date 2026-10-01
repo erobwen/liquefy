@@ -509,8 +509,9 @@ partials no longer in the live order-number chain - comparing a live
 writer against one of those produced disagreeing orderNumber-vs-structural
 results. Giving enumeration real multi-version history needs the same
 reconciliation-across-reruns machinery properties get; that's a bigger,
-separate undertaking, explicitly not pursued here (see the note added to
-`docs/plan-array-timelines.md`, which has the identical gap for arrays).
+separate undertaking, explicitly not pursued here. (Arrays have since got
+exactly that - see `docs/plan-array-timelines.md`: their writings go
+through `dispose()`/`staleWritings` like a property's.)
 
 **What shipped instead**: keep the single, permanently-reused writing per
 handler (no storage change at all), but make invalidation *selective*
@@ -524,9 +525,8 @@ resolution against later (`resolveFlaggedRepeater`'s own live re-seek) -
 with a single writing that's never replaced, that resolution would always
 trivially resolve back to itself and never detect a real change.
 
-Arrays (`invalidateArrayObservers`) still have no position gate of any
-kind today - left explicitly open, same reasoning, tracked in
-`docs/plan-array-timelines.md`.
+Arrays, which had no position gate at all at the time, have since become
+fully temporal - see `docs/plan-array-timelines.md`.
 
 ## `buildOneStep()`: a nested buildRepeater whose own caller
 ## needs its result synchronously
@@ -759,10 +759,9 @@ Explicitly deferred, not needed by any concrete case yet:
   competing alternative (dynamic, forward-positioned child repeaters
   instead of writing backward at all), pending an actual attempt at the
   modal/portal case that motivated both.
-- **Real multi-version history for the enumeration timeline** (and the
-  identical gap for arrays - see `docs/plan-array-timelines.md`). What
+- **Real multi-version history for the enumeration timeline.** What
   shipped is downstream-only *invalidation*, not a real per-position
-  reconstruction of "what the key set looked like as of here" - giving
-  either one genuine multi-writing history needs the same
-  reconciliation-across-reruns machinery properties get via
-  `dispose()`/`staleWritings`, not yet built for either.
+  reconstruction of "what the key set looked like as of here" - that
+  needs the same reconciliation-across-reruns machinery properties get
+  via `dispose()`/`staleWritings`. (Arrays, which had the identical gap,
+  now have it - see `docs/plan-array-timelines.md`.)

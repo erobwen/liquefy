@@ -30,8 +30,8 @@ const TOP_BAR_HEIGHT = 48;
  * not application code like this one): the real, imperative measurement
  * that used to force a custom render() here - getBoundingClientRect(),
  * deciding menuIsModal and how much space the work area has - now lives in
- * DOMElementBoundsProvider (cascade.dom), which also owns the one window
- * resize listener that measurement needs. build() below wraps this frame's
+ * DOMElementBoundsProvider (cascade.dom), which watches its element with a
+ * ResizeObserver (a window resize listener only where there's none). build() below wraps this frame's
  * actual layout in one of those, as ApplicationMenuFrameLayout - the direct
  * child, placed on its measured element, which reads the size from build()
  * with this.fromTarget(). The work area is a measured element of its own:

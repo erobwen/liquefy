@@ -85,4 +85,31 @@ describe("JSX runtime (tags compiled to service queries)", function () {
     assert.equal(container.querySelector("span").textContent, "Count is 2");
     assert.equal(container.querySelector("button"), button, "the same element, rebuilt in place");
   });
+
+  it("hydrates several documents in one build - each root its own positional key", function () {
+    class Two extends Component {
+      build() {
+        return [hydrate(jsx("p", { children: "a" })), hydrate(jsx("p", { children: "b" }))];
+      }
+    }
+    render(new Two());
+    assert.deepEqual([...container.querySelectorAll("p")].map((p) => p.textContent), ["a", "b"]);
+  });
+
+  it("hydrates a fragment at the root - its elements, side by side", function () {
+    class Fragmented extends Component {
+      initialState() { return { label: "one" }; }
+      build() {
+        return hydrate(jsx(Fragment, { children: [jsx("p", { children: this.label }), jsx("p", { children: "two" })] }));
+      }
+    }
+    const component = new Fragmented();
+    render(component);
+    const first = container.querySelector("p");
+    assert.deepEqual([...container.querySelectorAll("p")].map((p) => p.textContent), ["one", "two"]);
+    // Rebuilt, the same elements - matched by their positional keys.
+    component.label = "uno";
+    assert.deepEqual([...container.querySelectorAll("p")].map((p) => p.textContent), ["uno", "two"]);
+    assert.equal(container.querySelector("p"), first);
+  });
 });

@@ -23,7 +23,8 @@ import { defaultDOMServiceLocator, text } from "@liquefy/cascade.dom";
  *    draw icons with Google's icon fonts, which the app links (see
  *    cascade.application/demo/index.html).
  *  - iconButton: `key`, `icon` (an icon name), `onClick` (or a loose
- *    function), `title`, `style` - a round button showing just an icon.
+ *    function), `title`, `disabled`, `style` - a round button showing just
+ *    an icon.
  *  - card: `key`, `variant` ("elevated" - the default - "filled" or
  *    "outlined"), `style`, `children` - a surface to group content on.
  *  - controlPanel: `key`, `style`, `children` - controls in a row (buttons,

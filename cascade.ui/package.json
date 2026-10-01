@@ -1,7 +1,7 @@
 {
   "name": "@liquefy/cascade.ui",
-  "version": "1.0.0",
-  "description": "Themed widgets, layout, overlays, portals, popovers and color schemes for Cascade - and its basic theme.",
+  "version": "2.0.0",
+  "description": "Themed widgets, layout, overlays, modals, popovers, a dropdown and color schemes for Cascade - and its basic theme.",
   "keywords": [
     "reactive",
     "ui",
@@ -32,9 +32,9 @@
     "url": "https://github.com/erobwen/liquefy/issues"
   },
   "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.ui#readme",
-  "dependencies": {
-    "@liquefy/cascade.component": "^1.0.0",
-    "@liquefy/cascade.dom": "^1.0.0"
+  "peerDependencies": {
+    "@liquefy/cascade.component": "^2.0.0",
+    "@liquefy/cascade.dom": "^2.0.0"
   },
   "devDependencies": {
     "mocha": "^10.8.2",

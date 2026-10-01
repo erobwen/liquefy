@@ -33,6 +33,15 @@ import { div, elementBoundsProvider } from "@liquefy/cascade.dom";
  * doesn't block clicks through the parts of itself nothing is actually
  * using) - which is what lets an Overlay shown *inside* that sub-frame's
  * own content recurse the exact same way, arbitrarily deep.
+ *
+ * One overlay per frame: a frame shows the content of the Overlay that
+ * showed it last. An Overlay shown on a frame already showing another's
+ * content evicts it - the other keeps its `showing`, but isn't shown again
+ * until it's shown anew - and hiding the newer one leaves the frame empty,
+ * not the evicted one back. Overlays stack across frames (one opened from
+ * inside another's content, above), not side by side on one. This is by
+ * design, not an oversight - and may change only should a use case turn up
+ * that needs several overlays on one frame.
  */
 export function overlayFrame(...parameters) {
   return new OverlayFrame(...parameters);
@@ -82,12 +91,12 @@ export class OverlayFrame extends Component {
   }
 
   // Called by an Overlay component (via inherit("overlayFrame")) when it
-  // becomes visible - see Overlay.render(). `contentProvider` is the
+  // becomes visible - see Overlay.update(). `contentProvider` is the
   // Overlay itself, kept so a later hideOverlay() call from a *different*
   // Overlay (e.g. one that's since taken over) can't clear content it
-  // never actually assigned.
+  // never actually assigned - one overlay per frame (see the class doc).
   //
-  // Called from inside an Overlay's own render() - which is to say, from
+  // Called from inside an Overlay's own update - which is to say, from
   // *later* in this same pipeline than OverlayFrame's own build() (a
   // descendant calling back up to an ancestor). A plain write here could
   // never actually reach OverlayFrame's own already-registered dependency

@@ -1,99 +1,41 @@
-function ge(s) {
+function Me(s) {
   return Array.prototype.slice.call(s);
 }
-function Me(s, r) {
-  const c = s.causality.stateProperties || null, w = (v) => c !== null && c.has(v);
-  if (r instanceof Array) {
-    Fn(s.causality.target, r.causality.target).forEach(function(y) {
-      let O = [];
-      O.push(y.index, y.removed.length), O.push.apply(O, y.added), s.splice.apply(s, O);
-    });
-    for (let y in r)
-      isNaN(y) && !w(y) && (s[y] = r[y]);
+function at(s, o) {
+  const c = s.causality.stateProperties || null, E = (v) => c !== null && c.has(v);
+  if (o instanceof Array) {
+    const v = s.causality.world;
+    v.assignArray(s, v.withoutRecording(() => o.slice()));
+    for (let I in o)
+      isNaN(I) && !E(I) && (s[I] = o[I]);
   } else
-    for (let v in r)
-      w(v) || (s[v] = r[v]);
+    for (let v in o)
+      E(v) || (s[v] = o[v]);
   return s;
 }
-function Fn(s, r) {
-  let c = !1, w = [], v = 0, y = 0, O = 0;
-  function A(a) {
-    let d = {
-      type: "splice",
-      index: v + O,
-      removed: [],
-      added: a
-    };
-    O += a.length, w.push(d);
-  }
-  function g(a) {
-    let d = {
-      type: "splice",
-      index: v + O,
-      removed: a,
-      added: []
-    };
-    O -= a.length, w.push(d);
-  }
-  function u(a, d) {
-    let b = {
-      type: "splice",
-      index: v + O,
-      removed: a,
-      added: d
-    };
-    O -= a.length, O += d.length, w.push(b);
-  }
-  for (; !c; ) {
-    for (; v < s.length && y < r.length && s[v] === r[y]; )
-      v++, y++;
-    if (v === s.length && y === r.length)
-      c = !0;
-    else if (y === r.length) {
-      const a = [];
-      let d = v;
-      for (; d < s.length; )
-        a.push(s[d++]);
-      g(a), c = !0;
-    } else if (v === s.length) {
-      const a = [];
-      for (; y < r.length; )
-        a.push(r[y++]);
-      A(a), c = !0;
-    } else {
-      let a = v, d = y, b = !1;
-      for (; a < s.length && !b; ) {
-        for (d = y; d < r.length && !b; )
-          s[a] === r[d] && (b = !0), b || d++;
-        b || a++;
-      }
-      u(
-        s.slice(v, a),
-        r.slice(y, d)
-      ), v = a, y = d;
-    }
-  }
-  return w;
+function Ir(s) {
+  return s.name ? s.name : (s = on(s), JSON.stringify(s));
 }
-function zn(s) {
-  return s.name ? s.name : (s = Ct(s), JSON.stringify(s));
+const ct = /* @__PURE__ */ new WeakMap();
+let Tr = 0;
+function Sr(s) {
+  return ct.has(s) || ct.set(s, Tr++), ct.get(s);
 }
-function Ct(s) {
+function on(s) {
   if (typeof s == "object") {
     if (s === null) return "null";
-    let r = Object.keys(s);
-    r.sort(function(w, v) {
-      return w < v ? -1 : w > v ? 1 : 0;
+    let o = Object.keys(s);
+    o.sort(function(E, v) {
+      return E < v ? -1 : E > v ? 1 : 0;
     });
     let c = {};
-    return r.forEach(function(w) {
-      let v = s[w];
-      typeof v == "object" && (v = Ct(v)), c[w] = v;
+    return o.forEach(function(E) {
+      let v = s[E];
+      (typeof v == "object" || typeof v == "function") && (v = on(v)), c[E] = v;
     }), c;
-  } else
-    return "[" + typeof s + "]";
+  } else return typeof s == "function" ? "[function " + Sr(s) + "]" : "[" + typeof s + "]";
 }
-const Tt = {
+const rn = {
   Reset: "\x1B[0m",
   Bright: "\x1B[1m",
   Dim: "\x1B[2m",
@@ -118,7 +60,7 @@ const Tt = {
   BgCyan: "\x1B[46m",
   BgWhite: "\x1B[47m"
 };
-let L = {
+let X = {
   // Count the number of chars that can fit horizontally in your buffer. Set to -1 for one line logging only. 
   bufferWidth: 83,
   // bufferWidth : 83
@@ -128,125 +70,125 @@ let L = {
   findLogs: !1,
   // Set to true in web browser that already has a good way to display objects with expandable trees.
   useConsoleDefault: !1
-}, Z = 0;
-function qn() {
-  function s(r) {
-    return r ? s(r.caller).concat([r.toString().split("(")[0].substring(9) + "(" + r.arguments.join(",") + ")"]) : [];
+}, ve = 0;
+function jr() {
+  function s(o) {
+    return o ? s(o.caller).concat([o.toString().split("(")[0].substring(9) + "(" + o.arguments.join(",") + ")"]) : [];
   }
   return s(arguments.callee.caller);
 }
-function ke(s) {
-  let r = "";
+function pt(s) {
+  let o = "";
   for (; s-- > 0; )
-    r = r + L.indentToken;
-  return r;
+    o = o + X.indentToken;
+  return o;
 }
-function We() {
+function ht() {
   const s = {
     terminated: !1,
     rootLevel: !0,
     horizontal: !1,
-    indentLevel: Z,
+    indentLevel: ve,
     unfinishedLine: !1
   };
   return s.resetColor = () => {
     s.setColor("Reset");
   }, s;
 }
-function Gn() {
-  let s = We();
-  return s.result = "", s.log = function(r) {
-    this.unfinishedLine ? (this.result += r, this.unfinishedLine = !0) : (this.result += ke(this.indentLevel) + r, this.unfinishedLine = !0);
+function Nr() {
+  let s = ht();
+  return s.result = "", s.log = function(o) {
+    this.unfinishedLine ? (this.result += o, this.unfinishedLine = !0) : (this.result += pt(this.indentLevel) + o, this.unfinishedLine = !0);
   }, s.finishOpenLine = function() {
     this.unfinishedLine && !this.horizontal && (this.result += `
 `, this.unfinishedLine = !1);
   }, s.setColor = function() {
   }, s.jsonCompatible = !0, s;
 }
-function be() {
-  let s = We();
-  return s.lineMemory = "", s.log = function(r) {
+function We() {
+  let s = ht();
+  return s.lineMemory = "", s.log = function(o) {
     if (this.unfinishedLine)
-      typeof process < "u" ? process.stdout.write(r) : s.lineMemory += r, this.unfinishedLine = !0;
+      typeof process < "u" ? process.stdout.write(o) : s.lineMemory += o, this.unfinishedLine = !0;
     else {
-      let c = ke(this.indentLevel);
-      typeof process < "u" ? process.stdout.write(c + r) : s.lineMemory += c + r, this.unfinishedLine = !0;
+      let c = pt(this.indentLevel);
+      typeof process < "u" ? process.stdout.write(c + o) : s.lineMemory += c + o, this.unfinishedLine = !0;
     }
   }, s.finishOpenLine = function() {
     this.unfinishedLine && !this.horizontal && (s.lineMemory !== "" ? (console.log(s.lineMemory), s.lineMemory = "") : console.log(), this.unfinishedLine = !1);
-  }, s.setColor = function(r) {
-    Tt[r] || (r = "Reset"), s.log(Tt[r]);
+  }, s.setColor = function(o) {
+    rn[o] || (o = "Reset"), s.log(rn[o]);
   }, s.jsonCompatible = !1, s;
 }
-function Hn(s, r) {
-  let c = We();
-  return c.horizontal = !0, c.count = 0, c.limit = s, c.log = function(w) {
+function Mr(s, o) {
+  let c = ht();
+  return c.horizontal = !0, c.count = 0, c.limit = s, c.log = function(E) {
     if (this.unfinishedLine)
-      this.count += w.length, this.terminated = this.count > this.limit, this.unfinishedLine = !0;
+      this.count += E.length, this.terminated = this.count > this.limit, this.unfinishedLine = !0;
     else {
-      let v = ke(this.indentLevel);
-      this.count += (v + w).length, this.terminated = this.count > this.limit, this.unfinishedLine = !0;
+      let v = pt(this.indentLevel);
+      this.count += (v + E).length, this.terminated = this.count > this.limit, this.unfinishedLine = !0;
     }
   }, c.finishOpenLine = function() {
   }, c.setColor = function() {
-  }, c.jsonCompatible = r.jsonCompatible, c;
+  }, c.jsonCompatible = o.jsonCompatible, c;
 }
-function Pt(s, r, c, w) {
-  let v = Hn(c, w);
-  return q(s, r, v), !v.terminated;
+function sn(s, o, c, E) {
+  let v = Mr(c, E);
+  return $(s, o, v), !v.terminated;
 }
-function q(s, r, c) {
-  const w = c.rootLevel, v = c.jsonCompatible;
-  if (c.rootLevel = !1, typeof r > "u" && (r = 1), typeof r == "function" && (s = r(s), r = -1), !c.terminated) {
+function $(s, o, c) {
+  const E = c.rootLevel, v = c.jsonCompatible;
+  if (c.rootLevel = !1, typeof o > "u" && (o = 1), typeof o == "function" && (s = o(s), o = -1), !c.terminated) {
     if (typeof s != "object")
       if (typeof s == "function")
         c.setColor("FgBlue"), c.log("function( ... ) { ... }"), c.resetColor();
       else if (typeof s == "string")
-        if (w)
+        if (E)
           c.log(s);
         else {
           c.setColor("FgGreen");
-          const y = v ? '"' : "'";
-          c.log(y + s + y), c.resetColor();
+          const I = v ? '"' : "'";
+          c.log(I + s + I), c.resetColor();
         }
       else
         c.setColor("FgYellow"), c.log(s + ""), c.resetColor();
     else if (s === null)
       c.log("null");
-    else if (r === 0)
+    else if (o === 0)
       s instanceof Array ? (c.log("["), c.setColor("FgCyan"), c.log("..."), c.resetColor(), c.log("]")) : (c.log("{"), c.setColor("FgCyan"), c.log("..."), c.resetColor(), c.log("}"));
     else {
-      let y = s instanceof Array;
-      const O = Object.keys(s).length;
-      let A = !1;
+      let I = s instanceof Array;
+      const N = Object.keys(s).length;
+      let K = !1;
       if (!c.horizontal) {
-        let u = L.bufferWidth - c.indentLevel * L.indentToken.length;
-        c.horizontal = L.bufferWidth === -1 ? !0 : Pt(s, r, u, c), A = c.horizontal;
+        let f = X.bufferWidth - c.indentLevel * X.indentToken.length;
+        c.horizontal = X.bufferWidth === -1 ? !0 : sn(s, o, f, c), K = c.horizontal;
       }
-      y && c.finishOpenLine(), c.log(y ? "[" : "{"), c.horizontal && O && c.log(" "), c.finishOpenLine(), c.indentLevel++;
-      let g = !0;
-      for (let u in s) {
-        g || (c.log(", "), c.finishOpenLine()), (!y || isNaN(u)) && (v && c.log('"'), c.log(u), v && c.log('"'), c.log(": "));
-        let a = null;
-        typeof r == "object" ? a = r[u] : a = r === -1 ? -1 : r - 1, y || c.indentLevel++, q(s[u], a, c), y || c.indentLevel--, g = !1;
+      I && c.finishOpenLine(), c.log(I ? "[" : "{"), c.horizontal && N && c.log(" "), c.finishOpenLine(), c.indentLevel++;
+      let b = !0;
+      for (let f in s) {
+        b || (c.log(", "), c.finishOpenLine()), (!I || isNaN(f)) && (v && c.log('"'), c.log(f), v && c.log('"'), c.log(": "));
+        let m = null;
+        typeof o == "object" ? m = o[f] : m = o === -1 ? -1 : o - 1, I || c.indentLevel++, $(s[f], m, c), I || c.indentLevel--, b = !1;
       }
-      c.indentLevel--, c.finishOpenLine(), c.horizontal && O && c.log(" "), c.log(y ? "]" : "}"), A && (c.horizontal = !1);
+      c.indentLevel--, c.finishOpenLine(), c.horizontal && N && c.log(" "), c.log(I ? "]" : "}"), K && (c.horizontal = !1);
     }
-    w && c.finishOpenLine();
+    E && c.finishOpenLine();
   }
 }
-const ee = {
+const xe = {
   // Configuration
-  configuration: L,
-  stacktrace: qn,
-  log(s, r) {
-    if (ee.findLogs) throw new Error("No logs allowed!");
-    L.useConsoleDefault ? console.log(s) : q(s, r, be());
+  configuration: X,
+  stacktrace: jr,
+  log(s, o) {
+    if (xe.findLogs) throw new Error("No logs allowed!");
+    X.useConsoleDefault ? console.log(s) : $(s, o, We());
   },
   // If you need the output as a string.
-  logToString(s, r) {
-    let c = Gn();
-    return q(s, r, c), c.result;
+  logToString(s, o) {
+    let c = Nr();
+    return $(s, o, c), c.result;
   },
   loge(s) {
     this.log("<<<" + s + ">>>");
@@ -260,114 +202,115 @@ const ee = {
   logsss() {
     this.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
   },
-  logVar(s, r, c) {
-    if (ee.findLogs) throw new Error("No logs allowed!");
-    if (L.useConsoleDefault)
-      console.log(s + ":"), console.group(), console.log(r), console.groupEnd();
+  logVar(s, o, c) {
+    if (xe.findLogs) throw new Error("No logs allowed!");
+    if (X.useConsoleDefault)
+      console.log(s + ":"), console.group(), console.log(o), console.groupEnd();
     else {
-      context = be(), typeof c > "u" && (c = 1), context.log(s + ": ");
-      let w = L.bufferWidth - context.indentLevel * L.indentToken.length - (s + ": ").length;
-      context.horizontal = L.bufferWidth === -1 ? !0 : Pt(r, c, w), context.horizontal ? q(r, c, context) : (context.indentLevel++, q(r, c, context), context.indentLevel--);
+      context = We(), typeof c > "u" && (c = 1), context.log(s + ": ");
+      let E = X.bufferWidth - context.indentLevel * X.indentToken.length - (s + ": ").length;
+      context.horizontal = X.bufferWidth === -1 ? !0 : sn(o, c, E), context.horizontal ? $(o, c, context) : (context.indentLevel++, $(o, c, context), context.indentLevel--);
     }
   },
-  group(s, r) {
-    if (ee.findLogs) throw new Error("No logs allowed!");
-    L.useConsoleDefault ? console.group(s) : (typeof s < "u" && q(s, r, be()), Z++);
+  group(s, o) {
+    if (xe.findLogs) throw new Error("No logs allowed!");
+    X.useConsoleDefault ? console.group(s) : (typeof s < "u" && $(s, o, We()), ve++);
   },
-  groupEnd(s, r) {
-    if (ee.findLogs) throw new Error("No logs allowed!");
-    L.useConsoleDefault ? console.groupEnd() : (Z--, Z < 0 && (Z = 0), typeof s < "u" && q(s, r, be()));
+  groupEnd(s, o) {
+    if (xe.findLogs) throw new Error("No logs allowed!");
+    X.useConsoleDefault ? console.groupEnd() : (ve--, ve < 0 && (ve = 0), typeof s < "u" && $(s, o, We()));
   }
 };
-function Kn(s) {
-  function r(u, a) {
-    if (typeof u != typeof a)
+function Wr(s, o, c, E) {
+  function v(h, g) {
+    if (typeof h != typeof g)
       return !1;
-    if (u.length === a.length) {
-      for (let d = 0; d < u.length; d++)
-        if (u[d] !== a[d])
+    if (h.length === g.length) {
+      for (let x = 0; x < h.length; x++)
+        if (h[x] !== g[x])
           return !1;
       return !0;
     } else
       return !1;
   }
-  function c(u, a) {
-    if (u.length === 0)
+  function I(h, g) {
+    if (h.length === 0)
       return !1;
-    for (let d = 0; d < u.length; d++)
-      if (r(
-        u[d].argumentList,
-        a
+    for (let x = 0; x < h.length; x++)
+      if (v(
+        h[x].argumentList,
+        g
       ))
         return !0;
     return !1;
   }
-  function w(u, { signature: a, unique: d, argumentList: b }) {
-    return d ? typeof u[a] < "u" : typeof u[a] > "u" ? !1 : c(u[a], b);
+  function N(h, { signature: g, unique: x, argumentList: R }) {
+    return x ? typeof h[g] < "u" : typeof h[g] > "u" ? !1 : I(h[g], R);
   }
-  function v(u, { signature: a, unique: d, argumentList: b }) {
-    if (d)
-      return u[a];
+  function K(h, { signature: g, unique: x, argumentList: R }) {
+    if (x)
+      return h[g].value;
     {
-      let x = u[a];
-      for (let T = 0; T < x.length; T++)
-        if (r(x[T].argumentList, b))
-          return x[T].value;
+      let P = h[g];
+      for (let T = 0; T < P.length; T++)
+        if (v(P[T].argumentList, R))
+          return P[T].value;
     }
   }
-  function y(u, { signature: a, unique: d, argumentList: b }) {
-    if (d) {
-      delete u[a];
+  function b(h, { signature: g, unique: x, argumentList: R }) {
+    if (x) {
+      delete h[g];
       return;
     } else {
-      let x = u[a];
-      for (let T = 0; T < x.length; T++)
-        if (r(x[T].argumentList, functionArguments)) {
-          x.splice(T, 1);
+      let P = h[g];
+      for (let T = 0; T < P.length; T++)
+        if (v(P[T].argumentList, R)) {
+          P.splice(T, 1);
           return;
         }
     }
   }
-  function O(u, { signature: a, unique: d, argumentList: b }, x) {
-    if (d)
-      u[a] = x;
+  function f(h, { signature: g, unique: x, argumentList: R }, P) {
+    if (x)
+      h[g] = { value: P };
     else {
-      let T = u[a];
-      T || (T = s([]), u[a] = T), T.push({ argumentList: b, value: x });
+      let T = h[g];
+      T || (T = s([]), h[g] = T), T.push({ argumentList: R, value: P });
     }
   }
-  function A(u) {
-    let a = !0, d = "";
-    return u.forEach(function(b, x) {
-      x > 0 && (d += ","), typeof b.causality < "u" ? d += "{id=" + b.causality.id + "}" : typeof b == "number" || typeof b == "string" ? d += b : (a = !1, d += "{}");
-    }), { signature: "(" + d + ")", unique: a, argumentList: u };
+  function m(h) {
+    let g = !0, x = "";
+    return h.forEach(function(R, P) {
+      P > 0 && (x += ",");
+      const T = R !== null && typeof R == "object" ? R[E] : void 0;
+      typeof T < "u" ? x += "{id=" + T.id + "}" : typeof R == "number" || typeof R == "string" ? x += R : (g = !1, x += "{}");
+    }), { signature: "(" + x + ")", unique: g, argumentList: h };
   }
-  function g(u) {
-    const a = s({});
-    return () => {
-      argumentsToArray(arguments);
-      let d = A(argumentList);
-      return w(a, d) || invalidateOnChange(
+  function O(h) {
+    const g = s({});
+    return function(...x) {
+      let R = m(x);
+      return c(() => N(g, R)) || o(
         () => {
-          const b = u.apply(null, argumentList);
-          O(a, d, b);
+          const P = h.apply(null, x);
+          f(g, R, P);
         },
         () => {
-          y(a, d);
+          b(g, R);
         }
-      ), v(a, d);
+      ), K(g, R);
     };
   }
-  return g;
+  return O;
 }
-let Rt = 500;
-function Vn(s) {
-  const r = s.state, c = s.invalidateObserver;
-  function w(g, u, a) {
-    return typeof u != "string" && (a = u, u = null), {
-      description: g,
-      key: u,
-      handler: a,
+let ln = 500;
+function Lr(s) {
+  const o = s.state, c = s.invalidateObserver;
+  function E(b, f, m) {
+    return arguments.length < 3 && (m = f, f = null), {
+      description: b,
+      key: f,
+      handler: m,
       isRoot: !0,
       contents: {},
       contentsCounter: 0,
@@ -375,12 +318,12 @@ function Vn(s) {
       last: null
     };
   }
-  function v(g, u, a, d, b) {
-    let x = g.id;
-    if (typeof u.contents[x] < "u" || u.contentsCounter === Rt && u.last !== null && (u = u.last, typeof u.contents[x] < "u"))
-      return;
-    if (u.contentsCounter === Rt) {
-      let j = {
+  function v(b, f, m, O, h) {
+    let g = b.id;
+    if (typeof f.contents[g] < "u" || f.contentsCounter === ln && f.last !== null && (f = f.last, typeof f.contents[g] < "u"))
+      return f.contents[g];
+    if (f.contentsCounter === ln) {
+      let R = {
         isRoot: !1,
         contents: {},
         contentsCounter: 0,
@@ -388,80 +331,92 @@ function Vn(s) {
         previous: null,
         parent: null
       };
-      u.isRoot ? (j.parent = u, u.first = j, u.last = j) : (u.next = j, j.previous = u, j.parent = u.parent, u.parent.last = j), u = j;
+      f.isRoot ? (R.parent = f, f.first = R, f.last = R) : (f.next = R, R.previous = f, R.parent = f.parent, f.parent.last = R), f = R;
     }
-    let T = u.contents;
-    typeof T[x] > "u" && (u.contentsCounter = u.contentsCounter + 1, T[x] = {
-      observer: g,
-      time: typeof d > "u" ? null : d,
-      writer: typeof b > "u" ? null : b,
+    let x = f.contents;
+    return typeof x[g] > "u" && (f.contentsCounter = f.contentsCounter + 1, x[g] = {
+      observer: b,
+      time: typeof O > "u" ? null : O,
+      writer: typeof h > "u" ? null : h,
       // Set by cascade.js (flagRepeaterEntry) when this entry is found
       // overtaken by a closer writing but the change can't yet be acted
       // on (see resolveFlaggedRepeater) - guards against the same entry
       // being flagged twice over by a second, even-closer writing before
       // the first flag is ever resolved.
-      flagged: !1
-    }, g.sources.push(u));
+      flagged: !1,
+      // Set once the entry is gone from its observerSet - see
+      // removeFromObserverSet. A reference to it held elsewhere (a flag
+      // record, say) can tell.
+      removed: !1
+    }, b.sources.push(f)), x[g];
   }
-  function y(g) {
-    const u = [];
-    for (let d in g.contents)
-      u.push({ id: d, entry: g.contents[d], owner: g });
-    let a = g.first;
-    for (; a !== null; ) {
-      for (let d in a.contents)
-        u.push({ id: d, entry: a.contents[d], owner: a });
-      a = a.next;
+  function I(b) {
+    const f = [];
+    for (let O in b.contents)
+      f.push({ id: O, entry: b.contents[O], owner: b });
+    let m = b.first;
+    for (; m !== null; ) {
+      for (let O in m.contents)
+        f.push({ id: O, entry: m.contents[O], owner: m });
+      m = m.next;
     }
-    return u;
+    return f;
   }
-  function O(g, u, a) {
-    if (r.postponeInvalidation++, r.blockInvalidation > 0)
-      return;
-    let d = g.contents;
-    for (let b in d)
-      c(d[b].observer, u, a);
-    if (typeof g.first < "u") {
-      let b = g.first;
-      for (; b !== null; ) {
-        let x = b.contents;
-        for (let T in x)
-          c(x[T].observer, u, a);
-        b = b.next;
+  function N(b, f, m) {
+    if (!(o.blockInvalidation > 0)) {
+      o.postponeInvalidation++;
+      try {
+        let O = b.contents;
+        for (let h in O)
+          c(O[h].observer, f, m);
+        if (typeof b.first < "u") {
+          const h = [];
+          for (let g = b.first; g !== null; g = g.next) h.push(g);
+          for (const g of h) {
+            let x = g.contents;
+            for (let R in x)
+              c(x[R].observer, f, m);
+          }
+        }
+      } finally {
+        o.postponeInvalidation--;
       }
+      s.proceedWithPostponedInvalidations();
     }
-    r.postponeInvalidation--, s.proceedWithPostponedInvalidations();
   }
-  function A(g, u) {
-    let a = u.contents;
-    delete a[g];
-    let d = !1;
-    u.contentsCounter--, u.contentsCounter == 0 && (u.isRoot ? u.first === null && u.last === null && (d = !0) : (u.parent.first === u && (u.parent.first, u.next), u.parent.last === u && (u.parent.last, u.previous), u.next !== null && (u.next.previous = u.previous), u.previous !== null && (u.previous.next = u.next), u.previous = null, u.next = null, u.parent.first === null && u.parent.last === null && (d = !0)), d && typeof u.handler.proxy.onRemovedLastObserver == "function" && u.handler.proxy.onRemovedLastObserver(u.description, u.key));
+  function K(b, f) {
+    let m = f.contents;
+    if (typeof m[b] > "u") return;
+    m[b].removed = !0, delete m[b];
+    let O = !1;
+    if (f.contentsCounter--, f.contentsCounter == 0) {
+      f.isRoot ? f.first === null && f.last === null && (O = !0) : (f.parent.first === f && (f.parent.first = f.next), f.parent.last === f && (f.parent.last = f.previous), f.next !== null && (f.next.previous = f.previous), f.previous !== null && (f.previous.next = f.next), f.previous = null, f.next = null, f.parent.first === null && f.parent.last === null && f.parent.contentsCounter === 0 && (O = !0));
+      const h = f.isRoot ? f : f.parent;
+      O && typeof h.handler.proxy.onRemovedLastObserver == "function" && h.handler.proxy.onRemovedLastObserver(h.description, h.key);
+    }
   }
   return {
-    recordDependencyOnArray: (g, u) => {
-      u._arrayObservers === null && (u._arrayObservers = w("arrayDependees", u)), v(g, u._arrayObservers);
+    // A read of an array's elements, on the writing of its elements
+    // timeline it resolved to (or, for a partial reading its own writing,
+    // the one before it - see cascade.js's observeArray). Returns the
+    // entry: cascade.js notes on it what was read, and what was seen.
+    recordDependencyOnArray: (b, f, m, O, h) => (m.observers === null && (m.observers = E("arrayDependees", f)), v(b, m.observers, void 0, O, h)),
+    recordDependencyOnEnumeration: (b, f, m, O) => {
+      const h = s.getOrCreateEnumerationTimelineWriting(f, m, O);
+      h.observers === null && (h.observers = E("enumerationDependees", f)), v(b, h.observers, void 0, m, O);
     },
-    recordDependencyOnEnumeration: (g, u, a, d) => {
-      const b = s.getOrCreateEnumerationTimelineWriting(u, a, d);
-      b.observers === null && (b.observers = w("enumerationDependees", u)), v(g, b.observers, void 0, a, d);
+    recordDependencyOnProperty: (b, f, m, O, h) => {
+      const g = s.getOrCreateTimelineWriting(f, m, O, h);
+      g.observers === null && (g.observers = E("propertyDependees", m, f)), v(b, g.observers, m, O, h);
     },
-    recordDependencyOnProperty: (g, u, a, d, b) => {
-      if (a === "toString") return;
-      const x = s.getOrCreateTimelineWriting(u, a, d, b);
-      x.observers === null && (x.observers = w("propertyDependees", a, u)), v(g, x.observers, a, d, b);
+    invalidatePropertyObservers: (b, f, m, O) => {
+      const h = b.timelines[f];
+      if (typeof h > "u") return;
+      const g = s.seekTimelineWriting(h, m, O);
+      g.observers !== null && N(g.observers, b.proxy, f);
     },
-    invalidateArrayObservers: (g, u) => {
-      g._arrayObservers !== null && O(g._arrayObservers, g.proxy, u);
-    },
-    invalidatePropertyObservers: (g, u, a, d) => {
-      const b = g.timelines[u];
-      if (typeof b > "u") return;
-      const x = s.seekTimelineWriting(b, a, d);
-      x.observers !== null && O(x.observers, g.proxy, u);
-    },
-    invalidateWritingObservers: (g, u, a) => {
-      g.observers !== null && O(g.observers, u, a);
+    invalidateWritingObservers: (b, f, m) => {
+      b.observers !== null && N(b.observers, f, m);
     },
     // A reader that resolved to `previousWriting` (the nearest writing at
     // or before its own position, at the time it read) can be left with a
@@ -487,7 +442,7 @@ function Vn(s) {
     // recorded entry, whether that entry's own read position is strictly
     // after the new writing's (compareWritingToReader lives in cascade.js, not
     // here - passed in rather than duplicated).
-    collectOvertakenPropertyObservers: (g, u) => g.observers === null ? [] : y(g.observers).filter(({ entry: a }) => u(a.time, a.writer)).map(({ entry: a }) => a),
+    collectOvertakenPropertyObservers: (b, f) => b.observers === null ? [] : I(b.observers).filter(({ entry: m }) => f(m.time, m.writer)).map(({ entry: m }) => m),
     // Move one specific, already-found entry (from collectOvertakenPropertyObservers
     // above, or a flag record being resolved later) off `previousWriting`
     // and onto `freshWriting` - the entry's own {time, writer} travel with
@@ -498,47 +453,40 @@ function Vn(s) {
     // readers `previousWriting` currently has, not a system-wide search.
     // Returns false if the entry wasn't found there anymore (e.g. it was
     // independently cleared by a real invalidation in between) - the
-    // caller has nothing further to do in that case.
-    relocatePropertyObserverEntry: (g, u, a) => {
-      if (g.observers === null) return !1;
-      const d = y(g.observers).find(({ entry: b }) => b === a);
-      return d ? (A(d.id, d.owner), u.observers === null && (u.observers = w(
-        g.observers.description,
-        g.observers.key,
-        g.observers.handler
-      )), v(a.observer, u.observers, g.observers.key, a.time, a.writer), !0) : !1;
+    // caller has nothing further to do in that case. Otherwise returns the
+    // entry as it now stands on `freshWriting` - a new one, or the one the
+    // same observer already had there.
+    relocatePropertyObserverEntry: (b, f, m) => {
+      if (b.observers === null) return !1;
+      const O = I(b.observers).find(({ entry: h }) => h === m);
+      return O ? (K(O.id, O.owner), f.observers === null && (f.observers = E(
+        b.observers.description,
+        b.observers.key,
+        b.observers.handler
+      )), v(m.observer, f.observers, b.observers.key, m.time, m.writer)) : !1;
     },
     // Only invalidate readers positioned after this key add/remove (see
     // invalidateDownstreamEnumerationObservers in cascade.js) - before
     // this, every reader at every position shared one fixed writing, so
     // any key add/remove invalidated all of them regardless of where they
     // sat in the pipeline.
-    invalidateEnumerateObservers: (g, u, a, d) => {
-      const b = g.timelines[s.enumerationTimelineKey];
-      typeof b > "u" || s.invalidateDownstreamEnumerationObservers(b.first, a, d, g.proxy, u);
+    invalidateEnumerateObservers: (b, f, m, O) => {
+      const h = b.timelines[s.enumerationTimelineKey];
+      typeof h > "u" || s.invalidateDownstreamEnumerationObservers(h.first, m, O, b.proxy, f);
     },
-    removeAllSources: (g) => {
-      const u = g.id;
-      g.sources.forEach(function(a) {
-        A(u, a);
-      }), g.sources.length = 0;
+    removeAllSources: (b) => {
+      const f = b.id;
+      b.sources.forEach(function(m) {
+        K(f, m);
+      }), b.sources.length = 0;
     }
   };
 }
-const _n = ee, Un = {
+const kr = xe, Qr = {
   requireRepeaterName: !1,
   requireInvalidatorName: !1,
   warnOnNestedRepeater: !0,
-  alwaysDependOnParentRepeater: !1,
   timeLevels: 4,
-  // Dev-time-only safety net for the O(1) order-number chain (see
-  // compareWriterOrder()/structuralCompareWriterOrder()): also compute
-  // writer order via the older, structural parent/sibling walk (O(depth),
-  // never optimized, but doesn't depend on the order-number bookkeeping
-  // being correct) and throw if the two disagree. Off by default - it's
-  // a real O(depth) tree walk on every comparison, not something to pay
-  // for outside development.
-  verifyChainOrderStructurally: !1,
   objectMetaProperty: "causality",
   objectTimelinesProperty: "timelines",
   useNonObservablesAsValues: !1,
@@ -546,8 +494,8 @@ const _n = ee, Un = {
   sendEventsToObjects: !0,
   // Reserved properties that you can override on observables IF sendEventsToObjects is set to true. 
   // onChange
-  // onBuildCreate
-  // onBuildRemove
+  // onEstablish
+  // onDispose
   onEventGlobal: null,
   emitReBuildEvents: !1,
   // allowNonObservableReferences: true, // Allow observables to refer to non referables. TODO?
@@ -556,12 +504,12 @@ const _n = ee, Un = {
   cannotReadPropertyValue: null,
   customObjectlog: null,
   customDependencyInterfaceCreator: null,
-  //{recordDependencyOnArray, recordDependencyOnEnumeration, recordDependencyOnProperty, recordDependency}
+  //{recordDependencyOnArray, recordDependencyOnEnumeration, recordDependencyOnProperty, recordDependency, ...} - see lib/defaultDependencyInterface.js
   customCreateInvalidator: null,
   customCreateRepeater: null
 };
-function Yn(s) {
-  const r = {
+function Dr(s) {
+  const o = {
     recordingPaused: 0,
     blockInvalidation: 0,
     postponeInvalidation: 0,
@@ -579,24 +527,17 @@ function Yn(s) {
     // Repeaters
     inRepeater: null,
     refreshingAllDirtyRepeaters: !1,
-    workOnTimeLevel: [...Array(s.timeLevels).keys()].map(() => 0),
-    revalidationTimeLock: -1,
     // The repeater work scheduler - see "Repeater scheduling: pipelines,
     // wavefronts, parking" below for the full design. One {active, parked}
     // pair of FIFOs per time level, holding *pipelines* (chainHeads), not
-    // individual repeaters - a chainHead's own internal heap/parkedPartials
+    // individual repeaters - a chainHead's own internal sortedQueue/parkedRepeaters
     // (see createChainHead()) is where the actual repeaters needing
     // attention live.
     workQueue: [...Array(s.timeLevels).keys()].map(() => ({
       active: { first: null, last: null },
       parked: { first: null, last: null }
     })),
-    // Separate from revalidationTimeLock above (which belongs to the
-    // older, general context-enter/exit bookkeeping - see enterTimeLevel/
-    // exitTimeLevel - and is left alone here specifically so this new
-    // scheduler's own lock can't be perturbed by that unrelated
-    // machinery, the same bug class already found and fixed once this
-    // session when the two were briefly conflated).
+    // How far the current wave has got - see "Repeater scheduling" below.
     workQueueTimeLock: -1,
     // The chainHead currently being drained by drainActivePipeline(), if
     // any - see scheduleWork()'s own use of it to detect "is new work
@@ -611,298 +552,654 @@ function Yn(s) {
     // pipeline's own internal wavefront) - checked once, right after every
     // processRepeater() call, never mid-refresh - see checkWaveRetreat().
     waveRetreated: !1
-  }, c = Symbol("timelines.enumeration"), w = {
+  }, c = Symbol("timelines.enumeration"), E = {
     name: s.name,
-    sameAsPreviousDeep: we,
+    sameAsPreviousDeep: De,
     // Main API
-    observable: ae,
-    deeplyObservable: Pe,
-    isObservable: k,
-    create: ae,
-    // observable alias
-    invalidateOnChange: mn,
-    repeat: Rn,
-    linkRepeater: Cn,
-    finalize: xn,
+    observable: Ze,
+    deeplyObservable: et,
+    isObservable: V,
+    invalidateOnChange: zt,
+    repeat: hr,
+    linkRepeater: gr,
+    finalize: pr,
+    establish: je,
+    dispose: it,
     // Modifiers
-    withoutRecording: Qe,
-    withoutReactions: Mt,
-    flush: Lt,
-    accessInitialValues: Fe,
-    declareState: kt,
-    retractRepeater: ht,
-    refreshIfNeeded: Mn,
+    withoutRecording: J,
+    withoutReactions: hn,
+    flush: gn,
+    accessInitialValues: mt,
+    declareState: mn,
+    retractRepeater: Ut,
+    refreshIfNeeded: wr,
     // Transaction
-    doWhileInvalidationsPostponed: Xe,
-    transaction: Xe,
-    postponeInvalidations: Et,
-    continueInvalidations: jt,
+    transaction: Qe,
+    postponeInvalidations: dn,
+    continueInvalidations: pn,
     // Debugging and testing
-    clearRepeaterLists: Nn,
     // Logging (these log commands do automatic withoutRecording to avoid your logs destroying your test-setup) 
-    log: Wn,
+    log: Ar,
     loge: (e) => {
-      X.loge(e);
+      P.loge(e);
     },
     // "event"
     logs: () => {
-      X.logs();
+      P.logs();
     },
     // "separator"
     logss: () => {
-      X.logss();
+      P.logss();
     },
-    logsss: () => {
-      X.logss();
-    },
-    logGroup: Dn,
-    logUngroup: Bn,
-    logToString: Qn,
+    logGroup: Cr,
+    logUngroup: Er,
+    logToString: Pr,
     // Advanced (only if you know what you are doing, typically used by plugins to causality)
-    state: r,
-    enterContext: Y,
-    leaveContext: K,
-    invalidateObserver: ce,
-    getOrCreateTimelineWriting: Re,
-    getOrCreateEnumerationTimelineWriting: nn,
-    invalidateDownstreamEnumerationObservers: tn,
-    seekTimelineWriting: D,
+    state: o,
+    enterContext: ae,
+    leaveContext: Z,
+    invalidateObserver: ue,
+    getOrCreateTimelineWriting: Ae,
+    getOrCreateEnumerationTimelineWriting: _n,
+    invalidateDownstreamEnumerationObservers: Yn,
+    seekTimelineWriting: Q,
+    assignArray: Ln,
     enumerationTimelineKey: c,
-    proceedWithPostponedInvalidations: Ie,
-    nextObserverId: () => r.observerId++,
+    proceedWithPostponedInvalidations: me,
     // Libraries
-    caching: Kn(ae),
-    // Time levels 
-    enterTimeLevel: ne,
-    exitTimeLevel: ie,
-    workOnTimeLevel: Wt
-  }, v = s.customCreateRepeater ? s.customCreateRepeater : wn, y = s.customCreateInvalidator ? s.customCreateInvalidator : hn, O = s.customDependencyInterfaceCreator ? s.customDependencyInterfaceCreator(w) : Vn(w), A = O.recordDependencyOnArray, g = O.recordDependencyOnEnumeration, u = O.recordDependencyOnProperty, a = O.invalidateArrayObservers, d = O.invalidateEnumerateObservers, b = O.invalidatePropertyObservers, x = O.invalidateWritingObservers, T = O.collectOvertakenPropertyObservers, j = O.relocatePropertyObserverEntry, te = O.removeAllSources, X = s.customObjectlog ? s.customObjectlog : _n, De = Dt(), {
-    requireRepeaterName: It,
-    requireInvalidatorName: At,
-    warnOnNestedRepeater: Nt,
+    caching: Wr(Ze, zt, J, s.objectMetaProperty)
+  }, v = s.customCreateRepeater ? s.customCreateRepeater : fr, I = s.customCreateInvalidator ? s.customCreateInvalidator : ir, N = s.customDependencyInterfaceCreator ? s.customDependencyInterfaceCreator(E) : Lr(E), K = N.recordDependencyOnArray, b = N.recordDependencyOnEnumeration, f = N.recordDependencyOnProperty, m = N.invalidateEnumerateObservers, O = N.invalidatePropertyObservers, h = N.invalidateWritingObservers, g = N.collectOvertakenPropertyObservers, x = N.relocatePropertyObserverEntry, R = N.removeAllSources, P = s.customObjectlog ? s.customObjectlog : kr, T = In(), {
+    requireRepeaterName: un,
+    requireInvalidatorName: fn,
+    warnOnNestedRepeater: an,
     objectMetaProperty: p,
-    objectTimelinesProperty: ve,
-    sendEventsToObjects: Be,
-    onEventGlobal: ye,
-    emitReBuildEvents: St,
-    onWriteGlobal: M,
-    onReadGlobal: I,
-    cannotReadPropertyValue: F
-  } = s, N = !!ye || Be;
+    objectTimelinesProperty: Le,
+    sendEventsToObjects: gt,
+    onEventGlobal: ke,
+    emitReBuildEvents: cn,
+    onWriteGlobal: B,
+    onReadGlobal: W,
+    cannotReadPropertyValue: H
+  } = s, L = !!ke || gt;
+  function J(e) {
+    o.recordingPaused++, G();
+    try {
+      return e();
+    } finally {
+      o.recordingPaused--, G();
+    }
+  }
   function Qe(e) {
-    r.recordingPaused++, S();
-    const t = e();
-    return r.recordingPaused--, S(), t;
+    o.postponeInvalidation++;
+    try {
+      return e();
+    } finally {
+      o.postponeInvalidation--, me();
+    }
   }
-  function Xe(e) {
-    r.postponeInvalidation++, e(), r.postponeInvalidation--, Ie();
+  function dn() {
+    o.postponeInvalidation++;
   }
-  function Et() {
-    r.postponeInvalidation++;
+  function pn() {
+    o.postponeInvalidation--, me();
   }
-  function jt() {
-    r.postponeInvalidation--, Ie();
+  function hn(e) {
+    o.blockInvalidation++;
+    try {
+      e();
+    } finally {
+      o.blockInvalidation--;
+    }
   }
-  function Mt(e) {
-    r.blockInvalidation++, e(), r.blockInvalidation--;
+  function gn(e) {
+    o.flushing++;
+    try {
+      return e();
+    } finally {
+      o.flushing--;
+    }
   }
-  function Lt(e) {
-    r.flushing++;
-    const t = e();
-    return r.flushing--, t;
+  function mt(e) {
+    const t = o.context;
+    o.context = null, G();
+    try {
+      return e();
+    } finally {
+      o.context = t, G();
+    }
   }
-  function Fe(e) {
-    const t = r.context;
-    r.context = null, S();
-    const n = e();
-    return r.context = t, S(), n;
-  }
-  function kt(e, t) {
-    if (!k(e)) throw new Error("declareState() expects an observable object.");
-    const n = e[p], i = (o) => {
-      o.stateProperties || (o.stateProperties = /* @__PURE__ */ new Set()), Object.keys(t).forEach((l) => o.stateProperties.add(l));
+  function mn(e, t) {
+    if (!V(e)) throw new Error("declareState() expects an observable object.");
+    const n = e[p], r = (i) => {
+      i.stateProperties || (i.stateProperties = /* @__PURE__ */ new Set()), Object.keys(t).forEach((l) => i.stateProperties.add(l));
     };
-    return i(n), n.forwardTo !== null && i(n.forwardTo[p]), Fe(() => {
-      Object.keys(t).forEach((o) => {
-        e[o] = t[o];
+    return r(n), n.rebuildTwin !== null && r(n.rebuildTwin[p]), mt(() => {
+      Object.keys(t).forEach((i) => {
+        e[i] = t[i];
       });
     }), e;
   }
-  function ne(e) {
-    if (typeof e != "number") {
-      const t = e;
-      e = typeof t.time == "function" ? t.time() : 0;
-    }
-    r.workOnTimeLevel[e]++;
+  function G() {
+    o.inActiveRecording = o.context !== null && o.context.isRecording && o.recordingPaused === 0, o.inRepeater = o.context && o.context.type === "partial" ? o.context.repeater : null;
   }
-  function ie(e) {
-    if (typeof e != "number") {
-      const n = e;
-      e = typeof n.time == "function" ? n.time() : 0;
-    }
-    r.workOnTimeLevel[e]--;
-    let t = !0;
-    for (; e < r.workOnTimeLevel.length && r.workOnTimeLevel[e] === 0; )
-      typeof s.onFinishedTimeLevel == "function" && s.onFinishedTimeLevel(e, t), r.revalidationTimeLock = e, e++, t = !1;
+  function ae(e) {
+    return e.parent = o.context, o.context = e, G(), e;
   }
-  function Wt(e, t) {
-    ne(e), t(), ie(e);
-  }
-  function S() {
-    r.inActiveRecording = r.context !== null && r.context.isRecording && r.recordingPaused === 0, r.inRepeater = r.context && r.context.type === "partial" ? r.context.repeater : null;
-  }
-  function Y(e) {
-    return e.parent = r.context, r.context = e, S(), ne(e), e;
-  }
-  function K(e) {
-    if (r.context && e === r.context)
-      r.context = r.context.parent;
+  function Z(e) {
+    if (o.context && e === o.context)
+      o.context = o.context.parent;
     else
       throw new Error("Context missmatch");
-    S(), ie(e);
+    G();
   }
-  function Dt() {
-    const e = {
-      pop: function() {
-        let t = this.target.length - 1, n = this.target.pop();
-        return a(this, "pop"), N && G(this, t, [n], null), n;
-      },
-      push: function() {
-        let t = this.target.length, n = ge(arguments);
-        return this.target.push.apply(this.target, n), a(this, "push"), N && G(this, t, null, n), this.target.length;
-      },
-      shift: function() {
-        let t = this.target.shift();
-        return a(this, "shift"), N && G(this, 0, [t], null), t;
-      },
-      unshift: function() {
-        let t = ge(arguments);
-        return this.target.unshift.apply(this.target, t), a(this, "unshift"), N && G(this, 0, null, t), this.target.length;
-      },
-      splice: function() {
-        let t = ge(arguments), n = t[0], i = t[1];
-        typeof t[1] > "u" && (i = this.target.length - n);
-        let o = t.slice(2), l = this.target.slice(n, n + i), f = this.target.splice.apply(this.target, t);
-        return a(this, "splice"), N && G(this, n, l, o), f;
-      },
-      copyWithin: function(t, n, i) {
-        if (n || (n = 0), i || (i = this.target.length), t < 0 && (n = this.target.length - t), n < 0 && (n = this.target.length - n), i < 0 && (n = this.target.length - i), i = Math.min(i, this.target.length), n = Math.min(n, this.target.length), n >= i)
-          return;
-        let o = this.target.slice(t, t + i - n), l = this.target.slice(n, i), f = this.target.copyWithin(t, n, i);
-        return a(this, "copyWithin"), N && G(this, t, l, o), f;
-      }
-    };
-    return ["reverse", "sort", "fill"].forEach(function(t) {
-      e[t] = function() {
-        let n = ge(arguments), i = this.target.slice(0), o = this.target[t].apply(this.target, n);
-        return a(this, t), N && G(this, 0, i, this.target.slice(0)), o;
-      };
-    }), e;
+  function ce(e, t) {
+    return s.useNonObservablesAsValues ? De(e, t, s.valueComparisonDepthLimit) : e === t || Number.isNaN(e) && Number.isNaN(t) ? !0 : yt(e, t);
   }
-  function re(e, t) {
-    return s.useNonObservablesAsValues ? we(e, t, s.valueComparisonDepthLimit) : e === t || Number.isNaN(e) && Number.isNaN(t) ? !0 : qe(e, t);
-  }
-  function ze(e) {
-    if (e === null || typeof e != "object" || !Object.isFrozen(e) || k(e)) return !1;
+  function bt(e) {
+    if (e === null || typeof e != "object" || !Object.isFrozen(e) || V(e)) return !1;
     if (Array.isArray(e)) return !0;
     const t = Object.getPrototypeOf(e);
     return t === Object.prototype || t === null;
   }
-  function qe(e, t, n = 0) {
+  function yt(e, t, n = 0) {
     if (e === t || Number.isNaN(e) && Number.isNaN(t)) return !0;
-    if (!ze(e) || !ze(t) || n > 64 || Array.isArray(e) !== Array.isArray(t)) return !1;
-    const i = Object.keys(e);
-    if (i.length !== Object.keys(t).length) return !1;
-    for (const o of i)
-      if (!Object.prototype.hasOwnProperty.call(t, o) || !qe(e[o], t[o], n + 1)) return !1;
+    if (!bt(e) || !bt(t) || n > 64 || Array.isArray(e) !== Array.isArray(t)) return !1;
+    const r = Object.keys(e);
+    if (r.length !== Object.keys(t).length) return !1;
+    for (const i of r)
+      if (!Object.prototype.hasOwnProperty.call(t, i) || !yt(e[i], t[i], n + 1)) return !1;
     return !0;
   }
-  function we(e, t, n) {
+  function De(e, t, n) {
     if (typeof n > "u" && (n = 8), e === null && t === null || e === t || Number.isNaN(e) && Number.isNaN(t)) return !0;
-    if (n === 0 || typeof e != typeof t || typeof e != "object" || e === null || t === null || k(e) || k(t) || Object.keys(e).length !== Object.keys(t).length) return !1;
-    for (let i in e)
-      if (!we(e[i], t[i], n - 1))
+    if (n === 0 || typeof e != typeof t || typeof e != "object" || e === null || t === null || V(e) || V(t) || Object.keys(e).length !== Object.keys(t).length) return !1;
+    for (let r in e)
+      if (!De(e[r], t[r], n - 1))
         return !1;
     return !0;
   }
-  function Bt(e, t) {
+  const Be = "(array elements)", ee = /* @__PURE__ */ new Set(), bn = 8;
+  function Y(e) {
+    if (typeof e != "string") return !1;
+    const t = Number(e);
+    return String(t >>> 0) === e && t !== 4294967295;
+  }
+  function Fe(e, t) {
+    const n = t >= 0 && t in e;
+    return { present: n, value: n ? e[t] : void 0 };
+  }
+  function Xe(e, t, n) {
+    const r = n >= 0 && n in t;
+    return e.present !== r ? !1 : !r || ce(e.value, t[n]);
+  }
+  function yn() {
+    return { whole: null, length: null, indices: null, fromEnd: null };
+  }
+  function de(e, t, n, r) {
+    t === "whole" ? e.whole = r.slice() : t === "length" ? e.length = r.length : t === "index" ? (e.indices || (e.indices = /* @__PURE__ */ new Map())).set(n, Fe(r, n)) : t === "fromEnd" && (e.fromEnd || (e.fromEnd = /* @__PURE__ */ new Map())).set(n, Fe(r, r.length - n));
+  }
+  function vn(e, t, n) {
+    t.whole !== null && de(e, "whole", null, n), t.length !== null && de(e, "length", null, n), t.indices !== null && t.indices.forEach((r, i) => de(e, "index", i, n)), t.fromEnd !== null && t.fromEnd.forEach((r, i) => de(e, "fromEnd", i, n));
+  }
+  function ze(e, t) {
+    if (e.whole !== null) {
+      const n = e.whole;
+      if (n.length !== t.length) return !0;
+      for (let r = 0; r < n.length; r++)
+        if (!Xe(Fe(n, r), t, r)) return !0;
+      return !1;
+    }
+    if (e.length !== null && e.length !== t.length) return !0;
+    if (e.indices !== null) {
+      for (const [n, r] of e.indices)
+        if (!Xe(r, t, n)) return !0;
+    }
+    if (e.fromEnd !== null) {
+      for (const [n, r] of e.fromEnd)
+        if (!Xe(r, t, t.length - n)) return !0;
+    }
+    return !1;
+  }
+  function pe(e, t) {
+    switch (t.kind) {
+      case "push":
+        return Array.prototype.push.apply(e, t.items);
+      case "unshift":
+        return Array.prototype.unshift.apply(e, t.items);
+      case "pop":
+        return e.pop();
+      case "shift":
+        return e.shift();
+      case "splice":
+        return Array.prototype.splice.apply(e, t.args);
+      case "set":
+        return e[t.index] = t.value, t.value;
+      case "delete":
+        return delete e[t.index];
+      case "length":
+        return e.length = t.value, t.value;
+      case "assign":
+        e.length = 0;
+        for (let n = 0; n < t.items.length; n++)
+          n in t.items && (e[n] = t.items[n]);
+        return e.length = t.items.length, e;
+      default:
+        return Array.prototype[t.kind].apply(e, t.args);
+    }
+  }
+  function vt(e, t) {
+    o.recordingPaused++, G();
+    try {
+      t.forEach((n) => n.ops.forEach((r) => pe(e, r)));
+    } finally {
+      o.recordingPaused--, G();
+    }
+  }
+  function te(e, t) {
+    if (e.cursorWriting === t) return e.cursorContent;
+    if (e.cursorWriting !== null) {
+      const l = [];
+      let u = e.cursorWriting.next;
+      for (; u !== null && u !== t; )
+        l.push(u), u = u.next;
+      if (u === t) {
+        l.push(t);
+        const d = e.cursorContent;
+        return e.cursorWriting = null, e.cursorContent = null, vt(d, l), e.cursorWriting = t, e.cursorContent = d, d;
+      }
+    }
+    const n = e.first, r = n.content.slice(), i = [];
+    if (t !== n) {
+      let l = n.next;
+      for (; l !== null && l !== t; )
+        i.push(l), l = l.next;
+      if (l === null) throw new Error("Array writing not on its timeline.");
+      i.push(t);
+    }
+    return e.cursorWriting = null, e.cursorContent = null, vt(r, i), e.cursorWriting = t, e.cursorContent = r, r;
+  }
+  function qe(e) {
+    e.cursorWriting = null, e.cursorContent = null;
+  }
+  function xt(e, t) {
+    if (e.cursorWriting === null) return !0;
+    let n = e.cursorWriting.next;
+    for (let r = 0; n !== null && r < bn; r++) {
+      if (n === t) return !0;
+      n = n.next;
+    }
+    return !1;
+  }
+  function xn(e, t) {
+    e.version++, xt(e, t) || qe(e), ee.add(e.handler);
+  }
+  function wn(e, t) {
+    e.version++, xt(e, t) || qe(e), ee.add(e.handler);
+  }
+  function On(e) {
+    const t = e.elements;
+    if (e.mirrorVersion === t.version) return;
+    const n = te(t, t.last), r = e.target;
+    r.length = 0;
+    for (let i = 0; i < n.length; i++)
+      i in n && (r[i] = n[i]);
+    r.length = n.length, e.mirrorVersion = t.version;
+  }
+  function Ve() {
+    if (ee.size === 0) return;
+    const e = [...ee];
+    ee.clear(), e.forEach(On);
+  }
+  function Rn(e, t, n, r, i) {
+    e.arrayRead ? e.arrayVersion !== t.version && ze(e.arrayRead, i) && ue(e.observer, t.handler.proxy, Be) : e.arrayRead = yn(), e.arrayVersion = t.version, de(e.arrayRead, n, r, i);
+  }
+  function k(e, t, n) {
+    const r = e.elements, i = re(), l = M(), u = Q(r, i, l);
+    if (o.inActiveRecording) {
+      let a = u, w = t;
+      l !== null && u.writer === l && u.previous !== null && (a = u.previous, w = "whole");
+      const C = K(o.context, e, a, i, l);
+      a.observersAllFlagged = !1, Rn(C, r, w, n, te(r, a));
+    }
+    const d = te(r, u);
+    return t === "whole" ? d.slice() : d;
+  }
+  function U(e) {
+    return te(e.elements, Q(e.elements, _(), M()));
+  }
+  function An(e) {
+    const t = e.elements, n = o.context;
+    let r = n && n.writings ? n.writings.get(t) : void 0;
+    if (typeof r < "u") return r;
+    const i = _(), l = M(), u = l !== null ? l.repeater : null, d = u !== null && u.staleWritings !== null ? u.staleWritings.get(t) : void 0;
+    return d && d.length > 0 ? (r = d.shift(), d.length === 0 && u.staleWritings.delete(t), r.stale = !1, r.writer = l, r.ops = [], _e(r)) : (r = Ue(t, i, l), r === null && (r = Ye(t, i, l))), n && n.writings && n.writings.set(t, r), r;
+  }
+  function q(e, t) {
+    const n = An(e), r = e.elements, i = n === r.last && e.mirrorVersion === r.version;
+    let l;
+    if (n.ops === null ? (l = pe(n.content, t), r.cursorWriting === n ? pe(r.cursorContent, t) : qe(r)) : (l = pe(te(r, n), t), n.ops.push(t)), r.version++, i && (t.kind === "push" || t.kind === "pop" || t.kind === "set" || t.kind === "length") ? (pe(e.target, t), e.mirrorVersion = r.version) : ee.add(e), n.writer !== null) {
+      const u = n.writer;
+      u.touchedArrayWritings === null && (u.touchedArrayWritings = /* @__PURE__ */ new Set()), u.touchedArrayWritings.add(n);
+    } else
+      Ke(n, null), Ve();
+    return l;
+  }
+  function Cn(e, t, n) {
+    return e.flagged || e.removed || !e.arrayRead ? !0 : Re(e, n) ? (st(e.observer.repeater, e, t), !0) : (Ot(e, t) && ue(e.observer, t.timeline.handler.proxy, Be), !1);
+  }
+  function wt(e, t, n, r, i, l) {
+    if (o.blockInvalidation > 0) return;
+    const u = [];
+    e !== null && g(
+      e,
+      (a, w) => ne(t, n, a, w) < 0
+    ).forEach((a) => u.push([a, e, null]));
+    const d = [];
+    for (let a = r; a !== null; a = a.next) {
+      if (a.observersAllFlagged === !0) continue;
+      const w = { writing: a, allFlagged: !0 };
+      d.push(w), a.observersAllFlagged = null, g(a, () => !0).forEach((C) => u.push([C, a, w]));
+    }
+    l && g(l, () => !0).forEach((a) => u.push([a, l, null])), o.postponeInvalidation++;
+    try {
+      u.forEach(([a, w, C]) => {
+        const y = Cn(a, w, i);
+        C !== null && !y && (C.allFlagged = !1);
+      }), d.forEach((a) => {
+        a.writing.observersAllFlagged === null && (a.writing.observersAllFlagged = a.allFlagged);
+      });
+    } finally {
+      o.postponeInvalidation--;
+    }
+    me();
+  }
+  function Ke(e, t) {
+    wt(e.previous, e.time, e.writer, e, t, null);
+  }
+  function En(e) {
+    if (e.touchedArrayWritings === null) return;
+    const t = e.touchedArrayWritings;
+    e.touchedArrayWritings = null, t.forEach((n) => {
+      n.linked && Ke(n, n.writer);
+    });
+  }
+  function Pn(e) {
+    e.stale = !1;
+    const t = Q(e.timeline, e.time, e.writer);
+    wt(t, e.time, e.writer, t.next, e.writer, e);
+  }
+  function Ot(e, t) {
+    if (e.removed) return !1;
+    const n = t.timeline;
+    let r = Q(n, e.time, e.writer);
+    e.writer !== null && r.writer === e.writer && r.previous !== null && (r = r.previous);
+    const i = te(n, r);
+    if (ze(e.arrayRead, i)) return !0;
+    if (e.arrayVersion = n.version, r !== t) {
+      const l = x(t, r, e);
+      if (l && l !== e) {
+        if (r.observersAllFlagged = !1, !l.arrayRead)
+          l.arrayRead = e.arrayRead;
+        else {
+          if (ze(l.arrayRead, i)) return !0;
+          vn(l.arrayRead, e.arrayRead, i);
+        }
+        l.arrayVersion = n.version;
+      }
+    }
+    return !1;
+  }
+  function In() {
+    const e = /* @__PURE__ */ Object.create(null);
+    return e.push = function() {
+      const t = Me(arguments), n = q(this, { kind: "push", items: t });
+      return L && ie(this, n - t.length, null, t), n;
+    }, e.unshift = function() {
+      const t = Me(arguments), n = q(this, { kind: "unshift", items: t });
+      return L && ie(this, 0, null, t), n;
+    }, e.pop = function() {
+      k(this, "fromEnd", 1);
+      const t = U(this).length - 1, n = q(this, { kind: "pop" });
+      return L && t >= 0 && ie(this, t, [n], null), n;
+    }, e.shift = function() {
+      k(this, "index", 0);
+      const t = U(this).length, n = q(this, { kind: "shift" });
+      return L && t > 0 && ie(this, 0, [n], null), n;
+    }, e.splice = function() {
+      const t = Me(arguments), n = U(this).length, r = (a) => (a = Math.trunc(Number(a)) || 0, a < 0 ? Math.max(n + a, 0) : Math.min(a, n));
+      let i = 0, l = 0, u = !1;
+      if (t.length > 0) {
+        const a = Math.trunc(Number(t[0])) || 0;
+        if (i = r(a), (a < 0 || a > n) && (u = !0), t.length === 1)
+          l = n - i, u = !0;
+        else {
+          const w = Math.trunc(Number(t[1])) || 0;
+          l = Math.min(Math.max(w, 0), n - i), w > n - i && (u = !0);
+        }
+      }
+      u && k(this, "length");
+      for (let a = i; a < i + l; a++) k(this, "index", a);
+      const d = q(this, { kind: "splice", args: t });
+      return L && ie(this, i, d, t.slice(2)), d;
+    }, ["reverse", "sort", "fill", "copyWithin"].forEach((t) => {
+      e[t] = function() {
+        const n = Me(arguments), r = L ? U(this).slice() : null;
+        return q(this, { kind: t, args: n }), L && ie(this, 0, r, U(this).slice()), this.proxy;
+      };
+    }), [
+      "indexOf",
+      "lastIndexOf",
+      "includes",
+      "join",
+      "slice",
+      "concat",
+      "flat",
+      "entries",
+      "keys",
+      "values",
+      "toString",
+      "toLocaleString",
+      "toReversed",
+      "toSorted",
+      "toSpliced",
+      "with"
+    ].forEach((t) => {
+      typeof Array.prototype[t] == "function" && (e[t] = function() {
+        const n = k(this, "whole");
+        return Array.prototype[t].apply(n, arguments);
+      });
+    }), ["forEach", "map", "filter", "some", "every", "find", "findIndex", "findLast", "findLastIndex", "flatMap"].forEach((t) => {
+      typeof Array.prototype[t] == "function" && (e[t] = function(n, r) {
+        const i = k(this, "whole");
+        if (typeof n != "function") return Array.prototype[t].apply(i, arguments);
+        const l = this.proxy;
+        return Array.prototype[t].call(i, (u, d) => n.call(r, u, d, l));
+      });
+    }), ["reduce", "reduceRight"].forEach((t) => {
+      e[t] = function(n) {
+        const r = k(this, "whole");
+        if (typeof n != "function") return Array.prototype[t].apply(r, arguments);
+        const i = this.proxy, l = (u, d, a) => n(u, d, a, i);
+        return arguments.length > 1 ? Array.prototype[t].call(r, l, arguments[1]) : Array.prototype[t].call(r, l);
+      };
+    }), e.at = function(t) {
+      if (t = Math.trunc(Number(t)) || 0, t >= 0) return k(this, "index", t)[t];
+      const n = k(this, "fromEnd", -t);
+      return n[n.length + t];
+    }, e;
+  }
+  function Tn(e, t) {
     if (t === p)
       return this.meta;
-    if (this.meta.forwardTo !== null) {
-      let n = this.meta.forwardTo[p].handler;
-      return n.get.apply(n, [n.target, t]);
+    if (this.meta.rebuildTwin !== null) {
+      let i = this.meta.rebuildTwin[p].handler;
+      return i.get.apply(i, [i.target, t]);
     }
-    return I && !I(this, e, t) ? F : De[t] ? De[t].bind(this) : (r.inActiveRecording && A(r.context, this), e[t]);
+    if (W && !W(this, e, t))
+      return H;
+    if (typeof t == "symbol")
+      return t === Symbol.iterator ? T.values.bind(this) : e[t];
+    if (t === "length") return k(this, "length").length;
+    if (Y(t)) {
+      const i = Number(t);
+      return k(this, "index", i)[i];
+    }
+    if (T[t]) return T[t].bind(this);
+    if (t in Array.prototype || Object.prototype.hasOwnProperty.call(e, t)) return e[t];
+    const n = re(), r = M();
+    return o.inActiveRecording && f(o.context, this, t, n, r), Ce(this, t, n, r);
   }
-  function Qt(e, t, n) {
+  function Rt(e, t, n) {
     if (t === p) throw new Error("Cannot set the dedicated meta property '" + p + "'");
-    if (this.meta.forwardTo !== null) {
-      let o = this.meta.forwardTo[p].handler;
-      return o.set.apply(o, [o.target, t, n]);
+    if (this.meta.rebuildTwin !== null) {
+      let r = this.meta.rebuildTwin[p].handler;
+      return r.set.apply(r, [r.target, t, n]);
     }
-    if (M && !M(this, e, t))
-      return;
-    let i = e[t];
-    return t in e && re(i, n) ? !0 : (isNaN(t) ? (e[t] = n, (e[t] === n || Number.isNaN(e[t]) && Number.isNaN(n)) && (a(this, t), lt(this, t, n, i))) : (typeof t == "string" && (t = parseInt(t)), e[t] = n, (e[t] === n || Number.isNaN(e[t]) && Number.isNaN(n)) && (a(this, t), pn(this, t, n, i))), !(e[t] !== n && !(Number.isNaN(e[t]) && Number.isNaN(n))));
-  }
-  function Xt(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let i = this.meta.forwardTo[p].handler;
-      return i.deleteProperty.apply(
-        i,
-        [i.target, t]
-      );
+    if (!(B && !B(this, e, t))) {
+      if (t === "length") {
+        const r = Number(n);
+        if (r >>> 0 !== r) throw new RangeError("Invalid array length");
+        const i = U(this);
+        if (M() === null && i.length === r) return !0;
+        const l = i.length;
+        return q(this, { kind: "length", value: r }), Ft(this, t, r, l), !0;
+      }
+      if (Y(t)) {
+        const r = Number(t), i = U(this), l = i[r];
+        return M() === null && r in i && ce(l, n) || (q(this, { kind: "set", index: r, value: n }), nr(this, r, n, l)), !0;
+      }
+      if (typeof t == "symbol" || typeof n == "function")
+        return e[t] = n, !0;
+      if (this.meta.stateProperties && this.meta.stateProperties.has(t) && o.inRepeater !== null)
+        throw new Error("Cannot write state property '" + t + "' from inside a repeater.");
+      return Ee(this, t, n, !0);
     }
-    if (M && !M(this, e, t))
-      return;
-    if (!(t in e))
-      return !0;
-    let n = e[t];
-    return delete e[t], t in e || (a(this, "delete"), st(this, t, n)), !(t in e);
   }
-  function Ft(e) {
-    if (this.meta.forwardTo !== null) {
-      let n = this.meta.forwardTo[p].handler;
-      return n.ownKeys.apply(
+  function Sn(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let n = this.meta.rebuildTwin[p].handler;
+      return n.deleteProperty.apply(
         n,
-        [n.target]
+        [n.target, t]
       );
     }
-    if (I && !I(this, e))
-      return F;
-    r.inActiveRecording && A(r.context, this);
-    let t = Object.keys(e);
-    return t.push("length"), t;
-  }
-  function zt(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let n = this.meta.forwardTo[p].handler;
-      return n.has.apply(n, [e, t]);
+    if (!(B && !B(this, e, t))) {
+      if (t === "length") return !1;
+      if (Y(t)) {
+        const n = Number(t), r = U(this);
+        if (M() === null && !(n in r)) return !0;
+        const i = r[n];
+        return q(this, { kind: "delete", index: n }), tt(this, t, i), !0;
+      }
+      return kt.call(this, e, t);
     }
-    return I && !I(this, e, t) ? F : (r.inActiveRecording && A(r.context, this), t in e);
   }
-  function qt(e, t, n) {
-    if (this.meta.forwardTo !== null) {
-      let i = this.meta.forwardTo[p].handler;
-      return i.defineProperty.apply(
-        i,
-        [i.target, t, n]
+  function jn(e) {
+    if (this.meta.rebuildTwin !== null) {
+      let l = this.meta.rebuildTwin[p].handler;
+      return l.ownKeys.apply(
+        l,
+        [l.target]
       );
     }
-    if (!(M && !M(this, e, t)))
-      return a(this, t), e;
+    if (W && !W(this, e))
+      return H;
+    const t = k(this, "whole"), n = re(), r = M();
+    o.inActiveRecording && b(o.context, this, n, r);
+    const i = Object.keys(t);
+    return i.push("length"), Reflect.ownKeys(e).forEach((l) => {
+      l !== "length" && !Y(l) && i.push(l);
+    }), Je(this, n, r).forEach((l) => {
+      i.indexOf(l) === -1 && i.push(l);
+    }), i;
   }
-  function Gt(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let n = this.meta.forwardTo[p].handler;
+  function Nn(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let n = this.meta.rebuildTwin[p].handler;
+      return n.has.apply(n, [n.target, t]);
+    }
+    if (W && !W(this, e, t))
+      return H;
+    if (t === "length") return !0;
+    if (Y(t)) {
+      const n = Number(t);
+      return n in k(this, "index", n);
+    }
+    return typeof t == "symbol" || t in Array.prototype ? t in e : Qt.call(this, e, t);
+  }
+  function Mn(e, t, n) {
+    if (this.meta.rebuildTwin !== null) {
+      let r = this.meta.rebuildTwin[p].handler;
+      return r.defineProperty.apply(
+        r,
+        [r.target, t, n]
+      );
+    }
+    if (!(B && !B(this, e, t)))
+      return t === "length" || Y(t) ? "value" in n ? Rt.call(this, e, t, n.value) : !1 : Dt.call(this, e, t, n);
+  }
+  function Wn(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let n = this.meta.rebuildTwin[p].handler;
       return n.getOwnPropertyDescriptor.apply(
         n,
         [n.target, t]
       );
     }
-    return I && !I(this, e, t) ? F : (r.inActiveRecording && A(r.context, this), Object.getOwnPropertyDescriptor(e, t));
+    if (W && !W(this, e, t))
+      return H;
+    if (t === "length")
+      return { value: k(this, "length").length, writable: !0, enumerable: !1, configurable: !1 };
+    if (Y(t)) {
+      const n = Number(t), r = k(this, "index", n);
+      return n in r ? { value: r[n], writable: !0, enumerable: !0, configurable: !0 } : void 0;
+    }
+    return Bt.call(this, e, t);
   }
-  function Oe(e, t) {
+  function Ln(e, t) {
+    const n = e[p].handler, r = L ? U(n).slice() : null;
+    q(n, { kind: "assign", items: t.slice() }), L && ie(n, 0, r, t.slice());
+  }
+  function kn(e, t) {
+    const n = {
+      key: Be,
+      handler: e,
+      isArray: !0,
+      first: null,
+      last: null,
+      currentWriting: null,
+      // The current content, and the writing it's the elements as of -
+      // see moveArrayCursor(). None yet: built when first needed.
+      cursorWriting: null,
+      cursorContent: null,
+      // Bumped by every change to the elements, anywhere on the timeline -
+      // see recordArrayRead() and syncArrayMirror().
+      version: 0
+    };
+    return Ge(n), n.first.content = t.slice(), e.mirrorVersion = n.version, n;
+  }
+  function Qn(e, t) {
+    Object.keys(t).forEach(function(n) {
+      if (Y(n)) return;
+      const r = Object.getOwnPropertyDescriptor(t, n);
+      if (typeof r.get == "function" || typeof r.set == "function" || typeof r.value == "function") return;
+      delete t[n];
+      const i = Ae(e, n, 0, null);
+      i.value = r.value, i.set = !0;
+    });
+  }
+  function Dn(e, t) {
+    const n = e.elements, r = Q(n, _(), M()), i = te(n, r);
+    let l = !1;
+    const u = i.slice();
+    for (let d = 0; d < u.length; d++) {
+      if (!(d in u)) continue;
+      const a = t(u[d]);
+      a !== u[d] && (u[d] = a, l = !0);
+    }
+    l && (r.ops !== null ? r.ops = [{ kind: "assign", items: u.slice() }] : r.content = u.slice(), n.cursorContent = u, n.version++, ee.add(e));
+  }
+  function At(e, t) {
     return {
       time: e,
       // Which partial (or null, for external code) actually made this
@@ -940,11 +1237,13 @@ function Yn(s) {
       // intermediate write.
       stale: !1,
       hasNextValue: !1,
-      nextValue: void 0
+      nextValue: void 0,
+      // Whether the buffered write sets the property (false: deletes it).
+      nextSet: !1
     };
   }
-  function Ht(e, t) {
-    const n = Oe(0, null), i = {
+  function Bn(e, t) {
+    const n = At(0, null), r = {
       key: t,
       handler: e,
       first: n,
@@ -954,19 +1253,27 @@ function Yn(s) {
       // times cluster together, instead of always walking from `first`.
       currentWriting: n
     };
-    return n.timeline = i, n.linked = !0, i;
+    return n.timeline = r, n.linked = !0, r;
+  }
+  function Ct(e, t, n) {
+    const r = At(t, n);
+    if (r.timeline = e, e.isArray) {
+      const i = t === 0 && r.writer === null;
+      r.ops = i ? null : [], r.content = i ? [] : null, r.observersAllFlagged = !1;
+    }
+    return r;
   }
   function Ge(e) {
-    const t = Oe(0, null);
-    t.timeline = e, e.first = t, e.last = t, e.currentWriting = t, t.linked = !0;
+    const t = Ct(e, 0, null);
+    e.first = t, e.last = t, e.currentWriting = t, t.linked = !0;
   }
-  function oe(e, t) {
+  function we(e, t) {
     let n = e.timelines[t];
-    return typeof n > "u" ? n = e.timelines[t] = Ht(e, t) : n.first === null && Ge(n), n;
+    return typeof n > "u" ? n = e.timelines[t] = Bn(e, t) : n.first === null && Ge(n), n;
   }
-  function Kt(e) {
+  function Fn(e) {
     return {
-      id: r.observerId++,
+      id: o.observerId++,
       count: 0,
       // live partials currently occupying a chain slot
       first: null,
@@ -991,17 +1298,17 @@ function Yn(s) {
       time: typeof e.options.time < "u" ? e.options.time : 0,
       rootRepeater: e,
       // This pipeline's own work, this wave - see "Repeater scheduling"
-      // below for the full design. heap: repeaters needing attention,
+      // below for the full design. sortedQueue: repeaters needing attention,
       // sorted by repeater.firstPartial's live orderNumber (see
-      // heapInsert/heapPopMin) - never the root repeater itself, which is
+      // sortedQueueInsert/sortedQueuePopMin) - never the root repeater itself, which is
       // always earlier than anything that could be in here and is checked
-      // directly instead (see drainActivePipeline). parkedPartials:
+      // directly instead (see drainActivePipeline). parkedRepeaters:
       // repeaters that arrived behind this pipeline's own wavefront,
       // waiting for the next wave (see scheduleWork). wavefront: the
       // firstPartial of the last-processed repeater this active session -
       // only meaningful while this chainHead === state.activePipeline.
-      heap: [],
-      parkedPartials: [],
+      sortedQueue: [],
+      parkedRepeaters: [],
       wavefront: null,
       // This chainHead's own membership in state.workQueue[time] - which
       // of its two lists (if either) it's currently sitting in, plus the
@@ -1013,409 +1320,438 @@ function Yn(s) {
       previousQueued: null
     };
   }
-  const le = Number.MAX_SAFE_INTEGER, He = Math.floor((le - 1) / 2);
-  function Ke(e) {
-    const t = e.count / le;
+  const Oe = Number.MAX_SAFE_INTEGER, Et = Math.floor((Oe - 1) / 2);
+  function Pt(e) {
+    const t = e.count / Oe;
     return t < 0.25 ? 65536 : t < 0.75 ? 256 : 1;
   }
-  function Ve(e, t) {
-    if (e.count >= He)
-      throw new Error("Partial chain exhausted its order-number space (" + He + " live partials)");
-    const n = e.executionCursor, i = n !== null ? n.orderNext : null;
-    let o;
+  function It(e, t) {
+    if (e.count >= Et)
+      throw new Error("Partial chain exhausted its order-number space (" + Et + " live partials)");
+    const n = e.executionCursor, r = n !== null ? n.orderNext : null;
+    let i;
     if (n === null)
-      o = 0;
-    else if (i === null)
-      o = n.orderNumber + Ke(e);
+      i = 0;
+    else if (r === null)
+      i = n.orderNumber + Pt(e);
     else {
-      const l = Ke(e), f = n.orderNumber + l;
-      o = f < i.orderNumber ? f : Math.floor((n.orderNumber + i.orderNumber) / 2);
+      const l = Pt(e), u = n.orderNumber + l;
+      i = u < r.orderNumber ? u : Math.floor((n.orderNumber + r.orderNumber) / 2);
     }
-    t.orderNumber = o, t.orderPrevious = n, t.orderNext = i, n !== null ? n.orderNext = t : e.first = t, i !== null ? i.orderPrevious = t : e.last = t, e.count++, e.executionCursor = t, i !== null && (o - n.orderNumber <= 1 || i.orderNumber - o <= 1) && Vt(e, t);
+    t.orderNumber = i, t.orderPrevious = n, t.orderNext = r, n !== null ? n.orderNext = t : e.first = t, r !== null ? r.orderPrevious = t : e.last = t, e.count++, e.executionCursor = t, r !== null && (i - n.orderNumber <= 1 || r.orderNumber - i <= 1) && Xn(e, t);
   }
-  function Vt(e, t) {
+  function Xn(e, t) {
     const n = t.orderNumber;
-    let i = t, o = t, l = 0, f = 0, h = 1, m = !1, C = !1;
-    function R() {
-      if (o.orderNext === null) {
-        f = le - n, m = !0;
+    let r = t, i = t, l = 0, u = 0, d = 1, a = !1, w = !1;
+    function C() {
+      if (i.orderNext === null) {
+        u = Oe - n, a = !0;
         return;
       }
-      o = o.orderNext, f = o.orderNumber - n, h++;
+      i = i.orderNext, u = i.orderNumber - n, d++;
     }
-    function E() {
-      if (i.orderPrevious === null) {
-        C = !0;
+    function y() {
+      if (r.orderPrevious === null) {
+        w = !0;
         return;
       }
-      i = i.orderPrevious, l = n - i.orderNumber, h++;
+      r = r.orderPrevious, l = n - r.orderNumber, d++;
     }
-    for (R(); !(m && C) && h / (f + l) > 0.5; )
-      C ? R() : m || f > l ? E() : R();
-    const W = i.orderNumber, P = m ? le : o.orderNumber, B = [];
-    for (let Q = i; B.push(Q), Q !== o; Q = Q.orderNext)
+    for (C(); !(a && w) && d / (u + l) > 0.5; )
+      w ? C() : a || u > l ? y() : C();
+    const A = r.orderNumber, S = a ? Oe : i.orderNumber, D = [];
+    for (let F = r; D.push(F), F !== i; F = F.orderNext)
       ;
-    const U = B.length - 1;
-    if (U <= 0) return;
-    const Xn = (P - W) / U;
-    for (let Q = 0; Q < B.length; Q++)
-      B[Q].orderNumber = Math.round(W + Q * Xn);
+    const z = D.length - 1;
+    if (z <= 0) return;
+    const j = (S - A) / z;
+    for (let F = 0; F < D.length; F++)
+      D[F].orderNumber = Math.round(A + F * j);
   }
-  function _t(e, t, n) {
+  function zn(e, t, n) {
     t.orderNumber = n.orderNumber, t.orderPrevious = n.orderPrevious, t.orderNext = n.orderNext, t.orderPrevious !== null ? t.orderPrevious.orderNext = t : e.first = t, t.orderNext !== null ? t.orderNext.orderPrevious = t : e.last = t, e.executionCursor = t;
   }
-  function _e(e, t) {
+  function Tt(e, t) {
     t.orderPrevious !== null ? t.orderPrevious.orderNext = t.orderNext : e.first = t.orderNext, t.orderNext !== null ? t.orderNext.orderPrevious = t.orderPrevious : e.last = t.orderPrevious, e.executionCursor === t && (e.executionCursor = t.orderPrevious || t.orderNext || null), t.orderPrevious = null, t.orderNext = null, e.count--;
   }
-  function Ut(e, t) {
-    _e(e, t), Ve(e, t);
+  function qn(e, t) {
+    Tt(e, t), It(e, t);
   }
-  function $(e, t) {
+  function he(e, t) {
     if (e === t) return 0;
     if (e === null) return -1;
     if (t === null) return 1;
-    const n = e.repeater.chainHead, i = t.repeater.chainHead;
-    if (n !== i) return n.id - i.id;
-    const o = $t(e, t);
-    return o !== null ? o : e.orderNumber - t.orderNumber;
+    const n = e.repeater.chainHead, r = t.repeater.chainHead;
+    if (n !== r) return n.id - r.id;
+    const i = Kn(e, t);
+    return i !== null ? i : e.orderNumber - t.orderNumber;
   }
-  function Ue(e) {
+  function St(e) {
     const t = [];
     let n = e;
     for (; n; )
       t.push(n), n = n.parentRepeater;
     return t;
   }
-  function Yt(e, t, n) {
-    let i = e.children.first;
-    for (; i !== null; ) {
-      if (i === t) return -1;
-      if (i === n) return 1;
-      i = i.nextSibling;
-    }
-    const o = t.listMembership === "pending", l = n.listMembership === "pending";
-    return o && !l ? 1 : l && !o ? -1 : null;
+  function Vn(e, t, n) {
+    const r = e.children, i = t.childList === r, l = n.childList === r;
+    if (i && l) return t.siblingIndex < n.siblingIndex ? -1 : 1;
+    if (i) return -1;
+    if (l) return 1;
+    const u = e.pendingChildren;
+    if (t.childList === u && n.childList === u) return t.siblingIndex < n.siblingIndex ? -1 : 1;
+    const d = t.listMembership === "pending", a = n.listMembership === "pending";
+    return d && !a ? 1 : a && !d ? -1 : null;
   }
-  function $t(e, t) {
+  function Kn(e, t) {
     if (e === t) return 0;
     if (e === null) return -1;
     if (t === null) return 1;
-    const n = Ue(e), i = Ue(t);
-    let o = n.length - 1, l = i.length - 1;
-    if (n[o] !== i[l]) return null;
-    for (; o >= 0 && l >= 0 && n[o] === i[l]; )
-      o--, l--;
-    if (o < 0 || l < 0)
-      return o < 0 ? -1 : 1;
-    const f = n[o + 1];
-    return Yt(f, n[o], i[l]);
+    const n = St(e), r = St(t);
+    let i = n.length - 1, l = r.length - 1;
+    if (n[i] !== r[l]) return null;
+    for (; i >= 0 && l >= 0 && n[i] === r[l]; )
+      i--, l--;
+    if (i < 0 || l < 0)
+      return i < 0 ? -1 : 1;
+    const u = n[i + 1];
+    return Vn(u, n[i], r[l]);
   }
-  function V(e, t, n, i) {
-    return e !== n ? e - n : t !== null && i !== null && t.repeater.chainHead !== i.repeater.chainHead ? -1 : $(t, i);
+  function ne(e, t, n, r) {
+    return e !== n ? e - n : t !== null && r !== null && t.repeater.chainHead !== r.repeater.chainHead ? -1 : he(t, r);
   }
-  function D(e, t, n) {
+  function Q(e, t, n) {
     if (typeof n > "u" && (n = null), e.currentWriting === null && Ge(e), t === 1 / 0)
       return e.currentWriting = e.last;
-    let i = e.currentWriting;
-    if (V(i.time, i.writer, t, n) <= 0)
-      for (; i.next !== null && V(i.next.time, i.next.writer, t, n) <= 0; )
-        i = i.next;
+    let r = e.currentWriting;
+    if (ne(r.time, r.writer, t, n) <= 0)
+      for (; r.next !== null && ne(r.next.time, r.next.writer, t, n) <= 0; )
+        r = r.next;
     else
-      for (; V(i.time, i.writer, t, n) > 0; )
-        i = i.previous;
-    return e.currentWriting = i, i;
+      for (; ne(r.time, r.writer, t, n) > 0; )
+        r = r.previous;
+    return e.currentWriting = r, r;
+  }
+  function Ue(e, t, n) {
+    const r = Q(e, t, n);
+    return ne(r.time, r.writer, t, n) === 0 ? r : null;
+  }
+  function He(e, t) {
+    const n = Q(e, t.time, t.writer), r = n.next;
+    t.writer !== null && (jt(e, t, n), r !== null && jt(e, t, r)), t.previous = n, t.next = r, n.next = t, r !== null ? r.previous = t : e.last = t, e.currentWriting = t, t.linked = !0, e.isArray && xn(e, t);
+  }
+  function jt(e, t, n) {
+    if (n.writer === null || n.time !== t.time) return;
+    const r = n.writer.repeater, i = t.writer.repeater;
+    if (r.chainHead !== i.chainHead)
+      throw new Error(
+        (e.isArray ? "Array elements are" : "Property '" + e.key + "' is") + " already written at time level " + t.time + " by repeater '" + (r.chainHead.rootRepeater.description || "unnamed") + "'s pipeline; repeater '" + (i.description || "unnamed") + "' belongs to a different pipeline at the same time level and cannot write it too. Parallel pipelines may read each other's properties (seeing the latest writing), but each property has one writer pipeline per time level."
+      );
   }
   function Ye(e, t, n) {
-    const i = D(e, t, n);
-    return V(i.time, i.writer, t, n) === 0 ? i : null;
+    const r = Ct(e, t, n);
+    return He(e, r), r;
   }
-  function $e(e, t) {
-    const n = D(e, t.time, t.writer), i = n.next;
-    t.writer !== null && (Je(e, t, n), i !== null && Je(e, t, i)), t.previous = n, t.next = i, n.next = t, i !== null ? i.previous = t : e.last = t, e.currentWriting = t, t.linked = !0;
+  function _e(e) {
+    const t = e.timeline;
+    if (e.linked) {
+      const n = e.previous, r = t.isArray ? t.cursorWriting : null, i = t.isArray ? t.cursorContent : null;
+      Lt(e), He(t, e), r !== null && e.previous === n && (t.cursorWriting = r, t.cursorContent = i);
+      return;
+    }
+    He(t, e);
   }
-  function Je(e, t, n) {
-    if (n.writer === null || n.time !== t.time) return;
-    const i = n.writer.repeater, o = t.writer.repeater;
-    if (i.chainHead !== o.chainHead)
-      throw new Error(
-        "Property '" + e.key + "' is already written at time level " + t.time + " by repeater '" + (i.chainHead.rootRepeater.description || "unnamed") + "'s pipeline; repeater '" + (o.description || "unnamed") + "' belongs to a different pipeline at the same time level and cannot write it too. Parallel pipelines may read each other's properties (seeing the latest writing), but each property has one writer pipeline per time level."
-      );
+  function Nt(e) {
+    return e.hasNextValue ? { set: e.nextSet, value: e.nextSet ? e.nextValue : void 0 } : { set: e.set, value: e.value };
   }
-  function Ze(e, t, n) {
-    const i = Oe(t, n);
-    return i.timeline = e, $e(e, i), i;
+  function Mt(e, t) {
+    const n = Nt(e), r = Nt(t);
+    return n.set !== r.set ? !1 : n.set ? ce(n.value, r.value) : !0;
   }
-  function et(e) {
-    e.linked && rt(e), $e(e.timeline, e);
-  }
-  function tt(e) {
-    return e.hasNextValue ? { set: !0, value: e.nextValue } : { set: e.set, value: e.value };
-  }
-  function nt(e, t) {
-    const n = tt(e), i = tt(t);
-    return n.set !== i.set ? !1 : n.set ? re(n.value, i.value) : !0;
-  }
-  function xe(e, t) {
+  function Re(e, t) {
     return e.observer.type === "partial" && t !== null && e.observer.repeater.chainHead === t.repeater.chainHead;
   }
-  function Jt(e, t) {
-    return e.observers === null ? !1 : T(e, () => !0).some((n) => xe(n, t));
+  function Gn(e, t) {
+    return e.observers === null ? !1 : g(e, () => !0).some((n) => Re(n, t));
   }
-  function it(e, t, n) {
+  function Wt(e, t, n) {
     if (n.length === 0) return;
-    const i = nt(e, t);
-    n.forEach((o) => {
-      if (!o.flagged) {
-        if (i) {
-          j(e, t, o);
+    const r = Mt(e, t);
+    Qe(() => n.forEach((i) => {
+      if (!i.flagged) {
+        if (r) {
+          x(e, t, i);
           return;
         }
-        xe(o, t.writer) ? vt(o.observer.repeater, o, e) : (j(e, t, o), ce(o.observer, t.timeline.handler.proxy, t.timeline.key));
+        Re(i, t.writer) ? st(i.observer.repeater, i, e) : (x(e, t, i), ue(i.observer, t.timeline.handler.proxy, t.timeline.key));
       }
-    });
+    }));
   }
-  function Te(e) {
+  function $e(e) {
+    if (e.timeline.isArray) {
+      Ke(e, e.writer);
+      return;
+    }
     const t = e.previous;
     if (t === null) return;
-    const n = T(
+    const n = g(
       t,
-      (i, o) => V(e.time, e.writer, i, o) < 0
+      (r, i) => ne(e.time, e.writer, r, i) < 0
     );
-    it(t, e, n);
+    Wt(t, e, n);
   }
-  function Zt(e, t) {
+  function Un(e, t) {
     if (e.observers === null) return;
-    const n = T(e, () => !0);
-    it(e, t, n);
+    const n = g(e, () => !0);
+    Wt(e, t, n);
   }
-  function en(e, t, n, i) {
-    const o = oe(e, t);
-    return Ye(o, n, i) || Ze(o, n, i);
+  function Hn(e, t, n, r) {
+    const i = we(e, t);
+    return Ue(i, n, r) || Ye(i, n, r);
   }
-  function tn(e, t, n, i, o) {
-    if (e.observers === null) return;
-    T(
+  function Yn(e, t, n, r, i) {
+    if (e.observers === null || o.blockInvalidation > 0) return;
+    const l = g(
       e,
-      (f, h) => V(t, n, f, h) < 0
-    ).forEach((f) => ce(f.observer, i, o));
+      (u, d) => ne(t, n, u, d) < 0
+    );
+    o.postponeInvalidation++;
+    try {
+      l.forEach((u) => ue(u.observer, r, i));
+    } finally {
+      o.postponeInvalidation--;
+    }
+    me();
   }
-  function rt(e) {
+  function Lt(e) {
     const t = e.timeline;
-    e.previous !== null ? e.previous.next = e.next : t.first = e.next, e.next !== null ? e.next.previous = e.previous : t.last = e.previous, t.currentWriting === e && (t.currentWriting = e.previous || e.next || null), e.previous = null, e.next = null, e.linked = !1;
+    t.isArray && wn(t, e), e.previous !== null ? e.previous.next = e.next : t.first = e.next, e.next !== null ? e.next.previous = e.previous : t.last = e.previous, t.currentWriting === e && (t.currentWriting = e.previous || e.next || null), e.previous = null, e.next = null, e.linked = !1;
   }
-  function Re(e, t, n, i) {
-    return D(oe(e, t), n, i);
+  function Ae(e, t, n, r) {
+    return Q(we(e, t), n, r);
   }
-  function nn(e, t, n) {
-    return D(oe(e, c), t, n);
+  function _n(e, t, n) {
+    return Q(we(e, c), t, n);
   }
-  function rn(e, t) {
+  function $n(e, t) {
     Object.keys(t).forEach(function(n) {
-      const i = Object.getOwnPropertyDescriptor(t, n);
-      if (typeof i.get == "function" || typeof i.set == "function" || typeof i.value == "function")
+      const r = Object.getOwnPropertyDescriptor(t, n);
+      if (typeof r.get == "function" || typeof r.set == "function" || typeof r.value == "function")
         return;
       delete t[n];
-      const o = Re(e, n, 0, null);
-      o.value = i.value, o.set = !0;
+      const i = Ae(e, n, 0, null);
+      i.value = r.value, i.set = !0;
     });
   }
-  function se(e, t, n, i) {
-    const o = e.timelines[t];
-    if (typeof o > "u") return !1;
-    const l = D(o, n, i);
-    return l.hasNextValue || l.set;
+  function ge(e, t, n, r) {
+    const i = e.timelines[t];
+    if (typeof i > "u") return !1;
+    const l = Q(i, n, r);
+    return l.hasNextValue ? l.nextSet : l.set;
   }
-  function Ce(e, t, n, i) {
-    const o = e.timelines[t];
-    if (typeof o > "u") return;
-    const l = D(o, n, i);
-    return l.hasNextValue ? l.nextValue : l.set ? l.value : void 0;
+  function Ce(e, t, n, r) {
+    const i = e.timelines[t];
+    if (typeof i > "u") return;
+    const l = Q(i, n, r);
+    return l.hasNextValue ? l.nextSet ? l.nextValue : void 0 : l.set ? l.value : void 0;
   }
-  function on(e, t, n, i, o) {
-    const l = en(e, t, i, o);
+  function Jn(e, t, n, r, i) {
+    const l = Hn(e, t, r, i);
     l.value = n, l.set = !0;
   }
-  function ot(e, t, n) {
-    const i = [];
-    for (let o in e.timelines)
-      D(e.timelines[o], t, n).set && i.push(o);
-    return i;
+  function Je(e, t, n) {
+    const r = [];
+    for (let i in e.timelines)
+      Q(e.timelines[i], t, n).set && r.push(i);
+    return r;
   }
-  function J() {
-    const e = r.context;
+  function _() {
+    const e = o.context;
     return e && typeof e.time == "function" ? e.time() : 0;
   }
-  function ue() {
-    const e = r.context;
+  function re() {
+    const e = o.context;
     return e && typeof e.time == "function" ? e.time() : 1 / 0;
   }
-  function z() {
-    const e = r.context;
+  function M() {
+    const e = o.context;
     return e && e.type === "partial" ? e : null;
   }
-  function ln(e, t) {
-    if (t = t.toString(), t === p)
+  function Zn(e, t) {
+    if (t === p)
       return this.meta;
-    if (t === ve)
+    if (t === Le)
       return this.timelines;
-    if (this.meta.forwardTo !== null) {
-      let l = this.meta.forwardTo[p].handler;
+    if (this.meta.rebuildTwin !== null) {
+      let l = this.meta.rebuildTwin[p].handler;
       return l.get.apply(l, [l.target, t]);
     }
-    if (I && !I(this, e, t))
-      return F;
-    const n = ue(), i = z();
-    r.inActiveRecording && u(r.context, this, t, n, i);
-    let o = e;
-    for (; o !== null && typeof o < "u"; ) {
-      let l = Object.getOwnPropertyDescriptor(o, t);
-      if (typeof l < "u" && typeof l.get < "u")
-        return l.get.bind(this.meta.proxy)();
-      o = Object.getPrototypeOf(o);
-    }
-    return se(this, t, n, i) ? Ce(this, t, n, i) : e[t];
-  }
-  function sn(e, t, n) {
-    if (t === p) throw new Error("Cannot set the dedicated meta property '" + p + "'");
-    if (t === ve) throw new Error("Cannot set the dedicated timelines property '" + ve + "'");
-    if (this.meta.forwardTo !== null) {
-      let P = this.meta.forwardTo[p].handler;
-      return P.set.apply(P, [P.target, t, n]);
-    }
-    if (this.meta.stateProperties && this.meta.stateProperties.has(t) && r.inRepeater !== null)
-      throw new Error(
-        "Cannot write state property '" + t + "' from inside a repeater. State is written at initialization (declareState/initializeState), from an event handler outside any repeater, or deliberately at initial time via accessInitialValues()/setState()."
-      );
-    if (M && !M(this, e, t))
-      return;
+    if (W && !W(this, e, t))
+      return H;
+    const n = re(), r = M();
+    o.inActiveRecording && f(o.context, this, t, n, r);
     let i = e;
     for (; i !== null && typeof i < "u"; ) {
-      let P = Object.getOwnPropertyDescriptor(i, t);
-      if (typeof P < "u" && typeof P.set == "function")
-        return P.set.call(this.meta.proxy, n), !0;
-      if (typeof P < "u" && typeof P.get < "u")
-        return !1;
+      let l = Object.getOwnPropertyDescriptor(i, t);
+      if (typeof l < "u" && typeof l.get < "u")
+        return l.get.bind(this.meta.proxy)();
       i = Object.getPrototypeOf(i);
     }
-    const o = J(), l = z(), f = oe(this, t), h = r.context;
-    let m = h && h.writings ? h.writings.get(f) : void 0, C = !1, R = null;
-    if (typeof m > "u") {
-      const P = l !== null ? l.repeater : null, B = P !== null && P.staleWritings !== null ? P.staleWritings.get(f) : void 0;
-      if (B && B.length > 0) {
-        const U = B.shift();
-        B.length === 0 && P.staleWritings.delete(f), Jt(U, l) ? R = U : (m = U, h.touchedStaleWritings === null && (h.touchedStaleWritings = []), h.touchedStaleWritings.push(m));
-      }
-      typeof m > "u" && (m = Ye(f, o, l), m === null && (m = Ze(f, o, l), C = !0));
-    }
-    if (m.stale)
-      return m.hasNextValue = !0, m.nextValue = n, m.writer = l, et(m), h && h.writings && h.writings.set(f, m), !0;
-    const E = !m.set, W = m.value;
-    return m.set && re(W, n) || (m.value = n, m.set = !0, h && h.writings && h.writings.set(f, m), x(m, this.proxy, t), C && Te(m), R !== null && Zt(R, m), E && d(this, t, o, l), lt(this, t, n, W)), !0;
+    return ge(this, t, n, r) ? Ce(this, t, n, r) : e[t];
   }
-  function un(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let f = this.meta.forwardTo[p].handler;
-      return f.deleteProperty.apply(
-        f,
-        [f.target, t]
+  function er(e, t, n) {
+    if (t === p) throw new Error("Cannot set the dedicated meta property '" + p + "'");
+    if (t === Le) throw new Error("Cannot set the dedicated timelines property '" + Le + "'");
+    if (this.meta.rebuildTwin !== null) {
+      let i = this.meta.rebuildTwin[p].handler;
+      return i.set.apply(i, [i.target, t, n]);
+    }
+    if (this.meta.stateProperties && this.meta.stateProperties.has(t) && o.inRepeater !== null)
+      throw new Error(
+        "Cannot write state property '" + t + "' from inside a repeater. State is written at initialization (declareState/initialState), from an event handler outside any repeater, or deliberately at initial time via accessInitialValues()/setState()."
+      );
+    if (B && !B(this, e, t))
+      return;
+    let r = e;
+    for (; r !== null && typeof r < "u"; ) {
+      let i = Object.getOwnPropertyDescriptor(r, t);
+      if (typeof i < "u" && typeof i.set == "function")
+        return i.set.call(this.meta.proxy, n), !0;
+      if (typeof i < "u" && typeof i.get < "u")
+        return !1;
+      r = Object.getPrototypeOf(r);
+    }
+    return Ee(this, t, n, !0);
+  }
+  function Ee(e, t, n, r) {
+    const i = _(), l = M(), u = we(e, t), d = o.context;
+    let a = d && d.writings ? d.writings.get(u) : void 0, w = !1, C = null;
+    if (typeof a > "u") {
+      const S = l !== null ? l.repeater : null, D = S !== null && S.staleWritings !== null ? S.staleWritings.get(u) : void 0;
+      if (D && D.length > 0) {
+        const z = D.shift();
+        D.length === 0 && S.staleWritings.delete(u), Gn(z, l) ? C = z : (a = z, d.touchedStaleWritings === null && (d.touchedStaleWritings = []), d.touchedStaleWritings.push(a));
+      }
+      typeof a > "u" && (a = Ue(u, i, l), a === null && (a = Ye(u, i, l), w = !0));
+    }
+    if (a.stale)
+      return a.hasNextValue = !0, a.nextSet = r, a.nextValue = r ? n : void 0, a.writer = l, _e(a), d && d.writings && d.writings.set(u, a), !0;
+    const y = a.set, A = a.value;
+    return r && y && ce(A, n) || !r && !y && !w && C === null || (a.value = r ? n : void 0, a.set = r, d && d.writings && d.writings.set(u, a), (r || y) && h(a, e.proxy, t), w && $e(a), C !== null && Un(C, a), (r ? !y : y || w) && m(e, t, i, l), r ? Ft(e, t, n, A) : tt(e, t, A)), !0;
+  }
+  function kt(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let u = this.meta.rebuildTwin[p].handler;
+      return u.deleteProperty.apply(
+        u,
+        [u.target, t]
       ), !0;
     }
-    if (M && !M(this, e, t))
+    if (B && !B(this, e, t))
       return;
-    const n = J(), i = z(), o = se(this, t, n, i);
-    if (!o && !(t in e))
+    const n = _(), r = M();
+    if (r !== null)
+      return ge(this, t, n, r) ? Ee(this, t, void 0, !1) : !0;
+    const i = ge(this, t, n, r);
+    if (!i && !(t in e))
       return !0;
     let l;
-    if (o) {
-      const f = Re(this, t, n, i);
-      l = f.value, f.value = void 0, f.set = !1;
+    if (i) {
+      const u = Ae(this, t, n, r);
+      l = u.value, u.value = void 0, u.set = !1;
     } else
       l = e[t], delete e[t];
-    return b(this, t, n, i), d(this, t, n, i), st(this, t, l), !0;
+    return O(this, t, n, r), m(this, t, n, r), tt(this, t, l), !0;
   }
-  function an(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let l = this.meta.forwardTo[p].handler;
+  function tr(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let l = this.meta.rebuildTwin[p].handler;
       return l.ownKeys.apply(
         l,
         [l.target, t]
       );
     }
-    if (I && !I(this, e, t))
-      return F;
-    const n = ue(), i = z();
-    r.inActiveRecording && g(r.context, this, n, i);
-    let o = Object.keys(e);
-    return ot(this, n, i).forEach(function(l) {
-      o.indexOf(l) === -1 && o.push(l);
-    }), o;
+    if (W && !W(this, e, t))
+      return H;
+    const n = re(), r = M();
+    o.inActiveRecording && b(o.context, this, n, r);
+    let i = Object.keys(e);
+    return Je(this, n, r).forEach(function(l) {
+      i.indexOf(l) === -1 && i.push(l);
+    }), i;
   }
-  function fn(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let o = this.meta.forwardTo[p].handler;
-      return o.has.apply(
-        o,
-        [o.target, t]
-      );
-    }
-    if (I && !I(this, e, t))
-      return F;
-    const n = ue(), i = z();
-    return r.inActiveRecording && g(r.context, this, n, i), se(this, t, n, i) ? !0 : t in e;
-  }
-  function cn(e, t, n) {
-    if (this.meta.forwardTo !== null) {
-      let i = this.meta.forwardTo[p].handler;
-      return i.defineProperty.apply(
+  function Qt(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let i = this.meta.rebuildTwin[p].handler;
+      return i.has.apply(
         i,
         [i.target, t]
       );
     }
-    if (!(M && !M(this, e, t)))
-      return d(this, "define property", J(), z()), Reflect.defineProperty(e, t, n);
+    if (W && !W(this, e, t))
+      return H;
+    const n = re(), r = M();
+    return o.inActiveRecording && b(o.context, this, n, r), ge(this, t, n, r) ? !0 : t in e;
   }
-  function dn(e, t) {
-    if (this.meta.forwardTo !== null) {
-      let l = this.meta.forwardTo[p].handler;
+  function Dt(e, t, n) {
+    if (this.meta.rebuildTwin !== null) {
+      let r = this.meta.rebuildTwin[p].handler;
+      return r.defineProperty.apply(
+        r,
+        [r.target, t, n]
+      );
+    }
+    if (!(B && !B(this, e, t)))
+      return "value" in n && typeof n.value != "function" ? Ee(this, t, n.value, !0) : (m(this, t, _(), M()), Reflect.defineProperty(e, t, n));
+  }
+  function Bt(e, t) {
+    if (this.meta.rebuildTwin !== null) {
+      let l = this.meta.rebuildTwin[p].handler;
       return l.getOwnPropertyDescriptor.apply(l, [l.target, t]);
     }
-    if (I && !I(this, e, t))
-      return F;
-    const n = ue(), i = z();
-    r.inActiveRecording && g(r.context, this, n, i);
-    const o = Object.getOwnPropertyDescriptor(e, t);
-    if (typeof o < "u") return o;
-    if (se(this, t, n, i))
+    if (W && !W(this, e, t))
+      return H;
+    const n = re(), r = M();
+    o.inActiveRecording && b(o.context, this, n, r);
+    const i = Object.getOwnPropertyDescriptor(e, t);
+    if (typeof i < "u") return i;
+    if (ge(this, t, n, r))
       return {
-        value: Ce(this, t, n, i),
+        value: Ce(this, t, n, r),
         writable: !0,
         enumerable: !0,
         configurable: !0
       };
   }
-  function k(e) {
-    return e !== null && typeof e == "object" && typeof e[p] == "object" && e[p].world === w;
+  function V(e) {
+    return e !== null && typeof e == "object" && typeof e[p] == "object" && e[p].world === E;
   }
-  function ae(e, t) {
+  function Ze(e, t) {
     if (typeof e > "u" && (e = {}), typeof e != "object") return e;
-    if (typeof t > "u" && (t = null), k(e))
+    if (typeof t > "u" && (t = null), V(e))
       throw new Error("Cannot observe an already observed object!");
     let n;
     e instanceof Array ? n = {
-      _arrayObservers: null,
+      // Its other (non-index) properties - see "Array Handlers".
+      timelines: /* @__PURE__ */ Object.create(null),
+      // Set right below - see createElementsTimeline().
+      elements: null,
+      // The elements timeline's version the target last mirrored - see
+      // syncArrayMirror().
+      mirrorVersion: 0,
       // getPrototypeOf: function () {},
       // setPrototypeOf: function () {},
       // isExtensible: function () {},
       // preventExtensions: function () {},
       // apply: function () {},
       // construct: function () {},
-      get: Bt,
-      set: Qt,
-      deleteProperty: Xt,
-      ownKeys: Ft,
-      has: zt,
-      defineProperty: qt,
-      getOwnPropertyDescriptor: Gt
+      get: Tn,
+      set: Rt,
+      deleteProperty: Sn,
+      ownKeys: jn,
+      has: Nn,
+      defineProperty: Mn,
+      getOwnPropertyDescriptor: Wn
     } : n = {
       // Object.create(null), not {} - this is used as a map from
       // property key to timeline (see hasTimelineValue/getOrCreateTimeline),
@@ -1438,141 +1774,147 @@ function Yn(s) {
       // preventExtensions: function () {},
       // apply: function () {},
       // construct: function () {},
-      get: ln,
-      set: sn,
-      deleteProperty: un,
-      ownKeys: an,
-      has: fn,
-      defineProperty: cn,
-      getOwnPropertyDescriptor: dn
+      get: Zn,
+      set: er,
+      deleteProperty: kt,
+      ownKeys: tr,
+      has: Qt,
+      defineProperty: Dt,
+      getOwnPropertyDescriptor: Bt
     };
-    let i = new Proxy(e, n);
-    if (n.target = e, n.proxy = i, n.meta = {
-      world: w,
+    let r = new Proxy(e, n);
+    if (n.target = e, n.proxy = r, n.meta = {
+      world: E,
       id: "not yet",
       // Wait for rebuild analysis
       buildId: t,
-      forwardTo: null,
+      rebuildTwin: null,
       target: e,
       handler: n,
-      proxy: i,
+      proxy: r,
       // Here to avoid prevent events being sent to objects being rebuilt.
-      isBeingRebuilt: !1
-    }, e instanceof Array || rn(n, e), r.inRepeater !== null) {
-      const o = r.inRepeater;
+      isRebuildTwin: !1
+    }, e instanceof Array ? (n.elements = kn(n, e), Qn(n, e)) : $n(n, e), o.inRepeater !== null) {
+      const i = o.inRepeater;
       if (t !== null) {
-        if (o.newBuildIdObjectMap || (o.newBuildIdObjectMap = {}), o.buildIdObjectMap && typeof o.buildIdObjectMap[t] < "u" && Object.getPrototypeOf(o.buildIdObjectMap[t][p].target) === Object.getPrototypeOf(e) && (!o.options.rebuildShapeAnalysis || !o.options.rebuildShapeAnalysis.allowMatch || Qe(
-          () => o.options.rebuildShapeAnalysis.allowMatch(o.buildIdObjectMap[t], i)
-        ))) {
-          n.meta.isBeingRebuilt = !0;
-          let l = o.buildIdObjectMap[t];
-          l[p].forwardTo = i, o.options.rebuildShapeAnalysis && (n.meta.copyTo = l), n.meta.id = "temp-" + r.nextTempObjectId++, o.newBuildIdObjectMap[t] = l, i = l, n = i[p].handler, ut(l[p].handler);
+        if (i.newBuildIdObjectMap || (i.newBuildIdObjectMap = {}), typeof i.newBuildIdObjectMap[t] < "u")
+          throw new Error('Duplicate key "' + t + '" in one build (a ' + (e.constructor ? e.constructor.name : "object") + "): keys must be unique among what a build constructs.");
+        if (i.buildIdObjectMap && typeof i.buildIdObjectMap[t] < "u" && Object.getPrototypeOf(i.buildIdObjectMap[t][p].target) === Object.getPrototypeOf(e)) {
+          n.meta.isRebuildTwin = !0;
+          let l = i.buildIdObjectMap[t];
+          l[p].rebuildTwin = r, i.options.rebuildShapeAnalysis && (n.meta.establishedOriginal = l), n.meta.id = "temp-" + o.nextTempObjectId++, i.newBuildIdObjectMap[t] = l, r = l, n = r[p].handler, Xt(l[p].handler);
         } else
-          n.meta.id = r.nextObjectId++, n.meta.pendingOnEstablishCall = !0, o.newBuildIdObjectMap[t] = i, fe(n);
-        o.options.rebuildShapeAnalysis && (o.newIdObjectShapeMap || (o.newIdObjectShapeMap = {}), o.newIdObjectShapeMap[n.meta.id] = i);
-      } else o.options.rebuildShapeAnalysis ? (n.meta.id = r.nextObjectId++, n.meta.pendingCreationEvent = !0, n.meta.pendingOnEstablishCall = !0, o.newIdObjectShapeMap || (o.newIdObjectShapeMap = {}), o.newIdObjectShapeMap[n.meta.id] = i) : (n.meta.id = r.nextObjectId++, fe(n));
+          n.meta.id = o.nextObjectId++, n.meta.pendingOnEstablishCall = !0, i.newBuildIdObjectMap[t] = r, Pe(n);
+        i.options.rebuildShapeAnalysis && (i.newIdObjectShapeMap || (i.newIdObjectShapeMap = {}), i.newIdObjectShapeMap[n.meta.id] = r);
+      } else i.options.rebuildShapeAnalysis ? (n.meta.id = o.nextObjectId++, n.meta.pendingCreationEvent = !0, n.meta.pendingOnEstablishCall = !0, i.newIdObjectShapeMap || (i.newIdObjectShapeMap = {}), i.newIdObjectShapeMap[n.meta.id] = r) : (n.meta.id = o.nextObjectId++, Pe(n));
     } else
-      n.meta.id = r.nextObjectId++, fe(n);
-    return i;
+      n.meta.id = o.nextObjectId++, Pe(n);
+    return r;
   }
-  function Pe(e, t) {
-    if (k(e) || typeof e != "object" || e === null) return e;
+  function et(e, t) {
+    if (V(e) || typeof e != "object" || e === null) return e;
     let n;
     if (t) {
-      const i = e instanceof Array ? [] : {};
-      for (let o in e)
-        i[o] = Pe(e[o], t);
-      n = i;
+      const r = e instanceof Array ? [] : {};
+      for (let i in e)
+        r[i] = et(e[i], t);
+      n = r;
     } else {
       n = e;
-      for (let i in e)
-        n[i] = Pe(n[i], t);
+      for (let r in e)
+        n[r] = et(n[r], t);
     }
-    return ae(n);
+    return Ze(n);
   }
-  function G(e, t, n, i) {
-    N && H(e, { type: "splice", index: t, removed: n, added: i });
+  function ie(e, t, n, r) {
+    L && le(e, { type: "splice", index: t, removed: n, added: r });
   }
-  function pn(e, t, n, i) {
-    N && H(e, {
+  function nr(e, t, n, r) {
+    L && le(e, {
       type: "splice",
       index: t,
-      removed: [i],
+      removed: [r],
       added: [n]
     });
   }
-  function lt(e, t, n, i) {
-    N && H(e, {
+  function Ft(e, t, n, r) {
+    L && le(e, {
       type: "set",
       property: t,
       newValue: n,
-      oldValue: i
+      oldValue: r
     });
   }
-  function st(e, t, n) {
-    N && H(e, {
+  function tt(e, t, n) {
+    L && le(e, {
       type: "delete",
       property: t,
       deletedValue: n
     });
   }
-  function ut(e) {
-    N && H(e, { type: "reCreate" });
+  function Xt(e) {
+    L && le(e, { type: "reCreate" });
   }
-  function fe(e) {
-    N && H(e, { type: "create" });
+  function Pe(e) {
+    L && le(e, { type: "create" });
   }
-  function at(e) {
-    N && H(e, { type: "dispose" });
+  function rr(e) {
+    L && le(e, { type: "dispose" });
   }
-  function H(e, t) {
-    t.object = e.meta.proxy, t.objectId = e.meta.id, !(!St && e.meta.isBeingRebuilt) && (ye && ye(t), Be && typeof e.target.onChange == "function" && e.proxy.onChange(t));
+  function le(e, t) {
+    t.object = e.meta.proxy, t.objectId = e.meta.id, !(!cn && e.meta.isRebuildTwin) && (ke && ke(t), gt && typeof e.target.onChange == "function" && e.proxy.onChange(t));
   }
-  function Ie() {
-    if (r.postponeInvalidation == 0) {
-      for (r.postponeRefreshRepeaters++; r.nextObserverToInvalidate !== null; ) {
-        let e = r.nextObserverToInvalidate;
-        r.nextObserverToInvalidate = null;
-        const t = e.nextToNotify;
-        t ? (e.nextToNotify = null, r.nextObserverToInvalidate = t) : r.lastObserverToInvalidate = null, e.invalidateAction(), ie(e);
+  function me() {
+    if (o.postponeInvalidation == 0) {
+      o.postponeRefreshRepeaters++;
+      try {
+        for (; o.nextObserverToInvalidate !== null; ) {
+          let e = o.nextObserverToInvalidate;
+          o.nextObserverToInvalidate = null;
+          const t = e.nextToNotify;
+          t ? (e.nextToNotify = null, o.nextObserverToInvalidate = t) : o.lastObserverToInvalidate = null, e.invalidateAction();
+        }
+      } finally {
+        o.postponeRefreshRepeaters--;
       }
-      r.postponeRefreshRepeaters--, xt();
+      en();
     }
   }
-  function ce(e, t, n) {
+  function ue(e, t, n) {
     if (e.type === "partial" && e.repeater.isRecording) {
-      _(e.repeater, e);
+      se(e.repeater, e);
       return;
     }
-    let i = !1, o = r.context;
-    for (; o; ) {
-      if (o === e) {
-        i = !0;
+    let r = !1, i = o.context;
+    for (; i; ) {
+      if (i === e) {
+        r = !0;
         break;
       }
-      o = o.parent;
+      i = i.parent;
     }
-    i || (e.invalidatedInContext = r.context, e.invalidatedByKey = n, e.invalidatedByObject = t, e.dispose(), r.postponeInvalidation > 0 ? (ne(e), r.lastObserverToInvalidate !== null ? r.lastObserverToInvalidate.nextToNotify = e : r.nextObserverToInvalidate = e, r.lastObserverToInvalidate = e) : e.invalidateAction(n));
+    r || (e.invalidatedInContext = o.context, e.invalidatedByKey = n, e.invalidatedByObject = t, e.dispose(), o.postponeInvalidation > 0 ? (o.lastObserverToInvalidate !== null ? o.lastObserverToInvalidate.nextToNotify = e : o.nextObserverToInvalidate = e, o.lastObserverToInvalidate = e) : e.invalidateAction(n));
   }
-  function hn(e, t) {
+  function ir(e, t) {
     return {
-      createdCount: 0,
-      createdTemporaryCount: 0,
-      removedCount: 0,
       isRecording: !0,
       type: "invalidator",
-      id: r.observerId++,
+      id: o.observerId++,
       description: e,
       sources: [],
       nextToNotify: null,
       invalidateAction: t,
       dispose: function() {
-        te(this);
+        R(this);
       },
       record: function(n) {
-        if (r.context == this || this.isRemoved) return n();
-        const i = Y(this), o = n();
-        return K(i), o;
+        if (o.context == this || this.isRemoved) return n();
+        const r = ae(this);
+        try {
+          return n();
+        } finally {
+          Z(r);
+        }
       },
       returnValue: null,
       causalityString() {
@@ -1580,21 +1922,27 @@ function Yn(s) {
       }
     };
   }
-  function mn() {
+  function zt() {
     let e, t, n = null;
     if (arguments.length > 2)
       n = arguments[0], e = arguments[1], t = arguments[2];
     else {
-      if (At) throw new Error("Missing description for 'invalidateOnChange'");
+      if (fn) throw new Error("Missing description for 'invalidateOnChange'");
       e = arguments[0], t = arguments[1];
     }
-    const i = y(n, t);
-    return Y(i), i.returnValue = e(i), K(i), i;
+    const r = I(n, t);
+    ae(r);
+    try {
+      r.returnValue = e(r);
+    } finally {
+      Z(r);
+    }
+    return r;
   }
-  function gn(e) {
+  function lr(e) {
     return {
       type: "partial",
-      id: r.observerId++,
+      id: o.observerId++,
       description: e.description,
       repeater: e,
       sources: [],
@@ -1616,6 +1964,10 @@ function Yn(s) {
       // it batched up behind everything the rest of this run's later
       // partials also happen to touch.
       touchedStaleWritings: null,
+      // Array writings this partial wrote - their readers settled when it
+      // closes, all its operations at once (see mutateArray()/
+      // settleTouchedArrayWritings()).
+      touchedArrayWritings: null,
       // Sibling pointers within the owning repeater's children/
       // pendingChildren list (partials and real child repeaters share one
       // list) - see createChildList()/attachToCurrentParent() below.
@@ -1636,7 +1988,7 @@ function Yn(s) {
         return this.repeater.time();
       },
       dispose() {
-        te(this);
+        R(this);
       },
       invalidateAction() {
         this.repeater.invalidateAction(this);
@@ -1646,34 +1998,37 @@ function Yn(s) {
       }
     };
   }
-  function de() {
+  function Ie() {
     return { first: null, last: null };
   }
-  function ft(e, t) {
-    t.previousSibling = e.last, t.nextSibling = null, e.last !== null ? e.last.nextSibling = t : e.first = t, e.last = t;
+  function qt(e, t) {
+    t.previousSibling = e.last, t.nextSibling = null, t.siblingIndex = e.last !== null ? e.last.siblingIndex + 1 : 0, t.childList = e, e.last !== null ? e.last.nextSibling = t : e.first = t, e.last = t;
   }
-  function pe(e, t) {
-    t.previousSibling !== null ? t.previousSibling.nextSibling = t.nextSibling : e.first = t.nextSibling, t.nextSibling !== null ? t.nextSibling.previousSibling = t.previousSibling : e.last = t.previousSibling, t.previousSibling = null, t.nextSibling = null;
+  function Te(e, t) {
+    t.previousSibling !== null ? t.previousSibling.nextSibling = t.nextSibling : e.first = t.nextSibling, t.nextSibling !== null ? t.nextSibling.previousSibling = t.previousSibling : e.last = t.previousSibling, t.previousSibling = null, t.nextSibling = null, t.childList = null;
   }
-  function ct(e) {
-    const t = gn(e);
+  function Vt(e) {
+    const t = lr(e);
     let n = !1;
     if (e.reconciling) {
-      const i = e.pendingChildren.first;
-      i !== null && i.type === "partial" ? (pe(e.pendingChildren, i), te(i), _t(e.chainHead, t, i), n = !0) : e.reconciling = !1;
+      const r = e.pendingChildren.first;
+      r !== null && r.type === "partial" ? (Te(e.pendingChildren, r), R(r), zn(e.chainHead, t, r), n = !0) : e.reconciling = !1;
     }
-    return n || Ve(e.chainHead, t), e.rightmostPartial = t, t.parentRepeater = e, t.listMembership = "confirmed", e.currentPartial = t, ft(e.children, t), t;
+    return n || It(e.chainHead, t), e.rightmostPartial = t, t.parentRepeater = e, t.listMembership = "confirmed", e.currentPartial = t, qt(e.children, t), t;
   }
-  function Ae(e, t) {
+  function nt(e, t, n) {
     if (e.type === "partial")
-      for (const n of e.writings.values()) t.push(n);
+      for (const r of e.writings.values()) t.push(r);
     else {
-      let n = e.children.first;
-      for (; n !== null; )
-        Ae(n, t), n = n.nextSibling;
+      const r = n ? [e.children, e.pendingChildren] : [e.children];
+      for (const i of r) {
+        let l = i.first;
+        for (; l !== null; )
+          nt(l, t, n), l = l.nextSibling;
+      }
     }
   }
-  function bn(e, t) {
+  function or(e, t) {
     let n = e;
     for (; n !== null; ) {
       if (n === t) return !0;
@@ -1681,75 +2036,72 @@ function Yn(s) {
     }
     return !1;
   }
-  function vn(e, t) {
+  function sr(e, t) {
     const n = [];
-    Ae(e, n);
-    for (const i of n) {
-      const o = T(i, () => !0);
-      for (const l of o)
-        l.flagged || bn(l.observer.repeater, t) && ($(i.writer, l.writer) < 0 || (l.flagged = !0, _(l.observer.repeater)));
+    nt(e, n);
+    for (const r of n) {
+      const i = g(r, () => !0);
+      for (const l of i)
+        l.flagged || or(l.observer.repeater, t) && (he(r.writer, l.writer) < 0 || (l.flagged = !0, se(l.observer.repeater)));
     }
   }
-  function yn(e) {
+  function ur(e) {
     const t = [];
-    Ae(e, t);
+    nt(e, t, !0);
     const n = /* @__PURE__ */ new Map();
-    for (const i of t) {
-      if (!i.linked) continue;
-      let o = n.get(i.timeline);
-      o || (o = [], n.set(i.timeline, o)), o.push(i);
+    for (const r of t) {
+      if (!r.linked) continue;
+      let i = n.get(r.timeline);
+      i || (i = [], n.set(r.timeline, i)), i.push(r);
     }
-    for (const i of n.values()) {
-      i.sort((o, l) => $(o.writer, l.writer));
-      for (const o of i)
-        et(o), Te(o);
+    for (const r of n.values()) {
+      r.sort((i, l) => he(i.writer, l.writer));
+      for (const i of r)
+        _e(i), $e(i);
     }
   }
-  function dt(e) {
-    const t = r.context;
+  function Kt(e) {
+    const t = o.context;
     if (!t || t.type !== "partial")
       return;
     const n = t.repeater;
-    let i = null, o = !1;
+    let r = null, i = !1;
     if (n.reconciling && n.pendingChildren.first === e)
-      pe(n.pendingChildren, e);
+      Te(n.pendingChildren, e);
     else {
-      if (o = !0, n.reconciling = !1, e.parentRepeater === n && e.listMembership === "pending") {
-        i = [];
-        let h = n.pendingChildren.first;
-        for (; h !== e; )
-          i.push(h), h = h.nextSibling;
-        pe(n.pendingChildren, e);
+      if (i = !0, n.reconciling = !1, e.parentRepeater === n && e.listMembership === "pending") {
+        r = [];
+        let d = n.pendingChildren.first;
+        for (; d !== e; )
+          r.push(d), d = d.nextSibling;
+        Te(n.pendingChildren, e);
       }
-      e.rightmostPartial && Ut(n.chainHead, e.rightmostPartial);
+      e.rightmostPartial && qn(n.chainHead, e.rightmostPartial);
     }
     const l = e.parentRepeater;
-    if (l && l !== n && e.listMembership && pe(e.listMembership === "pending" ? l.pendingChildren : l.children, e), e.parentRepeater = n, e.listMembership = "confirmed", typeof e.retracted < "u" && (e.retracted = !1), ft(n.children, e), o && yn(e), i !== null)
-      for (const h of i)
-        vn(h, e);
-    n.chainHead.executionCursor = e.rightmostPartial, je(t), K(t);
-    const f = ct(n);
-    Y(f);
+    if (l && l !== n && e.listMembership && Te(e.listMembership === "pending" ? l.pendingChildren : l.children, e), e.parentRepeater = n, e.listMembership = "confirmed", typeof e.retracted < "u" && (e.retracted = !1), qt(n.children, e), i && ur(e), r !== null)
+      for (const d of r)
+        sr(d, e);
+    n.chainHead.executionCursor = e.rightmostPartial, ut(t), Z(t);
+    const u = Vt(n);
+    ae(u);
   }
-  function pt(e) {
+  function Gt(e) {
     let t = e.pendingChildren.first;
     for (; t !== null; ) {
       const n = t.nextSibling;
-      t.previousSibling = null, t.nextSibling = null, t.listMembership = null, t.type === "partial" ? (te(t), En(t)) : ht(t), t = n;
+      t.previousSibling = null, t.nextSibling = null, t.listMembership = null, t.type === "partial" ? (R(t), vr(t)) : Ut(t), t = n;
     }
-    e.pendingChildren = de();
+    e.pendingChildren = Ie();
   }
-  function ht(e) {
-    e.retracted || (e.dispose(), pt(e), yt(e), e.workStatus = null, e.flagRecords = null, e.retracted = !0, e.options.onRetract && e.options.onRetract(e));
+  function Ut(e) {
+    e.retracted || (e.dispose(), Gt(e), Jt(e), e.workStatus = null, e.flagRecords = null, e.retracted = !0, e.options.onRetract && e.options.onRetract(e));
   }
-  function wn(e, t, n, i, o) {
+  function fr(e, t, n, r, i) {
     return {
-      createdCount: 0,
-      createdTemporaryCount: 0,
-      removedCount: 0,
       isRecording: !0,
       type: "repeater",
-      id: r.observerId++,
+      id: o.observerId++,
       firstTime: !0,
       description: e,
       // The partial currently holding this repeater's reads/writes - see
@@ -1767,11 +2119,11 @@ function Yn(s) {
       // This repeater's own *first* partial of its current/latest run -
       // set fresh every refresh() (see there), never left pointing at a
       // stale object across reruns. The position used for this repeater's
-      // own heap entry (see "Repeater scheduling" below) - has to be the
+      // own sortedQueue entry (see "Repeater scheduling" below) - has to be the
       // first partial, not rightmostPartial: a child's first partial is
       // always created strictly after its parent's own first partial
       // begins (the parent's own action is what creates the child), so
-      // first-partial ordering guarantees a parent's heap entry always
+      // first-partial ordering guarantees a parent's sortedQueue entry always
       // sorts before any of its descendants' - exactly what makes the
       // lazy-pruning discard in drainActivePipeline() correct.
       // rightmostPartial has the opposite property (by construction it's
@@ -1788,8 +2140,8 @@ function Yn(s) {
       // and the end of the next refresh(), the previous run's sequence
       // awaiting reconciliation - see attachToCurrentParent()/
       // finalizeChildren() above.
-      children: de(),
-      pendingChildren: de(),
+      children: Ie(),
+      pendingChildren: Ie(),
       // Sibling pointers within a *parent's* children/pendingChildren list
       // (unused while this repeater is top-level).
       nextSibling: null,
@@ -1847,38 +2199,34 @@ function Yn(s) {
       // Two separate dedup flags, for the two different places a repeater
       // can be waiting in the scheduler - see scheduleWork(). A root
       // repeater (parentRepeater === null) only ever uses inATimeBucket;
-      // inHeap stays false for it forever, since a root never enters a
-      // heap (see drainActivePipeline() - it's always checked directly
+      // inSortedQueue stays false for it forever, since a root never enters a
+      // sortedQueue (see drainActivePipeline() - it's always checked directly
       // instead, being unconditionally the earliest position in its own
-      // pipeline). A nested repeater only ever uses inHeap.
-      inHeap: !1,
+      // pipeline). A nested repeater only ever uses inSortedQueue.
+      inSortedQueue: !1,
       inATimeBucket: !1,
       nextToNotify: null,
-      repeaterAction: Tn(t, i),
+      repeaterAction: t,
       nonRecordedAction: n,
-      options: i || {},
+      options: r || {},
       finishRebuilding() {
-        o(this);
+        i(this);
       },
       time() {
         return this.chainHead.time;
       },
       causalityString() {
-        const l = this.invalidatedInContext, f = this.invalidatedByObject;
-        if (!f) return "Repeater started: " + this.description;
-        const h = this.invalidatedByKey, m = l ? l.description : "outside repeater/invalidator", C = "  " + f.toString() + "." + h, R = "" + this.description;
-        return "(" + m + ")" + C + " --> " + R;
-      },
-      creationString() {
-        let l = "{";
-        return l += "created: " + this.createdCount + ", ", l += "createdTemporary:" + this.createdTemporaryCount + ", ", l += "removed:" + this.removedCount + "}", l;
+        const l = this.invalidatedInContext, u = this.invalidatedByObject;
+        if (!u) return "Repeater started: " + this.description;
+        const d = this.invalidatedByKey, a = l ? l.description : "outside repeater/invalidator", w = "  " + u.toString() + "." + d, C = "" + this.description;
+        return "(" + a + ")" + w + " --> " + C;
       },
       sourcesString() {
         let l = "";
         if (!this.currentPartial) return l;
-        for (let f of this.currentPartial.sources) {
-          for (; f.parent; ) f = f.parent;
-          l += f.handler.proxy.toString() + "." + f.key + `
+        for (let u of this.currentPartial.sources) {
+          for (; u.parent; ) u = u.parent;
+          l += u.handler.proxy.toString() + "." + u.key + `
 `;
         }
         return l;
@@ -1889,377 +2237,432 @@ function Yn(s) {
       // `partial`: which of its partials read what changed, when it's a
       // read that's invalidated (see invalidateRepeater()).
       invalidateAction(l) {
-        _(this, l);
+        se(this, l);
       },
-      // disposeAllCreatedWithBuildId() {
-      //   // Dispose all created objects?
-      //   if(this.buildIdObjectMap) {
-      //     for (let key in this.buildIdObjectMap) {
-      //       const object = this.buildIdObjectMap[key];
-      //       if (typeof(object.onDispose) === "function") object.onDispose();
-      //     }
-      //   }
-      // },
       dispose() {
         if (this.children.first !== null) {
           let l = this.children.first;
           for (; l !== null; )
-            l.listMembership = "pending", l.type === "partial" && l.writings.forEach((f, h) => {
-              rt(f), f.stale = !0, this.staleWritings === null && (this.staleWritings = /* @__PURE__ */ new Map());
-              let m = this.staleWritings.get(h);
-              typeof m > "u" && (m = [], this.staleWritings.set(h, m)), m.push(f);
+            l.listMembership = "pending", l.type === "partial" && l.writings.forEach((u, d) => {
+              Lt(u), u.stale = !0, this.staleWritings === null && (this.staleWritings = /* @__PURE__ */ new Map());
+              let a = this.staleWritings.get(d);
+              typeof a > "u" && (a = [], this.staleWritings.set(d, a)), a.push(u);
             }), l = l.nextSibling;
-          this.pendingChildren = this.children, this.children = de();
+          this.pendingChildren = this.children, this.children = Ie();
         }
         this.currentPartial = null;
       },
-      notifyDisposeToCreatedObjects() {
-        if (this.idObjectShapeMap)
-          for (let l in this.idObjectShapeMap) {
-            let f = this.idObjectShapeMap[l];
-            typeof f[p].target.onDispose == "function" && f.onDispose();
-          }
-        else if (this.buildIdObjectMap)
-          for (let l in this.buildIdObjectMap) {
-            const f = this.buildIdObjectMap[l];
-            typeof f.onDispose == "function" && f.onDispose();
-          }
-      },
-      lastRepeatTime: 0,
-      waitOnNonRecordedAction: 0,
       refresh() {
-        const l = this, f = l.options;
-        f.onRefresh && f.onRefresh(l), l.finishedRebuilding = !1, l.createdCount = 0, l.createdTemporaryCount = 0, l.removedCount = 0, l.reconciling = l.pendingChildren.first !== null;
-        const h = ct(l);
-        l.firstPartial = h, l.invalidatedWhileRunning = !1, l.isRecording = !0;
-        const m = r.context;
-        Y(h);
+        const l = this, u = l.options;
+        u.onRefresh && u.onRefresh(l), l.finishedRebuilding = !1, l.reconciling = l.pendingChildren.first !== null;
+        const d = Vt(l);
+        l.firstPartial = d, l.invalidatedWhileRunning = !1, l.isRecording = !0;
+        const a = o.context;
+        ae(d);
         try {
           l.returnValue = l.repeaterAction(l);
-        } catch (W) {
-          for (l.isRecording = !1; r.context !== null && r.context !== m; )
-            K(r.context);
-          throw W;
+        } catch (C) {
+          for (l.isRecording = !1; o.context !== null && o.context !== a; )
+            Z(o.context);
+          throw C;
         }
-        l.isRecording = !1, S();
-        const C = l.currentPartial;
-        o(this), je(C), yt(l), pt(l);
-        const { debounce: R = 0, fireImmediately: E = !0 } = f;
-        if (l.nonRecordedAction !== null)
-          R === 0 || this.firstTime ? (E || !this.firstTime) && l.nonRecordedAction(l.returnValue) : (l.waitOnNonRecordedAction && clearTimeout(l.waitOnNonRecordedAction), l.waitOnNonRecordedAction = setTimeout(() => {
-            l.nonRecordedAction(l.returnValue), l.waitOnNonRecordedAction = null;
-          }, R));
-        else if (R > 0)
-          throw new Error("Debounce has to be used together with a non-recorded action.");
-        return this.firstTime = !1, K(C), l.invalidatedWhileRunning && (l.invalidatedWhileRunning = !1, _(l)), l;
+        l.isRecording = !1, G();
+        const w = l.currentPartial;
+        try {
+          i(this), ut(w), Jt(l), Gt(l), l.nonRecordedAction !== null && l.nonRecordedAction(l.returnValue), this.firstTime = !1;
+        } catch (C) {
+          for (; o.context !== null && o.context !== a; )
+            Z(o.context);
+          throw C;
+        }
+        return Z(w), l.invalidatedWhileRunning && (l.invalidatedWhileRunning = !1, se(l)), l;
       }
     };
   }
-  function mt(e) {
-    const t = e.options.rebuildShapeAnalysis;
-    function n(l, f) {
-      l[p].forwardTo = f, f[p].copyTo = l, f[p].pendingCreationEvent && (delete f[p].pendingCreationEvent, l[p].pendingReCreationEvent = !0), delete f[p].pendingOnEstablishCall, delete e.newIdObjectShapeMap[f[p].id], e.newIdObjectShapeMap[l[p].id] = l;
-    }
-    function i(l, f) {
-      if (l !== f) {
-        const h = k(f), m = k(l);
-        if (h !== m) return;
-        if (h && m) {
-          if (!e.newIdObjectShapeMap[f[p].id] || l[p].forwardTo === f || f[p].buildId || l[p].buildId) return;
-          t.allowMatch && t.allowMatch(l, f) && (n(l, f), o(l[p].target, f[p].target));
-        } else
-          o(l, f);
-      }
-    }
-    function o(l, f) {
-      for (let [h, m] of t.slotsIterator(l, f, (C) => k(C) && C[p].buildId))
-        i(h, m);
-    }
-    return { setAsMatch: n, matchChildrenInEquivalentSlot: o, matchInEquivalentSlot: i };
+  function fe(e, t) {
+    return V(t) && e[t[p].id] === t;
   }
-  function On(e) {
+  function oe(e) {
+    const t = e[p].buildId;
+    return t !== null && typeof t < "u";
+  }
+  function Ht(e, t) {
+    return e.signature ? e.signature(t) : null;
+  }
+  function be(e, t, n, r) {
+    if (n instanceof Array)
+      return n.map((l) => be(e, t, l, r));
+    if (!fe(t, n) || r.has(n)) return null;
+    r.add(n);
+    const i = {
+      object: n,
+      prototype: Object.getPrototypeOf(n),
+      signature: Ht(e, n),
+      slots: {}
+    };
+    for (let l in n) {
+      const u = n[l];
+      u instanceof Array ? u.some((d) => d instanceof Array || fe(t, d)) && (i.slots[l] = be(e, t, u, r)) : fe(t, u) && (i.slots[l] = be(e, t, u, r));
+    }
+    return i;
+  }
+  function ar(e, t, n, r) {
+    const i = e.newIdObjectShapeMap;
+    let l = !1;
+    function u(y, A) {
+      y[p].rebuildTwin = A, A[p].establishedOriginal = y, delete A[p].pendingCreationEvent, delete A[p].pendingOnEstablishCall, y[p].pendingReCreationEvent = !0, delete i[A[p].id], i[y[p].id] = y, l = !0;
+    }
+    function d(y, A) {
+      if (y === null || typeof y > "u") return;
+      if (y instanceof Array) {
+        A instanceof Array && C(y, A);
+        return;
+      }
+      if (!fe(i, A)) return;
+      if (y.object === A) {
+        w(y, A);
+        return;
+      }
+      const S = y.object;
+      oe(A) || oe(S) || S[p].rebuildTwin === null && Object.getPrototypeOf(A) === y.prototype && Ht(t, A) === y.signature && (u(S, A), w(y, A));
+    }
+    const a = /* @__PURE__ */ new Set();
+    function w(y, A) {
+      if (oe(A)) {
+        if (a.has(A)) return;
+        a.add(A);
+      }
+      for (let S in y.slots) d(y.slots[S], A[S]);
+    }
+    function C(y, A) {
+      const S = /* @__PURE__ */ new Map(), D = [];
+      y.forEach((j) => {
+        j === null || j instanceof Array || (S.set(j.object, j), oe(j.object) || D.push(j));
+      });
+      let z = 0;
+      A.forEach((j, F) => {
+        if (j instanceof Array) {
+          y[F] instanceof Array && C(y[F], j);
+          return;
+        }
+        if (!fe(i, j)) return;
+        if (oe(j)) {
+          const nn = S.get(j);
+          nn && w(nn, j);
+          return;
+        }
+        const tn = D[z++];
+        tn && d(tn, j);
+      });
+    }
+    return d(n.root, r), n.withBuildId.forEach((y) => {
+      fe(i, y.object) && w(y, y.object);
+    }), l;
+  }
+  function cr(e, t, n) {
+    const r = be(e, t, n, /* @__PURE__ */ new Set()), i = rt(r, []), l = new Set(i.map((u) => u.object));
+    for (let u in t) {
+      const d = t[u];
+      oe(d) && !l.has(d) && i.push(be(e, t, d, /* @__PURE__ */ new Set()));
+    }
+    return { root: r, withBuildId: i };
+  }
+  function rt(e, t) {
+    if (e === null || typeof e > "u") return t;
+    if (e instanceof Array)
+      return e.forEach((n) => rt(n, t)), t;
+    oe(e.object) && t.push(e);
+    for (let n in e.slots) rt(e.slots[n], t);
+    return t;
+  }
+  function Se(e) {
+    if (e instanceof Array && !V(e)) {
+      let t = !1;
+      const n = e.map((r) => {
+        const i = Se(r);
+        return i !== r && (t = !0), i;
+      });
+      return t ? (Object.isFrozen(e) && Object.freeze(n), n) : e;
+    }
+    return V(e) && e[p].establishedOriginal ? e[p].establishedOriginal : e;
+  }
+  function dr(e) {
     if (e.finishedRebuilding) return;
     const t = e.options;
-    t.onStartBuildUpdate && t.onStartBuildUpdate();
-    function n(i) {
-      return i instanceof Array ? i.map((o) => n(o)) : k(i) && i[p].copyTo ? i[p].copyTo : i;
-    }
-    if (e.options.rebuildShapeAnalysis) {
-      const { matchChildrenInEquivalentSlot: i, matchInEquivalentSlot: o } = mt(e), l = e.options.rebuildShapeAnalysis;
-      if (e.establishedRoot instanceof Array || l.shapeRoot() instanceof Array) {
-        let f = e.establishedRoot, h = l.shapeRoot();
-        f instanceof Array || (f = [f]), h instanceof Array || (h = [h]), i(f, h);
-      } else
-        o(e.establishedShapeRoot, l.shapeRoot());
-      for (let f in e.newIdObjectShapeMap) {
-        const h = e.newIdObjectShapeMap[f], m = h[p].forwardTo;
-        m && i(h[p].target, m[p].target);
-      }
-      for (let f in e.newIdObjectShapeMap) {
-        let h = e.newIdObjectShapeMap[f], m, C;
-        const R = h[p].forwardTo;
-        if (R ? (m = R[p].target, C = R[p].handler) : (m = h[p].target, C = h[p].handler), e.options.rebuildShapeAnalysis.translateReferences)
-          e.options.rebuildShapeAnalysis.translateReferences(m, n);
-        else if (m instanceof Array)
-          for (let E in m)
-            m[E] = n(m[E]);
-        else {
-          const E = J(), W = z();
-          ot(C, E, W).forEach(function(P) {
-            on(C, P, n(Ce(C, P, E, W)), E, W);
-          });
+    if (t.onStartBuildUpdate && t.onStartBuildUpdate(), e.options.rebuildShapeAnalysis) {
+      const n = e.options.rebuildShapeAnalysis;
+      e.newIdObjectShapeMap || (e.newIdObjectShapeMap = {}), J(() => {
+        const i = n.shapeRoot();
+        if (e.establishedShape && ar(e, n, e.establishedShape, i)) {
+          for (let u in e.newIdObjectShapeMap) {
+            const d = e.newIdObjectShapeMap[u], a = d[p].rebuildTwin, w = a || d, C = w[p].target, y = w[p].handler;
+            C instanceof Array && Dn(y, Se);
+            const A = _(), S = M();
+            Je(y, A, S).forEach(function(D) {
+              const z = Ce(y, D, A, S), j = Se(z);
+              j !== z && Jn(y, D, j, A, S);
+            });
+          }
+          if (n.setShapeRoot) {
+            const u = Se(i);
+            u !== i && n.setShapeRoot(u);
+          }
         }
+      });
+      for (let i in e.newIdObjectShapeMap) {
+        let l = e.newIdObjectShapeMap[i];
+        const u = l[p].rebuildTwin;
+        u ? (u[p].establishedOriginal = null, u[p].isRebuildTwin = !1, l[p].rebuildTwin = null, at(l, u), l[p].pendingReCreationEvent && (delete l[p].pendingReCreationEvent, Xt(l[p].handler))) : (l[p].pendingCreationEvent && (delete l[p].pendingCreationEvent, Pe(l[p].handler)), je(l));
       }
-      e.establishedShapeRoot = n(e.options.rebuildShapeAnalysis.shapeRoot());
-      for (let f in e.newIdObjectShapeMap) {
-        let h = e.newIdObjectShapeMap[f];
-        const m = h[p].forwardTo;
-        m ? (m[p].copyTo = null, h[p].forwardTo = null, Me(h, m), h[p].pendingCreationEvent && (delete h[p].pendingCreationEvent, ut(h[p].handler))) : (h[p].pendingCreationEvent && (delete h[p].pendingCreationEvent, fe(h[p].handler)), Ne(h));
-      }
-      if (e.idObjectShapeMap) {
-        for (let f in e.idObjectShapeMap)
-          if (typeof e.newIdObjectShapeMap[f] > "u") {
-            const h = e.idObjectShapeMap[f], m = h[p].target;
-            at(h[p].handler), typeof m.onDispose == "function" && h.onDispose();
-          }
-      }
+      if (e.idObjectShapeMap)
+        for (let i in e.idObjectShapeMap)
+          e.newIdObjectShapeMap[i] !== e.idObjectShapeMap[i] && it(e.idObjectShapeMap[i]);
+      const r = e.newIdObjectShapeMap;
+      e.establishedShape = J(
+        () => cr(n, r, n.shapeRoot())
+      );
     } else {
-      for (let i in e.newBuildIdObjectMap) {
-        let o = e.newBuildIdObjectMap[i];
-        const l = o[p].forwardTo;
-        l !== null ? (o[p].forwardTo = null, l[p].isBeingRebuilt = !1, Me(o, l)) : Ne(o);
+      for (let n in e.newBuildIdObjectMap) {
+        let r = e.newBuildIdObjectMap[n];
+        const i = r[p].rebuildTwin;
+        i !== null ? (r[p].rebuildTwin = null, i[p].isRebuildTwin = !1, at(r, i)) : je(r);
       }
-      if (e.buildIdObjectMap) {
-        for (let i in e.buildIdObjectMap)
-          if (e.newBuildIdObjectMap[i] !== e.buildIdObjectMap[i]) {
-            const o = e.buildIdObjectMap[i], l = o[p].target;
-            at(o[p].handler), typeof l.onDispose == "function" && o.onDispose();
-          }
-      }
+      if (e.buildIdObjectMap)
+        for (let n in e.buildIdObjectMap)
+          e.newBuildIdObjectMap[n] !== e.buildIdObjectMap[n] && it(e.buildIdObjectMap[n]);
     }
     e.buildIdObjectMap = e.newBuildIdObjectMap, e.newBuildIdObjectMap = {}, e.idObjectShapeMap = e.newIdObjectShapeMap, e.newIdObjectShapeMap = {}, e.finishedRebuilding = !0, t.onEndBuildUpdate && t.onEndBuildUpdate();
   }
-  function Ne(e) {
+  function je(e) {
     const t = e[p];
-    (t.pendingOnEstablishCall || !t.established) && (delete t.pendingOnEstablishCall, t.established = !0, typeof t.target.onEstablish == "function" && e.onEstablish());
+    return (t.pendingOnEstablishCall || !t.established) && (delete t.pendingOnEstablishCall, t.established = !0, typeof t.target.onEstablish == "function" && e.onEstablish()), e;
   }
-  function xn(e) {
-    const t = e[p].forwardTo;
-    if (t !== null) {
-      if (r.inRepeater) {
-        const n = r.inRepeater;
-        if (n.options.rebuildShapeAnalysis) {
-          const { matchChildrenInEquivalentSlot: i } = mt(n);
-          i(e[p].target, t[p].target);
-        }
-      }
-      e[p].forwardTo = null, t[p].isBeingRebuilt = !1, Me(e, t);
-    } else
-      Ne(e);
-    return e;
+  function it(e) {
+    const t = e[p];
+    rr(t.handler), typeof t.target.onDispose == "function" && e.onDispose();
   }
-  function Tn(e, { throttle: t = 0 }) {
-    return t > 0 ? function(n) {
-      let i = Date.now();
-      const o = i - n.lastRepeatTime;
-      if (t > o) {
-        const l = t - o;
-        setTimeout(() => {
-          n.restart();
-        }, l);
-      } else
-        return n.lastRepeatTime = i, e();
-    } : e;
+  function pr(e) {
+    const t = e[p].rebuildTwin;
+    return t !== null ? (e[p].rebuildTwin = null, t[p].isRebuildTwin = !1, at(e, t)) : je(e), e;
   }
-  function Rn() {
-    let e = "", t, n = null, i;
-    const o = arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments);
-    if (typeof o[0] == "string")
-      e = o.shift();
-    else if (It)
+  function hr() {
+    let e = "", t, n = null, r;
+    const i = arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments);
+    if (typeof i[0] == "string")
+      e = i.shift();
+    else if (un)
       throw new Error("Every repeater has to be given a name as first argument. Note: This requirement can be removed in the configuration.");
-    typeof o[0] == "function" && (t = o.shift()), (typeof o[0] == "function" || o[0] === null) && (n = o.shift()), typeof o[0] == "object" && (i = o.shift()), i || (i = {});
-    const l = i.independent === !0, f = l && typeof i.time > "u" && r.context !== null ? J() : void 0;
-    if (Nt && r.inActiveRecording && !l) {
-      let R = r.context.description;
-      !R && r.context.parent && (R = r.context.parent.description), R || (R = "unnamed"), s.traceWarnings && console.warn(Error(`repeater ${e || "unnamed"} inside active recording ${R}`));
+    typeof i[0] == "function" && (t = i.shift()), (typeof i[0] == "function" || i[0] === null) && (n = i.shift()), typeof i[0] == "object" && (r = i.shift()), r || (r = {});
+    const l = r.independent === !0;
+    if (typeof r.time < "u" && !(Number.isInteger(r.time) && r.time >= 0 && r.time < s.timeLevels))
+      throw new Error("repeat(): time " + r.time + " is outside this world's time levels, 0 to " + (s.timeLevels - 1) + " - see getWorld({ timeLevels }).");
+    const u = l && typeof r.time > "u" && o.context !== null ? _() : void 0;
+    if (an && o.inActiveRecording && !l) {
+      let C = o.context.description;
+      !C && o.context.parent && (C = o.context.parent.description), C || (C = "unnamed"), s.traceWarnings && console.warn(Error(`repeater ${e || "unnamed"} inside active recording ${C}`));
     }
-    const h = v(e, t, n, i, On), m = !l && r.context && r.context.type === "partial" ? r.context : null;
-    h.parentRepeater = m ? m.repeater : null, h.chainHead = h.parentRepeater ? h.parentRepeater.chainHead : Kt(h), typeof f < "u" && (h.chainHead.time = f);
-    const C = h.refresh();
-    return l || dt(h), C;
+    const d = v(e, t, n, r, dr), a = !l && o.context && o.context.type === "partial" ? o.context : null;
+    d.parentRepeater = a ? a.repeater : null, d.chainHead = d.parentRepeater ? d.parentRepeater.chainHead : Fn(d), typeof u < "u" && (d.chainHead.time = u);
+    const w = d.refresh();
+    return l || Kt(d), o.context === null && Ve(), w;
   }
-  function Cn(e) {
-    return e.workStatus === "flagged" && me(e), dt(e), e;
+  function gr(e) {
+    return e.workStatus === "flagged" && ye(e), Kt(e), e;
   }
-  function he(e, t) {
+  function Ne(e, t) {
     let n = e.length;
-    for (; n > 0 && $(e[n - 1].firstPartial, t.firstPartial) > 0; )
+    for (; n > 0 && he(e[n - 1].firstPartial, t.firstPartial) > 0; )
       n--;
     e.splice(n, 0, t);
   }
-  function Pn(e) {
+  function mr(e) {
     return e.shift();
   }
-  function Se(e, t, n) {
-    const i = r.workQueue[t][n];
-    e.previousQueued = i.last, e.nextQueued = null, i.last !== null ? i.last.nextQueued = e : i.first = e, i.last = e;
+  function lt(e, t, n) {
+    const r = o.workQueue[t][n];
+    e.previousQueued = r.last, e.nextQueued = null, r.last !== null ? r.last.nextQueued = e : r.first = e, r.last = e;
   }
-  function Ee(e, t, n) {
-    const i = r.workQueue[t][n];
-    i.first === e && (i.first = e.nextQueued), i.last === e && (i.last = e.previousQueued), e.nextQueued !== null && (e.nextQueued.previousQueued = e.previousQueued), e.previousQueued !== null && (e.previousQueued.nextQueued = e.nextQueued), e.nextQueued = null, e.previousQueued = null;
+  function ot(e, t, n) {
+    const r = o.workQueue[t][n];
+    r.first === e && (r.first = e.nextQueued), r.last === e && (r.last = e.previousQueued), e.nextQueued !== null && (e.nextQueued.previousQueued = e.previousQueued), e.previousQueued !== null && (e.previousQueued.nextQueued = e.nextQueued), e.nextQueued = null, e.previousQueued = null;
   }
-  function In(e, t, n) {
-    const i = r.workQueue[t][n];
-    e.previousQueued = null, e.nextQueued = i.first, i.first !== null ? i.first.previousQueued = e : i.last = e, i.first = e;
+  function Yt(e, t, n) {
+    const r = o.workQueue[t][n];
+    e.previousQueued = null, e.nextQueued = r.first, r.first !== null ? r.first.previousQueued = e : r.last = e, r.first = e;
   }
-  function gt(e) {
-    if (e === r.activePipeline) return;
-    r.flushing > 0 && e.time <= r.workQueueTimeLock && (r.workQueueTimeLock = e.time - 1, r.waveRetreated = !0);
-    const n = e.time <= r.workQueueTimeLock ? "parked" : "active";
-    e.queueMembership !== n && (e.queueMembership !== null && Ee(e, e.time, e.queueMembership), Se(e, e.time, n), e.queueMembership = n);
+  function _t(e) {
+    if (e === o.activePipeline) return;
+    o.flushing > 0 && e.time <= o.workQueueTimeLock && (o.workQueueTimeLock = e.time - 1, o.waveRetreated = !0);
+    const n = e.time <= o.workQueueTimeLock ? "parked" : "active";
+    e.queueMembership !== n && (e.queueMembership !== null && ot(e, e.time, e.queueMembership), lt(e, e.time, n), e.queueMembership = n);
   }
-  function An(e) {
+  function br(e) {
     const t = e.options.pulledBy, n = typeof t == "function" ? t() : t;
-    if (!n || n.disposed) return !1;
+    if (!n) return !1;
     if (n.retracted) return !0;
     if (n.isRecording) return !1;
-    for (let i = r.context; i; i = i.parent)
-      if (i.type === "partial" && i.repeater === n) return !1;
-    return n.workStatus !== "invalid" && _(n), !0;
+    for (let r = o.context; r; r = r.parent)
+      if (r.type === "partial" && r.repeater === n) return !1;
+    return n.workStatus !== "invalid" && se(n), !0;
   }
-  function bt(e) {
+  function $t(e) {
     const t = e.chainHead;
-    if (e.options.pulledBy && An(e)) return;
+    if (e.options.pulledBy && br(e)) return;
     if (e.parentRepeater === null) {
       if (e.inATimeBucket) return;
-      e.inATimeBucket = !0, gt(t);
+      e.inATimeBucket = !0, _t(t);
       return;
     }
-    if (e.inHeap) return;
-    e.inHeap = !0, gt(t);
-    const n = t === r.activePipeline, i = n ? $(e.firstPartial, t.wavefront) <= 0 : t.time <= r.workQueueTimeLock;
-    i && n && r.flushing > 0 ? (r.waveRetreated = !0, he(t.heap, e)) : i ? t.parkedPartials.push(e) : he(t.heap, e);
+    if (e.inSortedQueue) return;
+    e.inSortedQueue = !0, _t(t);
+    const n = t === o.activePipeline, r = n ? he(e.firstPartial, t.wavefront) <= 0 : t.time <= o.workQueueTimeLock;
+    r && n && o.flushing > 0 ? (o.waveRetreated = !0, Ne(t.sortedQueue, e)) : r ? t.parkedRepeaters.push(e) : Ne(t.sortedQueue, e);
   }
-  function _(e, t) {
+  function se(e, t) {
     if (e.isRecording) {
       (!t || t.listMembership !== "pending") && (e.invalidatedWhileRunning = !0);
       return;
     }
-    e.dispose(), e.flagRecords = null, e.workStatus = "invalid", bt(e), xt();
+    e.dispose(), e.flagRecords = null, e.workStatus = "invalid", $t(e), en();
   }
-  function Nn() {
-    r.observerId = 0, r.workQueue.forEach((e) => {
-      e.active.first = null, e.active.last = null, e.parked.first = null, e.parked.last = null;
-    }), r.workQueueTimeLock = -1, r.activePipeline = null, r.waveRetreated = !1;
+  function st(e, t, n) {
+    t.flagged = !0, e.flagRecords === null && (e.flagRecords = []), e.flagRecords.push({ entry: t, previousWriting: n }), e.workStatus === null && (e.workStatus = "flagged", $t(e));
   }
-  function vt(e, t, n) {
-    t.flagged = !0, e.flagRecords === null && (e.flagRecords = []), e.flagRecords.push({ entry: t, previousWriting: n }), e.workStatus === null && (e.workStatus = "flagged", bt(e));
-  }
-  function Sn(e) {
+  function yr(e) {
     const t = e.flagRecords;
-    e.flagRecords = null, !(t === null || t.length === 0) && t.forEach(({ entry: n, previousWriting: i }) => {
-      n.flagged = !1;
-      let o = D(i.timeline, n.time, n.writer);
-      if (o.writer === n.writer && o.previous !== null && (o = o.previous), o === i) return;
-      const l = !nt(i, o);
-      j(i, o, n), l && _(e);
+    if (e.flagRecords = null, t === null || t.length === 0) return;
+    let n = !1;
+    t.forEach(({ entry: r, previousWriting: i }) => {
+      if (r.flagged = !1, i.timeline.isArray) {
+        i.observersAllFlagged = !1, !n && Ot(r, i) && (n = !0, se(e));
+        return;
+      }
+      let l = Q(i.timeline, r.time, r.writer);
+      if (l.writer === r.writer && l.previous !== null && (l = l.previous), l === i) return;
+      const u = !Mt(i, l);
+      x(i, l, r), u && se(e);
     });
   }
-  function En(e) {
-    _e(e.repeater.chainHead, e);
+  function vr(e) {
+    Tt(e.repeater.chainHead, e);
   }
-  function jn(e) {
-    e.observers !== null && T(e, () => !0).forEach((t) => {
-      t.flagged || (xe(t, e.writer) ? vt(t.observer.repeater, t, e) : ce(t.observer, e.timeline.handler.proxy, e.timeline.key));
-    }), e.stale = !1, e.hasNextValue = !1, e.nextValue = void 0;
+  function xr(e) {
+    if (e.timeline.isArray) {
+      Pn(e);
+      return;
+    }
+    const t = e.timeline.handler;
+    if (Q(e.timeline, e.time, e.writer).set !== e.set && m(t, e.timeline.key, e.time, e.writer), e.observers !== null) {
+      const r = g(e, () => !0);
+      Qe(() => r.forEach((i) => {
+        i.flagged || (Re(i, e.writer) ? st(i.observer.repeater, i, e) : ue(i.observer, e.timeline.handler.proxy, e.timeline.key));
+      }));
+    }
+    e.stale = !1, e.hasNextValue = !1, e.nextValue = void 0, e.nextSet = !1;
   }
-  function je(e) {
-    e.touchedStaleWritings !== null && (e.touchedStaleWritings.forEach(function(t) {
-      t.stale = !1, re(t.value, t.nextValue) || (t.value = t.nextValue, x(t, t.timeline.handler.proxy, t.timeline.key)), t.hasNextValue = !1, t.nextValue = void 0, Te(t);
+  function ut(e) {
+    En(e), e.touchedStaleWritings !== null && (e.touchedStaleWritings.forEach(function(t) {
+      if (t.stale = !1, t.set !== t.nextSet || t.nextSet && !ce(t.value, t.nextValue)) {
+        const r = t.set !== t.nextSet;
+        t.value = t.nextSet ? t.nextValue : void 0, t.set = t.nextSet, h(t, t.timeline.handler.proxy, t.timeline.key), r && m(t.timeline.handler, t.timeline.key, t.time, t.writer);
+      }
+      t.hasNextValue = !1, t.nextValue = void 0, t.nextSet = !1, $e(t);
     }), e.touchedStaleWritings = null);
   }
-  function yt(e) {
+  function Jt(e) {
     e.staleWritings !== null && (e.staleWritings.forEach(function(t) {
-      t.forEach(jn);
+      t.forEach(xr);
     }), e.staleWritings = null);
   }
-  function me(e) {
-    e.workStatus === "invalid" ? (e.workStatus = null, e.refresh()) : e.workStatus === "flagged" && (e.workStatus = null, Sn(e));
+  function ye(e) {
+    e.workStatus === "invalid" ? (e.workStatus = null, e.refresh()) : e.workStatus === "flagged" && (e.workStatus = null, yr(e));
   }
-  function Mn(e) {
-    return e.retracted || e.disposed || (r.context !== null && r.context.type === "partial" && je(r.context), me(e)), e;
+  function wr(e) {
+    return e.retracted || (o.context !== null && o.context.type === "partial" && ut(o.context), ye(e)), e;
   }
-  function wt(e) {
-    return !r.waveRetreated || (r.waveRetreated = !1, r.workQueueTimeLock >= e.time - 1) ? !1 : (e.parkedPartials.forEach((t) => he(e.heap, t)), e.parkedPartials = [], e.wavefront = null, r.activePipeline = null, In(e, e.time, "active"), e.queueMembership = "active", !0);
+  function ft(e) {
+    return !o.waveRetreated || (o.waveRetreated = !1, o.workQueueTimeLock >= e.time - 1) ? !1 : (e.parkedRepeaters.forEach((t) => Ne(e.sortedQueue, t)), e.parkedRepeaters = [], e.wavefront = null, o.activePipeline = null, Yt(e, e.time, "active"), e.queueMembership = "active", !0);
   }
-  function Ln() {
-    const e = r.activePipeline;
+  function Or() {
+    const e = o.activePipeline;
     e.wavefront = null;
     const t = e.rootRepeater;
     for (t.inATimeBucket = !1; t.workStatus !== null; )
-      if (t.inATimeBucket = !1, me(t), wt(e)) return;
-    for (; e.heap.length > 0; ) {
-      const i = Pn(e.heap);
-      if (i.inHeap = !1, !(i.disposed || i.retracted) && i.workStatus !== null && (e.wavefront = i.firstPartial, me(i), wt(e)))
+      if (t.inATimeBucket = !1, ye(t), ft(e)) return;
+    for (; e.sortedQueue.length > 0; ) {
+      const r = mr(e.sortedQueue);
+      if (r.inSortedQueue = !1, r.retracted || r.workStatus === null) continue;
+      e.wavefront = r.firstPartial;
+      const i = r.workStatus === "flagged";
+      if (ye(r), ft(e) || i && r.workStatus === "invalid" && !r.retracted && (ye(r), ft(e)))
         return;
     }
-    r.activePipeline = null;
+    o.activePipeline = null;
     const n = t.workStatus !== null;
-    (e.parkedPartials.length > 0 || n) && (Se(e, e.time, "parked"), e.queueMembership = "parked");
+    (e.parkedRepeaters.length > 0 || n) && (lt(e, e.time, "parked"), e.queueMembership = "parked");
   }
-  function kn() {
-    return r.workQueue.some((e) => e.active.first !== null || e.parked.first !== null);
+  function Rr() {
+    return o.workQueue.some((e) => e.active.first !== null || e.parked.first !== null);
   }
-  function Ot() {
-    let e = r.workQueueTimeLock + 1;
-    for (; e < r.workQueue.length; ) {
-      if (r.workQueue[e].active.first !== null)
-        return r.workQueue[e].active.first;
-      r.workQueueTimeLock = e, e++;
+  function Zt() {
+    let e = o.workQueueTimeLock + 1;
+    for (; e < o.workQueue.length; ) {
+      if (o.workQueue[e].active.first !== null)
+        return o.workQueue[e].active.first;
+      o.workQueueTimeLock = e, e++;
     }
     let t = !1;
-    for (let n = 0; n < r.workQueue.length; n++) {
-      let i = r.workQueue[n].parked.first;
-      for (; i !== null; ) {
-        const o = i.nextQueued;
-        Ee(i, n, "parked"), i.parkedPartials.forEach((l) => he(i.heap, l)), i.parkedPartials = [], Se(i, n, "active"), i.queueMembership = "active", t = !0, i = o;
+    for (let n = 0; n < o.workQueue.length; n++) {
+      let r = o.workQueue[n].parked.first;
+      for (; r !== null; ) {
+        const i = r.nextQueued;
+        ot(r, n, "parked"), r.parkedRepeaters.forEach((l) => Ne(r.sortedQueue, l)), r.parkedRepeaters = [], lt(r, n, "active"), r.queueMembership = "active", t = !0, r = i;
       }
     }
-    return t ? (r.workQueueTimeLock = -1, Ot()) : null;
+    return t ? (o.workQueueTimeLock = -1, Zt()) : null;
   }
-  function xt() {
-    if (r.postponeRefreshRepeaters === 0 && !r.refreshingAllDirtyRepeaters && kn()) {
-      r.refreshingAllDirtyRepeaters = !0;
-      let e;
-      for (; (e = Ot()) !== null; )
-        Ee(e, e.time, "active"), e.queueMembership = null, r.activePipeline = e, Ln();
-      r.workQueueTimeLock = -1, r.refreshingAllDirtyRepeaters = !1;
+  function en() {
+    if (o.postponeRefreshRepeaters === 0 && !o.refreshingAllDirtyRepeaters) {
+      if (Rr()) {
+        o.refreshingAllDirtyRepeaters = !0;
+        let e;
+        try {
+          for (; (e = Zt()) !== null; )
+            ot(e, e.time, "active"), e.queueMembership = null, o.activePipeline = e, Or();
+        } catch (t) {
+          const n = o.activePipeline;
+          throw o.activePipeline = null, n !== null && n.queueMembership === null && (n.sortedQueue.length > 0 || n.parkedRepeaters.length > 0 || n.rootRepeater.workStatus !== null) && (Yt(n, n.time, "active"), n.queueMembership = "active"), o.refreshingAllDirtyRepeaters = !1, t;
+        }
+        o.workQueueTimeLock = -1, o.refreshingAllDirtyRepeaters = !1;
+      }
+      !o.refreshingAllDirtyRepeaters && o.context === null && Ve();
     }
   }
-  function Wn(e, t) {
-    r.recordingPaused++, S(), X.log(e, t), r.recordingPaused--, S();
+  function Ar(e, t) {
+    J(() => {
+      P.log(e, t);
+    });
   }
-  function Dn(e, t) {
-    r.recordingPaused++, S(), X.group(e, t), r.recordingPaused--, S();
+  function Cr(e, t) {
+    J(() => {
+      P.group(e, t);
+    });
   }
-  function Bn() {
-    X.groupEnd();
+  function Er() {
+    P.groupEnd();
   }
-  function Qn(e, t) {
-    r.recordingPaused++, S();
-    let n = X.logToString(e, t);
-    return r.recordingPaused--, S(), n;
+  function Pr(e, t) {
+    return J(() => P.logToString(e, t));
   }
-  return w;
+  return E;
 }
-let Le = {};
-function $n(s) {
-  s || (s = {}), s = { ...Un, ...s };
-  const r = zn(s);
-  return typeof Le[r] > "u" && (Le[r] = Yn(s)), Le[r];
+let dt = {};
+function Br(s) {
+  s || (s = {}), s = { ...Qr, ...s };
+  const o = Ir(s);
+  return typeof dt[o] > "u" && (dt[o] = Dr(s)), dt[o];
 }
 export {
-  $n as default,
-  $n as getWorld
+  Br as default,
+  Br as getWorld
 };

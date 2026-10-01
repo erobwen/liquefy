@@ -28,8 +28,8 @@ const defaultConfiguration = {
   sendEventsToObjects: true,
     // Reserved properties that you can override on observables IF sendEventsToObjects is set to true. 
     // onChange
-    // onBuildCreate
-    // onBuildRemove
+    // onEstablish
+    // onDispose
   onEventGlobal: null,
   emitReBuildEvents: false,
 
@@ -47,7 +47,6 @@ const defaultConfiguration = {
 
 
 function createWorld(configuration) {
-  // console.log(usedObjectlog)
 
   /***************************************************************
    *
@@ -265,7 +264,7 @@ function createWorld(configuration) {
   function postponeInvalidationsAndDo(callback) {
     state.postponeInvalidation++;
     try {
-      callback();
+      return callback();
     } finally {
       state.postponeInvalidation--;
       // Even when the callback throws: what it did write before throwing
@@ -691,9 +690,16 @@ function createWorld(configuration) {
       }
       if (scan === writing) {
         path.push(writing);
-        replayArrayOps(timeline.cursorContent, path);
+        // Replayed onto the cursor's own content: a replay that throws (a
+        // comparator, say) leaves it half moved - so the cursor goes, and
+        // rebuilds next time, as below.
+        const content = timeline.cursorContent;
+        timeline.cursorWriting = null;
+        timeline.cursorContent = null;
+        replayArrayOps(content, path);
         timeline.cursorWriting = writing;
-        return timeline.cursorContent;
+        timeline.cursorContent = content;
+        return content;
       }
     }
     const baseline = timeline.first;
@@ -2262,7 +2268,9 @@ function createWorld(configuration) {
   function settleOvertakenObservers(oldWriting, newWriting, entries) {
     if (entries.length === 0) return;
     const sameValue = writingsHaveSameEffectiveValue(oldWriting, newWriting);
-    entries.forEach((entry) => {
+    // Every reader told before any of them reruns (see
+    // invalidateDownstreamEnumerationObservers()).
+    postponeInvalidationsAndDo(() => entries.forEach((entry) => {
       if (entry.flagged) return; // already pending a deferred recheck - let that recheck re-seek fresh rather than layering another guess on top
       if (sameValue) {
         relocatePropertyObserverEntry(oldWriting, newWriting, entry);
@@ -2274,7 +2282,7 @@ function createWorld(configuration) {
         relocatePropertyObserverEntry(oldWriting, newWriting, entry);
         invalidateObserver(entry.observer, newWriting.timeline.handler.proxy, newWriting.timeline.key);
       }
-    });
+    }));
   }
 
   function migrateOvertakenObserversFor(writing) {
@@ -3047,8 +3055,6 @@ function createWorld(configuration) {
   }
 
   function deeplyObservable(object, copy) {
-    // console.log("deeplyObservable");
-    // console.log(object);
     if (isObservable(object)) return object; 
     if (typeof(object) !== "object" || object === null) return object;
     let target; 
@@ -3216,21 +3222,10 @@ function createWorld(configuration) {
         }
         state.lastObserverToInvalidate = observer;
       } else {
-        // blockSideEffects(function() {
         observer.invalidateAction(key);
-        // });
-        // });
       }
     }
   }
-
-    // From observed object
-  // let observerSetContents = getMap(
-  // observerSet, 'contents');
-  // if (typeof(observerSet['contents'])) {
-  ////! Should not be needed
-  //     observerSet['contents'] = {};
-  // }
 
 
   /**********************************
@@ -4040,15 +4035,6 @@ function createWorld(configuration) {
       invalidateAction(partial) {
         invalidateRepeater(this, partial);
       },
-      // disposeAllCreatedWithBuildId() {
-      //   // Dispose all created objects?
-      //   if(this.buildIdObjectMap) {
-      //     for (let key in this.buildIdObjectMap) {
-      //       const object = this.buildIdObjectMap[key];
-      //       if (typeof(object.onDispose) === "function") object.onDispose();
-      //     }
-      //   }
-      // },
       dispose() {
         // No explicit removal from the scheduler needed here (unlike the
         // old detatchRepeater() this replaced) - workStatus/inSortedQueue/
@@ -5166,14 +5152,16 @@ function createWorld(configuration) {
       invalidateEnumerateObservers(handler, writing.timeline.key, writing.time, writing.writer);
     }
     if (writing.observers !== null) {
-      collectOvertakenPropertyObservers(writing, () => true).forEach((entry) => {
+      // Every reader told before any of them reruns.
+      const entries = collectOvertakenPropertyObservers(writing, () => true);
+      postponeInvalidationsAndDo(() => entries.forEach((entry) => {
         if (entry.flagged) return;
         if (entryNeedsDeferredTreatment(entry, writing.writer)) {
           flagRepeaterEntry(entry.observer.repeater, entry, writing);
         } else {
           invalidateObserver(entry.observer, writing.timeline.handler.proxy, writing.timeline.key);
         }
-      });
+      }));
     }
     writing.stale = false;
     writing.hasNextValue = false;
@@ -5507,7 +5495,6 @@ function createWorld(configuration) {
   function log(entity, pattern) {
     withoutRecording(() => {
       usedObjectlog.log(entity, pattern);
-      // console.log(entity, pattern);
     });
   }
   

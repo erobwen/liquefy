@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.dom",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Cascade for the browser: components rendered straight onto the real DOM in one pass, with bounds measurement, animation, overflow layout, routing and hydration.",
   "keywords": [
     "reactive",
@@ -40,7 +40,7 @@
   },
   "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.DOM#readme",
   "peerDependencies": {
-    "@liquefy/cascade.component": "^1.0.0"
+    "@liquefy/cascade.component": "^2.0.0"
   },
   "devDependencies": {
     "mocha": "^10.8.2",

@@ -5,6 +5,11 @@ import { px } from "../units.js";
 // proportion to its font size (see cascade.dom's fontMetrics.js).
 const REFERENCE_SIZE = 100;
 
+// How many widths are kept: placing a caret measures every prefix of a run,
+// so a long document would otherwise keep a width for each, for good.
+// Beyond it, the cache starts over - what's measured next is measured anew.
+const MAX_CACHED_WIDTHS = 20000;
+
 /**
  * A text measurer for the browser (see monospaceMeasurer.js for what a
  * measurer is): the DOM as a measuring device, and nothing more - line
@@ -16,6 +21,10 @@ const REFERENCE_SIZE = 100;
  * A font that finishes loading after text was measured in it changes every
  * measurement: whatever measured with this measurer - a paragraph's line
  * breaking - measures again, and nothing else does.
+ *
+ * It listens for fonts loading on its document for as long as it's in use:
+ * whoever creates it calls dispose() once done with it, and that listener
+ * - and what it has cached - goes.
  */
 export function domMeasurer({ document: doc = globalThis.document } = {}) {
   const fonts = observable({ loaded: 0 });
@@ -23,13 +32,13 @@ export function domMeasurer({ document: doc = globalThis.document } = {}) {
   const reaches = new Map();
   let canvas = null;
 
-  if (doc.fonts && doc.fonts.addEventListener) {
-    doc.fonts.addEventListener("loadingdone", () => {
-      widths.clear();
-      reaches.clear();
-      fonts.loaded++;
-    });
-  }
+  const fontsLoaded = () => {
+    widths.clear();
+    reaches.clear();
+    fonts.loaded++;
+  };
+  const fontSet = doc.fonts && doc.fonts.addEventListener ? doc.fonts : null;
+  if (fontSet) fontSet.addEventListener("loadingdone", fontsLoaded);
 
   function context(font) {
     if (!canvas) canvas = doc.createElement("canvas").getContext("2d");
@@ -49,6 +58,7 @@ export function domMeasurer({ document: doc = globalThis.document } = {}) {
       let width = widths.get(key);
       if (width === undefined) {
         width = context(font).measureText(text).width;
+        if (widths.size >= MAX_CACHED_WIDTHS) widths.clear();
         widths.set(key, width);
       }
       return px(width * scale(font));
@@ -69,6 +79,14 @@ export function domMeasurer({ document: doc = globalThis.document } = {}) {
         reaches.set(key, reach);
       }
       return { ascent: px(reach.ascent * scale(font)), descent: px(reach.descent * scale(font)) };
+    },
+
+    // Done with: no longer listening for fonts loading, nothing cached.
+    dispose() {
+      if (fontSet) fontSet.removeEventListener("loadingdone", fontsLoaded);
+      widths.clear();
+      reaches.clear();
+      canvas = null;
     },
   };
 }

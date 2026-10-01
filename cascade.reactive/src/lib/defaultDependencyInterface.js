@@ -37,7 +37,6 @@ export function defaultDependencyInterfaceCreator(causality) {
   // recordDependencyOnArray).
   function recordDependency(observer, observerSet, optionalKey, time, writer) {
     let observerId = observer.id;
-    //console.log("recordDependency", observer, observerSet);
     if (typeof(observerSet.contents[observerId]) !== 'undefined') {
       return observerSet.contents[observerId];
     }

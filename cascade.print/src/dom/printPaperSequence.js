@@ -22,7 +22,13 @@ import { cssMm, paperStyle, runStyle } from "./paperStyles.js";
  * `title` is what the browser suggests as the file name when printing to a
  * PDF (and puts in a header, where it prints one).
  */
+// The iframe of the last print, until it's removed: `afterprint` removes
+// it - and where that never comes, the next print does, so at most one is
+// ever left in the page.
+let removeLastPrint = null;
+
 export function printPaperSequence(sequence, { title = "", stylesheets = [], document: doc = globalThis.document } = {}) {
+  if (removeLastPrint) removeLastPrint();
   const papers = withoutRecording(() => sequence.pages.map((format, index) => ({
     format,
     lines: [...sequence.linesOf(index)],
@@ -85,7 +91,9 @@ export function printPaperSequence(sequence, { title = "", stylesheets = [], doc
     if (removed) return;
     removed = true;
     iframe.remove();
+    if (removeLastPrint === remove) removeLastPrint = null;
   };
+  removeLastPrint = remove;
   view.addEventListener("afterprint", () => setTimeout(remove, 0));
 
   // Printed once the stylesheets and fonts are in - a moment, for system

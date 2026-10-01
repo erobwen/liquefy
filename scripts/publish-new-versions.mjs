@@ -1,7 +1,8 @@
 // Publishes every package in the repository whose version isn't on npm yet -
 // so a release is: bump the versions that changed, commit, push a tag (see
 // .github/workflows/release.yml, which runs this). Packages already
-// published at their version are left alone, as are private ones.
+// published at their version are left alone, as are private ones - and
+// Flow's (flow.*): the generation before Cascade, not released any more.
 //
 //   node scripts/publish-new-versions.mjs --dry-run   (what would be published)
 //   node scripts/publish-new-versions.mjs             (publish them)
@@ -29,8 +30,12 @@ function isPublished(name, version) {
   }
 }
 
+// Flow's packages stay in the repository, but aren't released.
+const isReleased = (dir) => !dir.startsWith("flow");
+
 const toPublish = [];
 for (const dir of readJson(join(root, "package.json")).workspaces) {
+  if (!isReleased(dir)) continue;
   const pkg = readJson(join(root, dir, "package.json"));
   if (pkg.private) continue;
   const published = isPublished(pkg.name, pkg.version);

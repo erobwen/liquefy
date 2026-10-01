@@ -10,7 +10,7 @@ import { DOMNodeComponent } from "./DOMNodeComponent.js";
  * build() must return exactly one DOMNodeComponent (directly, not
  * buried in an array or behind another build() step) - anything else is a
  * programming error, caught here rather than surfacing later as a mysterious
- * failure wherever code assumed that guarantee held (e.g. a future
+ * failure wherever code assumed that guarantee held (e.g.
  * FlipAnimationContainer, which needs to reach into "the one real element
  * this thing owns" without caring how many build() steps it took to get
  * there).

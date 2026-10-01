@@ -32,7 +32,8 @@ export function elementSlot(...parameters) {
  * number on the ellipsis, say).
  *
  * It lays out again whenever it's rendered again - its children changing,
- * or its width: it reads \`width\` from its render context, as measured by a
+ * or its width: it reads \`width\` from the target it's placed on (its
+ * timeless side - see cascade.component's fromTarget()), as measured by a
  * DOMElementBoundsProvider around it - and when a child's node changes size
  * by itself (a number growing a digit), which a ResizeObserver on them
  * catches.

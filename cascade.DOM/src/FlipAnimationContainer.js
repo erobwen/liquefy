@@ -448,9 +448,10 @@ FlipAnimationContainer.clock = {
 };
 
 // How fast animations run, unless a container says otherwise (its `speed`):
-// 1 is the springs' natural pace; the demo runs at half that, so what
-// happens is easier to follow.
-FlipAnimationContainer.speed = 0.5;
+// a factor - 1, the default, is the springs' natural pace, 0.5 half that.
+// An app sets it once for all its containers (the Cascade demo runs at
+// half speed, so what happens is easier to follow).
+FlipAnimationContainer.speed = 1;
 
 // Its islands' holders are marked as its own.
 FlipAnimationContainer.islandAttribute = "data-flip-island";

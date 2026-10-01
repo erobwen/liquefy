@@ -1,5 +1,5 @@
 import { RenderContext } from "@liquefy/cascade.component";
-import { DOMElementTarget, browserLocation } from "@liquefy/cascade.dom";
+import { DOMElementTarget, FlipAnimationContainer, browserLocation } from "@liquefy/cascade.dom";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
 import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
@@ -47,6 +47,10 @@ for (const [rel, type, href, sizes] of [
 const application = document.getElementById("application");
 setUpVersionNotice(application);
 const target = DOMElementTarget.forElement(application);
+
+// Every animation at half its natural pace - so what happens in the demo is
+// easy to follow.
+FlipAnimationContainer.speed = 0.5;
 
 // The services every component in the app gets (HTML elements, the current
 // theme's widgets, ...) are provided from here, by the root render context

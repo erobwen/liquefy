@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.print",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Cascade for print: documents laid out reactively onto a sequence of papers - paragraphs broken into lines and placed page by page, in micrometers.",
   "keywords": [
     "reactive",
@@ -40,8 +40,8 @@
   },
   "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.print#readme",
   "peerDependencies": {
-    "@liquefy/cascade.component": "^1.0.0",
-    "@liquefy/cascade.dom": "^1.0.0"
+    "@liquefy/cascade.component": "^2.0.0",
+    "@liquefy/cascade.dom": "^2.0.0"
   },
   "peerDependenciesMeta": {
     "@liquefy/cascade.dom": {

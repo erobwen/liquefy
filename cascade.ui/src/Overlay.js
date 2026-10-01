@@ -8,17 +8,17 @@ import { Component, withoutRecording } from "@liquefy/cascade.component";
  * take it back whenever it's false (or this component stops being shown
  * altogether - see onHide()).
  *
- * Deliberately named `showing`, not flow's own `isVisible` - flow's
- * `isVisible` is a much more general, base-Component concept (computed
- * from the render tree itself - whether a component is actually being
- * rendered at all at its own position right now, propagated down from
- * the root via renderParent - see flow.core's own reactiveRender()) that
- * cascade's direct-render model has no equivalent for yet. `showing` here
- * is Overlay's own, narrower concept: set this to true/false directly
- * (or via the properties bag - `overlay(content, {showing: true})`) to
- * control it, not flow's generic `.showIf(value)` helper (which just
- * conditionally includes a component in a build() result at all -
- * ported separately, unchanged, onto Component itself).
+ * Deliberately named `showing`, not flow's own `isVisible`: whether a
+ * component is shown at all is cascade's onShow()/onHide() (see
+ * Component), which Overlay uses itself - an Overlay that stops being
+ * shown takes its content back. `showing` is Overlay's own, narrower
+ * concept: set it to true/false directly (or via the properties bag -
+ * `overlay(content, {showing: true})`) to control it, not the generic
+ * `.showIf(value)` helper (which just conditionally includes a component
+ * in a build() result at all).
+ *
+ * One overlay per frame: shown on a frame already showing another
+ * Overlay's content, this one evicts it (see OverlayFrame's class doc).
  */
 export function overlay(...parameters) {
   return new Overlay(...parameters);

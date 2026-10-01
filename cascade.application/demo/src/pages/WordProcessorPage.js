@@ -78,6 +78,7 @@ export class WordProcessorPage extends Component {
     const u = this.unobservable;
     if (u.layoutRoot) retractRepeater(u.layoutRoot);
     u.layout.dispose();
+    u.measurer.dispose();
     super.onDispose();
   }
 

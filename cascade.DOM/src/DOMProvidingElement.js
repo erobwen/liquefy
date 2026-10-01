@@ -65,12 +65,17 @@ registerDOMComponent("providingElement", DOMProvidingElement);
 // Write `values` into `provided` - a context's provided object - at the
 // baseline, only where they differ: what a context holds has one value per
 // render pass, so the latest writing is always the right one (see
-// cascade.component's RenderContext.js).
+// cascade.component's RenderContext.js). A key no longer among them is
+// taken out - no longer provided here, so what's below finds it further up.
 export function provideAtBaseline(provided, values) {
-  if (!values) return;
-  const changed = withoutRecording(() => Object.keys(values).filter((key) => provided[key] !== values[key]));
-  if (changed.length === 0) return;
+  const given = values || {};
+  const { changed, dropped } = withoutRecording(() => ({
+    changed: Object.keys(given).filter((key) => provided[key] !== given[key]),
+    dropped: Object.keys(provided).filter((key) => !(key in given)),
+  }));
+  if (changed.length === 0 && dropped.length === 0) return;
   accessInitialValues(() => {
-    for (const key of changed) provided[key] = values[key];
+    for (const key of changed) provided[key] = given[key];
+    for (const key of dropped) delete provided[key];
   });
 }

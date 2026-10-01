@@ -43,9 +43,16 @@ that actually changed.
 | [@liquefy/cascade.dom](cascade.DOM#readme) | Rendering in the browser, measurement, animation, routing |
 | [@liquefy/cascade.ui](cascade.ui#readme) | Themed widgets, layout, overlays, color schemes - and the basic theme |
 | [@liquefy/cascade.ui.material](cascade.ui.material#readme) | A Material Design theme, on mdui 2 |
+| [@liquefy/cascade.print](cascade.print#readme) | Text laid out onto papers in micrometers - shown, edited at a caret, and printed; for any document model |
 
 ```console
 npm install @liquefy/cascade.ui @liquefy/cascade.dom @liquefy/cascade.component @liquefy/cascade.reactive
+```
+
+And, for documents on paper:
+
+```console
+npm install @liquefy/cascade.print
 ```
 
 ```js

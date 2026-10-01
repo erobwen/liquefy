@@ -22,7 +22,7 @@ export function getCreator() {
 // creator's) - not to be used by a subclass's initialUnobservables().
 const reservedUnobservables = new Set([
   "repeater", "buildRepeater", "pullingComponent", "renderTarget", "renderContext", "renderParent",
-  "ownContext", "childContext", "renderTimeless", "callbacks",
+  "ownContext", "childContext", "renderTimeless", "callbacks", "callbackBuild", "hydratedInBuild", "hydrated",
 ]);
 
 const renderStack = [];

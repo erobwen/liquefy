@@ -69,7 +69,12 @@ return button(text("Go green"), () => { scheme.base = "#2e7d32"; });
 - `row`, `column`, `filler`, `centerMiddle`, `zStack`, ... and their styles
   (`fillerStyle`, `fitContainerStyle`, ...).
 - `overlayFrame()` and `overlay()` - content over the app, shown from
-  wherever it's built: any content, custom or animated.
+  wherever it's built: any content, custom or animated. One overlay per
+  frame: an overlay shown on a frame already showing another evicts it (the
+  other isn't shown again until it's shown anew). Overlays stack across
+  frames - one opened from inside another's content - not side by side on
+  one. By design, for now: this may change should a use case turn up that
+  needs several on one frame.
 - `modalAssembly()` - what an `overlay()` usually shows: a backdrop (a click
   on it closes) and the content in a centered window - full screen, without
   the backdrop, in a frame narrower than `fullScreenBelow`, and a themed

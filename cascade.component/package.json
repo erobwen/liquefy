@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.component",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "The component model of Cascade: components that build and render reactively, with stable identity, state, services and inheritance - on cascade.reactive's temporal signals.",
   "keywords": [
     "reactive",
@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.component#readme",
   "peerDependencies": {
-    "@liquefy/cascade.reactive": "^1.0.0"
+    "@liquefy/cascade.reactive": "^2.0.0"
   },
   "devDependencies": {
     "mocha": "^10.8.2"

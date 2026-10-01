@@ -9,9 +9,9 @@ import { defaultDOMServiceLocator } from "./DOMServiceLocator.js";
  * toButtonProperties()/toInputProperties() - implicit-argument parsing
  * tied to flow.core's own two-way-binding convention (a loose function
  * argument becomes onclick, a {getter, setter} pair becomes a bound
- * input) - which cascade hasn't adopted, so both stay plain
- * toPropertiesWithChildren() here, same as every other tag; add that
- * convention later, on top of this, if cascade ever wants it. `br` is the
+ * input). Here both stay plain toPropertiesWithChildren(), same as every
+ * other tag: the loose-function convention is the themed widgets' (see
+ * cascade.ui's toButtonProperties()), and two-way binding isn't cascade's. `br` is the
  * one void element with no children at all, hence toProperties() instead.
  *
  * Each tag function asks the service locator in the render context of the

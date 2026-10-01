@@ -24,12 +24,13 @@ describe("dropdown", function () {
   function show(properties) {
     class App extends Component {
       initialState() {
-        return { value: "a", chosen: [] };
+        return { value: "a", chosen: [], disabled: false };
       }
       build() {
         return overlayFrame(dropdown({
           options,
           value: this.value,
+          disabled: this.disabled,
           onSelect: (value) => {
             this.chosen = [...this.chosen, value];
             this.value = value;
@@ -73,5 +74,19 @@ describe("dropdown", function () {
     assert.ok(toggleButton(host).disabled);
     toggleButton(host).click();
     assert.equal(listed(host).length, 0);
+  });
+
+  it("closes when disabled while open - and stays closed when enabled again", function () {
+    const { app, host } = show();
+    app.disabled = false;
+    toggleButton(host).click();
+    assert.equal(listed(host).length, 3);
+    app.disabled = true;
+    assert.equal(listed(host).length, 0);
+    app.disabled = false;
+    assert.equal(listed(host).length, 0);
+    // And opens again when clicked.
+    toggleButton(host).click();
+    assert.equal(listed(host).length, 3);
   });
 });

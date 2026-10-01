@@ -46,6 +46,9 @@ export class Dropdown extends Component {
   }
 
   build() {
+    // Disabled while open: closed, for good - not hidden only to pop open on
+    // its own again once it's enabled.
+    if (this.disabled && this.open) this.setState({ open: false });
     const chosen = this.options.find((option) => option.value === this.value);
     return [
       button(
@@ -63,7 +66,7 @@ export class Dropdown extends Component {
         icon({ name: "arrow_drop_down" }),
       ),
       popover(
-        { anchor: this.anchor, showing: this.open && !this.disabled, close: callback("close", () => { this.open = false; }) },
+        { anchor: this.anchor, showing: this.open, close: callback("close", () => { this.open = false; }) },
         card(
           { style: { padding: "4px", display: "flex", flexDirection: "column", gap: "2px", minWidth: "160px", maxHeight: "60vh", overflowY: "auto", boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)" } },
           this.options.map((option) => listItem(

@@ -37,6 +37,15 @@ export class TextInput extends DOMNodeComponent {
     return u.node;
   }
 
+  // Done with: its listeners, and its textarea, gone.
+  onDispose() {
+    const u = this.unobservable;
+    if (u.listening) u.listening.abort();
+    u.listening = null;
+    if (u.node) u.node.remove();
+    super.onDispose();
+  }
+
   createTextarea() {
     const textarea = document.createElement("textarea");
     for (const [name, value] of [["autocomplete", "off"], ["autocapitalize", "off"], ["autocorrect", "off"], ["spellcheck", "false"], ["aria-label", "Document text"], ["aria-multiline", "true"]]) {
@@ -49,6 +58,12 @@ export class TextInput extends DOMNodeComponent {
       padding: "0", border: "0", margin: "0", outline: "none", resize: "none", overflow: "hidden",
       opacity: "0", pointerEvents: "none", whiteSpace: "pre", fontSize: "16px",
     });
+
+    // Every listener below, removed in one go when it's disposed.
+    // The textarea's own window's: an element only takes a signal from there.
+    const listening = new textarea.ownerDocument.defaultView.AbortController();
+    this.unobservable.listening = listening;
+    const options = { signal: listening.signal };
 
     const send = (command) => {
       if (this.onCommand) this.onCommand(command);
@@ -67,17 +82,17 @@ export class TextInput extends DOMNodeComponent {
       if (!handledKeys.has(event.key) && !shortcut) return;
       event.preventDefault();
       send({ type: "key", key: shortcut || event.key, shift: event.shiftKey, primary });
-    });
-    textarea.addEventListener("compositionstart", () => { composing = true; });
+    }, options);
+    textarea.addEventListener("compositionstart", () => { composing = true; }, options);
     textarea.addEventListener("compositionend", () => {
       composing = false;
       takeText();
-    });
+    }, options);
     textarea.addEventListener("input", () => {
       if (!composing) takeText();
-    });
-    textarea.addEventListener("focus", () => send({ type: "focus" }));
-    textarea.addEventListener("blur", () => send({ type: "blur" }));
+    }, options);
+    textarea.addEventListener("focus", () => send({ type: "focus" }), options);
+    textarea.addEventListener("blur", () => send({ type: "blur" }), options);
     return textarea;
   }
 

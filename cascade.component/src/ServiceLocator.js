@@ -112,7 +112,9 @@ export function locateService(query, fallbackLocator) {
  * gets one from its position in the document (`h`, `h.0`, `h.0.2`, ...): a
  * rebuild (a theme switch, say) then matches the new tree to the old one
  * node for node, instead of constructing it all anew. A node's own `key`
- * wins; its descendants' positional keys extend it.
+ * wins; its descendants' positional keys extend it. Several documents
+ * hydrated in one build are numbered in turn (`h`, `h1`, `h2`, ...), and a
+ * fragment at a document's root is its elements side by side (`h.0`, `h.1`).
  */
 
 // A service query: a plain object with a string `type` - not an array,
@@ -123,6 +125,11 @@ export function isServiceQuery(value) {
 }
 
 export function hydrateQuery(query, locator, positionalKey = "h") {
+  // Several side by side (a fragment at the root of a document): each
+  // hydrated, at its own place.
+  if (query instanceof Array) {
+    return query.map((each, index) => hydrateQuery(each, locator, positionalKey + "." + index));
+  }
   // Already built (a component at the root of a document): as it is.
   if (!isServiceQuery(query)) return query;
   const properties = { ...(query.properties || {}) };
@@ -150,7 +157,24 @@ export function hydrateQuery(query, locator, positionalKey = "h") {
 // hydrated with whatever services (theme, platform, ...) that component's
 // render context holds.
 export function hydrateService(query, fallbackLocator) {
-  return hydrateQuery(query, { locate: (each) => locateService(each, fallbackLocator) });
+  return hydrateQuery(query, { locate: (each) => locateService(each, fallbackLocator) }, rootKey());
+}
+
+// The positional key of a document's root: "h" for the first document a
+// build hydrates, "h1", "h2", ... for the ones after it - so several in one
+// build don't collide, and a rebuild, hydrating them in the same order,
+// matches each to the one it was. Counted per run of the build that's
+// running (see Component's buildOneStep()).
+function rootKey() {
+  const creator = getCreator();
+  if (!creator) return "h";
+  const u = creator.unobservable;
+  if (u.hydratedInBuild !== u.callbackBuild) {
+    u.hydratedInBuild = u.callbackBuild;
+    u.hydrated = 0;
+  }
+  const count = u.hydrated++;
+  return count === 0 ? "h" : "h" + count;
 }
 
 export function serviceProvider(...parameters) {

@@ -96,7 +96,7 @@ A causality object is an object that can be observed by causality. This means th
 In every other aspect, a causality object behaves just as an ordinary Javascript object would. So you could for example write:
 
     var x = observable({a: 1, b: 2});
-    var y = x.a + b.2; // should result in 3!
+    var y = x.a + x.b; // 3
 
     var l = observable([]);
     l.push("item1");
@@ -154,7 +154,7 @@ Also, in addition to using time levels. causality internally uses a queue for re
 ### Separate cause and effect (MobX reaction)
 A repeater can mix cause and effect, and there are some preventive measures in place to prevent a repeater from activating itself. So, in many cases it is safe to use a repeater with a single action (comparable to autorun in MobX). However, there could be situations where you would like to distinguish more between cause and effect. To do that, a second argument for the repeater is an action that is not recorded. 
 
-    repeater([description for debug], recordedAction, nonRecordedAction, options)
+    repeat([description for debug], recordedAction, nonRecordedAction, options)
 
 The options object contains further configurations for the repeater (`time`, `independent`, ...).
 

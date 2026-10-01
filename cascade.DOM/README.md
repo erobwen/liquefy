@@ -67,8 +67,9 @@ argument that starts with a lowercase letter for a key - so wrap text in
   the tree: a page's buttons in the app's top bar, say. The contents inherit
   from where they came from (the source) by default, or from where they end up
   with `portalSource({ inheritFrom: "portal" })`.
-- **`providingElement()`** - keeps a component, its state and its elements,
-  wherever it's shown next.
+- **`providingElement({ child, context, style })`** - an element of its own
+  (a styleable div) that renders `child` into it, and provides the fields of
+  `context` to everything below it.
 - **`browserLocation()`** - routing: the URL as observable state.
 - **`hydrate()`** - a UI written as a document: plain data, a tree of service
   queries, turned into components.

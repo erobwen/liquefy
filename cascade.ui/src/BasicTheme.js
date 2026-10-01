@@ -55,8 +55,9 @@ const styleSheet = `
   width: 36px; height: 36px; padding: 0; margin: 0; border: none; border-radius: 6px;
   color: inherit; background: transparent; cursor: pointer; transition: background-color 0.15s;
 }
-.cb-icon-button:hover { background: rgba(127, 150, 175, 0.18); }
-.cb-icon-button:active { background: rgba(127, 150, 175, 0.32); }
+.cb-icon-button:hover:not(:disabled) { background: rgba(127, 150, 175, 0.18); }
+.cb-icon-button:active:not(:disabled) { background: rgba(127, 150, 175, 0.32); }
+.cb-icon-button:disabled { opacity: 0.38; cursor: default; }
 .cb-list-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; user-select: none; transition: background-color 0.15s; }
 .cb-list-item:hover { background: ${c.accentFaint}; }
 .cb-list-item.cb-active { background: ${c.accentSoft}; font-weight: bold; }

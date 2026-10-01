@@ -8,6 +8,7 @@ import source from "./IntroductionPage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import whatIfEverything from "../../../../cascade/images/what-if-everything.svg";
 import keyConcepts from "../../../../cascade/images/key-concepts.svg";
+import onelinerAnimation from "../../../../cascade/images/oneliner-animation.png";
 
 // Temporal signals in their smallest form - its printouts as they really
 // are (run it with @liquefy/cascade.reactive).
@@ -109,6 +110,14 @@ export class IntroductionPage extends Component {
       ),
       nextPage({ path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
 
+      h2("Standout feature"),
+      p("Name another reactive front end framework where animating an entire form can be reduced down to a one-liner. This becomes possible because of sub-frame render precision and temporal reactivity that can do complex FLIP-animation setup in the middle of a render cycle."),
+      img({
+        src: onelinerAnimation,
+        alt: "The Reactive Form page's source: the whole form is animated by wrapping it in flipAnimationContainer().",
+        style: { display: "block", width: "100%", margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px" },
+      }),
+      nextPage({ path: "reactive-form", label: "See it in action: the Reactive Form →" }),
       h2("Technical features"),
       ul(
         li(emphasis("Sub-frame render precision"), " Since all components render in a well-defined order in real time with access to the real DOM, it enables advanced animation setup or layout measuring within the same frame."),

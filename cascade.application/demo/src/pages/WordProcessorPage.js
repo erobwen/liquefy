@@ -1,7 +1,7 @@
 import { Component, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, controlPanel, iconButton, filler, fillerStyle, themeColor } from "@liquefy/cascade.ui";
-import { PrintDocument, PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
+import { button, controlPanel, iconButton, dropdown, filler, fillerStyle, themeColor } from "@liquefy/cascade.ui";
+import { PrintDocument, PaperSequence, paperSizes, margins, mm, inch, resolveParagraphStyle } from "@liquefy/cascade.print";
 import { domMeasurer, documentEditor, printPaperSequence } from "@liquefy/cascade.print/dom";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
@@ -16,7 +16,7 @@ const information = {
     "Each paragraph is broken into lines (measured by the browser), then its lines are placed on the papers - two repeaters, so a paragraph that only moves is never broken again.",
     "Switch between A4 and Letter: every paragraph gets a new width and is laid out again. Zoom: nothing is laid out again, it's only drawn at another scale.",
     "Click to drop the caret, then type, Backspace, Delete, Enter, and move with the arrows, Home and End (Ctrl/Cmd for the whole document). Select by dragging, Shift+click, double or triple click, Shift with the moving keys, or Ctrl/Cmd+A - typing replaces the selection, Backspace and Delete delete it. Each edit changes the model; the paragraph is broken into lines again, and the caret is drawn where the new layout puts it.",
-    "Format with the toolbar: Heading 1, Heading 2 and Normal set the style of the paragraphs the selection touches, the alignment buttons their alignment. Bold and italic (Ctrl/Cmd+B, +I) format the selection - or, with nothing selected, the word the caret is in.",
+    "Format with the toolbar: the style menu sets the style of the paragraphs the selection touches, the alignment buttons their alignment. Bold and italic (Ctrl/Cmd+B, +I) format the selection - or, with nothing selected, the word the caret is in.",
     "Print sends the papers to the browser's print dialog - one sheet per paper, at its real size.",
   ],
 };
@@ -96,7 +96,7 @@ export class WordProcessorPage extends Component {
     return fullPage(
       pageActions({ information, source, fileName: "src/pages/WordProcessorPage.js" }),
       controlPanel(
-        new FormatToolbar({ editor }),
+        new FormatToolbar({ editor, document }),
         filler(),
         button({ variant: paper === paperSizes.A4 ? "filled" : undefined }, "A4", () => this.setPaper("A4")),
         button({ variant: paper === paperSizes.letter ? "filled" : undefined }, "Letter", () => this.setPaper("letter")),
@@ -116,13 +116,29 @@ export class WordProcessorPage extends Component {
   }
 }
 
-// The paragraph styles the toolbar sets, by name in the sample document's
-// stylesheet.
+// The paragraph styles in the style menu, by name in the sample document's
+// stylesheet - every one of them.
 const paragraphStyles = [
+  { style: "Title", label: "Title" },
+  { style: "Subtitle", label: "Subtitle" },
   { style: "Heading1", label: "Heading 1" },
   { style: "Heading2", label: "Heading 2" },
   { style: "Normal", label: "Normal" },
+  { style: "Body", label: "Body text" },
+  { style: "Quote", label: "Quote" },
 ];
+
+// How a style looks, for its entry in the style menu: its font - the size
+// scaled down to fit in a menu, larger styles still larger.
+function stylePreview(stylesheet, style) {
+  const { font } = resolveParagraphStyle(stylesheet, style);
+  return {
+    fontFamily: font.family,
+    fontWeight: font.weight,
+    fontStyle: font.italic ? "italic" : "normal",
+    fontSize: Math.round(Math.min(22, 9 + font.size * 0.55)) + "px",
+  };
+}
 
 const alignments = [
   { align: "left", icon: "format_align_left", title: "Align left" },
@@ -134,8 +150,9 @@ const alignments = [
 // there (see cascade.print's DocumentEditor.format()). A component of its
 // own: it follows every move of the caret, the page around it doesn't.
 class FormatToolbar extends Component {
-  setProperties({ editor }) {
+  setProperties({ editor, document }) {
     this.editor = editor;
+    this.document = document;
   }
 
   build() {
@@ -147,11 +164,15 @@ class FormatToolbar extends Component {
       icon, title, disabled, style: active ? on : {}, onClick: () => editor.format(kind),
     });
     return [
-      ...paragraphStyles.map(({ style, label }) => button(
-        { disabled, variant: current && current.style === style ? "filled" : undefined },
-        label,
-        () => editor.format("style", style),
-      )),
+      dropdown({
+        options: paragraphStyles.map(({ style, label }) => ({ value: style, label, style: stylePreview(this.document.styles, style) })),
+        value: current ? current.style : null,
+        placeholder: "Style",
+        title: "Paragraph style",
+        disabled,
+        onSelect: (style) => editor.format("style", style),
+        style: { minWidth: "128px" },
+      }),
       separator(),
       toggle("bold", "format_bold", "Bold (Ctrl+B)", current && current.bold),
       toggle("italic", "format_italic", "Italic (Ctrl+I)", current && current.italic),

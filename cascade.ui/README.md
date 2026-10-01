@@ -82,3 +82,6 @@ return button(text("Go green"), () => { scheme.base = "#2e7d32"; });
       dialog({ title: "Settings", close }, ...)))
   ```
 - `popover()` - beside an element, following it when it moves.
+- `dropdown({ options, value, onSelect })` - one choice out of several: a button
+  showing it, opening a list of them all in a popover. Made of the theme's own
+  button, card and list items; an option's `style` previews it in the list.

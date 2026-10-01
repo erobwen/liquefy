@@ -10,6 +10,7 @@ export {
 } from "./Layout.js";
 export { widget, button, icon, iconButton, card, controlPanel, alert, listItem, dialog, textField, checkbox, colorField, tabBar, alertSeverities, toButtonProperties, keyAsLabel } from "./widgets.js";
 export { popover } from "./Popover.js";
+export { Dropdown, dropdown } from "./Dropdown.js";
 export { BasicThemeServiceLocator, basicTheme, basicShadow } from "./BasicTheme.js";
 export {
   ColorScheme, ColorSchemeScope, colorSchemeScope, currentColorScheme, themeColor, deriveColors, colorVariables, defaultColors,

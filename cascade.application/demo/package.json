@@ -23,6 +23,7 @@
     "@liquefy/cascade.reactive": "^1.0.0",
     "@liquefy/cascade.component": "^1.0.0",
     "@liquefy/cascade.dom": "^1.0.0",
+    "@liquefy/cascade.print": "^1.0.0",
     "@liquefy/cascade.ui": "^1.0.0",
     "@liquefy/cascade.ui.material": "^1.0.0",
     "highlight.js": "^11.12.0"

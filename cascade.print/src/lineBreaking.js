@@ -16,7 +16,7 @@ import { resolveFont } from "./styles.js";
  *     ascent, descent,  // the tallest font on it, above and below the baseline
  *     height,           // what it takes up on the page, line spacing included
  *     start, end,       // its range in the paragraph's text (offsets across all spans)
- *     runs: [{ text, font, x, width, start }],  // x from the line's own start
+ *     runs: [{ text, font, x, width, start, ascent, descent }],  // x from the line's own start
  *   }
  *
  * Lines break at whitespace - the whitespace stays at the end of the line it
@@ -154,11 +154,15 @@ function makeLine(words, index, style, stylesheet, measurer, limit, paragraphEnd
   }
   const width = x;
 
+  // Every run knows how far its own font reaches - what draws it needs that
+  // to put it on the line's baseline.
   let ascent = 0;
   let descent = 0;
-  const fonts = runs.length > 0 ? runs.map((run) => run.font) : [style.font];
-  for (const font of fonts) {
-    const metrics = measurer.metrics(font);
+  const fontsReach = runs.length > 0 ? runs : [{ font: style.font }];
+  for (const run of fontsReach) {
+    const metrics = measurer.metrics(run.font);
+    run.ascent = metrics.ascent;
+    run.descent = metrics.descent;
     ascent = Math.max(ascent, metrics.ascent);
     descent = Math.max(descent, metrics.descent);
   }

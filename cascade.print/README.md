@@ -64,3 +64,20 @@ placed again - and only until one ends where it did before.
 A measurer answers `measure(text, font)` (a width) and `metrics(font)` (`{
 ascent, descent }`), in µm. `monospaceMeasurer()` needs no fonts, for tests
 and anywhere without a browser.
+
+## In the browser
+
+`@liquefy/cascade.print/dom` (needs `@liquefy/cascade.dom`):
+
+- `domMeasurer()` - measures text on a canvas; the DOM as a measuring device
+  only. A font finishing loading makes every paragraph break its lines again.
+- `paperSequenceView({ sequence, zoom })` - the papers on screen, at their real
+  size (µm become CSS millimeters), white with a shadow on grey. Each paper
+  reads only its own lines.
+- `printPaperSequence(sequence, { title })` - the browser's print dialog, one
+  sheet per paper at its own size, printed from a hidden document of its own so
+  nothing of the app around the papers gets onto paper.
+
+The layout and the view are two roots: the document rendered onto a
+`PaperSequence`, and a view rendering that sequence onto the DOM (see the
+demo's `WordProcessorPage`).

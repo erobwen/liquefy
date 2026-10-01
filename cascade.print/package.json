@@ -14,8 +14,14 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./dom": "./dom.js",
+    "./package.json": "./package.json"
+  },
   "files": [
     "index.js",
+    "dom.js",
     "src",
     "!src/test",
     "README.md",
@@ -34,10 +40,17 @@
   },
   "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.print#readme",
   "peerDependencies": {
-    "@liquefy/cascade.component": "^1.0.0"
+    "@liquefy/cascade.component": "^1.0.0",
+    "@liquefy/cascade.dom": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@liquefy/cascade.dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "mocha": "^10.8.2"
+    "mocha": "^10.8.2",
+    "jsdom": "^24.1.1"
   },
   "publishConfig": {
     "access": "public"

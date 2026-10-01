@@ -13,6 +13,7 @@ import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { JsxPage } from "./src/pages/JsxPage.jsx";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { StorePage } from "./src/pages/StorePage.js";
+import { WordProcessorPage } from "./src/pages/WordProcessorPage.js";
 import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
 import { ToolbarEllipsisPage } from "./src/pages/ToolbarEllipsisPage.js";
 import { rootServiceLocator } from "./src/services.js";
@@ -79,6 +80,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "jsx", group: "Examples", title: "JSX", component: new JsxPage().establish() },
     { key: "animation", group: "Examples", title: "Animation", component: new AnimationPage().establish() },
     { key: "store", group: "Examples", title: "Web Store", component: new StorePage().establish() },
+    { key: "word-processor", group: "Examples", title: "Word Processor", component: new WordProcessorPage().establish() },
     { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage().establish() },
   ],
 }).establish();

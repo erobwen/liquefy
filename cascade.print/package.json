@@ -1,0 +1,45 @@
+{
+  "name": "@liquefy/cascade.print",
+  "version": "1.0.0",
+  "description": "Cascade for print: documents laid out reactively onto a sequence of papers - paragraphs broken into lines and placed page by page, in micrometers.",
+  "keywords": [
+    "reactive",
+    "print",
+    "pagination",
+    "word processor",
+    "cascade"
+  ],
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "files": [
+    "index.js",
+    "src",
+    "!src/test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "mocha ./src/test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.print"
+  },
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.print#readme",
+  "peerDependencies": {
+    "@liquefy/cascade.component": "^1.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.8.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

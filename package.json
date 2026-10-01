@@ -9,6 +9,7 @@
     "cascade.reactive",
     "cascade.component",
     "cascade.DOM",
+    "cascade.print",
     "cascade.ui",
     "cascade.ui.material",
     "cascade.application/demo",

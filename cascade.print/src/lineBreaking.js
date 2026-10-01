@@ -1,0 +1,186 @@
+import { resolveFont } from "./styles.js";
+
+/**
+ * Line breaking - the first of a paragraph's two steps (see Paragraph.js):
+ * its text divided into lines for a given width, measured but not yet
+ * placed anywhere. Nothing here depends on where the paragraph ends up, so
+ * a paragraph pushed down the page, or onto the next one, keeps its lines -
+ * only a different width breaks it again.
+ *
+ * `spans` are the paragraph's: { text, style?, font? } (see styles.js),
+ * `paragraphStyle` resolved. Returns the lines, each:
+ *
+ *   {
+ *     x,                // where the line starts, from the left of the content area
+ *     width,            // of its text, trailing space left out
+ *     ascent, descent,  // the tallest font on it, above and below the baseline
+ *     height,           // what it takes up on the page, line spacing included
+ *     start, end,       // its range in the paragraph's text (offsets across all spans)
+ *     runs: [{ text, font, x, width, start }],  // x from the line's own start
+ *   }
+ *
+ * Lines break at whitespace - the whitespace stays at the end of the line it
+ * follows, not counted in its width. A word wider than a whole line is
+ * broken between characters. A paragraph with no text still has one line,
+ * as tall as its font.
+ */
+export function breakIntoLines({ spans, paragraphStyle, stylesheet, width, measurer }) {
+  const style = paragraphStyle;
+  const words = splitIntoWords(spans, style, stylesheet, measurer);
+  const fullLimit = Math.max(0, width - style.indentLeft - style.indentRight);
+  const limitOf = (lineIndex) => Math.max(0, fullLimit - (lineIndex === 0 ? style.firstLineIndent : 0));
+
+  const lineWords = [];
+  let current = [];
+  let used = 0;
+  const pending = [...words];
+  while (pending.length > 0) {
+    const word = pending.shift();
+    const limit = limitOf(lineWords.length);
+    if (used + word.width <= limit) {
+      current.push(word);
+      used += word.width + word.spaceWidth;
+    } else if (current.length > 0) {
+      lineWords.push(current);
+      current = [];
+      used = 0;
+      pending.unshift(word);
+    } else {
+      // Wider than a whole line on its own: as much of it as fits, the rest
+      // on the lines after.
+      const [head, tail] = splitWord(word, limit, measurer);
+      lineWords.push([head]);
+      pending.unshift(tail);
+    }
+  }
+  if (current.length > 0 || lineWords.length === 0) lineWords.push(current);
+
+  const end = words.length > 0 ? words[words.length - 1].end : 0;
+  return lineWords.map((wordsOnLine, index) => makeLine(wordsOnLine, index, style, stylesheet, measurer, limitOf(index), end));
+}
+
+// Words, each its pieces (one per span it crosses) and the whitespace after
+// it. A word crossing a span boundary is one word: "bold" + "er" in two
+// fonts breaks nowhere in between.
+function splitIntoWords(spans, style, stylesheet, measurer) {
+  const words = [];
+  let word = null;
+  let offset = 0;
+  for (const span of spans) {
+    const font = resolveFont(stylesheet, style, span);
+    for (const token of span.text.match(/\s+|\S+/g) || []) {
+      const piece = { text: token, font, start: offset, width: measurer.measure(token, font) };
+      offset += token.length;
+      if (/^\s/.test(token)) {
+        if (word) {
+          word.space.push(piece);
+          word.spaceWidth += piece.width;
+        } else {
+          // Leading whitespace: shown, as the start of the first word.
+          word = newWord(words);
+          addPiece(word, piece);
+        }
+      } else {
+        if (!word || word.space.length > 0) word = newWord(words);
+        addPiece(word, piece);
+      }
+      word.end = offset;
+    }
+  }
+  return words;
+}
+
+function newWord(words) {
+  const word = { pieces: [], space: [], width: 0, spaceWidth: 0, end: 0 };
+  words.push(word);
+  return word;
+}
+
+function addPiece(word, piece) {
+  word.pieces.push(piece);
+  word.width += piece.width;
+}
+
+// The first characters of `word` that fit within `limit` (at least one, so
+// breaking always gets somewhere), and the rest.
+function splitWord(word, limit, measurer) {
+  const head = { pieces: [], space: [], width: 0, spaceWidth: 0, end: 0 };
+  const tail = { pieces: [], space: word.space, width: 0, spaceWidth: word.spaceWidth, end: word.end };
+  let full = false;
+  for (const piece of word.pieces) {
+    if (full) {
+      addPiece(tail, piece);
+      continue;
+    }
+    let count = 0;
+    let width = 0;
+    while (count < piece.text.length) {
+      const next = measurer.measure(piece.text.slice(0, count + 1), piece.font);
+      if (head.width + next > limit && (count > 0 || head.pieces.length > 0)) break;
+      count++;
+      width = next;
+    }
+    if (count > 0) addPiece(head, { ...piece, text: piece.text.slice(0, count), width });
+    if (count < piece.text.length) {
+      full = true;
+      const rest = piece.text.slice(count);
+      addPiece(tail, { ...piece, text: rest, start: piece.start + count, width: measurer.measure(rest, piece.font) });
+    }
+  }
+  head.end = tail.pieces.length > 0 ? tail.pieces[0].start : word.end;
+  return [head, tail];
+}
+
+function makeLine(words, index, style, stylesheet, measurer, limit, paragraphEnd) {
+  // Every word's whitespace is on the line, except after the last word:
+  // that trails, part of the line's range but not of its width.
+  const pieces = [];
+  words.forEach((word, wordIndex) => {
+    pieces.push(...word.pieces);
+    if (wordIndex < words.length - 1) pieces.push(...word.space);
+  });
+
+  const runs = [];
+  let x = 0;
+  for (const piece of pieces) {
+    const last = runs[runs.length - 1];
+    if (last && sameFont(last.font, piece.font)) {
+      last.text += piece.text;
+      last.width += piece.width;
+    } else {
+      runs.push({ text: piece.text, font: piece.font, x, width: piece.width, start: piece.start });
+    }
+    x += piece.width;
+  }
+  const width = x;
+
+  let ascent = 0;
+  let descent = 0;
+  const fonts = runs.length > 0 ? runs.map((run) => run.font) : [style.font];
+  for (const font of fonts) {
+    const metrics = measurer.metrics(font);
+    ascent = Math.max(ascent, metrics.ascent);
+    descent = Math.max(descent, metrics.descent);
+  }
+
+  let lineX = style.indentLeft + (index === 0 ? style.firstLineIndent : 0);
+  if (style.align === "center") lineX += Math.round((limit - width) / 2);
+  else if (style.align === "right") lineX += limit - width;
+
+  const start = pieces.length > 0 ? pieces[0].start : (words.length > 0 ? words[0].end : paragraphEnd);
+  const end = words.length > 0 ? words[words.length - 1].end : paragraphEnd;
+  return {
+    x: lineX,
+    width,
+    ascent,
+    descent,
+    height: Math.round((ascent + descent) * style.lineSpacing),
+    start,
+    end,
+    runs,
+  };
+}
+
+function sameFont(a, b) {
+  return a.family === b.family && a.size === b.size && a.weight === b.weight && a.italic === b.italic;
+}

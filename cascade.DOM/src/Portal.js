@@ -20,6 +20,9 @@ import { div } from "./HTMLTags.js";
  *    stands - what it passes on to its own children - so what's put
  *    through a portal inherits from where it came from, not from where it
  *    ends up (see Component.enteredContext(), ContextScope).
+ *    `inheritFrom: "portal"` turns that around: the children inherit
+ *    from where they end up, as if built inside the portal itself
+ *    (the default is `inheritFrom: "source"`).
  *
  * The same mechanism as OverlayFrame/Overlay (see OverlayFrame.js - an
  * overlay frame is a portal with a modal layer): the contents are
@@ -90,8 +93,9 @@ export class Portal extends Component {
 }
 
 export class PortalSource extends Component {
-  setProperties({ portal, children }) {
+  setProperties({ portal, inheritFrom, children }) {
     this.portal = portal || null;
+    this.inheritFrom = inheritFrom === "portal" ? "portal" : "source";
     this.portalChildren = frozen(children || []);
   }
 
@@ -140,7 +144,9 @@ export class PortalSource extends Component {
       u.shownIn = null;
     }
     if (portal) {
-      portal.show(this, this.portalChildren, u.childContext);
+      // No context: the contents enter with the portal's own (see
+      // ContextScope).
+      portal.show(this, this.portalChildren, this.inheritFrom === "source" ? u.childContext : null);
       u.shownIn = portal;
     }
   }

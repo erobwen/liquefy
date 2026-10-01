@@ -45,6 +45,11 @@ export class ConvenientUsagePage extends Component {
         name("portalSource()"), " puts content there, from anywhere - found by name, nothing ",
         "handed down. This demo's pages put their buttons in the top bar the same way.",
       ),
+      p(
+        "What's put through a portal inherits from where it came from - the portal source - not from where it ",
+        "ends up. Give the source ", name("inheritFrom: \"portal\""), " to turn that around, and have the ",
+        "contents inherit from the portal instead, as if they had been built there.",
+      ),
       stage(new NoticeBoard()),
       codeBlock(noticeBoardSource),
 

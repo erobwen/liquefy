@@ -64,7 +64,9 @@ argument that starts with a lowercase letter for a key - so wrap text in
   ellipsis toolbar, say) - an `elementSlot()`, an element for it to fill,
   shown wherever the overflow belongs (a popover).
 - **`portal()`** and **`portalSource()`** - content placed somewhere else in
-  the tree: a page's buttons in the app's top bar, say.
+  the tree: a page's buttons in the app's top bar, say. The contents inherit
+  from where they came from (the source) by default, or from where they end up
+  with `portalSource({ inheritFrom: "portal" })`.
 - **`providingElement()`** - keeps a component, its state and its elements,
   wherever it's shown next.
 - **`browserLocation()`** - routing: the URL as observable state.

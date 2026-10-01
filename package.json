@@ -13,6 +13,7 @@
     "cascade.ui",
     "cascade.ui.material",
     "cascade.application/demo",
+    "cascade.application/ripple",
     "causality",
     "flow.core",
     "flow.DOM",
@@ -29,6 +30,7 @@
     "build": "npm run build -w @liquefy/causality -w @liquefy/cascade.reactive",
     "demo": "npm start -w @liquefy/cascade-demo",
     "build:demo": "npm run build -w @liquefy/cascade-demo",
+    "ripple": "npm start -w @liquefy/ripple",
     "flow:demo": "npm start -w @liquefy/flow-demo",
     "build:site": "node scripts/build-site.mjs",
     "release:check": "node scripts/publish-new-versions.mjs --dry-run"

@@ -1,0 +1,32 @@
+{
+  "name": "@liquefy/ripple",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ripple - a word processor built on Cascade and cascade.print.",
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "type": "module",
+  "module": "./index.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "test": "mocha ./src/model/test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.application/ripple"
+  },
+  "dependencies": {
+    "@liquefy/cascade.reactive": "^2.0.0",
+    "@liquefy/cascade.component": "^2.0.0",
+    "@liquefy/cascade.dom": "^2.0.0",
+    "@liquefy/cascade.print": "^2.0.0",
+    "@liquefy/cascade.ui": "^2.0.0"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.1",
+    "mocha": "^10.8.2",
+    "vite": "^5.3.1"
+  }
+}

@@ -1,6 +1,7 @@
 # The site on GitHub Pages: a landing page at https://erobwen.github.io/liquefy/, the
-# Cascade demo at https://erobwen.github.io/liquefy/cascade/, and the Flow demo at
-# https://erobwen.github.io/liquefy/flow/ - built and deployed on every push to main,
+# Cascade demo at https://erobwen.github.io/liquefy/cascade/, the Flow demo at
+# https://erobwen.github.io/liquefy/flow/, and Ripple (unlinked) at
+# https://erobwen.github.io/liquefy/ripple/ - built and deployed on every push to main,
 # once every package's tests pass (see scripts/build-site.mjs).
 #
 # Needs the repository's Settings > Pages > Source set to "GitHub Actions".

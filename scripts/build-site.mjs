@@ -1,5 +1,7 @@
 // Builds the site for GitHub Pages into ./site: a landing page at its root
-// (landing/), the Cascade demo under cascade/, and the Flow demo under flow/.
+// (landing/), the Cascade demo under cascade/, the Flow demo under flow/ -
+// and Ripple, the word processor, under ripple/: not linked from anywhere,
+// found only by its address.
 //
 //   npm run build:site                       (served from /liquefy/)
 //   SITE_BASE=/ npm run build:site           (served from the domain's root)
@@ -22,6 +24,7 @@ const base = (process.env.SITE_BASE || "/liquefy/").replace(/\/?$/, "/");
 const demos = [
   { name: "Cascade", dir: "cascade.application/demo", path: "cascade/" },
   { name: "Flow", dir: "flow.application/demo", path: "flow/" },
+  { name: "Ripple", dir: "cascade.application/ripple", path: "ripple/" },
 ];
 
 rmSync(site, { recursive: true, force: true });
@@ -29,7 +32,7 @@ mkdirSync(site, { recursive: true });
 
 for (const demo of demos) {
   const demoBase = base + demo.path;
-  console.log(`Building the ${demo.name} demo, for ${demoBase}`);
+  console.log(`Building ${demo.name}, for ${demoBase}`);
   // vite itself, not the demo's build script - which may do more than build.
   execSync(`npx vite build --base=${demoBase} --outDir=dist`, { cwd: join(root, demo.dir), stdio: "inherit" });
   cpSync(join(root, demo.dir, "dist"), join(site, demo.path), { recursive: true });

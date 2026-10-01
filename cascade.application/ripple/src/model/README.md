@@ -13,7 +13,8 @@ A document is a tree of parts, as a DAISY 2 book is (`parts.js`):
 
 Where a caret can be: in a paragraph's text (`textPosition`); and at a
 **marker** - a place between text - of which there are two kinds: every list's
-gaps (`gap(list, index)`: before, between and after its children), and every
+gaps (`gap(list, index)`: between two of its children, or a section's title
+and its first child - never before the first or after the last), and every
 part's own start and end (`partStart(part)`, `partEnd(part)`: a document's, a
 section's, a title's, a paragraph's). Between two paragraphs A and B of one
 section there are three: the end of A, the gap between them, the start of B.

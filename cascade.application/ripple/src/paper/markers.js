@@ -7,12 +7,15 @@ import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js"
  *
  * Markers are the places between text (see ../model/parts.js): every part's
  * start and end - a document's, a section's, a title's, a paragraph's - and
- * the gaps of every list, before, between and after its children. A section
- * reads:
+ * the gaps between two parts lying side by side in a list: two siblings, or a
+ * section's title and its first child. A section reads:
  *
  *   start(section)  start(title) [title text] end(title)  gap(0)
- *     start(child) ... end(child)  gap(1)  ...  gap(n)
+ *     start(child) ... end(child)  gap(1)  ...  start(last) ... end(last)
  *   end(section)
+ *
+ * No gap before a list's first part, nor after its last: those places are
+ * the parts' own start and end.
  *
  * The lines are cascade.print's, as laid out. The markers are placed here,
  * after the text is laid out and from it - so they can never move a part:
@@ -42,28 +45,45 @@ import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js"
  *    title to its last line. Parts ending (or starting) together have their
  *    areas one inside another.
  *  - A gap: the room of its run - from the lower edge of the part before to
- *    the upper edge of the part after (or `edge` beyond, with none); its bar
- *    in the middle of it, for a gap between siblings.
+ *    the upper edge of the part after (or the paper's edge, across a page
+ *    break); its bar in the middle of it.
  *
  * A caret row is a placed line (cascade.print's), or a marker row:
  *
- *   { marker, kind, level, x, width, y, area }
- *     - marker: its position; kind: "partStart", "partEnd", "between",
- *       "listStart" or "listEnd"
+ *   { marker, kind, type, level, x, width, y, area }
+ *     - marker: its position; kind: "partStart", "partEnd" or "between";
+ *       type: which of markerTypes it is
  *     - level: how deep it is in the tree (the sequence's gaps 0, a
  *       document and its gaps 1, ...)
  *     - x, width: the text area; y: the bar's
  *     - area: [{ page, x, top, width, height }]
  *
  * Returned as [{ page, row }], in reading order.
+ *
+ * Which markers there are can be chosen, by type - to try out which places a
+ * caret should be able to go (see markerTypes below): `types` maps a type to
+ * whether its markers are there, every type there unless it says false. A
+ * marker not there isn't placed at all - the others share the room.
  */
+
+// The types of markers, as an editor shows them to be chosen.
+export const markerTypes = Object.freeze([
+  Object.freeze({ type: "paragraphStart", label: "Paragraph start" }),
+  Object.freeze({ type: "paragraphEnd", label: "Paragraph end" }),
+  Object.freeze({ type: "titleStart", label: "Title start" }),
+  Object.freeze({ type: "titleEnd", label: "Title end" }),
+  Object.freeze({ type: "sectionStart", label: "Section start" }),
+  Object.freeze({ type: "sectionEnd", label: "Section end" }),
+  Object.freeze({ type: "titleGap", label: "Between title and content" }),
+  Object.freeze({ type: "siblingGap", label: "Between siblings" }),
+]);
 
 // How far a marker with nothing beyond it is from its part: about half the
 // room between two paragraphs.
 export const edgeDistance = mm(1.5);
 
-export function caretRows(sequence, root, { edge = edgeDistance } = {}) {
-  const items = readingOrder(root);
+export function caretRows(sequence, root, { edge = edgeDistance, types = {} } = {}) {
+  const items = readingOrder(root).filter((item) => item.block || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
   const extentOf = partExtents(lines);
   placeMarkers(items, lines, extentOf, sequence, edge);
@@ -80,37 +100,37 @@ export function caretRows(sequence, root, { edge = edgeDistance } = {}) {
 
 // Every paragraph and every marker of the tree, in reading order: { block }
 // for a paragraph's text (a title, or body text), and for a marker
-// { marker, kind, level, part } - `part` being, for a part's start or end,
-// the part.
+// { marker, kind, type, level, part } - `type` one of markerTypes', `part`
+// being, for a part's start or end, the part.
 export function readingOrder(root) {
   const items = [];
-  const gapItem = (list, index, level, hasTitle) => {
-    const count = list.children.length;
-    const kind = index === count ? "listEnd" : (index === 0 && !hasTitle ? "listStart" : "between");
-    items.push({ marker: gap(list, index), kind, level });
+  // The gap before child `index` - between it and the part before it in the
+  // list: the child before, or the section's title.
+  // A section's gap 0 is between its title and its content; every other
+  // gap between two siblings.
+  const gapItem = (list, index, level, afterTitle) => {
+    items.push({ marker: gap(list, index), kind: "between", type: afterTitle ? "titleGap" : "siblingGap", level });
   };
-  const visitParagraph = (paragraph, level) => {
-    items.push({ marker: partStart(paragraph), kind: "partStart", level, part: paragraph });
+  const visitParagraph = (paragraph, level, role) => {
+    items.push({ marker: partStart(paragraph), kind: "partStart", type: role + "Start", level, part: paragraph });
     items.push({ block: paragraph });
-    items.push({ marker: partEnd(paragraph), kind: "partEnd", level, part: paragraph });
+    items.push({ marker: partEnd(paragraph), kind: "partEnd", type: role + "End", level, part: paragraph });
   };
   const visitSection = (section, level) => {
-    items.push({ marker: partStart(section), kind: "partStart", level, part: section });
-    visitParagraph(section.title, level + 1);
+    items.push({ marker: partStart(section), kind: "partStart", type: "sectionStart", level, part: section });
+    visitParagraph(section.title, level + 1, "title");
     section.children.forEach((child, index) => {
-      gapItem(section, index, level + 1, true);
+      gapItem(section, index, level + 1, index === 0);
       if (isSection(child)) visitSection(child, level + 1);
-      else visitParagraph(child, level + 1);
+      else visitParagraph(child, level + 1, "paragraph");
     });
-    gapItem(section, section.children.length, level + 1, true);
-    items.push({ marker: partEnd(section), kind: "partEnd", level, part: section });
+    items.push({ marker: partEnd(section), kind: "partEnd", type: "sectionEnd", level, part: section });
   };
   if (root instanceof Sequence) {
     root.children.forEach((document, index) => {
-      gapItem(root, index, 0, false);
+      if (index > 0) gapItem(root, index, 0, false);
       visitSection(document, 1);
     });
-    gapItem(root, root.children.length, 0, false);
   } else {
     visitSection(root, 1);
   }
@@ -190,8 +210,8 @@ function placeMarkers(items, lines, extentOf, sequence, edge) {
   flush(null);
 }
 
-const closes = (item) => item.kind === "partEnd" || item.kind === "listEnd";
-const opens = (item) => item.kind === "partStart" || item.kind === "listStart";
+const closes = (item) => item.kind === "partEnd";
+const opens = (item) => item.kind === "partStart";
 
 function placeRun(run, before, after, extentOf, sequence, edge) {
   const closing = run.filter(closes);
@@ -262,6 +282,6 @@ function markerRow(item, page, y, sequence) {
   const format = sequence.pages[page];
   return {
     page,
-    row: { marker: item.marker, kind: item.kind, level: item.level, x: format.margins.left, width: contentWidth(format), y },
+    row: { marker: item.marker, kind: item.kind, type: item.type, level: item.level, x: format.margins.left, width: contentWidth(format), y },
   };
 }

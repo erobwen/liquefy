@@ -32,14 +32,14 @@ import { observable } from "@liquefy/cascade.component";
  *                                               a part: a document, a
  *                                               section, a title, a paragraph
  *
- * A gap belongs to one list, at one level of the tree: "after A" and
- * "before B" among a section's children are the same gap; the end of a
- * section, and the place after it in the section around it, are two. Every
- * list has a gap before its first child (after a section's title), between
- * any two, and after its last - the sequence's included, before and after
- * everything. And every part has a start and an end of its own, besides the
- * gaps around it: between two paragraphs A and B, the end of A, the gap
- * between them, and the start of B are three places.
+ * A gap is between two parts lying side by side in a list - two siblings,
+ * or a section's title and its first child - and belongs to that list, at
+ * one level of the tree: "after A" and "before B" among a section's children
+ * are the same gap. Before a list's first part and after its last there's no
+ * gap: those places are the parts' own start and end. Every part has a start
+ * and an end of its own: between two paragraphs A and B, the end of A, the
+ * gap between them, and the start of B are three places; and the end of a
+ * section's last paragraph, and the end of the section, are two.
  *
  * Gaps and part starts and ends are markers - places between text.
  */

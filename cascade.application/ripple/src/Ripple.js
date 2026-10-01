@@ -1,9 +1,10 @@
 import { Component, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, checkbox, controlPanel, iconButton, filler, fillerStyle, fitContainerStyle, overlayFrame, colorSchemeScope, column } from "@liquefy/cascade.ui";
+import { button, card, checkbox, controlPanel, iconButton, filler, fillerStyle, fitContainerStyle, overlayFrame, colorSchemeScope, column, row } from "@liquefy/cascade.ui";
 import { PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
 import { domMeasurer, printPaperSequence } from "@liquefy/cascade.print/dom";
 import { rippleEditor } from "./paper/RippleEditor.js";
+import { markerTypes } from "./paper/markers.js";
 import { sequence as sequenceOf } from "./model/parts.js";
 import { testDocument } from "./model/testDocument.js";
 import { SequenceLayout } from "./layout/DocumentLayout.js";
@@ -33,9 +34,14 @@ const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
  */
 export class Ripple extends Component {
   initialState() {
-    // showAllAreas: every gap's area drawn at once - for experimenting with
-    // where gaps are, and what they stand for.
-    return { zoom: 1, showAllAreas: false };
+    // For experimenting with where a caret should be able to go:
+    // markerTypes - which kinds of marker it goes to ({ type: false } for
+    // one it doesn't), and showAllAreas - every marker's area drawn at once.
+    return { zoom: 1, showAllAreas: false, markerTypes: {} };
+  }
+
+  setMarkerType(type, on) {
+    this.markerTypes = { ...this.markerTypes, [type]: on };
   }
 
   initialUnobservables() {
@@ -94,7 +100,6 @@ export class Ripple extends Component {
           { style: { ...fitContainerStyle, gap: "12px", padding: "12px" } },
           controlPanel(
             div({ style: { fontWeight: "bold", fontSize: "18px", marginRight: "8px" } }, text("Ripple")),
-            checkbox({ label: "All gap areas", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
             filler(),
             button({ variant: paper === paperSizes.A4 ? "filled" : undefined }, "A4", () => this.setPaper("A4")),
             button({ variant: paper === paperSizes.letter ? "filled" : undefined }, "Letter", () => this.setPaper("letter")),
@@ -106,12 +111,37 @@ export class Ripple extends Component {
             div({ style: { opacity: 0.7 } }, text(pageCount + (pageCount === 1 ? " page" : " pages"))),
             button({ variant: "filled" }, "Print", () => printPaperSequence(sequence, { title: "Ripple" })),
           ),
-          div(
-            { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
-            rippleEditor({ key: "editor", sequence, root, measurer, zoom: this.zoom, showAllAreas: this.showAllAreas }),
+          row(
+            { style: { ...fillerStyle, gap: "12px" } },
+            this.caretPanel(),
+            div(
+              { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
+              rippleEditor({
+                key: "editor", sequence, root, measurer, zoom: this.zoom,
+                showAllAreas: this.showAllAreas, markerTypes: this.markerTypes,
+              }),
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  // The side panel: which places the caret can go to, besides the text -
+  // a checkbox for every kind of marker - and every marker's area at once.
+  caretPanel() {
+    const heading = (label) => div({ style: { fontWeight: "bold", fontSize: "13px", margin: "4px 0" } }, text(label));
+    return card(
+      { style: { flex: "none", width: "220px", display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto" } },
+      heading("Caret goes to"),
+      markerTypes.map(({ type, label }) => checkbox({
+        key: type,
+        label,
+        checked: this.markerTypes[type] !== false,
+        onChange: (checked) => this.setMarkerType(type, checked),
+      })),
+      heading("Show"),
+      checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
     );
   }
 }

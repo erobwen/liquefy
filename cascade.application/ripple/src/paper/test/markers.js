@@ -63,26 +63,22 @@ function walk(rows) {
 }
 
 describe("Ripple's markers", function () {
-  it("give every part a start and an end of its own, and every list a gap before, between and after its children", function () {
+  it("give every part a start and an end of its own, and a gap between any two parts side by side - none before the first, none after the last", function () {
     const inner = section("In", paragraph("x"));
     const doc = document({ title: "D", paper, margins }, paragraph("p"), inner);
     const root = sequenceOf(doc);
     const { rows } = layOut(root);
     const markers = walk(rows).filter((at) => !("paragraph" in at)).map((at) => nameOf(at, root));
     assert.deepEqual(markers, [
-      "root:0",
       "<D", "<D", "D>",       // the document starts; its title starts, and ends
-      "D:0",
+      "D:0",                  // between the title and "p"
       "<p", "p>",
-      "D:1",
+      "D:1",                  // between "p" and the section
       "<In", "<In", "In>",    // the section starts; its title starts, and ends
-      "In:0",
+      "In:0",                 // between the title and "x"
       "<x", "x>",
-      "In:1",
-      "In>",                  // the section ends
-      "D:2",
-      "D>",                   // the document ends
-      "root:1",
+      "In>",                  // the section ends - no gap after "x"
+      "D>",                   // the document ends - no gap after the section
     ]);
     // A document and its title, "D" both, are two parts: two starts.
     assert.ok(!samePosition(partStart(doc), partStart(doc.title)));
@@ -124,13 +120,12 @@ describe("Ripple's markers", function () {
     const next = section("Next");
     const doc = document({ title: "D", paper, margins }, outer, next);
     const { rows } = layOut(sequenceOf(doc));
-    // After "qq": its end, Inner's list end and its own end, Outer's list
-    // end and its own end - then the gap between Outer and Next, dead
-    // centre; then Next starts, and Next's title.
+    // After "qq": its end, Inner's end, Outer's end - then the gap between
+    // Outer and Next, dead centre; then Next starts, and Next's title.
     const from = bottom(rows, q);
     const to = top(rows, next.title);
     const centre = (from + to) / 2;
-    const closing = [partEnd(q), gap(inner, 1), partEnd(inner), gap(outer, 2), partEnd(outer), gap(doc, 1)];
+    const closing = [partEnd(q), partEnd(inner), partEnd(outer), gap(doc, 1)];
     closing.forEach((position, index) => {
       assert.equal(markerY(rows, position), Math.round(from + (centre - from) * (index + 1) / closing.length));
     });
@@ -147,7 +142,7 @@ describe("Ripple's markers", function () {
     const root = sequenceOf(doc);
     const { rows } = layOut(root);
     const from = bottom(rows, q);
-    const closing = [partEnd(q), gap(inner, 1), partEnd(inner), gap(doc, 1), partEnd(doc), gap(root, 1)];
+    const closing = [partEnd(q), partEnd(inner), partEnd(doc)];
     closing.forEach((position, index) => {
       assert.equal(markerY(rows, position), Math.round(from + edgeDistance * (index + 1) / closing.length));
     });
@@ -158,7 +153,7 @@ describe("Ripple's markers", function () {
     const root = sequenceOf(doc);
     const { rows } = layOut(root);
     const to = top(rows, doc.title);
-    const opening = [gap(root, 0), partStart(doc), partStart(doc.title)];
+    const opening = [partStart(doc), partStart(doc.title)];
     opening.forEach((position, index) => {
       assert.equal(markerY(rows, position), Math.round(to - edgeDistance + edgeDistance * index / opening.length));
     });
@@ -173,7 +168,7 @@ describe("Ripple's markers", function () {
   it("are horizontal bars across the text area", function () {
     const doc = document({ title: "D", paper, margins }, paragraph("aa"));
     const { rows } = layOut(sequenceOf(doc));
-    for (const position of [gap(doc, 1), partEnd(doc.title), partStart(doc)]) {
+    for (const position of [gap(doc, 0), partEnd(doc.title), partStart(doc)]) {
       const caret = caretAt(rows, position, measurer);
       assert.equal(caret.x, textArea.x);
       assert.equal(caret.width, textArea.width);
@@ -195,7 +190,6 @@ describe("Ripple's markers", function () {
     // A gap: the room between the parts around it - for every gap in it.
     const room = [{ page: 0, ...textArea, top: bottom(rows, q), height: top(rows, doc.children[1].title) - bottom(rows, q) }];
     assert.deepEqual(areaOf(rows, gap(doc, 1)), room);
-    assert.deepEqual(areaOf(rows, gap(inner, 1)), room);
   });
 
   it("give a part on several papers an area on each", function () {
@@ -217,5 +211,28 @@ describe("Ripple's markers", function () {
       assert.ok(samePosition(hitTest(rows, 0, 5000, markerY(rows, position), measurer), position));
     }
     assert.ok(samePosition(hitTest(rows, 0, 1600, top(rows, a) + 1000, measurer), textPosition(a, 1)));
+  });
+
+  it("can leave out kinds of markers - the caret skips them, the rest share the room, a sibling gap still dead centre", function () {
+    const a = paragraph("aa");
+    const b = paragraph("bb");
+    const doc = document({ title: "D", paper, margins }, a, b);
+    const root = sequenceOf(doc);
+    const sequence = new PaperSequence();
+    new SequenceLayout({ sequence: root, measurer, typography: spaced }).renderOnto(sequence);
+    const onlyGaps = { paragraphStart: false, paragraphEnd: false, titleStart: false, titleEnd: false, sectionStart: false, sectionEnd: false };
+    const rows = caretRows(sequence, root, { types: onlyGaps });
+    const markers = walk(rows).filter((at) => !("paragraph" in at)).map((at) => nameOf(at, root));
+    assert.deepEqual(markers, ["D:0", "D:1"]);
+    assert.equal(markerY(rows, gap(doc, 1)), (bottom(rows, a) + top(rows, b)) / 2);
+
+    // Without the gaps: a's end and b's start share the room between them.
+    const noGaps = caretRows(sequence, root, { types: { titleGap: false, siblingGap: false } });
+    const from = bottom(noGaps, a);
+    const to = top(noGaps, b);
+    const centre = (from + to) / 2;
+    assert.equal(markerY(noGaps, partEnd(a)), centre);
+    assert.equal(markerY(noGaps, partStart(b)), Math.round(centre + (to - centre) / 2));
+    assert.ok(!noGaps.some(({ row }) => "marker" in row && isGap(row.marker)));
   });
 });

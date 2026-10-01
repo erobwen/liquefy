@@ -1,13 +1,13 @@
 import { Component, frozen } from "@liquefy/cascade.component";
-import { Section, Paragraph, GapMarker, contentWidth, monospaceMeasurer, mm } from "@liquefy/cascade.print";
-import { isSection, gap } from "../model/parts.js";
+import { Section, Paragraph, contentWidth, monospaceMeasurer } from "@liquefy/cascade.print";
+import { isSection } from "../model/parts.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 
 const fallbackMeasurer = monospaceMeasurer();
 
 /**
  * Ripple's documents laid out onto a PaperSequence with cascade.print - a
- * component for every part, and a gap marker for every place between parts:
+ * component for every part:
  *
  *   new SequenceLayout({ sequence, measurer }).renderOnto(new PaperSequence());
  *
@@ -17,18 +17,16 @@ const fallbackMeasurer = monospaceMeasurer();
  *  - DocumentLayout: a document's paper (a cascade.print Section: each
  *    document starts on a paper of its own), and the document itself, as
  *    the section at depth 0.
- *  - SectionLayout: a section - its title, then its children, in order, with
- *    a gap before the first child, between any two, and after the last. It
+ *  - SectionLayout: a section - its title, then its children, in order. It
  *    places nothing itself: what it builds renders onto the paper sequence
  *    one after another, in the tree's order - which is reading order.
  *  - ParagraphLayout: a paragraph (a cascade.print Paragraph) - a section's
  *    title, or body text. Its look is its place's (see typography.js); only
  *    its spans are bold or italic of their own.
  *
- * Gaps (see ../model/parts.js) are cascade.print GapMarkers: a caret row
- * each, taking no room. The gaps of a list nested deeper sit further right
- * in the margin, shallower further left - so the end of a section and the
- * place after it, at the same height, are told apart.
+ * Only the parts are laid out here. The gaps between them - where a caret
+ * can be besides the text - are placed afterwards, from what's laid out (see
+ * ../paper/markers.js): they take no room, so they can never move a part.
  */
 export class SequenceLayout extends Component {
   setProperties({ sequence, measurer, typography }) {
@@ -45,32 +43,14 @@ export class SequenceLayout extends Component {
     };
   }
 
-  // The sequence's own gaps are placed by its documents - a gap needs a
-  // paper to be on, and before the first document there's none yet: each
-  // document the gap before it, the last the one after it too.
   build() {
-    const { sequence } = this;
-    const count = sequence.children.length;
-    return sequence.children.map((document, index) => new DocumentLayout({
-      key: "document" + document.causality.id,
-      document,
-      before: gap(sequence, index),
-      after: index === count - 1 ? gap(sequence, count) : null,
-    }));
+    return this.sequence.children.map((document) => new DocumentLayout({ key: "document" + document.causality.id, document }));
   }
 }
 
-// How tall a gap's caret is, and how far into the margin a gap at each level
-// sits: the sequence's (level 0) furthest left, each level deeper a step
-// nearer the text.
-const gapHeight = mm(4);
-const gapX = (level) => -mm(9) + level * mm(1.5);
-
 export class DocumentLayout extends Section {
-  setProperties({ document, before, after }) {
+  setProperties({ document }) {
     this.document = document;
-    this.before = frozen(before);
-    this.after = frozen(after);
   }
 
   pageFormat() {
@@ -80,19 +60,13 @@ export class DocumentLayout extends Section {
 
   build() {
     const format = this.pageFormat();
-    const marker = (key, position) => new GapMarker({ key, position, x: gapX(0), height: gapHeight, format });
-    return [
-      this.before ? marker("before", this.before) : null,
-      new SectionLayout({ key: "document", section: this.document, depth: 0, width: contentWidth(format), format }),
-      this.after ? marker("after", this.after) : null,
-    ].filter(Boolean);
+    return new SectionLayout({ key: "document", section: this.document, depth: 0, width: contentWidth(format), format });
   }
 }
 
 // A section `depth` deep: its title, then each of its children - keyed by
 // identity, so one inserted, moved or removed leaves the others as they
-// were, their lines included - with the gaps of its list around them, at
-// level depth + 1.
+// were, their lines included.
 export class SectionLayout extends Component {
   setProperties({ section, depth, width, format }) {
     this.section = section;
@@ -103,21 +77,12 @@ export class SectionLayout extends Component {
 
   build() {
     const { section, depth, width, format } = this;
-    const children = section.children;
-    const marker = (index) => new GapMarker({
-      key: "gap" + index, position: gap(section, index), x: gapX(depth + 1), height: gapHeight, format,
-    });
-    const built = [
+    return [
       new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: depth }), width, format }),
-      marker(0),
-    ];
-    children.forEach((child, index) => {
-      built.push(isSection(child)
+      ...section.children.map((child) => isSection(child)
         ? new SectionLayout({ key: "part" + child.causality.id, section: child, depth: depth + 1, width, format })
-        : new ParagraphLayout({ key: "part" + child.causality.id, paragraph: child, role: frozen({ body: true }), width, format }));
-      built.push(marker(index + 1));
-    });
-    return built;
+        : new ParagraphLayout({ key: "part" + child.causality.id, paragraph: child, role: frozen({ body: true }), width, format })),
+    ];
   }
 }
 

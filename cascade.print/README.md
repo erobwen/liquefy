@@ -83,34 +83,13 @@ refer to.
 
 ## Positions
 
-A position is a place a caret can be (`src/positions.js`), of two kinds:
-
-- In a paragraph's text - `{ paragraph, offset, lineEnd }`, `paragraph` being
-  a paragraph's `source`.
-- A gap between a model's parts - `gapPosition(list, index)`: before item
-  `index` of `list`, whatever the model's list is. A model marks its gaps on the
-  papers with `GapMarker` components among its paragraphs: each places a caret
-  row where the text has got to, and takes no room. One gap belongs to one
-  list, so "after A" and "before B" are the same gap, and the end of a nested
-  list and the place after it are two - told apart by the `x` the model gives
-  their markers.
-
-Neither is a place on paper, so a new layout never makes one wrong. Besides
-its lines, the paper sequence keeps **caret rows** (`rowsOf(page)`): every
-line, and every gap, in reading order. Everything the caret does works on
-them:
-
-- `caretAt()`, `selectionRects()` - where a place, or a stretch, is on the
-  papers.
-- `hitTest()` - the place nearest a point: on the line it's on, or the nearest
-  row; of gaps the same way away, the nearest across.
-- `stepLeft`, `stepRight` - through every place in reading order, gaps
-  included; `rowAbove`, `rowBelow` - up and down, gaps being rows;
-  `lineStart`, `lineEnd`; `sequenceStart`, `sequenceEnd`.
-- `comparePositions`, `orderedRange` - reading order, for selections.
-
-None of this needs the model: `PaperEditor` moves its caret with them, so a
-model only gives it its edits.
+A position is a place in a paragraph's text - `{ paragraph, offset, lineEnd }`,
+`paragraph` being a paragraph's `source` - never a place on paper, so a new
+layout never makes it wrong (`src/positions.js`). Between positions and
+papers: `hitTest()` - the place in the text nearest a point on a paper -
+`caretAt()` and `selectionRects()` - where a place, or a stretch, of the text
+is on the papers - and the moves that depend on the layout: `lineStart`,
+`lineEnd`, `lineAbove`, `lineBelow`.
 
 ## Measurers
 
@@ -131,11 +110,11 @@ tests and anywhere without a browser.
   caret and a selection: click, drag, Shift, double and triple click, the
   arrows, Home, End, Ctrl/Cmd+A; typing, Backspace, Delete, Enter. Keyboard
   input goes through a hidden textarea, so input methods work. The editor
-  knows nothing of the model: the caret moves through the caret rows (see
-  Positions), and what an edit does is the model's, given as `editing` -
-  `insertText`, `deleteBackward`, `deleteForward`, `splitParagraph`,
-  `deleteBetween`, `wordAt`, `paragraphAt`, each taking and returning
-  positions. Without `editing`, it's a caret only. For a toolbar: `selection()`,
+  knows nothing of the model: what an edit does is the model's, given as
+  `editing` - `insertText`, `deleteBackward`, `deleteForward`,
+  `splitParagraph`, `deleteBetween`, `moveLeft`, `moveRight`,
+  `documentStart`, `documentEnd`, `orderedRange`, `wordAt`, `paragraphAt`,
+  each taking and returning positions. For a toolbar: `selection()`,
   `apply(change)`, and `shortcuts`/`onShortcut` for Ctrl/Cmd plus a key.
 - `printPaperSequence(sequence, { title })` - the browser's print dialog, one
   sheet per paper at its own size, printed from a hidden document of its own so

@@ -1,0 +1,140 @@
+import assert from "assert";
+import { PaperSequence } from "@liquefy/cascade.print";
+import { document, section, paragraph, sequence as sequenceOf, gap, isGap, samePosition, textPosition, paragraphText } from "../../model/parts.js";
+import { SequenceLayout } from "../../layout/DocumentLayout.js";
+import { caretRows, edgeDistance } from "../markers.js";
+import { caretAt, hitTest, stepRight, stepLeft, sequenceStart, sequenceEnd } from "../positions.js";
+
+// Every character 1000 µm wide, lines 5000 µm tall; paragraphs 4000 µm
+// apart, so there's room between them to see where markers go.
+const measurer = {
+  measure: (text) => text.length * 1000,
+  metrics: () => ({ ascent: 4000, descent: 1000 }),
+};
+const paper = { width: 32000, height: 200000 };
+const margins = { top: 10000, right: 1000, bottom: 1000, left: 1000 };
+const font = { family: "Body", size: 11, weight: 400, italic: false };
+const spaced = {
+  body: { font, spaceAfter: 4000 },
+  titles: [0, 1, 2, 3].map(() => ({ font, spaceAfter: 4000 })),
+};
+
+function layOut(root) {
+  const sequence = new PaperSequence();
+  new SequenceLayout({ sequence: root, measurer, typography: spaced }).renderOnto(sequence);
+  return { sequence, rows: caretRows(sequence, root) };
+}
+
+// A gap's marker height, and a paragraph's upper and lower edge.
+const markerY = (rows, position) => rows.find(({ row }) => "gap" in row && samePosition(row.gap, position)).row.y;
+const linesOf = (rows, paragraph) => rows.filter(({ row }) => !("gap" in row) && row.paragraph === paragraph).map(({ row }) => row);
+const top = (rows, paragraph) => linesOf(rows, paragraph)[0].top;
+const bottom = (rows, paragraph) => {
+  const lines = linesOf(rows, paragraph);
+  const last = lines[lines.length - 1];
+  return last.top + last.height;
+};
+
+describe("Ripple's gap markers", function () {
+  it("are dead centre between two siblings - and between a title and its first child", function () {
+    const a = paragraph("aa");
+    const b = paragraph("bb");
+    const doc = document({ title: "D", paper, margins }, a, b);
+    const { rows } = layOut(sequenceOf(doc));
+    assert.equal(markerY(rows, gap(doc, 1)), (bottom(rows, a) + top(rows, b)) / 2);
+    assert.equal(markerY(rows, gap(doc, 0)), (bottom(rows, doc.title) + top(rows, a)) / 2);
+  });
+
+  it("span the text area, as horizontal bars", function () {
+    const doc = document({ title: "D", paper, margins }, paragraph("aa"));
+    const { rows } = layOut(sequenceOf(doc));
+    const caret = caretAt(rows, gap(doc, 1), measurer);
+    assert.equal(caret.x, margins.left);
+    assert.equal(caret.width, paper.width - margins.left - margins.right);
+    assert.ok(caret.gap);
+  });
+
+  it("spread the ends of lists ending together evenly, from the part they end after to the sibling gap after them", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const outer = section("Outer", paragraph("pp"), inner);
+    const next = section("Next");
+    const doc = document({ title: "D", paper, margins }, outer, next);
+    const { rows } = layOut(sequenceOf(doc));
+    // After "qq": Inner ends, Outer ends, then the gap between Outer and
+    // Next - dead centre - with the two ends a third and two thirds down to it.
+    const from = bottom(rows, q);
+    const centre = (from + top(rows, next.title)) / 2;
+    assert.equal(markerY(rows, gap(doc, 1)), centre);
+    assert.equal(markerY(rows, gap(outer, 2)), Math.round(from + (centre - from) * 2 / 3));
+    assert.equal(markerY(rows, gap(inner, 1)), Math.round(from + (centre - from) / 3));
+  });
+
+  it("put the end of everything a fixed distance below the last part, the ends inside it spread above", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const doc = document({ title: "D", paper, margins }, inner);
+    const root = sequenceOf(doc);
+    const { rows } = layOut(root);
+    const from = bottom(rows, q);
+    assert.equal(markerY(rows, gap(root, 1)), from + edgeDistance);
+    assert.equal(markerY(rows, gap(doc, 1)), Math.round(from + edgeDistance * 2 / 3));
+    assert.equal(markerY(rows, gap(inner, 1)), Math.round(from + edgeDistance / 3));
+  });
+
+  it("put the start of everything a fixed distance above the first part", function () {
+    const doc = document({ title: "D", paper, margins }, paragraph("aa"));
+    const root = sequenceOf(doc);
+    const { rows } = layOut(root);
+    assert.equal(markerY(rows, gap(root, 0)), top(rows, doc.title) - edgeDistance);
+  });
+
+  it("never move a part: the text is where it'd be with no markers at all", function () {
+    const doc = document({ title: "D", paper, margins }, paragraph("aa"), section("S", paragraph("bb")));
+    const root = sequenceOf(doc);
+    const { sequence, rows } = layOut(root);
+    const lineTops = sequence.linesOf(0).map((line) => line.top);
+    assert.deepEqual(rows.filter(({ row }) => !("gap" in row)).map(({ row }) => row.top), lineTops);
+  });
+
+  it("are stepped through with Left and Right, every place once, and back", function () {
+    const inner = section("In", paragraph("x"));
+    const doc = document({ title: "D", paper, margins }, paragraph("p"), inner);
+    const root = sequenceOf(doc);
+    const { rows } = layOut(root);
+    const name = (at) => isGap(at)
+      ? (at.list === root ? "root" : paragraphText(at.list.title)) + ":" + at.index
+      : paragraphText(at.paragraph) + "@" + at.offset;
+    const forward = [];
+    let at = sequenceStart(rows);
+    for (let i = 0; i < 100; i++) {
+      forward.push(name(at));
+      const next = stepRight(rows, at);
+      if (samePosition(next, at)) break;
+      at = next;
+    }
+    assert.deepEqual(forward, [
+      "root:0", "D@0", "D@1", "D:0", "p@0", "p@1", "D:1", "In@0", "In@1", "In@2", "In:0", "x@0", "x@1", "In:1", "D:2", "root:1",
+    ]);
+    const backward = [];
+    at = sequenceEnd(rows);
+    for (let i = 0; i < 100; i++) {
+      backward.push(name(at));
+      const previous = stepLeft(rows, at);
+      if (samePosition(previous, at)) break;
+      at = previous;
+    }
+    assert.deepEqual(backward, forward.slice().reverse());
+  });
+
+  it("are found by a click: on a line the line, between lines the nearest marker - the levels told apart by height", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const doc = document({ title: "D", paper, margins }, section("Outer", paragraph("pp"), inner), section("Next"));
+    const { rows } = layOut(sequenceOf(doc));
+    const innerEnd = markerY(rows, gap(inner, 1));
+    assert.ok(samePosition(hitTest(rows, 0, 5000, innerEnd + 100, measurer), gap(inner, 1)));
+    assert.ok(samePosition(hitTest(rows, 0, 5000, markerY(rows, gap(doc, 1)), measurer), gap(doc, 1)));
+    assert.ok(samePosition(hitTest(rows, 0, 1600, top(rows, q) + 1000, measurer), textPosition(q, 1)));
+  });
+});

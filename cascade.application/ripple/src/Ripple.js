@@ -2,7 +2,8 @@ import { Component, repeat, retractRepeater, postponeInvalidations, continueInva
 import { div, text } from "@liquefy/cascade.dom";
 import { button, controlPanel, iconButton, filler, fillerStyle, fitContainerStyle, overlayFrame, colorSchemeScope, column } from "@liquefy/cascade.ui";
 import { PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
-import { domMeasurer, paperEditor, printPaperSequence } from "@liquefy/cascade.print/dom";
+import { domMeasurer, printPaperSequence } from "@liquefy/cascade.print/dom";
+import { rippleEditor } from "./paper/RippleEditor.js";
 import { sequence as sequenceOf } from "./model/parts.js";
 import { testDocument } from "./model/testDocument.js";
 import { SequenceLayout } from "./layout/DocumentLayout.js";
@@ -21,13 +22,14 @@ const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
  *
  * Two roots, side by side:
  *  - The layout: the documents rendered onto a PaperSequence, a component
- *    for every part of them and a gap marker between (see ./layout). Not part of the app's own render - it
+ *    for every part of them (see ./layout) - and, placed from what's laid
+ *    out, the gaps between the parts (see ./paper/markers.js). Not part of the app's own render - it
  *    has a target of its own - so the app owns it: created in
  *    initialization, laid out in a repeater of its own from establishment
  *    on, disposed with the app.
  *  - The view: the app's build, showing the paper sequence with
- *    cascade.print's paperEditor() - with no edits of the model's given to
- *    it yet, a caret only: click, the arrows, Home and End, Shift to select.
+ *    Ripple's editor (./paper) - with no edits of the model's given to it
+ *    yet, a caret only: click, the arrows, Home and End, Shift to select.
  */
 export class Ripple extends Component {
   initialState() {
@@ -79,7 +81,7 @@ export class Ripple extends Component {
   }
 
   build() {
-    const { document, sequence, measurer } = this.unobservable;
+    const { document, root, sequence, measurer } = this.unobservable;
     const paper = document.paper;
     const pageCount = sequence.pages.length;
     return overlayFrame(
@@ -103,7 +105,7 @@ export class Ripple extends Component {
           ),
           div(
             { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
-            paperEditor({ key: "editor", sequence, measurer, zoom: this.zoom }),
+            rippleEditor({ key: "editor", sequence, root, measurer, zoom: this.zoom }),
           ),
         ),
       ),

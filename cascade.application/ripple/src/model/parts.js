@@ -1,5 +1,4 @@
 import { observable } from "@liquefy/cascade.component";
-import { position, gapPosition } from "@liquefy/cascade.print";
 
 /**
  * Ripple's document model - a tree of parts, as a DAISY 2 book is: sections,
@@ -22,12 +21,13 @@ import { position, gapPosition } from "@liquefy/cascade.print";
  * Every part is observable, all the way down - its spans, its children - so
  * what's laid out from it follows every change.
  *
- * Positions - where a caret can be - are cascade.print's (see its
- * positions.js), of two kinds:
+ * Positions - where a caret can be - are of two kinds:
  *
- *   textPosition(paragraph, offset)  - in a paragraph's text
- *   gap(list, index)                 - before child `index` of `list`: a
- *                                      section, or the sequence
+ *   textPosition(paragraph, offset, lineEnd)  - in a paragraph's text, as
+ *                                               cascade.print's positions are
+ *   gap(list, index)                          - before child `index` of
+ *                                               `list`: a section, or the
+ *                                               sequence
  *
  * A gap belongs to one list, at one level of the tree: "after A" and
  * "before B" among a section's children are the same gap; the end of a
@@ -77,8 +77,16 @@ export class Sequence extends Part {
   }
 }
 
-export const textPosition = (paragraph, offset, lineEnd = false) => position(paragraph, offset, lineEnd);
-export const gap = (list, index) => gapPosition(list, index);
+export const textPosition = (paragraph, offset, lineEnd = false) => Object.freeze({ paragraph, offset, lineEnd });
+export const gap = (list, index) => Object.freeze({ list, index });
+export const isGap = (at) => !!at && "list" in at;
+
+// The same place - in the text wherever a line break puts it, or the same
+// gap.
+export function samePosition(a, b) {
+  if (isGap(a) || isGap(b)) return isGap(a) && isGap(b) && a.list === b.list && a.index === b.index;
+  return a.paragraph === b.paragraph && a.offset === b.offset;
+}
 
 export const isParagraph = (part) => part instanceof Paragraph;
 export const isSection = (part) => part instanceof Section;

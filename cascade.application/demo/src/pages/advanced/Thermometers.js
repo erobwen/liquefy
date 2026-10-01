@@ -76,7 +76,9 @@ export class ThermometersDemo extends Component {
     return column(
       { style: { gap: "16px" } },
       row(
-        { style: { alignItems: "center", gap: "16px", flexWrap: "wrap" } },
+        // As tall as a thermometer, with or without any: the controls
+        // below stay put.
+        { style: { alignItems: "center", gap: "16px", flexWrap: "wrap", minHeight: "200px" } },
         card(text("Before")),
         new Thermometers({ count: this.count, temperature: this.temperature }),
         card(text("After")),

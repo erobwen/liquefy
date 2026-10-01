@@ -1,10 +1,11 @@
 export { mm, inch, pt, px, toPx, paperSizes, margins, MICROMETERS_PER_MM, MICROMETERS_PER_INCH } from "./src/units.js";
-export { resolveParagraphStyle, resolveFont, defaultFont, defaultParagraphStyle } from "./src/styles.js";
+export { resolveParagraphStyle, paragraphStyleOf, resolveFont, defaultFont, defaultParagraphStyle } from "./src/styles.js";
 export { breakIntoLines } from "./src/lineBreaking.js";
 export { monospaceMeasurer } from "./src/monospaceMeasurer.js";
 export { PaperSequence } from "./src/PaperSequence.js";
 export { PrintDocument } from "./src/PrintDocument.js";
 export { Section } from "./src/Section.js";
 export { Paragraph } from "./src/Paragraph.js";
-export { position, paragraphText, paragraphLength, paragraphsOf, spanAt, documentStart, documentEnd, moveLeft, moveRight, insertText, deleteBackward, deleteForward, splitParagraph } from "./src/editing.js";
-export { placedLines, lineAt, caretAt, hitTest, positionInLine, lineStart, lineEnd, lineAbove, lineBelow } from "./src/positions.js";
+export { position, paragraphText, paragraphLength, paragraphsOf, spanAt, documentStart, documentEnd, moveLeft, moveRight, insertText, deleteBackward, deleteForward, deleteBetween, splitParagraph, comparePositions, samePosition, orderedRange, wordAt } from "./src/editing.js";
+export { placedLines, lineAt, caretAt, selectionRects, hitTest, positionInLine, lineStart, lineEnd, lineAbove, lineBelow } from "./src/positions.js";
+export { paragraphRanges, fontAt, isFormatted, formatText, toggleBold, toggleItalic, setParagraphStyle, setAlignment, paragraphFormatAt } from "./src/formatting.js";

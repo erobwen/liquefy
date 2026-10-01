@@ -51,6 +51,15 @@ export function resolveParagraphStyle(stylesheet, name) {
   return result;
 }
 
+// What a paragraph of the model looks like: its style, resolved, with its
+// own direct formatting on top - `paragraph.format`, as Word's direct
+// paragraph formatting: { align } set on the paragraph itself, not its
+// style.
+export function paragraphStyleOf(stylesheet, paragraph) {
+  const style = resolveParagraphStyle(stylesheet, paragraph.style);
+  return paragraph.format ? mergeStyle(style, paragraph.format) : style;
+}
+
 // The font of a span, in a paragraph of `paragraphStyle` (resolved).
 export function resolveFont(stylesheet, paragraphStyle, span) {
   const characterStyles = (stylesheet && stylesheet.character) || {};

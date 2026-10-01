@@ -4,7 +4,7 @@ import { PrintDocument } from "../PrintDocument.js";
 import { PaperSequence } from "../PaperSequence.js";
 import { margins } from "../units.js";
 import { position } from "../editing.js";
-import { caretAt, hitTest, lineStart, lineEnd, lineAbove, lineBelow } from "../positions.js";
+import { caretAt, selectionRects, hitTest, lineStart, lineEnd, lineAbove, lineBelow } from "../positions.js";
 
 // Every character 1000 µm wide; lines 5000 µm tall, baseline 4000 down. A
 // paper 12 x 22 mm with 1 mm margins: 10 characters across, 4 lines down.
@@ -53,6 +53,20 @@ describe("Positions on the papers", function () {
     // On the next paper - "x", then "y".
     assert.equal(hitTest(sequence, 1, 1000, 1000, measurer).paragraph.spans[0].text, "x");
     assert.equal(hitTest(sequence, 1, 1000, 9000, measurer).paragraph.spans[0].text, "y");
+  });
+
+  it("covers a selection with a rectangle per line - and the paragraph break, past the end of a paragraph", function () {
+    const rects = selectionRects(sequence, position(first, 2), position(second, 3), measurer);
+    assert.deepEqual(rects, [
+      // "aa bbbb " - the space the line was broken at included.
+      { page: 0, x: 3000, top: 1000, width: 8000, height: 5000 },
+      // "cccc", and the paragraph break after it.
+      { page: 0, x: 1000, top: 6000, width: 5000, height: 5000 },
+      { page: 0, x: 1000, top: 11000, width: 3000, height: 5000 },
+    ]);
+    assert.deepEqual(selectionRects(sequence, position(first, 1), position(first, 3), measurer), [
+      { page: 0, x: 2000, top: 1000, width: 2000, height: 5000 },
+    ]);
   });
 
   it("goes to the start and end of a line", function () {

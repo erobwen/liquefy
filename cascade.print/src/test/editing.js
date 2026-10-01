@@ -2,6 +2,7 @@ import assert from "assert";
 import { observable } from "@liquefy/cascade.component";
 import {
   position, paragraphText, insertText, deleteBackward, deleteForward, splitParagraph, moveLeft, moveRight, documentStart, documentEnd,
+  deleteBetween, comparePositions, samePosition, wordAt,
 } from "../editing.js";
 
 // A paragraph: its style, then spans - a string, or [characterStyle, text].
@@ -73,7 +74,8 @@ describe("Editing the model", function () {
     assert.equal(at.offset, 3);
     at = deleteForward(document, position(first, 6));
     assert.deepEqual(contents(document), ["Normal: one|[Strong:two]|three"]);
-    assert.equal(document.sections[1].paragraphs.length, 0);
+    // The second section, empty, is gone - it would still be a paper.
+    assert.equal(document.sections.length, 1);
     // Nothing before the first, nothing after the last.
     assert.equal(deleteBackward(document, position(first, 0)).offset, 0);
     assert.equal(deleteForward(document, position(first, 11)).offset, 11);
@@ -90,6 +92,46 @@ describe("Editing the model", function () {
     // At the start: an empty paragraph before, formatted as the text there.
     splitParagraph(document, position(heading, 0));
     assert.deepEqual(contents(document).slice(0, 2), ["Heading: ", "Heading: Title|[Strong:Bo]"]);
+  });
+
+  it("deletes a selection within a paragraph - either way round", function () {
+    const p = paragraph("Normal", "ab", ["Strong", "cd"], "ef");
+    const document = documentOf([p]);
+    const at = deleteBetween(document, position(p, 5), position(p, 1));
+    assert.deepEqual(contents(document), ["Normal: a|f"]);
+    assert.equal(at.offset, 1);
+  });
+
+  it("deletes a selection across paragraphs and sections: its two ends become one paragraph, in the first one's style", function () {
+    const first = paragraph("Heading", "one two");
+    const second = paragraph("Normal", "three");
+    const third = paragraph("Normal", "four five");
+    const fourth = paragraph("Normal", "six");
+    const document = documentOf([first, second], [third], [fourth]);
+    const at = deleteBetween(document, position(third, 5), position(first, 4));
+    assert.deepEqual(contents(document), ["Heading: one |five", "Normal: six"]);
+    assert.equal(document.sections.length, 2);
+    assert.equal(at.paragraph, first);
+    assert.equal(at.offset, 4);
+  });
+
+  it("orders positions in the document", function () {
+    const first = paragraph("Normal", "ab");
+    const second = paragraph("Normal", "cd");
+    const document = documentOf([first], [second]);
+    assert.ok(comparePositions(document, position(first, 2), position(second, 0)) < 0);
+    assert.ok(comparePositions(document, position(second, 0), position(first, 2)) > 0);
+    assert.equal(comparePositions(document, position(first, 1), position(first, 1)), 0);
+    assert.ok(samePosition(position(first, 1), position(first, 1, true)));
+  });
+
+  it("finds the word at a position - or the space between words", function () {
+    const p = paragraph("Normal", "Two wor", ["Strong", "ds"], ", don't  go.");
+    assert.deepEqual(wordAt(p, 5), [4, 9]);
+    assert.deepEqual(wordAt(p, 9), [4, 9]);
+    assert.deepEqual(wordAt(p, 0), [0, 3]);
+    assert.deepEqual(wordAt(p, 13), [11, 16]);
+    assert.deepEqual(wordAt(p, 17), [16, 18]);
   });
 
   it("moves left and right through the text, into the paragraphs before and after", function () {

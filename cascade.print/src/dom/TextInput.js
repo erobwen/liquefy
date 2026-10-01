@@ -7,8 +7,10 @@ import { DOMNodeComponent } from "@liquefy/cascade.dom";
  *
  *   { type: "insert", text }       - typed, pasted, or composed
  *   { type: "key", key, shift, primary } - Backspace, Delete, Enter,
- *                                    the arrows, Home, End; `primary` is
- *                                    Ctrl - Cmd on a Mac
+ *                                    the arrows, Home, End, and
+ *                                    "SelectAll", "Bold", "Italic" for
+ *                                    Ctrl/Cmd+A, +B, +I; `primary`
+ *                                    is Ctrl - Cmd on a Mac
  *   { type: "focus" }, { type: "blur" }
  *
  * A textarea, so typing works as typing does everywhere - dead keys,
@@ -58,9 +60,11 @@ export class TextInput extends DOMNodeComponent {
 
     textarea.addEventListener("keydown", (event) => {
       if (composing || event.isComposing) return;
-      if (!handledKeys.has(event.key)) return;
+      const primary = event.ctrlKey || event.metaKey;
+      const shortcut = primary && !event.altKey ? shortcuts[event.key.toLowerCase()] : undefined;
+      if (!handledKeys.has(event.key) && !shortcut) return;
       event.preventDefault();
-      send({ type: "key", key: event.key, shift: event.shiftKey, primary: event.ctrlKey || event.metaKey });
+      send({ type: "key", key: shortcut || event.key, shift: event.shiftKey, primary });
     });
     textarea.addEventListener("compositionstart", () => { composing = true; });
     textarea.addEventListener("compositionend", () => {
@@ -93,5 +97,7 @@ export class TextInput extends DOMNodeComponent {
     node.style.top = top + "px";
   }
 }
+
+const shortcuts = { a: "SelectAll", b: "Bold", i: "Italic" };
 
 const handledKeys = new Set(["Backspace", "Delete", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]);

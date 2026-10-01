@@ -9,7 +9,7 @@ export const paperShadow = "0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0,
  * slight shadow, one under the other on a grey background, each with the
  * text laid out on it.
  *
- *   paperSequenceView({ sequence, zoom: 1.25, caret })
+ *   paperSequenceView({ sequence, zoom: 1.25, caret, selection })
  *
  * Drawn at real size - a paper's millimeters are CSS millimeters - and
  * scaled by `zoom` (CSS zoom, so the room it takes up scales too, and so do
@@ -18,6 +18,9 @@ export const paperShadow = "0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0,
  * `caret`, if given, is drawn on its paper, blinking: { page, x, top,
  * height } in µm (see positions.js's caretAt()), and `blink` - a count to
  * change whenever the caret moves, so it restarts its blink shown.
+ * `selection`, if given, is highlighted under the text: { rects, focused } -
+ * rects as positions.js's selectionRects() gives them; blue while the editor
+ * has the keyboard, grey while it doesn't.
  *
  * Each paper is a component of its own, reading only its own lines
  * (PaperSequence.linesOf()), and its text is drawn apart from its caret: a
@@ -30,10 +33,11 @@ export const paperShadow = "0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0,
  * paper a click is on.
  */
 export class PaperSequenceView extends Component {
-  setProperties({ sequence, zoom = 1, caret = null, style }) {
+  setProperties({ sequence, zoom = 1, caret = null, selection = null, style }) {
     this.sequence = sequence;
     this.zoom = zoom;
     this.caret = frozen(caret);
+    this.selection = frozen(selection);
     this.style = frozen(style || {});
   }
 
@@ -42,7 +46,8 @@ export class PaperSequenceView extends Component {
   }
 
   build() {
-    const { sequence, caret } = this;
+    const { sequence, caret, selection } = this;
+    const highlight = selection && selection.focused ? selectedColor : unfocusedSelectedColor;
     return div(
       {
         style: {
@@ -65,6 +70,8 @@ export class PaperSequenceView extends Component {
         index,
         format,
         caret: caret && caret.page === index ? caret : null,
+        highlights: selection ? selection.rects.filter((rect) => rect.page === index) : [],
+        highlight,
       })),
     );
   }
@@ -75,18 +82,23 @@ export function paperSequenceView(...parameters) {
 }
 
 class PaperView extends Component {
-  setProperties({ sequence, index, format, caret }) {
+  setProperties({ sequence, index, format, caret, highlights, highlight }) {
     this.sequence = sequence;
     this.index = index;
     this.format = frozen(format);
     this.caret = frozen(caret);
+    this.highlights = frozen(highlights);
+    this.highlight = highlight;
   }
 
   build() {
     const caret = this.caret;
     return div(
       { "data-page": this.index, style: { ...paperStyle(this.format), boxShadow: paperShadow } },
-      new PaperText({ sequence: this.sequence, index: this.index }),
+      // Under the text: drawn first. Keyed, as the text after them is: how
+      // many there are comes and goes with the selection.
+      this.highlights.map((rect, index) => div({ key: "highlight" + index, "data-selection": "", style: highlightStyle(rect, this.highlight) })),
+      new PaperText({ key: "text", sequence: this.sequence, index: this.index }),
       caret ? div({ key: "caret", "data-caret": "", style: caretStyle(caret) }) : null,
     );
   }
@@ -106,6 +118,21 @@ class PaperText extends Component {
     }
     return runs;
   }
+}
+
+const selectedColor = "#b4d5fe";
+const unfocusedSelectedColor = "#dadada";
+
+function highlightStyle(rect, color) {
+  return {
+    position: "absolute",
+    left: cssMm(rect.x),
+    top: cssMm(rect.top),
+    width: cssMm(rect.width),
+    height: cssMm(rect.height),
+    background: color,
+    pointerEvents: "none",
+  };
 }
 
 function caretStyle(caret) {

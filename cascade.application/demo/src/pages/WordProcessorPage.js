@@ -1,6 +1,6 @@
 import { Component, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, controlPanel, iconButton, filler, fillerStyle } from "@liquefy/cascade.ui";
+import { button, controlPanel, iconButton, filler, fillerStyle, themeColor } from "@liquefy/cascade.ui";
 import { PrintDocument, PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
 import { domMeasurer, documentEditor, printPaperSequence } from "@liquefy/cascade.print/dom";
 import { pageActions } from "../components/pageActions.js";
@@ -15,7 +15,8 @@ const information = {
     "The document is a model - paragraphs with paragraph styles, spans with character styles - laid out onto a paper sequence: a render target with no DOM in it, in micrometers.",
     "Each paragraph is broken into lines (measured by the browser), then its lines are placed on the papers - two repeaters, so a paragraph that only moves is never broken again.",
     "Switch between A4 and Letter: every paragraph gets a new width and is laid out again. Zoom: nothing is laid out again, it's only drawn at another scale.",
-    "Click to drop the caret, then type, Backspace, Delete, Enter, and move with the arrows, Home and End (Ctrl/Cmd for the whole document). Each edit changes the model; the paragraph is broken into lines again, and the caret is drawn where the new layout puts it.",
+    "Click to drop the caret, then type, Backspace, Delete, Enter, and move with the arrows, Home and End (Ctrl/Cmd for the whole document). Select by dragging, Shift+click, double or triple click, Shift with the moving keys, or Ctrl/Cmd+A - typing replaces the selection, Backspace and Delete delete it. Each edit changes the model; the paragraph is broken into lines again, and the caret is drawn where the new layout puts it.",
+    "Format with the toolbar: Heading 1, Heading 2 and Normal set the style of the paragraphs the selection touches, the alignment buttons their alignment. Bold and italic (Ctrl/Cmd+B, +I) format the selection - or, with nothing selected, the word the caret is in.",
     "Print sends the papers to the browser's print dialog - one sheet per paper, at its real size.",
   ],
 };
@@ -89,9 +90,14 @@ export class WordProcessorPage extends Component {
     const { document, sequence, measurer } = this.unobservable;
     const paper = document.sections[0].paper;
     const pageCount = sequence.pages.length;
+    // Keyed: built again, it's the editor already there - the one the
+    // toolbar formats with.
+    const editor = documentEditor({ key: "editor", document, sequence, measurer, zoom: this.zoom });
     return fullPage(
       pageActions({ information, source, fileName: "src/pages/WordProcessorPage.js" }),
       controlPanel(
+        new FormatToolbar({ editor }),
+        filler(),
         button({ variant: paper === paperSizes.A4 ? "filled" : undefined }, "A4", () => this.setPaper("A4")),
         button({ variant: paper === paperSizes.letter ? "filled" : undefined }, "Letter", () => this.setPaper("letter")),
         filler(),
@@ -104,8 +110,59 @@ export class WordProcessorPage extends Component {
       ),
       div(
         { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
-        documentEditor({ document, sequence, measurer, zoom: this.zoom }),
+        editor,
       ),
     );
   }
+}
+
+// The paragraph styles the toolbar sets, by name in the sample document's
+// stylesheet.
+const paragraphStyles = [
+  { style: "Heading1", label: "Heading 1" },
+  { style: "Heading2", label: "Heading 2" },
+  { style: "Normal", label: "Normal" },
+];
+
+const alignments = [
+  { align: "left", icon: "format_align_left", title: "Align left" },
+  { align: "center", icon: "format_align_center", title: "Center" },
+  { align: "right", icon: "format_align_right", title: "Align right" },
+];
+
+// Formatting buttons - showing what's on at the caret, and setting it
+// there (see cascade.print's DocumentEditor.format()). A component of its
+// own: it follows every move of the caret, the page around it doesn't.
+class FormatToolbar extends Component {
+  setProperties({ editor }) {
+    this.editor = editor;
+  }
+
+  build() {
+    const editor = this.editor;
+    const current = editor.currentFormat();
+    const disabled = !current;
+    const on = { background: themeColor.accentLight, color: themeColor.accentDark };
+    const toggle = (kind, icon, title, active) => iconButton({
+      icon, title, disabled, style: active ? on : {}, onClick: () => editor.format(kind),
+    });
+    return [
+      ...paragraphStyles.map(({ style, label }) => button(
+        { disabled, variant: current && current.style === style ? "filled" : undefined },
+        label,
+        () => editor.format("style", style),
+      )),
+      separator(),
+      toggle("bold", "format_bold", "Bold (Ctrl+B)", current && current.bold),
+      toggle("italic", "format_italic", "Italic (Ctrl+I)", current && current.italic),
+      separator(),
+      ...alignments.map(({ align, icon, title }) => iconButton({
+        icon, title, disabled, style: current && current.align === align ? on : {}, onClick: () => editor.format("align", align),
+      })),
+    ];
+  }
+}
+
+function separator() {
+  return div({ style: { width: "1px", alignSelf: "stretch", margin: "4px 2px", background: themeColor.border } });
 }

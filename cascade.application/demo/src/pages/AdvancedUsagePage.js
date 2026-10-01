@@ -1,7 +1,7 @@
 import { Component } from "@liquefy/cascade.component";
 import { h1, h2, h3, p } from "@liquefy/cascade.dom";
 import { pageActions } from "../components/pageActions.js";
-import { article, emphasis } from "../components/layout.js";
+import { article, emphasis, nextPage } from "../components/layout.js";
 import { codeBlock, stage, name } from "../components/examples.js";
 import { GaugeDemo } from "./advanced/Gauge.js";
 import { ThermometersDemo } from "./advanced/Thermometers.js";
@@ -91,6 +91,11 @@ export class AdvancedUsagePage extends Component {
         "onto its widgets.",
       ),
       codeBlock(paperSource),
+      p(
+        "Taken further, this is cascade.print: a document of paragraphs and styles, laid out onto papers in ",
+        "micrometers - each paragraph broken into lines, then placed page by page - shown, edited at a caret, and printed.",
+      ),
+      nextPage({ path: "word-processor", label: "See it in the Word Processor →" }),
 
       h2("Implement your own service provider"),
       p(emphasis("Endless configuration of an existing application.")),

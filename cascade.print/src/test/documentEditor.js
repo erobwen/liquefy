@@ -19,6 +19,7 @@ const paragraph = (text) => observable({ style: "Normal", spans: observable([obs
 describe("DocumentEditor", function () {
   let window;
   let container;
+  let editor;
 
   beforeEach(function () {
     const dom = new JSDOM("<!DOCTYPE html><body></body>");
@@ -41,7 +42,7 @@ describe("DocumentEditor", function () {
     });
     const sequence = new PaperSequence();
     new PrintDocument({ document, measurer }).renderOnto(sequence);
-    const editor = new DocumentEditor({ document, sequence, measurer }).establish();
+    editor = new DocumentEditor({ document, sequence, measurer }).establish();
     editor.renderOnto(new DOMElementTarget(container));
     return document;
   }
@@ -101,6 +102,97 @@ describe("DocumentEditor", function () {
     assert.deepEqual(lines(), ["aaa", "bbb"]);
     press("End", { ctrlKey: true });
     assert.equal(caret().style.left, "4mm");
+  });
+
+  const highlights = () => [...container.querySelectorAll("[data-selection]")].map((mark) => mark.style.left + "+" + mark.style.width + "@" + mark.style.top);
+
+  function drag(page, fromX, fromY, toX, toY) {
+    click(page, fromX, fromY);
+    document.dispatchEvent(new window.MouseEvent("mousemove", { bubbles: true, clientX: toX, clientY: page * 30 + toY }));
+    document.dispatchEvent(new window.MouseEvent("mouseup", { bubbles: true, clientX: toX, clientY: page * 30 + toY }));
+  }
+
+  it("selects by dragging - and typing replaces the selection", function () {
+    const first = paragraph("aaaa bbbb");
+    edit([first, paragraph("cccc")]);
+    drag(0, 2, 2, 8, 2);
+    assert.deepEqual(highlights(), ["2mm+6mm@1mm"]);
+    assert.equal(caret(), null);
+    type("X");
+    assert.equal(highlights().length, 0);
+    assert.deepEqual(lines(), ["aXbb", "cccc"]);
+    assert.equal(caret().style.left, "3mm");
+  });
+
+  it("selects with Shift and the moving keys, across paragraphs - and Backspace deletes it", function () {
+    edit([paragraph("aaaa"), paragraph("bbbb"), paragraph("cccc")]);
+    click(0, 3, 2);
+    press("ArrowDown", { shiftKey: true });
+    press("ArrowRight", { shiftKey: true });
+    assert.deepEqual(highlights(), ["3mm+3mm@1mm", "1mm+3mm@6mm"]);
+    press("Backspace");
+    assert.deepEqual(lines(), ["aab", "cccc"]);
+    assert.equal(highlights().length, 0);
+  });
+
+  it("collapses a selection to its start or end with Left and Right", function () {
+    edit([paragraph("aaaa bbbb")]);
+    drag(0, 7, 2, 3, 2);
+    press("ArrowRight");
+    assert.equal(highlights().length, 0);
+    assert.equal(caret().style.left, "7mm");
+    press("Home", { shiftKey: true });
+    press("ArrowLeft");
+    assert.equal(caret().style.left, "1mm");
+  });
+
+  it("selects everything with Ctrl+A - and Enter replaces it with a paragraph break", function () {
+    const document = edit([paragraph("aaaa"), paragraph("bbbb")]);
+    click(0, 3, 2);
+    press("a", { ctrlKey: true });
+    assert.equal(highlights().length, 2);
+    press("Enter");
+    assert.deepEqual(lines(), []);
+    assert.equal(document.sections[0].paragraphs.length, 2);
+    assert.equal(caret().style.top, "6mm");
+  });
+
+  it("selects a word with a double click, a paragraph with a triple click, and extends with Shift+click", function () {
+    edit([paragraph("aaaa bbbb cccc")]);
+    const paper = container.querySelector("[data-page='0']");
+    const press = (detail, x, y, shiftKey = false) => paper.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0, detail, shiftKey, clientX: x, clientY: y }));
+    press(2, 7, 2);
+    assert.deepEqual(highlights(), ["6mm+4mm@1mm"]);
+    press(3, 7, 2);
+    assert.deepEqual(highlights(), ["1mm+10mm@1mm", "1mm+4mm@6mm"]);
+    press(1, 2, 2);
+    press(1, 4, 7, true);
+    assert.deepEqual(highlights(), ["2mm+9mm@1mm", "1mm+3mm@6mm"]);
+  });
+
+  it("formats the selection - or the word the caret is in - and tells what's formatted at the caret", function () {
+    const first = paragraph("aaaa bbbb");
+    edit([first, paragraph("cccc")]);
+    assert.equal(editor.currentFormat(), null);
+    click(0, 1, 2);
+    press("ArrowRight", { shiftKey: true });
+    press("ArrowRight", { shiftKey: true });
+    editor.format("bold");
+    assert.deepEqual(first.spans.map((span) => [span.text, span.font && span.font.weight]), [["aa", 700], ["aa bbbb", undefined]]);
+    assert.equal(editor.currentFormat().bold, true);
+    // The keyboard is back in the text after a toolbar button.
+    assert.equal(document.activeElement, textarea());
+
+    click(0, 8, 2);
+    press("i", { ctrlKey: true });
+    assert.deepEqual(first.spans.map((span) => span.text), ["aa", "aa ", "bbbb"]);
+    assert.equal(editor.currentFormat().italic, true);
+    assert.equal(editor.currentFormat().bold, false);
+
+    editor.format("align", "right");
+    editor.format("style", "Heading");
+    assert.deepEqual(editor.currentFormat(), { bold: false, italic: true, style: "Heading", align: "right" });
+    assert.equal(first.format.align, "right");
   });
 
   it("hides the caret while the editor doesn't have the keyboard", function () {

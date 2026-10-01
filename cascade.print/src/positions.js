@@ -56,6 +56,30 @@ export function caretAt(sequence, at, measurer) {
   return { page, x, top: line.baseline - ascent, height: ascent + descent };
 }
 
+// What a selection from `start` to `end` (in document order - see
+// editing.js's orderedRange()) covers on the papers: a rectangle per line,
+// { page, x, top, width, height } in µm, as tall as the line. A line the
+// selection goes on past the end of its paragraph from also covers the
+// paragraph break, as wide as a space: selected, an empty paragraph shows.
+export function selectionRects(sequence, start, end, measurer) {
+  const lines = placedLines(sequence);
+  const first = lineAt(sequence, start, lines);
+  const last = lineAt(sequence, end, lines);
+  if (!first || !last) return [];
+  const rects = [];
+  for (let order = first.order; order <= last.order; order++) {
+    const { page, line } = lines[order];
+    const left = xInLine(line, order === first.order ? start.offset : line.start, measurer);
+    let right = xInLine(line, order === last.order ? end.offset : line.end, measurer);
+    if (order !== last.order && line.end === paragraphLength(line.paragraph)) {
+      const lastRun = line.runs[line.runs.length - 1];
+      right += lastRun ? measurer.measure(" ", lastRun.font) : Math.round(line.height / 4);
+    }
+    if (right > left) rects.push({ page, x: left, top: line.top, width: right - left, height: line.height });
+  }
+  return rects;
+}
+
 // The place in the text nearest to a point on paper `page` (µm from its top
 // left corner): on the line the point is on - or the nearest line, above or
 // below it, in between - at the character boundary nearest to it. Null if

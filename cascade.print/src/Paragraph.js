@@ -1,5 +1,5 @@
 import { Component, frozen, repeat, refreshIfNeeded, retractRepeater } from "@liquefy/cascade.component";
-import { resolveParagraphStyle } from "./styles.js";
+import { paragraphStyleOf } from "./styles.js";
 import { breakIntoLines } from "./lineBreaking.js";
 
 /**
@@ -54,7 +54,7 @@ export class Paragraph extends Component {
     this.unobservable.breaks++;
     const paragraph = this.paragraph;
     const stylesheet = this.inherit("styles");
-    const style = resolveParagraphStyle(stylesheet, paragraph.style);
+    const style = paragraphStyleOf(stylesheet, paragraph);
     return frozen({
       spaceBefore: style.spaceBefore,
       spaceAfter: style.spaceAfter,

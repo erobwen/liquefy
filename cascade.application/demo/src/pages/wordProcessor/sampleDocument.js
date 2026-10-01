@@ -96,7 +96,7 @@ export function sampleDocument() {
           "An edit changes the model, the paragraph is laid out again - and the caret is drawn wherever the new layout puts it."),
         paragraph("Heading1", "What comes next"),
         paragraph("Body",
-          "Selection, then the rules that look ahead - a heading that should never be the last thing on a paper, page numbers, ",
+          "The rules that look ahead - a heading that should never be the last thing on a paper, page numbers, ",
           "\"page 3 of 7\". Those are the interesting ones for temporal signals, since a paragraph can only see what came before it."),
         paragraph("Body",
           "Until then, this is a fine place to try things. Open the code button above to see how the page is put together, ",

@@ -132,6 +132,65 @@ export function deleteForward(document, at) {
   return mergeParagraphs(document, paragraph, next.paragraph);
 }
 
+// Which of two positions comes first in the document: negative if `a`
+// does, positive if `b` does, 0 if they're the same place.
+export function comparePositions(document, a, b) {
+  if (a.paragraph === b.paragraph) return a.offset - b.offset;
+  for (const { paragraph } of paragraphsOf(document)) {
+    if (paragraph === a.paragraph) return -1;
+    if (paragraph === b.paragraph) return 1;
+  }
+  throw new Error("Not positions in this document.");
+}
+
+export function samePosition(a, b) {
+  return a.paragraph === b.paragraph && a.offset === b.offset;
+}
+
+// The two ends of a selection, in document order: [start, end].
+export function orderedRange(document, anchor, focus) {
+  return comparePositions(document, anchor, focus) <= 0 ? [anchor, focus] : [focus, anchor];
+}
+
+// Everything between two positions taken out - within a paragraph, or from
+// one paragraph into another: the start of the first and the end of the
+// last become one paragraph, in the first one's style, and every paragraph
+// in between is gone. The position is where the selection started.
+export function deleteBetween(document, anchor, focus) {
+  const [start, end] = orderedRange(document, anchor, focus);
+  if (start.paragraph === end.paragraph) {
+    deleteRange(start.paragraph, start.offset, end.offset);
+    return position(start.paragraph, start.offset);
+  }
+  deleteRange(start.paragraph, start.offset, paragraphLength(start.paragraph));
+  deleteRange(end.paragraph, 0, end.offset);
+  const all = paragraphsOf(document);
+  const from = all.findIndex((each) => each.paragraph === start.paragraph);
+  const to = all.findIndex((each) => each.paragraph === end.paragraph);
+  for (const { section, paragraph } of all.slice(from + 1, to)) {
+    section.paragraphs.splice(section.paragraphs.indexOf(paragraph), 1);
+  }
+  return mergeParagraphs(document, start.paragraph, end.paragraph);
+}
+
+// The word at `offset` - letters, digits and what joins them - as [start,
+// end]: what a double click selects. Between words, the space between them;
+// at a word's edge, the word.
+export function wordAt(paragraph, offset) {
+  const text = paragraphText(paragraph);
+  if (text.length === 0) return [0, 0];
+  const isWord = (character) => /[\p{L}\p{N}_'’]/u.test(character);
+  let probe = Math.min(offset, text.length - 1);
+  if (!isWord(text[probe]) && probe > 0 && isWord(text[probe - 1])) probe -= 1;
+  const kind = isWord(text[probe]);
+  const same = (index) => index >= 0 && index < text.length && isWord(text[index]) === kind && (kind || /\s/.test(text[index]) === /\s/.test(text[probe]));
+  let start = probe;
+  let end = probe + 1;
+  while (same(start - 1)) start--;
+  while (same(end)) end++;
+  return [start, end];
+}
+
 // Enter: the paragraph split in two at `at`. Both keep its style - except
 // that pressing Enter at the very end of a paragraph whose style names a
 // `nextStyle` starts a paragraph in that style instead (a heading followed
@@ -181,6 +240,10 @@ function mergeParagraphs(document, first, second) {
   if (spans.length === 0 && all.length > 0) spans.push(all[0]);
   first.spans.splice(0, first.spans.length, ...spans);
   section.paragraphs.splice(index, 1);
+  // A section with nothing left in it would still be a paper of its own.
+  for (let at = document.sections.length - 1; at >= 0; at--) {
+    if (document.sections[at].paragraphs.length === 0) document.sections.splice(at, 1);
+  }
   return position(first, offset);
 }
 
@@ -189,6 +252,7 @@ function mergeParagraphs(document, first, second) {
 // all: then the span the deletion started in stays, empty, keeping its
 // formatting for what's typed next.
 function deleteRange(paragraph, start, end) {
+  if (start >= end || paragraph.spans.length === 0) return;
   const { span: first } = spanAt(paragraph, start + 1);
   let at = 0;
   for (const span of paragraph.spans) {

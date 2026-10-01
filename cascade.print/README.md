@@ -80,6 +80,17 @@ the text nearest a point on a paper - and `caretAt()` - where on the papers a
 place in the text is - plus the moves that depend on the layout: `lineStart`,
 `lineEnd`, `lineAbove`, `lineBelow`.
 
+## Formatting
+
+As toolbar buttons do it, also plain functions on the model
+(`src/formatting.js`): `toggleBold`, `toggleItalic` and `formatText` give
+selected text direct formatting (a span's `font`), splitting spans where the
+selection ends and joining spans left alike - and dropping whatever the styles
+already give, so formatting and unformatting leaves the model as it was.
+`setParagraphStyle` and `setAlignment` set the style and the direct alignment
+(`paragraph.format.align`) of every paragraph a selection touches;
+`isFormatted` and `paragraphFormatAt` tell what a toolbar should show.
+
 ## In the browser
 
 `@liquefy/cascade.print/dom` (needs `@liquefy/cascade.dom`):
@@ -92,6 +103,8 @@ place in the text is - plus the moves that depend on the layout: `lineStart`,
 - `documentEditor({ document, sequence, measurer, zoom })` - the papers with a
   caret: click to place it, type, Backspace, Delete, Enter, arrows, Home, End.
   Keyboard input goes through a hidden textarea, so input methods work.
+  Selection by dragging, Shift, double and triple click, Ctrl/Cmd+A; formatting
+  through `format(kind, value)` and `currentFormat()`, for a toolbar.
 - `printPaperSequence(sequence, { title })` - the browser's print dialog, one
   sheet per paper at its own size, printed from a hidden document of its own so
   nothing of the app around the papers gets onto paper.

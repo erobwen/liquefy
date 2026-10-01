@@ -155,13 +155,16 @@ export function defaultDependencyInterfaceCreator(causality) {
 
   function removeFromObserverSet(id, observerSet) {
     let observerSetContents = observerSet['contents'];
-    if (typeof(observerSetContents[id]) !== 'undefined') observerSetContents[id].removed = true;
+    // Not in it (any more): nothing to count down. An observer can be taken
+    // out of a set twice - moved off it to a closer writing (see
+    // relocatePropertyObserverEntry), the set still among its sources, and
+    // then disposed - and counted down twice, a chunk would read empty with
+    // others still in it, and be unlinked with them.
+    if (typeof(observerSetContents[id]) === 'undefined') return;
+    observerSetContents[id].removed = true;
     delete observerSetContents[id];
     let noMoreObservers = false;
     observerSet.contentsCounter--;
-    // trace.context && log(
-    //     "observerSet.contentsCounter: " +
-    //         observerSet.contentsCounter);
     if (observerSet.contentsCounter == 0) {
       if (observerSet.isRoot) {
         if (observerSet.first === null &&

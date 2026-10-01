@@ -62,7 +62,7 @@ export function breakIntoLines({ spans, font, width, measurer, align = "left", l
       // on the lines after.
       const [head, tail] = splitWord(word, limit, measurer);
       lineWords.push([head]);
-      pending.unshift(tail);
+      if (tail) pending.unshift(tail);
     }
   }
   if (current.length > 0 || lineWords.length === 0) lineWords.push(current);
@@ -74,6 +74,13 @@ export function breakIntoLines({ spans, font, width, measurer, align = "left", l
   }));
 }
 
+// Whitespace a line can break at: every kind but the non-breaking ones - a
+// no-break space (U+00A0), a figure space (U+2007), a narrow no-break space
+// (U+202F) - which keep "10 km" together, as a word.
+const breakable = "\\t\\n\\v\\f\\r \\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000";
+const tokens = new RegExp("[" + breakable + "]+|[^" + breakable + "]+", "g");
+const isBreakable = new RegExp("^[" + breakable + "]");
+
 // Words, each its pieces (one per span it crosses) and the whitespace after
 // it. A word crossing a span boundary is one word: "bold" + "er" in two
 // fonts breaks nowhere in between.
@@ -83,20 +90,22 @@ function splitIntoWords(spans, measurer) {
   let offset = 0;
   for (const span of spans) {
     const font = span.font;
-    for (const token of span.text.match(/\s+|\S+/g) || []) {
+    for (const token of span.text.match(tokens) || []) {
       const piece = { text: token, font, start: offset, width: measurer.measure(token, font) };
       offset += token.length;
-      if (/^\s/.test(token)) {
+      if (isBreakable.test(token)) {
         if (word) {
           word.space.push(piece);
           word.spaceWidth += piece.width;
         } else {
-          // Leading whitespace: shown, as the start of the first word.
+          // Leading whitespace: shown - a word of its own, so a line can
+          // break after it, as after any whitespace.
           word = newWord(words);
+          word.leading = true;
           addPiece(word, piece);
         }
       } else {
-        if (!word || word.space.length > 0) word = newWord(words);
+        if (!word || word.space.length > 0 || word.leading) word = newWord(words);
         addPiece(word, piece);
       }
       word.end = offset;
@@ -117,7 +126,7 @@ function addPiece(word, piece) {
 }
 
 // The first characters of `word` that fit within `limit` (at least one, so
-// breaking always gets somewhere), and the rest.
+// breaking always gets somewhere), and the rest - null if there's none.
 function splitWord(word, limit, measurer) {
   const head = { pieces: [], space: [], width: 0, spaceWidth: 0, end: 0 };
   const tail = { pieces: [], space: word.space, width: 0, spaceWidth: word.spaceWidth, end: word.end };
@@ -142,7 +151,15 @@ function splitWord(word, limit, measurer) {
       addPiece(tail, { ...piece, text: rest, start: piece.start + count, width: measurer.measure(rest, piece.font) });
     }
   }
-  head.end = tail.pieces.length > 0 ? tail.pieces[0].start : word.end;
+  // All of it fit after all: no rest - the whitespace after it goes with
+  // the head, as it would with the whole word.
+  if (tail.pieces.length === 0) {
+    head.space = word.space;
+    head.spaceWidth = word.spaceWidth;
+    head.end = word.end;
+    return [head, null];
+  }
+  head.end = tail.pieces[0].start;
   return [head, tail];
 }
 

@@ -30,6 +30,26 @@ function getRenderParent() {
   return renderStack.length > 0 ? renderStack[renderStack.length - 1] : null;
 }
 
+// repeat(), for one of a component's own repeaters (its build, its render),
+// whose first run happens right here: if that run throws, the repeater
+// repeat() made before running it is retracted, not left behind -
+// subscribed to whatever the run read, rerunning on its own once that
+// changes, while the component, never handed it, makes another next time
+// (writing the same properties from another pipeline). The same as
+// RenderContext's inherit() does for its lookups.
+function startRepeater(action, options) {
+  let started = null;
+  try {
+    return repeat((repeater) => {
+      started = repeater;
+      return action(repeater);
+    }, options);
+  } catch (error) {
+    if (started) retractRepeater(started);
+    throw error;
+  }
+}
+
 // Ties what a build() returned - its roots - back to the component whose
 // build returned them: `equivalentCreator`. Only the roots: an element
 // deeper inside is part of what its root renders, not a stand-in for the
@@ -307,7 +327,7 @@ export class Component {
     // properties retracted with it.
     if (!u.buildRepeater) {
       this.refreshCreatorBuild();
-      u.buildRepeater = repeat(() => {
+      u.buildRepeater = startRepeater(() => {
         // Pushed/popped around build() specifically (not this whole
         // method, and not the constructor - see inherit()'s own comment
         // on creator) - matches flow.core's own creator-stack push site
@@ -649,7 +669,7 @@ export class Component {
       // reaches it, leaving any child renderOnto()'d during that rerun
       // looking at whatever unrelated component happens to be on top at
       // that later moment.
-      u.repeater = repeat(() => {
+      u.repeater = startRepeater(() => {
         // Its properties first, as before building (see
         // refreshCreatorBuild()): a component that renders straight from
         // its properties - a DOM element - can have its render queued, and

@@ -43,4 +43,37 @@ describe("large observer sets", function () {
     for (let i = 0; i < 500; i++) invalidators[i].dispose();
     assert.equal(removed, 1);
   });
+
+  // A reader moved to a closer writing (a repeater writing the same value
+  // in between) leaves the observer set it was in behind - and disposed
+  // later, it was taken out of it a second time, counting it down below
+  // what it holds. With a full first chunk, the next chunk's count reached
+  // zero with a reader still in it: unlinked, and that reader never heard
+  // of a change again.
+  it("a reader taken out twice - moved, then disposed - doesn't count down a chunk still holding others", function () {
+    const { observable, repeat, linkRepeater } = getWorld({ name: "largeObserverSetsRelocated", warnOnNestedRepeater: false });
+    const object = observable({ v: 1 });
+    const control = observable({ on: false, tick: 0 });
+    const readers = [];
+    let late = null;
+    let after = null;
+    const lateSaw = [];
+    repeat(() => {
+      for (let i = 0; i < 500; i++) {
+        if (readers[i]) linkRepeater(readers[i]);
+        else readers[i] = repeat(() => { void object.v; });
+      }
+      if (control.on) {
+        if (late) linkRepeater(late);
+        else late = repeat(() => { lateSaw.push(object.v); });
+        object.v = 1;
+      }
+      if (after) linkRepeater(after);
+      else after = repeat(() => { void object.v; void control.tick; });
+    });
+    control.on = true;
+    control.tick++;
+    object.v = 2;
+    assert.deepEqual(lateSaw, [1, 2]);
+  });
 });

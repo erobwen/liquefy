@@ -68,4 +68,23 @@ describe("breakIntoLines()", function () {
     assert.equal(spaced[0].height, 7500);
     assert.equal(spaced[0].ascent, 4000);
   });
+
+  it("leaves no empty line behind when a word broken between characters ends a paragraph - or a line", function () {
+    assert.deepEqual(texts(lines([{ text: "ab" }], 0)), ["a", "b"]);
+    const result = lines([{ text: "ab cd" }], 0);
+    assert.deepEqual(texts(result), ["a", "b", "c", "d"]);
+    assert.deepEqual(result.map((line) => line.last), [false, false, false, true]);
+    // The space it was broken at goes with the line it follows.
+    assert.equal(result[1].trailing, " ");
+  });
+
+  it("breaks after leading whitespace, not inside the word after it", function () {
+    assert.deepEqual(texts(lines([{ text: "   ab cd" }], 4000)), ["   ", "ab", "cd"]);
+    assert.deepEqual(texts(lines([{ text: "  ab cd" }], 5000)), ["  ab", "cd"]);
+  });
+
+  it("never breaks at a non-breaking space", function () {
+    // "a 10 km": there's room for "a 10", but "10 km" goes together.
+    assert.deepEqual(texts(lines([{ text: "a 10 km" }], 6000)), ["a", "10 km"]);
+  });
 });

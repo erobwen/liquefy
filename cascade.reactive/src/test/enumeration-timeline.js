@@ -50,4 +50,26 @@ describe("enumeration dependency (position-aware: a key add/remove only invalida
     assert.deepEqual(lateKeysSeen, ["extra"]);
   });
 
+
+  // A key added (or removed) tells every reader enumerating the object at
+  // once, as a property write tells its readers - none of them runs before
+  // the others have been told. Told one by one, the first reran right away,
+  // and a reader depending on it as well ran once on its rerun - and once
+  // more when it was told of the key itself.
+  for (const [change, how] of [["added", (model) => { model.added = 1; }], ["removed", (model) => { delete model.existing; }]]) {
+    it("a key " + change + " from outside tells all its enumerating readers before any of them reruns", function () {
+      const model = observable({ existing: 1 });
+      const shared = observable({ count: 0 });
+      let secondRuns = 0;
+      repeat(() => { shared.count = Object.keys(model).length; });
+      repeat(() => {
+        secondRuns++;
+        void Object.keys(model);
+        void shared.count;
+      });
+      secondRuns = 0;
+      how(model);
+      assert.equal(secondRuns, 1);
+    });
+  }
 });

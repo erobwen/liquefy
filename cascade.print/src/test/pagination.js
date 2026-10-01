@@ -149,7 +149,9 @@ describe("Laying out onto a PaperSequence", function () {
     const { document, sequence, component } = layOut([section([
       paragraph("aaaa bbbb"),
       paragraph("cccc"),
-    ])], { indentLeft: 0 });
+    ])]);
+    // A key the layout didn't have: read by the paragraphs' spread, every
+    // one of them is told at once - none placed before its own lines are.
     document.layout.indentLeft = 2000;
     assert.deepEqual(pages(sequence), [["aaaa@1000", "bbbb@6000", "cccc@11000"]]);
     assert.equal(sequence.linesOf(0)[0].x, 3000);

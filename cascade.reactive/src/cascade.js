@@ -2333,13 +2333,26 @@ function createWorld(configuration) {
   // resolveFlaggedRepeater's own live re-seek) - with a single writing
   // that's never replaced, that resolution would always trivially resolve
   // back to itself and never detect a real change.
+  //
+  // Every reader told before any of them reruns - as a property write tells
+  // its readers (see defaultDependencyInterface.js's invalidateObservers()):
+  // told one by one, the first reran on the spot, and whatever it changed
+  // reran a reader still to be told - once for that, and once more when it
+  // was told of the key itself.
   function invalidateDownstreamEnumerationObservers(writing, time, writer, proxy, key) {
     if (writing.observers === null) return;
+    if (state.blockInvalidation > 0) return;
     const downstream = collectOvertakenPropertyObservers(
       writing,
       (entryTime, entryWriter) => compareWritingToReader(time, writer, entryTime, entryWriter) < 0
     );
-    downstream.forEach((entry) => invalidateObserver(entry.observer, proxy, key));
+    state.postponeInvalidation++;
+    try {
+      downstream.forEach((entry) => invalidateObserver(entry.observer, proxy, key));
+    } finally {
+      state.postponeInvalidation--;
+    }
+    proceedWithPostponedInvalidations();
   }
 
   // Fully remove a writing from its timeline. Unlike marking a writing

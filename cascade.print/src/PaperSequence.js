@@ -20,7 +20,12 @@ import { observable } from "@liquefy/cascade.component";
  *    on the page yet. Frozen, so a paragraph that ends where it did before
  *    leaves the next one where it was - and nothing after it lays out again.
  *  - `linesOf(page)`: the lines on one paper (see Paragraph.js for what a
- *    placed line holds).
+ *    placed line holds) - what's drawn.
+ *  - `rowsOf(page)`: the caret rows on one paper - where a caret can be,
+ *    in reading order: every line again (the same placed line), and, between
+ *    them, the gaps a model marks where something could go between its
+ *    parts (see GapMarker.js). What the caret moves through, and what a
+ *    click finds the nearest of (see positions.js); nothing of it is drawn.
  */
 export class PaperSequence {
   constructor() {
@@ -38,13 +43,22 @@ export class PaperSequence {
   // instead, and what shows a page reads only its own page's lines. Beyond
   // the last page, empty.
   linesOf(index) {
-    const meta = this.causality;
-    if (!meta.pageLines) meta.pageLines = [];
-    let lines = meta.pageLines[index];
-    if (!lines) {
-      lines = observable([]);
-      meta.pageLines[index] = lines;
-    }
-    return lines;
+    return pageArray(this, "pageLines", index);
   }
+
+  // The caret rows on page `index` - kept the same way as its lines.
+  rowsOf(index) {
+    return pageArray(this, "pageRows", index);
+  }
+}
+
+function pageArray(sequence, name, index) {
+  const meta = sequence.causality;
+  if (!meta[name]) meta[name] = [];
+  let array = meta[name][index];
+  if (!array) {
+    array = observable([]);
+    meta[name][index] = array;
+  }
+  return array;
 }

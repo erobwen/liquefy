@@ -1,6 +1,9 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
-import { caretAt, hitTest, selectionRects, lineStart, lineEnd, lineAbove, lineBelow, samePosition } from "../positions.js";
+import {
+  caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight,
+  sequenceStart, sequenceEnd, orderedRange, samePosition,
+} from "../positions.js";
 import { paperSequenceView } from "./PaperSequenceView.js";
 import { TextInput } from "./TextInput.js";
 
@@ -19,22 +22,23 @@ import { TextInput } from "./TextInput.js";
  * broken at.
  *
  * Knows nothing of any model. The caret and the selection are positions
- * (see positions.js) - state of the editor - drawn where the layout puts
- * them. What an edit or a move through the text does is the model's
- * business, given as `editing`, every function taking and returning
- * positions:
+ * (see positions.js) - in a paragraph's text, or a gap between a model's
+ * parts - state of the editor, drawn where the layout puts them. Moving the
+ * caret is moving through the papers' caret rows (lines and gaps, in reading
+ * order - see positions.js): it needs nothing of the model. What an edit
+ * does is the model's business, given as `editing`, every function taking
+ * and returning positions:
  *
  *   {
  *     insertText(at, text),          // typed - with "\n" for a paragraph break
  *     deleteBackward(at), deleteForward(at), splitParagraph(at),
  *     deleteBetween(anchor, focus),  // a selection, either way round
- *     moveLeft(at), moveRight(at),   // a character - into the paragraphs around
- *     documentStart(), documentEnd(),
- *     orderedRange(a, b),            // [first, second], in the text's order
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
  *   }
  *
- * Every one returns the position after it - where the caret goes. Typing
+ * Every one returns the position after it - where the caret goes. Without
+ * `editing`, the editor is a caret only: it moves and selects, and nothing
+ * typed changes anything. Typing
  * edits the model; the paragraph is laid out again; the caret, reading the
  * new layout, is drawn where its position now is.
  *
@@ -127,7 +131,7 @@ export class PaperEditor extends Component {
     // With something selected, the selection shows where the caret is.
     const geometry = caret && focused && !selected ? caretAt(sequence, caret, measurer) : null;
     const selection = selected
-      ? { rects: selectionRects(sequence, ...this.editing.orderedRange(this.anchor, caret), measurer), focused }
+      ? { rects: selectionRects(sequence, ...orderedRange(sequence, this.anchor, caret), measurer), focused }
       : null;
     return div(
       {
@@ -152,8 +156,9 @@ export class PaperEditor extends Component {
     const at = this.positionAtPoint(event.clientX, event.clientY);
     u.input.focus();
     if (!at) return;
-    if (event.detail >= 3) this.select(...this.editing.paragraphAt(at));
-    else if (event.detail === 2) this.select(...this.editing.wordAt(at));
+    const editing = this.editing;
+    if (event.detail >= 3 && editing && editing.paragraphAt) this.select(...editing.paragraphAt(at));
+    else if (event.detail === 2 && editing && editing.wordAt) this.select(...editing.wordAt(at));
     else this.moveCaret(at, { extend: event.shiftKey && !!this.caret });
     this.followMouse(event);
   }
@@ -215,7 +220,9 @@ export class PaperEditor extends Component {
     if (command.type === "focus") this.focused = true;
     else if (command.type === "blur") this.focused = false;
     if (!this.caret) return;
-    if (command.type === "insert") this.edit((at) => this.editing.insertText(at, command.text));
+    if (command.type === "insert") {
+      if (this.editing) this.edit((at) => this.editing.insertText(at, command.text));
+    }
     else if (command.type === "key") this.pressKey(command);
   }
 
@@ -223,16 +230,16 @@ export class PaperEditor extends Component {
     const { editing, sequence } = this;
     const selected = this.hasSelection();
     switch (key) {
-      case "Backspace": return this.edit(selected ? null : (at) => editing.deleteBackward(at));
-      case "Delete": return this.edit(selected ? null : (at) => editing.deleteForward(at));
-      case "Enter": return this.edit((at) => editing.splitParagraph(at));
-      case "SelectAll": return this.select(editing.documentStart(), editing.documentEnd());
+      case "Backspace": return editing && this.edit(selected ? null : (at) => editing.deleteBackward(at));
+      case "Delete": return editing && this.edit(selected ? null : (at) => editing.deleteForward(at));
+      case "Enter": return editing && this.edit((at) => editing.splitParagraph(at));
+      case "SelectAll": return this.select(sequenceStart(sequence), sequenceEnd(sequence));
     }
     // Moving. Without Shift, a selection collapses: Left and Right to
     // its start and end, Up and Down from there.
     let from = this.caret;
     if (selected && !shift) {
-      const [start, end] = editing.orderedRange(this.anchor, this.caret);
+      const [start, end] = orderedRange(sequence, this.anchor, this.caret);
       if (key === "ArrowLeft") return this.moveCaret(start);
       if (key === "ArrowRight") return this.moveCaret(end);
       if (key === "ArrowUp") from = start;
@@ -240,10 +247,10 @@ export class PaperEditor extends Component {
     }
     const extend = { extend: shift };
     switch (key) {
-      case "ArrowLeft": return this.moveCaret(editing.moveLeft(from), extend);
-      case "ArrowRight": return this.moveCaret(editing.moveRight(from), extend);
-      case "Home": return this.moveCaret(primary ? editing.documentStart() : lineStart(sequence, from), extend);
-      case "End": return this.moveCaret(primary ? editing.documentEnd() : lineEnd(sequence, from), extend);
+      case "ArrowLeft": return this.moveCaret(stepLeft(sequence, from), extend);
+      case "ArrowRight": return this.moveCaret(stepRight(sequence, from), extend);
+      case "Home": return this.moveCaret(primary ? sequenceStart(sequence) : lineStart(sequence, from), extend);
+      case "End": return this.moveCaret(primary ? sequenceEnd(sequence) : lineEnd(sequence, from), extend);
       case "ArrowUp":
       case "ArrowDown": {
         const u = this.unobservable;
@@ -251,7 +258,7 @@ export class PaperEditor extends Component {
           const geometry = caretAt(sequence, from, this.measurer);
           u.goalX = geometry ? geometry.x : 0;
         }
-        const move = key === "ArrowUp" ? lineAbove : lineBelow;
+        const move = key === "ArrowUp" ? rowAbove : rowBelow;
         return this.moveCaret(move(sequence, from, u.goalX, this.measurer), { ...extend, vertical: true });
       }
     }
@@ -316,7 +323,7 @@ export class PaperEditor extends Component {
   // The highlight the caret end of the selection is in: the last one if the
   // selection was extended forward, the first if backward.
   focusEndOf(marks) {
-    const [start] = this.editing.orderedRange(this.anchor, this.caret);
+    const [start] = orderedRange(this.sequence, this.anchor, this.caret);
     return start === this.anchor ? marks[marks.length - 1] : marks[0];
   }
 }

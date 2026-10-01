@@ -4,4 +4,5 @@ export { monospaceMeasurer } from "./src/monospaceMeasurer.js";
 export { PaperSequence } from "./src/PaperSequence.js";
 export { Section, contentWidth } from "./src/Section.js";
 export { Paragraph } from "./src/Paragraph.js";
-export { position, samePosition, placedLines, lineAt, caretAt, selectionRects, hitTest, positionInLine, lineStart, lineEnd, lineAbove, lineBelow } from "./src/positions.js";
+export { GapMarker } from "./src/GapMarker.js";
+export { position, gapPosition, isGapPosition, samePosition, placedLines, caretRows, rowAt, lineAt, caretAt, selectionRects, hitTest, positionInLine, lineStart, lineEnd, rowAbove, rowBelow, lineAbove, lineBelow, stepLeft, stepRight, sequenceStart, sequenceEnd, comparePositions, orderedRange } from "./src/positions.js";

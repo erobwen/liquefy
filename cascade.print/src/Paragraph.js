@@ -113,6 +113,7 @@ export class Paragraph extends Component {
     // but none at the top of a paper.
     if (!atPageTop) y += sequence.flow.spaceAfter + spaceBefore;
     let pageLines = sequence.linesOf(page);
+    let pageRows = sequence.rowsOf(page);
     lines.forEach((line, index) => {
       // A line that doesn't fit goes on the next paper - unless it's the
       // first on this one: then it would fit on none.
@@ -122,15 +123,19 @@ export class Paragraph extends Component {
         y = format.margins.top;
         atPageTop = true;
         pageLines = sequence.linesOf(page);
+        pageRows = sequence.rowsOf(page);
       }
-      pageLines.push(frozen({
+      const placed = frozen({
         ...line,
         x: format.margins.left + line.x,
         top: y,
         baseline: y + line.ascent,
         paragraph: this.source,
         index,
-      }));
+      });
+      // Drawn - and a row for the caret to be on.
+      pageLines.push(placed);
+      pageRows.push(placed);
       y += line.height;
       atPageTop = false;
     });

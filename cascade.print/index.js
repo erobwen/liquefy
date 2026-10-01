@@ -6,3 +6,5 @@ export { PaperSequence } from "./src/PaperSequence.js";
 export { PrintDocument } from "./src/PrintDocument.js";
 export { Section } from "./src/Section.js";
 export { Paragraph } from "./src/Paragraph.js";
+export { position, paragraphText, paragraphLength, paragraphsOf, spanAt, documentStart, documentEnd, moveLeft, moveRight, insertText, deleteBackward, deleteForward, splitParagraph } from "./src/editing.js";
+export { placedLines, lineAt, caretAt, hitTest, positionInLine, lineStart, lineEnd, lineAbove, lineBelow } from "./src/positions.js";

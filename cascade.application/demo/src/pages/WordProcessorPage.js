@@ -2,7 +2,7 @@ import { Component, repeat, retractRepeater, postponeInvalidations, continueInva
 import { div, text } from "@liquefy/cascade.dom";
 import { button, controlPanel, iconButton, filler, fillerStyle } from "@liquefy/cascade.ui";
 import { PrintDocument, PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
-import { domMeasurer, paperSequenceView, printPaperSequence } from "@liquefy/cascade.print/dom";
+import { domMeasurer, documentEditor, printPaperSequence } from "@liquefy/cascade.print/dom";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import { sampleDocument } from "./wordProcessor/sampleDocument.js";
@@ -10,11 +10,12 @@ import source from "./WordProcessorPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
-  summary: "A document laid out onto papers by cascade.print:",
+  summary: "A document laid out onto papers by cascade.print - click anywhere in the text and type:",
   points: [
     "The document is a model - paragraphs with paragraph styles, spans with character styles - laid out onto a paper sequence: a render target with no DOM in it, in micrometers.",
     "Each paragraph is broken into lines (measured by the browser), then its lines are placed on the papers - two repeaters, so a paragraph that only moves is never broken again.",
     "Switch between A4 and Letter: every paragraph gets a new width and is laid out again. Zoom: nothing is laid out again, it's only drawn at another scale.",
+    "Click to drop the caret, then type, Backspace, Delete, Enter, and move with the arrows, Home and End (Ctrl/Cmd for the whole document). Each edit changes the model; the paragraph is broken into lines again, and the caret is drawn where the new layout puts it.",
     "Print sends the papers to the browser's print dialog - one sheet per paper, at its real size.",
   ],
 };
@@ -26,7 +27,7 @@ const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 /**
  * Word Processor - the beginnings of one: a document laid out onto papers,
- * shown, and printed. Read-only for now.
+ * shown, edited at a caret, and printed.
  *
  * Two roots, side by side:
  *  - The layout: a PrintDocument rendered onto a PaperSequence (see
@@ -34,8 +35,9 @@ const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
  *    of its own - so the page owns it: created in initialization, laid out
  *    in a repeater of its own from establishment on, disposed with the page
  *    (see cascade.component/README.md on components created directly).
- *  - The view: this page's build, showing the paper sequence with
- *    paperSequenceView() - each paper reading only its own lines.
+ *  - The editor: this page's build, showing the paper sequence with
+ *    documentEditor() - each paper reading only its own lines - and editing
+ *    the model at its caret.
  */
 export class WordProcessorPage extends Component {
   initialState() {
@@ -44,10 +46,12 @@ export class WordProcessorPage extends Component {
 
   initialUnobservables() {
     const document = sampleDocument();
+    const measurer = domMeasurer();
     return {
       document,
+      measurer,
       sequence: new PaperSequence(),
-      layout: new PrintDocument({ document, measurer: domMeasurer() }).establish(),
+      layout: new PrintDocument({ document, measurer }).establish(),
       layoutRoot: null,
     };
   }
@@ -82,7 +86,7 @@ export class WordProcessorPage extends Component {
   }
 
   build() {
-    const { document, sequence } = this.unobservable;
+    const { document, sequence, measurer } = this.unobservable;
     const paper = document.sections[0].paper;
     const pageCount = sequence.pages.length;
     return fullPage(
@@ -100,7 +104,7 @@ export class WordProcessorPage extends Component {
       ),
       div(
         { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
-        paperSequenceView({ sequence, zoom: this.zoom }),
+        documentEditor({ document, sequence, measurer, zoom: this.zoom }),
       ),
     );
   }

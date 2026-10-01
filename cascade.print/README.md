@@ -65,6 +65,21 @@ A measurer answers `measure(text, font)` (a width) and `metrics(font)` (`{
 ascent, descent }`), in µm. `monospaceMeasurer()` needs no fonts, for tests
 and anywhere without a browser.
 
+## Editing
+
+Edits are plain functions on the model (`src/editing.js`), each taking a
+position and returning the one after it: `insertText`, `deleteBackward`,
+`deleteForward`, `splitParagraph` (Enter - into the style's `nextStyle` at
+the end of a paragraph, as in Word), `moveLeft`, `moveRight`. A position is
+`{ paragraph, offset, lineEnd }` - a place in a paragraph's text, offsets
+counted across its spans, never a place on paper, so a new layout never makes
+it wrong.
+
+Between positions and papers (`src/positions.js`): `hitTest()` - the place in
+the text nearest a point on a paper - and `caretAt()` - where on the papers a
+place in the text is - plus the moves that depend on the layout: `lineStart`,
+`lineEnd`, `lineAbove`, `lineBelow`.
+
 ## In the browser
 
 `@liquefy/cascade.print/dom` (needs `@liquefy/cascade.dom`):
@@ -74,6 +89,9 @@ and anywhere without a browser.
 - `paperSequenceView({ sequence, zoom })` - the papers on screen, at their real
   size (µm become CSS millimeters), white with a shadow on grey. Each paper
   reads only its own lines.
+- `documentEditor({ document, sequence, measurer, zoom })` - the papers with a
+  caret: click to place it, type, Backspace, Delete, Enter, arrows, Home, End.
+  Keyboard input goes through a hidden textarea, so input methods work.
 - `printPaperSequence(sequence, { title })` - the browser's print dialog, one
   sheet per paper at its own size, printed from a hidden document of its own so
   nothing of the app around the papers gets onto paper.

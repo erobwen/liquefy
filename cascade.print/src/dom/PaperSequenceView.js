@@ -1,6 +1,6 @@
 import { Component, frozen } from "@liquefy/cascade.component";
 import { div, span, text } from "@liquefy/cascade.dom";
-import { paperStyle, runStyle } from "./paperStyles.js";
+import { cssMm, paperStyle, runStyle } from "./paperStyles.js";
 
 export const paperShadow = "0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.12)";
 
@@ -9,26 +9,40 @@ export const paperShadow = "0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0,
  * slight shadow, one under the other on a grey background, each with the
  * text laid out on it.
  *
- *   paperSequenceView({ sequence, zoom: 1.25 })
+ *   paperSequenceView({ sequence, zoom: 1.25, caret })
  *
  * Drawn at real size - a paper's millimeters are CSS millimeters - and
  * scaled by `zoom` (CSS zoom, so the room it takes up scales too, and so do
  * scroll bars around it).
  *
+ * `caret`, if given, is drawn on its paper, blinking: { page, x, top,
+ * height } in µm (see positions.js's caretAt()), and `blink` - a count to
+ * change whenever the caret moves, so it restarts its blink shown.
+ *
  * Each paper is a component of its own, reading only its own lines
- * (PaperSequence.linesOf()): a change on one paper draws that paper again,
- * not the others. A paper's runs are matched by position, run for run, so
- * what's drawn again is mostly text and positions changing in place.
+ * (PaperSequence.linesOf()), and its text is drawn apart from its caret: a
+ * change on one paper draws that paper's text again, not the others', and
+ * the caret moving draws only the caret. A paper's runs are matched by
+ * position, run for run, so what's drawn again is mostly text and positions
+ * changing in place.
+ *
+ * Every paper's element has `data-page` - its index - for finding which
+ * paper a click is on.
  */
 export class PaperSequenceView extends Component {
-  setProperties({ sequence, zoom = 1, style }) {
+  setProperties({ sequence, zoom = 1, caret = null, style }) {
     this.sequence = sequence;
     this.zoom = zoom;
+    this.caret = frozen(caret);
     this.style = frozen(style || {});
   }
 
+  onShow() {
+    addCaretKeyframes(document);
+  }
+
   build() {
-    const sequence = this.sequence;
+    const { sequence, caret } = this;
     return div(
       {
         style: {
@@ -45,7 +59,13 @@ export class PaperSequenceView extends Component {
           ...this.style,
         },
       },
-      sequence.pages.map((format, index) => new PaperView({ key: "paper" + index, sequence, index, format })),
+      sequence.pages.map((format, index) => new PaperView({
+        key: "paper" + index,
+        sequence,
+        index,
+        format,
+        caret: caret && caret.page === index ? caret : null,
+      })),
     );
   }
 }
@@ -55,10 +75,28 @@ export function paperSequenceView(...parameters) {
 }
 
 class PaperView extends Component {
-  setProperties({ sequence, index, format }) {
+  setProperties({ sequence, index, format, caret }) {
     this.sequence = sequence;
     this.index = index;
     this.format = frozen(format);
+    this.caret = frozen(caret);
+  }
+
+  build() {
+    const caret = this.caret;
+    return div(
+      { "data-page": this.index, style: { ...paperStyle(this.format), boxShadow: paperShadow } },
+      new PaperText({ sequence: this.sequence, index: this.index }),
+      caret ? div({ key: "caret", "data-caret": "", style: caretStyle(caret) }) : null,
+    );
+  }
+}
+
+// The text on one paper: its runs, in a row.
+class PaperText extends Component {
+  setProperties({ sequence, index }) {
+    this.sequence = sequence;
+    this.index = index;
   }
 
   build() {
@@ -66,6 +104,31 @@ class PaperView extends Component {
     for (const line of this.sequence.linesOf(this.index)) {
       for (const run of line.runs) runs.push(span({ style: runStyle(line, run) }, text(run.text)));
     }
-    return div({ style: { ...paperStyle(this.format), boxShadow: paperShadow } }, runs);
+    return runs;
   }
+}
+
+function caretStyle(caret) {
+  return {
+    position: "absolute",
+    left: cssMm(caret.x),
+    top: cssMm(caret.top),
+    height: cssMm(caret.height),
+    width: "0",
+    borderLeft: "1.5px solid black",
+    marginLeft: "-0.75px",
+    pointerEvents: "none",
+    // Two names for the same blink, taking turns: a new name restarts the
+    // animation - shown, at the start of its cycle.
+    animation: (caret.blink % 2 ? "cascade-print-caret-a" : "cascade-print-caret-b") + " 1.06s step-end infinite",
+  };
+}
+
+// The blink, once per document.
+function addCaretKeyframes(doc) {
+  if (!doc || doc.getElementById("cascade-print-caret-keyframes")) return;
+  const style = doc.createElement("style");
+  style.id = "cascade-print-caret-keyframes";
+  style.textContent = ["a", "b"].map((name) => "@keyframes cascade-print-caret-" + name + " { 0% { opacity: 1; } 50% { opacity: 0; } }").join("\n");
+  doc.head.appendChild(style);
 }

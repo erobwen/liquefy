@@ -12,11 +12,15 @@ import { deeplyObservable } from "@liquefy/cascade.component";
 const deployedAt = { origin: "https://erobwen.github.io", path: "/liquefy/cascade/" };
 const dismissedKey = "cascade-demo-version-notice-dismissed";
 
+// Whether main runs ahead of the released packages right now: off while
+// main is what's released (2.0.0), on again once it has moved on.
+const mainIsAheadOfRelease = false;
+
 // ?version-notice shows it anywhere - to see what it looks like locally.
 function isDeployedDemo() {
   const { origin, pathname, search } = window.location;
   if (new URLSearchParams(search).has("version-notice")) return true;
-  return origin === deployedAt.origin && pathname.startsWith(deployedAt.path);
+  return mainIsAheadOfRelease && origin === deployedAt.origin && pathname.startsWith(deployedAt.path);
 }
 
 function wasDismissed() {

@@ -1,7 +1,7 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { TextInput } from "@liquefy/cascade.print/dom";
-import { samePosition, isGap } from "../model/parts.js";
+import { samePosition, isMarker } from "../model/parts.js";
 import { caretRows } from "./markers.js";
 import {
   caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight,
@@ -23,9 +23,9 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * laid out with, for placing the caret between the same characters the lines
  * were broken at.
  *
- * At a gap, the gap's area - what it stands for (see markers.js) - is drawn
- * under the text: the room between two siblings, or the part a list starts
- * or ends with. `showAllAreas` draws every gap's at once, to see them all.
+ * At a marker, the marker's area - what it stands for (see markers.js) - is
+ * drawn under the text: the room a gap is in, or the part whose start or end
+ * it is. `showAllAreas` draws every marker's at once, to see them all.
  *
  * The caret and the selection are positions (see ../model/parts.js) - in a
  * paragraph's text, or a gap - state of the editor, drawn where the layout
@@ -154,11 +154,11 @@ export class RippleEditor extends Component {
     );
   }
 
-  // The area of the gap the caret is at - none in the text.
+  // The area of the marker the caret is at - none in the text.
   areaAtCaret(rows) {
     const caret = this.caret;
-    if (!caret || !isGap(caret) || this.hasSelection()) return [];
-    const found = rows.find(({ row }) => "gap" in row && samePosition(row.gap, caret));
+    if (!caret || !isMarker(caret) || this.hasSelection()) return [];
+    const found = rows.find(({ row }) => "marker" in row && samePosition(row.marker, caret));
     return found ? found.row.area : [];
   }
 

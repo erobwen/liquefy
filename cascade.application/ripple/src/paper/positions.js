@@ -1,35 +1,35 @@
 import { positionInLine } from "@liquefy/cascade.print";
-import { textPosition, isGap, samePosition } from "../model/parts.js";
+import { textPosition, isMarker, samePosition } from "../model/parts.js";
 
 /**
  * The caret in a laid-out Ripple document: where a position is on the
  * papers, which position a point is, and moving from one place to the next -
  * all on the document's caret rows (see markers.js), every line and every
- * gap, in reading order. `rows` is what caretRows() returns.
+ * marker, in reading order. `rows` is what caretRows() returns.
  *
  * Positions are the model's (see ../model/parts.js): in a paragraph's text,
- * or a gap. On a line, everything is as in cascade.print's positions.js -
- * the characters of the line, measured with the measurer the lines were
- * broken with. A gap is a row of one place: its marker, a horizontal bar
- * across the text area.
+ * or a marker - a gap, or a part's start or end. On a line, everything is as
+ * in cascade.print's positions.js - the characters of the line, measured
+ * with the measurer the lines were broken with. A marker is a row of one
+ * place: its bar, a horizontal line across the text area.
  */
 
-const isGapRow = (row) => "gap" in row;
+const isMarkerRow = (row) => "marker" in row;
 
 // The caret row a position is on, with its place in reading order
 // (`order`, into rows). Null if it isn't laid out.
 export function rowAt(rows, at) {
-  if (isGap(at)) {
+  if (isMarker(at)) {
     for (let order = 0; order < rows.length; order++) {
       const { row } = rows[order];
-      if (isGapRow(row) && samePosition(row.gap, at)) return { ...rows[order], order };
+      if (isMarkerRow(row) && samePosition(row.marker, at)) return { ...rows[order], order };
     }
     return null;
   }
   let found = null;
   for (let order = 0; order < rows.length; order++) {
     const { row } = rows[order];
-    if (isGapRow(row) || row.paragraph !== at.paragraph || at.offset < row.start || at.offset > row.end) continue;
+    if (isMarkerRow(row) || row.paragraph !== at.paragraph || at.offset < row.start || at.offset > row.end) continue;
     // A break between two lines: the first, at a line end - the second
     // otherwise.
     if (found && at.lineEnd) break;
@@ -41,13 +41,13 @@ export function rowAt(rows, at) {
 
 // Where the caret for a position goes, in µm on its paper: in the text,
 // { page, x, top, height } - as tall as the font at that place reaches, on
-// its line's baseline; at a gap, its marker - { page, x, width, y, gap:
-// true }, a horizontal bar. Null if it isn't laid out.
+// its line's baseline; at a marker, its bar - { page, x, width, y,
+// marker: true }, a horizontal line. Null if it isn't laid out.
 export function caretAt(rows, at, measurer) {
   const found = rowAt(rows, at);
   if (!found) return null;
   const { row, page } = found;
-  if (isGapRow(row)) return { page, x: row.x, width: row.width, y: row.y, gap: true };
+  if (isMarkerRow(row)) return { page, x: row.x, width: row.width, y: row.y, marker: true };
   const x = xInLine(row, at.offset, measurer);
   const run = runAt(row, at.offset);
   const ascent = run ? run.ascent : row.ascent;
@@ -65,12 +65,12 @@ export function selectionRects(rows, start, end, measurer) {
   const rects = [];
   for (let order = first.order; order <= last.order; order++) {
     const { page, row } = rows[order];
-    if (isGapRow(row)) continue;
-    const from = order === first.order && !isGap(start) ? start.offset : row.start;
-    const to = order === last.order && !isGap(end) ? end.offset : row.end;
+    if (isMarkerRow(row)) continue;
+    const from = order === first.order && !isMarker(start) ? start.offset : row.start;
+    const to = order === last.order && !isMarker(end) ? end.offset : row.end;
     const left = xInLine(row, from, measurer);
     let right = xInLine(row, to, measurer);
-    if ((order !== last.order || isGap(end)) && row.last) {
+    if ((order !== last.order || isMarker(end)) && row.last) {
       const lastRun = row.runs[row.runs.length - 1];
       right += lastRun ? measurer.measure(" ", lastRun.font) : Math.round(row.height / 4);
     }
@@ -88,28 +88,28 @@ export function hitTest(rows, page, x, y, measurer) {
   let distance = Infinity;
   for (const { page: rowPage, row } of rows) {
     if (rowPage !== page) continue;
-    const away = isGapRow(row) ? Math.abs(y - row.y) : Math.max(0, row.top - y, y - (row.top + row.height));
+    const away = isMarkerRow(row) ? Math.abs(y - row.y) : Math.max(0, row.top - y, y - (row.top + row.height));
     // On a line, that line - a marker as near never takes it.
-    if (away < distance || (away === distance && away === 0 && !isGapRow(row))) {
+    if (away < distance || (away === distance && away === 0 && !isMarkerRow(row))) {
       distance = away;
       nearest = row;
     }
   }
   if (!nearest) return null;
-  return isGapRow(nearest) ? nearest.gap : toModel(positionInLine(nearest, x, measurer));
+  return isMarkerRow(nearest) ? nearest.marker : toModel(positionInLine(nearest, x, measurer));
 }
 
 // Home and End: the start and end of the line a position is on. A gap is a
 // row of one place: it stays.
 export function lineStart(rows, at) {
   const found = rowAt(rows, at);
-  if (!found || isGapRow(found.row)) return at;
+  if (!found || isMarkerRow(found.row)) return at;
   return textPosition(at.paragraph, found.row.start);
 }
 
 export function lineEnd(rows, at) {
   const found = rowAt(rows, at);
-  if (!found || isGapRow(found.row)) return at;
+  if (!found || isMarkerRow(found.row)) return at;
   return textPosition(at.paragraph, found.row.end, !found.row.last);
 }
 
@@ -129,7 +129,7 @@ function verticalMove(rows, at, goalX, measurer, direction) {
   if (!found) return at;
   const target = rows[found.order + direction];
   if (!target) return direction < 0 ? lineStart(rows, at) : lineEnd(rows, at);
-  return isGapRow(target.row) ? target.row.gap : toModel(positionInLine(target.row, goalX, measurer));
+  return isMarkerRow(target.row) ? target.row.marker : toModel(positionInLine(target.row, goalX, measurer));
 }
 
 // Left and right: the place before or after a position, in reading order -
@@ -141,7 +141,7 @@ export function stepRight(rows, at) {
   const found = rowAt(rows, at);
   if (!found) return at;
   let { order, row } = found;
-  if (!isGapRow(row)) {
+  if (!isMarkerRow(row)) {
     // At a line's end, after the space it was broken at, is the next line's
     // start, as far as moving goes.
     if (at.lineEnd && !row.last && rows[order + 1]) {
@@ -159,7 +159,7 @@ export function stepLeft(rows, at) {
   const found = rowAt(rows, at);
   if (!found) return at;
   const { order, row } = found;
-  if (!isGapRow(row) && at.offset > row.start) {
+  if (!isMarkerRow(row) && at.offset > row.start) {
     return textPosition(row.paragraph, at.offset - characterBefore(rowText(row), at.offset - row.start));
   }
   const preceding = rows[order - 1];
@@ -179,7 +179,7 @@ export function sequenceEnd(rows) {
 // does, positive if `b` does, 0 for the same place.
 export function comparePositions(rows, a, b) {
   if (samePosition(a, b)) return 0;
-  if (!isGap(a) && !isGap(b) && a.paragraph === b.paragraph) return a.offset - b.offset;
+  if (!isMarker(a) && !isMarker(b) && a.paragraph === b.paragraph) return a.offset - b.offset;
   const rowA = rowAt(rows, a);
   const rowB = rowAt(rows, b);
   if (!rowA || !rowB) return 0;
@@ -198,11 +198,11 @@ const toModel = (at) => textPosition(at.paragraph, at.offset, at.lineEnd);
 // paragraph goes on from ends a character before its end, which is where the
 // next line starts.
 function firstPlace(row) {
-  return isGapRow(row) ? row.gap : textPosition(row.paragraph, row.start);
+  return isMarkerRow(row) ? row.marker : textPosition(row.paragraph, row.start);
 }
 
 function lastPlace(row) {
-  if (isGapRow(row)) return row.gap;
+  if (isMarkerRow(row)) return row.marker;
   if (row.last || row.end === row.start) return textPosition(row.paragraph, row.end);
   return textPosition(row.paragraph, row.end - characterBefore(rowText(row), row.end - row.start));
 }

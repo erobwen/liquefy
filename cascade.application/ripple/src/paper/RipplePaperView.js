@@ -164,8 +164,8 @@ function highlightStyle(rect, color) {
 }
 
 function caretStyle(caret) {
-  // A gap's: a horizontal bar across the text area, at its height.
-  const shape = caret.gap
+  // A marker's: a horizontal bar across the text area, at its height.
+  const shape = caret.marker
     ? { left: cssMm(caret.x), top: cssMm(caret.y), width: cssMm(caret.width), height: "0", borderTop: "1.5px solid black", marginTop: "-0.75px" }
     : { left: cssMm(caret.x), top: cssMm(caret.top), height: cssMm(caret.height), width: "0", borderLeft: "1.5px solid black", marginLeft: "-0.75px" };
   return {

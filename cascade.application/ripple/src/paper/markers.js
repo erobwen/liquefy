@@ -29,9 +29,22 @@ import { Sequence, isSection, gap } from "../model/parts.js";
  * ends, after the part before, on its paper; what starts, before the part
  * after, on its.
  *
+ * Every gap also has an area - what it stands for on the papers, as
+ * rectangles (one for each paper it's on), across the text area:
+ *
+ *  - Between two siblings: the room between them, from the lower edge of the
+ *    one to the upper edge of the other - its bar in the middle of it.
+ *  - At a list's start: the part it's before, its whole bounding box.
+ *  - At a list's end: the part it's after - the list's last child - its
+ *    whole bounding box. Lists ending together have their areas one inside
+ *    another: a paragraph, the section it ends, the section that one ends...
+ *
  * A caret row is a placed line (cascade.print's), or a gap row:
  *
- *   { gap, level, x, width, y }   - x, width: the text area; y: the bar's
+ *   { gap, level, kind, x, width, y, area }
+ *     - x, width: the text area; y: the bar's
+ *     - kind: "between", "start" or "end"
+ *     - area: [{ page, x, top, width, height }]
  *
  * `level` is how deep the gap's list is - the sequence's 0, a document's 1.
  * Returned as [{ page, row }], in reading order.
@@ -45,6 +58,10 @@ export function caretRows(sequence, root, { edge = edgeDistance } = {}) {
   const items = readingOrder(root);
   const lines = linesByParagraph(sequence);
   placeGaps(items, lines, sequence, edge);
+  const extents = partExtents(lines);
+  for (const item of items) {
+    if (item.placed) item.placed.row = Object.freeze({ ...item.placed.row, area: Object.freeze(areaOf(item, extents, sequence)) });
+  }
   const rows = [];
   for (const item of items) {
     if (item.block) {
@@ -57,16 +74,20 @@ export function caretRows(sequence, root, { edge = edgeDistance } = {}) {
 }
 
 // Every part and every gap of the tree, in reading order: { block } for a
-// paragraph (a title or body text), { gap, level, kind } for a gap - kind
-// "between" (two siblings, or a title and its first child), "end" (after a
-// list's last child, or in a list with none), "start" (before the first
-// child of a list with no title of its own: the sequence).
+// paragraph (a title or body text), { gap, level, kind, before, after } for
+// a gap - kind "between" (two siblings, or a title and its first child),
+// "end" (after a list's last child, or in a list with none), "start" (before
+// the first child of a list with no title of its own: the sequence) - and
+// the parts on either side of it, where there are.
 export function readingOrder(root) {
   const items = [];
   const gapItem = (list, index, level, hasTitle) => {
-    const count = list.children.length;
+    const children = list.children;
+    const count = children.length;
     const kind = index === count ? "end" : (index === 0 && !hasTitle ? "start" : "between");
-    items.push({ gap: gap(list, index), level, kind });
+    const before = index > 0 ? children[index - 1] : (hasTitle ? list.title : null);
+    const after = index < count ? children[index] : null;
+    items.push({ gap: gap(list, index), level, kind, before, after });
   };
   const visitSection = (section, depth) => {
     items.push({ block: section.title });
@@ -184,10 +205,65 @@ function spreadAfter(gaps, page, from, to, sequence, atFrom) {
   });
 }
 
+// The papers a part is on, and how far down each it reaches: { page: { top,
+// bottom } }, from its own lines and its children's, a section's title
+// included. Worked out for a part the first time it's asked for.
+function partExtents(lines) {
+  const known = new Map();
+  const extentOf = (part) => {
+    if (known.has(part)) return known.get(part);
+    const pages = new Map();
+    const add = (page, top, bottom) => {
+      const extent = pages.get(page);
+      if (!extent) pages.set(page, { top, bottom });
+      else {
+        extent.top = Math.min(extent.top, top);
+        extent.bottom = Math.max(extent.bottom, bottom);
+      }
+    };
+    const visit = (each) => {
+      if (isSection(each)) {
+        visit(each.title);
+        each.children.forEach(visit);
+      } else {
+        for (const { page, line } of lines.get(each) || []) add(page, line.top, line.top + line.height);
+      }
+    };
+    visit(part);
+    known.set(part, pages);
+    return pages;
+  };
+  return extentOf;
+}
+
+// A gap's area (see the class doc).
+function areaOf(item, extentOf, sequence) {
+  const rect = (page, top, bottom) => {
+    const format = sequence.pages[page];
+    return { page, x: format.margins.left, top, width: contentWidth(format), height: Math.max(0, bottom - top) };
+  };
+  const boxOf = (part) => [...extentOf(part)].sort(([a], [b]) => a - b).map(([page, { top, bottom }]) => rect(page, top, bottom));
+  if (item.kind === "start") return item.after ? boxOf(item.after) : [];
+  if (item.kind === "end") return item.before ? boxOf(item.before) : [];
+  // Between: the room between the two - on each paper, if they're on two.
+  const before = item.before ? [...extentOf(item.before)].sort(([a], [b]) => a - b) : [];
+  const after = item.after ? [...extentOf(item.after)].sort(([a], [b]) => a - b) : [];
+  if (before.length === 0 || after.length === 0) return [];
+  const [lastPage, { bottom }] = before[before.length - 1];
+  const [firstPage, { top }] = after[0];
+  if (lastPage === firstPage) return [rect(lastPage, bottom, top)];
+  const below = sequence.pages[lastPage];
+  const above = sequence.pages[firstPage];
+  return [
+    rect(lastPage, bottom, below.height - below.margins.bottom),
+    rect(firstPage, above.margins.top, top),
+  ];
+}
+
 function gapRow(item, page, y, sequence) {
   const format = sequence.pages[page];
   return {
     page,
-    row: Object.freeze({ gap: item.gap, level: item.level, x: format.margins.left, width: contentWidth(format), y }),
+    row: { gap: item.gap, level: item.level, kind: item.kind, x: format.margins.left, width: contentWidth(format), y },
   };
 }

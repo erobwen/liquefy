@@ -21,6 +21,10 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "@liquefy/cascade.print
  * x, width, y, gap: true }, in µm (see positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its
  * blink shown.
+ * `areas`, if given, are drawn under everything else - under the
+ * selection, under the text: rectangles, [{ page, x, top, width, height }]
+ * in µm - what a gap stands for (see markers.js) - each a faint, light blue,
+ * see-through box with a slightly stronger 1px edge.
  * `selection`, if given, is highlighted under the text: { rects, focused } -
  * rects as positions.js's selectionRects() gives them; blue while the editor
  * has the keyboard, grey while it doesn't.
@@ -36,11 +40,12 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "@liquefy/cascade.print
  * paper a click is on.
  */
 export class RipplePaperView extends Component {
-  setProperties({ sequence, zoom = 1, caret = null, selection = null, style }) {
+  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, style }) {
     this.sequence = sequence;
     this.zoom = zoom;
     this.caret = frozen(caret);
     this.selection = frozen(selection);
+    this.areas = frozen(areas || []);
     this.style = frozen(style || {});
   }
 
@@ -49,7 +54,7 @@ export class RipplePaperView extends Component {
   }
 
   build() {
-    const { sequence, caret, selection } = this;
+    const { sequence, caret, selection, areas } = this;
     const highlight = selection && selection.focused ? selectedColor : unfocusedSelectedColor;
     return div(
       {
@@ -75,6 +80,7 @@ export class RipplePaperView extends Component {
         caret: caret && caret.page === index ? caret : null,
         highlights: selection ? selection.rects.filter((rect) => rect.page === index) : [],
         highlight,
+        areas: areas.filter((rect) => rect.page === index),
       })),
     );
   }
@@ -85,21 +91,24 @@ export function ripplePaperView(...parameters) {
 }
 
 class PaperView extends Component {
-  setProperties({ sequence, index, format, caret, highlights, highlight }) {
+  setProperties({ sequence, index, format, caret, highlights, highlight, areas }) {
     this.sequence = sequence;
     this.index = index;
     this.format = frozen(format);
     this.caret = frozen(caret);
     this.highlights = frozen(highlights);
     this.highlight = highlight;
+    this.areas = frozen(areas || []);
   }
 
   build() {
     const caret = this.caret;
     return div(
       { "data-page": this.index, style: { ...paperStyle(this.format), boxShadow: paperShadow } },
-      // Under the text: drawn first. Keyed, as the text after them is: how
-      // many there are comes and goes with the selection.
+      // Under the text: drawn first - the areas lowest, then the selection.
+      // Keyed, as the text after them is: how many there are comes and goes
+      // with the caret and the selection.
+      this.areas.map((rect, index) => div({ key: "area" + index, "data-area": "", style: areaStyle(rect) })),
       this.highlights.map((rect, index) => div({ key: "highlight" + index, "data-selection": "", style: highlightStyle(rect, this.highlight) })),
       new PaperText({ key: "text", sequence: this.sequence, index: this.index }),
       caret ? div({ key: "caret", "data-caret": "", style: caretStyle(caret) }) : null,
@@ -121,6 +130,22 @@ class PaperText extends Component {
     }
     return runs;
   }
+}
+
+// A gap's area: a faint, see-through light blue, its edge a little
+// stronger.
+function areaStyle(rect) {
+  return {
+    position: "absolute",
+    left: cssMm(rect.x),
+    top: cssMm(rect.top),
+    width: cssMm(rect.width),
+    height: cssMm(rect.height),
+    boxSizing: "border-box",
+    background: "rgba(66, 133, 244, 0.07)",
+    border: "1px solid rgba(66, 133, 244, 0.35)",
+    pointerEvents: "none",
+  };
 }
 
 const selectedColor = "#b4d5fe";

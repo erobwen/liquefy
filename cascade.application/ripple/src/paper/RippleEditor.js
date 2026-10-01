@@ -1,7 +1,7 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { TextInput } from "@liquefy/cascade.print/dom";
-import { samePosition } from "../model/parts.js";
+import { samePosition, isGap } from "../model/parts.js";
 import { caretRows } from "./markers.js";
 import {
   caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight,
@@ -15,13 +15,17 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * the text and the gaps between its parts at every level (see markers.js,
  * positions.js), and a gap's caret is a horizontal bar across the text area.
  *
- *   rippleEditor({ sequence, root, measurer, editing, zoom })
+ *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas })
  *
  * `sequence` is the paper sequence the document is laid out onto - by
  * someone else: the editor only reads it - `root` the document's root (the
  * sequence of documents, see ../model/parts.js), and `measurer` the one it's
  * laid out with, for placing the caret between the same characters the lines
  * were broken at.
+ *
+ * At a gap, the gap's area - what it stands for (see markers.js) - is drawn
+ * under the text: the room between two siblings, or the part a list starts
+ * or ends with. `showAllAreas` draws every gap's at once, to see them all.
  *
  * The caret and the selection are positions (see ../model/parts.js) - in a
  * paragraph's text, or a gap - state of the editor, drawn where the layout
@@ -55,9 +59,10 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * Ctrl/Cmd plus a key, handed to `onShortcut(name)`.
  */
 export class RippleEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, showAllAreas = false, style }) {
     this.sequence = sequence;
     this.root = root;
+    this.showAllAreas = !!showAllAreas;
     this.measurer = measurer;
     this.editing = editing;
     this.zoom = zoom;
@@ -132,7 +137,8 @@ export class RippleEditor extends Component {
   build() {
     const { caret, focused, sequence, measurer } = this;
     const selected = this.hasSelection();
-    const rows = caret ? this.rows() : [];
+    const rows = caret || this.showAllAreas ? this.rows() : [];
+    const areas = this.showAllAreas ? rows.flatMap(({ row }) => row.area || []) : this.areaAtCaret(rows);
     // With something selected, the selection shows where the caret is.
     const geometry = caret && focused && !selected ? caretAt(rows, caret, measurer) : null;
     const selection = selected
@@ -143,9 +149,17 @@ export class RippleEditor extends Component {
         style: { position: "relative", ...this.style },
         onmousedown: callback("press", (event) => this.press(event)),
       },
-      ripplePaperView({ sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection }),
+      ripplePaperView({ sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas }),
       this.unobservable.input,
     );
+  }
+
+  // The area of the gap the caret is at - none in the text.
+  areaAtCaret(rows) {
+    const caret = this.caret;
+    if (!caret || !isGap(caret) || this.hasSelection()) return [];
+    const found = rows.find(({ row }) => "gap" in row && samePosition(row.gap, caret));
+    return found ? found.row.area : [];
   }
 
   // A press on a paper: the caret there - or, with Shift, the selection

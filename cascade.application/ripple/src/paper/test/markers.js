@@ -137,4 +137,44 @@ describe("Ripple's gap markers", function () {
     assert.ok(samePosition(hitTest(rows, 0, 5000, markerY(rows, gap(doc, 1)), measurer), gap(doc, 1)));
     assert.ok(samePosition(hitTest(rows, 0, 1600, top(rows, q) + 1000, measurer), textPosition(q, 1)));
   });
+
+  // A gap's area: the room between two siblings, or the part a list starts
+  // or ends with - across the text area.
+  const areaOf = (rows, position) => rows.find(({ row }) => "gap" in row && samePosition(row.gap, position)).row.area;
+  const textArea = { x: margins.left, width: paper.width - margins.left - margins.right };
+
+  it("has an area between two siblings: from the one's lower edge to the other's upper edge, the bar in the middle of it", function () {
+    const a = paragraph("aa");
+    const b = paragraph("bb");
+    const doc = document({ title: "D", paper, margins }, a, b);
+    const { rows } = layOut(sequenceOf(doc));
+    const [area] = areaOf(rows, gap(doc, 1));
+    assert.deepEqual(area, { page: 0, ...textArea, top: bottom(rows, a), height: top(rows, b) - bottom(rows, a) });
+    assert.equal(markerY(rows, gap(doc, 1)), area.top + area.height / 2);
+  });
+
+  it("has, at a list's end, the bounding box of the part it ends after - lists ending together one inside another", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const outer = section("Outer", paragraph("pp"), inner);
+    const doc = document({ title: "D", paper, margins }, outer, section("Next"));
+    const { rows } = layOut(sequenceOf(doc));
+    // The end of Inner: "qq" itself. The end of Outer: all of Inner, its
+    // title to its last line.
+    assert.deepEqual(areaOf(rows, gap(inner, 1)), [{ page: 0, ...textArea, top: top(rows, q), height: bottom(rows, q) - top(rows, q) }]);
+    assert.deepEqual(areaOf(rows, gap(outer, 2)), [{ page: 0, ...textArea, top: top(rows, inner.title), height: bottom(rows, q) - top(rows, inner.title) }]);
+  });
+
+  it("has, at a list's start, the bounding box of the part it starts with - on every paper the part is on", function () {
+    const many = Array.from({ length: 40 }, (_, index) => paragraph("p" + index));
+    const doc = document({ title: "D", paper: { width: 32000, height: 60000 }, margins }, ...many);
+    const root = sequenceOf(doc);
+    const { sequence, rows } = layOut(root);
+    const area = areaOf(rows, gap(root, 0));
+    assert.ok(sequence.pages.length > 1);
+    assert.deepEqual(area.map((rect) => rect.page), sequence.pages.map((format, page) => page));
+    assert.equal(area[0].top, top(rows, doc.title));
+    // And the end of everything: the same document.
+    assert.deepEqual(areaOf(rows, gap(root, 1)), area);
+  });
 });

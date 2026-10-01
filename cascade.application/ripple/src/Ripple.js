@@ -1,6 +1,6 @@
 import { Component, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, controlPanel, iconButton, filler, fillerStyle, fitContainerStyle, overlayFrame, colorSchemeScope, column } from "@liquefy/cascade.ui";
+import { button, checkbox, controlPanel, iconButton, filler, fillerStyle, fitContainerStyle, overlayFrame, colorSchemeScope, column } from "@liquefy/cascade.ui";
 import { PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
 import { domMeasurer, printPaperSequence } from "@liquefy/cascade.print/dom";
 import { rippleEditor } from "./paper/RippleEditor.js";
@@ -33,7 +33,9 @@ const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
  */
 export class Ripple extends Component {
   initialState() {
-    return { zoom: 1 };
+    // showAllAreas: every gap's area drawn at once - for experimenting with
+    // where gaps are, and what they stand for.
+    return { zoom: 1, showAllAreas: false };
   }
 
   initialUnobservables() {
@@ -92,6 +94,7 @@ export class Ripple extends Component {
           { style: { ...fitContainerStyle, gap: "12px", padding: "12px" } },
           controlPanel(
             div({ style: { fontWeight: "bold", fontSize: "18px", marginRight: "8px" } }, text("Ripple")),
+            checkbox({ label: "All gap areas", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
             filler(),
             button({ variant: paper === paperSizes.A4 ? "filled" : undefined }, "A4", () => this.setPaper("A4")),
             button({ variant: paper === paperSizes.letter ? "filled" : undefined }, "Letter", () => this.setPaper("letter")),
@@ -105,7 +108,7 @@ export class Ripple extends Component {
           ),
           div(
             { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
-            rippleEditor({ key: "editor", sequence, root, measurer, zoom: this.zoom }),
+            rippleEditor({ key: "editor", sequence, root, measurer, zoom: this.zoom, showAllAreas: this.showAllAreas }),
           ),
         ),
       ),

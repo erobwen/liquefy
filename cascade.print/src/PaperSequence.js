@@ -3,9 +3,9 @@ import { observable } from "@liquefy/cascade.component";
 /**
  * PaperSequence - the render target of a printed document: a sequence of
  * papers, and the lines of text laid out on each. No DOM anywhere, and every
- * length in µm (see units.js). What a document is rendered onto (see
- * PrintDocument); what is shown on screen, or sent to a printer, is made
- * from it afterwards.
+ * length in µm (see units.js). What a document is rendered onto - its
+ * sections and paragraphs (see Section.js, Paragraph.js); what is shown on
+ * screen, or sent to a printer, is made from it afterwards.
  *
  * Temporal, like any render target - everything on it is positioned in
  * render order, so each component sees it as what was rendered before it

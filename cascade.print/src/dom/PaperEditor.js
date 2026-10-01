@@ -1,34 +1,42 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
-import {
-  position, paragraphLength, insertText, deleteBackward, deleteForward, deleteBetween, splitParagraph,
-  moveLeft, moveRight, documentStart, documentEnd, orderedRange, samePosition, wordAt,
-} from "../editing.js";
-import { isFormatted, toggleBold, toggleItalic, setParagraphStyle, setAlignment, toggleFirstLineIndent, paragraphFormatAt } from "../formatting.js";
-import { caretAt, hitTest, selectionRects, lineStart, lineEnd, lineAbove, lineBelow } from "../positions.js";
+import { caretAt, hitTest, selectionRects, lineStart, lineEnd, lineAbove, lineBelow, samePosition } from "../positions.js";
 import { paperSequenceView } from "./PaperSequenceView.js";
 import { TextInput } from "./TextInput.js";
 
 /**
- * DocumentEditor - a document you can type in: its papers on screen (see
+ * PaperEditor - papers you can type on: a paper sequence on screen (see
  * PaperSequenceView), a caret dropped where you click, a selection, and the
- * keyboard editing the model there. The layout follows the model, and the
- * caret and the selection follow the layout.
+ * keyboard editing the model there - through `editing`, the model's own
+ * edits. The layout follows the model, and the caret and the selection
+ * follow the layout.
  *
- *   documentEditor({ document, sequence, measurer, zoom })
+ *   paperEditor({ sequence, measurer, editing, zoom })
  *
- * `document` is the model (see PrintDocument), `sequence` the paper
- * sequence it's laid out onto - by someone else: the editor only reads it -
- * and `measurer` the one it's laid out with, for placing the caret between
- * the same characters the lines were broken at.
+ * `sequence` is the paper sequence a model is laid out onto - by someone
+ * else: the editor only reads it - and `measurer` the one it's laid out
+ * with, for placing the caret between the same characters the lines were
+ * broken at.
  *
- * The caret and the selection are positions in the model (see editing.js)
- * - state of the editor - drawn where the layout puts them (positions.js's
- * caretAt() and selectionRects()). The selection runs from its anchor, where
- * it started, to the caret, where it's extended to: the two are the same
- * position, or there's no anchor, when nothing is selected. Typing edits the
- * model; the paragraph is laid out again; the caret, reading the new layout,
- * is drawn where its position now is.
+ * Knows nothing of any model. The caret and the selection are positions
+ * (see positions.js) - state of the editor - drawn where the layout puts
+ * them. What an edit or a move through the text does is the model's
+ * business, given as `editing`, every function taking and returning
+ * positions:
+ *
+ *   {
+ *     insertText(at, text),          // typed - with "\n" for a paragraph break
+ *     deleteBackward(at), deleteForward(at), splitParagraph(at),
+ *     deleteBetween(anchor, focus),  // a selection, either way round
+ *     moveLeft(at), moveRight(at),   // a character - into the paragraphs around
+ *     documentStart(), documentEnd(),
+ *     orderedRange(a, b),            // [first, second], in the text's order
+ *     wordAt(at), paragraphAt(at),   // [start, end] around a position
+ *   }
+ *
+ * Every one returns the position after it - where the caret goes. Typing
+ * edits the model; the paragraph is laid out again; the caret, reading the
+ * new layout, is drawn where its position now is.
  *
  * Selecting: drag, Shift+click, double click (a word), triple click (a
  * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything).
@@ -39,18 +47,19 @@ import { TextInput } from "./TextInput.js";
  * Home and End (Ctrl/Cmd: the start and end of the document). With
  * something selected, Left and Right go to its start and end.
  *
- * Formatting (see formatting.js), for a toolbar to call - format() - and to
- * show - currentFormat(): bold and italic (also Ctrl/Cmd+B and +I) for the
- * selection, or, with nothing selected, the word the caret is in; a
- * paragraph style, an alignment and a first line indent (on or off) for
- * every paragraph the selection touches.
+ * For whatever else changes the model around the caret - a toolbar:
+ * selection() tells what's selected, apply(change) makes a change in one go
+ * and gives the keyboard back to the text. And `shortcuts` - { b: "Bold" }:
+ * Ctrl/Cmd plus a key, handed to `onShortcut(name)`.
  */
-export class DocumentEditor extends Component {
-  setProperties({ document, sequence, measurer, zoom = 1, style }) {
-    this.document = document;
+export class PaperEditor extends Component {
+  setProperties({ sequence, measurer, editing, zoom = 1, shortcuts, onShortcut, style }) {
     this.sequence = sequence;
     this.measurer = measurer;
+    this.editing = editing;
     this.zoom = zoom;
+    this.shortcuts = frozen(shortcuts || {});
+    this.onShortcut = onShortcut || null;
     this.style = frozen(style || {});
   }
 
@@ -66,7 +75,10 @@ export class DocumentEditor extends Component {
       // Created here and placed in build() as it is - this editor owns it
       // (see cascade.component/README.md on creating a sub-component
       // directly).
-      input: new TextInput({ onCommand: (command) => this.command(command) }).establish(),
+      input: new TextInput({
+        onCommand: (command) => this.command(command),
+        shortcutFor: (key) => this.shortcutFor(key),
+      }).establish(),
       // Where moving up and down began, in µm - kept while moving up and
       // down, dropped by any other move or edit.
       goalX: null,
@@ -87,13 +99,35 @@ export class DocumentEditor extends Component {
     return !!this.anchor && !!this.caret && !samePosition(this.anchor, this.caret);
   }
 
+  // What's selected: { anchor, focus, selected } - with nothing selected,
+  // both at the caret. Null before there's a caret.
+  selection() {
+    if (!this.caret) return null;
+    const selected = this.hasSelection();
+    return { anchor: selected ? this.anchor : this.caret, focus: this.caret, selected };
+  }
+
+  // A change made around the caret from outside the text - a toolbar's: in
+  // one go, laid out once. The keyboard goes back to the text - a toolbar
+  // button clicked has just taken it - and the caret is followed.
+  apply(change) {
+    postponeInvalidations();
+    try {
+      change();
+    } finally {
+      continueInvalidations();
+    }
+    this.unobservable.input.focus();
+    this.followCaret();
+  }
+
   build() {
     const { caret, focused, sequence, measurer } = this;
     const selected = this.hasSelection();
     // With something selected, the selection shows where the caret is.
     const geometry = caret && focused && !selected ? caretAt(sequence, caret, measurer) : null;
     const selection = selected
-      ? { rects: selectionRects(sequence, ...orderedRange(this.document, this.anchor, caret), measurer), focused }
+      ? { rects: selectionRects(sequence, ...this.editing.orderedRange(this.anchor, caret), measurer), focused }
       : null;
     return div(
       {
@@ -118,14 +152,9 @@ export class DocumentEditor extends Component {
     const at = this.positionAtPoint(event.clientX, event.clientY);
     u.input.focus();
     if (!at) return;
-    if (event.detail >= 3) {
-      this.select(position(at.paragraph, 0), position(at.paragraph, paragraphLength(at.paragraph)));
-    } else if (event.detail === 2) {
-      const [start, end] = wordAt(at.paragraph, at.offset);
-      this.select(position(at.paragraph, start), position(at.paragraph, end));
-    } else {
-      this.moveCaret(at, { extend: event.shiftKey && !!this.caret });
-    }
+    if (event.detail >= 3) this.select(...this.editing.paragraphAt(at));
+    else if (event.detail === 2) this.select(...this.editing.wordAt(at));
+    else this.moveCaret(at, { extend: event.shiftKey && !!this.caret });
     this.followMouse(event);
   }
 
@@ -176,30 +205,34 @@ export class DocumentEditor extends Component {
     return hitTest(this.sequence, page, x, y, this.measurer);
   }
 
+  // What Ctrl/Cmd plus `key` is - Ctrl+A selects everything; the rest are
+  // whoever placed the editor's (`shortcuts`).
+  shortcutFor(key) {
+    return key === "a" ? "SelectAll" : this.shortcuts[key];
+  }
+
   command(command) {
     if (command.type === "focus") this.focused = true;
     else if (command.type === "blur") this.focused = false;
     if (!this.caret) return;
-    if (command.type === "insert") this.edit((at) => insertText(this.document, at, command.text));
+    if (command.type === "insert") this.edit((at) => this.editing.insertText(at, command.text));
     else if (command.type === "key") this.pressKey(command);
   }
 
   pressKey({ key, shift, primary }) {
-    const { document, sequence } = this;
+    const { editing, sequence } = this;
     const selected = this.hasSelection();
     switch (key) {
-      case "Backspace": return this.edit(selected ? null : (at) => deleteBackward(document, at));
-      case "Delete": return this.edit(selected ? null : (at) => deleteForward(document, at));
-      case "Enter": return this.edit((at) => splitParagraph(document, at));
-      case "SelectAll": return this.select(documentStart(document), documentEnd(document));
-      case "Bold": return this.format("bold");
-      case "Italic": return this.format("italic");
+      case "Backspace": return this.edit(selected ? null : (at) => editing.deleteBackward(at));
+      case "Delete": return this.edit(selected ? null : (at) => editing.deleteForward(at));
+      case "Enter": return this.edit((at) => editing.splitParagraph(at));
+      case "SelectAll": return this.select(editing.documentStart(), editing.documentEnd());
     }
     // Moving. Without Shift, a selection collapses: Left and Right to
     // its start and end, Up and Down from there.
     let from = this.caret;
     if (selected && !shift) {
-      const [start, end] = orderedRange(document, this.anchor, this.caret);
+      const [start, end] = editing.orderedRange(this.anchor, this.caret);
       if (key === "ArrowLeft") return this.moveCaret(start);
       if (key === "ArrowRight") return this.moveCaret(end);
       if (key === "ArrowUp") from = start;
@@ -207,10 +240,10 @@ export class DocumentEditor extends Component {
     }
     const extend = { extend: shift };
     switch (key) {
-      case "ArrowLeft": return this.moveCaret(moveLeft(document, from), extend);
-      case "ArrowRight": return this.moveCaret(moveRight(document, from), extend);
-      case "Home": return this.moveCaret(primary ? documentStart(document) : lineStart(sequence, from), extend);
-      case "End": return this.moveCaret(primary ? documentEnd(document) : lineEnd(sequence, from), extend);
+      case "ArrowLeft": return this.moveCaret(editing.moveLeft(from), extend);
+      case "ArrowRight": return this.moveCaret(editing.moveRight(from), extend);
+      case "Home": return this.moveCaret(primary ? editing.documentStart() : lineStart(sequence, from), extend);
+      case "End": return this.moveCaret(primary ? editing.documentEnd() : lineEnd(sequence, from), extend);
       case "ArrowUp":
       case "ArrowDown": {
         const u = this.unobservable;
@@ -222,57 +255,8 @@ export class DocumentEditor extends Component {
         return this.moveCaret(move(sequence, from, u.goalX, this.measurer), { ...extend, vertical: true });
       }
     }
-  }
-
-  // Formatting, as a toolbar asks for it: "bold" and "italic" toggled,
-  // "style" and "align" set to `value`, "firstLineIndent" toggled (to
-  // `value` µm, if given, when on). The keyboard goes back to the
-  // text - a toolbar button clicked has just taken it.
-  format(kind, value) {
-    if (!this.caret) return;
-    const { document } = this;
-    postponeInvalidations();
-    try {
-      if (kind === "bold" || kind === "italic") {
-        const range = this.textRange();
-        if (range) (kind === "bold" ? toggleBold : toggleItalic)(document, ...range);
-      } else if (kind === "style") {
-        setParagraphStyle(document, this.anchor || this.caret, this.caret, value);
-      } else if (kind === "align") {
-        setAlignment(document, this.anchor || this.caret, this.caret, value);
-      } else if (kind === "firstLineIndent") {
-        toggleFirstLineIndent(document, this.anchor || this.caret, this.caret, value);
-      }
-    } finally {
-      continueInvalidations();
-    }
-    this.unobservable.input.focus();
-    this.followCaret();
-  }
-
-  // What's formatted how at the caret, for a toolbar: { bold, italic,
-  // style, align, firstLineIndent } - bold and italic for all of the
-  // selection, the rest for the paragraph the caret is in - or null
-  // before there's a caret.
-  currentFormat() {
-    const { caret, document } = this;
-    if (!caret) return null;
-    const anchor = this.hasSelection() ? this.anchor : caret;
-    return {
-      bold: isFormatted(document, anchor, caret, (font) => font.weight >= 600),
-      italic: isFormatted(document, anchor, caret, (font) => !!font.italic),
-      ...paragraphFormatAt(document, caret),
-    };
-  }
-
-  // What bold and italic apply to: the selection - or, with nothing
-  // selected, the word the caret is inside (not at either end of), as in
-  // Word. Null if neither.
-  textRange() {
-    if (this.hasSelection()) return [this.anchor, this.caret];
-    const { paragraph, offset } = this.caret;
-    const [start, end] = wordAt(paragraph, offset);
-    return start < offset && offset < end ? [position(paragraph, start), position(paragraph, end)] : null;
+    // Anything else is a shortcut of whoever placed the editor.
+    if (this.onShortcut) this.onShortcut(key);
   }
 
   // An edit at the caret - what's selected taken out first, and the edit
@@ -283,7 +267,7 @@ export class DocumentEditor extends Component {
     postponeInvalidations();
     try {
       let at = this.caret;
-      if (this.hasSelection()) at = deleteBetween(this.document, this.anchor, this.caret);
+      if (this.hasSelection()) at = this.editing.deleteBetween(this.anchor, this.caret);
       after = change ? change(at) : at;
     } finally {
       continueInvalidations();
@@ -332,11 +316,11 @@ export class DocumentEditor extends Component {
   // The highlight the caret end of the selection is in: the last one if the
   // selection was extended forward, the first if backward.
   focusEndOf(marks) {
-    const [start] = orderedRange(this.document, this.anchor, this.caret);
+    const [start] = this.editing.orderedRange(this.anchor, this.caret);
     return start === this.anchor ? marks[marks.length - 1] : marks[0];
   }
 }
 
-export function documentEditor(...parameters) {
-  return new DocumentEditor(...parameters);
+export function paperEditor(...parameters) {
+  return new PaperEditor(...parameters);
 }

@@ -2,10 +2,11 @@ import { JSDOM } from "jsdom";
 import assert from "assert";
 import { observable } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "@liquefy/cascade.dom";
-import { PrintDocument } from "../PrintDocument.js";
-import { PaperSequence } from "../PaperSequence.js";
-import { DocumentEditor } from "../dom/DocumentEditor.js";
-import { margins } from "../units.js";
+import { PaperSequence, margins } from "@liquefy/cascade.print";
+import { PaperEditor } from "@liquefy/cascade.print/dom";
+import { WordDocument } from "../WordDocument.js";
+import { wordEditing } from "../wordEditing.js";
+import { applyFormat, currentFormat } from "../FormatToolbar.js";
 
 // As in pagination.js: 10 characters across, 4 lines down - a paper 12 x 22
 // mm, drawn (see the bounding rect below) a pixel to the millimeter.
@@ -16,10 +17,11 @@ const measurer = {
 
 const paragraph = (text) => observable({ style: "Normal", spans: observable([observable({ text })]) });
 
-describe("DocumentEditor", function () {
+describe("Editing the word processor's model in a PaperEditor", function () {
   let window;
   let container;
   let editor;
+  let model;
 
   beforeEach(function () {
     const dom = new JSDOM("<!DOCTYPE html><body></body>");
@@ -41,8 +43,15 @@ describe("DocumentEditor", function () {
       sections: observable([observable({ paper: { width: 12000, height: 22000 }, margins: margins(1000), paragraphs: observable(paragraphs) })]),
     });
     const sequence = new PaperSequence();
-    new PrintDocument({ document, measurer }).renderOnto(sequence);
-    editor = new DocumentEditor({ document, sequence, measurer }).establish();
+    new WordDocument({ document, measurer }).renderOnto(sequence);
+    model = document;
+    editor = new PaperEditor({
+      sequence,
+      measurer,
+      editing: wordEditing(document),
+      shortcuts: { b: "Bold", i: "Italic" },
+      onShortcut: (name) => applyFormat(editor, document, name.toLowerCase()),
+    }).establish();
     editor.renderOnto(new DOMElementTarget(container));
     return document;
   }
@@ -173,30 +182,30 @@ describe("DocumentEditor", function () {
   it("formats the selection - or the word the caret is in - and tells what's formatted at the caret", function () {
     const first = paragraph("aaaa bbbb");
     edit([first, paragraph("cccc")]);
-    assert.equal(editor.currentFormat(), null);
+    assert.equal(currentFormat(editor, model), null);
     click(0, 1, 2);
     press("ArrowRight", { shiftKey: true });
     press("ArrowRight", { shiftKey: true });
-    editor.format("bold");
+    applyFormat(editor, model, "bold");
     assert.deepEqual(first.spans.map((span) => [span.text, span.font && span.font.weight]), [["aa", 700], ["aa bbbb", undefined]]);
-    assert.equal(editor.currentFormat().bold, true);
+    assert.equal(currentFormat(editor, model).bold, true);
     // The keyboard is back in the text after a toolbar button.
     assert.equal(document.activeElement, textarea());
 
     click(0, 8, 2);
     press("i", { ctrlKey: true });
     assert.deepEqual(first.spans.map((span) => span.text), ["aa", "aa ", "bbbb"]);
-    assert.equal(editor.currentFormat().italic, true);
-    assert.equal(editor.currentFormat().bold, false);
+    assert.equal(currentFormat(editor, model).italic, true);
+    assert.equal(currentFormat(editor, model).bold, false);
 
-    editor.format("align", "right");
-    editor.format("style", "Heading");
-    assert.deepEqual(editor.currentFormat(), { bold: false, italic: true, style: "Heading", align: "right", firstLineIndent: 0 });
+    applyFormat(editor, model, "align", "right");
+    applyFormat(editor, model, "style", "Heading");
+    assert.deepEqual(currentFormat(editor, model), { bold: false, italic: true, style: "Heading", align: "right", firstLineIndent: 0 });
     assert.equal(first.format.align, "right");
-    editor.format("firstLineIndent");
-    assert.equal(editor.currentFormat().firstLineIndent, 6000);
-    editor.format("firstLineIndent");
-    assert.equal(editor.currentFormat().firstLineIndent, 0);
+    applyFormat(editor, model, "firstLineIndent");
+    assert.equal(currentFormat(editor, model).firstLineIndent, 6000);
+    applyFormat(editor, model, "firstLineIndent");
+    assert.equal(currentFormat(editor, model).firstLineIndent, 0);
   });
 
   it("hides the caret while the editor doesn't have the keyboard", function () {

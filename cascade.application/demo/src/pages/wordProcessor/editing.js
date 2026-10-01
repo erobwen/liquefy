@@ -1,29 +1,22 @@
 import { observable } from "@liquefy/cascade.component";
+import { position, samePosition } from "@liquefy/cascade.print";
+
+// Positions are cascade.print's - the same that clicking on a paper gives.
+export { position, samePosition };
 
 /**
  * Editing a document's model - the edits a word processor makes as you
- * type, as plain functions on the model (see styles.js and PrintDocument.js
+ * type, as plain functions on the model (see styles.js and WordDocument.js
  * for its shape). Nothing here knows about layout: a change to the model is
  * all an edit is, and the layout follows.
  *
- * A position in the document is a place in one paragraph's text:
- *
- *   { paragraph, offset, lineEnd }
- *
- * `paragraph` is the model's paragraph itself, `offset` counts characters
- * across all its spans. A position says nothing about papers or lines, so
- * laying the document out again never makes it wrong. `lineEnd` only
- * matters where a paragraph is broken between two lines - the end of the
- * one and the start of the next are the same offset: true for the end of
- * the first (where End puts the caret), false - the default - for the start
- * of the next (where text typed there goes). See positions.js.
+ * A position in the document is cascade.print's (see its positions.js): a
+ * place in one paragraph's text, { paragraph, offset, lineEnd } -
+ * `paragraph` the model's paragraph itself, `offset` counting characters
+ * across all its spans.
  *
  * Every edit returns the position after it - where the caret goes.
  */
-
-export function position(paragraph, offset, lineEnd = false) {
-  return Object.freeze({ paragraph, offset, lineEnd });
-}
 
 export function paragraphText(paragraph) {
   let result = "";
@@ -141,10 +134,6 @@ export function comparePositions(document, a, b) {
     if (paragraph === b.paragraph) return 1;
   }
   throw new Error("Not positions in this document.");
-}
-
-export function samePosition(a, b) {
-  return a.paragraph === b.paragraph && a.offset === b.offset;
 }
 
 // The two ends of a selection, in document order: [start, end].

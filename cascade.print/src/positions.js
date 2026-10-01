@@ -1,4 +1,3 @@
-import { position, paragraphText, paragraphLength } from "./editing.js";
 
 /**
  * Between a paper sequence and the model: which place in the text a point
@@ -8,14 +7,33 @@ import { position, paragraphText, paragraphLength } from "./editing.js";
  * depend on how the text is laid out: to the start or end of a line, to the
  * line above or below.
  *
- * Positions are the model's (see editing.js). Where a paragraph is broken
- * between two lines, the end of one and the start of the next are the same
- * offset; a position's `lineEnd` says which line it's on.
+ * A position is a place in a paragraph's text:
+ *
+ *   { paragraph, offset, lineEnd }
+ *
+ * `paragraph` is whatever the paragraph's lines were placed with as their
+ * source (see Paragraph.js) - a model's own paragraph object, typically - and
+ * `offset` counts characters through its text. A position says nothing
+ * about papers or lines, so a new layout never makes it wrong. Where a
+ * paragraph is broken between two lines, the end of one and the start of
+ * the next are the same offset: `lineEnd` says which - true for the end of
+ * the first (where End puts the caret), false for the start of the next
+ * (where text typed there goes). Nothing here looks into a paragraph: what
+ * it needs, its lines know.
  *
  * Measuring goes through the same measurer the lines were broken with, so a
  * caret lands exactly between the characters the line breaking measured -
  * measured as prefixes of a whole run, as the run is drawn.
  */
+
+export function position(paragraph, offset, lineEnd = false) {
+  return Object.freeze({ paragraph, offset, lineEnd });
+}
+
+// The same place in the text - wherever a line break puts it.
+export function samePosition(a, b) {
+  return a.paragraph === b.paragraph && a.offset === b.offset;
+}
 
 // Every placed line, in reading order: { page, index, line }.
 export function placedLines(sequence) {
@@ -56,8 +74,8 @@ export function caretAt(sequence, at, measurer) {
   return { page, x, top: line.baseline - ascent, height: ascent + descent };
 }
 
-// What a selection from `start` to `end` (in document order - see
-// editing.js's orderedRange()) covers on the papers: a rectangle per line,
+// What a selection from `start` to `end` (`start` first, in reading
+// order) covers on the papers: a rectangle per line,
 // { page, x, top, width, height } in µm, as tall as the line. A line the
 // selection goes on past the end of its paragraph from also covers the
 // paragraph break, as wide as a space: selected, an empty paragraph shows.
@@ -71,7 +89,7 @@ export function selectionRects(sequence, start, end, measurer) {
     const { page, line } = lines[order];
     const left = xInLine(line, order === first.order ? start.offset : line.start, measurer);
     let right = xInLine(line, order === last.order ? end.offset : line.end, measurer);
-    if (order !== last.order && line.end === paragraphLength(line.paragraph)) {
+    if (order !== last.order && line.last) {
       const lastRun = line.runs[line.runs.length - 1];
       right += lastRun ? measurer.measure(" ", lastRun.font) : Math.round(line.height / 4);
     }
@@ -107,7 +125,7 @@ export function hitTest(sequence, page, x, y, measurer) {
 // the space it was broken at).
 export function positionInLine(line, x, measurer) {
   const paragraph = line.paragraph;
-  const isLast = line.end === paragraphLength(paragraph);
+  const isLast = line.last;
   let best = line.start;
   let distance = Math.abs(x - line.x);
   for (const run of line.runs) {
@@ -135,7 +153,7 @@ export function lineStart(sequence, at) {
 export function lineEnd(sequence, at) {
   const found = lineAt(sequence, at);
   if (!found) return at;
-  const isLast = found.line.end === paragraphLength(at.paragraph);
+  const isLast = found.line.last;
   return position(at.paragraph, found.line.end, !isLast);
 }
 
@@ -171,7 +189,7 @@ function xInLine(line, offset, measurer) {
   if (line.runs.length === 0) return line.x;
   // In the whitespace a line was broken at - after its last run.
   const last = line.runs[line.runs.length - 1];
-  const trailing = paragraphText(line.paragraph).slice(lastRunEnd(line), offset);
+  const trailing = line.trailing.slice(0, offset - lastRunEnd(line));
   return line.x + line.width + measurer.measure(trailing, last.font);
 }
 

@@ -1,11 +1,14 @@
-import { Component, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { Component, callback, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
-import { button, controlPanel, iconButton, dropdown, filler, fillerStyle, themeColor } from "@liquefy/cascade.ui";
-import { PrintDocument, PaperSequence, paperSizes, margins, mm, inch, resolveParagraphStyle } from "@liquefy/cascade.print";
-import { domMeasurer, documentEditor, printPaperSequence } from "@liquefy/cascade.print/dom";
+import { button, controlPanel, iconButton, filler, fillerStyle } from "@liquefy/cascade.ui";
+import { PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
+import { domMeasurer, paperEditor, printPaperSequence } from "@liquefy/cascade.print/dom";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
 import { sampleDocument } from "./wordProcessor/sampleDocument.js";
+import { WordDocument } from "./wordProcessor/WordDocument.js";
+import { wordEditing } from "./wordProcessor/wordEditing.js";
+import { FormatToolbar, applyFormat } from "./wordProcessor/FormatToolbar.js";
 import source from "./WordProcessorPage.js?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
@@ -30,15 +33,20 @@ const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
  * Word Processor - the beginnings of one: a document laid out onto papers,
  * shown, edited at a caret, and printed.
  *
+ * The model - Word's, with its styles, edits and formatting - is this
+ * demo's own, in ./wordProcessor; cascade.print knows nothing of it, and
+ * lays out, shows, edits and prints any model given the same few hooks.
+ *
  * Two roots, side by side:
- *  - The layout: a PrintDocument rendered onto a PaperSequence (see
+ *  - The layout: a WordDocument rendered onto a PaperSequence (see
  *    cascade.print). Not part of this page's own render - it has a target
  *    of its own - so the page owns it: created in initialization, laid out
  *    in a repeater of its own from establishment on, disposed with the page
  *    (see cascade.component/README.md on components created directly).
  *  - The editor: this page's build, showing the paper sequence with
- *    documentEditor() - each paper reading only its own lines - and editing
- *    the model at its caret.
+ *    cascade.print's paperEditor() - each paper reading only its own lines -
+ *    and editing the model at its caret, through the model's own edits
+ *    (wordEditing()).
  */
 export class WordProcessorPage extends Component {
   initialState() {
@@ -51,8 +59,9 @@ export class WordProcessorPage extends Component {
     return {
       document,
       measurer,
+      editing: wordEditing(document),
       sequence: new PaperSequence(),
-      layout: new PrintDocument({ document, measurer }).establish(),
+      layout: new WordDocument({ document, measurer }).establish(),
       layoutRoot: null,
     };
   }
@@ -87,12 +96,20 @@ export class WordProcessorPage extends Component {
   }
 
   build() {
-    const { document, sequence, measurer } = this.unobservable;
+    const { document, sequence, measurer, editing } = this.unobservable;
     const paper = document.sections[0].paper;
     const pageCount = sequence.pages.length;
     // Keyed: built again, it's the editor already there - the one the
     // toolbar formats with.
-    const editor = documentEditor({ key: "editor", document, sequence, measurer, zoom: this.zoom });
+    const editor = paperEditor({
+      key: "editor",
+      sequence,
+      measurer,
+      editing,
+      zoom: this.zoom,
+      shortcuts: { b: "Bold", i: "Italic" },
+      onShortcut: callback("shortcut", (name) => applyFormat(editor, document, name.toLowerCase())),
+    });
     return fullPage(
       pageActions({ information, source, fileName: "src/pages/WordProcessorPage.js" }),
       controlPanel(
@@ -114,78 +131,4 @@ export class WordProcessorPage extends Component {
       ),
     );
   }
-}
-
-// The paragraph styles in the style menu, by name in the sample document's
-// stylesheet - every one of them.
-const paragraphStyles = [
-  { style: "Title", label: "Title" },
-  { style: "Subtitle", label: "Subtitle" },
-  { style: "Heading1", label: "Heading 1" },
-  { style: "Heading2", label: "Heading 2" },
-  { style: "Normal", label: "Normal" },
-  { style: "Body", label: "Body text" },
-  { style: "Quote", label: "Quote" },
-];
-
-// How a style looks, for its entry in the style menu: its font - the size
-// scaled down to fit in a menu, larger styles still larger.
-function stylePreview(stylesheet, style) {
-  const { font } = resolveParagraphStyle(stylesheet, style);
-  return {
-    fontFamily: font.family,
-    fontWeight: font.weight,
-    fontStyle: font.italic ? "italic" : "normal",
-    fontSize: Math.round(Math.min(22, 9 + font.size * 0.55)) + "px",
-  };
-}
-
-const alignments = [
-  { align: "left", icon: "format_align_left", title: "Align left" },
-  { align: "center", icon: "format_align_center", title: "Center" },
-  { align: "right", icon: "format_align_right", title: "Align right" },
-];
-
-// Formatting buttons - showing what's on at the caret, and setting it
-// there (see cascade.print's DocumentEditor.format()). A component of its
-// own: it follows every move of the caret, the page around it doesn't.
-class FormatToolbar extends Component {
-  setProperties({ editor, document }) {
-    this.editor = editor;
-    this.document = document;
-  }
-
-  build() {
-    const editor = this.editor;
-    const current = editor.currentFormat();
-    const disabled = !current;
-    const on = { background: themeColor.accentLight, color: themeColor.accentDark };
-    const toggle = (kind, icon, title, active) => iconButton({
-      icon, title, disabled, style: active ? on : {}, onClick: () => editor.format(kind),
-    });
-    return [
-      dropdown({
-        options: paragraphStyles.map(({ style, label }) => ({ value: style, label, style: stylePreview(this.document.styles, style) })),
-        value: current ? current.style : null,
-        placeholder: "Style",
-        title: "Paragraph style",
-        disabled,
-        onSelect: (style) => editor.format("style", style),
-        style: { minWidth: "128px" },
-      }),
-      separator(),
-      toggle("bold", "format_bold", "Bold (Ctrl+B)", current && current.bold),
-      toggle("italic", "format_italic", "Italic (Ctrl+I)", current && current.italic),
-      separator(),
-      ...alignments.map(({ align, icon, title }) => iconButton({
-        icon, title, disabled, style: current && current.align === align ? on : {}, onClick: () => editor.format("align", align),
-      })),
-      separator(),
-      toggle("firstLineIndent", "format_indent_increase", "First line indent", current && current.firstLineIndent > 0),
-    ];
-  }
-}
-
-function separator() {
-  return div({ style: { width: "1px", alignSelf: "stretch", margin: "4px 2px", background: themeColor.border } });
 }

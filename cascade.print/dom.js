@@ -4,5 +4,5 @@ export { domMeasurer } from "./src/dom/domMeasurer.js";
 export { PaperSequenceView, paperSequenceView, paperShadow } from "./src/dom/PaperSequenceView.js";
 export { printPaperSequence } from "./src/dom/printPaperSequence.js";
 export { paperStyle, runStyle, cssMm } from "./src/dom/paperStyles.js";
-export { DocumentEditor, documentEditor } from "./src/dom/DocumentEditor.js";
+export { PaperEditor, paperEditor } from "./src/dom/PaperEditor.js";
 export { TextInput } from "./src/dom/TextInput.js";

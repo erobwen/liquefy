@@ -1,15 +1,15 @@
 import { Component, frozen, repeat, refreshIfNeeded, retractRepeater } from "@liquefy/cascade.component";
-import { paragraphStyleOf } from "./styles.js";
 import { breakIntoLines } from "./lineBreaking.js";
 
 /**
- * Paragraph - one paragraph of a document's model, laid out in two steps,
- * each a repeater of its own:
+ * Paragraph - a paragraph of text laid out onto a paper sequence, in two
+ * steps, each a repeater of its own:
  *
  *  1. Breaking into lines (breakLines()): its text measured and divided
  *     into lines for the width it's given. An independent repeater, like a
- *     component's build: it reruns only when the text, the styles, the
- *     measurer or the width change - never because the paragraph moved.
+ *     component's build: it reruns only when what it's made of - its
+ *     content(), the measurer, the width - changes, never because the
+ *     paragraph moved.
  *  2. Placing the lines (render()): onto the paper sequence, from wherever
  *     the paragraph before left off, onto a new paper when one is full. The
  *     render repeater - temporal, positioned among everything else rendered
@@ -20,25 +20,45 @@ import { breakIntoLines } from "./lineBreaking.js";
  * reaches: a paragraph that ends where it did before leaves the rest where
  * they were (see PaperSequence's `flow`).
  *
+ * Knows nothing of any model: a subclass says what the paragraph is made
+ * of, in content() - read in step 1, so whatever it reads (a model's text,
+ * its styles) is what step 1 follows:
+ *
+ *   {
+ *     spans: [{ text, font }],   // the text, each font resolved (see lineBreaking.js)
+ *     font,                      // the paragraph's own - the height of an empty one
+ *     align, lineSpacing, indentLeft, indentRight, firstLineIndent,  // optional
+ *     spaceBefore, spaceAfter,   // optional, µm
+ *   }
+ *
  * A placed line, pushed onto its page's lines (PaperSequence.linesOf()), is
- * a line as breakIntoLines() made it (see lineBreaking.js), positioned on
- * the paper - x and every y from the paper's own top left corner:
+ * a line as breakIntoLines() made it, positioned on the paper - x and every
+ * y from the paper's own top left corner:
  *
  *   { ...line, x, top, baseline, paragraph, index }
  *
- * `paragraph` is the model paragraph it's from and `index` which of its
- * lines it is - with the line's `start`/`end`, what finds the text under a
- * position on the paper, and the position of a place in the text.
+ * `paragraph` is the paragraph's `source` - whatever a model wants it to
+ * be, typically its own paragraph object - and `index` which of its lines
+ * it is. With the line's `start`/`end`, what finds the place in the text
+ * under a point on a paper, and a place in the text on the papers (see
+ * positions.js).
  *
- * Properties: `paragraph` - the model's ({ style, spans: [{ text, style?,
- * font? }] }, see styles.js), `width` - of the content area it's laid out
- * in, `format` - the paper it's on ({ width, height, margins }).
+ * Measured with the text measurer it inherits, as `textMeasurer`.
+ *
+ * Properties: `source`, `width` - of the content area it's laid out in -
+ * and `format` - the paper it's on ({ width, height, margins }). A subclass
+ * taking properties of its own passes these on with super.setProperties().
  */
 export class Paragraph extends Component {
-  setProperties({ paragraph, width, format }) {
-    this.paragraph = paragraph;
+  setProperties({ source, width, format }) {
+    this.source = source;
     this.width = width;
     this.format = frozen(format);
+  }
+
+  // Override: what this paragraph is made of (see above).
+  content() {
+    throw new Error(this.constructor.name + " must implement content()");
   }
 
   initialUnobservables() {
@@ -52,19 +72,11 @@ export class Paragraph extends Component {
   // has nothing to redo.
   breakLines() {
     this.unobservable.breaks++;
-    const paragraph = this.paragraph;
-    const stylesheet = this.inherit("styles");
-    const style = paragraphStyleOf(stylesheet, paragraph);
+    const { spaceBefore = 0, spaceAfter = 0, ...content } = this.content();
     return frozen({
-      spaceBefore: style.spaceBefore,
-      spaceAfter: style.spaceAfter,
-      lines: breakIntoLines({
-        spans: paragraph.spans,
-        paragraphStyle: style,
-        stylesheet,
-        width: this.width,
-        measurer: this.inherit("textMeasurer"),
-      }),
+      spaceBefore,
+      spaceAfter,
+      lines: breakIntoLines({ ...content, width: this.width, measurer: this.inherit("textMeasurer") }),
     });
   }
 
@@ -116,7 +128,7 @@ export class Paragraph extends Component {
         x: format.margins.left + line.x,
         top: y,
         baseline: y + line.ascent,
-        paragraph: this.paragraph,
+        paragraph: this.source,
         index,
       }));
       y += line.height;

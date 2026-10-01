@@ -3,14 +3,13 @@ import { DOMNodeComponent } from "@liquefy/cascade.dom";
 /**
  * TextInput - where the keyboard goes while a document is edited: a hidden
  * textarea, focused when the papers are clicked, turning what's typed into
- * commands for the editor (see DocumentEditor):
+ * commands for the editor (see PaperEditor):
  *
  *   { type: "insert", text }       - typed, pasted, or composed
  *   { type: "key", key, shift, primary } - Backspace, Delete, Enter,
- *                                    the arrows, Home, End, and
- *                                    "SelectAll", "Bold", "Italic" for
- *                                    Ctrl/Cmd+A, +B, +I; `primary`
- *                                    is Ctrl - Cmd on a Mac
+ *                                    the arrows, Home, End - or the name
+ *                                    of a shortcut (see `shortcutFor`);
+ *                                    `primary` is Ctrl - Cmd on a Mac
  *   { type: "focus" }, { type: "blur" }
  *
  * A textarea, so typing works as typing does everywhere - dead keys,
@@ -22,11 +21,14 @@ import { DOMNodeComponent } from "@liquefy/cascade.dom";
  * `beforeinput`/composition events aren't element properties everywhere,
  * so they can't be given as attributes.
  *
- * Property: `onCommand(command)`.
+ * Properties: `onCommand(command)`, and `shortcutFor(key)` - the name of
+ * what Ctrl/Cmd plus a key is ("SelectAll" for "a", say), asked as it's
+ * pressed: undefined leaves the key to the browser.
  */
 export class TextInput extends DOMNodeComponent {
-  setProperties({ onCommand }) {
+  setProperties({ onCommand, shortcutFor }) {
     this.onCommand = onCommand;
+    this.shortcutFor = shortcutFor || null;
   }
 
   ensureNode() {
@@ -61,7 +63,7 @@ export class TextInput extends DOMNodeComponent {
     textarea.addEventListener("keydown", (event) => {
       if (composing || event.isComposing) return;
       const primary = event.ctrlKey || event.metaKey;
-      const shortcut = primary && !event.altKey ? shortcuts[event.key.toLowerCase()] : undefined;
+      const shortcut = primary && !event.altKey && this.shortcutFor ? this.shortcutFor(event.key.toLowerCase()) : undefined;
       if (!handledKeys.has(event.key) && !shortcut) return;
       event.preventDefault();
       send({ type: "key", key: shortcut || event.key, shift: event.shiftKey, primary });
@@ -97,7 +99,5 @@ export class TextInput extends DOMNodeComponent {
     node.style.top = top + "px";
   }
 }
-
-const shortcuts = { a: "SelectAll", b: "Bold", i: "Italic" };
 
 const handledKeys = new Set(["Backspace", "Delete", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]);

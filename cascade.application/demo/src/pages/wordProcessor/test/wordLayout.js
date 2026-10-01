@@ -1,9 +1,32 @@
 import assert from "assert";
-import { margins } from "../units.js";
-import { layOut, paragraph, section, paragraphComponents } from "./support/plainText.js";
+import { observable } from "@liquefy/cascade.component";
+import { PaperSequence, margins } from "@liquefy/cascade.print";
+import { WordDocument } from "../WordDocument.js";
 
-// Laid out with the plain text model of the tests (see support/plainText.js):
-// 10 characters across a paper, 4 lines down.
+// Every character 1000 µm wide; lines 5000 µm tall. A paper 12 x 22 mm with
+// 1 mm margins holds 10 characters across and 4 lines down.
+const measurer = {
+  measure: (text) => text.length * 1000,
+  metrics: () => ({ ascent: 4000, descent: 1000 }),
+};
+const smallPaper = { width: 12000, height: 22000 };
+
+const paragraph = (text, style = "Normal") => observable({ style, spans: observable([observable({ text })]) });
+
+function section(paragraphs, paper = smallPaper) {
+  return observable({ paper, margins: margins(1000), paragraphs: observable(paragraphs) });
+}
+
+function layOut(sections, paragraphStyles = {}) {
+  const document = observable({
+    styles: observable({ paragraph: { Normal: {}, ...paragraphStyles } }),
+    sections: observable(sections),
+  });
+  const sequence = new PaperSequence();
+  const component = new WordDocument({ document, measurer });
+  component.renderOnto(sequence);
+  return { document, sequence, component };
+}
 
 // Each page: its lines, as text with the y of the line's top.
 function pages(sequence) {
@@ -11,9 +34,18 @@ function pages(sequence) {
     sequence.linesOf(index).map((line) => line.runs.map((run) => run.text).join("") + "@" + line.top));
 }
 
+// The Paragraph components of the first section, in order.
+function paragraphComponents(component) {
+  const [firstSection] = component.currentBuild;
+  return firstSection.currentBuild;
+}
+
 const counts = (components) => components.map((p) => [p.unobservable.breaks, p.unobservable.placements]);
 
-describe("Laying out onto a PaperSequence", function () {
+// The word processor's model laid out with cascade.print: what its styles,
+// sections and spans mean on the papers - and that a change to the model
+// lays out only what it reaches.
+describe("Laying out the word processor's model", function () {
   it("places paragraphs line by line, down the paper and onto the next", function () {
     const { sequence } = layOut([section([
       paragraph("aaaa bbbb cccc"),
@@ -51,12 +83,11 @@ describe("Laying out onto a PaperSequence", function () {
   });
 
   it("spaces paragraphs apart - but not at the top of a paper", function () {
-    const spaced = { spaceBefore: 2000, spaceAfter: 1000 };
     const { sequence } = layOut([section([
       paragraph("aaaa bbbb cccc"),
-      paragraph("dddd", spaced),
-      paragraph("eeee", spaced),
-    ])]);
+      paragraph("dddd", "Spaced"),
+      paragraph("eeee", "Spaced"),
+    ])], { Spaced: { spaceBefore: 2000, spaceAfter: 1000 } });
     assert.deepEqual(pages(sequence), [
       ["aaaa bbbb@1000", "cccc@6000", "dddd@13000"],
       ["eeee@1000"],
@@ -83,7 +114,7 @@ describe("Laying out onto a PaperSequence", function () {
     const components = paragraphComponents(component);
     assert.deepEqual(counts(components), [[1, 1], [1, 1], [1, 1]]);
 
-    edited.text = "aaaa bbbbb";
+    edited.spans[0].text = "aaaa bbbbb";
     assert.deepEqual(counts(components), [[2, 2], [1, 1], [1, 1]]);
     assert.deepEqual(pages(sequence), [["aaaa bbbbb@1000", "cccc@6000", "dddd@11000"]]);
   });
@@ -97,13 +128,13 @@ describe("Laying out onto a PaperSequence", function () {
     ])]);
     const components = paragraphComponents(component);
 
-    edited.text = "aaaa bbbb cccc dddd";
+    edited.spans[0].text = "aaaa bbbb cccc dddd";
     assert.deepEqual(counts(components), [[2, 2], [1, 2], [1, 2]]);
     assert.deepEqual(pages(sequence), [
       ["aaaa bbbb@1000", "cccc dddd@6000", "cccc@11000", "dddd@16000"],
     ]);
 
-    edited.text = "aaaa bbbb cccc dddd eeee";
+    edited.spans[0].text = "aaaa bbbb cccc dddd eeee";
     assert.deepEqual(counts(components), [[3, 3], [1, 3], [1, 3]]);
     assert.deepEqual(pages(sequence), [
       ["aaaa bbbb@1000", "cccc dddd@6000", "eeee@11000", "cccc@16000"],
@@ -111,7 +142,7 @@ describe("Laying out onto a PaperSequence", function () {
     ]);
 
     // And back: the paper the last paragraph ran onto is gone again.
-    edited.text = "aaaa";
+    edited.spans[0].text = "aaaa";
     assert.deepEqual(pages(sequence), [["aaaa@1000", "cccc@6000", "dddd@11000"]]);
     assert.equal(sequence.linesOf(1).length, 0);
   });
@@ -141,16 +172,16 @@ describe("Laying out onto a PaperSequence", function () {
     const [, gone] = paragraphComponents(component);
     document.sections[0].paragraphs.splice(1, 1);
     assert.deepEqual(pages(sequence), [["aaaa@1000", "cccc@6000"]]);
-    removed.text = "bbbb bbbb";
+    removed.spans[0].text = "bbbb bbbb";
     assert.equal(gone.unobservable.breaks, 1);
   });
 
-  it("breaks every paragraph again when what they're all laid out with changes", function () {
+  it("breaks every paragraph again when the styles change", function () {
     const { document, sequence, component } = layOut([section([
       paragraph("aaaa bbbb"),
       paragraph("cccc"),
-    ])], { indentLeft: 0 });
-    document.layout.indentLeft = 2000;
+    ])]);
+    document.styles.paragraph = { Normal: { indentLeft: 2000 } };
     assert.deepEqual(pages(sequence), [["aaaa@1000", "bbbb@6000", "cccc@11000"]]);
     assert.equal(sequence.linesOf(0)[0].x, 3000);
     assert.deepEqual(counts(paragraphComponents(component)), [[2, 2], [2, 2]]);

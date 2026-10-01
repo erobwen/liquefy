@@ -1,6 +1,5 @@
 import assert from "assert";
 import { breakIntoLines } from "../lineBreaking.js";
-import { resolveParagraphStyle } from "../styles.js";
 
 // Every character 1000 µm wide, whatever the font; lines 5000 µm tall.
 const measurer = {
@@ -8,9 +7,13 @@ const measurer = {
   metrics: () => ({ ascent: 4000, descent: 1000 }),
 };
 
-function lines(spans, width, style = {}) {
-  const stylesheet = { paragraph: { Test: style }, character: { Strong: { font: { weight: 700 } } } };
-  return breakIntoLines({ spans, paragraphStyle: resolveParagraphStyle(stylesheet, "Test"), stylesheet, width, measurer });
+const font = { family: "Georgia", size: 10, weight: 400, italic: false };
+const bold = { ...font, weight: 700 };
+
+// Spans as { text } - or { text, style: "Strong" }, in bold.
+function lines(spans, width, layout = {}) {
+  const resolved = spans.map((span) => ({ text: span.text, font: span.style === "Strong" ? bold : font }));
+  return breakIntoLines({ spans: resolved, font, width, measurer, ...layout });
 }
 
 const texts = (result) => result.map((line) => line.runs.map((run) => run.text).join(""));
@@ -27,6 +30,8 @@ describe("breakIntoLines()", function () {
     assert.deepEqual(texts(result), ["aaa", "bbb"]);
     assert.deepEqual(result.map((line) => [line.start, line.end]), [[0, 4], [4, 7]]);
     assert.equal(result[0].width, 3000);
+    // What a caret after it, or a selection through it, needs to know.
+    assert.deepEqual(result.map((line) => [line.trailing, line.last]), [[" ", false], ["", true]]);
   });
 
   it("doesn't break a word that crosses spans - and gives each font a run of its own", function () {

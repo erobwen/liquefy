@@ -1,29 +1,11 @@
 import assert from "assert";
-import { observable } from "@liquefy/cascade.component";
-import { PrintDocument } from "../PrintDocument.js";
-import { PaperSequence } from "../PaperSequence.js";
-import { margins } from "../units.js";
-import { position } from "../editing.js";
-import { caretAt, selectionRects, hitTest, lineStart, lineEnd, lineAbove, lineBelow } from "../positions.js";
+import { position, caretAt, selectionRects, hitTest, lineStart, lineEnd, lineAbove, lineBelow } from "../positions.js";
+import { layOut as layOutSections, paragraph, section, measurer } from "./support/plainText.js";
 
-// Every character 1000 µm wide; lines 5000 µm tall, baseline 4000 down. A
-// paper 12 x 22 mm with 1 mm margins: 10 characters across, 4 lines down.
-const measurer = {
-  measure: (text) => text.length * 1000,
-  metrics: () => ({ ascent: 4000, descent: 1000 }),
-};
-
-const paragraph = (text) => observable({ style: "Normal", spans: observable([observable({ text })]) });
-
-function layOut(paragraphs) {
-  const document = observable({
-    styles: observable({ paragraph: { Normal: {} } }),
-    sections: observable([observable({ paper: { width: 12000, height: 22000 }, margins: margins(1000), paragraphs: observable(paragraphs) })]),
-  });
-  const sequence = new PaperSequence();
-  new PrintDocument({ document, measurer }).renderOnto(sequence);
-  return sequence;
-}
+// Laid out with the plain text model of the tests (see support/plainText.js):
+// 10 characters across a paper, 4 lines down, lines 5000 µm tall with the
+// baseline 4000 down.
+const layOut = (paragraphs) => layOutSections([section(paragraphs)]).sequence;
 
 describe("Positions on the papers", function () {
   // "aaaa bbbb " / "cccc" - broken after the space at 10.
@@ -51,8 +33,8 @@ describe("Positions on the papers", function () {
     // Past the end of a paragraph's last line.
     assert.deepEqual(hitTest(sequence, 0, 11500, 7000, measurer), position(first, 14));
     // On the next paper - "x", then "y".
-    assert.equal(hitTest(sequence, 1, 1000, 1000, measurer).paragraph.spans[0].text, "x");
-    assert.equal(hitTest(sequence, 1, 1000, 9000, measurer).paragraph.spans[0].text, "y");
+    assert.equal(hitTest(sequence, 1, 1000, 1000, measurer).paragraph.text, "x");
+    assert.equal(hitTest(sequence, 1, 1000, 9000, measurer).paragraph.text, "y");
   });
 
   it("covers a selection with a rectangle per line - and the paragraph break, past the end of a paragraph", function () {

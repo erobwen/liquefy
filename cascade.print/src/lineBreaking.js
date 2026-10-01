@@ -1,5 +1,3 @@
-import { resolveFont } from "./styles.js";
-
 /**
  * Line breaking - the first of a paragraph's two steps (see Paragraph.js):
  * its text divided into lines for a given width, measured but not yet
@@ -7,8 +5,20 @@ import { resolveFont } from "./styles.js";
  * a paragraph pushed down the page, or onto the next one, keeps its lines -
  * only a different width breaks it again.
  *
- * `spans` are the paragraph's: { text, style?, font? } (see styles.js),
- * `paragraphStyle` resolved. Returns the lines, each:
+ * Knows nothing of any model's styles: what it's given is resolved already.
+ *
+ *  - spans: the paragraph's text, [{ text, font }] - each font resolved: {
+ *    family, size, weight, italic }, size in points (see monospaceMeasurer.js
+ *    for what a measurer does with one).
+ *  - font: the paragraph's own font - for the height of a paragraph with no
+ *    text in it.
+ *  - width: of the content area, in µm.
+ *  - align ("left", "center", "right"), lineSpacing (a multiple of the
+ *    line's height), indentLeft, indentRight, firstLineIndent (µm) - all
+ *    optional.
+ *  - measurer.
+ *
+ * Returns the lines, each:
  *
  *   {
  *     x,                // where the line starts, from the left of the content area
@@ -17,6 +27,8 @@ import { resolveFont } from "./styles.js";
  *     height,           // what it takes up on the page, line spacing included
  *     start, end,       // its range in the paragraph's text (offsets across all spans)
  *     runs: [{ text, font, x, width, start, ascent, descent }],  // x from the line's own start
+ *     trailing,         // the whitespace it was broken at, after its last run
+ *     last,             // whether it's the paragraph's last line
  *   }
  *
  * Lines break at whitespace - the whitespace stays at the end of the line it
@@ -24,9 +36,9 @@ import { resolveFont } from "./styles.js";
  * broken between characters. A paragraph with no text still has one line,
  * as tall as its font.
  */
-export function breakIntoLines({ spans, paragraphStyle, stylesheet, width, measurer }) {
-  const style = paragraphStyle;
-  const words = splitIntoWords(spans, style, stylesheet, measurer);
+export function breakIntoLines({ spans, font, width, measurer, align = "left", lineSpacing = 1, indentLeft = 0, indentRight = 0, firstLineIndent = 0 }) {
+  const style = { font, align, lineSpacing, indentLeft, indentRight, firstLineIndent };
+  const words = splitIntoWords(spans, measurer);
   const fullLimit = Math.max(0, width - style.indentLeft - style.indentRight);
   const limitOf = (lineIndex) => Math.max(0, fullLimit - (lineIndex === 0 ? style.firstLineIndent : 0));
 
@@ -56,18 +68,21 @@ export function breakIntoLines({ spans, paragraphStyle, stylesheet, width, measu
   if (current.length > 0 || lineWords.length === 0) lineWords.push(current);
 
   const end = words.length > 0 ? words[words.length - 1].end : 0;
-  return lineWords.map((wordsOnLine, index) => makeLine(wordsOnLine, index, style, stylesheet, measurer, limitOf(index), end));
+  return lineWords.map((wordsOnLine, index) => ({
+    ...makeLine(wordsOnLine, index, style, measurer, limitOf(index), end),
+    last: index === lineWords.length - 1,
+  }));
 }
 
 // Words, each its pieces (one per span it crosses) and the whitespace after
 // it. A word crossing a span boundary is one word: "bold" + "er" in two
 // fonts breaks nowhere in between.
-function splitIntoWords(spans, style, stylesheet, measurer) {
+function splitIntoWords(spans, measurer) {
   const words = [];
   let word = null;
   let offset = 0;
   for (const span of spans) {
-    const font = resolveFont(stylesheet, style, span);
+    const font = span.font;
     for (const token of span.text.match(/\s+|\S+/g) || []) {
       const piece = { text: token, font, start: offset, width: measurer.measure(token, font) };
       offset += token.length;
@@ -131,7 +146,7 @@ function splitWord(word, limit, measurer) {
   return [head, tail];
 }
 
-function makeLine(words, index, style, stylesheet, measurer, limit, paragraphEnd) {
+function makeLine(words, index, style, measurer, limit, paragraphEnd) {
   // Every word's whitespace is on the line, except after the last word:
   // that trails, part of the line's range but not of its width.
   const pieces = [];
@@ -173,6 +188,7 @@ function makeLine(words, index, style, stylesheet, measurer, limit, paragraphEnd
 
   const start = pieces.length > 0 ? pieces[0].start : (words.length > 0 ? words[0].end : paragraphEnd);
   const end = words.length > 0 ? words[words.length - 1].end : paragraphEnd;
+  const lastWord = words[words.length - 1];
   return {
     x: lineX,
     width,
@@ -182,6 +198,7 @@ function makeLine(words, index, style, stylesheet, measurer, limit, paragraphEnd
     start,
     end,
     runs,
+    trailing: lastWord ? lastWord.space.map((piece) => piece.text).join("") : "",
   };
 }
 

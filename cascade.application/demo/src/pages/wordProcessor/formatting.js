@@ -1,7 +1,7 @@
 import { observable } from "@liquefy/cascade.component";
 import { paragraphsOf, paragraphLength, orderedRange, spanAt } from "./editing.js";
 import { paragraphStyleOf, resolveParagraphStyle, resolveFont } from "./styles.js";
-import { mm } from "./units.js";
+import { mm } from "@liquefy/cascade.print";
 
 /**
  * Formatting a document's model - the formatting a word processor's toolbar

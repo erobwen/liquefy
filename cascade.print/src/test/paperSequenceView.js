@@ -1,19 +1,11 @@
 import { JSDOM } from "jsdom";
 import assert from "assert";
-import { observable } from "@liquefy/cascade.component";
 import { DOMElementTarget } from "@liquefy/cascade.dom";
-import { PrintDocument } from "../PrintDocument.js";
-import { PaperSequence } from "../PaperSequence.js";
 import { PaperSequenceView } from "../dom/PaperSequenceView.js";
-import { margins } from "../units.js";
+import { layOut, paragraph, section } from "./support/plainText.js";
 
-// As in pagination.js: 10 characters across, 4 lines down.
-const measurer = {
-  measure: (text) => text.length * 1000,
-  metrics: () => ({ ascent: 4000, descent: 1000 }),
-};
-
-const paragraph = (text) => observable({ style: "Normal", spans: observable([observable({ text })]) });
+// Laid out with the plain text model of the tests (see support/plainText.js):
+// 10 characters across a paper, 4 lines down, in Georgia 12pt.
 
 describe("PaperSequenceView", function () {
   let container;
@@ -27,14 +19,8 @@ describe("PaperSequenceView", function () {
   // Laid out and shown as two roots of their own - the view reading the
   // paper sequence the layout renders onto, as an app does.
   function show(paragraphs) {
-    const document = observable({
-      styles: observable({ paragraph: { Normal: { font: { family: "Georgia", size: 12 } } } }),
-      sections: observable([observable({ paper: { width: 12000, height: 22000 }, margins: margins(1000), paragraphs: observable(paragraphs) })]),
-    });
-    const sequence = new PaperSequence();
-    new PrintDocument({ document, measurer }).renderOnto(sequence);
+    const { sequence } = layOut([section(paragraphs)]);
     new PaperSequenceView({ sequence }).renderOnto(new DOMElementTarget(container));
-    return document;
   }
 
   const papers = () => [...container.firstChild.children];
@@ -59,13 +45,13 @@ describe("PaperSequenceView", function () {
     assert.equal(papers().length, 1);
     const firstPaper = papers()[0];
 
-    edited.spans[0].text = "aaaa aaaa aaaa";
+    edited.text = "aaaa aaaa aaaa";
     assert.equal(papers().length, 2);
     assert.equal(papers()[0], firstPaper);
     assert.deepEqual(runs(papers()[0]), ["aaaa aaaa@1mm", "aaaa@6mm", "bbbb@11mm", "cccc@16mm"]);
     assert.deepEqual(runs(papers()[1]), ["dddd@1mm"]);
 
-    edited.spans[0].text = "aaaa";
+    edited.text = "aaaa";
     assert.equal(papers().length, 1);
     assert.deepEqual(runs(papers()[0]), ["aaaa@1mm", "bbbb@6mm", "cccc@11mm", "dddd@16mm"]);
   });

@@ -191,8 +191,12 @@ describe("DocumentEditor", function () {
 
     editor.format("align", "right");
     editor.format("style", "Heading");
-    assert.deepEqual(editor.currentFormat(), { bold: false, italic: true, style: "Heading", align: "right" });
+    assert.deepEqual(editor.currentFormat(), { bold: false, italic: true, style: "Heading", align: "right", firstLineIndent: 0 });
     assert.equal(first.format.align, "right");
+    editor.format("firstLineIndent");
+    assert.equal(editor.currentFormat().firstLineIndent, 6000);
+    editor.format("firstLineIndent");
+    assert.equal(editor.currentFormat().firstLineIndent, 0);
   });
 
   it("hides the caret while the editor doesn't have the keyboard", function () {

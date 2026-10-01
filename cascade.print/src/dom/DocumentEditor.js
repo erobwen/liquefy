@@ -4,7 +4,7 @@ import {
   position, paragraphLength, insertText, deleteBackward, deleteForward, deleteBetween, splitParagraph,
   moveLeft, moveRight, documentStart, documentEnd, orderedRange, samePosition, wordAt,
 } from "../editing.js";
-import { isFormatted, toggleBold, toggleItalic, setParagraphStyle, setAlignment, paragraphFormatAt } from "../formatting.js";
+import { isFormatted, toggleBold, toggleItalic, setParagraphStyle, setAlignment, toggleFirstLineIndent, paragraphFormatAt } from "../formatting.js";
 import { caretAt, hitTest, selectionRects, lineStart, lineEnd, lineAbove, lineBelow } from "../positions.js";
 import { paperSequenceView } from "./PaperSequenceView.js";
 import { TextInput } from "./TextInput.js";
@@ -42,8 +42,8 @@ import { TextInput } from "./TextInput.js";
  * Formatting (see formatting.js), for a toolbar to call - format() - and to
  * show - currentFormat(): bold and italic (also Ctrl/Cmd+B and +I) for the
  * selection, or, with nothing selected, the word the caret is in; a
- * paragraph style and an alignment for every paragraph the selection
- * touches.
+ * paragraph style, an alignment and a first line indent (on or off) for
+ * every paragraph the selection touches.
  */
 export class DocumentEditor extends Component {
   setProperties({ document, sequence, measurer, zoom = 1, style }) {
@@ -225,7 +225,8 @@ export class DocumentEditor extends Component {
   }
 
   // Formatting, as a toolbar asks for it: "bold" and "italic" toggled,
-  // "style" and "align" set to `value`. The keyboard goes back to the
+  // "style" and "align" set to `value`, "firstLineIndent" toggled (to
+  // `value` µm, if given, when on). The keyboard goes back to the
   // text - a toolbar button clicked has just taken it.
   format(kind, value) {
     if (!this.caret) return;
@@ -239,6 +240,8 @@ export class DocumentEditor extends Component {
         setParagraphStyle(document, this.anchor || this.caret, this.caret, value);
       } else if (kind === "align") {
         setAlignment(document, this.anchor || this.caret, this.caret, value);
+      } else if (kind === "firstLineIndent") {
+        toggleFirstLineIndent(document, this.anchor || this.caret, this.caret, value);
       }
     } finally {
       continueInvalidations();
@@ -248,7 +251,8 @@ export class DocumentEditor extends Component {
   }
 
   // What's formatted how at the caret, for a toolbar: { bold, italic,
-  // style, align } - bold and italic for all of the selection - or null
+  // style, align, firstLineIndent } - bold and italic for all of the
+  // selection, the rest for the paragraph the caret is in - or null
   // before there's a caret.
   currentFormat() {
     const { caret, document } = this;

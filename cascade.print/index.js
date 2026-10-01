@@ -8,4 +8,4 @@ export { Section } from "./src/Section.js";
 export { Paragraph } from "./src/Paragraph.js";
 export { position, paragraphText, paragraphLength, paragraphsOf, spanAt, documentStart, documentEnd, moveLeft, moveRight, insertText, deleteBackward, deleteForward, deleteBetween, splitParagraph, comparePositions, samePosition, orderedRange, wordAt } from "./src/editing.js";
 export { placedLines, lineAt, caretAt, selectionRects, hitTest, positionInLine, lineStart, lineEnd, lineAbove, lineBelow } from "./src/positions.js";
-export { paragraphRanges, fontAt, isFormatted, formatText, toggleBold, toggleItalic, setParagraphStyle, setAlignment, paragraphFormatAt } from "./src/formatting.js";
+export { paragraphRanges, fontAt, isFormatted, formatText, toggleBold, toggleItalic, setParagraphStyle, setAlignment, toggleFirstLineIndent, setParagraphFormat, paragraphFormatAt } from "./src/formatting.js";

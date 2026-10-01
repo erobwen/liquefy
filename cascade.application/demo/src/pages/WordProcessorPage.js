@@ -16,7 +16,7 @@ const information = {
     "Each paragraph is broken into lines (measured by the browser), then its lines are placed on the papers - two repeaters, so a paragraph that only moves is never broken again.",
     "Switch between A4 and Letter: every paragraph gets a new width and is laid out again. Zoom: nothing is laid out again, it's only drawn at another scale.",
     "Click to drop the caret, then type, Backspace, Delete, Enter, and move with the arrows, Home and End (Ctrl/Cmd for the whole document). Select by dragging, Shift+click, double or triple click, Shift with the moving keys, or Ctrl/Cmd+A - typing replaces the selection, Backspace and Delete delete it. Each edit changes the model; the paragraph is broken into lines again, and the caret is drawn where the new layout puts it.",
-    "Format with the toolbar: the style menu sets the style of the paragraphs the selection touches, the alignment buttons their alignment. Bold and italic (Ctrl/Cmd+B, +I) format the selection - or, with nothing selected, the word the caret is in.",
+    "Format with the toolbar: the style menu sets the style of the paragraphs the selection touches, the alignment buttons their alignment, and the indent button turns their first line indent on and off. Bold and italic (Ctrl/Cmd+B, +I) format the selection - or, with nothing selected, the word the caret is in.",
     "Print sends the papers to the browser's print dialog - one sheet per paper, at its real size.",
   ],
 };
@@ -180,6 +180,8 @@ class FormatToolbar extends Component {
       ...alignments.map(({ align, icon, title }) => iconButton({
         icon, title, disabled, style: current && current.align === align ? on : {}, onClick: () => editor.format("align", align),
       })),
+      separator(),
+      toggle("firstLineIndent", "format_indent_increase", "First line indent", current && current.firstLineIndent > 0),
     ];
   }
 }

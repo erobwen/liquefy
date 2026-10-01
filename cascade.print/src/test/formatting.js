@@ -1,7 +1,7 @@
 import assert from "assert";
 import { observable } from "@liquefy/cascade.component";
 import { position } from "../editing.js";
-import { toggleBold, toggleItalic, isFormatted, setParagraphStyle, setAlignment, paragraphFormatAt, fontAt } from "../formatting.js";
+import { toggleBold, toggleItalic, isFormatted, setParagraphStyle, setAlignment, toggleFirstLineIndent, paragraphFormatAt, fontAt } from "../formatting.js";
 import { paragraphStyleOf } from "../styles.js";
 
 const paragraph = (style, ...texts) => observable({ style, spans: observable(texts.map((text) => observable({ text }))) });
@@ -9,7 +9,7 @@ const paragraph = (style, ...texts) => observable({ style, spans: observable(tex
 function documentOf(...paragraphs) {
   return observable({
     styles: observable({
-      paragraph: { Normal: {}, Heading: { font: { weight: 700, size: 16 } } },
+      paragraph: { Normal: {}, Heading: { font: { weight: 700, size: 16 } }, Body: { firstLineIndent: 6000 } },
       character: {},
     }),
     sections: observable([observable({ paragraphs: observable(paragraphs) })]),
@@ -70,11 +70,30 @@ describe("Formatting the model", function () {
     setParagraphStyle(document, position(second, 1), position(first, 3), "Heading");
     assert.deepEqual([first.style, second.style, third.style], ["Heading", "Heading", "Normal"]);
     setAlignment(document, position(second, 0), position(third, 0), "center");
-    assert.deepEqual(paragraphFormatAt(document, position(second, 0)), { style: "Heading", align: "center" });
+    assert.deepEqual(paragraphFormatAt(document, position(second, 0)), { style: "Heading", align: "center", firstLineIndent: 0 });
     assert.equal(paragraphStyleOf(document.styles, first).align, "left");
     assert.equal(paragraphStyleOf(document.styles, third).align, "center");
     // Direct alignment stays when the style changes, as in Word.
     setParagraphStyle(document, position(third, 0), position(third, 0), "Heading");
     assert.equal(paragraphStyleOf(document.styles, third).align, "center");
+  });
+
+  it("toggles the first line indent - off where the style indents, on where it doesn't, and back to the style", function () {
+    const body = paragraph("Body", "aaaa");
+    const normal = paragraph("Normal", "bbbb");
+    const document = documentOf(body, normal);
+    const indentOf = (p) => paragraphStyleOf(document.styles, p).firstLineIndent;
+    // Not all indented: on, for both.
+    toggleFirstLineIndent(document, position(body, 0), position(normal, 0), 4000);
+    assert.deepEqual([indentOf(body), indentOf(normal)], [4000, 4000]);
+    // All indented: off, for both.
+    toggleFirstLineIndent(document, position(body, 0), position(normal, 0));
+    assert.deepEqual([indentOf(body), indentOf(normal)], [0, 0]);
+    assert.deepEqual(body.format, { firstLineIndent: 0 });
+    // The Body paragraph on again, at the default 6 mm - which is its
+    // style's: no direct formatting left.
+    toggleFirstLineIndent(document, position(body, 0), position(body, 0));
+    assert.equal(indentOf(body), 6000);
+    assert.equal(body.format, undefined);
   });
 });

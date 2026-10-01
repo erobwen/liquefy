@@ -1,6 +1,7 @@
 import { observable } from "@liquefy/cascade.component";
 import { paragraphsOf, paragraphLength, orderedRange, spanAt } from "./editing.js";
-import { paragraphStyleOf, resolveFont } from "./styles.js";
+import { paragraphStyleOf, resolveParagraphStyle, resolveFont } from "./styles.js";
+import { mm } from "./units.js";
 
 /**
  * Formatting a document's model - the formatting a word processor's toolbar
@@ -96,15 +97,38 @@ export function setParagraphStyle(document, anchor, focus, style) {
 // The alignment of every paragraph the selection touches: "left",
 // "center" or "right".
 export function setAlignment(document, anchor, focus, align) {
+  setParagraphFormat(document, anchor, focus, { align });
+}
+
+// First line indent, as a toolbar toggles it: off for every paragraph the
+// selection touches if all of them are indented, `indent` (µm) for all of
+// them otherwise.
+export function toggleFirstLineIndent(document, anchor, focus, indent = mm(6)) {
+  const ranges = paragraphRanges(document, anchor, focus);
+  const indented = ranges.every(({ paragraph }) => paragraphStyleOf(document.styles, paragraph).firstLineIndent > 0);
+  setParagraphFormat(document, anchor, focus, { firstLineIndent: indented ? 0 : indent });
+}
+
+// Direct paragraph formatting - `format`'s values set on every paragraph
+// the selection touches, on top of their styles. And none its style already
+// gives it, as for text (see directFont()): indenting and unindenting again
+// leaves a paragraph as it was.
+export function setParagraphFormat(document, anchor, focus, format) {
   for (const { paragraph } of paragraphRanges(document, anchor, focus)) {
-    paragraph.format = { ...paragraph.format, align };
+    const inherited = resolveParagraphStyle(document.styles, paragraph.style);
+    const result = { ...paragraph.format, ...format };
+    for (const key of Object.keys(result)) {
+      if (result[key] === inherited[key]) delete result[key];
+    }
+    paragraph.format = Object.keys(result).length > 0 ? result : undefined;
   }
 }
 
-// What the paragraph at a position looks like: its style name, and its
-// alignment.
+// What the paragraph at a position looks like: its style name, its
+// alignment, and its first line indent (µm).
 export function paragraphFormatAt(document, at) {
-  return { style: at.paragraph.style, align: paragraphStyleOf(document.styles, at.paragraph).align };
+  const style = paragraphStyleOf(document.styles, at.paragraph);
+  return { style: at.paragraph.style, align: style.align, firstLineIndent: style.firstLineIndent };
 }
 
 // A span's direct font with `font` on it - and nothing its styles already

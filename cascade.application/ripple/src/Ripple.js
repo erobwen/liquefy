@@ -14,6 +14,13 @@ const paperMargins = { A4: margins(mm(25)), letter: margins(inch(1)) };
 
 const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
+// Which gaps are two places (see ./paper/markers.js's splitGaps).
+const splitGapChoices = [
+  { value: "beforeSections", label: "Before sections" },
+  { value: "all", label: "Every gap" },
+  { value: "none", label: "None" },
+];
+
 /**
  * Ripple - a word processor, on Cascade and cascade.print, whose document is
  * a tree of parts: sections in sections, each with a title, and paragraphs
@@ -37,8 +44,10 @@ export class Ripple extends Component {
     // For experimenting with where a caret should be able to go:
     // markerTypes - which kinds of marker it goes to ({ type: false } for
     // one it doesn't), showAllAreas - every marker's area drawn at once, and
-    // markersBeside - parts' starts and ends beside them, or between them.
-    return { zoom: 1, showAllAreas: false, markerTypes: {}, markersBeside: true };
+    // markersBeside - parts' starts and ends beside them, or between them,
+    // and splitGaps - which gaps are two places, one above the other (see
+    // splitGapChoices).
+    return { zoom: 1, showAllAreas: false, markerTypes: {}, markersBeside: true, splitGaps: "beforeSections" };
   }
 
   setMarkerType(type, on) {
@@ -119,7 +128,8 @@ export class Ripple extends Component {
               { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
               rippleEditor({
                 key: "editor", sequence, root, measurer, zoom: this.zoom,
-                showAllAreas: this.showAllAreas, markerTypes: this.markerTypes, markersBeside: this.markersBeside,
+                showAllAreas: this.showAllAreas, markerTypes: this.markerTypes,
+                markersBeside: this.markersBeside, splitGaps: this.splitGaps,
               }),
             ),
           ),
@@ -143,6 +153,13 @@ export class Ripple extends Component {
       })),
       heading("Starts and ends"),
       checkbox({ key: "beside", label: "Beside their parts", checked: this.markersBeside, onChange: (checked) => { this.markersBeside = checked; } }),
+      heading("Gaps"),
+      text("Two places, one above the other:"),
+      splitGapChoices.map(({ value, label }) => button(
+        { key: "split-" + value, variant: this.splitGaps === value ? "filled" : undefined },
+        label,
+        () => { this.splitGaps = value; },
+      )),
       heading("Show"),
       checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
     );

@@ -169,6 +169,59 @@ describe("Ripple's markers", function () {
     assert.ok(samePosition(rowBelow(rows, partStart(a), x, measurer), gap(doc, 1)));
   });
 
+  it("split, put a gap's two places a third and two thirds of the way down - what ends above them, what starts below", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const next = section("Next");
+    const doc = document({ title: "D", paper, margins }, section("Outer", paragraph("pp"), inner), next);
+    const root = sequenceOf(doc);
+    const { rows } = layOut(root, { ...between, splitGaps: "beforeSections" });
+    const from = bottom(rows, q);
+    const to = top(rows, next.title);
+    const upper = Math.round(from + (to - from) / 3);
+    const lower = Math.round(from + (to - from) * 2 / 3);
+    assert.equal(markerY(rows, gap(doc, 1, 0)), upper);
+    assert.equal(markerY(rows, gap(doc, 1, 1)), lower);
+    const closing = [partEnd(q), partEnd(inner), partEnd(doc.children[0])];
+    closing.forEach((position, index) => {
+      assert.equal(markerY(rows, position), Math.round(from + (upper - from) * (index + 1) / (closing.length + 1)));
+    });
+    const opening = [partStart(next), partStart(next.title)];
+    opening.forEach((position, index) => {
+      assert.equal(markerY(rows, position), Math.round(lower + (to - lower) * (index + 1) / (opening.length + 1)));
+    });
+    // Two places, stepped through one after the other - upper first.
+    const places = walk(rows);
+    const at = places.findIndex((place) => samePosition(place, gap(doc, 1, 0)));
+    assert.ok(samePosition(places[at + 1], gap(doc, 1, 1)));
+    assert.ok(!samePosition(gap(doc, 1, 0), gap(doc, 1, 1)));
+  });
+
+  it("split, with starts and ends beside the parts, put a gap's two places a third and two thirds down", function () {
+    const a = paragraph("aa");
+    const b = paragraph("bb");
+    const doc = document({ title: "D", paper, margins }, a, b);
+    const { rows } = layOut(sequenceOf(doc), { splitGaps: "all" });
+    const from = bottom(rows, a);
+    const to = top(rows, b);
+    assert.equal(markerY(rows, gap(doc, 1, 0)), Math.round(from + (to - from) / 3));
+    assert.equal(markerY(rows, gap(doc, 1, 1)), Math.round(from + (to - from) * 2 / 3));
+  });
+
+  it("split, before sections: every gap before a part with a title is two places - before a paragraph, one", function () {
+    const outer = section("Outer", paragraph("pp"), section("Inner", paragraph("qq")));
+    const doc = document({ title: "D", paper, margins }, paragraph("aa"), outer, section("Next"));
+    const root = sequenceOf(doc, document({ title: "E", paper, margins }));
+    const { rows } = layOut(root, { splitGaps: "beforeSections" });
+    const gapsAt = (list, index) => rows.filter(({ row }) => "marker" in row && isGap(row.marker) && row.marker.list === list && row.marker.index === index).length;
+    assert.equal(gapsAt(doc, 0), 1);    // the title, then "aa"
+    assert.equal(gapsAt(doc, 1), 2);    // "aa", then Outer
+    assert.equal(gapsAt(doc, 2), 2);    // Outer, then Next
+    assert.equal(gapsAt(outer, 0), 1);  // Outer's title, then "pp"
+    assert.equal(gapsAt(outer, 1), 2);  // "pp", then Inner
+    assert.equal(gapsAt(root, 1), 2);   // one document, then the next
+  });
+
   it("put the gap between two siblings dead centre between them - between the parts, the one's end above it, the other's start below", function () {
     const a = paragraph("aa");
     const b = paragraph("bb");

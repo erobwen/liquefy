@@ -39,12 +39,18 @@ import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js"
  * across the text area, at a height:
  *
  *  - The gap between two siblings: dead centre between them, from the lower
- *    edge of the one to the upper edge of the other.
+ *    edge of the one to the upper edge of the other. A gap split in two is
+ *    two places (slots 0 and 1, see ../model/parts.js): two bars, a third
+ *    and two thirds of the way down. Which gaps are split is `splitGaps`:
+ *    "none" (the default), "beforeSections" - every gap before a part with
+ *    a title, a section (a document too) - or "all".
  *  - What closes: spread evenly from the lower edge of the part before down
- *    to that centre - the outermost at the centre - or, with nothing after
- *    on the paper, down to a fixed distance (`edge`) below.
- *  - What opens: the same, mirrored - spread evenly from the centre (or
- *    `edge` above) down towards the part after, the innermost nearest it.
+ *    towards the (first) gap, short of it - or, with no gap, down to the
+ *    centre, the outermost there - or, with nothing after on the paper, down
+ *    to a fixed distance (`edge`) below.
+ *  - What opens: the same, mirrored - spread evenly from the (last) gap or
+ *    the centre (or `edge` above) down towards the part after, the innermost
+ *    nearest it.
  *
  * A run between two parts on different papers goes on both: what closes,
  * and the gap, below the part before, on its paper; what opens above the
@@ -102,8 +108,8 @@ export const edgeDistance = mm(1.5);
 // innermost, from the part's bounding box.
 export const besideStep = px(2);
 
-export function caretRows(sequence, root, { edge = edgeDistance, types = {}, beside = true } = {}) {
-  const items = readingOrder(root).filter((item) => item.block || types[item.type] !== false);
+export function caretRows(sequence, root, { edge = edgeDistance, types = {}, beside = true, splitGaps = "none" } = {}) {
+  const items = readingOrder(root, { splitGaps }).filter((item) => item.block || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
   const extentOf = partExtents(lines);
   placeMarkers(items, lines, extentOf, sequence, { edge, beside, boxOf: beside ? partBoxes(lines) : null });
@@ -121,15 +127,20 @@ export function caretRows(sequence, root, { edge = edgeDistance, types = {}, bes
 // Every paragraph and every marker of the tree, in reading order: { block }
 // for a paragraph's text (a title, or body text), and for a marker
 // { marker, kind, type, level, part } - `type` one of markerTypes', `part`
-// being, for a part's start or end, the part.
-export function readingOrder(root) {
+// being, for a part's start or end, the part. A gap split in two (see
+// `splitGaps` in the class doc) twice: its slot 0, then its slot 1.
+export function readingOrder(root, { splitGaps = "none" } = {}) {
   const items = [];
   // The gap before child `index` - between it and the part before it in the
   // list: the child before, or the section's title.
   // A section's gap 0 is between its title and its content; every other
   // gap between two siblings.
   const gapItem = (list, index, level, afterTitle) => {
-    items.push({ marker: gap(list, index), kind: "between", type: afterTitle ? "titleGap" : "siblingGap", level });
+    const type = afterTitle ? "titleGap" : "siblingGap";
+    const split = splitGaps === "all" || (splitGaps === "beforeSections" && isSection(list.children[index]));
+    for (let slot = 0; slot < (split ? 2 : 1); slot++) {
+      items.push({ marker: gap(list, index, slot), kind: "between", type, level });
+    }
   };
   const visitParagraph = (paragraph, level, role) => {
     items.push({ marker: partStart(paragraph), kind: "partStart", type: role + "Start", level, part: paragraph });
@@ -280,12 +291,21 @@ function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf 
   };
 
   if (onePaper) {
-    const centre = Math.round((before.bottom + after.top) / 2);
-    const lower = [...closing, ...between];
-    spreadDown(lower, before.lastPage, before.bottom, centre, sequence);
-    // With something at the centre already, what opens below it.
-    spreadAfter(opening, after.firstPage, centre, after.top, sequence, lower.length === 0);
-    room.push(rect(before.lastPage, before.bottom, after.top));
+    const page = before.lastPage;
+    if (between.length > 0) {
+      // The gaps evenly between the parts: one dead centre - two a third and
+      // two thirds of the way down. What closes above them, what opens below.
+      const ys = between.map((item, index) => Math.round(before.bottom + (after.top - before.bottom) * (index + 1) / (between.length + 1)));
+      between.forEach((item, index) => { item.placed = markerRow(item, page, ys[index], sequence); });
+      spreadAfter(closing, page, before.bottom, ys[0], sequence, false);
+      spreadAfter(opening, page, ys[ys.length - 1], after.top, sequence, false);
+    } else {
+      const centre = Math.round((before.bottom + after.top) / 2);
+      spreadDown(closing, page, before.bottom, centre, sequence);
+      // With something at the centre already, what opens below it.
+      spreadAfter(opening, page, centre, after.top, sequence, closing.length === 0);
+    }
+    room.push(rect(page, before.bottom, after.top));
   } else {
     const lower = before ? [...closing, ...between] : [];
     const upper = before ? opening : [...closing, ...between, ...opening];

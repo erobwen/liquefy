@@ -25,9 +25,9 @@ import { observable } from "@liquefy/cascade.component";
  *
  *   textPosition(paragraph, offset, lineEnd)  - in a paragraph's text, as
  *                                               cascade.print's positions are
- *   gap(list, index)                          - before child `index` of
+ *   gap(list, index, slot)                    - before child `index` of
  *                                               `list`: a section, or the
- *                                               sequence
+ *                                               sequence - in slot 0, or 1
  *   partStart(part), partEnd(part)            - at the very start and end of
  *                                               a part: a document, a
  *                                               section, a title, a paragraph
@@ -40,6 +40,10 @@ import { observable } from "@liquefy/cascade.component";
  * and an end of its own: between two paragraphs A and B, the end of A, the
  * gap between them, and the start of B are three places; and the end of a
  * section's last paragraph, and the end of the section, are two.
+ *
+ * A gap may be two places, one above the other: slot 0, the upper, and slot
+ * 1 - to try out a caret with two places between two parts (see
+ * ../paper/markers.js). With one, it's slot 0.
  *
  * Gaps and part starts and ends are markers - places between text.
  */
@@ -85,7 +89,7 @@ export class Sequence extends Part {
 }
 
 export const textPosition = (paragraph, offset, lineEnd = false) => Object.freeze({ paragraph, offset, lineEnd });
-export const gap = (list, index) => Object.freeze({ list, index });
+export const gap = (list, index, slot = 0) => Object.freeze({ list, index, slot });
 export const partStart = (part) => Object.freeze({ part, edge: "start" });
 export const partEnd = (part) => Object.freeze({ part, edge: "end" });
 export const isGap = (at) => !!at && "list" in at;
@@ -93,10 +97,10 @@ export const isPartEdge = (at) => !!at && "part" in at;
 // A marker: a place between text - a gap, or a part's start or end.
 export const isMarker = (at) => isGap(at) || isPartEdge(at);
 
-// The same place - in the text wherever a line break puts it, the same gap,
-// or the same part's same edge.
+// The same place - in the text wherever a line break puts it, the same gap
+// in the same slot, or the same part's same edge.
 export function samePosition(a, b) {
-  if (isGap(a) || isGap(b)) return isGap(a) && isGap(b) && a.list === b.list && a.index === b.index;
+  if (isGap(a) || isGap(b)) return isGap(a) && isGap(b) && a.list === b.list && a.index === b.index && a.slot === b.slot;
   if (isPartEdge(a) || isPartEdge(b)) return isPartEdge(a) && isPartEdge(b) && a.part === b.part && a.edge === b.edge;
   return a.paragraph === b.paragraph && a.offset === b.offset;
 }

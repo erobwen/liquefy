@@ -36,8 +36,9 @@ export class Ripple extends Component {
   initialState() {
     // For experimenting with where a caret should be able to go:
     // markerTypes - which kinds of marker it goes to ({ type: false } for
-    // one it doesn't), and showAllAreas - every marker's area drawn at once.
-    return { zoom: 1, showAllAreas: false, markerTypes: {} };
+    // one it doesn't), showAllAreas - every marker's area drawn at once, and
+    // markersBeside - parts' starts and ends beside them, or between them.
+    return { zoom: 1, showAllAreas: false, markerTypes: {}, markersBeside: true };
   }
 
   setMarkerType(type, on) {
@@ -118,7 +119,7 @@ export class Ripple extends Component {
               { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
               rippleEditor({
                 key: "editor", sequence, root, measurer, zoom: this.zoom,
-                showAllAreas: this.showAllAreas, markerTypes: this.markerTypes,
+                showAllAreas: this.showAllAreas, markerTypes: this.markerTypes, markersBeside: this.markersBeside,
               }),
             ),
           ),
@@ -140,6 +141,8 @@ export class Ripple extends Component {
         checked: this.markerTypes[type] !== false,
         onChange: (checked) => this.setMarkerType(type, checked),
       })),
+      heading("Starts and ends"),
+      checkbox({ key: "beside", label: "Beside their parts", checked: this.markersBeside, onChange: (checked) => { this.markersBeside = checked; } }),
       heading("Show"),
       checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
     );

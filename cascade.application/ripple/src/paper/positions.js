@@ -11,10 +11,12 @@ import { textPosition, isMarker, samePosition } from "../model/parts.js";
  * or a marker - a gap, or a part's start or end. On a line, everything is as
  * in cascade.print's positions.js - the characters of the line, measured
  * with the measurer the lines were broken with. A marker is a row of one
- * place: its bar, a horizontal line across the text area.
+ * place: its bar - a horizontal line across the text area, or a part's start
+ * or end beside the part, a vertical one.
  */
 
 const isMarkerRow = (row) => "marker" in row;
+const isBesideRow = (row) => isMarkerRow(row) && !!row.vertical;
 
 // The caret row a position is on, with its place in reading order
 // (`order`, into rows). Null if it isn't laid out.
@@ -42,11 +44,13 @@ export function rowAt(rows, at) {
 // Where the caret for a position goes, in µm on its paper: in the text,
 // { page, x, top, height } - as tall as the font at that place reaches, on
 // its line's baseline; at a marker, its bar - { page, x, width, y,
-// marker: true }, a horizontal line. Null if it isn't laid out.
+// marker: true }, a horizontal line, or beside its part a vertical one,
+// shaped as in the text. Null if it isn't laid out.
 export function caretAt(rows, at, measurer) {
   const found = rowAt(rows, at);
   if (!found) return null;
   const { row, page } = found;
+  if (isBesideRow(row)) return { page, x: row.x, top: row.top, height: row.height };
   if (isMarkerRow(row)) return { page, x: row.x, width: row.width, y: row.y, marker: true };
   const x = xInLine(row, at.offset, measurer);
   const run = runAt(row, at.offset);
@@ -82,21 +86,58 @@ export function selectionRects(rows, start, end, measurer) {
 // The place nearest to a point on paper `page` (µm from its top left
 // corner): on a line, the line - at the character boundary nearest across;
 // anywhere else, the nearest row up or down: a line, or a gap's marker.
-// Null if nothing is on that paper.
+// Beside a line, a start or end beside it - the nearest across - if nearer
+// than the line's text. Null if nothing is on that paper.
 export function hitTest(rows, page, x, y, measurer) {
   let nearest = null;
   let distance = Infinity;
-  for (const { page: rowPage, row } of rows) {
-    if (rowPage !== page) continue;
+  for (let order = 0; order < rows.length; order++) {
+    const { page: rowPage, row } = rows[order];
+    if (rowPage !== page || isBesideRow(row)) continue;
     const away = isMarkerRow(row) ? Math.abs(y - row.y) : Math.max(0, row.top - y, y - (row.top + row.height));
     // On a line, that line - a marker as near never takes it.
     if (away < distance || (away === distance && away === 0 && !isMarkerRow(row))) {
       distance = away;
-      nearest = row;
+      nearest = order;
     }
   }
-  if (!nearest) return null;
-  return isMarkerRow(nearest) ? nearest.marker : toModel(positionInLine(nearest, x, measurer));
+  if (nearest === null) return null;
+  const { row } = rows[nearest];
+  return isMarkerRow(row) ? row.marker : placeOnLine(rows, nearest, x, measurer);
+}
+
+// The place on the line at `order` nearest `x` across: in its text - or a
+// start or end beside it, if nearer than the text.
+function placeOnLine(rows, order, x, measurer) {
+  const line = rows[order].row;
+  let across = Math.max(0, line.x - x, x - (line.x + line.width));
+  let beside = null;
+  for (const row of besideLine(rows, order)) {
+    const away = Math.abs(x - row.x);
+    if (away < across) {
+      across = away;
+      beside = row;
+    }
+  }
+  return beside ? beside.marker : toModel(positionInLine(line, x, measurer));
+}
+
+// The starts and ends beside the line at `order`: the starts just before it
+// in reading order, the ends just after.
+function besideLine(rows, order) {
+  const result = [];
+  for (let i = order - 1; i >= 0 && isBesideRow(rows[i].row) && rows[i].row.kind === "partStart"; i--) result.push(rows[i].row);
+  for (let i = order + 1; i < rows.length && isBesideRow(rows[i].row) && rows[i].row.kind === "partEnd"; i++) result.push(rows[i].row);
+  return result;
+}
+
+// The line a start or end at `order` is beside: a start the line after it,
+// an end the line before.
+function lineBeside(rows, order) {
+  const step = rows[order].row.kind === "partStart" ? 1 : -1;
+  let line = order;
+  while (rows[line + step] && isBesideRow(rows[line].row)) line += step;
+  return line;
 }
 
 // Home and End: the start and end of the line a position is on. A gap is a
@@ -114,8 +155,11 @@ export function lineEnd(rows, at) {
 }
 
 // Up and down: the caret row before or after - a line, at `goalX` (the x
-// the caret had when moving up and down began), or a gap. Beyond the first
-// or last row: the start or end of the line, or the gap, it's on.
+// the caret had when moving up and down began), or a gap. Starts and ends
+// beside a line are on its row: moving up and down goes past them, from the
+// line to the next - to one only with `goalX` nearer it than the line's
+// text, as a click there would. Beyond the first or last row: the start or
+// end of the line, or the gap, it's on.
 export function rowAbove(rows, at, goalX, measurer) {
   return verticalMove(rows, at, goalX, measurer, -1);
 }
@@ -127,9 +171,12 @@ export function rowBelow(rows, at, goalX, measurer) {
 function verticalMove(rows, at, goalX, measurer, direction) {
   const found = rowAt(rows, at);
   if (!found) return at;
-  const target = rows[found.order + direction];
-  if (!target) return direction < 0 ? lineStart(rows, at) : lineEnd(rows, at);
-  return isMarkerRow(target.row) ? target.row.marker : toModel(positionInLine(target.row, goalX, measurer));
+  // Beside a line: from the line.
+  let target = (isBesideRow(found.row) ? lineBeside(rows, found.order) : found.order) + direction;
+  while (rows[target] && isBesideRow(rows[target].row)) target += direction;
+  if (!rows[target]) return direction < 0 ? lineStart(rows, at) : lineEnd(rows, at);
+  const { row } = rows[target];
+  return isMarkerRow(row) ? row.marker : placeOnLine(rows, target, goalX, measurer);
 }
 
 // Left and right: the place before or after a position, in reading order -

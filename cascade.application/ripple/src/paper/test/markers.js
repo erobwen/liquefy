@@ -5,8 +5,8 @@ import {
   samePosition, textPosition, paragraphText,
 } from "../../model/parts.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
-import { caretRows, edgeDistance } from "../markers.js";
-import { caretAt, hitTest, stepRight, stepLeft, sequenceStart, sequenceEnd } from "../positions.js";
+import { caretRows, edgeDistance, besideStep } from "../markers.js";
+import { caretAt, hitTest, stepRight, stepLeft, rowAbove, rowBelow, sequenceStart, sequenceEnd } from "../positions.js";
 
 // Every character 1000 µm wide, lines 5000 µm tall; parts 6000 µm apart, so
 // there's room between them to see where markers go.
@@ -23,10 +23,14 @@ const spaced = {
 };
 const textArea = { x: margins.left, width: paper.width - margins.left - margins.right };
 
-function layOut(root) {
+// Starts and ends between the parts, as they were placed before they went
+// beside them.
+const between = { beside: false };
+
+function layOut(root, options = {}) {
   const sequence = new PaperSequence();
   new SequenceLayout({ sequence: root, measurer, typography: spaced }).renderOnto(sequence);
-  return { sequence, rows: caretRows(sequence, root) };
+  return { sequence, rows: caretRows(sequence, root, options) };
 }
 
 const markerRow = (rows, position) => rows.find(({ row }) => "marker" in row && samePosition(row.marker, position)).row;
@@ -100,11 +104,76 @@ describe("Ripple's markers", function () {
     assert.deepEqual(backward.map((place) => nameOf(place, root)), forward.map((place) => nameOf(place, root)).reverse());
   });
 
-  it("put the gap between two siblings dead centre between them - the one's end above it, the other's start below", function () {
+  it("put a part's end beside its last line, right of it - one step out for every part ending with it", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const outer = section("Outer", paragraph("pppppp"), inner);
+    const doc = document({ title: "D", paper, margins }, outer, section("Next"));
+    const { rows } = layOut(sequenceOf(doc));
+    const last = linesOf(rows, q)[0];
+    // Each box as far right as its widest line: "qq", "Inner", "pppppp".
+    const rights = [2000, 5000, 6000].map((width) => textArea.x + width);
+    [q, inner, outer].forEach((part, index) => {
+      const caret = caretAt(rows, partEnd(part), measurer);
+      assert.equal(caret.x, rights[index] + besideStep * (index + 1));
+      assert.equal(caret.top, last.baseline - last.ascent);
+      assert.equal(caret.height, last.ascent + last.descent);
+      assert.ok(!caret.marker);
+    });
+  });
+
+  it("put a part's start beside its first line, left of it - one step out for every part starting with it", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const doc = document({ title: "D", paper, margins }, section("Outer", paragraph("pp"), inner));
+    const { rows } = layOut(sequenceOf(doc));
+    const first = linesOf(rows, inner.title)[0];
+    [inner, inner.title].forEach((part, index) => {
+      const caret = caretAt(rows, partStart(part), measurer);
+      assert.equal(caret.x, textArea.x - besideStep * (2 - index));
+      assert.equal(caret.top, first.baseline - first.ascent);
+    });
+    // The gap before Inner: dead centre, in the room between "pp" and Inner.
+    const pp = doc.children[0].children[0];
+    assert.equal(markerY(rows, gap(doc.children[0], 1)), (bottom(rows, pp) + top(rows, inner.title)) / 2);
+  });
+
+  it("are found by a click beside a line, nearer than its text", function () {
     const a = paragraph("aa");
+    const doc = document({ title: "D", paper, margins }, a, paragraph("bb"));
+    const { rows } = layOut(sequenceOf(doc));
+    const line = linesOf(rows, a)[0];
+    const end = caretAt(rows, partEnd(a), measurer);
+    const start = caretAt(rows, partStart(a), measurer);
+    assert.ok(samePosition(hitTest(rows, 0, end.x + 100, line.top + 1000, measurer), partEnd(a)));
+    assert.ok(samePosition(hitTest(rows, 0, start.x, line.top + 1000, measurer), partStart(a)));
+    assert.ok(samePosition(hitTest(rows, 0, line.x + 1900, line.top + 1000, measurer), textPosition(a, 2)));
+  });
+
+  it("are gone past moving up and down - from line to gap to line - unless the caret's x is nearer them than the text", function () {
+    const a = paragraph("aaaa");
     const b = paragraph("bb");
     const doc = document({ title: "D", paper, margins }, a, b);
     const { rows } = layOut(sequenceOf(doc));
+    const x = textArea.x + 1000;
+    // Down from "aaaa": the gap, then "bb" - past a's end and b's start.
+    const toGap = rowBelow(rows, textPosition(a, 1), x, measurer);
+    assert.ok(samePosition(toGap, gap(doc, 1)));
+    assert.ok(samePosition(rowBelow(rows, toGap, x, measurer), textPosition(b, 1)));
+    assert.ok(samePosition(rowAbove(rows, toGap, x, measurer), textPosition(a, 1)));
+    // Past the end of "bb", nearer its end beside it: there.
+    const endX = caretAt(rows, partEnd(b), measurer).x;
+    assert.ok(samePosition(rowBelow(rows, toGap, endX, measurer), partEnd(b)));
+    // From beside a line, as from the line.
+    assert.ok(samePosition(rowAbove(rows, partEnd(b), x, measurer), gap(doc, 1)));
+    assert.ok(samePosition(rowBelow(rows, partStart(a), x, measurer), gap(doc, 1)));
+  });
+
+  it("put the gap between two siblings dead centre between them - between the parts, the one's end above it, the other's start below", function () {
+    const a = paragraph("aa");
+    const b = paragraph("bb");
+    const doc = document({ title: "D", paper, margins }, a, b);
+    const { rows } = layOut(sequenceOf(doc), between);
     const from = bottom(rows, a);
     const to = top(rows, b);
     const centre = (from + to) / 2;
@@ -119,7 +188,7 @@ describe("Ripple's markers", function () {
     const outer = section("Outer", paragraph("pp"), inner);
     const next = section("Next");
     const doc = document({ title: "D", paper, margins }, outer, next);
-    const { rows } = layOut(sequenceOf(doc));
+    const { rows } = layOut(sequenceOf(doc), between);
     // After "qq": its end, Inner's end, Outer's end - then the gap between
     // Outer and Next, dead centre; then Next starts, and Next's title.
     const from = bottom(rows, q);
@@ -140,7 +209,7 @@ describe("Ripple's markers", function () {
     const inner = section("Inner", q);
     const doc = document({ title: "D", paper, margins }, inner);
     const root = sequenceOf(doc);
-    const { rows } = layOut(root);
+    const { rows } = layOut(root, between);
     const from = bottom(rows, q);
     const closing = [partEnd(q), partEnd(inner), partEnd(doc)];
     closing.forEach((position, index) => {
@@ -151,7 +220,7 @@ describe("Ripple's markers", function () {
   it("put the start of everything a fixed distance above the first part, what starts there spread below it", function () {
     const doc = document({ title: "D", paper, margins }, paragraph("aa"));
     const root = sequenceOf(doc);
-    const { rows } = layOut(root);
+    const { rows } = layOut(root, between);
     const to = top(rows, doc.title);
     const opening = [partStart(doc), partStart(doc.title)];
     opening.forEach((position, index) => {
@@ -165,9 +234,9 @@ describe("Ripple's markers", function () {
     assert.deepEqual(rows.filter(({ row }) => !("marker" in row)).map(({ row }) => row.top), sequence.linesOf(0).map((line) => line.top));
   });
 
-  it("are horizontal bars across the text area", function () {
+  it("are horizontal bars across the text area - gaps, and starts and ends between the parts", function () {
     const doc = document({ title: "D", paper, margins }, paragraph("aa"));
-    const { rows } = layOut(sequenceOf(doc));
+    const { rows } = layOut(sequenceOf(doc), between);
     for (const position of [gap(doc, 0), partEnd(doc.title), partStart(doc)]) {
       const caret = caretAt(rows, position, measurer);
       assert.equal(caret.x, textArea.x);
@@ -206,7 +275,7 @@ describe("Ripple's markers", function () {
     const a = paragraph("aa");
     const b = paragraph("bb");
     const doc = document({ title: "D", paper, margins }, a, b);
-    const { rows } = layOut(sequenceOf(doc));
+    const { rows } = layOut(sequenceOf(doc), between);
     for (const position of [partEnd(a), gap(doc, 1), partStart(b)]) {
       assert.ok(samePosition(hitTest(rows, 0, 5000, markerY(rows, position), measurer), position));
     }
@@ -227,7 +296,7 @@ describe("Ripple's markers", function () {
     assert.equal(markerY(rows, gap(doc, 1)), (bottom(rows, a) + top(rows, b)) / 2);
 
     // Without the gaps: a's end and b's start share the room between them.
-    const noGaps = caretRows(sequence, root, { types: { titleGap: false, siblingGap: false } });
+    const noGaps = caretRows(sequence, root, { ...between, types: { titleGap: false, siblingGap: false } });
     const from = bottom(noGaps, a);
     const to = top(noGaps, b);
     const centre = (from + to) / 2;

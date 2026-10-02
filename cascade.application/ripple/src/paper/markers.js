@@ -1,4 +1,4 @@
-import { mm, contentWidth } from "@liquefy/cascade.print";
+import { mm, px, contentWidth } from "@liquefy/cascade.print";
 import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js";
 
 /**
@@ -23,7 +23,19 @@ import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js"
  * lying one after the other, the markers in between form a run - what closes
  * after the one (part ends, and list ends: innermost first), the gap between
  * the two if they're siblings, and what opens before the other (list starts,
- * and part starts: outermost first). A marker's bar is a horizontal line
+ * and part starts: outermost first).
+ *
+ * A part's start and end are, by default, beside the part (`beside`): a
+ * vertical bar, as tall as a caret in the text, on the part's first line
+ * (its start) or its last (its end) - left of the part's bounding box (its
+ * start) or right of it (its end), the box being as far as the part's lines
+ * reach. The innermost of a run is `besideStep` (2px) out from its box, and
+ * every part around it another step further out: ends of parts nested in
+ * each other, ending together, step out to the right one by one; starts to
+ * the left.
+ *
+ * A gap's bar - and, with `beside` false, every marker's: starts and ends
+ * between the parts, as they were placed before - is a horizontal line
  * across the text area, at a height:
  *
  *  - The gap between two siblings: dead centre between them, from the lower
@@ -50,12 +62,16 @@ import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js"
  *
  * A caret row is a placed line (cascade.print's), or a marker row:
  *
- *   { marker, kind, type, level, x, width, y, area }
+ *   { marker, kind, type, level, x, width, y, area }        - a horizontal bar
+ *   { marker, kind, type, level, x, top, height, vertical: true, area }
+ *                                                            - a vertical bar
  *     - marker: its position; kind: "partStart", "partEnd" or "between";
  *       type: which of markerTypes it is
  *     - level: how deep it is in the tree (the sequence's gaps 0, a
  *       document and its gaps 1, ...)
- *     - x, width: the text area; y: the bar's
+ *     - a horizontal bar: x, width: the text area; y: the bar's
+ *     - a vertical bar: x: the bar's; top, height: a caret's on the line
+ *       it's beside
  *     - area: [{ page, x, top, width, height }]
  *
  * Returned as [{ page, row }], in reading order.
@@ -82,11 +98,15 @@ export const markerTypes = Object.freeze([
 // room between two paragraphs.
 export const edgeDistance = mm(1.5);
 
-export function caretRows(sequence, root, { edge = edgeDistance, types = {} } = {}) {
+// How far a start or end beside its part is from the one inside it - the
+// innermost, from the part's bounding box.
+export const besideStep = px(2);
+
+export function caretRows(sequence, root, { edge = edgeDistance, types = {}, beside = true } = {}) {
   const items = readingOrder(root).filter((item) => item.block || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
   const extentOf = partExtents(lines);
-  placeMarkers(items, lines, extentOf, sequence, edge);
+  placeMarkers(items, lines, extentOf, sequence, { edge, beside, boxOf: beside ? partBoxes(lines) : null });
   const rows = [];
   for (const item of items) {
     if (item.block) {
@@ -181,9 +201,40 @@ function partExtents(lines) {
   };
 }
 
+// A part's first and last lines ({ page, line }), and how far left and
+// right its lines reach: { first, last, left, right } - from its own lines
+// and its children's, a section's title included. Null for a part with no
+// lines. Worked out for a part the first time it's asked for.
+function partBoxes(lines) {
+  const known = new Map();
+  return (part) => {
+    if (known.has(part)) return known.get(part);
+    let box = null;
+    const visit = (each) => {
+      if (isSection(each)) {
+        visit(each.title);
+        each.children.forEach(visit);
+        return;
+      }
+      for (const placed of lines.get(each) || []) {
+        const { x, width } = placed.line;
+        if (!box) box = { first: placed, last: placed, left: x, right: x + width };
+        else {
+          box.last = placed;
+          box.left = Math.min(box.left, x);
+          box.right = Math.max(box.right, x + width);
+        }
+      }
+    };
+    visit(part);
+    known.set(part, box);
+    return box;
+  };
+}
+
 // Each marker given its `placed` row - the runs between two paragraphs'
 // text, placed as the class doc says.
-function placeMarkers(items, lines, extentOf, sequence, edge) {
+function placeMarkers(items, lines, extentOf, sequence, options) {
   const blockExtent = (paragraph) => {
     const placed = lines.get(paragraph);
     if (!placed || placed.length === 0) return null;
@@ -194,7 +245,7 @@ function placeMarkers(items, lines, extentOf, sequence, edge) {
   let before = null;
   let run = [];
   const flush = (after) => {
-    if (run.length > 0) placeRun(run, before, after, extentOf, sequence, edge);
+    if (run.length > 0) placeRun(run, before, after, extentOf, sequence, options);
     run = [];
   };
   for (const item of items) {
@@ -213,10 +264,13 @@ function placeMarkers(items, lines, extentOf, sequence, edge) {
 const closes = (item) => item.kind === "partEnd";
 const opens = (item) => item.kind === "partStart";
 
-function placeRun(run, before, after, extentOf, sequence, edge) {
-  const closing = run.filter(closes);
+function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf }) {
+  // Beside their parts, starts and ends take none of the room between the
+  // parts: only the gaps are spread there.
+  if (beside) placeBeside(run, boxOf);
+  const closing = beside ? [] : run.filter(closes);
   const between = run.filter((item) => item.kind === "between");
-  const opening = run.filter(opens);
+  const opening = beside ? [] : run.filter(opens);
   const onePaper = before && after && before.lastPage === after.firstPage;
   // The room the run is in - what its gaps stand for.
   const room = [];
@@ -254,6 +308,34 @@ function placeRun(run, before, after, extentOf, sequence, edge) {
       : room;
     item.placed.row = Object.freeze({ ...item.placed.row, area: Object.freeze(area) });
   }
+}
+
+// A run's starts and ends beside their parts: the ends right of them, the
+// innermost (the first) a step out, every one after it a step further; the
+// starts left of them, the innermost (the last) a step out, every one
+// before it a step further.
+function placeBeside(run, boxOf) {
+  const ends = run.filter(closes);
+  const starts = run.filter(opens);
+  ends.forEach((item, index) => {
+    const box = boxOf(item.part);
+    if (box) item.placed = besideRow(item, box.last, box.right + besideStep * (index + 1));
+  });
+  starts.forEach((item, index) => {
+    const box = boxOf(item.part);
+    if (box) item.placed = besideRow(item, box.first, box.left - besideStep * (starts.length - index));
+  });
+}
+
+// A vertical bar at `x` beside a placed line - as tall as a caret on it.
+function besideRow(item, { page, line }, x) {
+  return {
+    page,
+    row: {
+      marker: item.marker, kind: item.kind, type: item.type, level: item.level,
+      x, top: line.baseline - line.ascent, height: line.ascent + line.descent, vertical: true,
+    },
+  };
 }
 
 const pageBottom = (sequence, page) => sequence.pages[page].height - sequence.pages[page].margins.bottom;

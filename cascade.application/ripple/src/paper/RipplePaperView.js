@@ -16,9 +16,10 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "@liquefy/cascade.print
  * scaled by `zoom` (CSS zoom, so the room it takes up scales too, and so do
  * scroll bars around it).
  *
- * `caret`, if given, is drawn on its paper, blinking - in the text a
- * vertical bar, { page, x, top, height }, at a gap a horizontal one, { page,
- * x, width, y, gap: true }, in µm (see positions.js's caretAt()) - with
+ * `caret`, if given, is drawn on its paper, blinking - in the text, or at a
+ * part's start or end beside the part, a vertical bar, { page, x, top,
+ * height }, at a gap a horizontal one, { page, x, width, y, marker: true },
+ * in µm (see positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its
  * blink shown.
  * `areas`, if given, are drawn under everything else - under the

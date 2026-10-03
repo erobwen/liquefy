@@ -4,6 +4,7 @@ import { button, card, checkbox, controlPanel, iconButton, filler, fillerStyle, 
 import { PaperSequence, paperSizes, margins, mm, inch } from "./print/index.js";
 import { domMeasurer, printPaperSequence } from "./print/dom.js";
 import { rippleEditor } from "./paper/RippleEditor.js";
+import { rippleEditing } from "./paper/editing.js";
 import { markerTypes } from "./paper/markers.js";
 import { sequence as sequenceOf } from "./model/flows.js";
 import { testDocument } from "./model/testDocument.js";
@@ -14,8 +15,9 @@ const paperMargins = { A4: margins(mm(25)), letter: margins(inch(1)) };
 
 const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-// Which gaps are two places (see ./paper/markers.js's splitGaps).
-const splitGapChoices = [
+// Which gaps have a join marker below their split marker (see
+// ./paper/markers.js's joinMarkers).
+const joinMarkerChoices = [
   { value: "beforeSections", label: "Before sections" },
   { value: "all", label: "Every gap" },
   { value: "none", label: "None" },
@@ -24,9 +26,9 @@ const splitGapChoices = [
 /**
  * Ripple - a word processor, on Cascade and cascade.print, whose document is
  * a tree of flows: sections in sections, each with a title, and paragraphs
- * of text (see ./model). For now it shows a document, on paper, with a caret
- * that moves through every place in it - in the text, and the gaps between
- * its flows at every level - editing comes next.
+ * of text (see ./model). It shows a document, on paper, with a caret that
+ * moves through every place in it - in the text, and the markers between
+ * its flows at every level - and edits it there (see ./paper/editing.js).
  *
  * Two roots, side by side:
  *  - The layout: the documents rendered onto a PaperSequence, a component
@@ -36,8 +38,9 @@ const splitGapChoices = [
  *    initialization, laid out in a repeater of its own from establishment
  *    on, disposed with the app.
  *  - The view: the app's build, showing the paper sequence with
- *    Ripple's editor (./paper) - with no edits of the model's given to it
- *    yet, a caret only: click, the arrows, Home and End, Shift to select.
+ *    Ripple's editor (./paper), editing the document through
+ *    rippleEditing(): typing, Backspace, Delete and Enter, in the text and
+ *    at the markers.
  */
 export class Ripple extends Component {
   initialState() {
@@ -45,9 +48,9 @@ export class Ripple extends Component {
     // markerTypes - which kinds of marker it goes to ({ type: false } for
     // one it doesn't), showAllAreas - every marker's area drawn at once, and
     // markersBeside - flows' starts and ends beside them, or between them,
-    // and splitGaps - which gaps are two places, one above the other (see
-    // splitGapChoices).
-    return { zoom: 1, showAllAreas: false, markerTypes: {}, markersBeside: true, splitGaps: "beforeSections" };
+    // and joinMarkers - which gaps have a join marker as well as a split
+    // marker (see joinMarkerChoices).
+    return { zoom: 1, showAllAreas: false, markerTypes: {}, markersBeside: true, joinMarkers: "beforeSections" };
   }
 
   setMarkerType(type, on) {
@@ -61,6 +64,7 @@ export class Ripple extends Component {
     return {
       document,
       root,
+      editing: rippleEditing(root),
       measurer,
       sequence: new PaperSequence(),
       layout: new SequenceLayout({ sequence: root, measurer }).establish(),
@@ -127,9 +131,9 @@ export class Ripple extends Component {
             div(
               { style: { ...fillerStyle, overflow: "auto", borderRadius: "8px" } },
               rippleEditor({
-                key: "editor", sequence, root, measurer, zoom: this.zoom,
+                key: "editor", sequence, root, measurer, editing: this.unobservable.editing, zoom: this.zoom,
                 showAllAreas: this.showAllAreas, markerTypes: this.markerTypes,
-                markersBeside: this.markersBeside, splitGaps: this.splitGaps,
+                markersBeside: this.markersBeside, joinMarkers: this.joinMarkers,
               }),
             ),
           ),
@@ -154,11 +158,11 @@ export class Ripple extends Component {
       heading("Starts and ends"),
       checkbox({ key: "beside", label: "Beside their flows", checked: this.markersBeside, onChange: (checked) => { this.markersBeside = checked; } }),
       heading("Gaps"),
-      text("Two places, one above the other:"),
-      splitGapChoices.map(({ value, label }) => button(
-        { key: "split-" + value, variant: this.splitGaps === value ? "filled" : undefined },
+      text("Join markers:"),
+      joinMarkerChoices.map(({ value, label }) => button(
+        { key: "join-" + value, variant: this.joinMarkers === value ? "filled" : undefined },
         label,
-        () => { this.splitGaps = value; },
+        () => { this.joinMarkers = value; },
       )),
       heading("Show"),
       checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),

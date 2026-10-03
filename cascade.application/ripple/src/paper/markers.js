@@ -1,5 +1,5 @@
 import { mm, px, contentWidth } from "../print/index.js";
-import { Sequence, isSection, gap, flowStart, flowEnd, titleLevel, hasExitTitle, exitTitle } from "../model/flows.js";
+import { Sequence, isSection, splitMarker, joinMarker, isJoinMarker, flowStart, flowEnd, titleLevel, hasExitTitle, exitTitle } from "../model/flows.js";
 
 /**
  * Where a caret can be in a laid-out Ripple document: its caret rows - every
@@ -39,11 +39,12 @@ import { Sequence, isSection, gap, flowStart, flowEnd, titleLevel, hasExitTitle,
  * across the text area, at a height:
  *
  *  - The gap between two siblings: dead centre between them, from the lower
- *    edge of the one to the upper edge of the other. A gap split in two is
- *    two places (slots 0 and 1, see ../model/flows.js): two bars, a third
- *    and two thirds of the way down. Which gaps are split is `splitGaps`:
- *    "none" (the default), "beforeSections" - every gap before a flow with
- *    a title, a section (a document too) - or "all".
+ *    edge of the one to the upper edge of the other. A gap with a join
+ *    marker as well as its split marker (see ../model/flows.js) is two
+ *    bars: the split marker a third of the way down, the join marker two
+ *    thirds. Which gaps have one is `joinMarkers`: "none" (the default),
+ *    "beforeSections" - every gap before a flow with a title, a section (a
+ *    document too) - or "all".
  *  - What closes: spread evenly from the lower edge of the flow before down
  *    towards the (first) gap, short of it - or, with no gap, down to the
  *    centre, the outermost there - or, with nothing after on the paper, down
@@ -65,8 +66,8 @@ import { Sequence, isSection, gap, flowStart, flowEnd, titleLevel, hasExitTitle,
  *  - A gap: the room of its run - from the lower edge of the flow before to
  *    the upper edge of the flow after (or the paper's edge, across a page
  *    break); its bar in the middle of it.
- *  - The second place of a gap split in two (slot 1) - where the flows on
- *    either side would be joined: that room, and every delimiter box around
+ *  - A join marker - where the flows on either side would be joined: that
+ *    room, and every delimiter box around
  *    it, all that what's put there replaces - the end delimiter box of the
  *    flow before, and the start delimiter box of the flow after (see below).
  *
@@ -129,8 +130,8 @@ export const edgeDistance = mm(1.5);
 // innermost, from the flow's bounding box.
 export const besideStep = px(2);
 
-export function caretRows(sequence, root, { edge = edgeDistance, types = {}, beside = true, splitGaps = "none" } = {}) {
-  const items = readingOrder(root, { splitGaps }).filter((item) => item.block || types[item.type] !== false);
+export function caretRows(sequence, root, { edge = edgeDistance, types = {}, beside = true, joinMarkers = "none" } = {}) {
+  const items = readingOrder(root, { joinMarkers }).filter((item) => item.block || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
   const extentOf = flowExtents(lines);
   const boxOf = boxesFrom(extentOf, sequence);
@@ -152,9 +153,10 @@ export function caretRows(sequence, root, { edge = edgeDistance, types = {}, bes
 // for a paragraph's text (a title, or body text) - { block, exit: true } for
 // a section's exit title, after all that's in it - and for a marker
 // { marker, kind, type, level, flow } - `type` one of markerTypes', `flow`
-// being, for a flow's start or end, the flow. A gap split in two (see
-// `splitGaps` in the class doc) twice: its slot 0, then its slot 1.
-export function readingOrder(root, { splitGaps = "none" } = {}) {
+// being, for a flow's start or end, the flow. A gap with a join marker (see
+// `joinMarkers` in the class doc) twice: its split marker, then its join
+// marker.
+export function readingOrder(root, { joinMarkers = "none" } = {}) {
   const items = [];
   // The gap before child `index` - between it and the flow before it in the
   // list: the child before, or the section's title.
@@ -162,9 +164,9 @@ export function readingOrder(root, { splitGaps = "none" } = {}) {
   // gap between two siblings.
   const gapItem = (list, index, level, afterTitle) => {
     const type = afterTitle ? "titleGap" : "siblingGap";
-    const split = splitGaps === "all" || (splitGaps === "beforeSections" && isSection(list.children[index]));
-    for (let slot = 0; slot < (split ? 2 : 1); slot++) {
-      items.push({ marker: gap(list, index, slot), kind: "between", type, level });
+    items.push({ marker: splitMarker(list, index), kind: "between", type, level });
+    if (joinMarkers === "all" || (joinMarkers === "beforeSections" && isSection(list.children[index]))) {
+      items.push({ marker: joinMarker(list, index), kind: "between", type, level });
     }
   };
   const visitParagraph = (paragraph, level, role) => {
@@ -357,11 +359,11 @@ function placeRun(run, before, after, extentOf, sequence, { edge, beside, bounds
   for (const item of run) {
     if (!item.placed) continue;
     let area = item.flow ? boxOf(item.flow).content : room;
-    // The second place of a split gap - where what's on either side would
-    // be joined: every delimiter around it too, the end delimiter box of the
-    // flow before and the start delimiter box of the flow after - all that
-    // what's put there replaces.
-    if (!item.flow && item.marker.slot === 1) {
+    // A join marker - where what's on either side would be joined: every
+    // delimiter around it too, the end delimiter box of the flow before and
+    // the start delimiter box of the flow after - all that what's put there
+    // replaces.
+    if (isJoinMarker(item.marker)) {
       const { list, index } = item.marker;
       const before = index > 0 ? list.children[index - 1] : null;
       const after = list.children[index];

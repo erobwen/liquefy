@@ -27,7 +27,8 @@ import { observable } from "@liquefy/cascade.component";
  *                                               cascade.print's positions are
  *   gap(list, index, slot)                    - before child `index` of
  *                                               `list`: a section, or the
- *                                               sequence - in slot 0, or 1
+ *                                               sequence - its split marker
+ *                                               (slot 0) or join marker (1)
  *   flowStart(flow), flowEnd(flow)            - at the very start and end of
  *                                               a flow: a document, a
  *                                               section, a title, a paragraph
@@ -41,9 +42,11 @@ import { observable } from "@liquefy/cascade.component";
  * gap between them, and the start of B are three places; and the end of a
  * section's last paragraph, and the end of the section, are two.
  *
- * A gap may be two places, one above the other: slot 0, the upper, and slot
- * 1 - to try out a caret with two places between two flows (see
- * ../paper/markers.js). With one, it's slot 0.
+ * A gap may be two places, one above the other: its split marker (slot 0,
+ * the upper - splitMarker()), where something is added between the two
+ * flows, and its join marker (slot 1, the lower - joinMarker()), where the
+ * two flows are joined into one. A gap with one place has only its split
+ * marker (see ../paper/markers.js for which gaps have both).
  *
  * Gaps and flow starts and ends are markers - places between text.
  *
@@ -108,6 +111,10 @@ export class Sequence extends Flow {
 
 export const textPosition = (paragraph, offset, lineEnd = false) => Object.freeze({ paragraph, offset, lineEnd });
 export const gap = (list, index, slot = 0) => Object.freeze({ list, index, slot });
+export const splitMarker = (list, index) => gap(list, index, 0);
+export const joinMarker = (list, index) => gap(list, index, 1);
+export const isSplitMarker = (at) => isGap(at) && at.slot === 0;
+export const isJoinMarker = (at) => isGap(at) && at.slot === 1;
 export const flowStart = (flow) => Object.freeze({ flow, edge: "start" });
 export const flowEnd = (flow) => Object.freeze({ flow, edge: "end" });
 export const isGap = (at) => !!at && "list" in at;
@@ -164,6 +171,9 @@ export function paragraphText(paragraph) {
   for (const span of paragraph.spans) text += span.text;
   return text;
 }
+
+// A span, as a paragraph holds it: a string, or { text, bold, italic }.
+export const makeSpan = (span) => toSpan(span);
 
 function toSpan(span) {
   if (typeof(span) === "string") return observable({ text: span, bold: false, italic: false });

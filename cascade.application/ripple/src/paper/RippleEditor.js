@@ -15,7 +15,7 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * the text and the gaps between its flows at every level (see markers.js,
  * positions.js), and a gap's caret is a horizontal bar across the text area.
  *
- *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, markersBeside, splitGaps })
+ *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, markersBeside, joinMarkers })
  *
  * `sequence` is the paper sequence the document is laid out onto - by
  * someone else: the editor only reads it - `root` the document's root (the
@@ -30,9 +30,9 @@ import { ripplePaperView } from "./RipplePaperView.js";
  *
  * `markersBeside` (true by default) puts a flow's start and end beside the
  * flow, a vertical bar - false, between the flows, a horizontal one (see
- * markers.js). `splitGaps` says which gaps are two places, one above the
- * other: "beforeSections" (by default) every gap before a section, "all"
- * or "none".
+ * markers.js). `joinMarkers` says which gaps have a join marker below their
+ * split marker: "beforeSections" (by default) every gap before a section,
+ * "all" or "none".
  *
  * At a marker, the marker's area - what it stands for (see markers.js) - is
  * drawn under the text: the room a gap is in, or the flow whose start or end
@@ -70,12 +70,12 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * Ctrl/Cmd plus a key, handed to `onShortcut(name)`.
  */
 export class RippleEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, showAllAreas = false, markerTypes, markersBeside = true, splitGaps = "beforeSections", style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, showAllAreas = false, markerTypes, markersBeside = true, joinMarkers = "beforeSections", style }) {
     this.sequence = sequence;
     this.root = root;
     this.showAllAreas = !!showAllAreas;
     this.markersBeside = !!markersBeside;
-    this.splitGaps = splitGaps;
+    this.joinMarkers = joinMarkers;
     this.markerTypes = frozen(markerTypes || {});
     this.measurer = measurer;
     this.editing = editing;
@@ -119,7 +119,7 @@ export class RippleEditor extends Component {
 
   // Where the caret can be, now: every line and gap, in reading order.
   rows() {
-    return caretRows(this.sequence, this.root, { types: this.markerTypes, beside: this.markersBeside, splitGaps: this.splitGaps });
+    return caretRows(this.sequence, this.root, { types: this.markerTypes, beside: this.markersBeside, joinMarkers: this.joinMarkers });
   }
 
   hasSelection() {

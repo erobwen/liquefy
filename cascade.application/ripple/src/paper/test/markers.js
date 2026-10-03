@@ -169,13 +169,13 @@ describe("Ripple's markers", function () {
     assert.ok(samePosition(rowBelow(rows, flowStart(a), x, measurer), gap(doc, 1)));
   });
 
-  it("split, put a gap's two places a third and two thirds of the way down - what ends above them, what starts below", function () {
+  it("put a gap's split marker a third and its join marker two thirds of the way down - what ends above them, what starts below", function () {
     const q = paragraph("qq");
     const inner = section("Inner", q);
     const next = section("Next");
     const doc = document({ title: "D", paper, margins }, section("Outer", paragraph("pp"), inner), next);
     const root = sequenceOf(doc);
-    const { rows } = layOut(root, { ...between, splitGaps: "beforeSections" });
+    const { rows } = layOut(root, { ...between, joinMarkers: "beforeSections" });
     const from = bottom(rows, q);
     const to = top(rows, next.title);
     const upper = Math.round(from + (to - from) / 3);
@@ -190,30 +190,30 @@ describe("Ripple's markers", function () {
     opening.forEach((position, index) => {
       assert.equal(markerY(rows, position), Math.round(lower + (to - lower) * (index + 1) / (opening.length + 1)));
     });
-    // Two places, stepped through one after the other - upper first.
+    // Both, stepped through one after the other - the split marker first.
     const places = walk(rows);
     const at = places.findIndex((place) => samePosition(place, gap(doc, 1, 0)));
     assert.ok(samePosition(places[at + 1], gap(doc, 1, 1)));
     assert.ok(!samePosition(gap(doc, 1, 0), gap(doc, 1, 1)));
   });
 
-  it("split, with starts and ends beside the flows, put a gap's two places a third and two thirds down", function () {
+  it("with starts and ends beside the flows, put a split marker a third and a join marker two thirds down", function () {
     const a = paragraph("aa");
     const b = paragraph("bb");
     const doc = document({ title: "D", paper, margins }, a, b);
-    const { rows } = layOut(sequenceOf(doc), { splitGaps: "all" });
+    const { rows } = layOut(sequenceOf(doc), { joinMarkers: "all" });
     const from = bottom(rows, a);
     const to = top(rows, b);
     assert.equal(markerY(rows, gap(doc, 1, 0)), Math.round(from + (to - from) / 3));
     assert.equal(markerY(rows, gap(doc, 1, 1)), Math.round(from + (to - from) * 2 / 3));
   });
 
-  it("split, give a gap's second place an area reaching over the start delimiter box after it - a section's title, down to what's in it", function () {
+  it("give a join marker an area reaching over the start delimiter box after it - a section's title, down to what's in it", function () {
     const a = paragraph("aa");
     const next = section("Next", paragraph("nn"));
     const b = paragraph("bb");
     const doc = document({ title: "D", paper, margins }, a, b, next);
-    const { rows } = layOut(sequenceOf(doc), { splitGaps: "all" });
+    const { rows } = layOut(sequenceOf(doc), { joinMarkers: "all" });
     const box = (from, to) => [{ page: 0, ...textArea, top: from, height: to - from }];
     // Before a section: the room, and the section's title below it, down to "nn".
     assert.deepEqual(areaOf(rows, gap(doc, 2, 0)), box(bottom(rows, b), top(rows, next.title)));
@@ -222,18 +222,18 @@ describe("Ripple's markers", function () {
     assert.deepEqual(areaOf(rows, gap(doc, 1, 1)), box(bottom(rows, a), top(rows, b)));
   });
 
-  it("split, give a gap's second place an area over every delimiter around it - the end of the flow before, the start of the flow after", function () {
+  it("give a join marker an area over every delimiter around it - the end of the flow before, the start of the flow after", function () {
     const a = paragraph("aa");
     const b = paragraph("bb");
     const before = section("Before", a);
     const after = section({ title: "After", titleOffset: 1 }, b);
     const doc = document({ title: "D", paper, margins }, before, after);
-    const { sequence, rows } = layOut(sequenceOf(doc), { splitGaps: "beforeSections" });
+    const { sequence, rows } = layOut(sequenceOf(doc), { joinMarkers: "beforeSections" });
     const exit = sequence.linesOf(0).find((line) => line.paragraph === exitTitle(before));
     const box = (from, to) => [{ page: 0, ...textArea, top: from, height: to - from }];
-    // The first place: the room between the two sections.
+    // The split marker: the room between the two sections.
     assert.deepEqual(areaOf(rows, gap(doc, 1, 0)), box(exit.top + exit.height, top(rows, after.title)));
-    // The second: from "aa" - Before's exit title - down to "bb" - After's title.
+    // The join marker: from "aa" - Before's exit title - down to "bb" - After's title.
     assert.deepEqual(areaOf(rows, gap(doc, 1, 1)), box(bottom(rows, a), top(rows, b)));
   });
 
@@ -280,11 +280,11 @@ describe("Ripple's markers", function () {
     assert.ok(samePosition(rowBelow(rows, textPosition(q, 1), textArea.x + 1000, measurer), gap(doc, 1)));
   });
 
-  it("split, before sections: every gap before a flow with a title is two places - before a paragraph, one", function () {
+  it("give a join marker, before sections, to every gap before a flow with a title - before a paragraph, only a split marker", function () {
     const outer = section("Outer", paragraph("pp"), section("Inner", paragraph("qq")));
     const doc = document({ title: "D", paper, margins }, paragraph("aa"), outer, section("Next"));
     const root = sequenceOf(doc, document({ title: "E", paper, margins }));
-    const { rows } = layOut(root, { splitGaps: "beforeSections" });
+    const { rows } = layOut(root, { joinMarkers: "beforeSections" });
     const gapsAt = (list, index) => rows.filter(({ row }) => "marker" in row && isGap(row.marker) && row.marker.list === list && row.marker.index === index).length;
     assert.equal(gapsAt(doc, 0), 1);    // the title, then "aa"
     assert.equal(gapsAt(doc, 1), 2);    // "aa", then Outer

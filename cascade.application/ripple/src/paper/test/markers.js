@@ -1,5 +1,5 @@
 import assert from "assert";
-import { PaperSequence } from "@liquefy/cascade.print";
+import { PaperSequence } from "../../print/index.js";
 import {
   document, section, paragraph, sequence as sequenceOf, gap, partStart, partEnd, isGap, isPartEdge, isSection,
   samePosition, textPosition, paragraphText,
@@ -206,6 +206,20 @@ describe("Ripple's markers", function () {
     const to = top(rows, b);
     assert.equal(markerY(rows, gap(doc, 1, 0)), Math.round(from + (to - from) / 3));
     assert.equal(markerY(rows, gap(doc, 1, 1)), Math.round(from + (to - from) * 2 / 3));
+  });
+
+  it("split, give a gap's second place an area reaching over the start delimiter box after it - a section's title", function () {
+    const a = paragraph("aa");
+    const next = section("Next", paragraph("nn"));
+    const b = paragraph("bb");
+    const doc = document({ title: "D", paper, margins }, a, b, next);
+    const { rows } = layOut(sequenceOf(doc), { splitGaps: "all" });
+    const box = (from, to) => [{ page: 0, ...textArea, top: from, height: to - from }];
+    // Before a section: the room, and the section's title below it.
+    assert.deepEqual(areaOf(rows, gap(doc, 2, 0)), box(bottom(rows, b), top(rows, next.title)));
+    assert.deepEqual(areaOf(rows, gap(doc, 2, 1)), box(bottom(rows, b), bottom(rows, next.title)));
+    // Before a paragraph - no delimiter: the room.
+    assert.deepEqual(areaOf(rows, gap(doc, 1, 1)), box(bottom(rows, a), top(rows, b)));
   });
 
   it("split, before sections: every gap before a part with a title is two places - before a paragraph, one", function () {

@@ -1,4 +1,4 @@
-import { pt } from "@liquefy/cascade.print";
+import { pt } from "../print/index.js";
 
 /**
  * How a document looks - by where a part is, since parts hold no style of

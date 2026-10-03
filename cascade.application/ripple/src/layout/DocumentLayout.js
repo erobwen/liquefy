@@ -1,5 +1,5 @@
 import { Component, frozen } from "@liquefy/cascade.component";
-import { Section, Paragraph, contentWidth, monospaceMeasurer } from "@liquefy/cascade.print";
+import { Section, Paragraph, contentWidth, monospaceMeasurer } from "../print/index.js";
 import { isSection } from "../model/parts.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 

@@ -1,4 +1,4 @@
-import { positionInLine } from "@liquefy/cascade.print";
+import { positionInLine } from "../print/index.js";
 import { textPosition, isMarker, samePosition } from "../model/parts.js";
 
 /**

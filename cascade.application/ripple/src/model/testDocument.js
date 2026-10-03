@@ -1,4 +1,4 @@
-import { paperSizes, margins, mm } from "@liquefy/cascade.print";
+import { paperSizes, margins, mm } from "../print/index.js";
 import { document, section, paragraph, bold, italic } from "./parts.js";
 
 // A document to open with - a small book, sections in sections, about the

@@ -2,7 +2,7 @@
   "name": "@liquefy/ripple",
   "version": "0.1.0",
   "private": true,
-  "description": "Ripple - a word processor built on Cascade and cascade.print.",
+  "description": "Ripple - a word processor built on Cascade, with its own copy of cascade.print.",
   "author": "Robert Renbris",
   "license": "ISC",
   "type": "module",
@@ -10,7 +10,7 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "test": "mocha ./src/model/test ./src/layout/test ./src/paper/test"
+    "test": "mocha ./src/print/test ./src/model/test ./src/layout/test ./src/paper/test"
   },
   "repository": {
     "type": "git",
@@ -21,7 +21,6 @@
     "@liquefy/cascade.reactive": "^2.0.0",
     "@liquefy/cascade.component": "^2.0.0",
     "@liquefy/cascade.dom": "^2.0.0",
-    "@liquefy/cascade.print": "^2.0.0",
     "@liquefy/cascade.ui": "^2.0.0"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import { mm, px, contentWidth } from "@liquefy/cascade.print";
+import { mm, px, contentWidth } from "../print/index.js";
 import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js";
 
 /**
@@ -65,6 +65,15 @@ import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js"
  *  - A gap: the room of its run - from the lower edge of the part before to
  *    the upper edge of the part after (or the paper's edge, across a page
  *    break); its bar in the middle of it.
+ *  - The second place of a gap split in two (slot 1): that room, and with it
+ *    the start delimiter box of the part after - see below.
+ *
+ * Every part is a block on the papers, and a block may have delimiter boxes
+ * - what opens and closes it, apart from what it holds: a start delimiter
+ * box and an end delimiter box. Mostly there are none; a section's start
+ * delimiter box is its title's bounding box (across the text area, as every
+ * area is). Like the markers, blocks are worked out here from the laid-out
+ * lines - the paper sequence knows only papers and lines.
  *
  * A caret row is a placed line (cascade.print's), or a marker row:
  *
@@ -321,13 +330,39 @@ function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf 
     }
   }
 
+  const partArea = (part) => extentOf(part).map(([page, { top, bottom }]) => rect(page, top, bottom));
   for (const item of run) {
     if (!item.placed) continue;
-    const area = item.part
-      ? extentOf(item.part).map(([page, { top, bottom }]) => rect(page, top, bottom))
-      : room;
+    let area = item.part ? partArea(item.part) : room;
+    // The second place of a split gap: the part after's start delimiter too.
+    if (!item.part && item.marker.slot === 1) {
+      const delimiter = delimiters(item.marker.list.children[item.marker.index]).start;
+      if (delimiter) area = joined([...room, ...partArea(delimiter)]);
+    }
     item.placed.row = Object.freeze({ ...item.placed.row, area: Object.freeze(area) });
   }
+}
+
+// A part as a block: the parts that are its delimiters - what opens and
+// closes it, apart from what it holds - { start, end }, each null if none.
+// A section's start is its title; nothing has an end, yet.
+function delimiters(part) {
+  return { start: part && isSection(part) ? part.title : null, end: null };
+}
+
+// Rectangles, the ones touching one above the other on a paper - as wide,
+// as far left - joined into one.
+function joined(rects) {
+  const result = [];
+  for (const each of [...rects].sort((a, b) => a.page - b.page || a.top - b.top)) {
+    const last = result[result.length - 1];
+    if (last && last.page === each.page && last.x === each.x && last.width === each.width && each.top <= last.top + last.height) {
+      last.height = Math.max(last.height, each.top + each.height - last.top);
+    } else {
+      result.push({ ...each });
+    }
+  }
+  return result;
 }
 
 // A run's starts and ends beside their parts: the ends right of them, the

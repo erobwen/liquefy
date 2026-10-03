@@ -1,5 +1,5 @@
 import assert from "assert";
-import { PaperSequence, pt } from "@liquefy/cascade.print";
+import { PaperSequence, pt } from "../../print/index.js";
 import { document, section, paragraph, bold, sequence as sequenceOf } from "../../model/parts.js";
 import { SequenceLayout } from "../DocumentLayout.js";
 import { typography } from "../typography.js";

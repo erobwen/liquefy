@@ -1,8 +1,8 @@
 import { Component, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
 import { button, card, checkbox, controlPanel, iconButton, filler, fillerStyle, fitContainerStyle, overlayFrame, colorSchemeScope, column, row } from "@liquefy/cascade.ui";
-import { PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
-import { domMeasurer, printPaperSequence } from "@liquefy/cascade.print/dom";
+import { PaperSequence, paperSizes, margins, mm, inch } from "./print/index.js";
+import { domMeasurer, printPaperSequence } from "./print/dom.js";
 import { rippleEditor } from "./paper/RippleEditor.js";
 import { markerTypes } from "./paper/markers.js";
 import { sequence as sequenceOf } from "./model/parts.js";

@@ -1,82 +1,60 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
-import { TextInput } from "../print/dom.js";
-import { samePosition, isMarker } from "../model/parts.js";
-import { caretRows } from "./markers.js";
-import {
-  caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, rowAt,
-  sequenceStart, sequenceEnd, orderedRange,
-} from "./positions.js";
-import { ripplePaperView } from "./RipplePaperView.js";
+import { caretAt, hitTest, selectionRects, lineStart, lineEnd, lineAbove, lineBelow, samePosition } from "../positions.js";
+import { paperSequenceView } from "./PaperSequenceView.js";
+import { TextInput } from "./TextInput.js";
 
 /**
- * RippleEditor - Ripple's papers with a caret: cascade.print's PaperEditor,
- * made for Ripple's document - its caret moves through every place in it,
- * the text and the gaps between its parts at every level (see markers.js,
- * positions.js), and a gap's caret is a horizontal bar across the text area.
+ * PaperEditor - papers you can type on: a paper sequence on screen (see
+ * PaperSequenceView), a caret dropped where you click, a selection, and the
+ * keyboard editing the model there - through `editing`, the model's own
+ * edits. The layout follows the model, and the caret and the selection
+ * follow the layout.
  *
- *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, markersBeside, splitGaps })
+ *   paperEditor({ sequence, measurer, editing, zoom })
  *
- * `sequence` is the paper sequence the document is laid out onto - by
- * someone else: the editor only reads it - `root` the document's root (the
- * sequence of documents, see ../model/parts.js), and `measurer` the one it's
- * laid out with, for placing the caret between the same characters the lines
- * were broken at.
+ * `sequence` is the paper sequence a model is laid out onto - by someone
+ * else: the editor only reads it - and `measurer` the one it's laid out
+ * with, for placing the caret between the same characters the lines were
+ * broken at.
  *
- * `markerTypes` says which kinds of marker the caret can go to (see
- * markers.js's markerTypes): { paragraphStart: false, ... } - every kind,
- * unless it says false. A caret left at a kind no longer there is gone - the
- * next move starts from the very start.
- *
- * `markersBeside` (true by default) puts a part's start and end beside the
- * part, a vertical bar - false, between the parts, a horizontal one (see
- * markers.js). `splitGaps` says which gaps are two places, one above the
- * other: "beforeSections" (by default) every gap before a section, "all"
- * or "none".
- *
- * At a marker, the marker's area - what it stands for (see markers.js) - is
- * drawn under the text: the room a gap is in, or the part whose start or end
- * it is. `showAllAreas` draws every marker's at once, to see them all.
- *
- * The caret and the selection are positions (see ../model/parts.js) - in a
- * paragraph's text, or a gap - state of the editor, drawn where the layout
- * puts them. Moving the caret is moving through the document's caret rows,
- * in reading order. What an edit does is the model's business, given as
- * `editing`, every function taking and returning positions:
+ * Knows nothing of any model. The caret and the selection are positions
+ * (see positions.js) - state of the editor - drawn where the layout puts
+ * them. What an edit or a move through the text does is the model's
+ * business, given as `editing`, every function taking and returning
+ * positions:
  *
  *   {
  *     insertText(at, text),          // typed - with "\n" for a paragraph break
  *     deleteBackward(at), deleteForward(at), splitParagraph(at),
  *     deleteBetween(anchor, focus),  // a selection, either way round
+ *     moveLeft(at), moveRight(at),   // a character - into the paragraphs around
+ *     documentStart(), documentEnd(),
+ *     orderedRange(a, b),            // [first, second], in the text's order
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
  *   }
  *
- * Every one returns the position after it - where the caret goes. Without
- * `editing`, the editor is a caret only: it moves and selects, and nothing
- * typed changes anything.
+ * Every one returns the position after it - where the caret goes. Typing
+ * edits the model; the paragraph is laid out again; the caret, reading the
+ * new layout, is drawn where its position now is.
  *
  * Selecting: drag, Shift+click, double click (a word), triple click (a
  * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything).
+ * Typing replaces the selection, Backspace and Delete delete it, Enter
+ * replaces it with a paragraph break.
  *
- * Moving: the arrows - Left and Right through every place, Up and Down from
- * row to row, a gap's marker a row of its own (Up and Down keep the x moving
- * began at, on lines) - and Home and End (Ctrl/Cmd: the start and end of
- * everything). With something selected, Left and Right go to its start and
- * end.
+ * Moving: the arrows (Up and Down keep the x moving up and down began at),
+ * Home and End (Ctrl/Cmd: the start and end of the document). With
+ * something selected, Left and Right go to its start and end.
  *
  * For whatever else changes the model around the caret - a toolbar:
  * selection() tells what's selected, apply(change) makes a change in one go
  * and gives the keyboard back to the text. And `shortcuts` - { b: "Bold" }:
  * Ctrl/Cmd plus a key, handed to `onShortcut(name)`.
  */
-export class RippleEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, showAllAreas = false, markerTypes, markersBeside = true, splitGaps = "beforeSections", style }) {
+export class PaperEditor extends Component {
+  setProperties({ sequence, measurer, editing, zoom = 1, shortcuts, onShortcut, style }) {
     this.sequence = sequence;
-    this.root = root;
-    this.showAllAreas = !!showAllAreas;
-    this.markersBeside = !!markersBeside;
-    this.splitGaps = splitGaps;
-    this.markerTypes = frozen(markerTypes || {});
     this.measurer = measurer;
     this.editing = editing;
     this.zoom = zoom;
@@ -117,11 +95,6 @@ export class RippleEditor extends Component {
     super.onDispose();
   }
 
-  // Where the caret can be, now: every line and gap, in reading order.
-  rows() {
-    return caretRows(this.sequence, this.root, { types: this.markerTypes, beside: this.markersBeside, splitGaps: this.splitGaps });
-  }
-
   hasSelection() {
     return !!this.anchor && !!this.caret && !samePosition(this.anchor, this.caret);
   }
@@ -151,29 +124,19 @@ export class RippleEditor extends Component {
   build() {
     const { caret, focused, sequence, measurer } = this;
     const selected = this.hasSelection();
-    const rows = caret || this.showAllAreas ? this.rows() : [];
-    const areas = this.showAllAreas ? rows.flatMap(({ row }) => row.area || []) : this.areaAtCaret(rows);
     // With something selected, the selection shows where the caret is.
-    const geometry = caret && focused && !selected ? caretAt(rows, caret, measurer) : null;
+    const geometry = caret && focused && !selected ? caretAt(sequence, caret, measurer) : null;
     const selection = selected
-      ? { rects: selectionRects(rows, ...orderedRange(rows, this.anchor, caret), measurer), focused }
+      ? { rects: selectionRects(sequence, ...this.editing.orderedRange(this.anchor, caret), measurer), focused }
       : null;
     return div(
       {
         style: { position: "relative", ...this.style },
         onmousedown: callback("press", (event) => this.press(event)),
       },
-      ripplePaperView({ sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas }),
+      paperSequenceView({ sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection }),
       this.unobservable.input,
     );
-  }
-
-  // The area of the marker the caret is at - none in the text.
-  areaAtCaret(rows) {
-    const caret = this.caret;
-    if (!caret || !isMarker(caret) || this.hasSelection()) return [];
-    const found = rows.find(({ row }) => "marker" in row && samePosition(row.marker, caret));
-    return found ? found.row.area : [];
   }
 
   // A press on a paper: the caret there - or, with Shift, the selection
@@ -189,9 +152,8 @@ export class RippleEditor extends Component {
     const at = this.positionAtPoint(event.clientX, event.clientY);
     u.input.focus();
     if (!at) return;
-    const editing = this.editing;
-    if (event.detail >= 3 && editing && editing.paragraphAt) this.select(...editing.paragraphAt(at));
-    else if (event.detail === 2 && editing && editing.wordAt) this.select(...editing.wordAt(at));
+    if (event.detail >= 3) this.select(...this.editing.paragraphAt(at));
+    else if (event.detail === 2) this.select(...this.editing.wordAt(at));
     else this.moveCaret(at, { extend: event.shiftKey && !!this.caret });
     this.followMouse(event);
   }
@@ -240,7 +202,7 @@ export class RippleEditor extends Component {
     const clamp = (value) => Math.max(0, Math.min(1, value));
     const x = Math.round(clamp((clientX - rect.left) / rect.width) * format.width);
     const y = Math.round(clamp((clientY - rect.top) / rect.height) * format.height);
-    return hitTest(this.rows(), page, x, y, this.measurer);
+    return hitTest(this.sequence, page, x, y, this.measurer);
   }
 
   // What Ctrl/Cmd plus `key` is - Ctrl+A selects everything; the rest are
@@ -253,33 +215,24 @@ export class RippleEditor extends Component {
     if (command.type === "focus") this.focused = true;
     else if (command.type === "blur") this.focused = false;
     if (!this.caret) return;
-    if (command.type === "insert") {
-      if (this.editing) this.edit((at) => this.editing.insertText(at, command.text));
-    }
+    if (command.type === "insert") this.edit((at) => this.editing.insertText(at, command.text));
     else if (command.type === "key") this.pressKey(command);
   }
 
   pressKey({ key, shift, primary }) {
-    const { editing } = this;
+    const { editing, sequence } = this;
     const selected = this.hasSelection();
-    const rows = this.rows();
-    // At a kind of marker no longer there: moving starts over, from the very
-    // start.
-    if (!rowAt(rows, this.caret) && key !== "SelectAll") {
-      const start = sequenceStart(rows);
-      return start && this.moveCaret(start);
-    }
     switch (key) {
-      case "Backspace": return editing && this.edit(selected ? null : (at) => editing.deleteBackward(at));
-      case "Delete": return editing && this.edit(selected ? null : (at) => editing.deleteForward(at));
-      case "Enter": return editing && this.edit((at) => editing.splitParagraph(at));
-      case "SelectAll": return this.select(sequenceStart(rows), sequenceEnd(rows));
+      case "Backspace": return this.edit(selected ? null : (at) => editing.deleteBackward(at));
+      case "Delete": return this.edit(selected ? null : (at) => editing.deleteForward(at));
+      case "Enter": return this.edit((at) => editing.splitParagraph(at));
+      case "SelectAll": return this.select(editing.documentStart(), editing.documentEnd());
     }
     // Moving. Without Shift, a selection collapses: Left and Right to
     // its start and end, Up and Down from there.
     let from = this.caret;
     if (selected && !shift) {
-      const [start, end] = orderedRange(rows, this.anchor, this.caret);
+      const [start, end] = editing.orderedRange(this.anchor, this.caret);
       if (key === "ArrowLeft") return this.moveCaret(start);
       if (key === "ArrowRight") return this.moveCaret(end);
       if (key === "ArrowUp") from = start;
@@ -287,19 +240,19 @@ export class RippleEditor extends Component {
     }
     const extend = { extend: shift };
     switch (key) {
-      case "ArrowLeft": return this.moveCaret(stepLeft(rows, from), extend);
-      case "ArrowRight": return this.moveCaret(stepRight(rows, from), extend);
-      case "Home": return this.moveCaret(primary ? sequenceStart(rows) : lineStart(rows, from), extend);
-      case "End": return this.moveCaret(primary ? sequenceEnd(rows) : lineEnd(rows, from), extend);
+      case "ArrowLeft": return this.moveCaret(editing.moveLeft(from), extend);
+      case "ArrowRight": return this.moveCaret(editing.moveRight(from), extend);
+      case "Home": return this.moveCaret(primary ? editing.documentStart() : lineStart(sequence, from), extend);
+      case "End": return this.moveCaret(primary ? editing.documentEnd() : lineEnd(sequence, from), extend);
       case "ArrowUp":
       case "ArrowDown": {
         const u = this.unobservable;
         if (u.goalX === null) {
-          const geometry = caretAt(rows, from, this.measurer);
+          const geometry = caretAt(sequence, from, this.measurer);
           u.goalX = geometry ? geometry.x : 0;
         }
-        const move = key === "ArrowUp" ? rowAbove : rowBelow;
-        return this.moveCaret(move(rows, from, u.goalX, this.measurer), { ...extend, vertical: true });
+        const move = key === "ArrowUp" ? lineAbove : lineBelow;
+        return this.moveCaret(move(sequence, from, u.goalX, this.measurer), { ...extend, vertical: true });
       }
     }
     // Anything else is a shortcut of whoever placed the editor.
@@ -363,11 +316,11 @@ export class RippleEditor extends Component {
   // The highlight the caret end of the selection is in: the last one if the
   // selection was extended forward, the first if backward.
   focusEndOf(marks) {
-    const [start] = orderedRange(this.rows(), this.anchor, this.caret);
+    const [start] = this.editing.orderedRange(this.anchor, this.caret);
     return start === this.anchor ? marks[marks.length - 1] : marks[0];
   }
 }
 
-export function rippleEditor(...parameters) {
-  return new RippleEditor(...parameters);
+export function paperEditor(...parameters) {
+  return new PaperEditor(...parameters);
 }

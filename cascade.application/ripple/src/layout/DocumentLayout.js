@@ -6,7 +6,7 @@ import { typography as defaultTypography, titleStyle } from "./typography.js";
 const fallbackMeasurer = monospaceMeasurer();
 
 // What an empty title shows, faintly - and an exit title before the title
-// it repeats.
+// it goes back out to.
 export const titlePlaceholder = "Title";
 export const exitTitlePrefix = "❧ → ";
 
@@ -30,8 +30,12 @@ export const exitTitlePrefix = "❧ → ";
  *    title, or body text. Its look is its place's (see typography.js): a
  *    title's its title level's; only its spans are bold or italic of their
  *    own. An empty title shows "Title", faintly - a placeholder, no text.
- *  - ExitTitleLayout: a section's exit title - set as the title of a section
- *    directly inside it would be: a fleuron, an arrow, and its title again.
+ *  - ExitTitleLayout: a section's exit title - a fleuron, an arrow, and the
+ *    title of the section it's in, what comes next being back out there -
+ *    set one title level below the level of that section, whatever offsets
+ *    there are in what it exits (a section directly in it, without any) -
+ *    but spaced the other way round, since it belongs to what's before it:
+ *    a title's space after it before it, and its space before it after.
  *    Its lines' source is exitTitle(section).
  *
  * Only the flows are laid out here. The gaps between them - where a caret
@@ -83,10 +87,12 @@ export class DocumentLayout extends Section {
 
 // A section, its title at `level`: its title, then each of its children -
 // keyed by identity, so one inserted, moved or removed leaves the others as
-// they were, their lines included - then, with `exit`, its exit title.
+// they were, their lines included - then, with `exit`, its exit title,
+// back out to `parent` (the section it's in - null for a document).
 export class SectionLayout extends Box {
-  setProperties({ section, level, exit, width, format }) {
+  setProperties({ section, parent = null, level, exit, width, format }) {
     this.section = section;
+    this.parent = parent;
     this.level = level;
     this.exit = !!exit;
     this.width = width;
@@ -102,6 +108,7 @@ export class SectionLayout extends Box {
         ? new SectionLayout({
           key: "flow" + child.causality.id,
           section: child,
+          parent: section,
           level: titleLevel(child, level),
           exit: hasExitTitle(child, children[index + 1], level),
           width,
@@ -109,7 +116,7 @@ export class SectionLayout extends Box {
         })
         : new ParagraphLayout({ key: "flow" + child.causality.id, paragraph: child, role: frozen({ body: true }), width, format })),
     ];
-    if (this.exit) boxes.push(new ExitTitleLayout({ key: "exit", section, level: level + 1, width, format }));
+    if (this.exit) boxes.push(new ExitTitleLayout({ key: "exit", section, parent: this.parent, level: level - section.titleOffset, width, format }));
     return boxes;
   }
 }
@@ -136,23 +143,29 @@ export class ParagraphLayout extends Paragraph {
   }
 }
 
-// A section's exit title, at `level` - one below the section's own.
+// A section's exit title, at `level` - one below that of `parent`, the
+// section it goes back out to - and saying so: its title (none for a document).
 export class ExitTitleLayout extends Paragraph {
-  setProperties({ section, level, width, format }) {
+  setProperties({ section, parent = null, level, width, format }) {
     super.setProperties({ source: exitTitle(section), width, format });
-    this.section = section;
+    this.parent = parent;
     this.level = level;
   }
 
   content() {
-    const { font, ...layout } = titleStyle(this.inherit("typography"), this.level);
-    const title = this.section.title;
+    const { font, spaceBefore = 0, spaceAfter = 0, ...layout } = titleStyle(this.inherit("typography"), this.level);
+    const title = this.parent ? this.parent.title : null;
     return {
       ...layout,
+      // It closes what's before it, as a title opens what's after it: its
+      // spacing turned around - close to what's before, apart from what's
+      // after.
+      spaceBefore: spaceAfter,
+      spaceAfter: spaceBefore,
       font,
       spans: [
         { text: exitTitlePrefix, font },
-        ...(paragraphText(title) === "" ? [{ text: titlePlaceholder, font }] : styledSpans(title.spans, font)),
+        ...(!title ? [] : paragraphText(title) === "" ? [{ text: titlePlaceholder, font }] : styledSpans(title.spans, font)),
       ],
     };
   }

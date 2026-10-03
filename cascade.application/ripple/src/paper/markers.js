@@ -65,18 +65,23 @@ import { Sequence, isSection, gap, flowStart, flowEnd, titleLevel, hasExitTitle,
  *  - A gap: the room of its run - from the lower edge of the flow before to
  *    the upper edge of the flow after (or the paper's edge, across a page
  *    break); its bar in the middle of it.
- *  - The second place of a gap split in two (slot 1): that room, and with it
- *    the start delimiter box of the flow after - see below.
+ *  - The second place of a gap split in two (slot 1) - where the flows on
+ *    either side would be joined: that room, and every delimiter box around
+ *    it, all that what's put there replaces - the end delimiter box of the
+ *    flow before, and the start delimiter box of the flow after (see below).
  *
  * Every flow laid out is boxes on the papers (see ../print/Box.js): its line
  * boxes, and around them its content box - the bounding box of all that's
  * in it, its exit title included - and its delimiter boxes, what opens and
  * closes it apart from what it holds: a start delimiter box and an end
- * delimiter box. Mostly there are none; a section's start delimiter box is
- * its title's bounding box, its end delimiter box its exit title's, if it
- * has one (see ../model/flows.js) - each across the text area, as every
- * area is. Like the markers, these boxes are worked out here from the line
- * boxes - the paper sequence holds no others.
+ * delimiter box. A paragraph has none. A section's are its content box but
+ * for the span its children take up: from its top down to the top of its
+ * first child (its title, and the room after it), and from the bottom of its
+ * last child down to its bottom (its exit title, if it has one - see
+ * ../model/flows.js - and the room before it). Each across the text area,
+ * as every area is (flowBoxes() gives them). Like the markers, these boxes
+ * are worked out here from the line boxes - the paper sequence holds no
+ * others.
  *
  * An exit title is laid out text, but no place for a caret: no caret row.
  * The markers around it are placed as around any text - the section's end
@@ -128,7 +133,8 @@ export function caretRows(sequence, root, { edge = edgeDistance, types = {}, bes
   const items = readingOrder(root, { splitGaps }).filter((item) => item.block || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
   const extentOf = flowExtents(lines);
-  placeMarkers(items, lines, extentOf, sequence, { edge, beside, boxOf: beside ? flowBoxes(lines) : null });
+  const boxOf = boxesFrom(extentOf, sequence);
+  placeMarkers(items, lines, extentOf, sequence, { edge, beside, boundsOf: beside ? lineBounds(lines) : null, boxOf });
   const rows = [];
   for (const item of items) {
     if (item.block) {
@@ -242,7 +248,7 @@ function flowExtents(lines) {
 // right its lines reach: { first, last, left, right } - from its own lines
 // and its children's, a section's title and exit title included. Null for
 // a flow with no lines. Worked out for a flow the first time it's asked for.
-function flowBoxes(lines) {
+function lineBounds(lines) {
   const known = new Map();
   return (flow) => {
     if (known.has(flow)) return known.get(flow);
@@ -302,10 +308,10 @@ function placeMarkers(items, lines, extentOf, sequence, options) {
 const closes = (item) => item.kind === "flowEnd";
 const opens = (item) => item.kind === "flowStart";
 
-function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf }) {
+function placeRun(run, before, after, extentOf, sequence, { edge, beside, boundsOf, boxOf }) {
   // Beside their flows, starts and ends take none of the room between the
   // flows: only the gaps are spread there.
-  if (beside) placeBeside(run, boxOf);
+  if (beside) placeBeside(run, boundsOf);
   const closing = beside ? [] : run.filter(closes);
   const between = run.filter((item) => item.kind === "between");
   const opening = beside ? [] : run.filter(opens);
@@ -348,27 +354,84 @@ function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf 
     }
   }
 
-  const flowArea = (flow) => extentOf(flow).map(([page, { top, bottom }]) => rect(page, top, bottom));
   for (const item of run) {
     if (!item.placed) continue;
-    let area = item.flow ? flowArea(item.flow) : room;
-    // The second place of a split gap: the flow after's start delimiter too.
+    let area = item.flow ? boxOf(item.flow).content : room;
+    // The second place of a split gap - where what's on either side would
+    // be joined: every delimiter around it too, the end delimiter box of the
+    // flow before and the start delimiter box of the flow after - all that
+    // what's put there replaces.
     if (!item.flow && item.marker.slot === 1) {
-      const delimiter = delimiters(item.marker.list.children[item.marker.index], extentOf).start;
-      if (delimiter) area = joined([...room, ...flowArea(delimiter)]);
+      const { list, index } = item.marker;
+      const before = index > 0 ? list.children[index - 1] : null;
+      const after = list.children[index];
+      const around = [
+        ...((before && boxOf(before).endDelimiter) || []),
+        ...((after && boxOf(after).startDelimiter) || []),
+      ];
+      if (around.length > 0) area = joined([...room, ...around]);
     }
     item.placed.row = Object.freeze({ ...item.placed.row, area: Object.freeze(area) });
   }
 }
 
-// A flow's delimiters - what opens and closes it, apart from what it holds,
-// their boxes its delimiter boxes - { start, end }: what's laid out for each
-// (a paragraph, or an exit title), null if none. A section's start is its
-// title, its end its exit title, if it has one laid out.
-function delimiters(flow, extentOf) {
-  if (!flow || !isSection(flow)) return { start: null, end: null };
-  const exit = exitTitle(flow);
-  return { start: flow.title, end: extentOf(exit).length > 0 ? exit : null };
+// The boxes of every flow laid out on a paper sequence (see the class doc):
+// flowBoxes(sequence)(flow) is the flow's.
+export function flowBoxes(sequence) {
+  return boxesFrom(flowExtents(linesByParagraph(sequence)), sequence);
+}
+
+// A flow's boxes, each rectangles across the text area, one per paper it's
+// on - from its extents (flowExtents()):
+//
+//   { content, startDelimiter, endDelimiter }
+//
+//  - content: from its first line to its last, a section's title and exit
+//    title included.
+//  - startDelimiter: what opens it, before what it holds - a section's,
+//    from its top down to the top of its first child: its title, and the
+//    room after it. A section with nothing in it: all of it.
+//  - endDelimiter: what closes it, after what it holds - a section's, from
+//    the bottom of its last child down to its own bottom: its exit title, if
+//    it has one, and the room before it.
+//
+// Either delimiter null when there's nothing there - a paragraph's always.
+// Worked out for a flow the first time it's asked for.
+function boxesFrom(extentOf, sequence) {
+  const known = new Map();
+  const rect = (page, top, bottom) => {
+    const format = sequence.pages[page];
+    return { page, x: format.margins.left, top, width: contentWidth(format), height: Math.max(0, bottom - top) };
+  };
+  return (flow) => {
+    if (known.has(flow)) return known.get(flow);
+    const own = extentOf(flow);
+    const content = own.map(([page, { top, bottom }]) => rect(page, top, bottom));
+    let startDelimiter = null;
+    let endDelimiter = null;
+    if (isSection(flow)) {
+      const children = flow.children.map(extentOf).filter((extents) => extents.length > 0);
+      if (children.length === 0) startDelimiter = content;
+      else {
+        const [firstPage, { top: firstTop }] = children[0][0];
+        const last = children[children.length - 1];
+        const [lastPage, { bottom: lastBottom }] = last[last.length - 1];
+        const start = [];
+        const end = [];
+        for (const [page, { top, bottom }] of own) {
+          if (page < firstPage) start.push(rect(page, top, bottom));
+          else if (page === firstPage && firstTop > top) start.push(rect(page, top, firstTop));
+          if (page > lastPage) end.push(rect(page, top, bottom));
+          else if (page === lastPage && bottom > lastBottom) end.push(rect(page, lastBottom, bottom));
+        }
+        startDelimiter = start.length > 0 ? start : null;
+        endDelimiter = end.length > 0 ? end : null;
+      }
+    }
+    const box = Object.freeze({ content, startDelimiter, endDelimiter });
+    known.set(flow, box);
+    return box;
+  };
 }
 
 // Rectangles, the ones touching one above the other on a paper - as wide,
@@ -390,15 +453,15 @@ function joined(rects) {
 // innermost (the first) a step out, every one after it a step further; the
 // starts left of them, the innermost (the last) a step out, every one
 // before it a step further.
-function placeBeside(run, boxOf) {
+function placeBeside(run, boundsOf) {
   const ends = run.filter(closes);
   const starts = run.filter(opens);
   ends.forEach((item, index) => {
-    const box = boxOf(item.flow);
+    const box = boundsOf(item.flow);
     if (box) item.placed = besideRow(item, box.last, box.right + besideStep * (index + 1));
   });
   starts.forEach((item, index) => {
-    const box = boxOf(item.flow);
+    const box = boundsOf(item.flow);
     if (box) item.placed = besideRow(item, box.first, box.left - besideStep * (starts.length - index));
   });
 }

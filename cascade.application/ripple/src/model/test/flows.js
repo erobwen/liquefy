@@ -35,21 +35,22 @@ describe("Ripple's document flows", function () {
     assert.equal(titleLevel(offsetRoot), 2);
   });
 
-  it("gives a section an exit title when a sibling of a lower title level follows it", function () {
+  it("gives a section an exit title when a sibling of a higher title level follows it - a paragraph, or a section further down", function () {
     const deep = section({ title: "Deep", titleOffset: 1 });
     const plain = section("Plain");
-    assert.ok(hasExitTitle(deep, plain, 1));     // 3, then 2
-    assert.ok(!hasExitTitle(plain, deep, 1));    // 2, then 3
+    assert.ok(hasExitTitle(plain, paragraph("p"), 1));  // 2, then infinite
+    assert.ok(hasExitTitle(plain, deep, 1));     // 2, then 3
+    assert.ok(!hasExitTitle(deep, plain, 1));    // 3, then 2
     assert.ok(!hasExitTitle(plain, section("Also plain"), 1));
-    assert.ok(!hasExitTitle(deep, null, 1));     // the last: nothing follows
+    assert.ok(!hasExitTitle(plain, null, 1));    // the last: nothing follows
     assert.ok(!hasExitTitle(paragraph("p"), plain, 1));
     // The same exit title, every time it's asked for.
     assert.equal(exitTitle(deep), exitTitle(deep));
     assert.equal(exitTitle(deep).exitOf, deep);
   });
 
-  it("keeps a section's paragraphs before its sections", function () {
-    assert.throws(() => section("Bad", section("Inner"), paragraph("after")), /paragraphs come before its sections/);
+  it("takes paragraphs and sections as a section's children, in any order - nothing else", function () {
+    assert.doesNotThrow(() => section("Good", section("Inner"), paragraph("after")));
     assert.throws(() => section("Bad", "not a flow"), /isn't a paragraph or a section/);
     assert.doesNotThrow(() => section("Good", paragraph("a"), paragraph("b"), section("c"), section("d")));
   });

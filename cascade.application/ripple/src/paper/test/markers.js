@@ -5,7 +5,7 @@ import {
   samePosition, textPosition, paragraphText, exitTitle,
 } from "../../model/flows.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
-import { caretRows, edgeDistance, besideStep } from "../markers.js";
+import { caretRows, edgeDistance, besideStep, flowBoxes } from "../markers.js";
 import { caretAt, hitTest, stepRight, stepLeft, rowAbove, rowBelow, sequenceStart, sequenceEnd } from "../positions.js";
 
 // Every character 1000 µm wide, lines 5000 µm tall; flows 6000 µm apart, so
@@ -208,24 +208,63 @@ describe("Ripple's markers", function () {
     assert.equal(markerY(rows, gap(doc, 1, 1)), Math.round(from + (to - from) * 2 / 3));
   });
 
-  it("split, give a gap's second place an area reaching over the start delimiter box after it - a section's title", function () {
+  it("split, give a gap's second place an area reaching over the start delimiter box after it - a section's title, down to what's in it", function () {
     const a = paragraph("aa");
     const next = section("Next", paragraph("nn"));
     const b = paragraph("bb");
     const doc = document({ title: "D", paper, margins }, a, b, next);
     const { rows } = layOut(sequenceOf(doc), { splitGaps: "all" });
     const box = (from, to) => [{ page: 0, ...textArea, top: from, height: to - from }];
-    // Before a section: the room, and the section's title below it.
+    // Before a section: the room, and the section's title below it, down to "nn".
     assert.deepEqual(areaOf(rows, gap(doc, 2, 0)), box(bottom(rows, b), top(rows, next.title)));
-    assert.deepEqual(areaOf(rows, gap(doc, 2, 1)), box(bottom(rows, b), bottom(rows, next.title)));
+    assert.deepEqual(areaOf(rows, gap(doc, 2, 1)), box(bottom(rows, b), top(rows, next.children[0])));
     // Before a paragraph - no delimiter: the room.
     assert.deepEqual(areaOf(rows, gap(doc, 1, 1)), box(bottom(rows, a), top(rows, b)));
   });
 
+  it("split, give a gap's second place an area over every delimiter around it - the end of the flow before, the start of the flow after", function () {
+    const a = paragraph("aa");
+    const b = paragraph("bb");
+    const before = section("Before", a);
+    const after = section({ title: "After", titleOffset: 1 }, b);
+    const doc = document({ title: "D", paper, margins }, before, after);
+    const { sequence, rows } = layOut(sequenceOf(doc), { splitGaps: "beforeSections" });
+    const exit = sequence.linesOf(0).find((line) => line.paragraph === exitTitle(before));
+    const box = (from, to) => [{ page: 0, ...textArea, top: from, height: to - from }];
+    // The first place: the room between the two sections.
+    assert.deepEqual(areaOf(rows, gap(doc, 1, 0)), box(exit.top + exit.height, top(rows, after.title)));
+    // The second: from "aa" - Before's exit title - down to "bb" - After's title.
+    assert.deepEqual(areaOf(rows, gap(doc, 1, 1)), box(bottom(rows, a), top(rows, b)));
+  });
+
+  it("give a section delimiter boxes: from its top to its first child, and from its last child - however deep - to its bottom, its exit title in it", function () {
+    const deepest = paragraph("dd");
+    const inner = section("Inner", paragraph("ii"), section("Deeper", deepest));
+    const outer = section("Outer", inner);
+    const empty = section("Empty");
+    const doc = document({ title: "D", paper, margins }, outer, paragraph("after"), empty);
+    const { sequence, rows } = layOut(sequenceOf(doc));
+    const boxOf = flowBoxes(sequence);
+    const box = (from, to) => [{ page: 0, ...textArea, top: from, height: to - from }];
+    const exit = sequence.linesOf(0).find((line) => line.paragraph === exitTitle(outer));
+    // Outer: its title and the room after it - and, after "dd", deep in
+    // Inner, the room and its exit title.
+    assert.deepEqual(boxOf(outer).startDelimiter, box(top(rows, outer.title), top(rows, inner.title)));
+    assert.deepEqual(boxOf(outer).endDelimiter, box(bottom(rows, deepest), exit.top + exit.height));
+    assert.deepEqual(boxOf(outer).content, box(top(rows, outer.title), exit.top + exit.height));
+    // Inner: no exit title - nothing after its last child.
+    assert.equal(boxOf(inner).endDelimiter, null);
+    // A section with nothing in it: all of it opens it.
+    assert.deepEqual(boxOf(empty).startDelimiter, boxOf(empty).content);
+    // A paragraph: none.
+    assert.equal(boxOf(deepest).startDelimiter, null);
+    assert.equal(boxOf(deepest).endDelimiter, null);
+  });
+
   it("go around an exit title, as around text - but the caret never goes into it", function () {
     const q = paragraph("qq");
-    const deep = section({ title: "Deep", titleOffset: 1 }, q);
-    const next = section("Next");
+    const deep = section("Deep", q);
+    const next = section({ title: "Next", titleOffset: 1 });
     const doc = document({ title: "D", paper, margins }, deep, next);
     const root = sequenceOf(doc);
     const { sequence, rows } = layOut(root);

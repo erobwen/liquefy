@@ -6,8 +6,8 @@ A document is a tree of flows, as a DAISY 2 book is (`flows.js`):
 - **Paragraph** - a leaf: text, as spans. A span may be bold or italic; that's
   the only styling there is, and it's the span's - a paragraph as a whole holds
   no style at all.
-- **Section** - a `title` (a paragraph) and `children`: its paragraphs first,
-  then the sections inside it - never a paragraph after a section.
+- **Section** - a `title` (a paragraph) and `children`: paragraphs and the
+  sections inside it, in any order.
 - **Document** - the outermost section: its title is the document's, and it
   holds the paper it's printed on.
 
@@ -27,10 +27,11 @@ A section always has a title - an empty one is laid out as a faint "Title"
 placeholder. Its **title level** is 1 at the root, its parent's + 1 inside
 another section, each pushed further down by the section's own `titleOffset`;
 a paragraph's is infinite (`titleLevel`). A section followed by a sibling of a
-lower title level gets an **exit title** (`hasExitTitle`, `exitTitle`): after
-all that's in it, set as a title one level below its own - a fleuron, an
-arrow, and its title again - so nobody takes the sibling for being inside it.
-It's laid out, but no text of the document's and nowhere a caret goes.
+higher title level - a paragraph, or a section further down - gets an **exit
+title** (`hasExitTitle`, `exitTitle`): after all that's in it, a fleuron, an
+arrow, and the title of the section it's in, where the sibling is - set a
+title level below that title - so nobody takes the sibling for being inside
+it. It's laid out, but no text of the document's and nowhere a caret goes.
 
 What a flow looks like comes from where it is: a section's title is a heading
 for its title level, every other paragraph is body text (see

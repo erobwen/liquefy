@@ -90,16 +90,46 @@ describe("Laying out a Ripple document", function () {
     assert.ok(line.width > 0);
   });
 
-  it("gives a section followed by a sibling of a lower title level an exit title - one level below its own - and takes it away when they no longer are", function () {
-    const deep = section({ title: "Deep", titleOffset: 1 }, paragraph("in deep"));
-    const doc = document({ title: "Book", paper, margins }, deep, section("Next"));
+  it("gives a section followed by a sibling of a higher title level an exit title - a level below the section it goes back out to - and takes it away when they no longer are", function () {
+    const one = section("One", paragraph("in one"));
+    const after = paragraph("after");
+    const doc = document({ title: "Book", paper, margins }, one, after);
     const sequence = layOut(doc);
+    // A paragraph after a section: the section's exit title before it.
     assert.deepEqual(lines(sequence).map(([, text, family]) => text + "/" + family),
-      ["Book/Title0", "Deep/Title2", "in deep/Body", exitTitlePrefix + "Deep/Title3", "Next/Title1"]);
-    const exit = sequence.linesOf(0)[3];
-    assert.equal(exit.paragraph, exitTitle(deep));
-    deep.titleOffset = 0;
-    assert.deepEqual(lines(sequence).map(([, text]) => text), ["Book", "Deep", "in deep", "Next"]);
+      ["Book/Title0", "One/Title1", "in one/Body", exitTitlePrefix + "Book/Title1", "after/Body"]);
+    assert.equal(sequence.linesOf(0)[3].paragraph, exitTitle(one));
+    // A section further down after it, too; one as high, or higher, not.
+    const deeper = section({ title: "Deeper", titleOffset: 1 });
+    doc.children.splice(1, 1, deeper);
+    assert.deepEqual(lines(sequence).map(([, text]) => text), ["Book", "One", "in one", exitTitlePrefix + "Book", "Deeper"]);
+    deeper.titleOffset = 0;
+    assert.deepEqual(lines(sequence).map(([, text]) => text), ["Book", "One", "in one", "Deeper"]);
+  });
+
+  it("names in an exit title the section it goes back out to - the one the exited section is in", function () {
+    const doc = document({ title: "Book", paper: { width: 22000, height: 80000 }, margins },
+      section("Outer", section("Inner", paragraph("in")), paragraph("back in outer")));
+    assert.deepEqual(lines(layOut(doc)).map(([, text]) => text),
+      ["Book", "Outer", "Inner", "in", exitTitlePrefix + "Outer", "back in outer"]);
+  });
+
+  it("sets an exit title a level below the section it goes back out to - whatever the offsets in what it exits", function () {
+    const doc = document({ title: "Book", paper, margins },
+      section({ title: "Far down", titleOffset: 2 }, paragraph("in")), paragraph("after"));
+    assert.deepEqual(lines(layOut(doc)).map(([, text, family]) => text + "/" + family),
+      ["Book/Title0", "Far down/Title3", "in/Body", exitTitlePrefix + "Book/Title1", "after/Body"]);
+  });
+
+  it("spaces an exit title the other way round from a title - close to what's before it, apart from what's after", function () {
+    // Titles 3000 µm of space before, 1000 after; body none.
+    const spaced = { ...plain, titles: plain.titles.map((title) => ({ ...title, spaceBefore: 3000, spaceAfter: 1000 })) };
+    const doc = document({ title: "B", paper: { width: 22000, height: 80000 }, margins }, section("One", paragraph("in")), paragraph("after"));
+    const tops = lines(layOut(doc, { typography: spaced })).map(([, text, , top]) => [text, top]);
+    const [, , inOne, exit, after] = tops;
+    assert.equal(exit[0], exitTitlePrefix + "B");
+    assert.equal(exit[1] - (inOne[1] + 5000), 1000);  // its space before: a title's space after
+    assert.equal(after[1] - (exit[1] + 5000), 3000);  // its space after: a title's space before
   });
 
   it("lays out the test document with the real typography", function () {

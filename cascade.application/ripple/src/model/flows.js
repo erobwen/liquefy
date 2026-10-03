@@ -7,9 +7,9 @@ import { observable } from "@liquefy/cascade.component";
  *  - Flow: what every node of the document is.
  *  - Paragraph: a leaf - its text, as spans. A span is styled on its own
  *    ({ text, bold, italic }); a paragraph as a whole holds no style at all.
- *  - Section: a title - a paragraph - and its children: paragraphs first,
- *    then sections, never a paragraph after a section (see
- *    checkChildren()).
+ *  - Section: a title - a paragraph - and its children: paragraphs and
+ *    sections, in any order (see checkChildren()) - a paragraph after a
+ *    section closed by the section's exit title (see below).
  *  - Document: a section at the top - its title the document's - and the
  *    paper it's printed on.
  *  - Sequence: the root of it all - a list of documents, one after another.
@@ -52,11 +52,13 @@ import { observable } from "@liquefy/cascade.component";
  * each pushed further down by its own `titleOffset`. A paragraph's level is
  * infinite: below every title.
  *
- * With offsets, a section A can be followed by a sibling B of a lower level
- * than A's - and seeing B's title, nobody could tell whether B is inside A,
- * or after it. Such an A has an exit title (see hasExitTitle()): after all
- * that's in it, a title as for a section directly inside A, saying that what
- * comes next is back out of A - a fleuron, an arrow, and A's title again.
+ * A section A can be followed by a sibling B of a higher level than A's - a
+ * paragraph after a section, or a section with a title offset - and seeing
+ * B, nobody could tell whether B is inside A, or after it. Such an A has an
+ * exit title (see hasExitTitle()): after all that's in it, saying that what
+ * comes next is back out of A, in the section A is in - a fleuron, an arrow,
+ * and that section's title, set a title level below it. A sibling of the same
+ * level, or a lower one, needs none: its title says where it is.
  * It's no text of the document's - nowhere a caret can be - only laid out:
  * exitTitle(A) is what stands for it there.
  */
@@ -73,7 +75,7 @@ export class Paragraph extends Flow {
 
 export class Section extends Flow {
   // title: a Paragraph, a string, or spans - always there, if empty (then
-  // laid out as a placeholder, see ../layout). children: paragraphs, then
+  // laid out as a placeholder, see ../layout). children: paragraphs and
   // sections. titleOffset: how many title levels further down than its
   // place makes it (see titleLevel()).
   constructor(title, children = [], titleOffset = 0) {
@@ -131,10 +133,10 @@ export function titleLevel(flow, parentLevel = 0) {
 }
 
 // Whether `flow`, followed by `next` in a list inside a section of
-// `parentLevel`, has an exit title: a section, followed by a flow of a lower
-// title level.
+// `parentLevel`, has an exit title: a section, followed by a flow of a
+// higher title level - a paragraph, or a section further down.
 export function hasExitTitle(flow, next, parentLevel = 0) {
-  return isSection(flow) && !!next && titleLevel(next, parentLevel) < titleLevel(flow, parentLevel);
+  return isSection(flow) && !!next && titleLevel(next, parentLevel) > titleLevel(flow, parentLevel);
 }
 
 // What stands for a section's exit title where it's laid out - the same one
@@ -146,15 +148,12 @@ export function exitTitle(section) {
   return exit;
 }
 
-// A section's children as they may be: flows, paragraphs before sections.
-// Throws otherwise; returns them as they are.
+// A section's children as they may be: paragraphs and sections, in any
+// order - no documents. Throws otherwise; returns them as they are.
 export function checkChildren(children) {
-  let sectionSeen = false;
   children.forEach((child, index) => {
     if (!(child instanceof Paragraph) && !(child instanceof Section)) throw new Error("A section's child " + index + " isn't a paragraph or a section.");
     if (child instanceof Document) throw new Error("A document can't be inside a section.");
-    if (child instanceof Section) sectionSeen = true;
-    else if (sectionSeen) throw new Error("A section's paragraphs come before its sections - child " + index + " is a paragraph after a section.");
   });
   return children;
 }

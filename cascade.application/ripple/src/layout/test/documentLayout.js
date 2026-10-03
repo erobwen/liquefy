@@ -1,7 +1,7 @@
 import assert from "assert";
 import { PaperSequence, pt } from "../../print/index.js";
-import { document, section, paragraph, bold, sequence as sequenceOf } from "../../model/parts.js";
-import { SequenceLayout } from "../DocumentLayout.js";
+import { document, section, paragraph, bold, sequence as sequenceOf, exitTitle } from "../../model/flows.js";
+import { SequenceLayout, exitTitlePrefix } from "../DocumentLayout.js";
 import { typography } from "../typography.js";
 import { testDocument } from "../../model/testDocument.js";
 
@@ -14,7 +14,7 @@ const measurer = {
 const paper = { width: 22000, height: 42000 };
 const margins = { top: 1000, right: 1000, bottom: 1000, left: 1000 };
 
-// No spacing, so lines fall on whole lines: only what the depth sets apart.
+// No spacing, so lines fall on whole lines: only what the title level sets apart.
 const plain = {
   body: { font: { family: "Body", size: 11, weight: 400, italic: false } },
   titles: [0, 1, 2, 3].map((depth) => ({ font: { family: "Title" + depth, size: 11, weight: 700, italic: depth >= 3 } })),
@@ -31,7 +31,7 @@ const lines = (sequence) => sequence.pages.flatMap((format, page) =>
   sequence.linesOf(page).map((line) => [page, line.runs.map((run) => run.text).join(""), line.runs[0] ? line.runs[0].font.family : null, line.top]));
 
 describe("Laying out a Ripple document", function () {
-  it("renders every part in reading order - a title by its section's depth, the rest as body text", function () {
+  it("renders every flow in reading order - a title by its section's title level, the rest as body text", function () {
     const doc = document({ title: "Book", paper, margins },
       paragraph("intro"),
       section("One", paragraph("text one"), section("One.one", paragraph("deep"))),
@@ -72,6 +72,34 @@ describe("Laying out a Ripple document", function () {
       ["Book/Title0", "introduction/Body", "One/Title1", "Two/Title1", "more/Body"]);
     doc.children.splice(1, 1);
     assert.deepEqual(lines(sequence).map(([, text]) => text), ["Book", "introduction", "Two", "more"]);
+  });
+
+  it("sets a title by its title level - a section's offset pushing it, and all inside it, further down", function () {
+    const doc = document({ title: "Book", paper, margins, titleOffset: 1 },
+      section({ title: "Deeper", titleOffset: 1 }, section("Inside")));
+    assert.deepEqual(lines(layOut(doc)).map(([, text, family]) => text + "/" + family),
+      ["Book/Title1", "Deeper/Title3", "Inside/Title3"]);  // levels 2, 4 and 5 - the last two as the deepest there is
+  });
+
+  it("shows an empty title as \"Title\", faintly - a placeholder, no text", function () {
+    const doc = document({ title: "Book", paper, margins }, section("", paragraph("text")));
+    const line = layOut(doc).linesOf(0)[1];
+    assert.deepEqual(line.runs.map((run) => [run.text, !!run.placeholder]), [["Title", true]]);
+    assert.equal(line.start, 0);
+    assert.equal(line.end, 0);
+    assert.ok(line.width > 0);
+  });
+
+  it("gives a section followed by a sibling of a lower title level an exit title - one level below its own - and takes it away when they no longer are", function () {
+    const deep = section({ title: "Deep", titleOffset: 1 }, paragraph("in deep"));
+    const doc = document({ title: "Book", paper, margins }, deep, section("Next"));
+    const sequence = layOut(doc);
+    assert.deepEqual(lines(sequence).map(([, text, family]) => text + "/" + family),
+      ["Book/Title0", "Deep/Title2", "in deep/Body", exitTitlePrefix + "Deep/Title3", "Next/Title1"]);
+    const exit = sequence.linesOf(0)[3];
+    assert.equal(exit.paragraph, exitTitle(deep));
+    deep.titleOffset = 0;
+    assert.deepEqual(lines(sequence).map(([, text]) => text), ["Book", "Deep", "in deep", "Next"]);
   });
 
   it("lays out the test document with the real typography", function () {

@@ -1,5 +1,5 @@
 import { positionInLine } from "../print/index.js";
-import { textPosition, isMarker, samePosition } from "../model/parts.js";
+import { textPosition, isMarker, samePosition } from "../model/flows.js";
 
 /**
  * The caret in a laid-out Ripple document: where a position is on the
@@ -7,12 +7,12 @@ import { textPosition, isMarker, samePosition } from "../model/parts.js";
  * all on the document's caret rows (see markers.js), every line and every
  * marker, in reading order. `rows` is what caretRows() returns.
  *
- * Positions are the model's (see ../model/parts.js): in a paragraph's text,
- * or a marker - a gap, or a part's start or end. On a line, everything is as
+ * Positions are the model's (see ../model/flows.js): in a paragraph's text,
+ * or a marker - a gap, or a flow's start or end. On a line, everything is as
  * in cascade.print's positions.js - the characters of the line, measured
  * with the measurer the lines were broken with. A marker is a row of one
- * place: its bar - a horizontal line across the text area, or a part's start
- * or end beside the part, a vertical one.
+ * place: its bar - a horizontal line across the text area, or a flow's start
+ * or end beside the flow, a vertical one.
  */
 
 const isMarkerRow = (row) => "marker" in row;
@@ -44,7 +44,7 @@ export function rowAt(rows, at) {
 // Where the caret for a position goes, in µm on its paper: in the text,
 // { page, x, top, height } - as tall as the font at that place reaches, on
 // its line's baseline; at a marker, its bar - { page, x, width, y,
-// marker: true }, a horizontal line, or beside its part a vertical one,
+// marker: true }, a horizontal line, or beside its flow a vertical one,
 // shaped as in the text. Null if it isn't laid out.
 export function caretAt(rows, at, measurer) {
   const found = rowAt(rows, at);
@@ -126,15 +126,15 @@ function placeOnLine(rows, order, x, measurer) {
 // in reading order, the ends just after.
 function besideLine(rows, order) {
   const result = [];
-  for (let i = order - 1; i >= 0 && isBesideRow(rows[i].row) && rows[i].row.kind === "partStart"; i--) result.push(rows[i].row);
-  for (let i = order + 1; i < rows.length && isBesideRow(rows[i].row) && rows[i].row.kind === "partEnd"; i++) result.push(rows[i].row);
+  for (let i = order - 1; i >= 0 && isBesideRow(rows[i].row) && rows[i].row.kind === "flowStart"; i--) result.push(rows[i].row);
+  for (let i = order + 1; i < rows.length && isBesideRow(rows[i].row) && rows[i].row.kind === "flowEnd"; i++) result.push(rows[i].row);
   return result;
 }
 
 // The line a start or end at `order` is beside: a start the line after it,
 // an end the line before.
 function lineBeside(rows, order) {
-  const step = rows[order].row.kind === "partStart" ? 1 : -1;
+  const step = rows[order].row.kind === "flowStart" ? 1 : -1;
   let line = order;
   while (rows[line + step] && isBesideRow(rows[line].row)) line += step;
   return line;

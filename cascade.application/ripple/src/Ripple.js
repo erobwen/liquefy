@@ -5,7 +5,7 @@ import { PaperSequence, paperSizes, margins, mm, inch } from "./print/index.js";
 import { domMeasurer, printPaperSequence } from "./print/dom.js";
 import { rippleEditor } from "./paper/RippleEditor.js";
 import { markerTypes } from "./paper/markers.js";
-import { sequence as sequenceOf } from "./model/parts.js";
+import { sequence as sequenceOf } from "./model/flows.js";
 import { testDocument } from "./model/testDocument.js";
 import { SequenceLayout } from "./layout/DocumentLayout.js";
 
@@ -23,15 +23,15 @@ const splitGapChoices = [
 
 /**
  * Ripple - a word processor, on Cascade and cascade.print, whose document is
- * a tree of parts: sections in sections, each with a title, and paragraphs
+ * a tree of flows: sections in sections, each with a title, and paragraphs
  * of text (see ./model). For now it shows a document, on paper, with a caret
  * that moves through every place in it - in the text, and the gaps between
- * its parts at every level - editing comes next.
+ * its flows at every level - editing comes next.
  *
  * Two roots, side by side:
  *  - The layout: the documents rendered onto a PaperSequence, a component
- *    for every part of them (see ./layout) - and, placed from what's laid
- *    out, the gaps between the parts (see ./paper/markers.js). Not part of the app's own render - it
+ *    for every flow of them (see ./layout) - and, placed from what's laid
+ *    out, the gaps between the flows (see ./paper/markers.js). Not part of the app's own render - it
  *    has a target of its own - so the app owns it: created in
  *    initialization, laid out in a repeater of its own from establishment
  *    on, disposed with the app.
@@ -44,7 +44,7 @@ export class Ripple extends Component {
     // For experimenting with where a caret should be able to go:
     // markerTypes - which kinds of marker it goes to ({ type: false } for
     // one it doesn't), showAllAreas - every marker's area drawn at once, and
-    // markersBeside - parts' starts and ends beside them, or between them,
+    // markersBeside - flows' starts and ends beside them, or between them,
     // and splitGaps - which gaps are two places, one above the other (see
     // splitGapChoices).
     return { zoom: 1, showAllAreas: false, markerTypes: {}, markersBeside: true, splitGaps: "beforeSections" };
@@ -152,7 +152,7 @@ export class Ripple extends Component {
         onChange: (checked) => this.setMarkerType(type, checked),
       })),
       heading("Starts and ends"),
-      checkbox({ key: "beside", label: "Beside their parts", checked: this.markersBeside, onChange: (checked) => { this.markersBeside = checked; } }),
+      checkbox({ key: "beside", label: "Beside their flows", checked: this.markersBeside, onChange: (checked) => { this.markersBeside = checked; } }),
       heading("Gaps"),
       text("Two places, one above the other:"),
       splitGapChoices.map(({ value, label }) => button(

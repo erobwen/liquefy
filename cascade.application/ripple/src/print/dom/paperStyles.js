@@ -39,5 +39,7 @@ export function runStyle(line, run) {
     fontSize: font.size + "pt",
     fontWeight: font.weight,
     fontStyle: font.italic ? "italic" : "normal",
+    // In place of text there isn't (see lineBreaking.js): faint.
+    ...(run.placeholder ? { opacity: 0.5 } : {}),
   };
 }

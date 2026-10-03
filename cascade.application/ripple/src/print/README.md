@@ -69,7 +69,7 @@ A `Paragraph` is laid out in two repeaters of its own (see `src/Paragraph.js`):
    width it's given. Independent of where the paragraph is placed, so it
    reruns only when what content() read changes, or the width.
 2. **Placing the lines** - its render, onto the paper sequence, from where
-   the paragraph before it left off (`PaperSequence.flow`), onto a new paper
+   the paragraph before it left off (`PaperSequence.next`), onto a new paper
    when one is full.
 
 So an edit breaks one paragraph again, and the paragraphs after it are only

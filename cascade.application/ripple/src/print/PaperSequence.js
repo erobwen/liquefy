@@ -14,7 +14,7 @@ import { observable } from "@liquefy/cascade.component";
  *  - `pages`: the papers so far, each { width, height, margins } - pushed by
  *    a section as it starts, and by a paragraph that runs off the bottom
  *    of one.
- *  - `flow`: where the next thing goes - { page, y, spaceAfter, atPageTop }:
+ *  - `next`: where the next thing goes - { page, y, spaceAfter, atPageTop }:
  *    the page it's on, how far down it (from the paper's top edge), the
  *    space the paragraph before asked for after it, and whether nothing is
  *    on the page yet. Frozen, so a paragraph that ends where it did before
@@ -25,7 +25,7 @@ import { observable } from "@liquefy/cascade.component";
 export class PaperSequence {
   constructor() {
     this.pages = observable([]);
-    this.flow = null;
+    this.next = null;
     // No timeless side (see cascade.component's fromTarget()): nothing about
     // a paper sequence is the same throughout a pass.
     this.timeless = null;

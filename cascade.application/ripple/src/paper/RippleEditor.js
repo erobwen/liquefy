@@ -1,7 +1,7 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { TextInput } from "../print/dom.js";
-import { samePosition, isMarker } from "../model/parts.js";
+import { samePosition, isMarker } from "../model/flows.js";
 import { caretRows } from "./markers.js";
 import {
   caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, rowAt,
@@ -12,14 +12,14 @@ import { ripplePaperView } from "./RipplePaperView.js";
 /**
  * RippleEditor - Ripple's papers with a caret: cascade.print's PaperEditor,
  * made for Ripple's document - its caret moves through every place in it,
- * the text and the gaps between its parts at every level (see markers.js,
+ * the text and the gaps between its flows at every level (see markers.js,
  * positions.js), and a gap's caret is a horizontal bar across the text area.
  *
  *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, markersBeside, splitGaps })
  *
  * `sequence` is the paper sequence the document is laid out onto - by
  * someone else: the editor only reads it - `root` the document's root (the
- * sequence of documents, see ../model/parts.js), and `measurer` the one it's
+ * sequence of documents, see ../model/flows.js), and `measurer` the one it's
  * laid out with, for placing the caret between the same characters the lines
  * were broken at.
  *
@@ -28,17 +28,17 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * unless it says false. A caret left at a kind no longer there is gone - the
  * next move starts from the very start.
  *
- * `markersBeside` (true by default) puts a part's start and end beside the
- * part, a vertical bar - false, between the parts, a horizontal one (see
+ * `markersBeside` (true by default) puts a flow's start and end beside the
+ * flow, a vertical bar - false, between the flows, a horizontal one (see
  * markers.js). `splitGaps` says which gaps are two places, one above the
  * other: "beforeSections" (by default) every gap before a section, "all"
  * or "none".
  *
  * At a marker, the marker's area - what it stands for (see markers.js) - is
- * drawn under the text: the room a gap is in, or the part whose start or end
+ * drawn under the text: the room a gap is in, or the flow whose start or end
  * it is. `showAllAreas` draws every marker's at once, to see them all.
  *
- * The caret and the selection are positions (see ../model/parts.js) - in a
+ * The caret and the selection are positions (see ../model/flows.js) - in a
  * paragraph's text, or a gap - state of the editor, drawn where the layout
  * puts them. Moving the caret is moving through the document's caret rows,
  * in reading order. What an edit does is the model's business, given as

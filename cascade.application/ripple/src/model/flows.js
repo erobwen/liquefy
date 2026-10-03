@@ -1,10 +1,10 @@
 import { observable } from "@liquefy/cascade.component";
 
 /**
- * Ripple's document model - a tree of parts, as a DAISY 2 book is: sections,
+ * Ripple's document model - a tree of flows, as a DAISY 2 book is: sections,
  * each with a title, holding paragraphs and the sections inside them.
  *
- *  - Part: what every node of the document is.
+ *  - Flow: what every node of the document is.
  *  - Paragraph: a leaf - its text, as spans. A span is styled on its own
  *    ({ text, bold, italic }); a paragraph as a whole holds no style at all.
  *  - Section: a title - a paragraph - and its children: paragraphs first,
@@ -14,11 +14,11 @@ import { observable } from "@liquefy/cascade.component";
  *    paper it's printed on.
  *  - Sequence: the root of it all - a list of documents, one after another.
  *
- * What a part looks like comes from where it is, not from the part: a
+ * What a flow looks like comes from where it is, not from the flow: a
  * section's title is set as a heading for how deep the section is, and every
  * other paragraph as body text (see ../layout).
  *
- * Every part is observable, all the way down - its spans, its children - so
+ * Every flow is observable, all the way down - its spans, its children - so
  * what's laid out from it follows every change.
  *
  * Positions - where a caret can be - are of three kinds:
@@ -28,28 +28,41 @@ import { observable } from "@liquefy/cascade.component";
  *   gap(list, index, slot)                    - before child `index` of
  *                                               `list`: a section, or the
  *                                               sequence - in slot 0, or 1
- *   partStart(part), partEnd(part)            - at the very start and end of
- *                                               a part: a document, a
+ *   flowStart(flow), flowEnd(flow)            - at the very start and end of
+ *                                               a flow: a document, a
  *                                               section, a title, a paragraph
  *
- * A gap is between two parts lying side by side in a list - two siblings,
+ * A gap is between two flows lying side by side in a list - two siblings,
  * or a section's title and its first child - and belongs to that list, at
  * one level of the tree: "after A" and "before B" among a section's children
- * are the same gap. Before a list's first part and after its last there's no
- * gap: those places are the parts' own start and end. Every part has a start
+ * are the same gap. Before a list's first flow and after its last there's no
+ * gap: those places are the flows' own start and end. Every flow has a start
  * and an end of its own: between two paragraphs A and B, the end of A, the
  * gap between them, and the start of B are three places; and the end of a
  * section's last paragraph, and the end of the section, are two.
  *
  * A gap may be two places, one above the other: slot 0, the upper, and slot
- * 1 - to try out a caret with two places between two parts (see
+ * 1 - to try out a caret with two places between two flows (see
  * ../paper/markers.js). With one, it's slot 0.
  *
- * Gaps and part starts and ends are markers - places between text.
+ * Gaps and flow starts and ends are markers - places between text.
+ *
+ * Title levels: a section's title is set for its level (see titleLevel()) -
+ * 1 for a section at the root, its parent's + 1 for one inside another,
+ * each pushed further down by its own `titleOffset`. A paragraph's level is
+ * infinite: below every title.
+ *
+ * With offsets, a section A can be followed by a sibling B of a lower level
+ * than A's - and seeing B's title, nobody could tell whether B is inside A,
+ * or after it. Such an A has an exit title (see hasExitTitle()): after all
+ * that's in it, a title as for a section directly inside A, saying that what
+ * comes next is back out of A - a fleuron, an arrow, and A's title again.
+ * It's no text of the document's - nowhere a caret can be - only laid out:
+ * exitTitle(A) is what stands for it there.
  */
-export class Part {}
+export class Flow {}
 
-export class Paragraph extends Part {
+export class Paragraph extends Flow {
   // spans: strings, or { text, bold, italic }.
   constructor(spans = []) {
     super();
@@ -58,26 +71,29 @@ export class Paragraph extends Part {
   }
 }
 
-export class Section extends Part {
-  // title: a Paragraph, a string, or spans. children: paragraphs, then
-  // sections.
-  constructor(title, children = []) {
+export class Section extends Flow {
+  // title: a Paragraph, a string, or spans - always there, if empty (then
+  // laid out as a placeholder, see ../layout). children: paragraphs, then
+  // sections. titleOffset: how many title levels further down than its
+  // place makes it (see titleLevel()).
+  constructor(title, children = [], titleOffset = 0) {
     super();
     this.title = toParagraph(title);
+    this.titleOffset = titleOffset;
     this.children = observable(checkChildren(children));
     return observable(this);
   }
 }
 
 export class Document extends Section {
-  constructor({ title, paper, margins }, children = []) {
-    super(title, children);
+  constructor({ title, paper, margins, titleOffset = 0 }, children = []) {
+    super(title, children, titleOffset);
     this.paper = paper;
     this.margins = margins;
   }
 }
 
-export class Sequence extends Part {
+export class Sequence extends Flow {
   constructor(children = []) {
     super();
     children.forEach((child, index) => {
@@ -90,25 +106,47 @@ export class Sequence extends Part {
 
 export const textPosition = (paragraph, offset, lineEnd = false) => Object.freeze({ paragraph, offset, lineEnd });
 export const gap = (list, index, slot = 0) => Object.freeze({ list, index, slot });
-export const partStart = (part) => Object.freeze({ part, edge: "start" });
-export const partEnd = (part) => Object.freeze({ part, edge: "end" });
+export const flowStart = (flow) => Object.freeze({ flow, edge: "start" });
+export const flowEnd = (flow) => Object.freeze({ flow, edge: "end" });
 export const isGap = (at) => !!at && "list" in at;
-export const isPartEdge = (at) => !!at && "part" in at;
-// A marker: a place between text - a gap, or a part's start or end.
-export const isMarker = (at) => isGap(at) || isPartEdge(at);
+export const isFlowEdge = (at) => !!at && "flow" in at;
+// A marker: a place between text - a gap, or a flow's start or end.
+export const isMarker = (at) => isGap(at) || isFlowEdge(at);
 
 // The same place - in the text wherever a line break puts it, the same gap
-// in the same slot, or the same part's same edge.
+// in the same slot, or the same flow's same edge.
 export function samePosition(a, b) {
   if (isGap(a) || isGap(b)) return isGap(a) && isGap(b) && a.list === b.list && a.index === b.index && a.slot === b.slot;
-  if (isPartEdge(a) || isPartEdge(b)) return isPartEdge(a) && isPartEdge(b) && a.part === b.part && a.edge === b.edge;
+  if (isFlowEdge(a) || isFlowEdge(b)) return isFlowEdge(a) && isFlowEdge(b) && a.flow === b.flow && a.edge === b.edge;
   return a.paragraph === b.paragraph && a.offset === b.offset;
 }
 
-export const isParagraph = (part) => part instanceof Paragraph;
-export const isSection = (part) => part instanceof Section;
+export const isParagraph = (flow) => flow instanceof Paragraph;
+export const isSection = (flow) => flow instanceof Section;
 
-// A section's children as they may be: parts, paragraphs before sections.
+// A flow's title level, inside a section of `parentLevel` (0 at the root):
+// a section's its parent's + 1 + its own offset; a paragraph's infinite.
+export function titleLevel(flow, parentLevel = 0) {
+  return isSection(flow) ? parentLevel + 1 + flow.titleOffset : Infinity;
+}
+
+// Whether `flow`, followed by `next` in a list inside a section of
+// `parentLevel`, has an exit title: a section, followed by a flow of a lower
+// title level.
+export function hasExitTitle(flow, next, parentLevel = 0) {
+  return isSection(flow) && !!next && titleLevel(next, parentLevel) < titleLevel(flow, parentLevel);
+}
+
+// What stands for a section's exit title where it's laid out - the same one
+// every time it's asked for: { exitOf: section }.
+const exitTitles = new WeakMap();
+export function exitTitle(section) {
+  let exit = exitTitles.get(section);
+  if (!exit) exitTitles.set(section, exit = Object.freeze({ exitOf: section }));
+  return exit;
+}
+
+// A section's children as they may be: flows, paragraphs before sections.
 // Throws otherwise; returns them as they are.
 export function checkChildren(children) {
   let sectionSeen = false;
@@ -145,12 +183,17 @@ function toParagraph(title) {
  *     paragraph("An introduction, ", bold("in bold"), "."),
  *     section("The first chapter",
  *       paragraph("..."),
- *       section("Its first part", paragraph("...")),
+ *       section("A section in it", paragraph("...")),
+ *       section({ title: "Set a level further down", titleOffset: 1 }, paragraph("...")),
  *     ),
  *   )
  */
 export const paragraph = (...spans) => new Paragraph(spans);
-export const section = (title, ...children) => new Section(title, children);
+// The title, or { title, titleOffset }.
+export const section = (title, ...children) => isTitleWithOffset(title)
+  ? new Section(title.title, children, title.titleOffset)
+  : new Section(title, children);
+const isTitleWithOffset = (title) => !!title && typeof(title) === "object" && !Array.isArray(title) && !(title instanceof Paragraph) && "titleOffset" in title;
 export const document = (properties, ...children) => new Document(properties, children);
 export const sequence = (...documents) => new Sequence(documents);
 export const bold = (text) => ({ text, bold: true });

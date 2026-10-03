@@ -7,9 +7,13 @@
  *
  * Knows nothing of any model's styles: what it's given is resolved already.
  *
- *  - spans: the paragraph's text, [{ text, font }] - each font resolved: {
- *    family, size, weight, italic }, size in points (see monospaceMeasurer.js
- *    for what a measurer does with one).
+ *  - spans: the paragraph's text, [{ text, font, placeholder }] - each font
+ *    resolved: { family, size, weight, italic }, size in points (see
+ *    monospaceMeasurer.js for what a measurer does with one). A span with
+ *    `placeholder` true is shown in place of text there isn't - "Title" in
+ *    an empty title - laid out and measured as text, but taking no offsets:
+ *    its runs (`placeholder: true` too) all start where it is, and a
+ *    position is never inside one.
  *  - font: the paragraph's own font - for the height of a paragraph with no
  *    text in it.
  *  - width: of the content area, in µm.
@@ -90,9 +94,11 @@ function splitIntoWords(spans, measurer) {
   let offset = 0;
   for (const span of spans) {
     const font = span.font;
+    const placeholder = !!span.placeholder;
     for (const token of span.text.match(tokens) || []) {
-      const piece = { text: token, font, start: offset, width: measurer.measure(token, font) };
-      offset += token.length;
+      const piece = { text: token, font, start: offset, width: measurer.measure(token, font), placeholder };
+      // A placeholder is shown, but isn't text: it takes no offsets.
+      if (!placeholder) offset += token.length;
       if (isBreakable.test(token)) {
         if (word) {
           word.space.push(piece);
@@ -148,7 +154,7 @@ function splitWord(word, limit, measurer) {
     if (count < piece.text.length) {
       full = true;
       const rest = piece.text.slice(count);
-      addPiece(tail, { ...piece, text: rest, start: piece.start + count, width: measurer.measure(rest, piece.font) });
+      addPiece(tail, { ...piece, text: rest, start: piece.placeholder ? piece.start : piece.start + count, width: measurer.measure(rest, piece.font) });
     }
   }
   // All of it fit after all: no rest - the whitespace after it goes with
@@ -176,11 +182,13 @@ function makeLine(words, index, style, measurer, limit, paragraphEnd) {
   let x = 0;
   for (const piece of pieces) {
     const last = runs[runs.length - 1];
-    if (last && sameFont(last.font, piece.font)) {
+    if (last && sameFont(last.font, piece.font) && !!last.placeholder === piece.placeholder) {
       last.text += piece.text;
       last.width += piece.width;
     } else {
-      runs.push({ text: piece.text, font: piece.font, x, width: piece.width, start: piece.start });
+      const run = { text: piece.text, font: piece.font, x, width: piece.width, start: piece.start };
+      if (piece.placeholder) run.placeholder = true;
+      runs.push(run);
     }
     x += piece.width;
   }

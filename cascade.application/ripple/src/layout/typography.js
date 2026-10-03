@@ -1,10 +1,10 @@
 import { pt } from "../print/index.js";
 
 /**
- * How a document looks - by where a part is, since parts hold no style of
- * their own (see ../model/parts.js): body text, and a section's title by how
- * deep the section is - the document's own title (0), a chapter's (1), a
- * section in it (2), and every level deeper (3 and on).
+ * How a document looks - by where a flow is, since flows hold no style of
+ * their own (see ../model/flows.js): body text, and a section's title by its
+ * title level - a document's own title (1), a chapter's (2), a section in it
+ * (3), and every level deeper (4 and on).
  *
  * Each is a paragraph's layout for cascade.print (see its Paragraph.js):
  * `font` - what a span is set in, unless it's bold or italic itself - and
@@ -24,8 +24,8 @@ export const typography = Object.freeze({
   ]),
 });
 
-// The title of a section `depth` deep - the document's own at 0.
-export function titleStyle(typography, depth) {
+// The title at a title level - 1 the highest.
+export function titleStyle(typography, level) {
   const { titles } = typography;
-  return titles[Math.min(depth, titles.length - 1)];
+  return titles[Math.max(0, Math.min(level - 1, titles.length - 1))];
 }

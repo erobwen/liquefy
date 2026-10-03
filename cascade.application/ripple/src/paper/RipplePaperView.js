@@ -4,7 +4,7 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
 
 /**
  * RipplePaperView - Ripple's papers on screen: cascade.print's
- * PaperSequenceView, with Ripple's caret - which at a gap between parts (see
+ * PaperSequenceView, with Ripple's caret - which at a gap between flows (see
  * markers.js) is a horizontal bar across the text area.
  *
  * A paper sequence on screen: its papers, white with a slight shadow, one
@@ -17,7 +17,7 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
  * scroll bars around it).
  *
  * `caret`, if given, is drawn on its paper, blinking - in the text, or at a
- * part's start or end beside the part, a vertical bar, { page, x, top,
+ * flow's start or end beside the flow, a vertical bar, { page, x, top,
  * height }, at a gap a horizontal one, { page, x, width, y, marker: true },
  * in µm (see positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its

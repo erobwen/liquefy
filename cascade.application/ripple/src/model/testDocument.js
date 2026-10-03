@@ -1,19 +1,19 @@
 import { paperSizes, margins, mm } from "../print/index.js";
-import { document, section, paragraph, bold, italic } from "./parts.js";
+import { document, section, paragraph, bold, italic } from "./flows.js";
 
 // A document to open with - a small book, sections in sections, about the
 // very structure it's written in. Its titles are numbered by where they are
 // (1, 1.1, 2.1.1, ...), to see the structure - and what the caret does in it.
 export function testDocument() {
   return document({ title: "Ripple", paper: paperSizes.A4, margins: margins(mm(25)) },
-    paragraph("A word processor where a document is a ", bold("tree of parts"), ", as a DAISY book is: ",
+    paragraph("A word processor where a document is a ", bold("tree of flows"), ", as a DAISY book is: ",
       "sections inside sections, each with a title, and paragraphs of text in them."),
-    paragraph("Nothing in it has a style of its own. Where a part is decides how it looks - ",
+    paragraph("Nothing in it has a style of its own. Where a flow is decides how it looks - ",
       "a section's title is a heading for how deep the section is, everything else is body text - ",
       "and only a word here and there is ", bold("bold"), " or ", italic("italic"), "."),
 
-    section("1 Parts",
-      paragraph("Every node of a document is a ", italic("part"), ". There are only two kinds of them."),
+    section("1 Flows",
+      paragraph("Every node of a document is a ", italic("flow"), ". There are only two kinds of them."),
       section("1.1 Paragraphs",
         paragraph("A paragraph is a leaf: text, in spans. A span may be bold, or italic, or both - ",
           "the only styling there is, and it's the span's, never the paragraph's."),
@@ -29,7 +29,7 @@ export function testDocument() {
     ),
 
     section("2 On paper",
-      paragraph("Every part is a component of its own, rendered onto a sequence of papers by ",
+      paragraph("Every flow is a component of its own, rendered onto a sequence of papers by ",
         bold("cascade.print"), ". A section renders its title, then its children, one after another - ",
         "the order the tree is read in, which is the order the text flows down the papers."),
       section("2.1 Headings by depth",
@@ -45,9 +45,23 @@ export function testDocument() {
       ),
       section("2.2 Paragraphs, laid out",
         paragraph("Each paragraph is laid out the way cascade.print lays out any: broken into lines first, ",
-          "then the lines placed on the papers from wherever the part before it left off."),
+          "then the lines placed on the papers from wherever the flow before it left off."),
         paragraph("Change a paragraph and only it is broken into lines again; ",
-          "the parts after it are only moved, as far as they need to be."),
+          "the flows after it are only moved, as far as they need to be."),
+      ),
+      section({ title: "2.3 A title offset", titleOffset: 1 },
+        paragraph("This section's title is set a level further down than its place makes it - ",
+          "it has a title offset of one. So the section after it, set as its place makes it, ",
+          "would look like it's back out of something this one is in."),
+        paragraph("To say it isn't, this section ends with an ", italic("exit title"),
+          ": a fleuron, an arrow, and this section's title again - no text of the document's, ",
+          "and nowhere the caret goes."),
+      ),
+      section("2.4 After the offset",
+        paragraph("A sibling of the section before, at its own level again."),
+      ),
+      section("",
+        paragraph("A section always has a title. This one's is empty - shown as a faint placeholder."),
       ),
     ),
 

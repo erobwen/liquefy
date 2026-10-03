@@ -1,4 +1,5 @@
-import { Component, frozen, repeat, refreshIfNeeded, retractRepeater } from "@liquefy/cascade.component";
+import { frozen, repeat, refreshIfNeeded, retractRepeater } from "@liquefy/cascade.component";
+import { Box } from "./Box.js";
 import { breakIntoLines } from "./lineBreaking.js";
 
 /**
@@ -18,7 +19,7 @@ import { breakIntoLines } from "./lineBreaking.js";
  * So typing in a paragraph breaks only that paragraph again; the ones after
  * it are only placed again - arithmetic - and only as far as the change
  * reaches: a paragraph that ends where it did before leaves the rest where
- * they were (see PaperSequence's `flow`).
+ * they were (see PaperSequence's `next`).
  *
  * Knows nothing of any model: a subclass says what the paragraph is made
  * of, in content() - read in step 1, so whatever it reads (a model's text,
@@ -49,7 +50,7 @@ import { breakIntoLines } from "./lineBreaking.js";
  * and `format` - the paper it's on ({ width, height, margins }). A subclass
  * taking properties of its own passes these on with super.setProperties().
  */
-export class Paragraph extends Component {
+export class Paragraph extends Box {
   setProperties({ source, width, format }) {
     this.source = source;
     this.width = width;
@@ -108,10 +109,10 @@ export class Paragraph extends Component {
     this.unobservable.placements++;
     const format = this.format;
     const bottom = format.height - format.margins.bottom;
-    let { page, y, atPageTop } = sequence.flow;
+    let { page, y, atPageTop } = sequence.next;
     // Space between paragraphs - after the one before, and before this one -
     // but none at the top of a paper.
-    if (!atPageTop) y += sequence.flow.spaceAfter + spaceBefore;
+    if (!atPageTop) y += sequence.next.spaceAfter + spaceBefore;
     let pageLines = sequence.linesOf(page);
     lines.forEach((line, index) => {
       // A line that doesn't fit goes on the next paper - unless it's the
@@ -134,7 +135,7 @@ export class Paragraph extends Component {
       y += line.height;
       atPageTop = false;
     });
-    sequence.flow = frozen({ page, y, spaceAfter, atPageTop });
+    sequence.next = frozen({ page, y, spaceAfter, atPageTop });
   }
 
   onDispose() {

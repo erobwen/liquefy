@@ -1,86 +1,93 @@
 import { mm, px, contentWidth } from "../print/index.js";
-import { Sequence, isSection, gap, partStart, partEnd } from "../model/parts.js";
+import { Sequence, isSection, gap, flowStart, flowEnd, titleLevel, hasExitTitle, exitTitle } from "../model/flows.js";
 
 /**
  * Where a caret can be in a laid-out Ripple document: its caret rows - every
  * line of text, and every marker - in reading order.
  *
- * Markers are the places between text (see ../model/parts.js): every part's
+ * Markers are the places between text (see ../model/flows.js): every flow's
  * start and end - a document's, a section's, a title's, a paragraph's - and
- * the gaps between two parts lying side by side in a list: two siblings, or a
+ * the gaps between two flows lying side by side in a list: two siblings, or a
  * section's title and its first child. A section reads:
  *
  *   start(section)  start(title) [title text] end(title)  gap(0)
  *     start(child) ... end(child)  gap(1)  ...  start(last) ... end(last)
  *   end(section)
  *
- * No gap before a list's first part, nor after its last: those places are
- * the parts' own start and end.
+ * No gap before a list's first flow, nor after its last: those places are
+ * the flows' own start and end.
  *
  * The lines are cascade.print's, as laid out. The markers are placed here,
- * after the text is laid out and from it - so they can never move a part:
- * a marker takes no room, it's put in the room there is. Between two parts
+ * after the text is laid out and from it - so they can never move a flow:
+ * a marker takes no room, it's put in the room there is. Between two flows
  * lying one after the other, the markers in between form a run - what closes
- * after the one (part ends, and list ends: innermost first), the gap between
+ * after the one (flow ends, and list ends: innermost first), the gap between
  * the two if they're siblings, and what opens before the other (list starts,
- * and part starts: outermost first).
+ * and flow starts: outermost first).
  *
- * A part's start and end are, by default, beside the part (`beside`): a
- * vertical bar, as tall as a caret in the text, on the part's first line
- * (its start) or its last (its end) - left of the part's bounding box (its
- * start) or right of it (its end), the box being as far as the part's lines
+ * A flow's start and end are, by default, beside the flow (`beside`): a
+ * vertical bar, as tall as a caret in the text, on the flow's first line
+ * (its start) or its last (its end) - left of the flow's bounding box (its
+ * start) or right of it (its end), the box being as far as the flow's lines
  * reach. The innermost of a run is `besideStep` (2px) out from its box, and
- * every part around it another step further out: ends of parts nested in
+ * every flow around it another step further out: ends of flows nested in
  * each other, ending together, step out to the right one by one; starts to
  * the left.
  *
  * A gap's bar - and, with `beside` false, every marker's: starts and ends
- * between the parts, as they were placed before - is a horizontal line
+ * between the flows, as they were placed before - is a horizontal line
  * across the text area, at a height:
  *
  *  - The gap between two siblings: dead centre between them, from the lower
  *    edge of the one to the upper edge of the other. A gap split in two is
- *    two places (slots 0 and 1, see ../model/parts.js): two bars, a third
+ *    two places (slots 0 and 1, see ../model/flows.js): two bars, a third
  *    and two thirds of the way down. Which gaps are split is `splitGaps`:
- *    "none" (the default), "beforeSections" - every gap before a part with
+ *    "none" (the default), "beforeSections" - every gap before a flow with
  *    a title, a section (a document too) - or "all".
- *  - What closes: spread evenly from the lower edge of the part before down
+ *  - What closes: spread evenly from the lower edge of the flow before down
  *    towards the (first) gap, short of it - or, with no gap, down to the
  *    centre, the outermost there - or, with nothing after on the paper, down
  *    to a fixed distance (`edge`) below.
  *  - What opens: the same, mirrored - spread evenly from the (last) gap or
- *    the centre (or `edge` above) down towards the part after, the innermost
+ *    the centre (or `edge` above) down towards the flow after, the innermost
  *    nearest it.
  *
- * A run between two parts on different papers goes on both: what closes,
- * and the gap, below the part before, on its paper; what opens above the
- * part after, on its.
+ * A run between two flows on different papers goes on both: what closes,
+ * and the gap, below the flow before, on its paper; what opens above the
+ * flow after, on its.
  *
  * Every marker also has an area - what it stands for, as rectangles across
  * the text area, one for each paper it's on:
  *
- *  - A part's start or end: the part's bounding box - a section's, from its
- *    title to its last line. Parts ending (or starting) together have their
+ *  - A flow's start or end: the flow's bounding box - a section's, from its
+ *    title to its last line. Flows ending (or starting) together have their
  *    areas one inside another.
- *  - A gap: the room of its run - from the lower edge of the part before to
- *    the upper edge of the part after (or the paper's edge, across a page
+ *  - A gap: the room of its run - from the lower edge of the flow before to
+ *    the upper edge of the flow after (or the paper's edge, across a page
  *    break); its bar in the middle of it.
  *  - The second place of a gap split in two (slot 1): that room, and with it
- *    the start delimiter box of the part after - see below.
+ *    the start delimiter box of the flow after - see below.
  *
- * Every part is a block on the papers, and a block may have delimiter boxes
- * - what opens and closes it, apart from what it holds: a start delimiter
- * box and an end delimiter box. Mostly there are none; a section's start
- * delimiter box is its title's bounding box (across the text area, as every
- * area is). Like the markers, blocks are worked out here from the laid-out
- * lines - the paper sequence knows only papers and lines.
+ * Every flow laid out is boxes on the papers (see ../print/Box.js): its line
+ * boxes, and around them its content box - the bounding box of all that's
+ * in it, its exit title included - and its delimiter boxes, what opens and
+ * closes it apart from what it holds: a start delimiter box and an end
+ * delimiter box. Mostly there are none; a section's start delimiter box is
+ * its title's bounding box, its end delimiter box its exit title's, if it
+ * has one (see ../model/flows.js) - each across the text area, as every
+ * area is. Like the markers, these boxes are worked out here from the line
+ * boxes - the paper sequence holds no others.
+ *
+ * An exit title is laid out text, but no place for a caret: no caret row.
+ * The markers around it are placed as around any text - the section's end
+ * after it, beside it or below it.
  *
  * A caret row is a placed line (cascade.print's), or a marker row:
  *
  *   { marker, kind, type, level, x, width, y, area }        - a horizontal bar
  *   { marker, kind, type, level, x, top, height, vertical: true, area }
  *                                                            - a vertical bar
- *     - marker: its position; kind: "partStart", "partEnd" or "between";
+ *     - marker: its position; kind: "flowStart", "flowEnd" or "between";
  *       type: which of markerTypes it is
  *     - level: how deep it is in the tree (the sequence's gaps 0, a
  *       document and its gaps 1, ...)
@@ -109,22 +116,24 @@ export const markerTypes = Object.freeze([
   Object.freeze({ type: "siblingGap", label: "Between siblings" }),
 ]);
 
-// How far a marker with nothing beyond it is from its part: about half the
+// How far a marker with nothing beyond it is from its flow: about half the
 // room between two paragraphs.
 export const edgeDistance = mm(1.5);
 
-// How far a start or end beside its part is from the one inside it - the
-// innermost, from the part's bounding box.
+// How far a start or end beside its flow is from the one inside it - the
+// innermost, from the flow's bounding box.
 export const besideStep = px(2);
 
 export function caretRows(sequence, root, { edge = edgeDistance, types = {}, beside = true, splitGaps = "none" } = {}) {
   const items = readingOrder(root, { splitGaps }).filter((item) => item.block || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
-  const extentOf = partExtents(lines);
-  placeMarkers(items, lines, extentOf, sequence, { edge, beside, boxOf: beside ? partBoxes(lines) : null });
+  const extentOf = flowExtents(lines);
+  placeMarkers(items, lines, extentOf, sequence, { edge, beside, boxOf: beside ? flowBoxes(lines) : null });
   const rows = [];
   for (const item of items) {
     if (item.block) {
+      // An exit title is laid out, but no place for a caret.
+      if (item.exit) continue;
       for (const placed of lines.get(item.block) || []) rows.push({ page: placed.page, row: placed.line });
     } else if (item.placed) {
       rows.push(item.placed);
@@ -134,13 +143,14 @@ export function caretRows(sequence, root, { edge = edgeDistance, types = {}, bes
 }
 
 // Every paragraph and every marker of the tree, in reading order: { block }
-// for a paragraph's text (a title, or body text), and for a marker
-// { marker, kind, type, level, part } - `type` one of markerTypes', `part`
-// being, for a part's start or end, the part. A gap split in two (see
+// for a paragraph's text (a title, or body text) - { block, exit: true } for
+// a section's exit title, after all that's in it - and for a marker
+// { marker, kind, type, level, flow } - `type` one of markerTypes', `flow`
+// being, for a flow's start or end, the flow. A gap split in two (see
 // `splitGaps` in the class doc) twice: its slot 0, then its slot 1.
 export function readingOrder(root, { splitGaps = "none" } = {}) {
   const items = [];
-  // The gap before child `index` - between it and the part before it in the
+  // The gap before child `index` - between it and the flow before it in the
   // list: the child before, or the section's title.
   // A section's gap 0 is between its title and its content; every other
   // gap between two siblings.
@@ -152,27 +162,32 @@ export function readingOrder(root, { splitGaps = "none" } = {}) {
     }
   };
   const visitParagraph = (paragraph, level, role) => {
-    items.push({ marker: partStart(paragraph), kind: "partStart", type: role + "Start", level, part: paragraph });
+    items.push({ marker: flowStart(paragraph), kind: "flowStart", type: role + "Start", level, flow: paragraph });
     items.push({ block: paragraph });
-    items.push({ marker: partEnd(paragraph), kind: "partEnd", type: role + "End", level, part: paragraph });
+    items.push({ marker: flowEnd(paragraph), kind: "flowEnd", type: role + "End", level, flow: paragraph });
   };
-  const visitSection = (section, level) => {
-    items.push({ marker: partStart(section), kind: "partStart", type: "sectionStart", level, part: section });
+  // `titleAt`: the section's title level; `exit`: whether it has an exit
+  // title (see ../model/flows.js).
+  const visitSection = (section, level, titleAt, exit) => {
+    items.push({ marker: flowStart(section), kind: "flowStart", type: "sectionStart", level, flow: section });
     visitParagraph(section.title, level + 1, "title");
-    section.children.forEach((child, index) => {
+    const children = section.children;
+    children.forEach((child, index) => {
       gapItem(section, index, level + 1, index === 0);
-      if (isSection(child)) visitSection(child, level + 1);
+      if (isSection(child)) visitSection(child, level + 1, titleLevel(child, titleAt), hasExitTitle(child, children[index + 1], titleAt));
       else visitParagraph(child, level + 1, "paragraph");
     });
-    items.push({ marker: partEnd(section), kind: "partEnd", type: "sectionEnd", level, part: section });
+    if (exit) items.push({ block: exitTitle(section), exit: true });
+    items.push({ marker: flowEnd(section), kind: "flowEnd", type: "sectionEnd", level, flow: section });
   };
   if (root instanceof Sequence) {
-    root.children.forEach((document, index) => {
+    const documents = root.children;
+    documents.forEach((document, index) => {
       if (index > 0) gapItem(root, index, 0, false);
-      visitSection(document, 1);
+      visitSection(document, 1, titleLevel(document), hasExitTitle(document, documents[index + 1]));
     });
   } else {
-    visitSection(root, 1);
+    visitSection(root, 1, titleLevel(root), false);
   }
   return items;
 }
@@ -190,18 +205,20 @@ function linesByParagraph(sequence) {
   return result;
 }
 
-// The papers a part is on, and how far down each it reaches: [[page, { top,
+// The papers a flow is on, and how far down each it reaches: [[page, { top,
 // bottom }]], by page - from its own lines and its children's, a section's
-// title included. Worked out for a part the first time it's asked for.
-function partExtents(lines) {
+// title and exit title included. Worked out for a flow the first time it's
+// asked for.
+function flowExtents(lines) {
   const known = new Map();
-  return (part) => {
-    if (known.has(part)) return known.get(part);
+  return (flow) => {
+    if (known.has(flow)) return known.get(flow);
     const pages = new Map();
     const visit = (each) => {
       if (isSection(each)) {
         visit(each.title);
         each.children.forEach(visit);
+        visit(exitTitle(each));
         return;
       }
       for (const { page, line } of lines.get(each) || []) {
@@ -214,26 +231,27 @@ function partExtents(lines) {
         }
       }
     };
-    visit(part);
+    visit(flow);
     const extents = [...pages].sort(([a], [b]) => a - b);
-    known.set(part, extents);
+    known.set(flow, extents);
     return extents;
   };
 }
 
-// A part's first and last lines ({ page, line }), and how far left and
+// A flow's first and last lines ({ page, line }), and how far left and
 // right its lines reach: { first, last, left, right } - from its own lines
-// and its children's, a section's title included. Null for a part with no
-// lines. Worked out for a part the first time it's asked for.
-function partBoxes(lines) {
+// and its children's, a section's title and exit title included. Null for
+// a flow with no lines. Worked out for a flow the first time it's asked for.
+function flowBoxes(lines) {
   const known = new Map();
-  return (part) => {
-    if (known.has(part)) return known.get(part);
+  return (flow) => {
+    if (known.has(flow)) return known.get(flow);
     let box = null;
     const visit = (each) => {
       if (isSection(each)) {
         visit(each.title);
         each.children.forEach(visit);
+        visit(exitTitle(each));
         return;
       }
       for (const placed of lines.get(each) || []) {
@@ -246,8 +264,8 @@ function partBoxes(lines) {
         }
       }
     };
-    visit(part);
-    known.set(part, box);
+    visit(flow);
+    known.set(flow, box);
     return box;
   };
 }
@@ -281,12 +299,12 @@ function placeMarkers(items, lines, extentOf, sequence, options) {
   flush(null);
 }
 
-const closes = (item) => item.kind === "partEnd";
-const opens = (item) => item.kind === "partStart";
+const closes = (item) => item.kind === "flowEnd";
+const opens = (item) => item.kind === "flowStart";
 
 function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf }) {
-  // Beside their parts, starts and ends take none of the room between the
-  // parts: only the gaps are spread there.
+  // Beside their flows, starts and ends take none of the room between the
+  // flows: only the gaps are spread there.
   if (beside) placeBeside(run, boxOf);
   const closing = beside ? [] : run.filter(closes);
   const between = run.filter((item) => item.kind === "between");
@@ -302,7 +320,7 @@ function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf 
   if (onePaper) {
     const page = before.lastPage;
     if (between.length > 0) {
-      // The gaps evenly between the parts: one dead centre - two a third and
+      // The gaps evenly between the flows: one dead centre - two a third and
       // two thirds of the way down. What closes above them, what opens below.
       const ys = between.map((item, index) => Math.round(before.bottom + (after.top - before.bottom) * (index + 1) / (between.length + 1)));
       between.forEach((item, index) => { item.placed = markerRow(item, page, ys[index], sequence); });
@@ -330,24 +348,27 @@ function placeRun(run, before, after, extentOf, sequence, { edge, beside, boxOf 
     }
   }
 
-  const partArea = (part) => extentOf(part).map(([page, { top, bottom }]) => rect(page, top, bottom));
+  const flowArea = (flow) => extentOf(flow).map(([page, { top, bottom }]) => rect(page, top, bottom));
   for (const item of run) {
     if (!item.placed) continue;
-    let area = item.part ? partArea(item.part) : room;
-    // The second place of a split gap: the part after's start delimiter too.
-    if (!item.part && item.marker.slot === 1) {
-      const delimiter = delimiters(item.marker.list.children[item.marker.index]).start;
-      if (delimiter) area = joined([...room, ...partArea(delimiter)]);
+    let area = item.flow ? flowArea(item.flow) : room;
+    // The second place of a split gap: the flow after's start delimiter too.
+    if (!item.flow && item.marker.slot === 1) {
+      const delimiter = delimiters(item.marker.list.children[item.marker.index], extentOf).start;
+      if (delimiter) area = joined([...room, ...flowArea(delimiter)]);
     }
     item.placed.row = Object.freeze({ ...item.placed.row, area: Object.freeze(area) });
   }
 }
 
-// A part as a block: the parts that are its delimiters - what opens and
-// closes it, apart from what it holds - { start, end }, each null if none.
-// A section's start is its title; nothing has an end, yet.
-function delimiters(part) {
-  return { start: part && isSection(part) ? part.title : null, end: null };
+// A flow's delimiters - what opens and closes it, apart from what it holds,
+// their boxes its delimiter boxes - { start, end }: what's laid out for each
+// (a paragraph, or an exit title), null if none. A section's start is its
+// title, its end its exit title, if it has one laid out.
+function delimiters(flow, extentOf) {
+  if (!flow || !isSection(flow)) return { start: null, end: null };
+  const exit = exitTitle(flow);
+  return { start: flow.title, end: extentOf(exit).length > 0 ? exit : null };
 }
 
 // Rectangles, the ones touching one above the other on a paper - as wide,
@@ -365,7 +386,7 @@ function joined(rects) {
   return result;
 }
 
-// A run's starts and ends beside their parts: the ends right of them, the
+// A run's starts and ends beside their flows: the ends right of them, the
 // innermost (the first) a step out, every one after it a step further; the
 // starts left of them, the innermost (the last) a step out, every one
 // before it a step further.
@@ -373,11 +394,11 @@ function placeBeside(run, boxOf) {
   const ends = run.filter(closes);
   const starts = run.filter(opens);
   ends.forEach((item, index) => {
-    const box = boxOf(item.part);
+    const box = boxOf(item.flow);
     if (box) item.placed = besideRow(item, box.last, box.right + besideStep * (index + 1));
   });
   starts.forEach((item, index) => {
-    const box = boxOf(item.part);
+    const box = boxOf(item.flow);
     if (box) item.placed = besideRow(item, box.first, box.left - besideStep * (starts.length - index));
   });
 }

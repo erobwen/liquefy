@@ -1,4 +1,5 @@
-import { Component, frozen } from "@liquefy/cascade.component";
+import { frozen } from "@liquefy/cascade.component";
+import { Box } from "./Box.js";
 
 /**
  * Section - a run of paragraphs on papers of one kind, as a section is in
@@ -18,7 +19,7 @@ import { Component, frozen } from "@liquefy/cascade.component";
  *     }
  *   }
  */
-export class Section extends Component {
+export class Section extends Box {
   // Override: the paper - { width, height, margins } in µm.
   pageFormat() {
     throw new Error(this.constructor.name + " must implement pageFormat()");
@@ -27,7 +28,7 @@ export class Section extends Component {
   render(sequence, context) {
     const format = frozen(this.pageFormat());
     sequence.pages.push(format);
-    sequence.flow = frozen({ page: sequence.pages.length - 1, y: format.margins.top, spaceAfter: 0, atPageTop: true });
+    sequence.next = frozen({ page: sequence.pages.length - 1, y: format.margins.top, spaceAfter: 0, atPageTop: true });
     const built = this.buildOneStep();
     for (const paragraph of built instanceof Array ? built : [built]) {
       if (paragraph) paragraph.renderOnto(sequence, context);

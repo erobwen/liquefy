@@ -53,6 +53,12 @@ export class Ripple extends Component {
       // Sections' ends beside their last line, or below it (see
       // ./paper/markers.js).
       sectionEnds: "below",
+      // Sections made from a blank paragraph split off their parent right
+      // away - beside it, not in it (see ./paper/editing.js).
+      newSectionsBeside: true,
+      // Sections demoted whole, their sections in them - or flattened, those
+      // after them (see ./paper/editing.js).
+      demoteWithChildren: false,
       showAllAreas: false,
       markerTypes: { paragraphStart: false, paragraphEnd: false, titleStart: false, sectionStart: false },
     };
@@ -69,7 +75,10 @@ export class Ripple extends Component {
     return {
       document,
       root,
-      editing: rippleEditing(root),
+      editing: rippleEditing(root, {
+        newSectionsBeside: () => this.newSectionsBeside,
+        demoteWithChildren: () => this.demoteWithChildren,
+      }),
       measurer,
       sequence: new PaperSequence(),
       layout: new SequenceLayout({ sequence: root, measurer }).establish(),
@@ -198,6 +207,19 @@ export class Ripple extends Component {
         checked: this.sectionEnds === "below",
         onChange: (checked) => { this.sectionEnds = checked ? "below" : "beside"; },
       }),
+      heading("Editing"),
+      checkbox({
+        key: "newSectionsBeside",
+        label: "New sections beside their parent",
+        checked: this.newSectionsBeside,
+        onChange: (checked) => { this.newSectionsBeside = checked; },
+      }),
+      checkbox({
+        key: "demoteWithChildren",
+        label: "Demote sections with their sub-sections",
+        checked: this.demoteWithChildren,
+        onChange: (checked) => { this.demoteWithChildren = checked; },
+      }),
       heading("Show"),
       checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
     ];
@@ -280,7 +302,7 @@ export class Ripple extends Component {
   }
 
   // A paragraph's: making it a title - the title of a section holding the
-  // paragraphs after it, up to the next section (as Tab in it) - and, in a
+  // paragraphs after it, up to the next section (as Shift+Tab in it) - and, in a
   // section in another, moving it out: it, and all after it, after the
   // section.
   paragraphControls(paragraph) {
@@ -296,9 +318,10 @@ export class Ripple extends Component {
 
   // A section's place in the document's structure - its title level, 1 the
   // document's own - and moving it there, the number going down or up as on
-  // the appearance's: - promotes it (Tab in its title), up a level, out of
-  // the section it's in; + demotes it (Shift+Tab), down a level, into the
-  // section before it - or, with none, to paragraphs.
+  // the appearance's: - promotes it (Shift+Tab in its title), up a level, out of
+  // the section it's in; + demotes it (Tab), down a level, into the
+  // section before it - only that: with none, it can go no further down as
+  // a section, and + is off ("Make into paragraph" is there for that).
   // A leaf - no section in it - can be made paragraphs right away. The
   // document changes.
   structureControls(section, around) {
@@ -309,13 +332,15 @@ export class Ripple extends Component {
         { style: { alignItems: "center", gap: "6px" } },
         div({ style: { flex: "1" } }, text("Title level")),
         iconButton({
-          icon: "remove", title: "Promote: up a level - a lower number - out of the section it's in (Tab)",
+          icon: "remove", title: "Promote: up a level - a lower number - out of the section it's in (Shift+Tab)",
           disabled: !editing.canPromote(section), onClick: () => this.inOneGo(() => editing.promoteSection(section)),
         }),
         div({ style: { minWidth: "16px", textAlign: "center" } }, text(String(around.length + 1))),
         iconButton({
-          icon: "add", title: "Demote: down a level - a higher number - into the section before, or, with none, to paragraphs (Shift+Tab)",
-          disabled: !editing.canDemote(section), onClick: () => this.inOneGo(() => editing.demoteSection(section)),
+          icon: "add", title: "Demote: down a level - a higher number - into the section before (Tab)",
+          // Only between title levels: with no section before it, demoting
+          // would make it paragraphs - "Make into paragraph" does that.
+          disabled: !editing.canDemoteIntoSection(section), onClick: () => this.inOneGo(() => editing.demoteSection(section)),
         }),
       ),
       editing.canMakeParagraphs(section)

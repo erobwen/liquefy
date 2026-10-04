@@ -9,7 +9,16 @@ import { readingOrder } from "./markers.js";
  * RippleEditor's `editing` is (see RippleEditor.js): every function takes
  * positions, changes the tree, and returns where the caret goes.
  *
- *   rippleEditor({ ..., editing: rippleEditing(root) })
+ *   rippleEditor({ ..., editing: rippleEditing(root, { newSectionsBeside: () => true }) })
+ *
+ * `newSectionsBeside()`, asked each time it matters: whether a section made
+ * from a blank paragraph - Enter on it, or Enter at a paragraph's start with
+ * a blank one before it - is split off the section it's in right away, its
+ * title on that section's level, beside it (besideParent()) - by default;
+ * or, false, kept in it. `demoteWithChildren()`, likewise: whether a
+ * section demoted into the one before it goes whole, its sections in it too
+ * (moveInto()) - or, by default, flattened, its sections after it there
+ * (mergeInto()): what promoting it again undoes exactly.
  *
  * In the text - a paragraph's, or a title's - as in any word processor:
  * typing inserts, Backspace and Delete take out a character (a surrogate
@@ -59,15 +68,16 @@ import { readingOrder } from "./markers.js";
  * So from the end of a paragraph, Enter, Enter, Enter and Backspace,
  * Backspace leave everything as it was.
  *
- * Tab anywhere in a title promotes its section - the same as Enter at its
- * start - and Shift+Tab demotes it: into the section before it, as its last
- * child, flattened as Backspace does - Tab undone, exactly when what Tab
- * moved into it began with a section. With no section right before it, it
- * can go no further down: Shift+Tab makes it paragraphs - its title one,
- * unless empty, and what it held - the reverse of Tab in a paragraph, which
- * makes it a section. Tab anywhere in a paragraph makes it
+ * Tab and Shift+Tab, as indenting goes: Shift+Tab anywhere in a title
+ * promotes its section - out, the same as Enter at its start - and Tab
+ * demotes it - in: into the section before it, as its last child, flattened
+ * as Backspace does - Shift+Tab undone, exactly when what Shift+Tab moved
+ * into it began with a section. With no section right before it, it can go
+ * no further down: Tab makes it paragraphs - its title one, unless empty,
+ * and what it held - the reverse of Shift+Tab in a paragraph, which makes it
  * a section's title, the section holding the paragraphs after it up to the
- * next section. The caret stays where it is (pressTab()). The same moves,
+ * next section. Tab in a paragraph: nothing. The caret stays where it is
+ * (pressTab()). The same moves,
  * for a panel's buttons: promoteSection(), demoteSection(), and whether
  * they can be done, canPromote(), canDemote() - and promoteParagraph(), and
  * for a leaf section, makeParagraphs() (canMakeParagraphs()); for a
@@ -87,18 +97,22 @@ import { readingOrder } from "./markers.js";
  *
  * Whatever else leaves everything as it is.
  */
-export function rippleEditing(root) {
+export function rippleEditing(root, { newSectionsBeside = () => true, demoteWithChildren = () => false } = {}) {
+  const options = { newSectionsBeside, demoteWithChildren };
   return {
-    insertText: (at, text) => insertText(root, at, text),
+    insertText: (at, text) => insertText(root, at, text, options),
     deleteBackward: (at) => deleteBackward(root, at),
     deleteForward: (at) => deleteForward(root, at),
-    splitParagraph: (at) => pressEnter(root, at),
-    tab: (at, { shift = false } = {}) => pressTab(root, at, shift),
+    splitParagraph: (at) => pressEnter(root, at, options),
+    tab: (at, { shift = false } = {}) => pressTab(root, at, shift, options),
     // For a section's structure, outside the text - a panel's buttons:
     canPromote: (section) => canPromote(root, section),
     canDemote: (section) => canDemote(root, section),
+    // Whether demoting it moves it into a section - to a title level of its
+    // own still - not, with none before it, making it paragraphs.
+    canDemoteIntoSection: (section) => canDemoteIntoSection(root, section),
     promoteSection: (section) => !!splitOff(root, section),
-    demoteSection: (section) => !!demote(root, section),
+    demoteSection: (section) => !!demote(root, section, undefined, options),
     // A leaf section - none inside it - made paragraphs again, in its place
     // (flatten()): its title one, unless empty, and what it held.
     canMakeParagraphs: (section) => canMakeParagraphs(root, section),
@@ -112,7 +126,7 @@ export function rippleEditing(root) {
     // the section, a level up (moveOut()).
     canMoveOut: (paragraph) => canMoveOut(root, paragraph),
     moveOut: (paragraph) => moveOut(root, paragraph),
-    // A paragraph made a section's title - as Tab in it (promote()).
+    // A paragraph made a section's title - as Shift+Tab in it (promote()).
     promoteParagraph: (paragraph) => {
       const place = locate(root, paragraph);
       if (!place || !place.list || !isSection(place.list)) return false;
@@ -127,11 +141,11 @@ export function rippleEditing(root) {
 
 const isText = (at) => !!at && "paragraph" in at;
 
-function insertText(root, at, text) {
+function insertText(root, at, text, options = {}) {
   const lines = text.split("\n");
   if (lines.length > 1) {
     let after = insertText(root, at, lines[0]);
-    for (const line of lines.slice(1)) after = insertText(root, pressEnter(root, after), line);
+    for (const line of lines.slice(1)) after = insertText(root, pressEnter(root, after, options), line, options);
     return after;
   }
   if (isText(at)) {
@@ -148,14 +162,19 @@ function insertText(root, at, text) {
   return at;
 }
 
-function pressEnter(root, at) {
+function pressEnter(root, at, options = {}) {
   if (isText(at)) {
     const place = locate(root, at.paragraph);
     if (!place) return at;
     if (place.titleOf && at.offset === 0) return splitOff(root, place.titleOf) || at;
-    if (place.list && isSection(place.list) && paragraphText(at.paragraph) === "") return sectionFrom(place.list, place.index);
+    if (place.list && isSection(place.list) && paragraphText(at.paragraph) === "") {
+      const made = sectionFrom(place.list, place.index);
+      besideParent(root, place.list, made.paragraph, options);
+      return made;
+    }
     if (place.list && isSection(place.list) && at.offset === 0 && isEmptyParagraph(place.list.children[place.index - 1])) {
       promote(place.list, place.index, true);
+      besideParent(root, place.list, at.paragraph, options);
       return at;
     }
     // At the end, with an empty one next - its placeholder showing: there,
@@ -228,6 +247,17 @@ function removeFlow(root, flow) {
   return first ? textPosition(first.block, 0) : null;
 }
 
+// A section just made from a blank paragraph - by Enter on it, or near it -
+// with `newSectionsBeside()` on, split off the section it's in right away
+// (splitOff()): its title on that section's level, beside it, not under it.
+// Not right in a document: a document of its own it would be, on a paper of
+// its own - it stays in.
+function besideParent(root, parent, title, { newSectionsBeside } = {}) {
+  if (!newSectionsBeside || !newSectionsBeside() || parent instanceof Document) return;
+  const made = locate(root, title);
+  if (made && made.titleOf) splitOff(root, made.titleOf);
+}
+
 // Enter on an empty paragraph: a section in its place - its title empty, to
 // write - holding the paragraphs after it in its list, up to the next
 // section (an empty paragraph, if there are none). The caret at the start of
@@ -245,7 +275,7 @@ function sectionFrom(list, index) {
 // section (an empty paragraph, if there are none). With `dropBefore`, the
 // empty paragraph before it gone too - Enter at the start of a paragraph
 // with an empty one before it, left there by Enter at its start just
-// before. Tab anywhere in it: without. The paragraph, the same, the title
+// before. Shift+Tab anywhere in it: without. The paragraph, the same, the title
 // now - a position in it is where it was.
 function promote(list, index, dropBefore = false) {
   const paragraph = list.children[index];
@@ -259,19 +289,20 @@ function promote(list, index, dropBefore = false) {
 
 const isEmptyParagraph = (flow) => isParagraph(flow) && paragraphText(flow) === "";
 
-// Tab - a structural command; text has no use for it. Anywhere in a title:
-// its section promoted - as Enter at its start, split off the section it's
-// in, what came after it in there moved into it (splitOff()). Anywhere in a
-// paragraph: the paragraph promoted, the title of a section (promote()).
-// Shift+Tab anywhere in a title: its section demoted - into the section
-// before it, Tab undone; or, with none right before it, made paragraphs
-// (demote()). The caret where it was.
-function pressTab(root, at, shift) {
+// Tab and Shift+Tab - structural commands, as indenting is; text has no use
+// for them. Shift+Tab, out - promoting: anywhere in a title, its section
+// split off the section it's in, as Enter at its start - what came after
+// it in there moved into it (splitOff()); anywhere in a paragraph, the
+// paragraph a section's title (promote()). Tab, in - demoting: anywhere in
+// a title, its section into the section before it, Shift+Tab undone; or,
+// with none right before it, made paragraphs (demote()). Tab in a
+// paragraph: nothing. The caret where it was.
+function pressTab(root, at, shift, options = {}) {
   if (!isText(at)) return at;
   const place = locate(root, at.paragraph);
   if (!place) return at;
-  if (shift) {
-    if (place.titleOf) return demote(root, place.titleOf, at) || at;
+  if (!shift) {
+    if (place.titleOf) return demote(root, place.titleOf, at, options) || at;
   } else if (place.titleOf) splitOff(root, place.titleOf);
   else if (place.list && isSection(place.list)) promote(place.list, place.index);
   return at;
@@ -289,6 +320,8 @@ function splitOff(root, section) {
   const outer = locate(root, parent);
   if (!outer || !outer.list) return null;
   const tail = parent.children.splice(place.index).slice(1);
+  // What comes in takes the place of a lone empty paragraph.
+  if (tail.length > 0 && holdsOnlyAnEmptyParagraph(section)) section.children.splice(0);
   section.children.push(...tail);
   // Neither half left empty.
   fillIfEmpty(parent);
@@ -327,12 +360,14 @@ function mergeBack(root, section) {
     mergeInto(list, index, before);
     return textPosition(section.title, 0);
   }
-  const held = section.children.splice(0);
   const title = section.title;
   if (paragraphText(title) !== "") {
+    // Its title a paragraph - a lone empty one, a placeholder, not needed.
+    const held = holdsOnlyAnEmptyParagraph(section) ? [] : section.children.splice(0);
     list.children.splice(index, 1, title, ...held);
     return textPosition(title, 0);
   }
+  const held = section.children.splice(0);
   list.children.splice(index, 1, ...held);
   const first = held[0];
   if (first) return textPosition(isSection(first) ? first.title : first, 0);
@@ -351,8 +386,22 @@ function mergeInto(list, index, before) {
   let end = 0;
   while (isParagraph(section.children[end])) end++;
   const rest = section.children.splice(end);
+  // Nothing left in it: its empty paragraph again.
+  fillIfEmpty(section);
   list.children.splice(index, 1);
   before.children.push(section instanceof Document ? asSection(section) : section, ...rest);
+}
+
+// The section at `index` in `list` moved into `before`, the section before
+// it, whole - all it holds, its sections too: `before`'s last child. Into a
+// section holding only an empty paragraph: in its place. Demoting it, with
+// `demoteWithChildren()` on - not flattened, as mergeInto() does; so not
+// quite what promoting it again undoes.
+function moveInto(list, index, before) {
+  const section = list.children[index];
+  if (holdsOnlyAnEmptyParagraph(before)) before.children.splice(0);
+  list.children.splice(index, 1);
+  before.children.push(section instanceof Document ? asSection(section) : section);
 }
 
 // Promoting a section - up a level in the document's structure: split off
@@ -370,7 +419,7 @@ function canPromote(root, section) {
 function canDemote(root, section) {
   const place = locate(root, section);
   if (!place || !place.list) return false;
-  return isSection(place.list) || (place.index > 0 && isSection(place.list.children[place.index - 1]));
+  return isSection(place.list) || canDemoteIntoSection(root, section);
 }
 
 // Whether a paragraph can be moved out of its section: it's body text in a
@@ -404,13 +453,20 @@ function canMakeParagraphs(root, section) {
   return !!place && !!place.list && isSection(place.list) && !section.children.some(isSection);
 }
 
+function canDemoteIntoSection(root, section) {
+  const place = locate(root, section);
+  return !!place && !!place.list && place.index > 0 && isSection(place.list.children[place.index - 1]);
+}
+
 // Where the caret goes - where it was, `at`, if that's still there - or
 // null if it can't be demoted.
-function demote(root, section, at = textPosition(section.title, 0)) {
+function demote(root, section, at = textPosition(section.title, 0), { demoteWithChildren } = {}) {
   if (!canDemote(root, section)) return null;
   const { list, index } = locate(root, section);
   if (index > 0 && isSection(list.children[index - 1])) {
-    mergeInto(list, index, list.children[index - 1]);
+    const before = list.children[index - 1];
+    if (demoteWithChildren && demoteWithChildren()) moveInto(list, index, before);
+    else mergeInto(list, index, before);
     return at;
   }
   return flatten(list, index, at);
@@ -420,7 +476,7 @@ function demote(root, section, at = textPosition(section.title, 0)) {
 // title, a paragraph now - unless empty - and what it held after it - but a
 // lone empty paragraph, a placeholder, gone. A title and its text: two
 // paragraphs; one of them: one; neither: one, empty. Promoting a paragraph
-// (Tab in it) undone. The caret where it was - or, its title gone, at the
+// (Shift+Tab in it) undone. The caret where it was - or, its title gone, at the
 // start of what's first now.
 function flatten(list, index, at) {
   const section = list.children[index];

@@ -1,6 +1,6 @@
 import {
-  Paragraph, Section, Document, isSection, isParagraph, isFlowEdge, isSplitMarker, isJoinMarker,
-  textPosition, splitMarker, flowEnd, samePosition, paragraphText, makeSpan,
+  Paragraph, Section, Document, isSection, isParagraph, isFlowEdge,
+  textPosition, samePosition, paragraphText, makeSpan,
 } from "../model/flows.js";
 import { readingOrder } from "./markers.js";
 
@@ -14,36 +14,65 @@ import { readingOrder } from "./markers.js";
  * In the text - a paragraph's, or a title's - as in any word processor:
  * typing inserts, Backspace and Delete take out a character (a surrogate
  * pair being one), Enter splits a paragraph in two (in a title: what's after
- * the caret becomes the section's first paragraph). Backspace at the start
+ * the caret becomes the section's first paragraph) - but at the end of one,
+ * with an empty one next in reading order, its placeholder showing, Enter
+ * only moves the caret there: to fill in what's already waiting, not make
+ * more of it. Backspace at the start
  * of a paragraph joins it to the paragraph before it, Delete at its end the
  * one after - siblings both; anywhere else nothing.
  *
- * At the markers - the places between text:
+ * A section's title counts as the paragraph before its first child:
+ * Backspace at the start of the first paragraph joins it into the title,
+ * Delete at the end of the title the first paragraph into it.
  *
- *  - A flow's post marker (its end), Enter: a new, empty flow right after
- *    it, of its kind - a paragraph after a paragraph; a section, with no
- *    title offset, after a section - the caret in its text (a section's:
- *    its title). After a title: a new first paragraph of its section.
- *    Typing at a paragraph's pre or post marker types at its start or end.
- *  - A split marker, typing: a new flow there, of the kind of the one after
- *    it - a section (at the same title level) or a paragraph - the typed
- *    text in it (a section's: in its title).
- *  - A split marker, Enter: its list - a section - split in two there: what
- *    comes after the marker moved into a new section (with an empty title)
- *    after it; the caret at the split marker between the two.
- *  - A join marker, Backspace or Delete: the flows on either side joined, the
- *    one after into the one before: two paragraphs' text; two sections - the
- *    second's title gone, its children the first's; a section, then a
- *    paragraph - the paragraph the section's last child; a paragraph, then
- *    a section - the section unwrapped, its title gone, its children after
- *    the paragraph, in the section the paragraph is in. The caret at the
- *    split marker the join makes - where the two met - or, for two
- *    paragraphs, where their text met.
- *  - A join marker, typing: that join, then typing at where it left the
- *    caret.
+ * Every new section - however it's made - holds an empty paragraph if
+ * nothing else, so it shows both placeholders, "Title" and "Text" (see
+ * ../layout); the caret, unless said otherwise below, at the start of its
+ * title. And no section is ever left only a title: one a split or a
+ * removal empties gets an empty paragraph too - which a section merged into
+ * it, coming back, takes the place of, so the round trips stay exact.
  *
- * Whatever else - Enter at a pre marker, Backspace at a split marker, ... -
- * leaves everything as it is.
+ * The structure, from the text - three keys, each undoing another:
+ *
+ *  - Enter on an empty paragraph: a section in its place, holding the
+ *    paragraphs after it in its list, up to the next section; the caret at
+ *    the start of its (empty) title (sectionFrom()).
+ *  - Or: Enter at the start of a paragraph, an empty one before it - as
+ *    Enter at its start leaves: the paragraph promoted, the title of a
+ *    section in their place, the empty one gone, holding the paragraphs
+ *    after it up to the next section; the caret at the start of its title
+ *    (promote()). Backspace there makes it a paragraph again.
+ *  - Enter at the start of a title - empty or not: its section split off
+ *    the section it's in, as its second half - what came after it moved
+ *    into it - and after that section, a level up; right in a document, a
+ *    document of its own. The caret stays (splitOff()).
+ *  - Backspace at the start of a title, or at a section's pre marker: the
+ *    section merged with what's before it - after a section, into it,
+ *    flattened: the section with its title and leading paragraphs its last
+ *    child, the rest of what it held after it - undoing a split (exactly,
+ *    when what the split moved into it began with a section: paragraphs it
+ *    moved in can't be told from the section's own, and stay in it); after
+ *    a paragraph or its parent's title, unwrapped in place, its title a
+ *    paragraph first - or, empty, gone - undoing a section made on Enter
+ *    (mergeBack()).
+ *
+ * So from the end of a paragraph, Enter, Enter, Enter and Backspace,
+ * Backspace leave everything as it was.
+ *
+ * Tab anywhere in a title does the same as Enter at its start; anywhere in
+ * a paragraph, makes it a section's title, the section holding the
+ * paragraphs after it up to the next section - the caret staying where it
+ * is (pressTab()).
+ *
+ * At a flow's post marker (its end), Enter: a new, empty flow right after
+ * it, of its kind - a paragraph after a paragraph; a section, with no title
+ * offset, after a section - the caret in its text (a section's: its
+ * title). Typing at a paragraph's pre or post marker types at its start or
+ * end; Backspace at a pre marker is as at the start of the text it opens;
+ * Backspace at a post marker takes the flow out - a paragraph, a section and
+ * all in it - the caret at the end of the text before it (removeFlow()).
+ *
+ * Whatever else leaves everything as it is.
  */
 export function rippleEditing(root) {
   return {
@@ -51,6 +80,7 @@ export function rippleEditing(root) {
     deleteBackward: (at) => deleteBackward(root, at),
     deleteForward: (at) => deleteForward(root, at),
     splitParagraph: (at) => pressEnter(root, at),
+    tab: (at, { shift = false } = {}) => pressTab(root, at, shift),
     deleteBetween: (anchor, focus) => deleteBetween(root, anchor, focus),
     wordAt,
     paragraphAt,
@@ -70,19 +100,6 @@ function insertText(root, at, text) {
     insertInto(at.paragraph, at.offset, text);
     return textPosition(at.paragraph, at.offset + text.length);
   }
-  if (isJoinMarker(at)) {
-    const after = join(at.list, at.index);
-    return after ? insertText(root, after, text) : at;
-  }
-  if (isSplitMarker(at)) {
-    const next = at.list.children[at.index];
-    if (!next) return at;
-    const flow = flowLike(next, next.titleOffset || 0);
-    at.list.children.splice(at.index, 0, flow);
-    const paragraph = isSection(flow) ? flow.title : flow;
-    insertInto(paragraph, 0, text);
-    return textPosition(paragraph, text.length);
-  }
   if (isFlowEdge(at) && isParagraph(at.flow)) {
     const offset = at.edge === "start" ? 0 : paragraphText(at.flow).length;
     insertInto(at.flow, offset, text);
@@ -95,6 +112,18 @@ function pressEnter(root, at) {
   if (isText(at)) {
     const place = locate(root, at.paragraph);
     if (!place) return at;
+    if (place.titleOf && at.offset === 0) return splitOff(root, place.titleOf) || at;
+    if (place.list && isSection(place.list) && paragraphText(at.paragraph) === "") return sectionFrom(place.list, place.index);
+    if (place.list && isSection(place.list) && at.offset === 0 && isEmptyParagraph(place.list.children[place.index - 1])) {
+      promote(place.list, place.index, true);
+      return at;
+    }
+    // At the end, with an empty one next - its placeholder showing: there,
+    // nothing new made.
+    if (at.offset === paragraphText(at.paragraph).length) {
+      const next = paragraphAfter(root, at.paragraph);
+      if (next && paragraphText(next) === "") return textPosition(next, 0);
+    }
     const rest = new Paragraph(cutAfter(at.paragraph, at.offset));
     if (place.titleOf) place.titleOf.children.splice(0, 0, rest);
     else place.list.children.splice(place.index + 1, 0, rest);
@@ -103,23 +132,10 @@ function pressEnter(root, at) {
   if (isFlowEdge(at) && at.edge === "end") {
     const place = locate(root, at.flow);
     if (!place) return at;
-    if (place.titleOf) {
-      const first = new Paragraph();
-      place.titleOf.children.splice(0, 0, first);
-      return textPosition(first, 0);
-    }
+    if (place.titleOf) return at;
     const flow = flowLike(at.flow, 0);
     place.list.children.splice(place.index + 1, 0, flow);
     return textPosition(isSection(flow) ? flow.title : flow, 0);
-  }
-  if (isSplitMarker(at) && isSection(at.list)) {
-    const parent = at.list;
-    const place = locate(root, parent);
-    if (!place || place.titleOf) return at;
-    const moved = parent.children.splice(at.index);
-    const second = flowLike(parent, parent.titleOffset, moved);
-    place.list.children.splice(place.index + 1, 0, second);
-    return splitMarker(place.list, place.index + 1);
   }
   return at;
 }
@@ -133,11 +149,160 @@ function deleteBackward(root, at) {
       return textPosition(paragraph, from);
     }
     const place = locate(root, paragraph);
-    if (place && place.list && isParagraph(place.list.children[place.index - 1])) return join(place.list, place.index);
+    if (place && place.titleOf) return mergeBack(root, place.titleOf) || at;
+    if (place && place.list) return joinParagraphs(place.list, place.index) || at;
     return at;
   }
-  if (isJoinMarker(at)) return join(at.list, at.index) || at;
+  // At a pre marker: as at the start of the text it opens.
+  if (isFlowEdge(at) && at.edge === "start") {
+    if (isSection(at.flow)) return mergeBack(root, at.flow) || at;
+    return deleteBackward(root, textPosition(at.flow, 0));
+  }
+  // At a post marker: the flow gone.
+  if (isFlowEdge(at) && at.edge === "end") return removeFlow(root, at.flow) || at;
   return at;
+}
+
+// Backspace at a flow's post marker: the flow - a paragraph, a section and
+// all in it, a document, if there's another - taken out; the section it was
+// in, left empty, given an empty paragraph. The caret at the end of the
+// text before it - or, first of all, at the start of what's first now. Null
+// if it can't be: a title, the only document.
+function removeFlow(root, flow) {
+  const place = locate(root, flow);
+  if (!place || !place.list) return null;
+  const { list, index } = place;
+  if (!isSection(list) && list.children.length < 2) return null;
+  const blocks = readingOrder(root).filter((item) => item.block && !item.exit).map((item) => item.block);
+  const before = blocks[blocks.indexOf(isSection(flow) ? flow.title : flow) - 1] || null;
+  list.children.splice(index, 1);
+  if (isSection(list)) fillIfEmpty(list);
+  if (before) return textPosition(before, paragraphText(before).length);
+  const first = readingOrder(root).find((item) => item.block && !item.exit);
+  return first ? textPosition(first.block, 0) : null;
+}
+
+// Enter on an empty paragraph: a section in its place - its title empty, to
+// write - holding the paragraphs after it in its list, up to the next
+// section (an empty paragraph, if there are none). The caret at the start of
+// its title.
+function sectionFrom(list, index) {
+  let end = index + 1;
+  while (isParagraph(list.children[end])) end++;
+  const section = newSection(0, list.children.slice(index + 1, end));
+  list.children.splice(index, end - index, section);
+  return textPosition(section.title, 0);
+}
+
+// The paragraph at `index` in `list` promoted: a section's title, the
+// section in its place, holding the paragraphs after it, up to the next
+// section (an empty paragraph, if there are none). With `dropBefore`, the
+// empty paragraph before it gone too - Enter at the start of a paragraph
+// with an empty one before it, left there by Enter at its start just
+// before. Tab anywhere in it: without. The paragraph, the same, the title
+// now - a position in it is where it was.
+function promote(list, index, dropBefore = false) {
+  const paragraph = list.children[index];
+  let end = index + 1;
+  while (isParagraph(list.children[end])) end++;
+  const held = list.children.slice(index + 1, end);
+  const section = new Section(paragraph, held.length > 0 ? held : [new Paragraph()]);
+  const from = dropBefore ? index - 1 : index;
+  list.children.splice(from, end - from, section);
+}
+
+const isEmptyParagraph = (flow) => isParagraph(flow) && paragraphText(flow) === "";
+
+// Tab - a styling command; text has no use for it. Anywhere in a title: as
+// Enter at its start - its section split off the section it's in, what came
+// after it in there moved into it (splitOff()). Anywhere in a paragraph: the
+// paragraph promoted, the title of a section (promote()). The caret where it
+// was. Shift+Tab: as it is.
+function pressTab(root, at, shift) {
+  if (shift || !isText(at)) return at;
+  const place = locate(root, at.paragraph);
+  if (place && place.titleOf) splitOff(root, place.titleOf);
+  else if (place && place.list && isSection(place.list)) promote(place.list, place.index);
+  return at;
+}
+
+// Enter at the start of a title: its section split off the section it's
+// in, as the second half of it - what came after it there moved into it,
+// after what it holds, and it after that section, a level up. A section
+// right in a document becomes a document of its own, after it. The caret
+// where it was. Null if there's nothing to split off.
+function splitOff(root, section) {
+  const place = locate(root, section);
+  if (!place || !place.list || !isSection(place.list)) return null;
+  const parent = place.list;
+  const outer = locate(root, parent);
+  if (!outer || !outer.list) return null;
+  const tail = parent.children.splice(place.index).slice(1);
+  section.children.push(...tail);
+  // Neither half left empty.
+  fillIfEmpty(parent);
+  fillIfEmpty(section);
+  outer.list.children.splice(outer.index + 1, 0, isSection(outer.list) ? section : asDocument(section, parent));
+  return textPosition(section.title, 0);
+}
+
+// A section with nothing in it given an empty paragraph - its "Text"
+// placeholder: no section is ever only a title.
+function fillIfEmpty(section) {
+  if (section.children.length === 0) section.children.push(new Paragraph());
+}
+
+// Whether a section holds nothing but an empty paragraph - as one made, or
+// left by a split, does.
+const holdsOnlyAnEmptyParagraph = (section) => section.children.length === 1 && isEmptyParagraph(section.children[0]);
+
+// Backspace at the start of a title: its section merged with what's before
+// it. After a section: into it, flattened - itself, its title and the
+// paragraphs it starts with, as that section's last child, and all it held
+// from its first section on after it, as that section's children too: what
+// splitOff() did, undone (a document becoming a section again). After a
+// paragraph, or first in its section (its title before it): unwrapped,
+// what it held in its place, its title before it as a paragraph - or, an
+// empty one, gone: what sectionFrom() did, undone. The caret where its
+// title was - or, its title gone, at what came first in it, or else the end
+// of what's before. Null if there's nothing before it.
+function mergeBack(root, section) {
+  const place = locate(root, section);
+  if (!place || !place.list) return null;
+  const { list, index } = place;
+  const before = flowBefore(list, index);
+  if (!before) return null;
+  if (isSection(before)) {
+    // Merged into a section holding only an empty paragraph - as a split
+    // leaves one: in its place.
+    if (holdsOnlyAnEmptyParagraph(before)) before.children.splice(0);
+    let end = 0;
+    while (isParagraph(section.children[end])) end++;
+    const rest = section.children.splice(end);
+    list.children.splice(index, 1);
+    before.children.push(section instanceof Document ? asSection(section) : section, ...rest);
+    return textPosition(section.title, 0);
+  }
+  const held = section.children.splice(0);
+  const title = section.title;
+  if (paragraphText(title) !== "") {
+    list.children.splice(index, 1, title, ...held);
+    return textPosition(title, 0);
+  }
+  list.children.splice(index, 1, ...held);
+  const first = held[0];
+  if (first) return textPosition(isSection(first) ? first.title : first, 0);
+  return textPosition(before, paragraphText(before).length);
+}
+
+// A section as a document, on `like`'s paper - and a document as a section
+// - the same title, the same children.
+function asDocument(section, like) {
+  return new Document({ title: section.title, paper: like.paper, margins: like.margins, titleOffset: section.titleOffset }, section.children.splice(0));
+}
+
+function asSection(document) {
+  return new Section(document.title, document.children.splice(0), document.titleOffset);
 }
 
 function deleteForward(root, at) {
@@ -149,10 +314,11 @@ function deleteForward(root, at) {
       return textPosition(paragraph, offset);
     }
     const place = locate(root, paragraph);
-    if (place && place.list && isParagraph(place.list.children[place.index + 1])) return join(place.list, place.index + 1);
+    if (place && place.list) return joinParagraphs(place.list, place.index + 1) || at;
+    // At a title's end: its section's first paragraph, as the paragraph after.
+    if (place && place.titleOf) return joinParagraphs(place.titleOf, 0) || at;
     return at;
   }
-  if (isJoinMarker(at)) return join(at.list, at.index) || at;
   return at;
 }
 
@@ -173,7 +339,7 @@ function deleteBetween(root, anchor, focus) {
   deleteRange(start.paragraph, start.offset, paragraphText(start.paragraph).length);
   deleteRange(end.paragraph, 0, end.offset);
   first.list.children.splice(first.index + 1, last.index - first.index - 1);
-  join(first.list, first.index + 1);
+  joinParagraphs(first.list, first.index + 1);
   return start;
 }
 
@@ -195,45 +361,38 @@ function paragraphAt(at) {
   return [textPosition(at.paragraph, 0), textPosition(at.paragraph, paragraphText(at.paragraph).length)];
 }
 
-// The flows on either side of gap `index` in `list` joined, the one after
-// into the one before (see the class doc). Where the caret goes - or null,
-// if they can't be: at a section's title and its first child.
-function join(list, index) {
-  if (index < 1) return null;
-  const before = list.children[index - 1];
+// The paragraph at `index` in `list` joined into the paragraph before it -
+// before a section's first child, its title. Where their text met - or
+// null, if it and what's before it aren't both paragraphs.
+function joinParagraphs(list, index) {
+  const before = flowBefore(list, index);
   const after = list.children[index];
-  if (!before || !after) return null;
-  if (isParagraph(before) && isParagraph(after)) {
-    const length = paragraphText(before).length;
-    list.children.splice(index, 1);
-    before.spans.push(...after.spans.splice(0));
-    return textPosition(before, length);
-  }
-  if (isSection(before) && isSection(after)) {
-    const count = before.children.length;
-    list.children.splice(index, 1);
-    const moved = after.children.splice(0);
-    before.children.push(...moved);
-    return moved.length > 0 ? splitMarker(before, count) : flowEnd(before);
-  }
-  if (isSection(before) && isParagraph(after)) {
-    const count = before.children.length;
-    list.children.splice(index, 1);
-    before.children.push(after);
-    return splitMarker(before, count);
-  }
-  // A paragraph, then a section: the section unwrapped.
-  const moved = after.children.splice(0);
-  list.children.splice(index, 1, ...moved);
-  return moved.length > 0 ? splitMarker(list, index) : flowEnd(before);
+  if (!isParagraph(before) || !isParagraph(after)) return null;
+  const length = paragraphText(before).length;
+  list.children.splice(index, 1);
+  before.spans.push(...after.spans.splice(0));
+  return textPosition(before, length);
+}
+
+// What's before child `index` of `list`: the child before it - or, before a
+// section's first child, its title, as a paragraph before it would be.
+function flowBefore(list, index) {
+  if (index > 0) return list.children[index - 1];
+  return isSection(list) ? list.title : null;
 }
 
 // A new, empty flow of `flow`'s kind - a section at `titleOffset`, holding
-// `children`; a document on the same paper.
+// `children`; a document on the same paper. A new section holds an empty
+// paragraph if nothing else: a title and a text, both to write.
 function flowLike(flow, titleOffset, children = []) {
-  if (flow instanceof Document) return new Document({ title: "", paper: flow.paper, margins: flow.margins, titleOffset }, children);
-  if (isSection(flow)) return new Section("", children, titleOffset);
+  if (isSection(flow)) return newSection(titleOffset, children, flow instanceof Document ? flow : null);
   return new Paragraph();
+}
+
+function newSection(titleOffset = 0, children = [], document = null) {
+  const content = children.length > 0 ? children : [new Paragraph()];
+  if (document) return new Document({ title: "", paper: document.paper, margins: document.margins, titleOffset }, content);
+  return new Section("", content, titleOffset);
 }
 
 // Where a flow is: { list, index } - a child of a section, or of the
@@ -254,9 +413,17 @@ function locate(root, flow) {
   return visit(root);
 }
 
+// The paragraph after `paragraph` in reading order - a title, or body text;
+// never an exit title, no text of the document's. Null after the last.
+function paragraphAfter(root, paragraph) {
+  const blocks = readingOrder(root).filter((item) => item.block && !item.exit).map((item) => item.block);
+  const index = blocks.indexOf(paragraph);
+  return index >= 0 ? blocks[index + 1] || null : null;
+}
+
 // The two positions, the one first in reading order first.
 function inReadingOrder(root, a, b) {
-  const items = readingOrder(root, { joinMarkers: "all" });
+  const items = readingOrder(root);
   const order = (at) => {
     const index = items.findIndex((item) => isText(at) ? item.block === at.paragraph : !!item.marker && samePosition(item.marker, at));
     return [index, isText(at) ? at.offset : 0];

@@ -1,6 +1,6 @@
 import assert from "assert";
 import { PaperSequence, pt } from "../../print/index.js";
-import { document, section, paragraph, bold, sequence as sequenceOf, exitTitle } from "../../model/flows.js";
+import { document, section, paragraph, bold, sequence as sequenceOf, exitTitle, makeSpan } from "../../model/flows.js";
 import { SequenceLayout, exitTitlePrefix } from "../DocumentLayout.js";
 import { typography } from "../typography.js";
 import { testDocument } from "../../model/testDocument.js";
@@ -88,6 +88,18 @@ describe("Laying out a Ripple document", function () {
     assert.equal(line.start, 0);
     assert.equal(line.end, 0);
     assert.ok(line.width > 0);
+  });
+
+  it("shows an empty paragraph as \"Text\", faintly - until the first letter is typed, and again when the last is gone", function () {
+    const p = paragraph();
+    const doc = document({ title: "Book", paper, margins }, p);
+    const sequence = layOut(doc);
+    const runs = () => sequence.linesOf(0)[1].runs.map((run) => [run.text, !!run.placeholder]);
+    assert.deepEqual(runs(), [["Text", true]]);
+    p.spans.push(makeSpan("x"));
+    assert.deepEqual(runs(), [["x", false]]);
+    p.spans.splice(0, 1);
+    assert.deepEqual(runs(), [["Text", true]]);
   });
 
   it("gives a section followed by a sibling of a higher title level an exit title - a level below the section it goes back out to - and takes it away when they no longer are", function () {

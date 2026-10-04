@@ -4,8 +4,8 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
 
 /**
  * RipplePaperView - Ripple's papers on screen: cascade.print's
- * PaperSequenceView, with Ripple's caret - which at a gap between flows (see
- * markers.js) is a horizontal bar across the text area.
+ * PaperSequenceView, with Ripple's caret - in the text, or at a flow's start
+ * or end beside it (see markers.js) - and the areas the markers stand for.
  *
  * A paper sequence on screen: its papers, white with a slight shadow, one
  * under the other on a grey background, each with the text laid out on it.
@@ -16,15 +16,13 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
  * scaled by `zoom` (CSS zoom, so the room it takes up scales too, and so do
  * scroll bars around it).
  *
- * `caret`, if given, is drawn on its paper, blinking - in the text, or at a
- * flow's start or end beside the flow, a vertical bar, { page, x, top,
- * height }, at a gap a horizontal one, { page, x, width, y, marker: true },
- * in µm (see positions.js's caretAt()) - with
+ * `caret`, if given, is drawn on its paper, blinking - a vertical bar,
+ * { page, x, top, height } in µm (see positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its
  * blink shown.
  * `areas`, if given, are drawn under everything else - under the
  * selection, under the text: rectangles, [{ page, x, top, width, height }]
- * in µm - what a gap stands for (see markers.js) - each a faint, light blue,
+ * in µm - what a marker stands for (see markers.js) - each a faint, light blue,
  * see-through box with a slightly stronger 1px edge.
  * `selection`, if given, is highlighted under the text: { rects, focused } -
  * rects as positions.js's selectionRects() gives them; blue while the editor
@@ -133,7 +131,7 @@ class PaperText extends Component {
   }
 }
 
-// A gap's area: a faint, see-through light blue, its edge a little
+// A marker's area: a faint, see-through light blue, its edge a little
 // stronger.
 function areaStyle(rect) {
   return {
@@ -165,13 +163,14 @@ function highlightStyle(rect, color) {
 }
 
 function caretStyle(caret) {
-  // A marker's: a horizontal bar across the text area, at its height.
-  const shape = caret.marker
-    ? { left: cssMm(caret.x), top: cssMm(caret.y), width: cssMm(caret.width), height: "0", borderTop: "1.5px solid black", marginTop: "-0.75px" }
-    : { left: cssMm(caret.x), top: cssMm(caret.top), height: cssMm(caret.height), width: "0", borderLeft: "1.5px solid black", marginLeft: "-0.75px" };
   return {
     position: "absolute",
-    ...shape,
+    left: cssMm(caret.x),
+    top: cssMm(caret.top),
+    height: cssMm(caret.height),
+    width: "0",
+    borderLeft: "1.5px solid black",
+    marginLeft: "-0.75px",
     pointerEvents: "none",
     // Two names for the same blink, taking turns: a new name restarts the
     // animation - shown, at the start of its cycle.

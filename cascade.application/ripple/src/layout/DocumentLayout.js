@@ -5,9 +5,11 @@ import { typography as defaultTypography, titleStyle } from "./typography.js";
 
 const fallbackMeasurer = monospaceMeasurer();
 
-// What an empty title shows, faintly - and an exit title before the title
+// What an empty title and an empty paragraph show, faintly, behind where
+// their text will be - and an exit title before the title
 // it goes back out to.
 export const titlePlaceholder = "Title";
+export const textPlaceholder = "Text";
 export const exitTitlePrefix = "❧ → ";
 
 /**
@@ -29,7 +31,9 @@ export const exitTitlePrefix = "❧ → ";
  *  - ParagraphLayout: a paragraph (a cascade.print Paragraph) - a section's
  *    title, or body text. Its look is its place's (see typography.js): a
  *    title's its title level's; only its spans are bold or italic of their
- *    own. An empty title shows "Title", faintly - a placeholder, no text.
+ *    own. An empty one shows "Title" or "Text", faintly - a placeholder,
+ *    no text: the caret only before its first letter, and typing there
+ *    takes its place.
  *  - ExitTitleLayout: a section's exit title - a fleuron, an arrow, and the
  *    title of the section it's in, what comes next being back out there -
  *    set one title level below the level of that section, whatever offsets
@@ -38,7 +42,7 @@ export const exitTitlePrefix = "❧ → ";
  *    a title's space after it before it, and its space before it after.
  *    Its lines' source is exitTitle(section).
  *
- * Only the flows are laid out here. The gaps between them - where a caret
+ * Only the flows are laid out here. The markers beside them - where a caret
  * can be besides the text - are placed afterwards, from what's laid out (see
  * ../paper/markers.js): they take no room, so they can never move a flow.
  */
@@ -134,11 +138,11 @@ export class ParagraphLayout extends Paragraph {
     const typography = this.inherit("typography");
     const style = this.role.body ? typography.body : titleStyle(typography, this.role.title);
     const { font, ...layout } = style;
-    const empty = this.role.title !== undefined && paragraphText(this.source) === "";
+    const placeholder = this.role.body ? textPlaceholder : titlePlaceholder;
     return {
       ...layout,
       font,
-      spans: empty ? [{ text: titlePlaceholder, font, placeholder: true }] : styledSpans(this.source.spans, font),
+      spans: paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font),
     };
   }
 }

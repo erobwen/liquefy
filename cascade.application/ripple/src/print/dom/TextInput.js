@@ -6,7 +6,7 @@ import { DOMNodeComponent } from "@liquefy/cascade.dom";
  * commands for the editor (see PaperEditor):
  *
  *   { type: "insert", text }       - typed, pasted, or composed
- *   { type: "key", key, shift, primary } - Backspace, Delete, Enter,
+ *   { type: "key", key, shift, primary } - Backspace, Delete, Enter, Tab,
  *                                    the arrows, Home, End - or the name
  *                                    of a shortcut (see `shortcutFor`);
  *                                    `primary` is Ctrl - Cmd on a Mac
@@ -115,4 +115,4 @@ export class TextInput extends DOMNodeComponent {
   }
 }
 
-const handledKeys = new Set(["Backspace", "Delete", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]);
+const handledKeys = new Set(["Backspace", "Delete", "Enter", "Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]);

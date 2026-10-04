@@ -21,34 +21,19 @@ import { observable } from "@liquefy/cascade.component";
  * Every flow is observable, all the way down - its spans, its children - so
  * what's laid out from it follows every change.
  *
- * Positions - where a caret can be - are of three kinds:
+ * Positions - where a caret can be - are of two kinds:
  *
  *   textPosition(paragraph, offset, lineEnd)  - in a paragraph's text, as
  *                                               cascade.print's positions are
- *   gap(list, index, slot)                    - before child `index` of
- *                                               `list`: a section, or the
- *                                               sequence - its split marker
- *                                               (slot 0) or join marker (1)
  *   flowStart(flow), flowEnd(flow)            - at the very start and end of
- *                                               a flow: a document, a
- *                                               section, a title, a paragraph
+ *                                               a flow - its pre and post
+ *                                               marker: a document's, a
+ *                                               section's, a title's, a
+ *                                               paragraph's
  *
- * A gap is between two flows lying side by side in a list - two siblings,
- * or a section's title and its first child - and belongs to that list, at
- * one level of the tree: "after A" and "before B" among a section's children
- * are the same gap. Before a list's first flow and after its last there's no
- * gap: those places are the flows' own start and end. Every flow has a start
- * and an end of its own: between two paragraphs A and B, the end of A, the
- * gap between them, and the start of B are three places; and the end of a
- * section's last paragraph, and the end of the section, are two.
- *
- * A gap may be two places, one above the other: its split marker (slot 0,
- * the upper - splitMarker()), where something is added between the two
- * flows, and its join marker (slot 1, the lower - joinMarker()), where the
- * two flows are joined into one. A gap with one place has only its split
- * marker (see ../paper/markers.js for which gaps have both).
- *
- * Gaps and flow starts and ends are markers - places between text.
+ * Every flow has a start and an end of its own: the end of a section's last
+ * paragraph, and the end of the section, are two places. Flow starts and
+ * ends are markers - places beside the text.
  *
  * Title levels: a section's title is set for its level (see titleLevel()) -
  * 1 for a section at the root, its parent's + 1 for one inside another,
@@ -110,22 +95,15 @@ export class Sequence extends Flow {
 }
 
 export const textPosition = (paragraph, offset, lineEnd = false) => Object.freeze({ paragraph, offset, lineEnd });
-export const gap = (list, index, slot = 0) => Object.freeze({ list, index, slot });
-export const splitMarker = (list, index) => gap(list, index, 0);
-export const joinMarker = (list, index) => gap(list, index, 1);
-export const isSplitMarker = (at) => isGap(at) && at.slot === 0;
-export const isJoinMarker = (at) => isGap(at) && at.slot === 1;
 export const flowStart = (flow) => Object.freeze({ flow, edge: "start" });
 export const flowEnd = (flow) => Object.freeze({ flow, edge: "end" });
-export const isGap = (at) => !!at && "list" in at;
 export const isFlowEdge = (at) => !!at && "flow" in at;
-// A marker: a place between text - a gap, or a flow's start or end.
-export const isMarker = (at) => isGap(at) || isFlowEdge(at);
+// A marker: a place beside the text - a flow's start or end.
+export const isMarker = (at) => isFlowEdge(at);
 
-// The same place - in the text wherever a line break puts it, the same gap
-// in the same slot, or the same flow's same edge.
+// The same place - in the text wherever a line break puts it, or the same
+// flow's same edge.
 export function samePosition(a, b) {
-  if (isGap(a) || isGap(b)) return isGap(a) && isGap(b) && a.list === b.list && a.index === b.index && a.slot === b.slot;
   if (isFlowEdge(a) || isFlowEdge(b)) return isFlowEdge(a) && isFlowEdge(b) && a.flow === b.flow && a.edge === b.edge;
   return a.paragraph === b.paragraph && a.offset === b.offset;
 }
@@ -163,6 +141,30 @@ export function checkChildren(children) {
     if (child instanceof Document) throw new Error("A document can't be inside a section.");
   });
   return children;
+}
+
+// The sections a flow is in, outermost - its document - first: for a
+// section's title, that section last. Null if it's nowhere under `root` (a
+// sequence, or a document).
+export function sectionsAround(root, flow) {
+  const visit = (section, path) => {
+    const here = [...path, section];
+    if (section.title === flow) return here;
+    for (const child of section.children) {
+      if (child === flow) return here;
+      if (isSection(child)) {
+        const found = visit(child, here);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  for (const document of root instanceof Sequence ? root.children : [root]) {
+    if (document === flow) return [];
+    const found = visit(document, []);
+    if (found) return found;
+  }
+  return null;
 }
 
 // The text of a paragraph, all its spans together.

@@ -12,10 +12,9 @@ import { ripplePaperView } from "./RipplePaperView.js";
 /**
  * RippleEditor - Ripple's papers with a caret: cascade.print's PaperEditor,
  * made for Ripple's document - its caret moves through every place in it,
- * the text and the gaps between its flows at every level (see markers.js,
- * positions.js), and a gap's caret is a horizontal bar across the text area.
+ * the text and the markers beside its flows (see markers.js, positions.js).
  *
- *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, markersBeside, joinMarkers })
+ *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes })
  *
  * `sequence` is the paper sequence the document is laid out onto - by
  * someone else: the editor only reads it - `root` the document's root (the
@@ -28,18 +27,11 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * unless it says false. A caret left at a kind no longer there is gone - the
  * next move starts from the very start.
  *
- * `markersBeside` (true by default) puts a flow's start and end beside the
- * flow, a vertical bar - false, between the flows, a horizontal one (see
- * markers.js). `joinMarkers` says which gaps have a join marker below their
- * split marker: "beforeSections" (by default) every gap before a section,
- * "all" or "none".
- *
  * At a marker, the marker's area - what it stands for (see markers.js) - is
- * drawn under the text: the room a gap is in, or the flow whose start or end
- * it is. `showAllAreas` draws every marker's at once, to see them all.
+ * drawn under the text: the flow whose start or end it is. `showAllAreas` draws every marker's at once, to see them all.
  *
  * The caret and the selection are positions (see ../model/flows.js) - in a
- * paragraph's text, or a gap - state of the editor, drawn where the layout
+ * paragraph's text, or at a marker - state of the editor, drawn where the layout
  * puts them. Moving the caret is moving through the document's caret rows,
  * in reading order. What an edit does is the model's business, given as
  * `editing`, every function taking and returning positions:
@@ -47,6 +39,7 @@ import { ripplePaperView } from "./RipplePaperView.js";
  *   {
  *     insertText(at, text),          // typed - with "\n" for a paragraph break
  *     deleteBackward(at), deleteForward(at), splitParagraph(at),
+ *     tab(at, { shift }),            // Tab - optional
  *     deleteBetween(anchor, focus),  // a selection, either way round
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
  *   }
@@ -59,23 +52,24 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything).
  *
  * Moving: the arrows - Left and Right through every place, Up and Down from
- * row to row, a gap's marker a row of its own (Up and Down keep the x moving
- * began at, on lines) - and Home and End (Ctrl/Cmd: the start and end of
+ * line to line, past the markers beside them (keeping the x moving up and
+ * down began at) - and Home and End (Ctrl/Cmd: the start and end of
  * everything). With something selected, Left and Right go to its start and
  * end.
  *
  * For whatever else changes the model around the caret - a toolbar:
  * selection() tells what's selected, apply(change) makes a change in one go
  * and gives the keyboard back to the text. And `shortcuts` - { b: "Bold" }:
- * Ctrl/Cmd plus a key, handed to `onShortcut(name)`.
+ * Ctrl/Cmd plus a key, handed to `onShortcut(name)`. And `onCaret(position)`,
+ * told every time the caret moves - an edit moving it too - for showing
+ * what it's in.
  */
 export class RippleEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, showAllAreas = false, markerTypes, markersBeside = true, joinMarkers = "beforeSections", style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, showAllAreas = false, markerTypes, style }) {
     this.sequence = sequence;
+    this.onCaret = onCaret || null;
     this.root = root;
     this.showAllAreas = !!showAllAreas;
-    this.markersBeside = !!markersBeside;
-    this.joinMarkers = joinMarkers;
     this.markerTypes = frozen(markerTypes || {});
     this.measurer = measurer;
     this.editing = editing;
@@ -117,9 +111,9 @@ export class RippleEditor extends Component {
     super.onDispose();
   }
 
-  // Where the caret can be, now: every line and gap, in reading order.
+  // Where the caret can be, now: every line and marker, in reading order.
   rows() {
-    return caretRows(this.sequence, this.root, { types: this.markerTypes, beside: this.markersBeside, joinMarkers: this.joinMarkers });
+    return caretRows(this.sequence, this.root, { types: this.markerTypes });
   }
 
   hasSelection() {
@@ -273,6 +267,8 @@ export class RippleEditor extends Component {
       case "Backspace": return editing && this.edit(selected ? null : (at) => editing.deleteBackward(at));
       case "Delete": return editing && this.edit(selected ? null : (at) => editing.deleteForward(at));
       case "Enter": return editing && this.edit((at) => editing.splitParagraph(at));
+      // Tab: whatever the model makes of it - with something selected, nothing.
+      case "Tab": return editing && editing.tab && !selected && this.edit((at) => editing.tab(at, { shift }));
       case "SelectAll": return this.select(sequenceStart(rows), sequenceEnd(rows));
     }
     // Moving. Without Shift, a selection collapses: Left and Right to
@@ -334,6 +330,7 @@ export class RippleEditor extends Component {
     this.blink++;
     continueInvalidations();
     this.followCaret();
+    this.tellCaret();
   }
 
   select(anchor, focus) {
@@ -345,6 +342,12 @@ export class RippleEditor extends Component {
     this.blink++;
     continueInvalidations();
     this.followCaret();
+    this.tellCaret();
+  }
+
+  // Whoever placed the editor told where the caret is now (`onCaret`).
+  tellCaret() {
+    if (this.onCaret) this.onCaret(this.caret);
   }
 
   // The input to the caret - or the selection's end - so an input method

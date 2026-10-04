@@ -8,7 +8,10 @@ import { pt } from "../print/index.js";
  *
  * Each is a paragraph's layout for cascade.print (see its Paragraph.js):
  * `font` - what a span is set in, unless it's bold or italic itself - and
- * align, lineSpacing, spaceBefore, spaceAfter, indents.
+ * align, lineSpacing, spaceBefore, spaceAfter, indents. And
+ * `paragraphIndent`: in a document indenting its paragraphs rather than
+ * spacing them apart, how far in the first line of a paragraph following
+ * another goes.
  */
 const serif = "Georgia, 'Times New Roman', serif";
 const sans = "'Helvetica Neue', Arial, sans-serif";
@@ -16,6 +19,7 @@ const font = (family, size, weight = 400, italic = false) => Object.freeze({ fam
 
 export const typography = Object.freeze({
   body: Object.freeze({ font: font(serif, 11), lineSpacing: 1.15, spaceAfter: pt(6) }),
+  paragraphIndent: pt(16),
   titles: Object.freeze([
     Object.freeze({ font: font(sans, 24, 700), align: "center", spaceAfter: pt(24) }),
     Object.freeze({ font: font(sans, 17, 700), spaceBefore: pt(18), spaceAfter: pt(8) }),

@@ -326,6 +326,19 @@ describe("Editing a Ripple document", function () {
       assert.equal(shape(doc), "D[p, Heading, y, S[], z]");
     });
 
+    it("only moves the caret on Tab when what's next is empty - its placeholder waiting - not demoting", function () {
+      const s = section("S", paragraph());
+      const { doc, editing } = setUp(section("A", paragraph("a")), s);
+      const original = shape(doc);
+      const at = editing.tab(textPosition(s.title, 1));
+      assert.ok(samePosition(at, textPosition(s.children[0], 0)));
+      assert.equal(shape(doc), original);
+      // An empty title, an empty text after it: there too.
+      const blank = section("", paragraph());
+      const { editing: other } = setUp(blank);
+      assert.ok(samePosition(other.tab(textPosition(blank.title, 0)), textPosition(blank.children[0], 0)));
+    });
+
     it("demotes a section on Tab anywhere in its title - into the section before it, Shift+Tab undone exactly", function () {
       const s = section("S", paragraph("s"));
       const outer = section("Outer", paragraph("o"), s, section("T"), paragraph("t"));
@@ -346,10 +359,12 @@ describe("Editing a Ripple document", function () {
       const { doc, editing } = setUp(paragraph("p"), both, paragraph("q"), onlyTitle, paragraph("r"), onlyText, paragraph("s"), neither);
       let at = editing.tab(textPosition(both.title, 2));
       assert.ok(samePosition(at, textPosition(both.title, 2)));
-      editing.tab(textPosition(onlyTitle.title, 0));
+      // An empty paragraph next: Tab would only move there - the panel's
+      // demote, then.
+      editing.demoteSection(onlyTitle);
       at = editing.tab(textPosition(onlyText.title, 0));
       assert.ok(samePosition(at, textPosition(doc.children[6], 0)));
-      editing.tab(textPosition(neither.title, 0));
+      editing.demoteSection(neither);
       assert.equal(shape(doc), "D[p, Both, text, q, Only title, r, only text, s, _]");
     });
 

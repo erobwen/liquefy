@@ -77,7 +77,8 @@ import { readingOrder } from "./markers.js";
  * and what it held - the reverse of Shift+Tab in a paragraph, which makes it
  * a section's title, the section holding the paragraphs after it up to the
  * next section. Tab in a paragraph: nothing. The caret stays where it is
- * (pressTab()). The same moves,
+ * (pressTab()) - but Tab with an empty title or paragraph next, its
+ * placeholder waiting, only moves the caret there. The same moves,
  * for a panel's buttons: promoteSection(), demoteSection(), and whether
  * they can be done, canPromote(), canDemote() - and promoteParagraph(), and
  * for a leaf section, makeParagraphs() (canMakeParagraphs()); for a
@@ -296,12 +297,16 @@ const isEmptyParagraph = (flow) => isParagraph(flow) && paragraphText(flow) === 
 // paragraph a section's title (promote()). Tab, in - demoting: anywhere in
 // a title, its section into the section before it, Shift+Tab undone; or,
 // with none right before it, made paragraphs (demote()). Tab in a
-// paragraph: nothing. The caret where it was.
+// paragraph: nothing. The caret where it was. But Tab with an empty one
+// next in reading order - its placeholder showing, waiting: only the caret
+// moved there, as from one field to the next.
 function pressTab(root, at, shift, options = {}) {
   if (!isText(at)) return at;
   const place = locate(root, at.paragraph);
   if (!place) return at;
   if (!shift) {
+    const next = paragraphAfter(root, at.paragraph);
+    if (next && paragraphText(next) === "") return textPosition(next, 0);
     if (place.titleOf) return demote(root, place.titleOf, at, options) || at;
   } else if (place.titleOf) splitOff(root, place.titleOf);
   else if (place.list && isSection(place.list)) promote(place.list, place.index);

@@ -1,5 +1,5 @@
 import { positionInLine } from "../print/index.js";
-import { textPosition, isMarker, samePosition } from "../model/flows.js";
+import { textPosition, isMarker, samePosition, paragraphText } from "../model/flows.js";
 
 /**
  * The caret in a laid-out Ripple document: where a position is on the
@@ -218,6 +218,34 @@ export function stepLeft(rows, at) {
   const preceding = rows[order - 1];
   return preceding ? lastPlace(preceding.row) : at;
 }
+
+// Ctrl+Right and Ctrl+Left: a word at a time, in a paragraph's text -
+// across its lines: right, to the start of the next word, past the rest of
+// this one and the spaces and punctuation after it; left, back to the start
+// of this word - or, at it, of the one before. At the very end or start of
+// the text, or at a marker: one place on, as stepRight() and stepLeft() -
+// past structure never more than a place at a time.
+export function wordRight(rows, at) {
+  if (isMarker(at)) return stepRight(rows, at);
+  const text = paragraphText(at.paragraph);
+  let offset = at.offset;
+  if (offset >= text.length) return stepRight(rows, at);
+  while (offset < text.length && isWordCharacter(text[offset])) offset++;
+  while (offset < text.length && !isWordCharacter(text[offset])) offset++;
+  return textPosition(at.paragraph, offset);
+}
+
+export function wordLeft(rows, at) {
+  if (isMarker(at)) return stepLeft(rows, at);
+  const text = paragraphText(at.paragraph);
+  let offset = at.offset;
+  if (offset <= 0) return stepLeft(rows, at);
+  while (offset > 0 && !isWordCharacter(text[offset - 1])) offset--;
+  while (offset > 0 && isWordCharacter(text[offset - 1])) offset--;
+  return textPosition(at.paragraph, offset);
+}
+
+const isWordCharacter = (character) => /[\p{L}\p{N}_]/u.test(character);
 
 // The very first and last places of everything.
 export function sequenceStart(rows) {

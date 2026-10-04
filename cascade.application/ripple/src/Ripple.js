@@ -253,8 +253,8 @@ export class Ripple extends Component {
   }
 
   // The wider context: the document the caret is in - its root - and what
-  // goes for all of it: whether its titles are numbered. Nothing without a
-  // caret.
+  // goes for all of it: whether its titles are numbered, and its paragraphs
+  // indented rather than spaced apart. Nothing without a caret.
   documentPanel() {
     const focus = this.focusedFlow();
     if (!focus) return null;
@@ -269,6 +269,13 @@ export class Ripple extends Component {
         onChange: (checked) => { document.numberTitles = checked; },
       }),
       note("Every title but the document's own numbered by where it is - 2.1, and on. The numbers aren't text: they follow the structure."),
+      checkbox({
+        key: "indentParagraphs",
+        label: "Indent paragraphs instead of spacing them",
+        checked: document.indentParagraphs,
+        onChange: (checked) => { document.indentParagraphs = checked; },
+      }),
+      note("A paragraph following another on the line after it, its first line indented - the first of a run not."),
     );
   }
 

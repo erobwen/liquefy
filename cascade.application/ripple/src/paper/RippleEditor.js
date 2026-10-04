@@ -4,7 +4,7 @@ import { TextInput } from "../print/dom.js";
 import { samePosition, isMarker, isSection, focusedFlow } from "../model/flows.js";
 import { caretRows, flowBoxes } from "./markers.js";
 import {
-  caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, rowAt,
+  caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, wordLeft, wordRight, rowAt,
   sequenceStart, sequenceEnd, orderedRange,
 } from "./positions.js";
 import { ripplePaperView } from "./RipplePaperView.js";
@@ -59,10 +59,10 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything). A
  * click off the papers selects nothing, and leaves no caret.
  *
- * Moving: the arrows - Left and Right through every place, Up and Down from
- * line to line, past the markers beside them (keeping the x moving up and
- * down began at) - and Home and End (Ctrl/Cmd: the start and end of
- * everything). With something selected, Left and Right go to its start and
+ * Moving: the arrows - Left and Right through every place (with Ctrl, or
+ * Cmd, a word at a time), Up and Down from line to line, past the markers
+ * beside them (keeping the x moving up and down began at) - and Home and
+ * End (Ctrl/Cmd: the start and end of everything). With something selected, Left and Right go to its start and
  * end.
  *
  * For whatever else changes the model around the caret - a toolbar:
@@ -316,8 +316,9 @@ export class RippleEditor extends Component {
     }
     const extend = { extend: shift };
     switch (key) {
-      case "ArrowLeft": return this.moveCaret(stepLeft(rows, from), extend);
-      case "ArrowRight": return this.moveCaret(stepRight(rows, from), extend);
+      // With Ctrl (Cmd): a word at a time.
+      case "ArrowLeft": return this.moveCaret((primary ? wordLeft : stepLeft)(rows, from), extend);
+      case "ArrowRight": return this.moveCaret((primary ? wordRight : stepRight)(rows, from), extend);
       case "Home": return this.moveCaret(primary ? sequenceStart(rows) : lineStart(rows, from), extend);
       case "End": return this.moveCaret(primary ? sequenceEnd(rows) : lineEnd(rows, from), extend);
       case "ArrowUp":

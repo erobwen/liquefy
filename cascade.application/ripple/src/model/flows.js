@@ -76,14 +76,16 @@ export class Section extends Flow {
 }
 
 // A document - the root of a tree of flows - holds what goes for all of it:
-// its paper, and whether its titles are numbered (`numberTitles`, see
-// titleNumber()).
+// its paper, whether its titles are numbered (`numberTitles`, see
+// titleNumber()), and whether its paragraphs are indented rather than
+// spaced apart (`indentParagraphs`, see ../layout).
 export class Document extends Section {
-  constructor({ title, paper, margins, titleOffset = 0, numberTitles = false }, children = []) {
+  constructor({ title, paper, margins, titleOffset = 0, numberTitles = false, indentParagraphs = false }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
     this.margins = margins;
     this.numberTitles = !!numberTitles;
+    this.indentParagraphs = !!indentParagraphs;
   }
 }
 

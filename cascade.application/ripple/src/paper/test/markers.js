@@ -6,7 +6,7 @@ import {
 } from "../../model/flows.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { caretRows, besideStep, belowGap, flowBoxes } from "../markers.js";
-import { caretAt, hitTest, stepRight, stepLeft, rowAbove, rowBelow, sequenceStart, sequenceEnd } from "../positions.js";
+import { caretAt, hitTest, stepRight, stepLeft, rowAbove, rowBelow, sequenceStart, sequenceEnd, wordRight, wordLeft } from "../positions.js";
 
 // Every character 1000 µm wide, lines 5000 µm tall; flows 6000 µm apart.
 const measurer = {
@@ -223,6 +223,29 @@ describe("Ripple's markers", function () {
     assert.ok(samePosition(stepRight(rows, flowStart(s)), textPosition(s.title, 0)));
     // Not the document's own.
     assert.equal(caretAt(rows, flowStart(doc), measurer), null);
+  });
+
+  it("are passed a place at a time, moving a word at a time - Ctrl+Right, Ctrl+Left - in the text a word at a time, across lines", function () {
+    const text = "one, two three four five six seven eight";
+    const p = paragraph(text);
+    const doc = document({ title: "D", paper, margins }, p, paragraph("next"));
+    const { rows } = layOut(sequenceOf(doc));
+    assert.ok(linesOf(rows, p).length > 1);   // wrapped: words across lines
+    const offsets = [];
+    let at = textPosition(p, 0);
+    for (let i = 0; i < 7; i++) offsets.push((at = wordRight(rows, at)).offset);
+    // Past the comma and the space too, to each word's start - to the end.
+    assert.deepEqual(offsets, [5, 9, 15, 20, 25, 29, 35]);
+    at = wordRight(rows, at);
+    assert.equal(at.offset, text.length);
+    // At the end: one place on, as Right - the paragraph's end.
+    assert.ok(samePosition(wordRight(rows, at), stepRight(rows, at)));
+    // Left: back to the start of this word, then the one before.
+    assert.ok(samePosition(wordLeft(rows, textPosition(p, 11)), textPosition(p, 9)));
+    assert.ok(samePosition(wordLeft(rows, textPosition(p, 9)), textPosition(p, 5)));
+    assert.ok(samePosition(wordLeft(rows, textPosition(p, 5)), textPosition(p, 0)));
+    // At the start: one place back.
+    assert.ok(samePosition(wordLeft(rows, textPosition(p, 0)), stepLeft(rows, textPosition(p, 0))));
   });
 
   it("leave an empty paragraph's placeholder one place - before it", function () {

@@ -162,6 +162,30 @@ describe("Laying out a Ripple document", function () {
     assert.deepEqual(lines(sequence).map(([, text]) => text)[4], "Inner");
   });
 
+  it("indents paragraphs rather than spacing them apart, in a document set so - the first of a run not indented", function () {
+    const spaced = { ...plain, body: { ...plain.body, spaceAfter: 3000 }, paragraphIndent: 2000 };
+    const doc = document({ title: "B", paper: { width: 22000, height: 80000 }, margins, indentParagraphs: true },
+      paragraph("a"), paragraph("b"), section("S", paragraph("c"), paragraph("d")), paragraph("e"), paragraph("f"));
+    const sequence = layOut(doc, { typography: spaced });
+    const byText = Object.fromEntries(sequence.linesOf(0).map((line) => [line.runs.map((run) => run.text).join(""), line]));
+    // No space between paragraphs: each on the line after the one before.
+    assert.equal(byText.b.top, byText.a.top + 5000);
+    assert.equal(byText.d.top, byText.c.top + 5000);
+    // Following another: indented. First of a run - after a title, or a
+    // section (its exit title) - not.
+    assert.equal(byText.a.x, margins.left);
+    assert.equal(byText.b.x, margins.left + 2000);
+    assert.equal(byText.c.x, margins.left);
+    assert.equal(byText.d.x, margins.left + 2000);
+    assert.equal(byText.e.x, margins.left);
+    assert.equal(byText.f.x, margins.left + 2000);
+    // Off: spaced apart, none indented.
+    doc.indentParagraphs = false;
+    const again = Object.fromEntries(sequence.linesOf(0).map((line) => [line.runs.map((run) => run.text).join(""), line]));
+    assert.equal(again.b.top, again.a.top + 5000 + 3000);
+    assert.equal(again.b.x, margins.left);
+  });
+
   it("lays out the test document with the real typography", function () {
     const sequence = new PaperSequence();
     new SequenceLayout({ sequence: sequenceOf(testDocument()), measurer }).renderOnto(sequence);

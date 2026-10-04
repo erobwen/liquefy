@@ -1,5 +1,5 @@
 import { frozen } from "@liquefy/cascade.component";
-import { Box, Section, Paragraph, contentWidth, monospaceMeasurer } from "../print/index.js";
+import { Box, Section, Paragraph, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
 import { isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 
@@ -10,6 +10,10 @@ const fallbackMeasurer = monospaceMeasurer();
 // it goes back out to.
 export const titlePlaceholder = "Title";
 export const textPlaceholder = "Text";
+// A paragraph's first line, following another's in a document indenting
+// its paragraphs - when the typography doesn't say (see typography.js).
+const defaultParagraphIndent = mm(5);
+
 // Between a title's number and its text: an en space.
 export const titleNumberGap = "\u2002";
 export const exitTitlePrefix = "❧ → ";
@@ -90,6 +94,7 @@ export class DocumentLayout extends Section {
     return new SectionLayout({
       key: "document", section: document, level: titleLevel(document), exit, width: contentWidth(format), format,
       numbered: document.numberTitles,
+      indented: document.indentParagraphs,
     });
   }
 }
@@ -102,19 +107,20 @@ export class DocumentLayout extends Section {
 // none for the document's own - and each section in it its own: this one's,
 // a dot, and its place among the sections in it.
 export class SectionLayout extends Box {
-  setProperties({ section, parent = null, level, exit, width, format, numbered = false, number = null }) {
+  setProperties({ section, parent = null, level, exit, width, format, numbered = false, number = null, indented = false }) {
     this.section = section;
     this.parent = parent;
     this.level = level;
     this.exit = !!exit;
     this.numbered = !!numbered;
     this.number = number;
+    this.indented = !!indented;
     this.width = width;
     this.format = frozen(format);
   }
 
   build() {
-    const { section, level, width, format, numbered, number } = this;
+    const { section, level, width, format, numbered, number, indented } = this;
     const children = section.children;
     let sections = 0;
     const numberOf = () => numbered ? (number ? number + "." : "") + ++sections : null;
@@ -130,9 +136,18 @@ export class SectionLayout extends Box {
           width,
           format,
           numbered,
+          indented,
           number: numberOf(),
         })
-        : new ParagraphLayout({ key: "flow" + child.causality.id, paragraph: child, role: frozen({ body: true }), width, format })),
+        : new ParagraphLayout({
+          key: "flow" + child.causality.id,
+          paragraph: child,
+          // Indented, in a document indenting its paragraphs - but the first of
+          // a run, a section's first, or after a section, isn't.
+          role: frozen({ body: true, indented, follows: indented && index > 0 && !isSection(children[index - 1]) }),
+          width,
+          format,
+        })),
     ];
     if (this.exit) boxes.push(new ExitTitleLayout({ key: "exit", section, parent: this.parent, level: level - section.titleOffset, width, format }));
     return boxes;
@@ -141,7 +156,9 @@ export class SectionLayout extends Box {
 
 // A paragraph, laid out as its role says: `{ title: level, number }` - a
 // section's title, with its number, if it has one, before it, fixed (see
-// ../print/lineBreaking.js): shown, not text - or `{ body: true }`. Its lines are placed with the paragraph as
+// ../print/lineBreaking.js): shown, not text - or `{ body: true, indented,
+// follows }`: body text - in a document indenting its paragraphs, not
+// spaced apart, and, following another paragraph, its first line indented. Its lines are placed with the paragraph as
 // their source - what a position on the papers then refers to.
 export class ParagraphLayout extends Paragraph {
   setProperties({ paragraph, role, width, format }) {
@@ -153,6 +170,13 @@ export class ParagraphLayout extends Paragraph {
     const typography = this.inherit("typography");
     const style = this.role.body ? typography.body : titleStyle(typography, this.role.title);
     const { font, ...layout } = style;
+    // In a document indenting its paragraphs: none spaced apart, a paragraph
+    // following another on the line after it, its first line indented.
+    if (this.role.body && this.role.indented) {
+      layout.spaceBefore = 0;
+      layout.spaceAfter = 0;
+      layout.firstLineIndent = this.role.follows ? (typography.paragraphIndent ?? defaultParagraphIndent) : 0;
+    }
     const placeholder = this.role.body ? textPlaceholder : titlePlaceholder;
     const number = this.role.number ? [{ text: this.role.number + titleNumberGap, font, fixed: true }] : [];
     return {

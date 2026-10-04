@@ -10,7 +10,7 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "test": "mocha ./src/print/test ./src/model/test ./src/layout/test ./src/paper/test"
+    "test": "mocha ./src/print/test ./src/model/test ./src/layout/test ./src/paper/test ./src/test"
   },
   "repository": {
     "type": "git",

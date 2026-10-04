@@ -270,14 +270,10 @@ describe("Editing a Ripple document", function () {
       let at = editing.tab(textPosition(s.title, 1));
       assert.equal(shape(doc), "D[Outer[o], S[s, after, T[]], next]");
       assert.ok(samePosition(at, textPosition(s.title, 1)));
-      // With Shift: nothing.
-      editing.tab(textPosition(s.title, 0), { shift: true });
-      assert.equal(shape(doc), "D[Outer[o], S[s, after, T[]], next]");
-      at = textPosition(s.title, 0);
       // Backspace: back into Outer - but "after", a paragraph, now one of
       // S's own leading paragraphs, stays in S. Only what came after from a
       // section on goes back out.
-      editing.deleteBackward(at);
+      editing.deleteBackward(textPosition(s.title, 0));
       assert.equal(shape(doc), "D[Outer[o, S[s, after], T[]], next]");
       assert.notEqual(shape(doc), original);
     });
@@ -294,6 +290,100 @@ describe("Editing a Ripple document", function () {
       assert.equal(shape(doc), "D[p, Heading, y, S[], z]");
     });
 
+    it("demotes a section on Shift+Tab anywhere in its title - into the section before it, Tab undone exactly", function () {
+      const s = section("S", paragraph("s"));
+      const outer = section("Outer", paragraph("o"), s, section("T"), paragraph("t"));
+      const { doc, editing } = setUp(outer, paragraph("next"));
+      const original = shape(doc);
+      editing.tab(textPosition(s.title, 1));
+      assert.equal(shape(doc), "D[Outer[o], S[s, T[], t], next]");
+      const at = editing.tab(textPosition(s.title, 1), { shift: true });
+      assert.equal(shape(doc), original);
+      assert.ok(samePosition(at, textPosition(s.title, 1)));
+    });
+
+    it("makes a section that can go no further down paragraphs on Shift+Tab - its title one, unless empty; a lone empty one gone", function () {
+      const both = section("Both", paragraph("text"));
+      const onlyTitle = section("Only title", paragraph());
+      const onlyText = section("", paragraph("only text"));
+      const neither = section("", paragraph());
+      const { doc, editing } = setUp(paragraph("p"), both, paragraph("q"), onlyTitle, paragraph("r"), onlyText, paragraph("s"), neither);
+      let at = editing.tab(textPosition(both.title, 2), { shift: true });
+      assert.ok(samePosition(at, textPosition(both.title, 2)));
+      editing.tab(textPosition(onlyTitle.title, 0), { shift: true });
+      at = editing.tab(textPosition(onlyText.title, 0), { shift: true });
+      assert.ok(samePosition(at, textPosition(doc.children[6], 0)));
+      editing.tab(textPosition(neither.title, 0), { shift: true });
+      assert.equal(shape(doc), "D[p, Both, text, q, Only title, r, only text, s, _]");
+    });
+
+    it("undoes Tab in a paragraph with Shift+Tab in its title", function () {
+      const x = paragraph("Heading");
+      const { doc, editing } = setUp(paragraph("p"), x, paragraph("y"), section("S"));
+      const original = shape(doc);
+      editing.tab(textPosition(x, 3));
+      assert.equal(shape(doc), "D[p, Heading[y], S[]]");
+      editing.tab(textPosition(x, 3), { shift: true });
+      assert.equal(shape(doc), original);
+    });
+
+    it("leaves a document first of all as it is on Shift+Tab", function () {
+      const { doc, root, editing } = setUp(paragraph("p"));
+      assert.ok(!editing.canDemote(doc));
+      editing.tab(textPosition(doc.title, 0), { shift: true });
+      assert.equal(root.children.length, 1);
+      assert.equal(shape(doc), "D[p]");
+    });
+
+    it("promotes and demotes a section from outside the text - for a panel's buttons", function () {
+      const inner = section("Inner", paragraph("i"));
+      const a = section("A", paragraph("a"), inner);
+      const { doc, editing } = setUp(a);
+      assert.ok(editing.canPromote(inner));
+      assert.ok(editing.canPromote(a));   // into a document of its own
+      assert.ok(editing.promoteSection(inner));
+      assert.equal(shape(doc), "D[A[a], Inner[i]]");
+      assert.ok(editing.canDemote(inner));
+      assert.ok(editing.demoteSection(inner));
+      assert.equal(shape(doc), "D[A[a, Inner[i]]]");
+    });
+
+    it("makes a paragraph a title from outside the text - as Tab in it", function () {
+      const x = paragraph("Heading");
+      const { doc, editing } = setUp(paragraph("p"), x, paragraph("y"));
+      assert.ok(editing.promoteParagraph(x));
+      assert.equal(shape(doc), "D[p, Heading[y]]");
+      assert.ok(!editing.promoteParagraph(doc.title));
+    });
+
+    it("makes a leaf section paragraphs again from outside the text - not one with sections in it", function () {
+      const leaf = section("Leaf", paragraph("l"));
+      const parent = section("Parent", section("Inner", paragraph("i")));
+      const { doc, editing } = setUp(section("A", paragraph("a")), leaf, parent);
+      assert.ok(editing.canMakeParagraphs(leaf));
+      assert.ok(!editing.canMakeParagraphs(parent));
+      assert.ok(!editing.canMakeParagraphs(doc));
+      assert.ok(editing.makeParagraphs(leaf));
+      assert.equal(shape(doc), "D[A[a], Leaf, l, Parent[Inner[i]]]");
+    });
+
+    it("moves a paragraph out of its section - it and all after it, after the section; the section left empty given an empty paragraph", function () {
+      const p = paragraph("p");
+      const inner = section("Inner", paragraph("i"), p, section("Sub"), paragraph("q"));
+      const { doc, editing } = setUp(section("Outer", inner, paragraph("o")));
+      assert.ok(editing.moveOut(p));
+      assert.equal(shape(doc), "D[Outer[Inner[i], p, Sub[], q, o]]");
+      const first = paragraph("first");
+      const lone = section("Lone", first);
+      const { doc: other, editing: editOther } = setUp(section("Outer", lone));
+      editOther.moveOut(first);
+      assert.equal(shape(other), "D[Outer[Lone[_], first]]");
+      // Right in a document: nowhere to go.
+      const top = paragraph("top");
+      const { editing: atTop } = setUp(top);
+      assert.ok(!atTop.canMoveOut(top));
+    });
+
     it("makes a section right in a document a document of its own on Tab", function () {
       const s = section("S", paragraph("s"));
       const { root, editing } = setUp(paragraph("d"), s, paragraph("after"));
@@ -301,6 +391,16 @@ describe("Editing a Ripple document", function () {
       assert.equal(root.children.length, 2);
       assert.equal(shape(root.children[0]), "D[d]");
       assert.equal(shape(root.children[1]), "S[s, after]");
+    });
+
+    it("acts at a section's pre marker as at its title's start - Enter splitting it off, typing into the title", function () {
+      const s = section("S", paragraph("s"));
+      const { doc, editing } = setUp(section("A", paragraph("a"), s));
+      editing.insertText(flowStart(s), "X");
+      assert.equal(paragraphText(s.title), "XS");
+      const at = editing.splitParagraph(flowStart(s));
+      assert.equal(shape(doc), "D[A[a], XS[s]]");
+      assert.ok(samePosition(at, flowStart(s)));
     });
 
     it("merges a section on Backspace at its pre marker, as at its title's start", function () {

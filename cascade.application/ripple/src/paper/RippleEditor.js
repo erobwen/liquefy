@@ -1,8 +1,8 @@
 import { Component, callback, frozen, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { TextInput } from "../print/dom.js";
-import { samePosition, isMarker } from "../model/flows.js";
-import { caretRows } from "./markers.js";
+import { samePosition, isMarker, isSection, focusedFlow } from "../model/flows.js";
+import { caretRows, flowBoxes } from "./markers.js";
 import {
   caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, rowAt,
   sequenceStart, sequenceEnd, orderedRange,
@@ -14,7 +14,7 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * made for Ripple's document - its caret moves through every place in it,
  * the text and the markers beside its flows (see markers.js, positions.js).
  *
- *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes })
+ *   rippleEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, sectionEnds })
  *
  * `sequence` is the paper sequence the document is laid out onto - by
  * someone else: the editor only reads it - `root` the document's root (the
@@ -25,10 +25,17 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * `markerTypes` says which kinds of marker the caret can go to (see
  * markers.js's markerTypes): { paragraphStart: false, ... } - every kind,
  * unless it says false. A caret left at a kind no longer there is gone - the
- * next move starts from the very start.
+ * next move starts from the very start. `sectionEnds` puts a section's end
+ * "below" its last line (the default) - a row of its own, for moving up and
+ * down - or "beside" it (see markers.js).
  *
- * At a marker, the marker's area - what it stands for (see markers.js) - is
- * drawn under the text: the flow whose start or end it is. `showAllAreas` draws every marker's at once, to see them all.
+ * At a post marker, the marker's area - what it stands for (see markers.js)
+ * - is drawn under the text: the flow whose end it is (not at a pre
+ * marker). `showAllAreas` draws every marker's at once, to see them all. And wherever the caret is,
+ * the flow it's in - a title standing for its section - is outlined: what
+ * the caret is in, at a glance - with, for a section with a title offset,
+ * an arrow beside its title, outside its box, pointing right: its title set
+ * further down than its place makes it.
  *
  * The caret and the selection are positions (see ../model/flows.js) - in a
  * paragraph's text, or at a marker - state of the editor, drawn where the layout
@@ -49,7 +56,8 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * typed changes anything.
  *
  * Selecting: drag, Shift+click, double click (a word), triple click (a
- * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything).
+ * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything). A
+ * click off the papers selects nothing, and leaves no caret.
  *
  * Moving: the arrows - Left and Right through every place, Up and Down from
  * line to line, past the markers beside them (keeping the x moving up and
@@ -65,11 +73,12 @@ import { ripplePaperView } from "./RipplePaperView.js";
  * what it's in.
  */
 export class RippleEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, showAllAreas = false, markerTypes, style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, showAllAreas = false, markerTypes, sectionEnds = "below", style }) {
     this.sequence = sequence;
     this.onCaret = onCaret || null;
     this.root = root;
     this.showAllAreas = !!showAllAreas;
+    this.sectionEnds = sectionEnds;
     this.markerTypes = frozen(markerTypes || {});
     this.measurer = measurer;
     this.editing = editing;
@@ -113,7 +122,7 @@ export class RippleEditor extends Component {
 
   // Where the caret can be, now: every line and marker, in reading order.
   rows() {
-    return caretRows(this.sequence, this.root, { types: this.markerTypes });
+    return caretRows(this.sequence, this.root, { types: this.markerTypes, sectionEnds: this.sectionEnds });
   }
 
   hasSelection() {
@@ -157,15 +166,37 @@ export class RippleEditor extends Component {
         style: { position: "relative", ...this.style },
         onmousedown: callback("press", (event) => this.press(event)),
       },
-      ripplePaperView({ sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas }),
+      ripplePaperView({
+        sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas,
+        outlines: this.focusOutline(), offsetMarks: this.offsetMarks(),
+      }),
       this.unobservable.input,
     );
   }
 
-  // The area of the marker the caret is at - none in the text.
+  // The flow the caret is in, outlined (see ../model/flows.js's
+  // focusedFlow()): its content box - none without a caret.
+  focusOutline() {
+    const focus = focusedFlow(this.root, this.caret);
+    return focus ? flowBoxes(this.sequence)(focus.flow).content : [];
+  }
+
+  // The section the caret is in, if it has a title offset (see
+  // ../model/flows.js), marked: its title's box, where it starts - for an
+  // arrow beside it, saying the title is set further down than its place
+  // makes it.
+  offsetMarks() {
+    const focus = focusedFlow(this.root, this.caret);
+    if (!focus || !isSection(focus.flow) || !(focus.flow.titleOffset > 0)) return [];
+    const [first] = flowBoxes(this.sequence)(focus.flow.title).content;
+    return first ? [first] : [];
+  }
+
+  // The area of the post marker the caret is at - none in the text, nor at a
+  // pre marker: a place before a flow, not one closing it.
   areaAtCaret(rows) {
     const caret = this.caret;
-    if (!caret || !isMarker(caret) || this.hasSelection()) return [];
+    if (!caret || !isMarker(caret) || caret.edge !== "end" || this.hasSelection()) return [];
     const found = rows.find(({ row }) => "marker" in row && samePosition(row.marker, caret));
     return found ? found.row.area : [];
   }
@@ -174,8 +205,10 @@ export class RippleEditor extends Component {
   // extended there; two in a row select a word, three a paragraph. Held
   // down and dragged, the selection follows the mouse.
   press(event) {
+    if (event.button !== 0) return;
     const paper = event.target.closest && event.target.closest("[data-page]");
-    if (!paper || event.button !== 0) return;
+    // Off the papers: nothing selected, no caret.
+    if (!paper) return this.deselect();
     // Not the paper taking focus from the input - the input takes it.
     event.preventDefault();
     const u = this.unobservable;
@@ -330,6 +363,17 @@ export class RippleEditor extends Component {
     this.blink++;
     continueInvalidations();
     this.followCaret();
+    this.tellCaret();
+  }
+
+  // No caret, nothing selected - as before the first click.
+  deselect() {
+    if (!this.caret && !this.anchor) return;
+    this.unobservable.goalX = null;
+    postponeInvalidations();
+    this.anchor = null;
+    this.caret = null;
+    continueInvalidations();
     this.tellCaret();
   }
 

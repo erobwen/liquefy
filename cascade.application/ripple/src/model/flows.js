@@ -75,11 +75,15 @@ export class Section extends Flow {
   }
 }
 
+// A document - the root of a tree of flows - holds what goes for all of it:
+// its paper, and whether its titles are numbered (`numberTitles`, see
+// titleNumber()).
 export class Document extends Section {
-  constructor({ title, paper, margins, titleOffset = 0 }, children = []) {
+  constructor({ title, paper, margins, titleOffset = 0, numberTitles = false }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
     this.margins = margins;
+    this.numberTitles = !!numberTitles;
   }
 }
 
@@ -165,6 +169,35 @@ export function sectionsAround(root, flow) {
     if (found) return found;
   }
   return null;
+}
+
+// The flow a position is in - a title standing for its section; at a
+// marker, the marker's flow - and the sections it's in, outermost first:
+// { flow, around }. Null with no position, or one in what isn't there any
+// more.
+export function focusedFlow(root, at) {
+  if (!at) return null;
+  const flow = isFlowEdge(at) ? at.flow : at.paragraph;
+  const around = sectionsAround(root, flow);
+  if (!around) return null;
+  const last = around[around.length - 1];
+  if (last && last.title === flow) return { flow: last, around: around.slice(0, -1) };
+  return { flow, around };
+}
+
+// A title's number, in a document numbering its titles - "2.1" for the
+// first section in its second: the place of each section it's in, and its
+// own, among the sections beside it (paragraphs not counted), from the
+// document down. `around` are the sections it's in, outermost - the
+// document - first (see sectionsAround()). The document's own title has
+// none, nor any title in a document not numbering them: null.
+export function titleNumber(section, around) {
+  if (around.length === 0 || !around[0].numberTitles) return null;
+  const path = [...around.slice(1), section];
+  return path.map((each, index) => {
+    const parent = index === 0 ? around[0] : path[index - 1];
+    return String(parent.children.filter(isSection).indexOf(each) + 1);
+  }).join(".");
 }
 
 // The text of a paragraph, all its spans together.

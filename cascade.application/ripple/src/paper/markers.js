@@ -1,5 +1,5 @@
-import { px, contentWidth } from "../print/index.js";
-import { Sequence, isSection, flowStart, flowEnd, titleLevel, hasExitTitle, exitTitle } from "../model/flows.js";
+import { mm, px, contentWidth } from "../print/index.js";
+import { Sequence, Document, isSection, flowStart, flowEnd, titleLevel, hasExitTitle, exitTitle } from "../model/flows.js";
 
 /**
  * Where a caret can be in a laid-out Ripple document: its caret rows - every
@@ -55,18 +55,30 @@ import { Sequence, isSection, flowStart, flowEnd, titleLevel, hasExitTitle, exit
  *
  * A caret row is a placed line (cascade.print's), or a marker row:
  *
- *   { marker, kind, type, level, x, top, height, area }
+ *   { marker, kind, type, level, x, top, height, area }       - beside
+ *   { marker, kind, type, level, x, width, y, below: true, area } - below
  *     - marker: its position; kind: "flowStart" or "flowEnd"; type: which
  *       of markerTypes it is
  *     - level: how deep it is in the tree (a document 1, ...)
- *     - x: the bar's; top, height: a caret's on the line it's beside
+ *     - beside a line: x, the bar's; top, height: a caret's on the line
+ *     - below a line: x, width, the text area; y, the bar's
  *     - area: [{ page, x, top, width, height }]
+ *
+ * Section ends - a section's, a document's - can go below instead
+ * (`sectionEnds` "below"; "beside", by default): a horizontal bar across the
+ * text area, `belowGap` under the section's last line - easier found, and a
+ * row of their own for moving up and down. Ends of sections nested in each
+ * other, ending together, are all at one height, one on top of the other:
+ * moving up and down goes through them one by one, in reading order.
  *
  * Returned as [{ page, row }], in reading order.
  *
  * Which markers there are can be chosen, by type - to try out which places a
  * caret should be able to go (see markerTypes below): `types` maps a type to
- * whether its markers are there, every type there unless it says false.
+ * whether its markers are there, every type there unless it says false. In
+ * a document numbering its titles, though, a section's start is always
+ * there, whatever `types` says: the place before its title's number, which
+ * is no text (see ../layout).
  */
 
 // The types of markers, as an editor shows them to be chosen.
@@ -82,14 +94,14 @@ export const markerTypes = Object.freeze([
 // innermost, from the flow's bounding box.
 export const besideStep = px(2);
 
-export function caretRows(sequence, root, { types = {} } = {}) {
-  const items = readingOrder(root).filter((item) => item.block || types[item.type] !== false);
+export function caretRows(sequence, root, { types = {}, sectionEnds = "beside" } = {}) {
+  const items = readingOrder(root).filter((item) => item.block || item.always || types[item.type] !== false);
   const lines = linesByParagraph(sequence);
   const boundsOf = lineBounds(lines);
   const boxOf = boxesFrom(flowExtents(lines), sequence);
   let run = [];
   const flush = () => {
-    placeRun(run, boundsOf, boxOf, sequence);
+    placeRun(run, boundsOf, boxOf, sequence, sectionEnds);
     run = [];
   };
   for (const item of items) {
@@ -113,7 +125,9 @@ export function caretRows(sequence, root, { types = {} } = {}) {
 // Every paragraph and every marker of the tree, in reading order: { block }
 // for a paragraph's text (a title, or body text) - { block, exit: true } for
 // a section's exit title, after all that's in it - and for a marker
-// { marker, kind, type, level, flow } - `type` one of markerTypes'.
+// { marker, kind, type, level, flow, always } - `type` one of markerTypes';
+// `always` there, whatever `types` says: a section's start, in a document
+// numbering its titles.
 export function readingOrder(root) {
   const items = [];
   const visitParagraph = (paragraph, level, role) => {
@@ -123,12 +137,15 @@ export function readingOrder(root) {
   };
   // `titleAt`: the section's title level; `exit`: whether it has an exit
   // title (see ../model/flows.js).
-  const visitSection = (section, level, titleAt, exit) => {
-    items.push({ marker: flowStart(section), kind: "flowStart", type: "sectionStart", level, flow: section });
+  // `numbered`: whether its document numbers its titles - its start, then,
+  // always there: a place before the number, which is no text.
+  const visitSection = (section, level, titleAt, exit, numbered = false) => {
+    items.push({ marker: flowStart(section), kind: "flowStart", type: "sectionStart", level, flow: section, always: numbered });
     visitParagraph(section.title, level + 1, "title");
     const children = section.children;
+    const numbering = numbered || (section instanceof Document && section.numberTitles);
     children.forEach((child, index) => {
-      if (isSection(child)) visitSection(child, level + 1, titleLevel(child, titleAt), hasExitTitle(child, children[index + 1], titleAt));
+      if (isSection(child)) visitSection(child, level + 1, titleLevel(child, titleAt), hasExitTitle(child, children[index + 1], titleAt), numbering);
       else visitParagraph(child, level + 1, "paragraph");
     });
     if (exit) items.push({ block: exitTitle(section), exit: true });
@@ -217,13 +234,17 @@ const closes = (item) => item.kind === "flowEnd";
 const opens = (item) => item.kind === "flowStart";
 
 // A run's starts and ends beside their flows, each with its area: the ends
-// at the right edge of the text area, all in one spot; the starts left of
-// their flows, the innermost (the last) a step out, every one before it a
-// step further.
-function placeRun(run, boundsOf, boxOf, sequence) {
+// at the right edge of the text area, all in one spot - or, a section's,
+// with `sectionEnds` "below", under its last line, all at one height; the
+// starts left of their flows, the innermost (the last) a step out, every
+// one before it a step further.
+function placeRun(run, boundsOf, boxOf, sequence, sectionEnds) {
   for (const item of run.filter(closes)) {
     const bounds = boundsOf(item.flow);
-    if (bounds) item.placed = besideRow(item, bounds.last, textAreaRight(sequence, bounds.last.page));
+    if (!bounds) continue;
+    item.placed = sectionEnds === "below" && item.type === "sectionEnd"
+      ? belowRow(item, bounds.last, sequence)
+      : besideRow(item, bounds.last, textAreaRight(sequence, bounds.last.page));
   }
   const starts = run.filter(opens);
   starts.forEach((item, index) => {
@@ -244,6 +265,23 @@ function besideRow(item, { page, line }, x) {
     row: {
       marker: item.marker, kind: item.kind, type: item.type, level: item.level,
       x, top: line.baseline - line.ascent, height: line.ascent + line.descent,
+    },
+  };
+}
+
+// How far under a section's last line its end goes, with `sectionEnds`
+// "below".
+export const belowGap = mm(1);
+
+// A horizontal bar across the text area, just under a placed line: a
+// section's end, below it.
+function belowRow(item, { page, line }, sequence) {
+  const format = sequence.pages[page];
+  return {
+    page,
+    row: {
+      marker: item.marker, kind: item.kind, type: item.type, level: item.level,
+      x: format.margins.left, width: contentWidth(format), y: line.top + line.height + belowGap, below: true,
     },
   };
 }

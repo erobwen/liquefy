@@ -5,7 +5,7 @@ import {
   samePosition, textPosition, paragraphText, exitTitle,
 } from "../../model/flows.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
-import { caretRows, besideStep, flowBoxes } from "../markers.js";
+import { caretRows, besideStep, belowGap, flowBoxes } from "../markers.js";
 import { caretAt, hitTest, stepRight, stepLeft, rowAbove, rowBelow, sequenceStart, sequenceEnd } from "../positions.js";
 
 // Every character 1000 µm wide, lines 5000 µm tall; flows 6000 µm apart.
@@ -122,6 +122,39 @@ describe("Ripple's markers", function () {
     assert.ok(samePosition(hitTest(rows, 0, textAreaRight, last.top + 1000, measurer), flowEnd(q)));
   });
 
+  it("put section ends below, as an option: horizontal bars under the last line, one on top of the other - moving up and down through them one by one", function () {
+    const q = paragraph("qq");
+    const inner = section("Inner", q);
+    const outer = section("Outer", paragraph("pp"), inner);
+    // A section after Outer - no exit title, its last line "qq" too.
+    const next = section("Next");
+    const doc = document({ title: "D", paper, margins }, outer, next);
+    const { rows } = layOut(sequenceOf(doc), { sectionEnds: "below" });
+    const last = linesOf(rows, q)[0];
+    for (const flow of [inner, outer]) {
+      const caret = caretAt(rows, flowEnd(flow), measurer);
+      assert.equal(caret.y, last.top + last.height + belowGap);
+      assert.equal(caret.x, textArea.x);
+      assert.equal(caret.width, textArea.width);
+      assert.ok(caret.marker);
+    }
+    // A paragraph's end still beside it.
+    assert.equal(caretAt(rows, flowEnd(q), measurer).x, textAreaRight);
+    // Down from "qq": Inner's end, Outer's, then Next's title - and back up.
+    const x = textArea.x + 1000;
+    const down = [];
+    let at = textPosition(q, 1);
+    for (let i = 0; i < 3; i++) down.push(at = rowBelow(rows, at, x, measurer));
+    assert.deepEqual(down.map(nameOf), ["Inner>", "Outer>", "Next@1"]);
+    const up = [];
+    for (let i = 0; i < 3; i++) up.push(at = rowAbove(rows, at, x, measurer));
+    assert.deepEqual(up.map(nameOf), ["Outer>", "Inner>", "qq@1"]);
+    // A click at the bars: the innermost.
+    assert.ok(samePosition(hitTest(rows, 0, x, last.top + last.height + belowGap, measurer), flowEnd(inner)));
+    // Their areas: the sections'.
+    assert.ok(areaOf(rows, flowEnd(outer))[0].height > areaOf(rows, flowEnd(inner))[0].height);
+  });
+
   it("give a title no end", function () {
     const s = section("Title", paragraph("p"));
     const doc = document({ title: "D", paper, margins }, s);
@@ -169,6 +202,27 @@ describe("Ripple's markers", function () {
     assert.ok(samePosition(rowBelow(rows, textPosition(s.title, 1), textAreaRight, measurer), flowEnd(b)));
     // From beside a line, as from the line.
     assert.ok(samePosition(rowAbove(rows, flowEnd(b), x, measurer), textPosition(s.title, 1)));
+  });
+
+  it("put the caret in a numbered title after its number - and a section's start, always there, before it", function () {
+    const s = section("Sect", paragraph("p"));
+    const doc = document({ title: "D", paper, margins, numberTitles: true }, s);
+    const { rows } = layOut(sequenceOf(doc), { types: { sectionStart: false, titleStart: false, paragraphStart: false } });
+    const line = linesOf(rows, s.title)[0];
+    const number = line.runs[0];
+    assert.ok(number.fixed);
+    // Offset 0: after the number, before "Sect".
+    assert.equal(caretAt(rows, textPosition(s.title, 0), measurer).x, line.x + number.width);
+    assert.equal(caretAt(rows, textPosition(s.title, 2), measurer).x, line.x + number.width + 2000);
+    // A click on the number: the title's start.
+    assert.ok(samePosition(hitTest(rows, 0, line.x + 500, line.top + 1000, measurer), textPosition(s.title, 0)));
+    // The section's start: there, though left out of types - before the number.
+    const start = caretAt(rows, flowStart(s), measurer);
+    assert.ok(start);
+    assert.ok(start.x < line.x);
+    assert.ok(samePosition(stepRight(rows, flowStart(s)), textPosition(s.title, 0)));
+    // Not the document's own.
+    assert.equal(caretAt(rows, flowStart(doc), measurer), null);
   });
 
   it("leave an empty paragraph's placeholder one place - before it", function () {

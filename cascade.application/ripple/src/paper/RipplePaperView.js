@@ -17,13 +17,19 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
  * scroll bars around it).
  *
  * `caret`, if given, is drawn on its paper, blinking - a vertical bar,
- * { page, x, top, height } in µm (see positions.js's caretAt()) - with
+ * { page, x, top, height } in µm, or, at a section's end below its last
+ * line, a horizontal one, { page, x, width, y, marker: true } (see
+ * positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its
  * blink shown.
  * `areas`, if given, are drawn under everything else - under the
  * selection, under the text: rectangles, [{ page, x, top, width, height }]
  * in µm - what a marker stands for (see markers.js) - each a faint, light blue,
  * see-through box with a slightly stronger 1px edge.
+ * `outlines`, if given, are drawn the same, but with no fill - an edge
+ * only: the flow the caret is in.
+ * `offsetMarks`, if given, each a title's box - a section with a title
+ * offset - get an arrow pointing right, just left of it.
  * `selection`, if given, is highlighted under the text: { rects, focused } -
  * rects as positions.js's selectionRects() gives them; blue while the editor
  * has the keyboard, grey while it doesn't.
@@ -39,12 +45,14 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
  * paper a click is on.
  */
 export class RipplePaperView extends Component {
-  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, style }) {
+  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, outlines = null, offsetMarks = null, style }) {
     this.sequence = sequence;
     this.zoom = zoom;
     this.caret = frozen(caret);
     this.selection = frozen(selection);
     this.areas = frozen(areas || []);
+    this.outlines = frozen(outlines || []);
+    this.offsetMarks = frozen(offsetMarks || []);
     this.style = frozen(style || {});
   }
 
@@ -53,7 +61,7 @@ export class RipplePaperView extends Component {
   }
 
   build() {
-    const { sequence, caret, selection, areas } = this;
+    const { sequence, caret, selection, areas, outlines, offsetMarks } = this;
     const highlight = selection && selection.focused ? selectedColor : unfocusedSelectedColor;
     return div(
       {
@@ -63,7 +71,7 @@ export class RipplePaperView extends Component {
           alignItems: "center",
           gap: "8mm",
           padding: "8mm",
-          background: "#d9dce1",
+          background: paperBackdrop,
           boxSizing: "border-box",
           width: "fit-content",
           minWidth: "100%",
@@ -80,17 +88,22 @@ export class RipplePaperView extends Component {
         highlights: selection ? selection.rects.filter((rect) => rect.page === index) : [],
         highlight,
         areas: areas.filter((rect) => rect.page === index),
+        outlines: outlines.filter((rect) => rect.page === index),
+        offsetMarks: offsetMarks.filter((rect) => rect.page === index),
       })),
     );
   }
 }
+
+// The grey the papers lie on - for whatever goes around them to match.
+export const paperBackdrop = "#d9dce1";
 
 export function ripplePaperView(...parameters) {
   return new RipplePaperView(...parameters);
 }
 
 class PaperView extends Component {
-  setProperties({ sequence, index, format, caret, highlights, highlight, areas }) {
+  setProperties({ sequence, index, format, caret, highlights, highlight, areas, outlines, offsetMarks }) {
     this.sequence = sequence;
     this.index = index;
     this.format = frozen(format);
@@ -98,6 +111,8 @@ class PaperView extends Component {
     this.highlights = frozen(highlights);
     this.highlight = highlight;
     this.areas = frozen(areas || []);
+    this.outlines = frozen(outlines || []);
+    this.offsetMarks = frozen(offsetMarks || []);
   }
 
   build() {
@@ -108,6 +123,8 @@ class PaperView extends Component {
       // Keyed, as the text after them is: how many there are comes and goes
       // with the caret and the selection.
       this.areas.map((rect, index) => div({ key: "area" + index, "data-area": "", style: areaStyle(rect) })),
+      this.outlines.map((rect, index) => div({ key: "outline" + index, "data-outline": "", style: outlineStyle(rect) })),
+      this.offsetMarks.map((rect, index) => div({ key: "offset" + index, "data-offset": "", style: offsetMarkStyle(rect) }, text("→"))),
       this.highlights.map((rect, index) => div({ key: "highlight" + index, "data-selection": "", style: highlightStyle(rect, this.highlight) })),
       new PaperText({ key: "text", sequence: this.sequence, index: this.index }),
       caret ? div({ key: "caret", "data-caret": "", style: caretStyle(caret) }) : null,
@@ -147,6 +164,32 @@ function areaStyle(rect) {
   };
 }
 
+// What the caret is in, outlined: as a marker's area, but no fill - its
+// edge only, a little stronger.
+function outlineStyle(rect) {
+  return { ...areaStyle(rect), background: "none", border: "1px solid rgba(66, 133, 244, 0.5)" };
+}
+
+// A title set further down than its place makes it (its section's title
+// offset): an arrow pointing right, just left of its box, level with it.
+function offsetMarkStyle(rect) {
+  const width = 5000;
+  return {
+    position: "absolute",
+    left: cssMm(rect.x - width - 1000),
+    top: cssMm(rect.top),
+    width: cssMm(width),
+    height: cssMm(rect.height),
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    fontFamily: "sans-serif",
+    fontSize: "11pt",
+    color: "rgba(66, 133, 244, 0.85)",
+    pointerEvents: "none",
+  };
+}
+
 const selectedColor = "#b4d5fe";
 const unfocusedSelectedColor = "#dadada";
 
@@ -163,14 +206,14 @@ function highlightStyle(rect, color) {
 }
 
 function caretStyle(caret) {
+  // At a section's end below its last line: a horizontal bar across the
+  // text area.
+  const shape = caret.marker
+    ? { left: cssMm(caret.x), top: cssMm(caret.y), width: cssMm(caret.width), height: "0", borderTop: "1.5px solid black", marginTop: "-0.75px" }
+    : { left: cssMm(caret.x), top: cssMm(caret.top), height: cssMm(caret.height), width: "0", borderLeft: "1.5px solid black", marginLeft: "-0.75px" };
   return {
     position: "absolute",
-    left: cssMm(caret.x),
-    top: cssMm(caret.top),
-    height: cssMm(caret.height),
-    width: "0",
-    borderLeft: "1.5px solid black",
-    marginLeft: "-0.75px",
+    ...shape,
     pointerEvents: "none",
     // Two names for the same blink, taking turns: a new name restarts the
     // animation - shown, at the start of its cycle.

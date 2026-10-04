@@ -1,6 +1,6 @@
 import assert from "assert";
 import { isObservable } from "@liquefy/cascade.component";
-import { Paragraph, Section, Document, document, section, paragraph, bold, italic, paragraphText, isSection, isParagraph, titleLevel, hasExitTitle, exitTitle } from "../flows.js";
+import { Paragraph, Section, Document, document, section, paragraph, bold, italic, paragraphText, isSection, isParagraph, titleLevel, hasExitTitle, exitTitle, focusedFlow, sequence, textPosition, flowEnd, titleNumber, sectionsAround } from "../flows.js";
 import { testDocument } from "../testDocument.js";
 
 const paper = { width: 100000, height: 100000 };
@@ -47,6 +47,32 @@ describe("Ripple's document flows", function () {
     // The same exit title, every time it's asked for.
     assert.equal(exitTitle(deep), exitTitle(deep));
     assert.equal(exitTitle(deep).exitOf, deep);
+  });
+
+  it("tells which flow a position is in - a title standing for its section - and the sections around it", function () {
+    const p = paragraph("p");
+    const inner = section("Inner", p);
+    const doc = document({ title: "D", paper, margins }, inner);
+    const root = sequence(doc);
+    assert.deepEqual(focusedFlow(root, textPosition(p, 0)), { flow: p, around: [doc, inner] });
+    assert.deepEqual(focusedFlow(root, textPosition(inner.title, 0)), { flow: inner, around: [doc] });
+    assert.deepEqual(focusedFlow(root, flowEnd(inner)), { flow: inner, around: [doc] });
+    assert.deepEqual(focusedFlow(root, flowEnd(doc)), { flow: doc, around: [] });
+    assert.equal(focusedFlow(root, null), null);
+    assert.equal(focusedFlow(root, textPosition(paragraph("gone"), 0)), null);
+  });
+
+  it("numbers a title by where it is - sections only counted - in a document numbering its titles; the document's own, none", function () {
+    const deep = section("Deep");
+    const second = section("Second", paragraph("p"), section("First in second"), deep);
+    const doc = document({ title: "D", paper, margins, numberTitles: true }, paragraph("intro"), section("First"), second);
+    const root = sequence(doc);
+    const number = (s) => titleNumber(s, sectionsAround(root, s));
+    assert.equal(number(second), "2");
+    assert.equal(number(deep), "2.2");
+    assert.equal(titleNumber(doc, []), null);
+    doc.numberTitles = false;
+    assert.equal(number(deep), null);
   });
 
   it("takes paragraphs and sections as a section's children, in any order - nothing else", function () {

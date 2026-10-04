@@ -12,10 +12,15 @@ import { textPosition, isMarker, samePosition } from "../model/flows.js";
  * cascade.print's positions.js - the characters of the line, measured with
  * the measurer the lines were broken with. A marker is a row of one place:
  * its bar, a vertical one beside its flow - on the row of the line it's
- * beside, as far as moving up and down and clicking go.
+ * beside, as far as moving up and down and clicking go - or, a section's
+ * end below its last line, a horizontal one: a row of its own.
  */
 
 const isMarkerRow = (row) => "marker" in row;
+// A marker beside a line - on its row - or below one, a row of its own (a
+// section's end, with markers.js's `sectionEnds` "below").
+const isBelowRow = (row) => isMarkerRow(row) && !!row.below;
+const isBesideRow = (row) => isMarkerRow(row) && !row.below;
 
 // The caret row a position is on, with its place in reading order
 // (`order`, into rows). Null if it isn't laid out.
@@ -48,6 +53,7 @@ export function caretAt(rows, at, measurer) {
   const found = rowAt(rows, at);
   if (!found) return null;
   const { row, page } = found;
+  if (isBelowRow(row)) return { page, x: row.x, width: row.width, y: row.y, marker: true };
   if (isMarkerRow(row)) return { page, x: row.x, top: row.top, height: row.height };
   const x = xInLine(row, at.offset, measurer);
   const run = runAt(row, at.offset);
@@ -91,13 +97,16 @@ export function hitTest(rows, page, x, y, measurer) {
   let distance = Infinity;
   for (let order = 0; order < rows.length; order++) {
     const { page: rowPage, row } = rows[order];
-    if (rowPage !== page || isMarkerRow(row)) continue;
-    const away = Math.max(0, row.top - y, y - (row.top + row.height));
+    if (rowPage !== page || isBesideRow(row)) continue;
+    const away = isBelowRow(row) ? Math.abs(y - row.y) : Math.max(0, row.top - y, y - (row.top + row.height));
+    // On a line, that line - a bar below as near never takes it; of bars
+    // one on top of the other, the first - the innermost.
     if (away < distance) {
       distance = away;
       nearest = order;
     }
   }
+  if (nearest !== null && isBelowRow(rows[nearest].row)) return rows[nearest].row.marker;
   return nearest === null ? null : placeOnLine(rows, nearest, x, measurer);
 }
 
@@ -121,8 +130,8 @@ function placeOnLine(rows, order, x, measurer) {
 // in reading order, the ends just after.
 function besideLine(rows, order) {
   const result = [];
-  for (let i = order - 1; i >= 0 && isMarkerRow(rows[i].row) && rows[i].row.kind === "flowStart"; i--) result.push(rows[i].row);
-  for (let i = order + 1; i < rows.length && isMarkerRow(rows[i].row) && rows[i].row.kind === "flowEnd"; i++) result.push(rows[i].row);
+  for (let i = order - 1; i >= 0 && isBesideRow(rows[i].row) && rows[i].row.kind === "flowStart"; i--) result.push(rows[i].row);
+  for (let i = order + 1; i < rows.length && isBesideRow(rows[i].row) && rows[i].row.kind === "flowEnd"; i++) result.push(rows[i].row);
   return result;
 }
 
@@ -131,7 +140,7 @@ function besideLine(rows, order) {
 function lineBeside(rows, order) {
   const step = rows[order].row.kind === "flowStart" ? 1 : -1;
   let line = order;
-  while (rows[line + step] && isMarkerRow(rows[line].row)) line += step;
+  while (rows[line + step] && isBesideRow(rows[line].row)) line += step;
   return line;
 }
 
@@ -150,11 +159,12 @@ export function lineEnd(rows, at) {
 }
 
 // Up and down: the caret row before or after - a line, at `goalX` (the x
-// the caret had when moving up and down began). Starts and ends
-// beside a line are on its row: moving up and down goes past them, from the
-// line to the next - to one only with `goalX` nearer it than the line's
-// text, as a click there would. Beyond the first or last row: the start or
-// end of the line, or the marker, it's on.
+// the caret had when moving up and down began) - or a section's end below a
+// line, each of those one on top of the other a stop of its own, in reading
+// order. Starts and ends beside a line are on its row: moving up and down
+// goes past them, from the line to the next - to one only with `goalX`
+// nearer it than the line's text, as a click there would. Beyond the first
+// or last row: the start or end of the line, or the marker, it's on.
 export function rowAbove(rows, at, goalX, measurer) {
   return verticalMove(rows, at, goalX, measurer, -1);
 }
@@ -167,9 +177,11 @@ function verticalMove(rows, at, goalX, measurer, direction) {
   const found = rowAt(rows, at);
   if (!found) return at;
   // Beside a line: from the line.
-  let target = (isMarkerRow(found.row) ? lineBeside(rows, found.order) : found.order) + direction;
-  while (rows[target] && isMarkerRow(rows[target].row)) target += direction;
+  let target = (isBesideRow(found.row) ? lineBeside(rows, found.order) : found.order) + direction;
+  while (rows[target] && isBesideRow(rows[target].row)) target += direction;
   if (!rows[target]) return direction < 0 ? lineStart(rows, at) : lineEnd(rows, at);
+  // A bar below a line: a row of its own.
+  if (isBelowRow(rows[target].row)) return rows[target].row.marker;
   return placeOnLine(rows, target, goalX, measurer);
 }
 
@@ -251,14 +263,23 @@ function lastPlace(row) {
 // A line's text, from its start: its runs, and the space it was broken at.
 function rowText(row) {
   let text = "";
-  for (const run of row.runs) text += run.text;
+  for (const run of row.runs) if (!isShownOnly(run)) text += run.text;
   return text + (row.trailing || "");
 }
+
+// A run shown, but no text: a placeholder - "Text" in an empty paragraph -
+// or something fixed - a title's number (see ../print/lineBreaking.js).
+// It takes no offsets.
+const isShownOnly = (run) => !!run.placeholder || !!run.fixed;
+const textLength = (run) => isShownOnly(run) ? 0 : run.text.length;
 
 // The x of `offset` on `line`, from the paper's left edge.
 function xInLine(line, offset, measurer) {
   for (const run of line.runs) {
-    if (offset >= run.start && offset <= run.start + run.text.length) {
+    // Something fixed - a title's number - comes before its offset: the
+    // place is after it.
+    if (run.fixed) continue;
+    if (offset >= run.start && offset <= run.start + textLength(run)) {
       return line.x + run.x + measurer.measure(run.text.slice(0, offset - run.start), run.font);
     }
   }
@@ -274,9 +295,10 @@ function xInLine(line, offset, measurer) {
 function runAt(line, offset) {
   let result = null;
   for (const run of line.runs) {
-    if (offset >= run.start && offset <= run.start + run.text.length) {
+    if (run.fixed) continue;
+    if (offset >= run.start && offset <= run.start + textLength(run)) {
       if (offset > run.start || !result) result = run;
-      if (offset < run.start + run.text.length) break;
+      if (offset < run.start + textLength(run)) break;
     }
   }
   return result || line.runs[line.runs.length - 1] || null;
@@ -284,7 +306,7 @@ function runAt(line, offset) {
 
 function lastRunEnd(line) {
   const last = line.runs[line.runs.length - 1];
-  return last.start + last.text.length;
+  return last.start + textLength(last);
 }
 
 function isLowSurrogate(code) {

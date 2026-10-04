@@ -129,8 +129,9 @@ export function positionInLine(line, x, measurer) {
   let best = line.start;
   let distance = Math.abs(x - line.x);
   for (const run of line.runs) {
-    // A placeholder is no text: only its start is a place.
-    for (let count = 0; count <= (run.placeholder ? 0 : run.text.length); count++) {
+    // A placeholder, or something fixed, is no text: only its start is a
+    // place.
+    for (let count = 0; count <= (run.placeholder || run.fixed ? 0 : run.text.length); count++) {
       const at = line.x + run.x + measurer.measure(run.text.slice(0, count), run.font);
       if (Math.abs(x - at) < distance) {
         distance = Math.abs(x - at);

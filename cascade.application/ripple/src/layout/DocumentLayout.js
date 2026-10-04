@@ -10,6 +10,8 @@ const fallbackMeasurer = monospaceMeasurer();
 // it goes back out to.
 export const titlePlaceholder = "Title";
 export const textPlaceholder = "Text";
+// Between a title's number and its text: an en space.
+export const titleNumberGap = "\u2002";
 export const exitTitlePrefix = "❧ → ";
 
 /**
@@ -85,29 +87,39 @@ export class DocumentLayout extends Section {
   build() {
     const format = this.pageFormat();
     const { document, exit } = this;
-    return new SectionLayout({ key: "document", section: document, level: titleLevel(document), exit, width: contentWidth(format), format });
+    return new SectionLayout({
+      key: "document", section: document, level: titleLevel(document), exit, width: contentWidth(format), format,
+      numbered: document.numberTitles,
+    });
   }
 }
 
 // A section, its title at `level`: its title, then each of its children -
 // keyed by identity, so one inserted, moved or removed leaves the others as
 // they were, their lines included - then, with `exit`, its exit title,
-// back out to `parent` (the section it's in - null for a document).
+// back out to `parent` (the section it's in - null for a document). In a
+// document numbering its titles (`numbered`), its title has `number` -
+// none for the document's own - and each section in it its own: this one's,
+// a dot, and its place among the sections in it.
 export class SectionLayout extends Box {
-  setProperties({ section, parent = null, level, exit, width, format }) {
+  setProperties({ section, parent = null, level, exit, width, format, numbered = false, number = null }) {
     this.section = section;
     this.parent = parent;
     this.level = level;
     this.exit = !!exit;
+    this.numbered = !!numbered;
+    this.number = number;
     this.width = width;
     this.format = frozen(format);
   }
 
   build() {
-    const { section, level, width, format } = this;
+    const { section, level, width, format, numbered, number } = this;
     const children = section.children;
+    let sections = 0;
+    const numberOf = () => numbered ? (number ? number + "." : "") + ++sections : null;
     const boxes = [
-      new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level }), width, format }),
+      new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level, number }), width, format }),
       ...children.map((child, index) => isSection(child)
         ? new SectionLayout({
           key: "flow" + child.causality.id,
@@ -117,6 +129,8 @@ export class SectionLayout extends Box {
           exit: hasExitTitle(child, children[index + 1], level),
           width,
           format,
+          numbered,
+          number: numberOf(),
         })
         : new ParagraphLayout({ key: "flow" + child.causality.id, paragraph: child, role: frozen({ body: true }), width, format })),
     ];
@@ -125,8 +139,9 @@ export class SectionLayout extends Box {
   }
 }
 
-// A paragraph, laid out as its role says: `{ title: level }` - a section's
-// title - or `{ body: true }`. Its lines are placed with the paragraph as
+// A paragraph, laid out as its role says: `{ title: level, number }` - a
+// section's title, with its number, if it has one, before it, fixed (see
+// ../print/lineBreaking.js): shown, not text - or `{ body: true }`. Its lines are placed with the paragraph as
 // their source - what a position on the papers then refers to.
 export class ParagraphLayout extends Paragraph {
   setProperties({ paragraph, role, width, format }) {
@@ -139,10 +154,14 @@ export class ParagraphLayout extends Paragraph {
     const style = this.role.body ? typography.body : titleStyle(typography, this.role.title);
     const { font, ...layout } = style;
     const placeholder = this.role.body ? textPlaceholder : titlePlaceholder;
+    const number = this.role.number ? [{ text: this.role.number + titleNumberGap, font, fixed: true }] : [];
     return {
       ...layout,
       font,
-      spans: paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font),
+      spans: [
+        ...number,
+        ...(paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font)),
+      ],
     };
   }
 }

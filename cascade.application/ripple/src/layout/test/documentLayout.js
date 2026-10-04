@@ -1,7 +1,7 @@
 import assert from "assert";
 import { PaperSequence, pt } from "../../print/index.js";
 import { document, section, paragraph, bold, sequence as sequenceOf, exitTitle, makeSpan } from "../../model/flows.js";
-import { SequenceLayout, exitTitlePrefix } from "../DocumentLayout.js";
+import { SequenceLayout, exitTitlePrefix, titleNumberGap } from "../DocumentLayout.js";
 import { typography } from "../typography.js";
 import { testDocument } from "../../model/testDocument.js";
 
@@ -142,6 +142,24 @@ describe("Laying out a Ripple document", function () {
     assert.equal(exit[0], exitTitlePrefix + "B");
     assert.equal(exit[1] - (inOne[1] + 5000), 1000);  // its space before: a title's space after
     assert.equal(after[1] - (exit[1] + 5000), 3000);  // its space after: a title's space before
+  });
+
+  it("numbers every title but the document's, in a document numbering its titles - the number fixed: shown, not text", function () {
+    const inner = section("Inner", paragraph("in"));
+    const doc = document({ title: "Book", paper: { width: 22000, height: 80000 }, margins, numberTitles: true },
+      paragraph("intro"), section("One"), section("Two", inner), section(""));
+    const sequence = layOut(doc);
+    assert.deepEqual(lines(sequence).map(([, text]) => text), [
+      "Book", "intro", "1" + titleNumberGap + "One", "2" + titleNumberGap + "Two", "2.1" + titleNumberGap + "Inner", "in",
+      "3" + titleNumberGap + "Title",
+    ]);
+    const innerTitle = sequence.linesOf(0).find((line) => line.paragraph === inner.title);
+    assert.ok(innerTitle.runs[0].fixed);
+    assert.equal(innerTitle.start, 0);
+    assert.equal(innerTitle.end, 5);
+    // Off: no numbers.
+    doc.numberTitles = false;
+    assert.deepEqual(lines(sequence).map(([, text]) => text)[4], "Inner");
   });
 
   it("lays out the test document with the real typography", function () {

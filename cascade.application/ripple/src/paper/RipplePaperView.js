@@ -1,6 +1,6 @@
 import { Component, frozen } from "@liquefy/cascade.component";
 import { div, span, text } from "@liquefy/cascade.dom";
-import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
+import { cssMm, paperStyle, runStyle, paperShadow, placeholderColor } from "../print/dom.js";
 
 /**
  * RipplePaperView - Ripple's papers on screen: cascade.print's
@@ -159,7 +159,7 @@ function areaStyle(rect) {
     height: cssMm(rect.height),
     boxSizing: "border-box",
     background: "rgba(66, 133, 244, 0.07)",
-    border: "1px solid rgba(66, 133, 244, 0.35)",
+    border: "1px solid " + placeholderColor,
     pointerEvents: "none",
   };
 }

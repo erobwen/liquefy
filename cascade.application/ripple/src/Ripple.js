@@ -56,9 +56,10 @@ export class Ripple extends Component {
       // Sections made from a blank paragraph split off their parent right
       // away - beside it, not in it (see ./paper/editing.js).
       newSectionsBeside: true,
-      // Sections demoted whole, their sections in them - or flattened, those
-      // after them (see ./paper/editing.js).
-      demoteWithChildren: false,
+      // Sections demoted whole, their sub-sections in them - or flattened,
+      // those after them (see ./paper/editing.js); the flow card's "Include
+      // sub-sections".
+      demoteWithChildren: true,
       showAllAreas: false,
       markerTypes: { paragraphStart: false, paragraphEnd: false, titleStart: false, sectionStart: false },
     };
@@ -214,12 +215,6 @@ export class Ripple extends Component {
         checked: this.newSectionsBeside,
         onChange: (checked) => { this.newSectionsBeside = checked; },
       }),
-      checkbox({
-        key: "demoteWithChildren",
-        label: "Demote sections with their sub-sections",
-        checked: this.demoteWithChildren,
-        onChange: (checked) => { this.demoteWithChildren = checked; },
-      }),
       heading("Show"),
       checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
     ];
@@ -343,6 +338,16 @@ export class Ripple extends Component {
           disabled: !editing.canDemoteIntoSection(section), onClick: () => this.inOneGo(() => editing.demoteSection(section)),
         }),
       ),
+      // Demoting (+, Tab) takes its sub-sections along - or leaves them after
+      // it, in the section it goes into. Promoting always takes them along.
+      section.children.some(isSection)
+        ? checkbox({
+          key: "includeSubSections",
+          label: "Include sub-sections",
+          checked: this.demoteWithChildren,
+          onChange: (checked) => { this.demoteWithChildren = checked; },
+        })
+        : null,
       editing.canMakeParagraphs(section)
         ? button({}, "Make into paragraph", () => this.inOneGo(() => editing.makeParagraphs(section)))
         : null,

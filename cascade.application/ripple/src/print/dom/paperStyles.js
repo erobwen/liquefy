@@ -27,6 +27,10 @@ export function paperStyle(format) {
 // line). Placed on the line's baseline: its line box is exactly as tall as
 // its font reaches above and below the baseline, so the baseline is its
 // ascent down from its top.
+// A placeholder's text: the light blue of a marker area's edge (see Ripple's
+// paper/RipplePaperView.js).
+export const placeholderColor = "rgba(66, 133, 244, 0.35)";
+
 export function runStyle(line, run) {
   const font = run.font;
   return {
@@ -39,7 +43,8 @@ export function runStyle(line, run) {
     fontSize: font.size + "pt",
     fontWeight: font.weight,
     fontStyle: font.italic ? "italic" : "normal",
-    // In place of text there isn't (see lineBreaking.js): faint.
-    ...(run.placeholder ? { opacity: 0.5 } : {}),
+    // In place of text there isn't (see lineBreaking.js): faint, the light
+    // blue of a marker area's edge.
+    ...(run.placeholder ? { color: placeholderColor } : {}),
   };
 }

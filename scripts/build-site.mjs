@@ -1,6 +1,6 @@
 // Builds the site for GitHub Pages into ./site: a landing page at its root
 // (landing/), the Cascade demo under cascade/, the Flow demo under flow/ -
-// and Ripple, the word processor, under ripple/: not linked from anywhere,
+// and Tabula, the word processor, under tabula/: not linked from anywhere,
 // found only by its address.
 //
 //   npm run build:site                       (served from /liquefy/)
@@ -24,7 +24,7 @@ const base = (process.env.SITE_BASE || "/liquefy/").replace(/\/?$/, "/");
 const demos = [
   { name: "Cascade", dir: "cascade.application/demo", path: "cascade/" },
   { name: "Flow", dir: "flow.application/demo", path: "flow/" },
-  { name: "Ripple", dir: "cascade.application/ripple", path: "ripple/" },
+  { name: "Tabula", dir: "cascade.application/tabula", path: "tabula/" },
 ];
 
 rmSync(site, { recursive: true, force: true });

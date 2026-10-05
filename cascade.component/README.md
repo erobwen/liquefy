@@ -59,6 +59,13 @@ class Counter extends Component {
   `ObservableCompoundServiceLocator`, `serviceProvider()`), so themes can
   replace whole components, and any part of an app can have services of its
   own.
+- **`view(name, build, methods)`** makes a component from a build function,
+  for the many small ones that only build:
+  `const row = view("Row", ({ line }) => tr(td(text(line.status))))`, then
+  `row({ key, line })`. `methods` (optional) go on its class as they are -
+  `setProperties()` to `frozen()` a property that's plain data, say
+  (otherwise a new object literal given every build rebuilds it every time),
+  or `initialState()`.
 - **`render(target, context)`** is there for a component that needs to do real
   work at render time (measuring, say); most only implement `build()`.
 
@@ -115,7 +122,7 @@ const field = (key, labelText, control) => div({ key }, div({ key: "label" }, te
 // Two fields in one build: "label" twice - a duplicate key error.
 ```
 
-Usually the answer is to drop the inner key - static structure is matched by pattern anyway. Where keys inside are really needed, make the helper a component: every component's `build()` has keys of its own, so a `ProvenanceRow` component can key its parts `"status"` and `"source"` in every row, and only the rows themselves need keys, as list items.
+Usually the answer is to drop the inner key - static structure is matched by pattern anyway. Where keys inside are really needed, make the helper a component (`view()` makes one from the function as it is): every component's `build()` has keys of its own, so a `ProvenanceRow` component can key its parts `"status"` and `"source"` in every row, and only the rows themselves need keys, as list items.
 
 A matched component is merged into the established one exactly as a keyed one is (see "State during rebuild" below): its properties copied over, its state never. The matching reads the new build through its proxies, without recording any dependencies, and matches it against a plain-data snapshot of the previous build taken at the end of each run - the previous build's own properties are retracted once it's invalidated, so they can't be read back (see cascade.reactive's "Rebuild shape analysis").
 

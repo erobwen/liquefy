@@ -106,6 +106,17 @@ When a build() runs again, what it constructs is matched to what it constructed 
 - **Pattern matching**, for anything without a key: a component constructed in the same place as before - the same property of the same parent, the same position among its siblings - and of the same class (for a DOM element, with the same tag) is the one from before. So static structure needs no keys at all.
 - **A key**, for whatever can move, appear or disappear among its siblings - the items of a list. Among an array's children, those without a key are paired in order, skipping the keyed ones, so an item inserted at the front would otherwise be matched to what used to be first. Also for a component built but not shown (`.showIf(false)` - it's not in the result, so there's nothing to match it against), and for two components of the same class taking turns in the same place (without keys, the second would carry on as the first).
 
+A child left out - `cond ? child : null`, or `.showIf(false)` - still holds its place: the unkeyed siblings after it are matched as if it were there. So the siblings of a conditional child need no keys. (The child itself is built anew when it comes back, unless it has a key - see above.)
+
+**Keys are unique across everything one `build()` constructs, not just among siblings.** That's what lets a keyed component move to another parent within the build and still be the same component. It also means a helper that builds keyed structure can't be used twice in the same build:
+
+```js
+const field = (key, labelText, control) => div({ key }, div({ key: "label" }, text(labelText)), control);
+// Two fields in one build: "label" twice - a duplicate key error.
+```
+
+Usually the answer is to drop the inner key - static structure is matched by pattern anyway. Where keys inside are really needed, make the helper a component: every component's `build()` has keys of its own, so a `ProvenanceRow` component can key its parts `"status"` and `"source"` in every row, and only the rows themselves need keys, as list items.
+
 A matched component is merged into the established one exactly as a keyed one is (see "State during rebuild" below): its properties copied over, its state never. The matching reads the new build through its proxies, without recording any dependencies, and matches it against a plain-data snapshot of the previous build taken at the end of each run - the previous build's own properties are retracted once it's invalidated, so they can't be read back (see cascade.reactive's "Rebuild shape analysis").
 
 One thing a key does that matching can't: references outside of what build() returns - a variable in a closure, an unobservable - still point to the new, discarded twin after a match. A component referred to like that wants a key.

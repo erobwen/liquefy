@@ -1,4 +1,4 @@
-import { Component } from "./Component.js";
+import { Component, getCreator, componentPath } from "./Component.js";
 import { isObservable } from "./Cascade.js";
 
 /**
@@ -54,9 +54,14 @@ export function findImplicitChildren(properties) {
 // decides what a plain string child means to it. Still validates the
 // same way flow did otherwise - a genuine component (or anything else
 // observable), or nothing recognizable at all.
+//
+// Arrays nested among the children are flattened, however deep: a helper
+// taking `...children` and handing them on as one argument, or
+// `div(header, rows.map(row))` inside such a helper, nests them without
+// meaning anything by it.
 export function createTextNodesFromStringChildren(properties) {
   if (!properties.children) return;
-  properties.children = properties.children.map((child) => {
+  properties.children = flattenChildren(properties.children, []).map((child) => {
     if (typeof(child) === "undefined" || child === null || child === false) {
       return child;
     } else if (typeof(child) === "string" || typeof(child) === "number") {
@@ -64,9 +69,35 @@ export function createTextNodesFromStringChildren(properties) {
     } else if (child instanceof Component || isObservable(child)) {
       return child;
     } else {
-      throw new Error("Don't know what to do with this child: " + child);
+      throw new Error("Don't know what to do with a child that is " + describeValue(child) + inBuild()
+        + ": a child is a component, a string or a number - or null, false or undefined for nothing.");
     }
   });
+}
+
+function flattenChildren(children, result) {
+  for (const child of children) {
+    if (child instanceof Array) flattenChildren(child, result);
+    else result.push(child);
+  }
+  return result;
+}
+
+function describeValue(value) {
+  if (typeof(value) === "function") return "a function" + (value.name ? " (" + value.name + ")" : "");
+  if (typeof(value) !== "object") return typeof(value) + " " + String(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype === Object.prototype || prototype === null) {
+    return "a plain object {" + Object.keys(value).slice(0, 5).join(", ") + "} - a properties object comes first, and only one";
+  }
+  return "a " + (value.constructor ? value.constructor.name : "object");
+}
+
+// " in X.build() (A › B › X)", for an error about something constructed
+// in some component's build() - or nothing, outside any build.
+export function inBuild() {
+  const creator = getCreator();
+  return creator ? " in " + creator.getComponentTypeName() + ".build() (" + componentPath(creator) + ")" : "";
 }
 
 export function toPropertiesWithChildren(arglist) {
@@ -93,12 +124,21 @@ export function toProperties(arglist) {
 function buildPropertiesObject(arglist) {
   let properties = null;
   let content = null;
-  let firstContentLoose = false;
+  // Where the first real piece of content is, if it came as a loose
+  // argument (the implicit key, if it can be one) - -1 if it came in an
+  // array, or there is none yet.
+  let firstContentIndex = null;
 
   while (arglist.length > 0) {
     const current = arglist.shift();
 
+    // Nothing - `cond ? child : null`, or showIf(false). Kept, as null,
+    // to hold its place among the children: pattern matching pairs
+    // unkeyed children by position (see cascade.reactive's "Rebuild shape
+    // analysis"), so a child left out mustn't shift the ones after it.
     if (typeof(current) === "undefined" || current === null) {
+      if (!content) content = [];
+      content.push(null);
       continue;
     }
 
@@ -107,10 +147,8 @@ function buildPropertiesObject(arglist) {
       || typeof(current) === "string"
       || typeof(current) === "number"
       || isObservable(current)) { // a model or a component
-      if (!content) {
-        firstContentLoose = true;
-        content = [];
-      }
+      if (!content) content = [];
+      if (firstContentIndex === null) firstContentIndex = content.length;
       content.push(current);
     }
 
@@ -118,14 +156,12 @@ function buildPropertiesObject(arglist) {
       if (current instanceof Array) {
         // A copy: what follows is pushed onto it, and the array is the
         // caller's (often a component's own children, or frozen).
-        if (!content) {
-          content = [...current];
-        } else {
-          current.forEach((element) => content.push(element));
-        }
+        if (!content) content = [];
+        if (firstContentIndex === null) firstContentIndex = -1;
+        current.forEach((element) => content.push(element));
       } else {
         if (properties) {
-          throw new Error("Cannot have two properties objects in one argument list.");
+          throw new Error("Cannot have two properties objects in one argument list" + inBuild() + ".");
         }
         properties = { ...current };
       }
@@ -137,13 +173,13 @@ function buildPropertiesObject(arglist) {
   if (!properties) properties = {};
 
   if (content) {
-    const firstContentItem = content[0];
-    if (firstContentLoose && canBeKey(firstContentItem)) {
-      implicitKey = content.shift() + "";
-      if (content.length === 0) {
-        content = null;
-      }
+    if (firstContentIndex !== null && firstContentIndex >= 0 && canBeKey(content[firstContentIndex])) {
+      implicitKey = content.splice(firstContentIndex, 1)[0] + "";
+      warnIfMeantAsText(implicitKey);
     }
+    // Places held after the last child hold nothing for anyone.
+    while (content.length > 0 && content[content.length - 1] === null) content.pop();
+    if (content.length === 0) content = null;
     properties.componentContent = content;
   }
 
@@ -168,5 +204,15 @@ function buildPropertiesObject(arglist) {
 // key. Wrap a loose string meant as text in cascade.DOM's `text(...)` (a
 // component, never mistaken for a key), or give the key explicitly - see
 // cascade.DOM/src/test/domElementComponent.js for a case this bit.
+//
+// A key with whitespace in it was almost certainly meant as text - warned
+// about, once per key.
+const warnedKeys = new Set();
+function warnIfMeantAsText(key) {
+  if (!/\s/.test(key) || warnedKeys.has(key)) return;
+  warnedKeys.add(key);
+  console.warn("\"" + key + "\" became a key" + inBuild() + ", not text: a leading lowercase string is a key. Wrap text in text(...).");
+}
+
 const canBeKey = (content) =>
   (typeof(content) === "string" && /[a-z]/.test(content[0])) || typeof(content) === "number";

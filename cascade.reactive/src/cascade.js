@@ -2998,7 +2998,15 @@ function createWorld(configuration) {
         // silently take the first one's place - its identity (and, on a
         // rebuild, what was merged into it) lost.
         if (typeof(repeater.newBuildIdObjectMap[buildId]) !== 'undefined') {
-          throw new Error("Duplicate key \"" + buildId + "\" in one build (a " + (target.constructor ? target.constructor.name : "object") + "): keys must be unique among what a build constructs.");
+          const error = new Error("Duplicate key \"" + buildId + "\" in one build"
+            + (repeater.description ? " (" + repeater.description + ")" : "")
+            + " (a " + (target.constructor ? target.constructor.name : "object") + "): keys must be unique across"
+            + " everything one build constructs, not just among siblings.");
+          // For whoever constructs objects with keys to tell it in its own
+          // terms (cascade.component does).
+          error.duplicateKey = buildId;
+          error.firstWithKey = repeater.newBuildIdObjectMap[buildId];
+          throw error;
         }
         if (repeater.buildIdObjectMap
           && typeof(repeater.buildIdObjectMap[buildId]) !== 'undefined'
@@ -4262,7 +4270,8 @@ function createWorld(configuration) {
    *  build id is matched already (it *is* the established object) - only
    *  what it holds is matched further. Elsewhere, an array's objects
    *  without a build id are paired in order, skipping those with one on
-   *  both sides - which is why whatever can move, appear or disappear
+   *  both sides (anything else - a null left in place of a child, say -
+   *  holds its position, so leaving a child out shifts nothing) - which is why whatever can move, appear or disappear
    *  among its siblings wants a build id, and static structure doesn't. A
    *  pair matches if it's the same class with the same signature, and the
    *  established one isn't matched already; a matched object's properties
@@ -4369,28 +4378,35 @@ function createWorld(configuration) {
       for (let key in shape.slots) matchValue(shape.slots[key], value[key]);
     }
 
+    // Positions are counted without the objects with a build id, on both
+    // sides - but everything else holds its place: a null (a child left out
+    // with `cond ? child : null`, or showIf(false)), a string, a nested
+    // array, a model. So leaving one child out doesn't shift the siblings
+    // after it onto the wrong established objects - the same as flow.core's
+    // own slotsIterator.
     function matchArray(shapes, values) {
       const byObject = new Map();
       const withoutBuildId = [];
       shapes.forEach(shape => {
-        if (shape === null || shape instanceof Array) return;
-        byObject.set(shape.object, shape);
-        if (!hasBuildId(shape.object)) withoutBuildId.push(shape);
+        if (shape !== null && !(shape instanceof Array)) {
+          byObject.set(shape.object, shape);
+          if (hasBuildId(shape.object)) return;
+        }
+        withoutBuildId.push(shape);
       });
       let next = 0;
-      values.forEach((value, index) => {
-        if (value instanceof Array) {
-          if (shapes[index] instanceof Array) matchArray(shapes[index], value);
-          return;
-        }
-        if (!isConstructedIn(objectMap, value)) return;
-        if (hasBuildId(value)) {
+      values.forEach(value => {
+        if (isConstructedIn(objectMap, value) && hasBuildId(value)) {
           const shape = byObject.get(value);
           if (shape) matchSlots(shape, value);
           return;
         }
         const shape = withoutBuildId[next++];
-        if (shape) matchValue(shape, value);
+        if (value instanceof Array) {
+          if (shape instanceof Array) matchArray(shape, value);
+          return;
+        }
+        if (shape && !(shape instanceof Array)) matchValue(shape, value);
       });
     }
 

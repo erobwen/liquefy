@@ -196,9 +196,33 @@ const attributeAliases = { className: "class", htmlFor: "for" };
 // properties either way: before its definition is loaded, it doesn't have
 // them yet, and a property set on it then is taken up when it upgrades -
 // an attribute would only carry text.
+// Not a property it can be given, though, if the element only has a getter
+// by that name (input's `list` and `form`, say - set through the attribute
+// only): then it's an attribute.
 function isElementProperty(element, key) {
   if (key === "class" || key === "for" || key.includes("-")) return false;
-  return key in element || element.localName.includes("-");
+  if (element.localName.includes("-")) return true;
+  return key in element && isWritable(element, key);
+}
+
+// Per prototype and key: whether some prototype of an element (or the
+// element itself) lets the key be assigned.
+const writableCache = new WeakMap();
+function isWritable(element, key) {
+  const prototype = Object.getPrototypeOf(element);
+  let known = writableCache.get(prototype);
+  if (!known) writableCache.set(prototype, known = new Map());
+  if (known.has(key) && !Object.prototype.hasOwnProperty.call(element, key)) return known.get(key);
+  let writable = true;
+  for (let scan = element; scan; scan = Object.getPrototypeOf(scan)) {
+    const descriptor = Object.getOwnPropertyDescriptor(scan, key);
+    if (descriptor) {
+      writable = "value" in descriptor ? descriptor.writable : typeof(descriptor.set) === "function";
+      break;
+    }
+  }
+  if (!Object.prototype.hasOwnProperty.call(element, key)) known.set(key, writable);
+  return writable;
 }
 
 function setAttribute(element, key, value) {

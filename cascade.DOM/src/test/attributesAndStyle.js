@@ -111,4 +111,13 @@ describe("element attributes and style", function () {
     holder.values = { title: "again" };
     assert.equal(element.title, "again", "and set again when given again");
   });
+
+  it("a property the element only has a getter for (input's list) is set as an attribute", function () {
+    const holder = render((values) => input({ key: "i", ...values }), { list: "profiles" });
+    const element = container.firstChild;
+    assert.equal(element.getAttribute("list"), "profiles");
+
+    holder.values = {};
+    assert.equal(element.hasAttribute("list"), false, "and removed again");
+  });
 });

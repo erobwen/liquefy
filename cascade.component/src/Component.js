@@ -69,6 +69,64 @@ function assignEquivalentCreator(built, creator) {
   });
 }
 
+// Where a component comes from, in the app's own terms: whose build()
+// constructed it, whose build constructed that, and so on up -
+// "ConvertTab › SettingsCard › PresetBar(presets)".
+export function componentPath(component) {
+  const parts = [];
+  withoutRecording(() => {
+    for (let scan = component; scan; scan = scan.creator) {
+      parts.unshift(scan.getComponentTypeName() + (scan.key ? "(" + scan.key + ")" : ""));
+    }
+  });
+  return parts.join(" › ");
+}
+
+// An error thrown from a component's build() or render() is told which
+// component it came from - the innermost one only: the stack trace itself
+// mostly points into the framework, not to the app's own code. The stack
+// is patched as well as the message, since that is what a console shows.
+function withComponentPath(error, component, method) {
+  if (!(error instanceof Error) || error.cascadeComponentPath) return error;
+  const path = componentPath(component);
+  error.cascadeComponentPath = path;
+  const message = error.message;
+  error.message = message + "\n    in " + component.getComponentTypeName() + "." + method + " (" + path + ")";
+  if (typeof(error.stack) === "string" && message) error.stack = error.stack.replace(message, error.message);
+  return error;
+}
+
+// cascade.reactive's own duplicate key error, told in a component's terms:
+// whose build it was, and what the two components with that key were.
+// `component` is the one being constructed - not observable yet, its
+// properties not set yet.
+function duplicateKeyError(error, component, properties) {
+  let first = "?";
+  withoutRecording(() => {
+    const established = error.firstWithKey;
+    if (established) {
+      first = typeof(established.tagName) === "string" ? established.tagName.toLowerCase() : established.getComponentTypeName();
+    }
+  });
+  const second = typeof(properties.tagName) === "string"
+    ? properties.tagName.toLowerCase()
+    : properties.componentTypeName || component.constructor.name;
+  const creator = getCreator();
+  const where = creator
+    ? " in " + creator.getComponentTypeName() + ".build() (" + componentPath(creator) + ")"
+    : " in one build";
+  const message = "Duplicate key \"" + error.duplicateKey + "\"" + where + ": first on a " + first
+    + ", then on a " + second + ". Keys are unique across everything one build() constructs, not just among"
+    + " siblings - a keyed component keeps its identity even when it moves to another parent. Static structure needs"
+    + " no keys (it's matched by pattern: the same class in the same place); key what can move, appear or disappear."
+    + " A helper that builds the same keyed structure more than once can be a component of its own: every build()"
+    + " has keys of its own.";
+  const result = new Error(message);
+  result.duplicateKey = error.duplicateKey;
+  result.cascadeComponentPath = creator ? componentPath(creator) : "";
+  return result;
+}
+
 /**
  * Component - the cascade.component base class.
  *
@@ -201,7 +259,13 @@ export class Component {
     // the actual push/pop site, and its own comment on why.
     this.creator = getCreator();
     this.key = extractProperty(properties, "key") || null;
-    const me = observable(this, this.key);
+    let me;
+    try {
+      me = observable(this, this.key);
+    } catch (error) {
+      if (typeof(error.duplicateKey) === "undefined") throw error;
+      throw duplicateKeyError(error, this, properties);
+    }
     me.setProperties(properties);
     // Unconditionally - no attempt to detect a rebuild here. During one,
     // `me` is the established object but its writes are redirected to the
@@ -345,6 +409,8 @@ export class Component {
               if (stable.build !== u.callbackBuild) u.callbacks.delete(key);
             }
           }
+        } catch (error) {
+          throw withComponentPath(error, this, "build()");
         } finally {
           // Same reasoning as renderStack's own push/pop in renderOnto()
           // below - `creators` is a single, module-level stack shared by
@@ -690,6 +756,8 @@ export class Component {
           // elements back under the old parent's. enterTree() records them
           // fresh on every call, so they always name the current ones.
           this.render(u.renderTarget, u.childContext);
+        } catch (error) {
+          throw withComponentPath(error, this, "render()");
         } finally {
           // Must run even if render() throws - renderStack is a single,
           // module-level stack shared by every component in the process,

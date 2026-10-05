@@ -135,6 +135,34 @@ describe("Pattern matching (rebuilding without keys)", function () {
     assert.equal(container.querySelector("li"), first, "the unkeyed item before them kept");
   });
 
+  it("a child left out with null holds its place - the unkeyed siblings after it keep theirs", function () {
+    disposed.length = 0;
+    const model = observable({ note: true });
+    class Page extends Component {
+      build() {
+        return div(
+          model.note ? new Counter({ label: "note" }) : null,
+          new Counter({ label: "count" }),
+          [model.note ? span(text("nested")) : null, new Counter({ label: "nested" })],
+        );
+      }
+    }
+    const page = new Page();
+    render(page);
+    const [, counter, nested] = countersIn(page);
+    counter.count = 5;
+    nested.count = 6;
+
+    model.note = false;
+    assert.equal(html(), "<div><p>count 5</p><p>nested 6</p></div>");
+    assert.deepEqual(countersIn(page), [counter, nested], "the same counters, not the first one's");
+    assert.equal(disposed.length, 1, "only the note left");
+
+    model.note = true;
+    assert.equal(html(), "<div><p>note 0</p><p>count 5</p><span>nested</span><p>nested 6</p></div>");
+    assert.deepEqual(countersIn(page).slice(1), [counter, nested]);
+  });
+
   it("unkeyed children of a keyed parent are matched too", function () {
     const model = observable({ title: "one" });
     class Page extends Component {

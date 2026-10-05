@@ -24,6 +24,12 @@ import { isObservable } from "./Cascade.js";
  * by identity even inside a frozen value. Frozen, a value can't change
  * after it's been compared - a mutation throws instead of silently going
  * unnoticed. null and undefined pass through.
+ *
+ * In place: the value given is the one frozen, not a copy. Data handed to
+ * a component that also lives somewhere else - a server answer kept in an
+ * app's store, say - is frozen there too, and changing it in place there
+ * later throws. Hand such a component a copy, or replace the data in the
+ * store instead of changing it.
  */
 export function frozen(value) {
   deepFreeze(value, new Set());

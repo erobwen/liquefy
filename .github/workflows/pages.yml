@@ -33,6 +33,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # The Cascade demo's pages are prerendered in a headless browser
+      # (see cascade.prerender).
+      - run: npx playwright install --with-deps chromium
       - run: npm run build:site
       - uses: actions/upload-pages-artifact@v3
         with:

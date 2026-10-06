@@ -1,5 +1,6 @@
 import { RenderContext } from "@liquefy/cascade.component";
-import { DOMElementTarget, FlipAnimationContainer, browserLocation } from "@liquefy/cascade.dom";
+import { FlipAnimationContainer, browserLocation, documentHead } from "@liquefy/cascade.dom";
+import { PrerenderedElementTarget } from "@liquefy/cascade.prerender/client";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
 import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
@@ -43,10 +44,12 @@ for (const [rel, type, href, sizes] of [
 // bridging div in between.
 //
 // Where it all goes: the #application element - below a notice, where the
-// demo is the one deployed from main (see src/versionNotice.js).
+// demo is the one deployed from main (see src/versionNotice.js). Its pages
+// are prerendered (see vite.config.js): a PrerenderedElementTarget replaces
+// the snapshot a page came with by the live app.
 const application = document.getElementById("application");
 setUpVersionNotice(application);
-const target = DOMElementTarget.forElement(application);
+const target = PrerenderedElementTarget.forElement(application);
 
 // Every animation at half its natural pace - so what happens in the demo is
 // easy to follow.
@@ -71,21 +74,34 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
   location,
   pages: [
-    { key: "introduction", title: "Introduction", icon: "info", component: new IntroductionPage().establish() },
-    { key: "getting-started", title: "Getting Started", component: new GettingStartedPage().establish() },
-    { key: "convenient-usage", title: "Convenient Usage", component: new ConvenientUsagePage().establish() },
-    { key: "advanced-usage", title: "Advanced Usage", component: new AdvancedUsagePage().establish() },
-    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", component: new ProgrammaticReactiveLayout().establish() },
-    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", component: new ToolbarEllipsisPage().establish() },
-    { key: "recursive-demo", group: "Examples", title: "Recursive Demo", component: new RecursiveDemo().establish() },
-    { key: "reactive-form", group: "Examples", title: "Reactive Form", component: new ReactiveFormPage().establish() },
-    { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", component: new HybridModalDialog().establish() },
-    { key: "hydration", group: "Examples", title: "Hydration", component: new HydrationPage().establish() },
-    { key: "jsx", group: "Examples", title: "JSX", component: new JsxPage().establish() },
-    { key: "animation", group: "Examples", title: "Animation", component: new AnimationPage().establish() },
-    { key: "store", group: "Examples", title: "Web Store", component: new StorePage().establish() },
-    { key: "word-processor", group: "Examples", title: "Word Processor", component: new WordProcessorPage().establish() },
-    { key: "themes", title: "Themes", icon: "palette", component: new ThemesPage().establish() },
+    { key: "introduction", title: "Introduction", icon: "info", description: "Cascade, a reactive front end framework built on temporal signals: components rendered straight onto the real DOM in one pass.", component: new IntroductionPage().establish() },
+    { key: "getting-started", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
+    { key: "convenient-usage", title: "Convenient Usage", description: "Convenient usage of Cascade: the everyday patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
+    { key: "advanced-usage", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },
+    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", description: "A Cascade example: layout decided in code, from measured sizes, rebuilt as they change.", component: new ProgrammaticReactiveLayout().establish() },
+    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", description: "A Cascade example: a toolbar that moves what doesn't fit into an overflow menu.", component: new ToolbarEllipsisPage().establish() },
+    { key: "recursive-demo", group: "Examples", title: "Recursive Demo", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },
+    { key: "reactive-form", group: "Examples", title: "Reactive Form", description: "A Cascade example: a form whose validation and derived values follow its data.", component: new ReactiveFormPage().establish() },
+    { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", description: "A Cascade example: a modal dialog with an address of its own.", component: new HybridModalDialog().establish() },
+    { key: "hydration", group: "Examples", title: "Hydration", description: "A Cascade example: a page written as a document - plain data - and hydrated into components.", component: new HydrationPage().establish() },
+    { key: "jsx", group: "Examples", title: "JSX", description: "A Cascade example: components written in JSX.", component: new JsxPage().establish() },
+    { key: "animation", group: "Examples", title: "Animation", description: "A Cascade example: FLIP animations of elements moving, entering and leaving.", component: new AnimationPage().establish() },
+    { key: "store", group: "Examples", title: "Web Store", description: "A Cascade example: a web store.", component: new StorePage().establish() },
+    { key: "word-processor", group: "Examples", title: "Word Processor", description: "A Cascade example: a word processor laid out reactively onto pages, with cascade.print.", component: new WordProcessorPage().establish() },
+    { key: "themes", title: "Themes", icon: "palette", description: "Cascade's themes: the same app with basic and Material widgets, in any color.", component: new ThemesPage().establish() },
   ],
 }).establish();
 applicationMenuFrame.renderOnto(target, context);
+
+// The head follows the page shown: its title, its description, and its own
+// address - what search engines and link previews read (and what a
+// prerendered page is written with, see vite.config.js).
+documentHead(() => {
+  const page = applicationMenuFrame.currentPage();
+  const first = page === applicationMenuFrame.pages[0];
+  return {
+    title: first ? "Cascade" : page.title + " - Cascade",
+    description: page.description,
+    canonical: location.href(applicationMenuFrame.pathOf(page)),
+  };
+});

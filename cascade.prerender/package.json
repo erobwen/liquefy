@@ -1,0 +1,69 @@
+{
+  "name": "@liquefy/cascade.prerender",
+  "version": "2.1.0",
+  "description": "Cascade prerendered: every address of a built app rendered in a real browser and written down as a page of its own - for search engines, link previews and AI - with head tags, structured data and a sitemap. A Vite plugin and a CLI.",
+  "keywords": [
+    "prerender",
+    "ssg",
+    "seo",
+    "sitemap",
+    "vite-plugin",
+    "cascade"
+  ],
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "cascade-prerender": "./bin/cascade-prerender.js"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "bin",
+    "src",
+    "!src/test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "mocha ./src/test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erobwen/liquefy.git",
+    "directory": "cascade.prerender"
+  },
+  "bugs": {
+    "url": "https://github.com/erobwen/liquefy/issues"
+  },
+  "homepage": "https://github.com/erobwen/liquefy/tree/main/cascade.prerender#readme",
+  "dependencies": {
+    "playwright": "^1.48.0"
+  },
+  "peerDependencies": {
+    "@liquefy/cascade.component": "^2.0.0",
+    "@liquefy/cascade.dom": "^2.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@liquefy/cascade.component": {
+      "optional": true
+    },
+    "@liquefy/cascade.dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "mocha": "^10.8.2",
+    "jsdom": "^24.1.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -27,7 +27,8 @@
     "@liquefy/cascade.print": "^2.0.0",
     "@liquefy/cascade.ui": "^2.0.0",
     "@liquefy/cascade.ui.material": "^2.0.0",
-    "highlight.js": "^11.12.0"
+    "highlight.js": "^11.12.0",
+    "@liquefy/cascade.prerender": "^2.1.0"
   },
   "devDependencies": {
     "vite": "^5.3.1",

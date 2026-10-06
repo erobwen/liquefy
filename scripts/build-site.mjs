@@ -5,12 +5,19 @@
 //
 //   npm run build:site                       (served from /liquefy/)
 //   SITE_BASE=/ npm run build:site           (served from the domain's root)
+//   SITE_ORIGIN=https://... npm run build:site  (served from elsewhere)
 //
-// GitHub Pages serves static files only: a demo's page opened directly -
-// /liquefy/cascade/themes, say - has no file of its own. For every address
-// it has no file for, Pages serves 404.html instead, so that is a page that
-// loads the right demo's index.html in place, keeping the address - and the
-// demo shows the page the address names. Any other address gets the landing
+// The Cascade demo's pages are prerendered as it's built (see its
+// vite.config.js, and cascade.prerender): /liquefy/cascade/themes is a file
+// of its own, themes.html, with the page in it - for anything reading the
+// page without running it, which an AI fetching it, or a search engine,
+// does. SITE_ORIGIN is where the site will be, for the addresses in those
+// pages and their sitemap.xml: GitHub Pages' unless served from elsewhere.
+//
+// For every address that has no file - any of the Flow demo's or Tabula's
+// pages, say - Pages serves 404.html instead, so that is a page that loads
+// the right demo's index.html in place, keeping the address - and the demo
+// shows the page the address names. Any other address gets the landing
 // page.
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -20,6 +27,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const site = join(root, "site");
 const base = (process.env.SITE_BASE || "/liquefy/").replace(/\/?$/, "/");
+const origin = process.env.SITE_ORIGIN || (process.env.SITE_BASE ? "" : "https://erobwen.github.io");
 
 const demos = [
   { name: "Cascade", dir: "cascade.application/demo", path: "cascade/" },
@@ -34,7 +42,11 @@ for (const demo of demos) {
   const demoBase = base + demo.path;
   console.log(`Building ${demo.name}, for ${demoBase}`);
   // vite itself, not the demo's build script - which may do more than build.
-  execSync(`npx vite build --base=${demoBase} --outDir=dist`, { cwd: join(root, demo.dir), stdio: "inherit" });
+  execSync(`npx vite build --base=${demoBase} --outDir=dist`, {
+    cwd: join(root, demo.dir),
+    stdio: "inherit",
+    env: { ...process.env, SITE_ORIGIN: origin },
+  });
   cpSync(join(root, demo.dir, "dist"), join(site, demo.path), { recursive: true });
 }
 

@@ -71,6 +71,10 @@ argument that starts with a lowercase letter for a key - so wrap text in
   (a styleable div) that renders `child` into it, and provides the fields of
   `context` to everything below it.
 - **`browserLocation()`** - routing: the URL as observable state.
+- **`documentHead(() => ({ title, description, canonical, image, structuredData }))`** -
+  the document's head built from the app's data, following it: the title,
+  meta and Open Graph tags, and schema.org structured data - what search
+  engines and link previews read.
 - **`hydrate()`** - a UI written as a document: plain data, a tree of service
   queries, turned into components.
 - **JSX** - tags compile to those same service queries, for `hydrate()`. With

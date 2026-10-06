@@ -134,6 +134,7 @@ export class IntroductionPage extends Component {
         li(emphasis("Portals"), " - a component can put content somewhere else in the tree, as this demo's pages do with their buttons in the top bar."),
         li(emphasis("JavaScript first"), " - no CSS files, and no compile step required: the user interface is built with plain JavaScript functions."),
         li(emphasis("JSX support"), " - for those who prefer it: JSX tags compile to service queries, a document that hydrate() turns into components, just like on the Hydration page (see the JSX page)."),
+        li(emphasis("Prerendering"), " - every page of an app rendered in a real browser at build time, and written down as plain HTML, with its title, description and structured data. Search engines, link previews and AI read the page without running it, and the app takes over as it loads. Made for web shops (see Advanced Usage)."),
       ),
       
       h2("Key concepts"),

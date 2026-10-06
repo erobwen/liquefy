@@ -36,6 +36,51 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   ],
 }).establish();`;
 
+// Prerendering a shop: the build, and the app's start.
+const prerenderConfigExcerpt = `// vite.config.js
+import { defineConfig } from "vite";
+import { cascadePrerender } from "@liquefy/cascade.prerender";
+
+export default defineConfig({
+  plugins: [
+    cascadePrerender({
+      site: "https://shop.example",
+      // Where to start - every page they link to is found too.
+      routes: async () => ["", ...(await fetchProductIds()).map((id) => "product/" + id)],
+      exclude: [/^checkout/, /^account/],
+    }),
+  ],
+});`;
+
+const prerenderAppExcerpt = `// index.js
+import { browserLocation, documentHead } from "@liquefy/cascade.dom";
+import { PrerenderedElementTarget } from "@liquefy/cascade.prerender/client";
+
+const location = browserLocation({ base: import.meta.env.BASE_URL });
+
+// The root: a prerendered page's snapshot gives way to the live app, in one frame.
+const target = PrerenderedElementTarget.forElement(document.getElementById("application"));
+shop.renderOnto(target, context);
+
+// The head, built from the shop's data - and following it as the user navigates.
+documentHead(() => {
+  const product = catalogue.productAt(location.path);
+  if (!product) return { title: "Shop" };
+  return {
+    title: product.name + " - Shop",
+    description: product.summary,
+    canonical: location.href(location.path),
+    image: product.photo,
+    type: "product",
+    structuredData: {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: product.name,
+      offers: { "@type": "Offer", price: product.price, priceCurrency: "EUR" },
+    },
+  };
+});`;
+
 export class AdvancedUsagePage extends Component {
   build() {
     return article(
@@ -116,6 +161,35 @@ export class AdvancedUsagePage extends Component {
       ),
       stage(new Measured()),
       codeBlock(measuredSource),
+
+      h2("Prerendering"),
+      p(emphasis("Pages that can be read without running them.")),
+      p(
+        "A single page app is an empty page until its JavaScript has run - and a search engine, a link preview or an ",
+        "AI fetching a product's address often doesn't run it. ", name("cascade.prerender"), " opens every page of ",
+        "the built app in a real browser, at build time, and writes down what it shows as plain HTML: one file per ",
+        "address, with the page's title, description and structured data in its head, and a sitemap. When the app's ",
+        "code has loaded, it takes over in a single frame. This demo is prerendered too - open any page's source.",
+      ),
+      p(
+        "A real browser, because Cascade lays out from real measurements: without a layout engine, there would be ",
+        "nothing true to write down.",
+      ),
+      codeBlock(prerenderConfigExcerpt),
+      p(
+        "In the app, the root is rendered onto a ", name("PrerenderedElementTarget"), ", and ",
+        name("documentHead()"), " builds the head from the app's data - prices and availability shown right in ",
+        "search results:",
+      ),
+      codeBlock(prerenderAppExcerpt),
+      p(
+        emphasis("A word of warning: prerendering and programmatic responsive layout."),
+        " A page is prerendered at one size - a desktop's. Layout decided from measurements, as above, is decided ",
+        "in JavaScript: until the app has loaded, a phone shows the desktop layout, squeezed - and then the app ",
+        "lays it out again, with a visible jolt. Try this demo's menu on a phone. What must be right from the very ",
+        "first paint is best left to CSS: media queries, flex wrapping, relative sizes - the browser lays them out ",
+        "before any JavaScript has run. Keep measuring for what can wait a moment.",
+      ),
 
       h2("How to keep your children alive off screen"),
       p(

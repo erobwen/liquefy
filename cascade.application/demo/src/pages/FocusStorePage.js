@@ -2,6 +2,7 @@ import { Component, callback } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer, portal, portalSource } from "@liquefy/cascade.dom";
 import { button, card, icon, iconButton, row, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
+import { animationSpeed } from "../components/animationSpeed.js";
 import { fullPage, pagePadding } from "../components/layout.js";
 import source from "./FocusStorePage.js?raw";
 
@@ -83,11 +84,15 @@ export class FocusStorePage extends Component {
     return fullPage(
       { style: { overflow: "hidden", gap: 0, padding: 0 } },
       pageActions({ information, source, fileName: "src/pages/FocusStorePage.js" }),
+      animationSpeed(),
       // Confined: what appears in the close-up - its description - is
-      // revealed as the card grows, not drawn outside it meanwhile.
+      // revealed as the card grows, not drawn outside it meanwhile. Zooming
+      // along: and grows with it - as what leaves the close-up shrinks with
+      // the card, on its way back to the shelf.
       flipAnimationContainer(
         {
           confine: true,
+          zoomAlong: true,
           style: { position: "relative", display: "flex", flexDirection: "column", gap: "16px", height: "100%", padding: pagePadding, boxSizing: "border-box" },
         },
         new ProductList(),

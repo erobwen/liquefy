@@ -412,7 +412,9 @@ describe("FlipAnimationContainer animations", function () {
         const box = (name) => div(
           { key: name },
           div({ key: name + "Label" }, text({ key: name + "Text", text: name })),
-          name === "c" && this.extra ? div({ key: "extra" }, text({ key: "extraText", text: "extra" })) : null,
+          name === "c" && this.extra
+            ? div({ key: "extra" }, text({ key: "extraText", text: "extra" }), div({ key: "inner" }, text({ key: "innerText", text: "inner" })))
+            : null,
         );
         return flipAnimationContainer({ key: "flip" }, this.order.map(box));
       }
@@ -425,23 +427,26 @@ describe("FlipAnimationContainer animations", function () {
     boxes.order = ["c", "a", "b"];
     boxes.extra = true;
     continueInvalidations();
-    const extra = named("extra");
-    const offset = () => {
+    const extra = named("inner").parentNode;
+    const inner = named("inner");
+    const offset = (element) => {
       const box = drawnAt(c);
-      const at = drawnAt(extra);
+      const at = drawnAt(element);
       return { x: round(at.x - box.x), y: round(at.y - box.y) };
     };
-    const atRest = { x: layoutOf(extra).x - layoutOf(c).x, y: layoutOf(extra).y - layoutOf(c).y };
+    const atRest = (element) => ({ x: layoutOf(element).x - layoutOf(c).x, y: layoutOf(element).y - layoutOf(c).y });
     assert.notDeepEqual(drawnAt(c), layoutOf(c), "the box is on its way");
-    assert.deepEqual(offset(), atRest, "the newcomer is where it belongs in it - not where it will be in the page");
+    assert.deepEqual(offset(extra), atRest(extra), "the newcomer is where it belongs in it - not where it will be in the page");
+    assert.deepEqual(offset(inner), atRest(inner), "and so is what's new in it");
     runFrames(10);
-    assert.deepEqual(offset(), atRest, "and stays there, all the way");
+    assert.deepEqual(offset(extra), atRest(extra), "and stays there, all the way");
+    assert.deepEqual(offset(inner), atRest(inner));
     assert.ok(Number(extra.style.opacity) > 0 && Number(extra.style.opacity) < 1, "fading in meanwhile");
     runToRest();
     assert.deepEqual(drawnAt(extra), layoutOf(extra));
   });
 
-  it("a ghost in something shrinking goes along with it, at its own size - not shrunk along", function () {
+  it("a ghost in something shrinking goes along with it - its place in it shrinking with it - at its own size", function () {
     class Panel extends Component {
       initialState() {
         return { open: true };
@@ -465,16 +470,108 @@ describe("FlipAnimationContainer animations", function () {
     const before = drawn(more);
     panel.open = false;
     assert.equal(more.parentNode, box, "fading out in what it was in");
+    // How far into the panel it is, as a part of the panel's drawn width,
+    // and how large it's drawn.
     const measure = () => {
       const at = drawn(more);
       const corner = drawn(box);
-      return { x: round(at.x - corner.x), y: round(at.y - corner.y), sx: round(at.sx), sy: round(at.sy) };
+      return { into: round((at.x - corner.x) / (layoutWidthOf(box) * corner.sx)), sx: round(at.sx), sy: round(at.sy) };
     };
-    const start = measure();
     assert.deepEqual(drawnAt(more), { x: round(before.x), y: round(before.y) }, "drawn where it was");
+    const start = measure();
     runFrames(10);
     assert.ok(box.style.transform !== "", "the panel is still shrinking");
-    assert.deepEqual(measure(), start, "same distance from the panel's corner, same size");
+    assert.deepEqual(measure(), start, "as far into the panel, for its size - and its own size");
+    assert.deepEqual({ sx: start.sx, sy: start.sy }, { sx: 1, sy: 1 }, "not shrunk along");
+  });
+
+  describe("zoomAlong", function () {
+    // A panel 200 wide with "more" in it, or 100 wide without.
+    class Panel extends Component {
+      initialState() {
+        return { open: true };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip", zoomAlong: true },
+          div(
+            { key: "panel", title: this.open ? "200" : "100" },
+            div({ key: "label" }, text({ key: "labelText", text: "label" })),
+            this.open ? div({ key: "more" }, text({ key: "moreText", text: "more" })) : null,
+          ),
+        );
+      }
+    }
+    const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    // How much the panel is drawn larger than it was at `width`, uniformly
+    // (its height doesn't change).
+    const panelGrowth = (box, width) => Math.sqrt(layoutWidthOf(box) * drawn(box).sx / width);
+
+    it("a ghost in something shrinking shrinks along with it", function () {
+      const panel = new Panel();
+      panel.renderOnto(new DOMElementTarget(container));
+      const more = named("more");
+      const box = more.parentNode;
+      panel.open = false;
+      assert.equal(round(drawn(more).sx), 1, "as large as it was, at first");
+      runFrames(10);
+      const growth = panelGrowth(box, 200);
+      assert.ok(growth < 0.99, "the panel is shrinking");
+      assert.equal(round(drawn(more).sx), round(growth), "and so is the ghost, as much");
+      assert.equal(round(drawn(more).sy), round(growth), "uniformly");
+    });
+
+    it("a newcomer in something growing starts as small as that is drawn, and grows with it", function () {
+      const panel = new Panel();
+      panel.open = false;
+      panel.renderOnto(new DOMElementTarget(container));
+      const box = named("label").parentNode;
+      panel.open = true;
+      const more = named("more");
+      const growth = () => panelGrowth(box, 200);
+      assert.ok(growth() < 0.99, "the panel starts at its old size");
+      assert.equal(round(drawn(more).sx), round(growth()), "and so, for its size, does the newcomer");
+      runFrames(10);
+      assert.equal(round(drawn(more).sx), round(growth()), "growing with it");
+      runToRest();
+      assert.equal(round(drawn(more).sx), 1, "at its own size, at rest");
+    });
+  });
+
+  it("a leaving box with nothing to see of its own fades out as what's in it, each where it was drawn", function () {
+    // A close-up's column: its title goes back to the tile, its details
+    // leave - and the column, only a box around them, leaves too.
+    class Tile extends Component {
+      initialState() {
+        return { open: true };
+      }
+      build() {
+        const title = div({ key: "title" }, text({ key: "titleText", text: "title" }));
+        return flipAnimationContainer(
+          { key: "flip" },
+          div(
+            { key: "tile" },
+            this.open
+              ? div({ key: "column" }, title, div({ key: "details" }, text({ key: "detailsText", text: "details" })))
+              : title,
+          ),
+        );
+      }
+    }
+    const tile = new Tile();
+    tile.renderOnto(new DOMElementTarget(container));
+    const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const details = named("details");
+    const column = details.parentNode;
+    const card = column.parentNode;
+    const before = drawnAt(details);
+    tile.open = false;
+    assert.ok(!column.isConnected, "the box itself is gone at once");
+    assert.equal(details.parentNode, card, "what was in it fades out on its own, where the box was");
+    assert.equal(details.style.position, "absolute");
+    assert.deepEqual(drawnAt(details), before, "exactly where it was drawn - not where the box would now lay it out");
+    runToRest();
+    assert.ok(!details.isConnected, "gone once faded");
   });
 
   it("a leaving element that comes back after it has faded out comes back as itself - no ghost style left on it - and fades in", function () {

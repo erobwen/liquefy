@@ -79,8 +79,10 @@ export class ApplicationMenuFrame extends Component {
     return { menuOpen: false };
   }
 
-  // The top bar's portal, where the page shown puts its own buttons (see
-  // src/components/pageActions.js). Created here, once, and owned by this
+  // The top bar's portals, where the page shown puts its own buttons (see
+  // src/components/pageActions.js) - before its title - and its own tools
+  // - at the bar's far end (an animation speed slider, say: see
+  // src/components/animationSpeed.js). Created here, once, and owned by this
   // frame - not built in a build() and referenced as well (see
   // cascade.component/README.md) - and placed by ApplicationMenuFrameLayout
   // as a plain child reference. Owned, so established here and disposed of
@@ -89,11 +91,13 @@ export class ApplicationMenuFrame extends Component {
     return {
       ...super.initialUnobservables(),
       topBarPortal: portal({ key: "topBarPortal", style: { display: "flex", alignItems: "center", gap: "4px", flex: "none" } }).establish(),
+      topBarEndPortal: portal({ key: "topBarEndPortal", style: { display: "flex", alignItems: "center", gap: "8px", flex: "none", marginLeft: "auto" } }).establish(),
     };
   }
 
   onDispose() {
     this.unobservable.topBarPortal.dispose();
+    this.unobservable.topBarEndPortal.dispose();
     super.onDispose();
   }
 
@@ -101,14 +105,19 @@ export class ApplicationMenuFrame extends Component {
     return this.unobservable.topBarPortal;
   }
 
+  get topBarEndPortal() {
+    return this.unobservable.topBarEndPortal;
+  }
+
   // What the whole app inherits from here - its root services, the
-  // location, and the top bar's portal. Getters: they follow the frame.
+  // location, and the top bar's portals. Getters: they follow the frame.
   provide() {
     const frame = this;
     return {
       get rootServiceLocator() { return frame.rootServiceLocator; },
       get location() { return frame.location; },
       get topBarPortal() { return frame.topBarPortal; },
+      get topBarEndPortal() { return frame.topBarEndPortal; },
     };
   }
 
@@ -195,7 +204,9 @@ class ApplicationMenuFrameLayout extends Component {
       // title (see src/components/pageActions.js).
       frame.topBarPortal,
       div({ style: { fontWeight: "bold" } }, text(page.title)),
-      versionNoticeButton({ marginLeft: "auto" }),
+      // The shown page's own tools, at the far end.
+      frame.topBarEndPortal,
+      versionNoticeButton(),
     );
 
     const workArea = providingElement({

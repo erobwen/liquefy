@@ -52,9 +52,10 @@ const application = document.getElementById("application");
 setUpVersionNotice(application);
 const target = PrerenderedElementTarget.forElement(application);
 
-// Every animation at half its natural pace - so what happens in the demo is
-// easy to follow.
-FlipAnimationContainer.speed = 0.5;
+// Every animation at its natural pace - the slider some pages show in the
+// top bar slows it down, to follow what happens (see
+// src/components/animationSpeed.js).
+FlipAnimationContainer.speed = 1;
 
 // The services every component in the app gets (HTML elements, the current
 // theme's widgets, ...) are provided from here, by the root render context

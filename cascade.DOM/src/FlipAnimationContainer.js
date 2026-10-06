@@ -45,9 +45,10 @@ export function flipAnimationContainer(...parameters) {
  *    what overflows it doesn't, meanwhile (see lift()). Unless the
  *    container is told to `confine` it: then what appears stays within
  *    the elements around it, as they're drawn - crisp edges, revealed as
- *    they grow. A newcomer in something that's on its way somewhere comes
- *    along with it, on the same path, rather than standing still while
- *    what's around it moves.
+ *    they grow. Newcomers in something that's on its way somewhere come
+ *    along with it - each as far into it, for how large it's drawn, as it
+ *    will be at rest, at its own size - rather than standing still while
+ *    what's around them moves.
  *  - Travelling: an element on its way to another parent (not just
  *    carried along by what it's in, nor making room among its siblings)
  *    is lifted above what it passes over and lands among, until it has
@@ -56,8 +57,11 @@ export function flipAnimationContainer(...parameters) {
  *    where it was among its siblings, so it's still drawn above and below
  *    what it was, absolutely positioned exactly where and how it was
  *    drawn, keeping the font and color it had - which fades out and is
- *    then removed. If the same element comes back while it's fading, it's
- *    restored and moves on from there.
+ *    then removed. One that's only a box around others, with nothing to
+ *    see of its own, fades out as what's in it instead, each part on its
+ *    own (see visibleParts()). A ghost in something on its way goes along
+ *    with it, the way a newcomer does. If the same element comes back while
+ *    it's fading, it's restored and moves on from there.
  *
  * Islands - components that can only be rendered, and what `isUnit` says
  * to place as one piece (see DOMPlacingContainer) - are animated as one
@@ -74,10 +78,20 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // drawn on their way to their new size - clipped where they clip, and
   // not lifted above what's around them (see lift()). Off by default: it
   // fades in whole, where it lies. Read as frames are drawn, too.
-  setProperties({ speed, confine, ...rest }) {
+  //
+  // `zoomAlong`: what fades in or out in something that's growing or
+  // shrinking (its carrier - see startAnimations() and positionGhosts())
+  // zooms along with it: a ghost in a card shrinking to half its size
+  // shrinks to half its own on the way, and a newcomer in a card growing
+  // from half its size starts at half its own. Uniformly - by the geometric
+  // mean of the carrier's width and height scales - so text keeps its
+  // shape. Off by default: they keep their own size, and only go along
+  // with where their carrier goes. Read as frames are drawn, too.
+  setProperties({ speed, confine, zoomAlong, ...rest }) {
     super.setProperties(rest);
     this.speed = typeof(speed) === "number" ? speed : null;
     this.confine = !!confine;
+    this.zoomAlong = !!zoomAlong;
   }
 
   initialUnobservables() {
@@ -89,8 +103,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     result.lifted = new Map();
     // Where each tracked element lies in the current layout.
     result.layout = new Map();
-    // Leaving elements, fading out - see removeAsGhosts().
+    // Leaving elements, fading out - see removeAsGhosts() - and the
+    // elements positioned to hold them, with the position they had.
     result.ghosts = new Map();
+    result.positioning = new Map();
     result.framePending = false;
     result.hasRendered = false;
     return result;
@@ -134,9 +150,16 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       ? previous.filter(({ element, ancestor }) =>
           !current.has(element) && element.isConnected && (!ancestor || current.has(ancestor)))
       : [];
-    const leavingLooks = new Map(leaving.map(({ element }) => [element, computedLooks(element)]));
-    // Where each one was, among its siblings - its ghost is put back there.
-    const leavingPlaces = new Map(leaving.map(({ element }) => [element, { parent: element.parentNode, next: element.nextSibling }]));
+    // What fades out, of each: the parts of it there are to see, each on its
+    // own (see visibleParts()) - put back where it was among its siblings,
+    // looking as it did.
+    const fading = [];
+    for (const { element } of leaving) {
+      const place = { parent: element.parentNode, next: element.nextSibling };
+      for (const part of this.visibleParts(element, drawnAt, current)) {
+        fading.push({ element: part, place, look: computedLooks(part) });
+      }
+    }
 
     // A ghost that's back in the tree is restored before it's placed.
     for (const element of [...u.ghosts.keys()]) {
@@ -146,9 +169,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const { parent, nodes } of placements) this.placeInOrder(parent, nodes);
 
     if (animate) {
-      const ghosts = this.removeAsGhosts(leaving, drawnAt, leavingLooks, leavingPlaces);
+      const ghosts = this.removeAsGhosts(fading, drawnAt);
       this.startAnimations(drawnAt);
       this.positionGhosts(ghosts, drawnAt);
+      // Restored ghosts have been placed elsewhere by now.
+      this.releasePositioning();
     } else {
       this.stopAll();
     }
@@ -181,19 +206,38 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     return GHOSTS.has(node);
   }
 
-  // Put each leaving element (only the outermost of a leaving subtree)
-  // back where it was among its siblings - so it's still drawn above and
-  // below what it was drawn above and below - absolutely positioned,
-  // looking as it did, and fade it out. Exactly where it was drawn is set
-  // once everything else has started animating (see positionGhosts()).
-  // With its parent gone (or no longer in the container), it goes into the
+  // What there is to see of a leaving element, to fade out: the element
+  // itself - or, for one that's only a box around other elements (nothing
+  // to see of its own: no background, border or shadow, and no text of its
+  // own), what's in it, each on its own, in the same way. Those parts then
+  // fade out exactly where each was drawn, rather than together in a box
+  // whose layout changes as what's in it leaves for elsewhere (a close-up's
+  // title going back to its tile, say), or as it's carried along.
+  // What's in it that's still in the tree isn't leaving at all.
+  visibleParts(element, drawnAt, current) {
+    if (element.nodeType !== 1 || element.hasAttribute(this.constructor.islandAttribute) || !isBareBox(element)) return [element];
+    const parts = [];
+    for (const child of element.childNodes) {
+      if (child.nodeType === 3 && child.textContent.trim() !== "") return [element];
+      if (child.nodeType !== 1 || current.has(child)) continue;
+      if (!drawnAt.has(child)) return [element];
+      parts.push(child);
+    }
+    return parts.flatMap((part) => this.visibleParts(part, drawnAt, current));
+  }
+
+  // Put each part fading out (see visibleParts()) back where what it's
+  // part of was among its siblings - so it's still drawn above and below
+  // what it was drawn above and below - absolutely positioned, looking as
+  // it did, and fade it out. Exactly where it was drawn is set once
+  // everything else has started animating (see positionGhosts()). With
+  // that place gone (or no longer in the container), it goes into the
   // container itself.
-  removeAsGhosts(leaving, drawnAt, looks, places) {
+  removeAsGhosts(fading, drawnAt) {
     const u = this.unobservable;
     const ghosts = [];
-    if (leaving.length === 0) return ghosts;
     const root = u.node;
-    for (const { element } of leaving) {
+    for (const { element, place, look } of fading) {
       const rect = drawnAt.get(element);
       if (!rect) continue;
       // Not lifted any more - nor anything in it: the style it's saved with
@@ -221,7 +265,6 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         }
       }
       const savedStyle = element.getAttribute("style");
-      const look = looks.get(element);
       element.querySelectorAll("*").forEach((each) => { each.style.transform = ""; });
       Object.assign(element.style, {
         position: "absolute",
@@ -235,8 +278,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         pointerEvents: "none",
         ...look,
       });
-      const { parent, next } = places.get(element) || {};
+      const { parent, next } = place;
       if (parent && parent.isConnected && (parent === root || root.contains(parent))) {
+        // Positioned by what it's in - so it goes along with that, exactly.
+        if (parent !== root && !u.positioning.has(parent) && root.ownerDocument.defaultView.getComputedStyle(parent).position === "static") {
+          u.positioning.set(parent, parent.style.position);
+          parent.style.position = "relative";
+        }
         parent.insertBefore(element, next && next.parentNode === parent ? next : null);
       } else {
         if (root.ownerDocument.defaultView.getComputedStyle(root).position === "static") root.style.position = "relative";
@@ -251,12 +299,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   // Each new ghost exactly where, and as large as, it was drawn: measured
-  // where it now is (at 0, 0 in whatever positions it), and moved by the
+  // where it now is (at 0, 0 in what it's in), and moved by the
   // difference. Done once the animations have started, because what it's
-  // inside may be moving or scaled itself, and is now drawn as it will be
-  // in the first frame. From then on, it goes along with what it's in, on
-  // the same path - but at its own size: as that grows or shrinks, the
-  // ghost is scaled back (see applyAnimation()), the way something
+  // in may be moving or scaled itself, and is now drawn as it will be in
+  // the first frame. From then on, it goes along with that (its carrier) -
+  // its place in there growing and shrinking with it, as everything else
+  // in there does - but at its own size (see follow()), the way something
   // appearing in it isn't scaled along either.
   positionGhosts(ghosts, drawnAt) {
     const u = this.unobservable;
@@ -267,37 +315,57 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const height = parseFloat(element.style.height) || 0;
       const sx = width > 0 && at.width > 0 ? at.width / width : 1;
       const sy = height > 0 && at.height > 0 ? at.height / height : 1;
-      // Its box keeps its size - what's in it is laid out as it was - and
-      // it's scaled back by however much what it's in is scaled.
       const left = (rect.x - at.x) / sx;
       const top = (rect.y - at.y) / sy;
       element.style.left = left + "px";
       element.style.top = top + "px";
-      const ghost = Object.assign(u.ghosts.get(element), { left, top, sx, sy });
-      this.scaleBack(element, ghost, sx, sy);
+      const carrier = element.parentNode;
+      if (!u.layout.has(carrier)) continue;
+      // Where it is in its carrier as that's drawn now - and where the
+      // carrier's own coordinates start, for placing it there.
+      const drawn = rectOf(carrier);
+      Object.assign(u.ghosts.get(element), {
+        carrier, left, top,
+        originX: (at.x - drawn.x) / sx, originY: (at.y - drawn.y) / sy,
+        offsetX: rect.x - drawn.x, offsetY: rect.y - drawn.y,
+        carrierWidth: drawn.width, carrierHeight: drawn.height,
+      });
+      element.style.transform = sx === 1 && sy === 1 ? "" : "scale(" + 1 / sx + ", " + 1 / sy + ")";
+      element.style.transformOrigin = sx === 1 && sy === 1 ? "" : "0 0";
     }
   }
 
-  // A ghost drawn at its own size, and at the same distance from the
-  // corner of what it's in as when it was placed, while what it's in is
-  // drawn at (sx, sy) of its size.
-  scaleBack(element, ghost, sx, sy) {
-    const kx = sx > 0 ? 1 / sx : 1;
-    const ky = sy > 0 ? 1 / sy : 1;
-    const tx = ghost.left * (ghost.sx * kx - 1);
-    const ty = ghost.top * (ghost.sy * ky - 1);
-    const none = Math.abs(kx - 1) < 0.0001 && Math.abs(ky - 1) < 0.0001 && Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01;
+  // A ghost where it belongs in its carrier as that's drawn now (at
+  // `carrier`: its drawn corner and scale): as far into it, in proportion
+  // to how large it's drawn, as when the ghost was placed - at its own size.
+  // With `zoom`, at its own size times as much as its carrier has grown or
+  // shrunk since (see zoomAlong in setProperties()).
+  follow(element, ghost, carrier, zoom) {
+    const layout = this.unobservable.layout.get(ghost.carrier);
+    if (!layout || !(carrier.sx > 0) || !(carrier.sy > 0)) return;
+    const intoX = ghost.carrierWidth > 0 ? ghost.offsetX * layout.width / ghost.carrierWidth : ghost.offsetX / carrier.sx;
+    const intoY = ghost.carrierHeight > 0 ? ghost.offsetY * layout.height / ghost.carrierHeight : ghost.offsetY / carrier.sy;
+    const tx = intoX - ghost.originX - ghost.left;
+    const ty = intoY - ghost.originY - ghost.top;
+    const grown = zoom && ghost.carrierWidth > 0 && ghost.carrierHeight > 0
+      ? Math.sqrt((layout.width * carrier.sx / ghost.carrierWidth) * (layout.height * carrier.sy / ghost.carrierHeight))
+      : 1;
+    const kx = grown / carrier.sx;
+    const ky = grown / carrier.sy;
+    const none = Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01 && Math.abs(kx - 1) < 0.0001 && Math.abs(ky - 1) < 0.0001;
     element.style.transform = none ? "" : "translate(" + tx + "px, " + ty + "px) scale(" + kx + ", " + ky + ")";
     element.style.transformOrigin = none ? "" : "0 0";
   }
 
-  // A ghost inside an animated element - the nearest one it's in, if any.
-  carrierOf(ghost, drawn) {
-    const root = this.unobservable.node;
-    for (let each = ghost.parentNode; each && each !== root; each = each.parentNode) {
-      if (drawn.has(each)) return each;
+  // What's in a parent only to position its ghosts goes back to how it
+  // was once none are left in it.
+  releasePositioning() {
+    const u = this.unobservable;
+    for (const [parent, position] of [...u.positioning]) {
+      if ([...u.ghosts.keys()].some((ghost) => ghost.parentNode === parent)) continue;
+      parent.style.position = position;
+      u.positioning.delete(parent);
     }
-    return null;
   }
 
   restoreGhost(element) {
@@ -332,6 +400,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const font = textFontSize(element);
       if (font) fonts.set(element, font);
     }
+    const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
+    u.following = new Map();
 
     for (const { element, ancestor } of u.tracked) {
       const before = drawnAt.get(element);
@@ -360,19 +430,15 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
           spring.sy = now.height > 0 ? before.height / now.height - 1 : 0;
         }
       } else if (!ancestor || drawnAt.has(ancestor)) {
-        // Appearing (the outermost new element): fades in where it lies -
-        // in what it's in. When what it's in is on its way somewhere, it
-        // comes along, on the same path: given the same spring's position
-        // and velocity, it moves exactly as that does. (Not its scale: it
-        // appears at its own size.)
+        // Appearing (the outermost new element): fades in where it lies.
         spring.o = -1;
-        const carrier = ancestor && u.springs.get(ancestor);
-        if (carrier) {
-          spring.x = carrier.x;
-          spring.y = carrier.y;
-          spring.vx = carrier.vx;
-          spring.vy = carrier.vy;
-        }
+      }
+      // New, in something that was there and is on its way (its carrier):
+      // it comes along - see applyAnimation().
+      if (!before && ancestor) {
+        let carrier = ancestor;
+        while (carrier && !drawnAt.has(carrier)) carrier = ancestorOf.get(carrier);
+        if (carrier && u.springs.has(carrier)) u.following.set(element, carrier);
       }
       if (isSettled(spring)) {
         u.springs.delete(element);
@@ -390,12 +456,27 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // nearest tracked ancestor, which moves and scales it already.
   applyAnimation() {
     const u = this.unobservable;
+    const zoomAlong = withoutRecording(() => this.zoomAlong);
     const drawn = new Map(); // element -> { x, y, sx, sy }: its drawn top-left and total scale, in page terms
     for (const { element, ancestor } of u.tracked) {
       const layout = u.layout.get(element);
       if (!layout) continue;
       const spring = u.springs.get(element) || RESTING;
-      const here = { x: layout.x + spring.x, y: layout.y + spring.y, sx: 1 + spring.sx, sy: 1 + spring.sy };
+      let here = { x: layout.x + spring.x, y: layout.y + spring.y, sx: 1 + spring.sx, sy: 1 + spring.sy };
+      // New in something on its way (see startAnimations()): as far into
+      // it, for how large it's drawn, as it will be at rest - on its own
+      // path there, each new element, at its own size. Until that has
+      // arrived: then this is just where it lies.
+      const carrier = u.following && u.following.get(element);
+      if (carrier) {
+        const at = drawn.get(carrier);
+        const carrierLayout = u.layout.get(carrier);
+        // Zooming along: at the carrier's own scale - which it reaches 1
+        // at, at rest - uniformly.
+        const zoom = at && zoomAlong ? Math.sqrt(at.sx * at.sy) : 1;
+        if (at && carrierLayout) here = { x: at.x + (layout.x - carrierLayout.x) * at.sx, y: at.y + (layout.y - carrierLayout.y) * at.sy, sx: zoom, sy: zoom };
+        if (!u.springs.has(carrier)) u.following.delete(element);
+      }
       drawn.set(element, here);
       let tx = spring.x;
       let ty = spring.y;
@@ -416,13 +497,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     }
     for (const [element, ghost] of u.ghosts) {
       element.style.opacity = String(Math.max(0, Math.min(1, ghost.opacity)));
-      // At its own size, however what it's in is scaled now - see
-      // positionGhosts().
-      const carrier = typeof(ghost.sx) === "number" ? this.carrierOf(element, drawn) : null;
-      if (carrier) {
-        const now = drawn.get(carrier);
-        this.scaleBack(element, ghost, now.sx, now.sy);
-      }
+      // Along with its carrier, at its own size - see positionGhosts().
+      const carrier = ghost.carrier && drawn.get(ghost.carrier);
+      if (carrier) this.follow(element, ghost, carrier, zoomAlong);
     }
     this.lift();
   }
@@ -537,6 +614,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   stopAll() {
     const u = this.unobservable;
     u.springs.clear();
+    if (u.following) u.following.clear();
     for (const element of [...u.lifted.keys()]) this.unlift(element);
     for (const { element } of u.tracked) {
       element.style.transform = "";
@@ -552,6 +630,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   removeGhost(element) {
     this.restoreGhost(element);
     element.remove();
+    this.releasePositioning();
   }
 }
 
@@ -597,6 +676,18 @@ function isSettled(spring) {
   return Math.abs(spring.x) < 0.5 && Math.abs(spring.y) < 0.5 && Math.abs(spring.vx) < 5 && Math.abs(spring.vy) < 5
     && Math.abs(spring.sx) < 0.002 && Math.abs(spring.sy) < 0.002 && Math.abs(spring.vsx) < 0.02 && Math.abs(spring.vsy) < 0.02
     && Math.abs(spring.o) < 0.01 && Math.abs(spring.vo) < 0.05;
+}
+
+// Whether an element's box has nothing to see of its own - no background,
+// border, shadow or outline: only what's in it shows.
+function isBareBox(element) {
+  const style = element.ownerDocument.defaultView.getComputedStyle(element);
+  const clear = (color) => !color || color === "transparent" || /^rgba\(.*,\s*0\)$/.test(color);
+  const none = (value) => !value || value === "none";
+  const thin = (width) => !(parseFloat(width) > 0);
+  return clear(style.backgroundColor) && none(style.backgroundImage) && none(style.boxShadow)
+    && thin(style.borderTopWidth) && thin(style.borderRightWidth) && thin(style.borderBottomWidth) && thin(style.borderLeftWidth)
+    && (none(style.outlineStyle) || thin(style.outlineWidth));
 }
 
 function rectOf(element) {

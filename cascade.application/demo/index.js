@@ -14,6 +14,7 @@ import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { JsxPage } from "./src/pages/JsxPage.jsx";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { StorePage } from "./src/pages/StorePage.js";
+import { FocusStorePage } from "./src/pages/FocusStorePage.js";
 import { WordProcessorPage } from "./src/pages/WordProcessorPage.js";
 import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
 import { ToolbarEllipsisPage } from "./src/pages/ToolbarEllipsisPage.js";
@@ -87,6 +88,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "jsx", group: "Examples", title: "JSX", description: "A Cascade example: components written in JSX.", component: new JsxPage().establish() },
     { key: "animation", group: "Examples", title: "Animation", description: "A Cascade example: FLIP animations of elements moving, entering and leaving.", component: new AnimationPage().establish() },
     { key: "store", group: "Examples", title: "Web Store", description: "A Cascade example: a web store.", component: new StorePage().establish() },
+    { key: "focus-store", group: "Examples", title: "Focus Store", description: "A Cascade example: a web store where a product grows into a close-up over the greyed-out shelf.", component: new FocusStorePage().establish() },
     { key: "word-processor", group: "Examples", title: "Word Processor", description: "A Cascade example: a word processor laid out reactively onto pages, with cascade.print.", component: new WordProcessorPage().establish() },
     { key: "themes", title: "Themes", icon: "palette", description: "Cascade's themes: the same app with basic and Material widgets, in any color.", component: new ThemesPage().establish() },
   ],

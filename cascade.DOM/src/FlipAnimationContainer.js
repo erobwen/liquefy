@@ -45,12 +45,19 @@ export function flipAnimationContainer(...parameters) {
  *    what overflows it doesn't, meanwhile (see lift()). Unless the
  *    container is told to `confine` it: then what appears stays within
  *    the elements around it, as they're drawn - crisp edges, revealed as
- *    they grow.
+ *    they grow. A newcomer in something that's on its way somewhere comes
+ *    along with it, on the same path, rather than standing still while
+ *    what's around it moves.
+ *  - Travelling: an element on its way to another parent (not just
+ *    carried along by what it's in, nor making room among its siblings)
+ *    is lifted above what it passes over and lands among, until it has
+ *    arrived.
  *  - Leaving: an element removed from the tree is put back as a "ghost" -
- *    absolutely positioned exactly where and how it was drawn, keeping the
- *    font and color it had - which fades out and is then removed. If the
- *    same element comes back while it's fading, it's restored and moves on
- *    from there.
+ *    where it was among its siblings, so it's still drawn above and below
+ *    what it was, absolutely positioned exactly where and how it was
+ *    drawn, keeping the font and color it had - which fades out and is
+ *    then removed. If the same element comes back while it's fading, it's
+ *    restored and moves on from there.
  *
  * Islands - components that can only be rendered, and what `isUnit` says
  * to place as one piece (see DOMPlacingContainer) - are animated as one
@@ -110,6 +117,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         const spring = u.springs.get(element);
         const font = textFontSize(element);
         if (font) rect.font = font * (spring ? 1 + spring.sx : 1);
+        // Where it is in the tree, too: one that goes elsewhere travels.
+        rect.parent = element.parentNode;
         drawnAt.set(element, rect);
       }
       for (const element of u.ghosts.keys()) drawnAt.set(element, rectOf(element));
@@ -126,6 +135,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
           !current.has(element) && element.isConnected && (!ancestor || current.has(ancestor)))
       : [];
     const leavingLooks = new Map(leaving.map(({ element }) => [element, computedLooks(element)]));
+    // Where each one was, among its siblings - its ghost is put back there.
+    const leavingPlaces = new Map(leaving.map(({ element }) => [element, { parent: element.parentNode, next: element.nextSibling }]));
 
     // A ghost that's back in the tree is restored before it's placed.
     for (const element of [...u.ghosts.keys()]) {
@@ -135,8 +146,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const { parent, nodes } of placements) this.placeInOrder(parent, nodes);
 
     if (animate) {
-      this.removeAsGhosts(leaving, drawnAt, leavingLooks);
+      const ghosts = this.removeAsGhosts(leaving, drawnAt, leavingLooks, leavingPlaces);
       this.startAnimations(drawnAt);
+      this.positionGhosts(ghosts, drawnAt);
     } else {
       this.stopAll();
     }
@@ -170,15 +182,17 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   // Put each leaving element (only the outermost of a leaving subtree)
-  // back, absolutely positioned inside the container exactly where and how
-  // it was drawn, looking as it did (it's no longer inside whatever gave
-  // it its font or color), and fade it out.
-  removeAsGhosts(leaving, drawnAt, looks) {
+  // back where it was among its siblings - so it's still drawn above and
+  // below what it was drawn above and below - absolutely positioned,
+  // looking as it did, and fade it out. Exactly where it was drawn is set
+  // once everything else has started animating (see positionGhosts()).
+  // With its parent gone (or no longer in the container), it goes into the
+  // container itself.
+  removeAsGhosts(leaving, drawnAt, looks, places) {
     const u = this.unobservable;
-    if (leaving.length === 0) return;
+    const ghosts = [];
+    if (leaving.length === 0) return ghosts;
     const root = u.node;
-    if (root.ownerDocument.defaultView.getComputedStyle(root).position === "static") root.style.position = "relative";
-    const rootRect = rectOf(root);
     for (const { element } of leaving) {
       const rect = drawnAt.get(element);
       if (!rect) continue;
@@ -211,8 +225,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       element.querySelectorAll("*").forEach((each) => { each.style.transform = ""; });
       Object.assign(element.style, {
         position: "absolute",
-        left: (rect.x - rootRect.x - root.clientLeft + root.scrollLeft) + "px",
-        top: (rect.y - rootRect.y - root.clientTop + root.scrollTop) + "px",
+        left: "0px",
+        top: "0px",
         width: rect.width + "px",
         height: rect.height + "px",
         margin: "0",
@@ -221,11 +235,69 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         pointerEvents: "none",
         ...look,
       });
-      root.appendChild(element);
+      const { parent, next } = places.get(element) || {};
+      if (parent && parent.isConnected && (parent === root || root.contains(parent))) {
+        parent.insertBefore(element, next && next.parentNode === parent ? next : null);
+      } else {
+        if (root.ownerDocument.defaultView.getComputedStyle(root).position === "static") root.style.position = "relative";
+        root.appendChild(element);
+      }
       u.springs.delete(element);
       u.ghosts.set(element, { savedStyle, copies, opacity: 1, velocity: 0 });
       GHOSTS.add(element);
+      ghosts.push(element);
     }
+    return ghosts;
+  }
+
+  // Each new ghost exactly where, and as large as, it was drawn: measured
+  // where it now is (at 0, 0 in whatever positions it), and moved by the
+  // difference. Done once the animations have started, because what it's
+  // inside may be moving or scaled itself, and is now drawn as it will be
+  // in the first frame. From then on, it goes along with what it's in, on
+  // the same path - but at its own size: as that grows or shrinks, the
+  // ghost is scaled back (see applyAnimation()), the way something
+  // appearing in it isn't scaled along either.
+  positionGhosts(ghosts, drawnAt) {
+    const u = this.unobservable;
+    for (const element of ghosts) {
+      const rect = drawnAt.get(element);
+      const at = rectOf(element);
+      const width = parseFloat(element.style.width) || 0;
+      const height = parseFloat(element.style.height) || 0;
+      const sx = width > 0 && at.width > 0 ? at.width / width : 1;
+      const sy = height > 0 && at.height > 0 ? at.height / height : 1;
+      // Its box keeps its size - what's in it is laid out as it was - and
+      // it's scaled back by however much what it's in is scaled.
+      const left = (rect.x - at.x) / sx;
+      const top = (rect.y - at.y) / sy;
+      element.style.left = left + "px";
+      element.style.top = top + "px";
+      const ghost = Object.assign(u.ghosts.get(element), { left, top, sx, sy });
+      this.scaleBack(element, ghost, sx, sy);
+    }
+  }
+
+  // A ghost drawn at its own size, and at the same distance from the
+  // corner of what it's in as when it was placed, while what it's in is
+  // drawn at (sx, sy) of its size.
+  scaleBack(element, ghost, sx, sy) {
+    const kx = sx > 0 ? 1 / sx : 1;
+    const ky = sy > 0 ? 1 / sy : 1;
+    const tx = ghost.left * (ghost.sx * kx - 1);
+    const ty = ghost.top * (ghost.sy * ky - 1);
+    const none = Math.abs(kx - 1) < 0.0001 && Math.abs(ky - 1) < 0.0001 && Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01;
+    element.style.transform = none ? "" : "translate(" + tx + "px, " + ty + "px) scale(" + kx + ", " + ky + ")";
+    element.style.transformOrigin = none ? "" : "0 0";
+  }
+
+  // A ghost inside an animated element - the nearest one it's in, if any.
+  carrierOf(ghost, drawn) {
+    const root = this.unobservable.node;
+    for (let each = ghost.parentNode; each && each !== root; each = each.parentNode) {
+      if (drawn.has(each)) return each;
+    }
+    return null;
   }
 
   restoreGhost(element) {
@@ -268,6 +340,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       if (before) {
         spring.x = before.x - now.x;
         spring.y = before.y - now.y;
+        // Moved to another parent: on its way somewhere - lifted, until it
+        // has arrived (see lift()).
+        if (before.parent && before.parent !== element.parentNode) spring.travelling = true;
         if (fonts.has(element)) {
           // An element with text of its own can't have its box scaled: its
           // text nodes can't be counter-scaled, so the text would be
@@ -285,8 +360,19 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
           spring.sy = now.height > 0 ? before.height / now.height - 1 : 0;
         }
       } else if (!ancestor || drawnAt.has(ancestor)) {
-        // Appearing (the outermost new element): fades in where it lies.
+        // Appearing (the outermost new element): fades in where it lies -
+        // in what it's in. When what it's in is on its way somewhere, it
+        // comes along, on the same path: given the same spring's position
+        // and velocity, it moves exactly as that does. (Not its scale: it
+        // appears at its own size.)
         spring.o = -1;
+        const carrier = ancestor && u.springs.get(ancestor);
+        if (carrier) {
+          spring.x = carrier.x;
+          spring.y = carrier.y;
+          spring.vx = carrier.vx;
+          spring.vy = carrier.vy;
+        }
       }
       if (isSettled(spring)) {
         u.springs.delete(element);
@@ -330,6 +416,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     }
     for (const [element, ghost] of u.ghosts) {
       element.style.opacity = String(Math.max(0, Math.min(1, ghost.opacity)));
+      // At its own size, however what it's in is scaled now - see
+      // positionGhosts().
+      const carrier = typeof(ghost.sx) === "number" ? this.carrierOf(element, drawn) : null;
+      if (carrier) {
+        const now = drawn.get(carrier);
+        this.scaleBack(element, ghost, now.sx, now.sy);
+      }
     }
     this.lift();
   }
@@ -348,27 +441,49 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   //
   // Put back as it was as soon as nothing in it is appearing any more - or
   // right away, if the container confines what appears.
+  //
+  // Travelling elements are lifted too: one on its way to another parent
+  // (not just carried along by what it's in, nor making room among its
+  // siblings) is drawn above what it passes over, and what it lands among
+  // - a ghost fading out over its destination included. Only the element
+  // itself (what it's in stays as it is), and it isn't unclipped: what it
+  // shows is its own business.
+  //
+  // A travelling element with a z-index of its own keeps it: it's already
+  // where it wants to be.
   lift() {
     const u = this.unobservable;
-    const lifting = new Set();
+    const lifting = new Map(); // element -> whether it's unclipped too
     let ancestorOf = null;
+    const ancestors = () => ancestorOf || (ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor])));
     const confine = withoutRecording(() => this.confine);
     for (const [element, spring] of confine ? [] : u.springs) {
       if (!(spring.o < -0.001)) continue;
-      if (!ancestorOf) ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
-      for (let each = element; each && !lifting.has(each); each = ancestorOf.get(each)) lifting.add(each);
+      for (let each = element; each && !lifting.get(each); each = ancestors().get(each)) lifting.set(each, true);
+    }
+    for (const [element, spring] of u.springs) {
+      if (!spring.travelling || lifting.has(element) || (Math.abs(spring.x) < 1 && Math.abs(spring.y) < 1)) continue;
+      const carrier = u.springs.get(ancestors().get(element));
+      if (carrier && Math.abs(carrier.x - spring.x) < 1 && Math.abs(carrier.y - spring.y) < 1) continue;
+      lifting.set(element, false);
     }
     for (const element of [...u.lifted.keys()]) {
       if (!lifting.has(element)) this.unlift(element);
     }
-    for (const element of lifting) {
-      if (u.lifted.has(element)) continue;
-      u.lifted.set(element, { zIndex: element.style.zIndex, position: element.style.position, overflow: element.style.overflow });
+    for (const [element, unclip] of lifting) {
+      const saved = u.lifted.get(element);
+      if (saved && (saved.unclipped || !unclip)) continue;
       const style = element.ownerDocument.defaultView.getComputedStyle(element);
-      const clips = (value) => value === "hidden" || value === "clip";
-      if (!style.position || style.position === "static") element.style.position = "relative";
-      if (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) element.style.overflow = "visible";
-      element.style.zIndex = "1";
+      if (!saved) {
+        u.lifted.set(element, { zIndex: element.style.zIndex, position: element.style.position, overflow: element.style.overflow, unclipped: false });
+        if (!style.position || style.position === "static") element.style.position = "relative";
+        if (unclip || !style.zIndex || style.zIndex === "auto") element.style.zIndex = "1";
+      }
+      if (unclip) {
+        const clips = (value) => value === "hidden" || value === "clip";
+        if (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) element.style.overflow = "visible";
+        u.lifted.get(element).unclipped = true;
+      }
     }
   }
 

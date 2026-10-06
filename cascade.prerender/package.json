@@ -21,7 +21,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "cascade-prerender": "./bin/cascade-prerender.js"
+    "cascade-prerender": "bin/cascade-prerender.js"
   },
   "files": [
     "index.js",

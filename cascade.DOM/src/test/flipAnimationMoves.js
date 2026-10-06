@@ -360,6 +360,123 @@ describe("FlipAnimationContainer animations", function () {
     assert.deepEqual(drawnAt(three), layoutOf(three));
   });
 
+  it("a ghost fades out where it was among its siblings - drawn above and below what it was", function () {
+    const { lists, element } = setup();
+    const two = element("two");
+    const three = element("three");
+    const listA = two.parentNode;
+    lists.a = ["one", "three"];
+    assert.equal(two.parentNode, listA, "in its own parent");
+    assert.equal(two.nextSibling, three, "before what it was before");
+  });
+
+  it("an element on its way to another parent is lifted above what it passes over - not what it carries, nor what makes room - until it arrives", function () {
+    class Shelves extends Component {
+      initialState() {
+        return { a: ["one", "two", "three"], b: ["four"] };
+      }
+      build() {
+        const box = (name) => div({ key: name }, div({ key: name + "Label" }, text({ key: name + "Text", text: name })));
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "listA" }, this.a.map(box)),
+          div({ key: "listB" }, this.b.map(box)),
+        );
+      }
+    }
+    const shelves = new Shelves();
+    shelves.renderOnto(new DOMElementTarget(container));
+    const label = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const one = label("one").parentNode;
+    const two = label("two").parentNode;
+    postponeInvalidations();
+    shelves.a = ["two", "three"];
+    shelves.b = ["four", "one"];
+    continueInvalidations();
+    assert.notEqual(two.style.transform, "", "two moves up, making room");
+    assert.equal(two.style.zIndex, "", "but stays where it is among the rest");
+    assert.equal(one.style.zIndex, "1", "one, on its way to the other list, is lifted");
+    assert.equal(one.style.position, "relative", "a z-index needs a position");
+    assert.equal(label("one").style.zIndex, "", "what it carries goes along - not lifted itself");
+    runToRest();
+    assert.equal(one.style.zIndex, "", "arrived: put back");
+    assert.equal(one.style.position, "");
+  });
+
+  it("an element appearing in something on its way somewhere comes along with it, on the same path", function () {
+    class Boxes extends Component {
+      initialState() {
+        return { order: ["a", "b", "c"], extra: false };
+      }
+      build() {
+        const box = (name) => div(
+          { key: name },
+          div({ key: name + "Label" }, text({ key: name + "Text", text: name })),
+          name === "c" && this.extra ? div({ key: "extra" }, text({ key: "extraText", text: "extra" })) : null,
+        );
+        return flipAnimationContainer({ key: "flip" }, this.order.map(box));
+      }
+    }
+    const boxes = new Boxes();
+    boxes.renderOnto(new DOMElementTarget(container));
+    const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const c = named("c").parentNode;
+    postponeInvalidations();
+    boxes.order = ["c", "a", "b"];
+    boxes.extra = true;
+    continueInvalidations();
+    const extra = named("extra");
+    const offset = () => {
+      const box = drawnAt(c);
+      const at = drawnAt(extra);
+      return { x: round(at.x - box.x), y: round(at.y - box.y) };
+    };
+    const atRest = { x: layoutOf(extra).x - layoutOf(c).x, y: layoutOf(extra).y - layoutOf(c).y };
+    assert.notDeepEqual(drawnAt(c), layoutOf(c), "the box is on its way");
+    assert.deepEqual(offset(), atRest, "the newcomer is where it belongs in it - not where it will be in the page");
+    runFrames(10);
+    assert.deepEqual(offset(), atRest, "and stays there, all the way");
+    assert.ok(Number(extra.style.opacity) > 0 && Number(extra.style.opacity) < 1, "fading in meanwhile");
+    runToRest();
+    assert.deepEqual(drawnAt(extra), layoutOf(extra));
+  });
+
+  it("a ghost in something shrinking goes along with it, at its own size - not shrunk along", function () {
+    class Panel extends Component {
+      initialState() {
+        return { open: true };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip" },
+          div(
+            { key: "panel", title: this.open ? "200" : "100" },
+            div({ key: "label" }, text({ key: "labelText", text: "label" })),
+            this.open ? div({ key: "more" }, text({ key: "moreText", text: "more" })) : null,
+          ),
+        );
+      }
+    }
+    const panel = new Panel();
+    panel.renderOnto(new DOMElementTarget(container));
+    const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const more = named("more");
+    const box = more.parentNode;
+    const before = drawn(more);
+    panel.open = false;
+    assert.equal(more.parentNode, box, "fading out in what it was in");
+    const measure = () => {
+      const at = drawn(more);
+      const corner = drawn(box);
+      return { x: round(at.x - corner.x), y: round(at.y - corner.y), sx: round(at.sx), sy: round(at.sy) };
+    };
+    const start = measure();
+    assert.deepEqual(drawnAt(more), { x: round(before.x), y: round(before.y) }, "drawn where it was");
+    runFrames(10);
+    assert.ok(box.style.transform !== "", "the panel is still shrinking");
+    assert.deepEqual(measure(), start, "same distance from the panel's corner, same size");
+  });
+
   it("a leaving element that comes back after it has faded out comes back as itself - no ghost style left on it - and fades in", function () {
     class Toggled extends Component {
       initialState() {

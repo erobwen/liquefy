@@ -61,6 +61,9 @@ export class Tabula extends Component {
       // sub-sections".
       demoteWithChildren: true,
       showAllAreas: false,
+      // The flow the caret is in, outlined (see ./paper/TabulaEditor.js) -
+      // off by default: a box around where you write can feel intrusive.
+      showFocusOutline: false,
       markerTypes: { paragraphStart: false, paragraphEnd: false, titleStart: false, sectionStart: false },
     };
   }
@@ -144,7 +147,7 @@ export class Tabula extends Component {
             { style: { ...fitContainerStyle, overflow: "auto", background: paperBackdrop } },
             tabulaEditor({
               key: "editor", sequence, root, measurer, editing: this.unobservable.editing, zoom: this.zoom,
-              showAllAreas: this.showAllAreas, markerTypes: this.markerTypes, sectionEnds: this.sectionEnds,
+              showAllAreas: this.showAllAreas, showFocusOutline: this.showFocusOutline, markerTypes: this.markerTypes, sectionEnds: this.sectionEnds,
               onCaret: callback("caret", (at) => { this.caret = at; }),
               // All of the window, so a click anywhere off the papers is its.
               style: { padding: "0 " + (panelWidth + 2 * panelInset) + "px", minHeight: "100%", boxSizing: "border-box" },
@@ -191,8 +194,8 @@ export class Tabula extends Component {
 
   // Behind the cogwheel: for experimenting - which places the caret can go
   // to besides the text (a checkbox for every kind of marker), sections'
-  // ends below their last line or beside it, and every marker's area at
-  // once.
+  // ends below their last line or beside it, the outline around what the
+  // caret is in, and every marker's area at once.
   settings() {
     return [
       heading("Caret goes to"),
@@ -216,6 +219,12 @@ export class Tabula extends Component {
         onChange: (checked) => { this.newSectionsBeside = checked; },
       }),
       heading("Show"),
+      checkbox({
+        key: "focusOutline",
+        label: "Outline around what the caret is in",
+        checked: this.showFocusOutline,
+        onChange: (checked) => { this.showFocusOutline = checked; },
+      }),
       checkbox({ key: "allAreas", label: "Every marker's area", checked: this.showAllAreas, onChange: (checked) => { this.showAllAreas = checked; } }),
     ];
   }

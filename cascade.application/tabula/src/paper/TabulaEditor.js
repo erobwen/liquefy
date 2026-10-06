@@ -14,7 +14,7 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * made for Tabula's document - its caret moves through every place in it,
  * the text and the markers beside its flows (see markers.js, positions.js).
  *
- *   tabulaEditor({ sequence, root, measurer, editing, zoom, showAllAreas, markerTypes, sectionEnds })
+ *   tabulaEditor({ sequence, root, measurer, editing, zoom, showAllAreas, showFocusOutline, markerTypes, sectionEnds })
  *
  * `sequence` is the paper sequence the document is laid out onto - by
  * someone else: the editor only reads it - `root` the document's root (the
@@ -35,7 +35,9 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * the flow it's in - a title standing for its section - is outlined: what
  * the caret is in, at a glance - with, for a section with a title offset,
  * an arrow beside its title, outside its box, pointing right: its title set
- * further down than its place makes it.
+ * further down than its place makes it. `showFocusOutline` false leaves the
+ * outline undrawn - nothing else: the caret is in the same flow, and the
+ * arrow stays.
  *
  * The caret and the selection are positions (see ../model/flows.js) - in a
  * paragraph's text, or at a marker - state of the editor, drawn where the layout
@@ -73,11 +75,12 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * what it's in.
  */
 export class TabulaEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, showAllAreas = false, markerTypes, sectionEnds = "below", style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
     this.sequence = sequence;
     this.onCaret = onCaret || null;
     this.root = root;
     this.showAllAreas = !!showAllAreas;
+    this.showFocusOutline = !!showFocusOutline;
     this.sectionEnds = sectionEnds;
     this.markerTypes = frozen(markerTypes || {});
     this.measurer = measurer;
@@ -168,7 +171,7 @@ export class TabulaEditor extends Component {
       },
       tabulaPaperView({
         sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas,
-        outlines: this.focusOutline(), offsetMarks: this.offsetMarks(),
+        outlines: this.showFocusOutline ? this.focusOutline() : [], offsetMarks: this.offsetMarks(),
       }),
       this.unobservable.input,
     );

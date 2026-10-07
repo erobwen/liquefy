@@ -119,6 +119,10 @@ export class AdvancedUsagePage extends Component {
         "changes for what comes after: the thermometers render again, and so does \"After\" - it read lastChild - but ",
         "\"Before\" doesn't. Move the slider, and lastChild stays the same: only the thermometers render again.",
       ),
+      p(
+        "Note also that rendering occurs in real time against the live DOM, so if you need to take measures, prepare ",
+        "animations, do and undo things against the DOM, this is the place to do it.",
+      ),
       stage(new ThermometersDemo()),
       codeBlock(thermometersSource),
 

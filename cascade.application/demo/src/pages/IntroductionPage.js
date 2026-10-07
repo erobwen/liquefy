@@ -166,11 +166,11 @@ export class IntroductionPage extends Component {
       ),
 
       h2("Are you a React developer?"),
-      p("React and Cascade are very different, but they also share some common DNA - the author of Cascade was a huge fan of React from its very start."),
+      p("React and Cascade are very different, there is some React DNA in Cascade - the author of Cascade was a huge fan of React from its very start."),
       p(emphasis("Similarities")),
       ul(
-        li("React's render functions with keys are very similar to Cascade's build functions, with keys and pattern matching."),
-        li("Cascade supports JSX syntax, for those who want it."),
+        li("Similar to React, Cascade has render functions where you can use keys to maintain a stable identity for children during rebuilds. But for Cascade, keys need to be unique per build, not just amongst siblings. This enables child components to move to new locations, which can be important for automated flip animations. Similar to React, Cascade also use pattern matching to allow for a stable identity for static child components."),
+        li("Cascade supports JSX syntax, for those who prefer it over plain Javascript."),
       ),
       p(emphasis("Differences")),
       ul(

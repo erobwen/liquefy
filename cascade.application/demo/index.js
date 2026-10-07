@@ -1,5 +1,5 @@
 import { RenderContext } from "@liquefy/cascade.component";
-import { FlipAnimationContainer, browserLocation, documentHead } from "@liquefy/cascade.dom";
+import { browserLocation, documentHead } from "@liquefy/cascade.dom";
 import { PrerenderedElementTarget } from "@liquefy/cascade.prerender/client";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
@@ -52,11 +52,6 @@ const application = document.getElementById("application");
 setUpVersionNotice(application);
 const target = PrerenderedElementTarget.forElement(application);
 
-// Every animation at its natural pace - the slider some pages show in the
-// top bar slows it down, to follow what happens (see
-// src/components/animationSpeed.js).
-FlipAnimationContainer.speed = 1;
-
 // The services every component in the app gets (HTML elements, the current
 // theme's widgets, ...) are provided from here, by the root render context
 // - see src/services.js.
@@ -80,17 +75,20 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "getting-started", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
     { key: "convenient-usage", title: "Convenient Usage", description: "Convenient usage of Cascade: the everyday patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
     { key: "advanced-usage", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },
-    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", description: "A Cascade example: layout decided in code, from measured sizes, rebuilt as they change.", component: new ProgrammaticReactiveLayout().establish() },
-    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", description: "A Cascade example: a toolbar that moves what doesn't fit into an overflow menu.", component: new ToolbarEllipsisPage().establish() },
-    { key: "recursive-demo", group: "Examples", title: "Recursive Demo", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },
+    // Examples
     { key: "reactive-form", group: "Examples", title: "Reactive Form", description: "A Cascade example: a form whose validation and derived values follow its data.", component: new ReactiveFormPage().establish() },
+    { key: "focus-store", group: "Examples", title: "Focus Store", description: "A Cascade example: a web store where a product grows into a close-up over the greyed-out shelf.", component: new FocusStorePage().establish() },
+    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", description: "A Cascade example: a toolbar that moves what doesn't fit into an overflow menu.", component: new ToolbarEllipsisPage().establish() },
+    // { key: "store", group: "Examples", title: "Web Store", description: "A Cascade example: a web store.", component: new StorePage().establish() },
     { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", description: "A Cascade example: a modal dialog with an address of its own.", component: new HybridModalDialog().establish() },
+    { key: "word-processor", group: "Examples", title: "Word Processor", description: "A Cascade example: a word processor laid out reactively onto pages, with cascade.print.", component: new WordProcessorPage().establish() },
     { key: "hydration", group: "Examples", title: "Hydration", description: "A Cascade example: a page written as a document - plain data - and hydrated into components.", component: new HydrationPage().establish() },
     { key: "jsx", group: "Examples", title: "JSX", description: "A Cascade example: components written in JSX.", component: new JsxPage().establish() },
+    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", description: "A Cascade example: layout decided in code, from measured sizes, rebuilt as they change.", component: new ProgrammaticReactiveLayout().establish() },
+    { key: "recursive-demo", group: "Examples", title: "Recursive Example", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },
     { key: "animation", group: "Examples", title: "Animation", description: "A Cascade example: FLIP animations of elements moving, entering and leaving.", component: new AnimationPage().establish() },
-    { key: "store", group: "Examples", title: "Web Store", description: "A Cascade example: a web store.", component: new StorePage().establish() },
-    { key: "focus-store", group: "Examples", title: "Focus Store", description: "A Cascade example: a web store where a product grows into a close-up over the greyed-out shelf.", component: new FocusStorePage().establish() },
-    { key: "word-processor", group: "Examples", title: "Word Processor", description: "A Cascade example: a word processor laid out reactively onto pages, with cascade.print.", component: new WordProcessorPage().establish() },
+    
+    //Themes
     { key: "themes", title: "Themes", icon: "palette", description: "Cascade's themes: the same app with basic and Material widgets, in any color.", component: new ThemesPage().establish() },
   ],
 }).establish();

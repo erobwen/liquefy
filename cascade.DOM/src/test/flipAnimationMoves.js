@@ -91,7 +91,6 @@ describe("FlipAnimationContainer animations", function () {
   afterEach(function () {
     FlipAnimationContainer.clock = originalClock;
     FlipAnimationContainer.speed = originalSpeed;
-    FlipAnimationContainer.enabled = true;
   });
 
   function runFrames(count) {
@@ -126,18 +125,27 @@ describe("FlipAnimationContainer animations", function () {
     return { lists, element };
   }
 
-  it("switched off, nothing animates - and what's on its way when it's switched off is where it belongs by the next frame", function () {
-    const { lists, element } = setup();
-    const three = element("three");
-    FlipAnimationContainer.enabled = false;
+  it("not enabled, nothing animates - and what's on its way when it's switched off is where it belongs at once", function () {
+    class Switchable extends Component {
+      initialState() {
+        return { a: ["one", "two", "three"], enabled: false };
+      }
+      build() {
+        const item = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
+        return flipAnimationContainer({ key: "flip", enabled: this.enabled }, div({ key: "listA" }, this.a.map(item)));
+      }
+    }
+    const lists = new Switchable();
+    lists.renderOnto(new DOMElementTarget(container));
+    const three = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "three" && each.firstChild.nodeType === 3);
     lists.a = ["three", "one", "two"];
     assert.equal(three.style.transform, "", "placed, not animated");
     assert.deepEqual(drawnAt(three), layoutOf(three));
 
-    FlipAnimationContainer.enabled = true;
+    lists.enabled = true;
     lists.a = ["one", "two", "three"];
     assert.notEqual(three.style.transform, "", "on its way");
-    FlipAnimationContainer.enabled = false;
+    lists.enabled = false;
     runFrames(1);
     assert.equal(three.style.transform, "", "stopped");
     assert.deepEqual(drawnAt(three), layoutOf(three), "where it belongs");

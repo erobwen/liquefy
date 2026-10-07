@@ -68,6 +68,12 @@ export function flipAnimationContainer(...parameters) {
  * element, in the box the container gives them.
  */
 export class FlipAnimationContainer extends DOMPlacingContainer {
+  // `enabled`: whether it animates at all (default true). Switched off,
+  // it only places - and what's on its way is where it belongs at once. An
+  // app can just as well build a plain element in its place (keyed
+  // differently, its children keyed to come along): this is for keeping
+  // the container.
+  //
   // `speed`: how fast its animations run - a factor, like
   // FlipAnimationContainer.speed (below), which it overrides for this
   // container: 1 is the springs' natural pace. Only read as frames are
@@ -87,8 +93,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // mean of the carrier's width and height scales - so text keeps its
   // shape. Off by default: they keep their own size, and only go along
   // with where their carrier goes. Read as frames are drawn, too.
-  setProperties({ speed, confine, zoomAlong, ...rest }) {
+  setProperties({ enabled, speed, confine, zoomAlong, ...rest }) {
     super.setProperties(rest);
+    this.enabled = enabled !== false;
     this.speed = typeof(speed) === "number" ? speed : null;
     this.confine = !!confine;
     this.zoomAlong = !!zoomAlong;
@@ -118,9 +125,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
     // Only meaningful while the container is in the page: hidden, nothing
     // has a position - it just places, and whatever was animating stops.
-    // Nor while animation is switched off (FlipAnimationContainer.enabled):
-    // then it places, and that's that.
-    const animate = u.node.isConnected && u.hasRendered && FlipAnimationContainer.enabled;
+    // Nor while it's switched off (`enabled`): then it places, and that's
+    // that.
+    const animate = u.node.isConnected && u.hasRendered && this.enabled;
 
     // Where every tracked element (and every fading ghost) is drawn right
     // now, before anything changes - including the attribute/style updates
@@ -588,7 +595,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const u = this.unobservable;
     u.framePending = false;
     // Switched off meanwhile: everything is where it belongs, at once.
-    if (!FlipAnimationContainer.enabled) {
+    if (!withoutRecording(() => this.enabled)) {
       this.stopAll();
       return;
     }
@@ -650,15 +657,8 @@ FlipAnimationContainer.clock = {
 
 // How fast animations run, unless a container says otherwise (its `speed`):
 // a factor - 1, the default, is the springs' natural pace, 0.5 half that.
-// An app sets it once for all its containers (the Cascade demo has a
-// slider for it).
+// Only a default: a container given its own speed goes by that.
 FlipAnimationContainer.speed = 1;
-
-// Whether containers animate at all: false, and they only place - what's
-// on its way when it's switched off is where it belongs by the next frame.
-// For a user who'd rather have no motion (prefers-reduced-motion, say).
-// Read as frames are drawn and changes are placed, like `speed`.
-FlipAnimationContainer.enabled = true;
 
 // Its islands' holders are marked as its own.
 FlipAnimationContainer.islandAttribute = "data-flip-island";

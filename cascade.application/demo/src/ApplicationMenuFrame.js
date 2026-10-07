@@ -82,7 +82,7 @@ export class ApplicationMenuFrame extends Component {
   // The top bar's portals, where the page shown puts its own buttons (see
   // src/components/pageActions.js) - before its title - and its own tools
   // - at the bar's far end (an animation speed slider, say: see
-  // src/components/animationSpeed.js). Created here, once, and owned by this
+  // src/components/animationControls.js). Created here, once, and owned by this
   // frame - not built in a build() and referenced as well (see
   // cascade.component/README.md) - and placed by ApplicationMenuFrameLayout
   // as a plain child reference. Owned, so established here and disposed of

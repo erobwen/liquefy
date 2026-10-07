@@ -2,7 +2,7 @@ import { Component, callback } from "@liquefy/cascade.component";
 import { div, text, flipAnimationContainer, portal, portalSource } from "@liquefy/cascade.dom";
 import { button, card, icon, iconButton, row, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
-import { animationSpeed } from "../components/animationSpeed.js";
+import { animationControls } from "../components/animationControls.js";
 import { fullPage, pagePadding } from "../components/layout.js";
 import source from "./FocusStorePage.js?raw";
 
@@ -78,26 +78,38 @@ export class FocusStorePage extends Component {
     return { cartPortal: bar.cart, cartSummaryPortal: bar.summary };
   }
 
+  // Whether the page animates, and how fast - its own, set from the
+  // controls in the top bar (see ../components/animationControls.js).
+  initialState() {
+    return { animate: true, speed: 1.5 };
+  }
+
   build() {
     // The page's padding is the container's, so the overlay - positioned in
     // it - reaches the page's edges.
+    const style = { position: "relative", display: "flex", flexDirection: "column", gap: "16px", height: "100%", padding: pagePadding, boxSizing: "border-box" };
+    // The product list keyed: it goes from one container to the other when
+    // animation is switched on or off - and keeps what's chosen and focused.
+    const content = [new ProductList({ key: "products" }), this.unobservable.statusBar];
     return fullPage(
       { style: { overflow: "hidden", gap: 0, padding: 0 } },
       pageActions({ information, source, fileName: "src/pages/FocusStorePage.js" }),
-      animationSpeed(),
+      animationControls({
+        animate: this.animate,
+        speed: this.speed,
+        onAnimate: callback("animate", (animate) => { this.animate = animate; }),
+        onSpeed: callback("speed", (speed) => { this.speed = speed; }),
+      }),
+      // Animated or not: a FlipAnimationContainer, or a plain element in its
+      // place - keyed apart, so one takes over from the other.
+      //
       // Confined: what appears in the close-up - its description - is
       // revealed as the card grows, not drawn outside it meanwhile. Zooming
       // along: and grows with it - as what leaves the close-up shrinks with
       // the card, on its way back to the shelf.
-      flipAnimationContainer(
-        {
-          confine: true,
-          zoomAlong: true,
-          style: { position: "relative", display: "flex", flexDirection: "column", gap: "16px", height: "100%", padding: pagePadding, boxSizing: "border-box" },
-        },
-        new ProductList(),
-        this.unobservable.statusBar,
-      ),
+      this.animate
+        ? flipAnimationContainer({ key: "animated", confine: true, zoomAlong: true, speed: this.speed, style }, content)
+        : div({ key: "still", style }, content),
     );
   }
 }

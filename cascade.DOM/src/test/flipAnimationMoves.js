@@ -91,6 +91,7 @@ describe("FlipAnimationContainer animations", function () {
   afterEach(function () {
     FlipAnimationContainer.clock = originalClock;
     FlipAnimationContainer.speed = originalSpeed;
+    FlipAnimationContainer.enabled = true;
   });
 
   function runFrames(count) {
@@ -124,6 +125,23 @@ describe("FlipAnimationContainer animations", function () {
     const element = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.firstChild && each.firstChild.nodeType === 3 && each.textContent === name);
     return { lists, element };
   }
+
+  it("switched off, nothing animates - and what's on its way when it's switched off is where it belongs by the next frame", function () {
+    const { lists, element } = setup();
+    const three = element("three");
+    FlipAnimationContainer.enabled = false;
+    lists.a = ["three", "one", "two"];
+    assert.equal(three.style.transform, "", "placed, not animated");
+    assert.deepEqual(drawnAt(three), layoutOf(three));
+
+    FlipAnimationContainer.enabled = true;
+    lists.a = ["one", "two", "three"];
+    assert.notEqual(three.style.transform, "", "on its way");
+    FlipAnimationContainer.enabled = false;
+    runFrames(1);
+    assert.equal(three.style.transform, "", "stopped");
+    assert.deepEqual(drawnAt(three), layoutOf(three), "where it belongs");
+  });
 
   it("a moved element is first drawn where it was, then carried by its spring to where it now lies", function () {
     const { lists, element } = setup();

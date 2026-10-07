@@ -118,7 +118,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
     // Only meaningful while the container is in the page: hidden, nothing
     // has a position - it just places, and whatever was animating stops.
-    const animate = u.node.isConnected && u.hasRendered;
+    // Nor while animation is switched off (FlipAnimationContainer.enabled):
+    // then it places, and that's that.
+    const animate = u.node.isConnected && u.hasRendered && FlipAnimationContainer.enabled;
 
     // Where every tracked element (and every fading ghost) is drawn right
     // now, before anything changes - including the attribute/style updates
@@ -585,6 +587,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   frame() {
     const u = this.unobservable;
     u.framePending = false;
+    // Switched off meanwhile: everything is where it belongs, at once.
+    if (!FlipAnimationContainer.enabled) {
+      this.stopAll();
+      return;
+    }
     if (u.springs.size === 0 && u.ghosts.size === 0) return;
     const now = FlipAnimationContainer.clock.now();
     // Capped, so a frame after the tab was in the background doesn't fling
@@ -643,9 +650,15 @@ FlipAnimationContainer.clock = {
 
 // How fast animations run, unless a container says otherwise (its `speed`):
 // a factor - 1, the default, is the springs' natural pace, 0.5 half that.
-// An app sets it once for all its containers (the Cascade demo runs at
-// half speed, so what happens is easier to follow).
+// An app sets it once for all its containers (the Cascade demo has a
+// slider for it).
 FlipAnimationContainer.speed = 1;
+
+// Whether containers animate at all: false, and they only place - what's
+// on its way when it's switched off is where it belongs by the next frame.
+// For a user who'd rather have no motion (prefers-reduced-motion, say).
+// Read as frames are drawn and changes are placed, like `speed`.
+FlipAnimationContainer.enabled = true;
 
 // Its islands' holders are marked as its own.
 FlipAnimationContainer.islandAttribute = "data-flip-island";

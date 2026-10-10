@@ -35,6 +35,7 @@ const Poster = category("Poster");
 // Marks
 const Favorite = category("Favorite", "favorite");
 
+vault.favorite = Favorite;
 vault.categories = [Animal, Cat, Dog, Horse, Bird, Vehicle, Car, Boat, Carriage, Photo, Drawing, Sketch, Painting, Watercolor, Engraving, Poster, Favorite];
 
 vault.root = folder(

@@ -51,8 +51,9 @@ export function folder({ category = null, name, icon = null, open = false }, ...
   return result;
 }
 
-// Everything there is: what the demo starts with (see demoData.js).
-export const vault = observable({ categories: [], files: [], root: null });
+// Everything there is: what the demo starts with (see demoData.js) - and
+// the category the heart in the details toggles.
+export const vault = observable({ categories: [], files: [], root: null, favorite: null });
 
 export function categoryById(id) {
   return vault.categories.find((each) => each.id === id) || null;

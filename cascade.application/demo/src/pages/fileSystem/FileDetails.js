@@ -44,7 +44,7 @@ export class FileDetails extends Component {
     return div(
       { key: "file", style: { display: "flex", flexDirection: "column", gap: "6px" } },
       img({ src: file.image, alt: file.name, style: { width: "100%", height: "200px", objectFit: "contain", display: "block", background: themeColor.filled, borderRadius: "6px" } }),
-      div({ style: { fontSize: "18px", fontWeight: "bold", marginTop: "4px" } }, text(file.name)),
+      this.titleRow(file.name, [file]),
       div({ style: { fontSize: "13px", color: themeColor.textSoft } }, text(file.date.endsWith("-01-01") ? year : file.date)),
       div(
         { style: { fontSize: "12px", color: themeColor.textSoft, lineHeight: "1.5" } },
@@ -61,7 +61,31 @@ export class FileDetails extends Component {
         { style: { display: "flex", gap: "4px" } },
         files.slice(0, 4).map((file) => img({ key: file.id, src: file.image, alt: file.name, style: { width: "56px", height: "56px", objectFit: "cover", borderRadius: "4px" } })),
       ),
-      div({ style: { fontSize: "18px", fontWeight: "bold" } }, text(files.length + " files selected")),
+      this.titleRow(files.length + " files selected", files),
+    );
+  }
+
+  // A title, and - at its end - a heart: filled when the files are
+  // favorites, an outline when they're not (or only some are). A click
+  // makes all of them favorites, or none. It's only their Favorite
+  // category: the chips below, the Favorite folder and the files shown
+  // follow, as they do any category.
+  titleRow(title, files) {
+    const favorite = vault.favorite;
+    const all = !!favorite && files.every((file) => hasCategory(file, favorite));
+    return div(
+      { style: { display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" } },
+      div({ style: { flex: "1 1 auto", minWidth: 0, fontSize: "18px", fontWeight: "bold", overflowWrap: "anywhere" } }, text(title)),
+      favorite
+        ? iconButton({
+          // Filled: the symbol font's fill axis (the basic theme), or the
+          // filled icon itself (Material Icons).
+          icon: all ? "favorite" : "favorite_border",
+          title: all ? "Remove from favorites" : "Add to favorites",
+          style: { flex: "none", color: all ? "black" : themeColor.textSoft, fontVariationSettings: all ? "'FILL' 1" : "'FILL' 0" },
+          onClick: callback("favorite", () => files.forEach((file) => (all ? removeCategory(file, favorite) : addCategory(file, favorite)))),
+        })
+        : null,
     );
   }
 

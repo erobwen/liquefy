@@ -159,12 +159,15 @@ export function removeFolder(removed) {
 }
 
 // Categories whose names start with what was typed (ignoring case and
-// spaces), leaving out those given.
+// spaces) - all of them, when nothing is - leaving out those given, in
+// alphabetical order.
 export function matchingCategories(query, leaveOut = []) {
   const normalize = (value) => value.toLowerCase().replace(/\s/g, "");
   const typed = normalize(query);
   const excluded = new Set(leaveOut.map((each) => each.id));
-  return vault.categories.filter((each) => !excluded.has(each.id) && normalize(each.name).startsWith(typed));
+  return vault.categories
+    .filter((each) => !excluded.has(each.id) && normalize(each.name).startsWith(typed))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function exactCategory(query) {

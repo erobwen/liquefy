@@ -51,16 +51,25 @@ export function focusSoon(name) {
   });
 }
 
-// The categories matching what's typed, to pick one of - and, with
-// `allowCreate`, a new one named as typed, when none is.
-export function categoryChoices({ query, leaveOut, allowCreate, pick, keyPrefix }) {
+// The categories matching what's typed - all of them, when nothing is - to
+// pick one of; and, with `allowCreate`, a new one named as typed, when
+// none is. With `countOf(category)`, each shows a number beside it (how
+// many files picking it would show, say) - faded at none.
+export function categoryChoices({ query, leaveOut, allowCreate, pick, keyPrefix, countOf }) {
   const matches = matchingCategories(query, leaveOut);
   const create = allowCreate && query.trim() !== "" && !exactCategory(query);
-  const choices = matches.map((each) => listItem(
-    { key: keyPrefix + each.id },
-    text(each.name),
-    callback(keyPrefix + "pick" + each.id, () => pick(each)),
-  ));
+  const choices = matches.map((each) => {
+    const count = countOf ? countOf(each) : null;
+    return listItem(
+      { key: keyPrefix + each.id, style: count === 0 ? { opacity: 0.5 } : {} },
+      div(
+        { style: { display: "flex", alignItems: "center", gap: "12px", width: "100%" } },
+        span({ style: { flex: "1 1 auto" } }, text(each.name)),
+        count === null ? null : span({ style: { flex: "none", fontSize: "12px", color: themeColor.textSoft } }, text(String(count))),
+      ),
+      callback(keyPrefix + "pick" + each.id, () => pick(each)),
+    );
+  });
   if (create) {
     choices.push(listItem(
       { key: keyPrefix + "create" },

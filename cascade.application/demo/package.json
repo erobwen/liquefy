@@ -10,7 +10,7 @@
   "scripts": {
     "start": "vite --debug",
     "build": "vite build",
-    "test": "mocha ./src/pages/wordProcessor/test"
+    "test": "mocha ./src/pages/wordProcessor/test ./src/pages/fileSystem/test"
   },
   "repository": {
     "type": "git",

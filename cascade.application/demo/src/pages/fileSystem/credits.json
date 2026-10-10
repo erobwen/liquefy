@@ -1,0 +1,490 @@
+{
+  "cat-in-snow": {
+    "author": "Von.grzanka",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Felis_catus-cat_on_snow.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "cat-face": {
+    "author": "Augustus Binu",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Domestic_Cat_Face_Shot.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "calico-cat": {
+    "author": "Terragio67",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Calico_cat,_-_Assisi,_Italy.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "two-tabby-cats": {
+    "author": "Laitche",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Tabby_cats_of_%C5%8Cizumi_Ryokuchi_Park,_January_2019_-_8816.jpg",
+    "width": 360,
+    "height": 220
+  },
+  "labrador": {
+    "author": "Dktue",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Portrait_of_a_labrador_retriever.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "westie": {
+    "author": "Dominic Nelson",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:West_Highland_White_Terrier_face_portrait_May_2023.jpg",
+    "width": 360,
+    "height": 241
+  },
+  "curly-poodle": {
+    "author": "Timothy A. Gonsalves",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Tapsi_Portrait_Balamuri_Coorg_Feb24_D72_25969.jpg",
+    "width": 360,
+    "height": 270
+  },
+  "golden-retriever": {
+    "author": "Dietmar Rabich",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_Hausd%C3%BClmen,_Golden_Retriever_--_2022_--_5945.jpg",
+    "width": 360,
+    "height": 270
+  },
+  "haflinger-foal": {
+    "author": "Böhringer Friedrich",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:Haflinger_Fohlen_01.jpg",
+    "width": 240,
+    "height": 360
+  },
+  "horse-in-the-mountains": {
+    "author": "Shadow Ayush",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Domestic_horse_at_Suryachaur_and_the_mountains_in_the_back1.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "horse-drawn-sleighs": {
+    "author": "George Chernilevsky",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Horse-drawn_sleighs_2012_G1.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "macaw": {
+    "author": "Luc Viatour",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Ara_ararauna_Luc_Viatour.jpg",
+    "width": 360,
+    "height": 278
+  },
+  "robin": {
+    "author": "Joefrei",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Rotkehlchenportrait_aus_ca._1_Meter_Entfernung.jpg",
+    "width": 360,
+    "height": 254
+  },
+  "hanging-parrot": {
+    "author": "Tisha Mukherjee",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Vernal_Hanging-Parrot_in_Saswad_August_2025_by_Tisha_Mukherjee_09.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "socks-and-buddy": {
+    "author": "White House Photograph Office",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Photograph_of_Socks_the_Cat_and_Buddy_the_Dog_Sitting_on_the_South_Lawn_at_the_White_House_-_DPLA_-_c8f21ea427ea3275f9eb0a8815ec55b4.jpg",
+    "width": 360,
+    "height": 236
+  },
+  "dog-and-pony": {
+    "author": "Steve Shook from Moscow, Idaho, USA",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Belle_Gunness%27_Dog_and_Pony,_1908_-_LaPorte,_Indiana_(35353179452).jpg",
+    "width": 360,
+    "height": 228
+  },
+  "dog-in-a-car": {
+    "author": "Andrew Pons a_pons",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Dog_in_car_(Unsplash).jpg",
+    "width": 360,
+    "height": 240
+  },
+  "husky-in-the-window": {
+    "author": "Adog",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Dog_in_car_window.jpg",
+    "width": 270,
+    "height": 360
+  },
+  "barge-cat": {
+    "author": "Colin Craig",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Barge_cat_on_the_prowl_-_geograph.org.uk_-_1448250.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "cat-on-a-canoe": {
+    "author": "Rudolph.A.furtado",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Cat_on_a_Fishing_boat_canoe_on_Chivla_beach_in_Malvan..JPG",
+    "width": 360,
+    "height": 270
+  },
+  "stray-cat-on-a-boat": {
+    "author": "Antony Stanley from Gloucester, UK",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Stray_Cat_On_Upturned_Boat,_Essaouira_(5247679320).jpg",
+    "width": 360,
+    "height": 270
+  },
+  "catboat": {
+    "author": "Mike Powell",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Cat_boat_Brek_Marshall.jpg",
+    "width": 360,
+    "height": 267
+  },
+  "moonbeam": {
+    "author": "Ludovic Péron",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "source": "https://commons.wikimedia.org/wiki/File:Moonbeam_-_Brest_2008-10.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "royal-clipper": {
+    "author": "Cbuske46",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Royal-clipper.jpg",
+    "width": 360,
+    "height": 253
+  },
+  "sunset-sail": {
+    "author": "Dietmar Rabich",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Zoutelande_(NL),_Strand,_Blick_auf_die_Nordsee_--_2022_--_4984.jpg",
+    "width": 360,
+    "height": 270
+  },
+  "chevrolet-fleetline": {
+    "author": "Berthold Werner",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Chevrolet_Fleetline_BW_1.JPG",
+    "width": 360,
+    "height": 240
+  },
+  "opel-rekord": {
+    "author": "Berthold Werner",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Opel_Rekord_P2_BW_2016-09-03_14-46-45.jpg",
+    "width": 360,
+    "height": 239
+  },
+  "buick-special": {
+    "author": "Ermell",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Buick_Special_40_Oldtimertreffen_Ebern_2019_6200720-PSD.jpg",
+    "width": 360,
+    "height": 270
+  },
+  "monopoletta": {
+    "author": "Alexander Migl",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Monopoletta_(1950)_Classic-Days_2022_IMG_6995.jpg",
+    "width": 360,
+    "height": 240
+  },
+  "peel-p50": {
+    "author": "Alexander-93",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:P50_Cars_P.50_Classic-Gala_2025_DSC_0802.jpg",
+    "width": 360,
+    "height": 360
+  },
+  "white-carriage": {
+    "author": "P L Chadwick",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:A_white_horse-drawn_carriage,_Bellevue,_Dublin_-_geograph.org.uk_-_2582011.jpg",
+    "width": 360,
+    "height": 238
+  },
+  "wain-cats": {
+    "author": "Louis Wain",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Wain_cat_--_representative.jpg",
+    "width": 271,
+    "height": 360
+  },
+  "wain-cat-with-lute": {
+    "author": "Louis Wain",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Wain_cat_with_lute.jpg",
+    "width": 287,
+    "height": 360
+  },
+  "wain-love-letters": {
+    "author": "Louis Wain",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Love_Letters_of_a_Cat_by_Louis_Wain_(1860%E2%80%931939).png",
+    "width": 360,
+    "height": 322
+  },
+  "wain-persian-cat": {
+    "author": "Louis Wain",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:%27Charlie%27_Morton%27s_Mascot_%E2%80%93_The_Persian_Cat_of_the_Palace_Theatre_by_Louis_Wain_(1860%E2%80%931939).png",
+    "width": 360,
+    "height": 343
+  },
+  "wolf-dogs": {
+    "author": "Unknown author",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Wolf_dogs_of_the_Abruzzi.jpg",
+    "width": 360,
+    "height": 297
+  },
+  "greyhound": {
+    "author": "John Scott",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:The_sportsman%27s_repository_(Plate_22)_BHL22490502.jpg",
+    "width": 360,
+    "height": 259
+  },
+  "stubbs-horse-frightened": {
+    "author": "George Stubbs",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:George_Stubbs_-_Horse_Frightened_by_a_Lion_-_Google_Art_Project_(2416309).jpg",
+    "width": 360,
+    "height": 242
+  },
+  "stubbs-horse-in-the-shade": {
+    "author": "George Stubbs",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:George_Stubbs_(1724-1806)_-_Horse_in_the_Shade_of_a_Wood_-_N04696_-_National_Gallery.jpg",
+    "width": 360,
+    "height": 276
+  },
+  "stubbs-horse-attacked": {
+    "author": "George Stubbs",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:George_Stubbs_(1724-1806)_-_Horse_Attacked_by_a_Lion_-_T01192_-_Tate.jpg",
+    "width": 360,
+    "height": 307
+  },
+  "redon-horse-sketch": {
+    "author": "Odilon Redon",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Redon_-_Sketch_of_a_Horse%27s_Head_and_Leg,_circa_1894.jpg",
+    "width": 295,
+    "height": 360
+  },
+  "bevan-horse-sketch": {
+    "author": "Robert Bevan",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Robert_Bevan_-_Sketch_of_a_Horse_-_B2009.9.88_-_Yale_Center_for_British_Art.jpg",
+    "width": 360,
+    "height": 253
+  },
+  "sailing-ship-norfolk": {
+    "author": "Unknown photographer, State Library of Queensland",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:StateLibQld_1_99124_Sailing_ship_Norfolk.jpg",
+    "width": 360,
+    "height": 222
+  },
+  "sea-monsters": {
+    "author": "Johann Christoph Wagner, Augsburg",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:1684_untitled_engraving_of_Sea_Monsters_Attacking_A_Sailing_Vessel.jpg",
+    "width": 360,
+    "height": 236
+  },
+  "homer-blue-boat": {
+    "author": "Winslow Homer",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:The_Blue_Boat_1892_Winslow_Homer.jpg",
+    "width": 360,
+    "height": 246
+  },
+  "homer-fishing-boats": {
+    "author": "Winslow Homer",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Winslow_Homer_-_Fishing_Boats,_Key_West.jpg",
+    "width": 360,
+    "height": 229
+  },
+  "homer-hunting-dogs": {
+    "author": "Winslow Homer",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Winslow_Homer_-_Hunting_Dogs_in_Boat_(1889).jpg",
+    "width": 360,
+    "height": 251
+  },
+  "speedway-scan": {
+    "author": "Otis Lithograph Co.",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_1909_poster.jpg",
+    "width": 269,
+    "height": 360
+  },
+  "speedway-poster": {
+    "author": "Otis Lithograph Co.",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_1909_poster_(color).jpg",
+    "width": 267,
+    "height": 360
+  },
+  "velazquez-dog-and-cat": {
+    "author": "Workshop of Diego Velázquez",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Vel%C3%A1zquez_Dog_and_cat_(detail).jpg",
+    "width": 270,
+    "height": 360
+  },
+  "heyer-dog-and-cats": {
+    "author": "Arthur Heyer",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Arthur_Heyer_-_Dog_and_Cats.jpg",
+    "width": 360,
+    "height": 292
+  },
+  "heyer-dog-and-cat": {
+    "author": "Arthur Heyer",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Arthur_Heyer_-_Dog_and_Cat.jpg",
+    "width": 360,
+    "height": 256
+  },
+  "girl-in-red-dress": {
+    "author": "Ammi Phillips",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Girl_in_Red_Dress_with_Cat_and_Dog,_Ammi_Phillips_(1788%E2%80%931865).jpg",
+    "width": 310,
+    "height": 360
+  },
+  "coninck-cat-and-dog": {
+    "author": "David de Coninck",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:David_de_Coninck_-_A_cat_and_a_dog_fighting_over_fowl.jpg",
+    "width": 360,
+    "height": 253
+  },
+  "audubon-eagle": {
+    "author": "John James Audubon",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Bird_of_Washington_(Audubon).jpg",
+    "width": 239,
+    "height": 360
+  },
+  "audubon-red-bird": {
+    "author": "John James Audubon",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Summer_Red_Bird_(Audubon).jpg",
+    "width": 226,
+    "height": 360
+  },
+  "durer-young-hare": {
+    "author": "Albrecht Dürer",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Durer_Young_Hare.jpg",
+    "width": 324,
+    "height": 360
+  },
+  "steinlen-cat": {
+    "author": "Théophile Steinlen",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Steinlen_-_cat-1.jpg",
+    "width": 280,
+    "height": 210
+  },
+  "steinlen-cat-and-goldfish": {
+    "author": "Théophile Steinlen",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Steinlen_-_cat-and-goldfish.jpg",
+    "width": 280,
+    "height": 209
+  },
+  "steinlen-it-burns": {
+    "author": "Théophile Steinlen",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Steinlen_-_cat-it-burns-1898.jpg",
+    "width": 360,
+    "height": 225
+  },
+  "steinlen-cat-walking": {
+    "author": "Théophile Steinlen",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Steinlen_-_cat-walking.jpg",
+    "width": 280,
+    "height": 158
+  }
+}

@@ -14,6 +14,7 @@ import { HydrationPage } from "./src/pages/HydrationPage.js";
 import { JsxPage } from "./src/pages/JsxPage.jsx";
 import { AnimationPage } from "./src/pages/AnimationPage.js";
 import { DrawerPage } from "./src/pages/DrawerPage.js";
+import { FileSystemPage } from "./src/pages/fileSystem/FileSystemPage.js";
 import { StorePage } from "./src/pages/StorePage.js";
 import { FocusStorePage } from "./src/pages/FocusStorePage.js";
 import { WordProcessorPage } from "./src/pages/WordProcessorPage.js";
@@ -89,6 +90,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "recursive-demo", group: "Examples", title: "Recursive Example", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },
     { key: "animation", group: "Examples", title: "Animation", description: "A Cascade example: FLIP animations of elements moving, entering and leaving.", component: new AnimationPage().establish() },
     { key: "drawer", group: "Examples", title: "Drawer", description: "A Cascade example: a drawer sliding in from any edge - modal or not, with a header or a panel of its own.", component: new DrawerPage().establish() },
+    { key: "file-system", group: "Examples", title: "File System", description: "A Cascade example: a file system of tags and filter folders - search by category, and find the files that need sorting.", component: new FileSystemPage().establish() },
     
     //Themes
     { key: "themes", title: "Themes", icon: "palette", description: "Cascade's themes: the same app with basic and Material widgets, in any color.", component: new ThemesPage().establish() },

@@ -86,6 +86,38 @@ return button(text("Go green"), () => { scheme.base = "#2e7d32"; });
     modalAssembly({ close, width: 360, fullScreenBelow: 600 },
       dialog({ title: "Settings", close }, ...)))
   ```
+- `drawer()` - a panel sliding in from an edge (`side`: left, right, top or
+  bottom) of its nearest positioned ancestor, over what's there. `modal`
+  adds a backdrop that fades in and closes it when clicked; `header` (the
+  default) a title and a chevron that closes it - or, `header: false`, the
+  content is the whole panel and calls `close` itself. `collapsed` is
+  what's left of it while it's closed: `"nothing"` (the default), a
+  `"handle"` on its edge that opens it (`onOpen`), or a `"bar"` - the panel
+  collapsed to a thin strip along the edge, with a chevron that opens it
+  and, after that, `bar`: shortcuts of the app's own. Opening it, the bar
+  grows into the panel: a component the app puts in `bar` while closed and
+  in the content while open (the same one, keyed) flies to its new place,
+  and the rest fades. Leave `drawerBarSize` of room for it. The panel is always
+  there - just past the edge, and inert, when closed - and a
+  FlipAnimationContainer animates it moving between the two. Moved to
+  another edge, it closes on one and opens on the other.
+
+  ```js
+  drawer({ open: this.open, close, side: "right", modal: true, title: "Filters" }, ...)
+
+  drawer({ open: this.open, close, onOpen, title: "Filters", collapsed: "bar",
+    bar: [iconButton({ icon: "movie", title: "Films", onClick: chooseFilms })] }, ...)
+  ```
+
+  Several at once, one per edge, each opened and closed on its own - with
+  `drawers()` and a `drawerPanel()` each (one shared backdrop when modal,
+  closing every open one):
+
+  ```js
+  drawers({ modal: false },
+    drawerPanel({ side: "left", open: this.navigationOpen, close: closeNavigation, title: "Pages" }, ...),
+    drawerPanel({ side: "right", open: this.inspectorOpen, close: closeInspector, title: "Properties" }, ...))
+  ```
 - `popover()` - beside an element, following it when it moves.
 - `dropdown({ options, value, onSelect })` - one choice out of several: a button
   showing it, opening a list of them all in a popover. Made of the theme's own

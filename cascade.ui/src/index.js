@@ -1,6 +1,7 @@
 export { OverlayFrame, overlayFrame } from "./OverlayFrame.js";
 export { Overlay, overlay } from "./Overlay.js";
 export { ModalBackdrop, Modal, ModalAssembly, modalBackdrop, modal, modalAssembly, modalBackdropColor } from "./Modal.js";
+export { Drawer, Drawers, DrawerPanel, drawer, drawers, drawerPanel, drawerBarSize } from "./Drawer.js";
 export {
   flexContainerStyle, rowStyle, columnStyle,
   centerStyle, middleStyle, centerMiddleStyle,

@@ -931,4 +931,84 @@ describe("FlipAnimationContainer animations", function () {
     assert.equal(element("three").style.transform, "");
     assert.equal(frames.length, 0);
   });
+  // Two lists, each a box with text of its own in it - moved from one to
+  // the other in one go. `box` gives the box's style in each list.
+  const movingBox = (box, lists = {}) => {
+    class Shelves extends Component {
+      initialState() {
+        return { a: ["one"], b: [] };
+      }
+      build() {
+        const item = (name, list) => div({ key: name, ...box(list) }, text({ key: name + "Text", text: name }));
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "listA", ...(lists.a || {}) }, this.a.map((name) => item(name, "a"))),
+          div({ key: "listB", ...(lists.b || {}) }, this.b.map((name) => item(name, "b"))),
+        );
+      }
+    }
+    const shelves = new Shelves();
+    shelves.renderOnto(new DOMElementTarget(container));
+    const one = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "one" && each.firstChild.nodeType === 3);
+    const move = () => {
+      postponeInvalidations();
+      shelves.a = [];
+      shelves.b = ["one"];
+      continueInvalidations();
+    };
+    return { one, move };
+  };
+
+  it("on its way, an element with text and a box of its own to see is sized from its old size to its new - not scaled, nor at its new size at once", function () {
+    const { one, move } = movingBox((list) => ({
+      title: list === "a" ? "100" : "200", // its width, in the fake layout
+      style: { fontSize: "13px", border: "2px dashed gray", minWidth: "50px" },
+    }));
+    move();
+    assert.equal(one.style.width, "100px", "as wide as it was");
+    assert.equal(one.style.minWidth, "0px", "nothing keeping it larger");
+    assert.equal(one.style.overflow, "hidden", "what doesn't fit yet cut off");
+    assert.equal(transformOf(one).sx, 1, "not scaled");
+    runFrames(10);
+    const midway = parseFloat(one.style.width);
+    assert.ok(midway > 100 && midway < 200, "growing: " + one.style.width);
+    runToRest();
+    assert.equal(one.style.width, "", "its own size again, once arrived");
+    assert.equal(one.style.minWidth, "50px");
+    assert.equal(one.style.overflow, "");
+  });
+
+  it("one with nothing of its own to see - a label - isn't sized: its box takes its new size at once", function () {
+    const { one, move } = movingBox((list) => ({ title: list === "a" ? "100" : "200", style: { fontSize: "13px" } }));
+    move();
+    assert.equal(one.style.width, "200px");
+  });
+
+  it("on its way, an element takes on how it looks where it lands - its color, say - gradually, as far along as its spring", function () {
+    const changes = [];
+    const Element = document.defaultView.Element;
+    Element.prototype.animate = function (keyframes, options) {
+      const change = { element: this, keyframes, options, currentTime: null, paused: false, cancelled: false,
+        pause() { this.paused = true; }, cancel() { this.cancelled = true; } };
+      changes.push(change);
+      return change;
+    };
+    try {
+      const { one, move } = movingBox(() => ({ style: { fontSize: "13px" } }), { b: { style: { color: "blue" } } });
+      move();
+      const change = changes.find((each) => each.element === one);
+      assert.ok(change, "a change of look");
+      assert.equal(change.keyframes[0].color, document.defaultView.getComputedStyle(container).color, "from how it looked");
+      assert.equal(change.keyframes[1].color, "rgb(0, 0, 255)", "to how it looks there");
+      assert.ok(!("backgroundColor" in change.keyframes[0]), "only what changes");
+      assert.ok(change.paused, "moved along by hand");
+      assert.equal(change.currentTime, 0, "not yet at all");
+      runFrames(10);
+      assert.ok(change.currentTime > 0 && change.currentTime < change.options.duration, "on its way: " + change.currentTime);
+      runToRest();
+      assert.ok(change.cancelled, "done with once arrived: it looks as the app says");
+    } finally {
+      delete Element.prototype.animate;
+    }
+  });
 });

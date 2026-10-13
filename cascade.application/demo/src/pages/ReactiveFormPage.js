@@ -247,7 +247,12 @@ class TravelerForm extends Component {
         field(traveler.address, "city", "City"),
       ).showIf(!fellow),
 
+      // Keyed: the age field before it comes and goes, keyed - and a keyed
+      // child shown isn't counted among the unkeyed ones, while one left
+      // out (a null) is. Unkeyed, the drawer would be paired with another
+      // place each time the age field is shown or hidden, and built anew.
       new LuggageDrawer({
+        key: "luggageDrawer",
         count: traveler.luggages.length,
         isOpen: this.showLuggage,
         toggleOpen: callback("toggleLuggage", () => { this.showLuggage = !this.showLuggage; }),

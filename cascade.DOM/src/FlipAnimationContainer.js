@@ -52,7 +52,12 @@ export function flipAnimationContainer(...parameters) {
  *  - Travelling: an element on its way to another parent (not just
  *    carried along by what it's in, nor making room among its siblings)
  *    is drawn above everything in the container - what it passes over, and
- *    what it lands among - until it has arrived (see Stacking, below).
+ *    what it lands among - until it has arrived (see Stacking, below). It
+ *    looks as it will where it lands - its color, background, shadow, how
+ *    bold its text is, whatever it gets from there - gradually, on its way
+ *    (see changeLooks()). One with text and a visible box of its own grows
+ *    or shrinks to its new size, its text laid out anew rather than
+ *    squashed (see raise()).
  *  - Leaving: an element removed from the tree is put back as a "ghost" -
  *    where it was among its siblings, so it's still drawn above and below
  *    what it was, absolutely positioned exactly where and how it was
@@ -129,6 +134,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // raise().
     result.raised = new Map();
     result.layer = null;
+    // Changes of look under way - a paused animation each, from how an
+    // element looked to how it looks now - see changeLooks().
+    result.looks = new Map();
     // Where each tracked element lies in the current layout.
     result.layout = new Map();
     // Leaving elements, fading out - see removeAsGhosts() - and the
@@ -167,10 +175,15 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         // A raised one is where its placeholder is.
         const raised = u.raised.get(element);
         rect.parent = raised ? raised.placeholder.parentNode : element.parentNode;
+        // And how it looks - as drawn, a change of look under way included.
+        if (element.nodeType === 1) rect.looks = looksOf(element);
         drawnAt.set(element, rect);
       }
       for (const element of u.ghosts.keys()) drawnAt.set(element, rectOf(element));
     }
+    // Changes of look under way are done with: the new looks are read
+    // as the app has them, and each change goes on from where it's drawn.
+    const changingLooks = this.endLooks();
     // Everything raised back in its place, before anything is placed - and
     // raised again once the new layout is known, if still on its way.
     this.lowerAll();
@@ -205,7 +218,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
     if (animate) {
       const ghosts = this.removeAsGhosts(fading, drawnAt);
-      this.startAnimations(drawnAt);
+      this.startAnimations(drawnAt, changingLooks);
       this.positionGhosts(ghosts, drawnAt);
       // Restored ghosts have been placed elsewhere by now.
       this.releasePositioning();
@@ -416,7 +429,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // Given where and how large each element was drawn before this render,
   // read where each one lies now, and start (or redirect) the springs that
   // close the gap.
-  startAnimations(drawnAt) {
+  startAnimations(drawnAt, changingLooks) {
     const u = this.unobservable;
     const tracked = new Set(u.tracked.map(({ element }) => element));
     for (const element of u.springs.keys()) {
@@ -447,7 +460,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         spring.y = before.y - now.y;
         // Moved to another parent: on its way somewhere - raised, until it
         // has arrived (see raise()).
-        if (before.parent && before.parent !== element.parentNode) spring.travelling = true;
+        const moved = before.parent && before.parent !== element.parentNode;
+        if (moved) spring.travelling = true;
+        // What it gets from where it lands - its color, say - it takes on
+        // along the way (see changeLooks()); as does one already doing so.
+        if (before.looks && (moved || changingLooks.has(element))) this.changeLooks(element, before.looks, spring);
         if (fonts.has(element)) {
           // An element with text of its own can't have its box scaled: its
           // text nodes can't be counter-scaled, so the text would be
@@ -455,14 +472,19 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
           // that have nothing to do with it (a stretching flex parent whose
           // widest item left, say). So it's scaled uniformly, by how large
           // its text is drawn, and only when that changes (moving to a
-          // parent with another font size); its box takes its new size at
-          // once.
+          // parent with another font size). Its box takes its new size at
+          // once - unless it's raised: then it's sized, from the size it's
+          // drawn at, rather than scaled (w and h - see applyAnimation()).
           const ratio = before.font ? before.font / fonts.get(element) - 1 : 0;
           spring.sx = ratio;
           spring.sy = ratio;
+          spring.w = now.width > 0 ? before.width / (now.width * (1 + ratio)) - 1 : 0;
+          spring.h = now.height > 0 ? before.height / (now.height * (1 + ratio)) - 1 : 0;
         } else {
           spring.sx = now.width > 0 ? before.width / now.width - 1 : 0;
           spring.sy = now.height > 0 ? before.height / now.height - 1 : 0;
+          spring.w = 0;
+          spring.h = 0;
         }
       } else if (!ancestor || drawnAt.has(ancestor)) {
         // Appearing (the outermost new element): fades in where it lies.
@@ -496,6 +518,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     this.raiseTravellers();
     const zoomAlong = withoutRecording(() => this.zoomAlong);
     const drawn = new Map(); // element -> { x, y, sx, sy }: its drawn top-left and total scale, in page terms
+    const inSized = new Set(); // what's in a raised element being sized
     for (const { element, ancestor } of u.tracked) {
       const layout = u.layout.get(element);
       if (!layout) continue;
@@ -528,10 +551,36 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         sx = here.sx / above.sx;
         sy = here.sy / above.sy;
       }
+      // In a raised element being sized (see raise()), laid out anew as it
+      // grows or shrinks: where that puts it, at its own scale - around its
+      // middle - rather than where it will be once that has its new size.
+      const raisedAncestor = ancestor && u.raised.get(ancestor);
+      if (ancestor && (inSized.has(ancestor) || (raisedAncestor && raisedAncestor.sized))) {
+        inSized.add(element);
+        tx = (1 - sx) * layout.width / 2;
+        ty = (1 - sy) * layout.height / 2;
+      }
       const moved = Math.abs(tx) > 0.01 || Math.abs(ty) > 0.01 || Math.abs(sx - 1) > 0.0001 || Math.abs(sy - 1) > 0.0001;
       element.style.transform = moved ? "translate(" + tx + "px, " + ty + "px) scale(" + sx + ", " + sy + ")" : "";
       element.style.transformOrigin = moved ? "0 0" : "";
       element.style.opacity = spring.o < -0.001 ? String(Math.max(0, 1 + spring.o)) : "";
+      // Raised, with a box of its own to see and text in it: sized on its
+      // way, rather than taking its new size at once (see raise()).
+      const raised = u.raised.get(element);
+      if (raised && raised.sized) {
+        element.style.width = layout.width * (1 + spring.w) + "px";
+        element.style.height = layout.height * (1 + spring.h) + "px";
+      }
+    }
+    // How far along each change of look is: as far as its spring.
+    for (const [element, change] of u.looks) {
+      const spring = u.springs.get(element);
+      if (!spring) {
+        change.cancel();
+        u.looks.delete(element);
+      } else {
+        change.currentTime = Math.max(0, Math.min(1, 1 - spring.k)) * LOOK_DURATION;
+      }
     }
     for (const [element, ghost] of u.ghosts) {
       element.style.opacity = String(Math.max(0, Math.min(1, ghost.opacity)));
@@ -598,8 +647,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     const travelling = new Set();
     for (const [element, spring] of u.springs) {
-      if (!spring.travelling || (Math.abs(spring.x) < 1 && Math.abs(spring.y) < 1)) continue;
-      if (element.nodeType !== 1 || !element.isConnected || !u.layout.has(element)) continue;
+      if (!spring.travelling || element.nodeType !== 1 || !element.isConnected || !u.layout.has(element)) continue;
+      // On its way - or, raised to be sized, still growing or shrinking.
+      const layout = u.layout.get(element);
+      const raised = u.raised.get(element);
+      const moving = Math.abs(spring.x) >= 1 || Math.abs(spring.y) >= 1;
+      const sizing = raised && raised.sized && (Math.abs(spring.w) * layout.width >= 0.5 || Math.abs(spring.h) * layout.height >= 0.5);
+      if (!moving && !sizing) continue;
       const carrier = u.springs.get(ancestorOf.get(element));
       if (carrier && Math.abs(carrier.x - spring.x) < 1 && Math.abs(carrier.y - spring.y) < 1) continue;
       travelling.add(element);
@@ -617,6 +671,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // exactly where it lies in the layout, at its size there, looking as it
   // does - what it inherited from where it is comes along. In its place,
   // an invisible placeholder as large, so nothing around it moves.
+  //
+  // Out of the layout, it can be sized without moving anything else: one
+  // with text of its own, which can't be scaled to its new size, and a box
+  // of its own to see (a dashed frame around "Add", say), grows or shrinks
+  // to it instead - from the size it was drawn at, its text laid out
+  // anew all the way rather than squashed, and what doesn't fit in it yet
+  // cut off (see applyAnimation()).
   raise(element) {
     const u = this.unobservable;
     const document = element.ownerDocument;
@@ -632,10 +693,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       alignSelf: style.alignSelf, justifySelf: style.justifySelf, order: style.order, gridArea: style.gridArea,
     });
     const looks = { ...computedLooks(element), pointerEvents: style.pointerEvents, cursor: style.cursor, visibility: style.visibility };
+    const sized = !!textFontSize(element) && !isBareBox(element);
     const raisedStyle = {
       position: "absolute", left: "0px", top: "0px", right: "auto", bottom: "auto",
-      width: layout.width + "px", height: layout.height + "px",
+      width: layout.width + "px", height: layout.height + "px", minWidth: "0px", minHeight: "0px", maxWidth: "none", maxHeight: "none",
       marginTop: "0px", marginRight: "0px", marginBottom: "0px", marginLeft: "0px", boxSizing: "border-box", ...looks,
+      ...(sized ? { overflow: "hidden" } : {}),
     };
     const saved = {};
     for (const key of Object.keys(raisedStyle)) saved[key] = element.style[key];
@@ -646,7 +709,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const at = rectOf(layer);
     element.style.left = (layout.x - at.x) + "px";
     element.style.top = (layout.y - at.y) + "px";
-    u.raised.set(element, { placeholder, saved });
+    u.raised.set(element, { placeholder, saved, sized });
   }
 
   // Back in its place - and the layer gone, once nothing is in it.
@@ -665,6 +728,44 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
   lowerAll() {
     for (const element of [...this.unobservable.raised.keys()]) this.lower(element);
+  }
+
+  // An element on its way somewhere takes on how it looks there - its
+  // color, its background, its shadow, how bold its text is (see
+  // looksOf()) - along the way, rather than at once: what it looked like
+  // (`from`, as it was drawn) and what it looks like now, at rest, make a
+  // paused animation, which its spring's k (1, all the way to 0) moves
+  // along - at the pace of everything else, however fast that is. Its font
+  // size is its scale's business (see startAnimations()).
+  changeLooks(element, from, spring) {
+    const u = this.unobservable;
+    if (typeof element.animate !== "function") return;
+    const to = looksOf(element);
+    const before = {};
+    const after = {};
+    for (const key of Object.keys(to)) {
+      if (from[key] !== to[key]) {
+        before[key] = from[key];
+        after[key] = to[key];
+      }
+    }
+    if (Object.keys(after).length === 0) return;
+    const change = element.animate([before, after], { duration: LOOK_DURATION, fill: "both" });
+    change.pause();
+    change.currentTime = 0;
+    u.looks.set(element, change);
+    spring.k = 1;
+    spring.vk = 0;
+  }
+
+  // Every change of look done with, at once - the elements that were
+  // changing returned, to go on from where they're drawn.
+  endLooks() {
+    const u = this.unobservable;
+    const changing = new Set(u.looks.keys());
+    for (const change of u.looks.values()) change.cancel();
+    u.looks.clear();
+    return changing;
   }
 
   // An element's own inline position - for a raised one, the one it gets
@@ -752,6 +853,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     if (u.following) u.following.clear();
     for (const element of [...u.lifted.keys()]) this.unlift(element);
     this.lowerAll();
+    this.endLooks();
     for (const { element } of u.tracked) {
       element.style.transform = "";
       element.style.transformOrigin = "";
@@ -792,11 +894,15 @@ FlipAnimationContainer.islandAttribute = "data-flip-island";
 const STIFFNESS = 170;
 const DAMPING = 26;
 const SPRING_STEP = 1 / 240;
-const FIELDS = ["x", "y", "sx", "sy", "o"];
-const RESTING = { x: 0, y: 0, sx: 0, sy: 0, o: 0 };
+// A change of look's length, as an animation: only ever moved along by
+// hand (see changeLooks()), so any will do.
+const LOOK_DURATION = 1000;
+
+const FIELDS = ["x", "y", "sx", "sy", "o", "w", "h", "k"];
+const RESTING = { x: 0, y: 0, sx: 0, sy: 0, o: 0, w: 0, h: 0, k: 0 };
 
 function newSpring() {
-  return { x: 0, y: 0, sx: 0, sy: 0, o: 0, vx: 0, vy: 0, vsx: 0, vsy: 0, vo: 0 };
+  return { x: 0, y: 0, sx: 0, sy: 0, o: 0, w: 0, h: 0, k: 0, vx: 0, vy: 0, vsx: 0, vsy: 0, vo: 0, vw: 0, vh: 0, vk: 0 };
 }
 
 function advanceSpring(spring, seconds) {
@@ -810,7 +916,9 @@ function advanceSpring(spring, seconds) {
 function isSettled(spring) {
   return Math.abs(spring.x) < 0.5 && Math.abs(spring.y) < 0.5 && Math.abs(spring.vx) < 5 && Math.abs(spring.vy) < 5
     && Math.abs(spring.sx) < 0.002 && Math.abs(spring.sy) < 0.002 && Math.abs(spring.vsx) < 0.02 && Math.abs(spring.vsy) < 0.02
-    && Math.abs(spring.o) < 0.01 && Math.abs(spring.vo) < 0.05;
+    && Math.abs(spring.o) < 0.01 && Math.abs(spring.vo) < 0.05
+    && Math.abs(spring.w) < 0.002 && Math.abs(spring.h) < 0.002 && Math.abs(spring.vw) < 0.02 && Math.abs(spring.vh) < 0.02
+    && Math.abs(spring.k) < 0.01 && Math.abs(spring.vk) < 0.05;
 }
 
 // Whether an element's box has nothing to see of its own - no background,
@@ -840,6 +948,21 @@ function textFontSize(element) {
   if (!hasText) return undefined;
   const size = parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).fontSize);
   return size > 0 ? size : undefined;
+}
+
+// What an element looks like that's worth changing gradually, as it lands
+// somewhere else (see changeLooks()): what it may inherit from there, and
+// what the app may style it with there - all of it interpolable.
+const LOOKS = [
+  "color", "backgroundColor", "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor",
+  "outlineColor", "textDecorationColor", "boxShadow", "textShadow", "fontWeight", "letterSpacing", "wordSpacing",
+];
+
+function looksOf(element) {
+  const style = element.ownerDocument.defaultView.getComputedStyle(element);
+  const looks = {};
+  for (const key of LOOKS) looks[key] = style[key];
+  return looks;
 }
 
 // What a leaving element loses by leaving its place: whatever it inherited

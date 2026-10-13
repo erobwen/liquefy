@@ -14,6 +14,7 @@ const information = {
     "Add, on a product or in its close-up, sends it flying into the cart. Click the grey, or Close, to put a focused product back on its shelf.",
     "The close-up is the same element as the product on the shelf - the same icon, the same name and price, only bigger. One FlipAnimationContainer sees it move and grow, and animates it.",
     "The grey overlay is built only while a product is focused: it appears and leaves where it is, the same size all the time, so all it does is fade.",
+    "The overlay covers everything but the focused product - the cart too. A product on its way into the cart, or back to the shelf, flies above it, and slips under it once it has arrived.",
   ],
 };
 
@@ -51,8 +52,10 @@ const tileHeight = "184px";
  * The overlay is the other kind of animation: no movement at all. It's
  * built only while a product is focused, and an element that appears or
  * leaves is faded in or out exactly where it is, the same size all the
- * time - and, leaving, where it was among its siblings: a product on its
- * way back to the shelf is lifted above it (see cascade.dom's
+ * time - and, leaving, where it was among its siblings. Its z-index puts it
+ * above everything but the focus layer; a product on its way - back to the
+ * shelf, or into the cart - is drawn above it all the same, and under it
+ * again once it has arrived (see Stacking in cascade.dom's
  * FlipAnimationContainer). The focus layer, on the other hand, is always
  * there (empty, and letting clicks through, when nothing is focused):
  * something appearing fades in with everything in it, and a product
@@ -237,13 +240,15 @@ class ProductList extends Component {
       ),
       // The overlay: over the whole page, out to its edges - the status bar
       // too - below the focus layer. Last, so nothing before it is moved
-      // along when it comes and goes.
+      // along when it comes and goes. Above everything but the focus layer
+      // by its z-index - not by where it happens to be: the cart comes
+      // after it, and its cards are positioned.
       focused
         ? div({
           key: "overlay",
           onclick: callback("unfocus", () => { this.focused = null; }),
           title: "Back to the shelf",
-          style: { position: "absolute", inset: 0, background: "rgba(40, 50, 65, 0.55)", cursor: "pointer" },
+          style: { position: "absolute", inset: 0, zIndex: 1, background: "rgba(40, 50, 65, 0.55)", cursor: "pointer" },
         })
         : null,
     ];

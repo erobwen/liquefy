@@ -229,9 +229,9 @@ describe("FlipAnimationContainer animations", function () {
     lists.a = ["two", "three"];
     lists.b = ["four", "one"];
     continueInvalidations();
-    assert.equal(one.parentElement, element("four").parentElement, "now in list B");
     assert.deepEqual(drawnAt(one), before);
     runToRest();
+    assert.equal(one.parentElement, element("four").parentElement, "now in list B");
     assert.deepEqual(drawnAt(one), layoutOf(one));
   });
 
@@ -396,7 +396,7 @@ describe("FlipAnimationContainer animations", function () {
     assert.equal(two.nextSibling, three, "before what it was before");
   });
 
-  it("an element on its way to another parent is lifted above what it passes over - not what it carries, nor what makes room - until it arrives", function () {
+  it("an element on its way to another parent is raised above everything - not what it carries, nor what makes room - until it arrives", function () {
     class Shelves extends Component {
       initialState() {
         return { a: ["one", "two", "three"], b: ["four"] };
@@ -415,18 +415,102 @@ describe("FlipAnimationContainer animations", function () {
     const label = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
     const one = label("one").parentNode;
     const two = label("two").parentNode;
+    const listB = label("four").parentNode.parentNode;
+    const four = label("four").parentNode;
+    four.style.marginTop = "3px"; // its own - not lost when raised
+    const oneBefore = drawnAt(one);
     postponeInvalidations();
     shelves.a = ["two", "three"];
     shelves.b = ["four", "one"];
     continueInvalidations();
     assert.notEqual(two.style.transform, "", "two moves up, making room");
-    assert.equal(two.style.zIndex, "", "but stays where it is among the rest");
-    assert.equal(one.style.zIndex, "1", "one, on its way to the other list, is lifted");
-    assert.equal(one.style.position, "relative", "a z-index needs a position");
-    assert.equal(label("one").style.zIndex, "", "what it carries goes along - not lifted itself");
+    assert.equal(two.parentNode, label("three").parentNode.parentNode, "but stays where it is among the rest");
+    const layer = one.parentNode;
+    assert.notEqual(layer, listB, "one, on its way to the other list, is raised");
+    assert.equal(layer.parentNode, listB.parentNode, "into a layer of the container's");
+    assert.equal(layer, layer.parentNode.lastChild, "last in it");
+    assert.equal(one.style.position, "absolute");
+    const placeholder = four.nextSibling;
+    assert.equal(placeholder.style.visibility, "hidden", "its spot kept by a placeholder");
+    assert.deepEqual(drawnAt(one), oneBefore, "drawn where it was");
+    assert.equal(label("one").parentNode, one, "what it carries goes along");
+    runFrames(10);
+    assert.equal(one.parentNode, layer, "still on its way: still raised");
     runToRest();
-    assert.equal(one.style.zIndex, "", "arrived: put back");
+    assert.equal(one.parentNode, listB, "arrived: back in its place");
+    assert.equal(four.nextSibling, one, "where the placeholder was");
+    assert.ok(!placeholder.isConnected);
+    assert.ok(!layer.isConnected, "and the layer gone");
     assert.equal(one.style.position, "");
+    assert.equal(one.style.zIndex, "");
+    assert.deepEqual(drawnAt(one), layoutOf(one));
+  });
+
+  it("a raised element stays raised while what fades out in it is done - and keeps nothing of either once arrived", function () {
+    class Shelves extends Component {
+      initialState() {
+        return { a: ["one"], b: ["two", "three", "four", "five", "six", "seven", "eight", "nine"], extra: true };
+      }
+      build() {
+        // Static, said outright: jsdom computes no position of its own.
+        const box = (name) => div(
+          { key: name, style: { position: "static" } },
+          div({ key: name + "Label" }, text({ key: name + "Text", text: name })),
+          name === "one" && this.extra ? div({ key: "extra" }, text({ key: "extraText", text: "extra" })) : null,
+        );
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "listA" }, this.a.map(box)),
+          div({ key: "listB" }, this.b.map(box)),
+        );
+      }
+    }
+    const shelves = new Shelves();
+    shelves.renderOnto(new DOMElementTarget(container));
+    const label = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const one = label("one").parentNode;
+    const listB = label("two").parentNode.parentNode;
+    postponeInvalidations();
+    shelves.a = [];
+    shelves.b = [...shelves.b, "one"];
+    shelves.extra = false;
+    continueInvalidations();
+    assert.equal(label("extra").parentNode, one, "fading out in it");
+    assert.equal(one.style.position, "absolute", "raised");
+    let guard = 0;
+    while (label("extra") && guard++ < 1000) runFrames(1);
+    assert.notEqual(one.parentNode, listB, "the ghost is gone, and it's still on its way");
+    assert.equal(one.style.position, "absolute", "still raised - not put back by the ghost");
+    runToRest();
+    assert.equal(one.parentNode, listB);
+    assert.equal(one.style.position, "static", "its own again - nothing left of either");
+  });
+
+  it("an element on its way is raised above an overlay with a z-index of its own - and below it again once arrived", function () {
+    class Covered extends Component {
+      initialState() {
+        return { a: ["one"], b: [] };
+      }
+      build() {
+        const box = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
+        return flipAnimationContainer(
+          { key: "flip" },
+          div({ key: "listA" }, this.a.map(box)),
+          div({ key: "overlay", style: { position: "absolute", left: "0px", top: "0px", zIndex: 5 } }),
+          div({ key: "listB" }, this.b.map(box)),
+        );
+      }
+    }
+    const covered = new Covered();
+    covered.renderOnto(new DOMElementTarget(container));
+    const one = Array.from(container.querySelectorAll("div")).find((each) => each.textContent === "one" && each.firstChild.nodeType === 3);
+    postponeInvalidations();
+    covered.a = [];
+    covered.b = ["one"];
+    continueInvalidations();
+    assert.equal(one.parentNode.style.zIndex, "6", "the layer it's in is above the overlay");
+    runToRest();
+    assert.equal(one.style.zIndex, "", "arrived: stacked as the app says");
   });
 
   it("an element appearing in something on its way somewhere comes along with it, on the same path", function () {

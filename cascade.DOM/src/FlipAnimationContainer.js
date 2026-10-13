@@ -51,8 +51,8 @@ export function flipAnimationContainer(...parameters) {
  *    what's around them moves.
  *  - Travelling: an element on its way to another parent (not just
  *    carried along by what it's in, nor making room among its siblings)
- *    is lifted above what it passes over and lands among, until it has
- *    arrived.
+ *    is drawn above everything in the container - what it passes over, and
+ *    what it lands among - until it has arrived (see Stacking, below).
  *  - Leaving: an element removed from the tree is put back as a "ghost" -
  *    where it was among its siblings, so it's still drawn above and below
  *    what it was, absolutely positioned exactly where and how it was
@@ -62,6 +62,22 @@ export function flipAnimationContainer(...parameters) {
  *    own (see visibleParts()). A ghost in something on its way goes along
  *    with it, the way a newcomer does. If the same element comes back while
  *    it's fading, it's restored and moves on from there.
+ *
+ * Stacking. At rest, what's drawn above what is the app's business alone:
+ * its DOM order and the z-indexes it gives - the container adds nothing.
+ * An overlay meant to cover everything but one element says so with a
+ * z-index of its own; it doesn't rely on what happens to come after it.
+ * Only while something animates does the container draw it otherwise:
+ *  - A travelling element is raised: taken out of its parent, into a layer
+ *    of the container's own above everything else in it, drawn exactly
+ *    where it would be - an invisible placeholder keeping its spot in the
+ *    layout meanwhile. A z-index of its own couldn't do that: it only
+ *    counts among what its parents are stacked with, and where it goes
+ *    may well be under an overlay. Arrived, it's lowered back into its
+ *    place, and stacks there as the app says again (see raise()).
+ *  - An appearing element is lifted above its siblings while it fades in
+ *    (see lift()).
+ *  - A ghost stays where it was among its siblings, with its own z-index.
  *
  * Islands - components that can only be rendered, and what `isUnit` says
  * to place as one piece (see DOMPlacingContainer) - are animated as one
@@ -108,6 +124,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // Elements lifted above their siblings while something in them appears,
     // with the inline z-index and position they had - see lift().
     result.lifted = new Map();
+    // Travelling elements raised into the layer above everything, with the
+    // placeholder keeping their spot and the inline style they had - see
+    // raise().
+    result.raised = new Map();
+    result.layer = null;
     // Where each tracked element lies in the current layout.
     result.layout = new Map();
     // Leaving elements, fading out - see removeAsGhosts() - and the
@@ -143,11 +164,16 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         const font = textFontSize(element);
         if (font) rect.font = font * (spring ? 1 + spring.sx : 1);
         // Where it is in the tree, too: one that goes elsewhere travels.
-        rect.parent = element.parentNode;
+        // A raised one is where its placeholder is.
+        const raised = u.raised.get(element);
+        rect.parent = raised ? raised.placeholder.parentNode : element.parentNode;
         drawnAt.set(element, rect);
       }
       for (const element of u.ghosts.keys()) drawnAt.set(element, rectOf(element));
     }
+    // Everything raised back in its place, before anything is placed - and
+    // raised again once the new layout is known, if still on its way.
+    this.lowerAll();
 
     const previous = u.tracked;
     const { placements, placedBefore } = this.expandSubtree(context);
@@ -372,7 +398,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const u = this.unobservable;
     for (const [parent, position] of [...u.positioning]) {
       if ([...u.ghosts.keys()].some((ghost) => ghost.parentNode === parent)) continue;
-      parent.style.position = position;
+      this.setPosition(parent, position);
       u.positioning.delete(parent);
     }
   }
@@ -419,8 +445,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       if (before) {
         spring.x = before.x - now.x;
         spring.y = before.y - now.y;
-        // Moved to another parent: on its way somewhere - lifted, until it
-        // has arrived (see lift()).
+        // Moved to another parent: on its way somewhere - raised, until it
+        // has arrived (see raise()).
         if (before.parent && before.parent !== element.parentNode) spring.travelling = true;
         if (fonts.has(element)) {
           // An element with text of its own can't have its box scaled: its
@@ -462,9 +488,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   // Draw every tracked element where its spring says - relative to its
-  // nearest tracked ancestor, which moves and scales it already.
+  // nearest tracked ancestor, which moves and scales it already. Unless
+  // it's raised: then it's in the layer, out of its ancestors' reach, and
+  // drawn in page terms.
   applyAnimation() {
     const u = this.unobservable;
+    this.raiseTravellers();
     const zoomAlong = withoutRecording(() => this.zoomAlong);
     const drawn = new Map(); // element -> { x, y, sx, sy }: its drawn top-left and total scale, in page terms
     for (const { element, ancestor } of u.tracked) {
@@ -491,7 +520,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       let ty = spring.y;
       let sx = here.sx;
       let sy = here.sy;
-      const above = ancestor && drawn.get(ancestor);
+      const above = ancestor && !u.raised.has(element) && drawn.get(ancestor);
       if (above) {
         const ancestorLayout = u.layout.get(ancestor);
         tx = (here.x - above.x) / above.sx - (layout.x - ancestorLayout.x);
@@ -527,49 +556,26 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   //
   // Put back as it was as soon as nothing in it is appearing any more - or
   // right away, if the container confines what appears.
-  //
-  // Travelling elements are lifted too: one on its way to another parent
-  // (not just carried along by what it's in, nor making room among its
-  // siblings) is drawn above what it passes over, and what it lands among
-  // - a ghost fading out over its destination included. Only the element
-  // itself (what it's in stays as it is), and it isn't unclipped: what it
-  // shows is its own business.
-  //
-  // A travelling element with a z-index of its own keeps it: it's already
-  // where it wants to be.
   lift() {
     const u = this.unobservable;
-    const lifting = new Map(); // element -> whether it's unclipped too
-    let ancestorOf = null;
-    const ancestors = () => ancestorOf || (ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor])));
+    const lifting = new Set();
+    const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     const confine = withoutRecording(() => this.confine);
     for (const [element, spring] of confine ? [] : u.springs) {
       if (!(spring.o < -0.001)) continue;
-      for (let each = element; each && !lifting.get(each); each = ancestors().get(each)) lifting.set(each, true);
-    }
-    for (const [element, spring] of u.springs) {
-      if (!spring.travelling || lifting.has(element) || (Math.abs(spring.x) < 1 && Math.abs(spring.y) < 1)) continue;
-      const carrier = u.springs.get(ancestors().get(element));
-      if (carrier && Math.abs(carrier.x - spring.x) < 1 && Math.abs(carrier.y - spring.y) < 1) continue;
-      lifting.set(element, false);
+      for (let each = element; each && !lifting.has(each); each = ancestorOf.get(each)) lifting.add(each);
     }
     for (const element of [...u.lifted.keys()]) {
       if (!lifting.has(element)) this.unlift(element);
     }
-    for (const [element, unclip] of lifting) {
-      const saved = u.lifted.get(element);
-      if (saved && (saved.unclipped || !unclip)) continue;
+    for (const element of lifting) {
+      if (u.lifted.has(element)) continue;
       const style = element.ownerDocument.defaultView.getComputedStyle(element);
-      if (!saved) {
-        u.lifted.set(element, { zIndex: element.style.zIndex, position: element.style.position, overflow: element.style.overflow, unclipped: false });
-        if (!style.position || style.position === "static") element.style.position = "relative";
-        if (unclip || !style.zIndex || style.zIndex === "auto") element.style.zIndex = "1";
-      }
-      if (unclip) {
-        const clips = (value) => value === "hidden" || value === "clip";
-        if (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) element.style.overflow = "visible";
-        u.lifted.get(element).unclipped = true;
-      }
+      u.lifted.set(element, { zIndex: element.style.zIndex, position: this.positionOf(element), overflow: element.style.overflow });
+      if (!style.position || style.position === "static") element.style.position = "relative";
+      element.style.zIndex = "1";
+      const clips = (value) => value === "hidden" || value === "clip";
+      if (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) element.style.overflow = "visible";
     }
   }
 
@@ -578,9 +584,124 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const saved = u.lifted.get(element);
     if (!saved) return;
     element.style.zIndex = saved.zIndex;
-    element.style.position = saved.position;
+    this.setPosition(element, saved.position);
     element.style.overflow = saved.overflow;
     u.lifted.delete(element);
+  }
+
+  // Raise every element on its way to another parent - not just carried
+  // along by what it's in, nor making room among its siblings - and lower
+  // every raised one that has arrived (see Stacking in the class doc). A
+  // ghost fading out over its destination is beneath it, too.
+  raiseTravellers() {
+    const u = this.unobservable;
+    const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
+    const travelling = new Set();
+    for (const [element, spring] of u.springs) {
+      if (!spring.travelling || (Math.abs(spring.x) < 1 && Math.abs(spring.y) < 1)) continue;
+      if (element.nodeType !== 1 || !element.isConnected || !u.layout.has(element)) continue;
+      const carrier = u.springs.get(ancestorOf.get(element));
+      if (carrier && Math.abs(carrier.x - spring.x) < 1 && Math.abs(carrier.y - spring.y) < 1) continue;
+      travelling.add(element);
+    }
+    for (const element of [...u.raised.keys()]) {
+      if (!travelling.has(element)) this.lower(element);
+    }
+    for (const element of travelling) {
+      if (!u.raised.has(element)) this.raise(element);
+    }
+  }
+
+  // Take a travelling element out of its parent and into the layer above
+  // everything in the container (see layer()): absolutely positioned
+  // exactly where it lies in the layout, at its size there, looking as it
+  // does - what it inherited from where it is comes along. In its place,
+  // an invisible placeholder as large, so nothing around it moves.
+  raise(element) {
+    const u = this.unobservable;
+    const document = element.ownerDocument;
+    const style = document.defaultView.getComputedStyle(element);
+    const layout = u.layout.get(element);
+    const placeholder = document.createElement("div");
+    const inFlow = style.position !== "absolute" && style.position !== "fixed";
+    Object.assign(placeholder.style, {
+      display: !inFlow ? "none" : style.display === "inline" ? "inline-block" : style.display,
+      visibility: "hidden", pointerEvents: "none", boxSizing: "border-box", flex: "none",
+      width: layout.width + "px", height: layout.height + "px",
+      marginTop: style.marginTop, marginRight: style.marginRight, marginBottom: style.marginBottom, marginLeft: style.marginLeft,
+      alignSelf: style.alignSelf, justifySelf: style.justifySelf, order: style.order, gridArea: style.gridArea,
+    });
+    const looks = { ...computedLooks(element), pointerEvents: style.pointerEvents, cursor: style.cursor, visibility: style.visibility };
+    const raisedStyle = {
+      position: "absolute", left: "0px", top: "0px", right: "auto", bottom: "auto",
+      width: layout.width + "px", height: layout.height + "px",
+      marginTop: "0px", marginRight: "0px", marginBottom: "0px", marginLeft: "0px", boxSizing: "border-box", ...looks,
+    };
+    const saved = {};
+    for (const key of Object.keys(raisedStyle)) saved[key] = element.style[key];
+    element.parentNode.replaceChild(placeholder, element);
+    const layer = this.layer();
+    Object.assign(element.style, raisedStyle);
+    layer.appendChild(element);
+    const at = rectOf(layer);
+    element.style.left = (layout.x - at.x) + "px";
+    element.style.top = (layout.y - at.y) + "px";
+    u.raised.set(element, { placeholder, saved });
+  }
+
+  // Back in its place - and the layer gone, once nothing is in it.
+  lower(element) {
+    const u = this.unobservable;
+    const { placeholder, saved } = u.raised.get(element);
+    Object.assign(element.style, saved);
+    if (placeholder.parentNode) placeholder.parentNode.replaceChild(element, placeholder);
+    else element.remove();
+    u.raised.delete(element);
+    if (u.raised.size === 0 && u.layer) {
+      u.layer.remove();
+      u.layer = null;
+    }
+  }
+
+  lowerAll() {
+    for (const element of [...this.unobservable.raised.keys()]) this.lower(element);
+  }
+
+  // An element's own inline position - for a raised one, the one it gets
+  // back when lowered: raised, it's absolutely positioned in the layer, and
+  // stays so whatever else the container puts back meanwhile (a ghost done
+  // fading in it, a lift ending).
+  positionOf(element) {
+    const raised = this.unobservable.raised.get(element);
+    return raised ? raised.saved.position : element.style.position;
+  }
+
+  setPosition(element, position) {
+    const raised = this.unobservable.raised.get(element);
+    if (raised) raised.saved.position = position;
+    else element.style.position = position;
+  }
+
+  // The layer raised elements are drawn in: last in the container, above
+  // the highest z-index in it - so above everything in it, overlays
+  // included, whatever stacks them.
+  layer() {
+    const u = this.unobservable;
+    if (u.layer) return u.layer;
+    const root = u.node;
+    const view = root.ownerDocument.defaultView;
+    let highest = 0;
+    for (const element of [...u.tracked.map(({ element }) => element), ...u.ghosts.keys()]) {
+      if (element.nodeType !== 1) continue;
+      const zIndex = parseInt(view.getComputedStyle(element).zIndex, 10);
+      if (zIndex > highest) highest = zIndex;
+    }
+    if (view.getComputedStyle(root).position === "static") root.style.position = "relative";
+    const layer = root.ownerDocument.createElement("div");
+    Object.assign(layer.style, { position: "absolute", left: "0px", top: "0px", width: "0px", height: "0px", overflow: "visible", pointerEvents: "none", zIndex: String(highest + 1) });
+    root.appendChild(layer);
+    u.layer = layer;
+    return layer;
   }
 
   requestFrame() {
@@ -630,6 +751,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     u.springs.clear();
     if (u.following) u.following.clear();
     for (const element of [...u.lifted.keys()]) this.unlift(element);
+    this.lowerAll();
     for (const { element } of u.tracked) {
       element.style.transform = "";
       element.style.transformOrigin = "";

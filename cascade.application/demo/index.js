@@ -3,7 +3,7 @@ import { browserLocation, documentHead } from "@liquefy/cascade.dom";
 import { PrerenderedElementTarget } from "@liquefy/cascade.prerender/client";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
-import { ShowcasePage, showcaseShown } from "./src/pages/ShowcasePage.js";
+import { ShowcasePage } from "./src/pages/ShowcasePage.js";
 import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
 import { ConvenientUsagePage } from "./src/pages/ConvenientUsagePage.js";
 import { AdvancedUsagePage } from "./src/pages/AdvancedUsagePage.js";
@@ -67,13 +67,8 @@ const context = new RenderContext({ serviceLocator: rootServiceLocator });
 // from (Vite's base).
 const location = browserLocation({ base: import.meta.env.BASE_URL });
 
-// A first visit to the app's own address starts with the showcase - once:
-// shown, it's remembered (see ShowcasePage's showcaseShown()). Not where a
-// link leads further in - and not while prerendering, whose snapshot of the
-// first page must be the first page.
-if (location.path.length === 0 && !globalThis.cascadePrerendering && !showcaseShown()) {
-  location.navigate(["showcase"], { replace: true });
-}
+// A first visit to the app's own address starts with the showcase: decided
+// in index.html, before anything is drawn.
 
 // The root and its pages are created here, not built by anyone - so they're
 // established here (see cascade.component's Component.establish()). They

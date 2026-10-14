@@ -3,6 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <title>Cascade Demo</title>
+    <!-- A first visit to the app's own address starts with the showcase -
+         once: shown, it's remembered (see src/pages/ShowcasePage.js). Decided
+         here, before anything is drawn - not in index.js, which only runs
+         once the app has loaded: this page's prerendered snapshot (the
+         first page, with the menu) would be drawn meanwhile. The showcase's
+         own snapshot is drawn first instead. Not where a link leads further
+         in, and not while prerendering. First in the head: a script waits
+         for the stylesheets above it. -->
+    <script>
+      (function () {
+        var base = "%BASE_URL%";
+        var path = location.pathname;
+        var atRoot = path === base || path + "/" === base || path === base + "index.html";
+        if (!atRoot || globalThis.cascadePrerendering) return;
+        try {
+          if (localStorage.getItem("cascade.showcaseShown") !== null) return;
+        } catch (error) {
+          return;
+        }
+        location.replace(base + "showcase" + location.search + location.hash);
+      })();
+    </script>
     <!-- Icon fonts for the themed icon widgets: Material Symbols for the
          basic theme - with its fill axis, for filled icons (a heart that's
          on) - and Material Icons for mdui's (the Material theme). -->

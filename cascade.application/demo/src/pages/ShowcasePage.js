@@ -23,23 +23,10 @@ const information = {
   ],
 };
 
-// Where the browser remembers that this page has been shown (see
-// showcaseShown()).
+// Where the browser remembers that this page has been shown: a first visit
+// to the app starts here, and only the first - decided in index.html, which
+// reads it before anything is drawn.
 const shownKey = "cascade.showcaseShown";
-
-/**
- * Whether this browser has been shown this page before - so a first visit
- * to the app can start here, and only the first (see index.js). Where
- * nothing can be remembered (storage switched off), as if it had: never
- * shown again and again.
- */
-export function showcaseShown() {
-  try {
-    return window.localStorage.getItem(shownKey) !== null;
-  } catch (error) {
-    return true;
-  }
-}
 
 // Temporal signals in their smallest form - as on the Introduction page.
 const temporalSignalsExample = `const heading = observable({ text: "hello world", size: 16 });
@@ -97,8 +84,8 @@ function rise(shown, delay = 0, from = "below", level = 1) {
  * Full screen: the app's frame shows it as an overlay, over its menu and
  * top bar alike (see ApplicationMenuFrame - a page with `fullScreen`) - so
  * the page has its own way back into the app, and its own information and
- * code buttons, at its top. Shown, it's remembered (see showcaseShown()):
- * a first visit to the app starts here, and only the first.
+ * code buttons, at its top. Shown, it's remembered (see `shownKey`): a
+ * first visit to the app starts here, and only the first.
  *
  * The page lays itself out from the room it has - the overlay, measured:
  * font sizes, paddings and columns are computed, not media queries - and
@@ -156,8 +143,16 @@ class Section extends Component {
     this.room = room;
   }
 
+  // Prerendered, nothing has been seen yet: the snapshot is what the live
+  // page first draws, so taking over from it changes nothing - and then it
+  // all comes in, as it would have.
   get shown() {
-    return calm || !!this.fromTarget("seen");
+    return calm || (!globalThis.cascadePrerendering && !!this.fromTarget("seen"));
+  }
+
+  // Whether its text is shown - as soon as it is, unless it's always there.
+  get textShown() {
+    return this.shown;
   }
 
   // Its content, as wide as is comfortable to read - with room around it.
@@ -186,7 +181,7 @@ class Section extends Component {
           color: onDark ? "white" : themeColor.accentDark,
           background: onDark ? "rgba(255, 255, 255, 0.12)" : themeColor.accentFaint,
           border: "1px solid " + (onDark ? "rgba(255, 255, 255, 0.25)" : themeColor.accentSoft),
-          ...rise(this.shown, delay),
+          ...rise(this.textShown, delay),
         },
       },
       text(label),
@@ -195,14 +190,14 @@ class Section extends Component {
 
   title(content, delay = 0, style = {}) {
     return h2(
-      { style: { fontSize: Math.round(54 * this.room.scale) + "px", lineHeight: 1.08, letterSpacing: "-0.02em", fontWeight: 800, margin: "0 0 24px 0", ...rise(this.shown, delay), ...style } },
+      { style: { fontSize: Math.round(54 * this.room.scale) + "px", lineHeight: 1.08, letterSpacing: "-0.02em", fontWeight: 800, margin: "0 0 24px 0", ...rise(this.textShown, delay), ...style } },
       ...content,
     );
   }
 
   lead(content, delay = 0, style = {}) {
     return p(
-      { style: { fontSize: Math.round(21 * Math.max(this.room.scale, 0.85)) + "px", lineHeight: 1.6, margin: "0 0 20px 0", ...rise(this.shown, delay, "below", 0.85), ...style } },
+      { style: { fontSize: Math.round(21 * Math.max(this.room.scale, 0.85)) + "px", lineHeight: 1.6, margin: "0 0 20px 0", ...rise(this.textShown, delay, "below", 0.85), ...style } },
       ...content,
     );
   }
@@ -218,12 +213,15 @@ class Section extends Component {
   }
 }
 
-// Words in the accent's gradient - the flashy part.
+// Words in the accent's gradient - the flashy part. The image itself, not
+// the `background` shorthand: with a var() in it, and backgroundClip set
+// after it, the browser draws it - but writes it out (a prerendered
+// snapshot's style attribute) with every part of the shorthand empty.
 function shine(words, onDark = false) {
   return span(
     {
       style: {
-        background: onDark
+        backgroundImage: onDark
           ? `linear-gradient(100deg, ${themeColor.accentLight}, white 60%, ${themeColor.accentLight})`
           : `linear-gradient(100deg, ${themeColor.accentDark}, ${themeColor.accent})`,
         WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
@@ -233,8 +231,14 @@ function shine(words, onDark = false) {
   );
 }
 
-// The first screen: what Cascade is, in big letters, and the way in.
+// The first screen: what Cascade is, in big letters, and the way in. What
+// it says is there from the first frame - the snapshot's, too: what comes
+// in is the logotype, letter by letter, and the figures beside it.
 class Hero extends Section {
+  get textShown() {
+    return true;
+  }
+
   build() {
     const { scale, narrow, height } = this.room;
     const stage = new Stage(this.shown, { animate: !calm });
@@ -279,12 +283,12 @@ class Hero extends Section {
         div(
           this.eyebrow("Reactive front end framework", 0, true),
           h1(
-            { style: { fontSize: Math.round(84 * scale) + "px", lineHeight: 1.02, letterSpacing: "-0.03em", fontWeight: 800, margin: "0 0 28px 0", ...rise(this.shown, 120) } },
+            { style: { fontSize: Math.round(84 * scale) + "px", lineHeight: 1.02, letterSpacing: "-0.03em", fontWeight: 800, margin: "0 0 28px 0", ...rise(this.textShown, 120) } },
             text("What if everything was "), shine("reactive?", true),
           ),
           this.lead([text("Cascade makes it simple and fast to build user interfaces that are data driven, generative and reactive - rendered directly onto the real DOM, in one pass, with minimal changes.")], 260),
           div(
-            { style: { display: "flex", flexWrap: "wrap", gap: "14px", marginTop: "36px", ...rise(this.shown, 400) } },
+            { style: { display: "flex", flexWrap: "wrap", gap: "14px", marginTop: "36px", ...rise(this.textShown, 400) } },
             new Cta({ key: "heroStart", path: "getting-started", label: "Get started", primary: true }),
             new Cta({ key: "heroForm", path: "reactive-form", label: "See a form animate", onDark: true }),
           ),

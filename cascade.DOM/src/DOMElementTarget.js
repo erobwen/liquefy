@@ -1,4 +1,4 @@
-import { observable, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
+import { observable, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 
 /**
  * DOMElementTarget wraps one real DOM element that components render children
@@ -78,8 +78,7 @@ export class DOMElementTarget {
     if (meta.boundsObserver) return;
     const element = this.element;
     const view = element.ownerDocument.defaultView;
-    const timeless = observable({ width: undefined, height: undefined });
-    accessInitialValues(() => { this.timeless = timeless; });
+    const timeless = this.timelessValues({ width: undefined, height: undefined });
     const write = (width, height) => {
       if (withoutRecording(() => timeless.width === width && timeless.height === height)) return;
       accessInitialValues(() => {
@@ -122,6 +121,85 @@ export class DOMElementTarget {
     if (!meta.boundsObserver) return;
     meta.boundsObserver();
     meta.boundsObserver = null;
+  }
+
+  /**
+   * Visibility - opt in: watch this target's element scroll in and out of
+   * view, and keep it as timeless properties of the target, as
+   * observeBounds() keeps its size - what a component rendered onto it
+   * reads with this.fromTarget():
+   *
+   *  - `inView`: whether the element is in view right now.
+   *  - `seen`: whether it has ever been - once true, it stays true. What a
+   *    page that reveals itself as it's scrolled reads: shown once, it
+   *    stays shown.
+   *
+   * `margin`: how far inside the viewport's edges it has to come to count
+   * - an IntersectionObserver's rootMargin. By default it's in view once
+   * its top is above the lowest 15% of the screen: on its way in, not only
+   * just peeking up. The viewport is the root, and what clips the element
+   * on the way there (a scroll panel) counts: in view means visible.
+   *
+   * Both false until the IntersectionObserver first reports - between
+   * frames, after the element's first render - so what's built from them
+   * is first drawn as not yet seen. Written at the baseline, only when they
+   * change, like a size. Where there is no IntersectionObserver (rendered
+   * somewhere without a viewport), the element counts as seen at once.
+   */
+  observeVisibility(margin = "0px 0px -15% 0px") {
+    const meta = this.causality;
+    if (meta.visibilityObserver) return;
+    const element = this.element;
+    const view = element.ownerDocument.defaultView;
+    const timeless = this.timelessValues({ inView: false, seen: false });
+    const write = (inView) => {
+      if (withoutRecording(() => timeless.inView === inView && (timeless.seen || !inView))) return;
+      // Both at once: what reads both is built again once, not twice.
+      postponeInvalidations();
+      try {
+        accessInitialValues(() => {
+          timeless.inView = inView;
+          if (inView) timeless.seen = true;
+        });
+      } finally {
+        continueInvalidations();
+      }
+    };
+    if (!view || typeof(view.IntersectionObserver) !== "function") {
+      write(true);
+      meta.visibilityObserver = () => {};
+      return;
+    }
+    const observer = new view.IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === element) write(entry.isIntersecting);
+      }
+    }, { rootMargin: margin });
+    observer.observe(element);
+    meta.visibilityObserver = () => observer.disconnect();
+  }
+
+  // No longer watched - its element is gone for good.
+  stopObservingVisibility() {
+    const meta = this.causality;
+    if (!meta.visibilityObserver) return;
+    meta.visibilityObserver();
+    meta.visibilityObserver = null;
+  }
+
+  // The target's timeless side (see observeBounds()), created the first
+  // time anything is kept there - with `initial` values for what's about
+  // to be: a target both measured and watched keeps its size and its
+  // visibility side by side.
+  timelessValues(initial) {
+    let timeless = withoutRecording(() => this.timeless);
+    if (!timeless) {
+      timeless = observable({ ...initial });
+      accessInitialValues(() => { this.timeless = timeless; });
+    } else {
+      accessInitialValues(() => Object.assign(timeless, initial));
+    }
+    return timeless;
   }
 
   // Create a new real DOM element, insert it immediately after whatever

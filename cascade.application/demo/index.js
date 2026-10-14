@@ -3,6 +3,7 @@ import { browserLocation, documentHead } from "@liquefy/cascade.dom";
 import { PrerenderedElementTarget } from "@liquefy/cascade.prerender/client";
 import { ApplicationMenuFrame } from "./src/ApplicationMenuFrame.js";
 import { IntroductionPage } from "./src/pages/IntroductionPage.js";
+import { ShowcasePage, showcaseShown } from "./src/pages/ShowcasePage.js";
 import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
 import { ConvenientUsagePage } from "./src/pages/ConvenientUsagePage.js";
 import { AdvancedUsagePage } from "./src/pages/AdvancedUsagePage.js";
@@ -66,14 +67,25 @@ const context = new RenderContext({ serviceLocator: rootServiceLocator });
 // from (Vite's base).
 const location = browserLocation({ base: import.meta.env.BASE_URL });
 
+// A first visit to the app's own address starts with the showcase - once:
+// shown, it's remembered (see ShowcasePage's showcaseShown()). Not where a
+// link leads further in - and not while prerendering, whose snapshot of the
+// first page must be the first page.
+if (location.path.length === 0 && !globalThis.cascadePrerendering && !showcaseShown()) {
+  location.navigate(["showcase"], { replace: true });
+}
+
 // The root and its pages are created here, not built by anyone - so they're
 // established here (see cascade.component's Component.establish()). They
 // live as long as the app does: nothing to dispose of.
 const applicationMenuFrame = new ApplicationMenuFrame({
   rootServiceLocator,
   location,
+  // The showcase is reached by the logotype, not from the menu.
+  logoPage: "showcase",
   pages: [
     { key: "introduction", title: "Introduction", icon: "info", description: "Cascade, a reactive front end framework built on temporal signals: components rendered straight onto the real DOM in one pass.", component: new IntroductionPage().establish() },
+    { key: "showcase", title: "Showcase", icon: "auto_awesome", fullScreen: true, inMenu: false, description: "Cascade, the reactive front end framework built on temporal signals - one page that reveals itself as you scroll.", component: new ShowcasePage().establish() },
     { key: "getting-started", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
     { key: "convenient-usage", title: "Convenient Usage", description: "Convenient usage of Cascade: the everyday patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
     { key: "advanced-usage", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },

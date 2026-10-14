@@ -64,8 +64,16 @@ export class ApplicationMenuFrame extends Component {
   // path is the page's own business: it's handed down in the page's render
   // context (see ApplicationMenuFrameLayout's workArea), and the location
   // itself is found by inherit("location").
-  setProperties({ pages, rootServiceLocator, location }) {
+  //
+  // A page with `fullScreen` is shown over everything - the menu and the
+  // top bar too - with the first page under it (see
+  // ApplicationMenuFrameLayout). One with `inMenu: false` has no link in
+  // the menu - it's reached some other way (the logotype, say). `logoPage`:
+  // the key of the page the logotype at the top of the menu leads to, if
+  // any.
+  setProperties({ pages, rootServiceLocator, location, logoPage }) {
     this.pages = pages;
+    this.logoPage = logoPage || null;
     this.rootServiceLocator = rootServiceLocator || null;
     this.location = location;
   }
@@ -186,7 +194,10 @@ class ApplicationMenuFrameLayout extends Component {
     // Wide, the drawer is docked, and `menuOpen` means nothing - so it's
     // only ever read together with menuIsModal, never reset from here:
     // state is changed by the user, not by a build.
-    const page = frame.currentPage();
+    // A full-screen page is shown over it all, on the overlay - with the
+    // first page under it, as if just left for it.
+    const chosen = frame.currentPage();
+    const page = chosen.fullScreen ? frame.pages[0] : chosen;
 
     const topBar = div(
       { style: {
@@ -226,7 +237,7 @@ class ApplicationMenuFrameLayout extends Component {
       // are.
       context: {
         basePath: frame.pathOf(page).join("/"),
-        path: frame.location.path.slice(frame.pathOf(page).length).join("/"),
+        path: chosen.fullScreen ? "" : frame.location.path.slice(frame.pathOf(page).length).join("/"),
       },
     });
 
@@ -246,7 +257,11 @@ class ApplicationMenuFrameLayout extends Component {
       column,
       {
         style: { display: "flex", flexDirection: "row", width: "100%", height: "100%", boxSizing: "border-box", overflow: "hidden" },
-        overlayContent: frame.menuOpen && menuIsModal ? buildModalMenuDrawer(frame) : null,
+        // A full-screen page right on the overlay: placed on its measured
+        // element, it reads its room from there, as a page in the work
+        // area does.
+        overlayContent: chosen.fullScreen ? chosen.component
+          : frame.menuOpen && menuIsModal ? buildModalMenuDrawer(frame) : null,
       },
     );
   }
@@ -301,6 +316,7 @@ class MenuList extends Component {
     const items = [];
     let previousGroup = null;
     for (const page of frame.pages) {
+      if (page.inMenu === false) continue;
       // Pages grouped together (see index.js - `group`) get a header above
       // them, and a gap after them, before the next page on its own.
       const group = page.group || null;
@@ -312,7 +328,7 @@ class MenuList extends Component {
     }
     return div(
       { style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
-      logo(),
+      logo(frame),
       ...items,
     );
   }
@@ -386,8 +402,29 @@ function versionNoticeButton(style) {
 
 // The Cascade logotype, at the top of the menu - a vector drawing with a
 // snug bounding box, on a transparent background: it sits on the menu as it
-// is, with room around it given here.
-function logo() {
+// is, with room around it given here. A link to the frame's `logoPage`,
+// where there is one - a plain click going there as the menu's links do.
+function logo(frame) {
+  const page = frame.logoPage && frame.pages.find((each) => each.key === frame.logoPage);
+  const image = logoImage();
+  if (!page) return image;
+  return a(
+    {
+      key: "logo",
+      href: frame.location.href(frame.pathOf(page)),
+      title: page.title,
+      style: { display: "block" },
+      onclick: callback("logo", (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        frame.choose(page.key);
+      }),
+    },
+    image,
+  );
+}
+
+function logoImage() {
   return img({
     src: menuBarLogo,
     alt: "Cascade",

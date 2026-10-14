@@ -56,6 +56,10 @@ argument that starts with a lowercase letter for a key - so wrap text in
   it reads the size with `this.fromTarget("width")`/`("height")`, following
   every change of its size: programmatic, reactive layout without CSS media
   queries.
+- **`elementVisibilityProvider()`** - watches its own element scroll in and
+  out of view; what's placed on it reads `this.fromTarget("inView")`, and
+  `("seen")` - true from the first time it came into view: a page that
+  reveals itself as it's scrolled, section by section.
 - **`flipAnimationContainer()`** - animates every change in the subtree inside
   it: elements moving (within a parent, or to another one), resizing,
   appearing and leaving. Nothing inside it knows about animation.

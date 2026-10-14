@@ -12,8 +12,9 @@ import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js
  * render() alike:
  *
  *  - this.fromTarget("inView"): whether the element is in view right now.
- *  - this.fromTarget("seen"): whether it has ever been - once true, it
- *    stays true.
+ *  - this.fromTarget("seen"): whether it has been since it was last
+ *    shown - once true, it stays true, until it's hidden (its page switched
+ *    away from) and shown again.
  *
  * What a page that reveals itself as it's scrolled is made of: each
  * section on a provider of its own, built again - that section alone - the
@@ -67,6 +68,14 @@ export class DOMElementVisibilityProvider extends DOMNodeComponent {
       u.childTarget.observeVisibility({ amount: this.amount, margin: this.margin });
     }
     this.child.renderOnto(u.childTarget, context);
+  }
+
+  // Shown again: not seen again until it comes into view - what it
+  // revealed, it reveals anew (see DOMElementTarget.resetVisibility()).
+  // Before its child is rendered again: it's built not seen.
+  onShow() {
+    super.onShow();
+    if (this.unobservable.childTarget) this.unobservable.childTarget.resetVisibility();
   }
 
   onDispose() {

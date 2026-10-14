@@ -24,7 +24,8 @@ const landing = "cubic-bezier(0.34, 1.45, 0.64, 1)";
  * The Cascade logotype, its letters flying in one by one - from all
  * directions, turning as they come, the arrow last - once `shown`. Not
  * shown, they're scattered, and invisible; shown again after that, they
- * fly in again. Sized by its `style` (a width - its height follows).
+ * fly in again - scattered at once, and in again from there. Sized by its
+ * `style` (a width - its height follows).
  *
  * A node of its own, like HighlightedCode (see code.js): the SVG is the
  * logotype file itself, as it is, parsed once - with every letter a path
@@ -55,30 +56,29 @@ export class AnimatedLogotype extends DOMNodeComponent {
       Object.assign(svg.style, { display: "block", height: "auto", overflow: "visible" });
       u.letters = letters.map((letter) => ({ ...letter, element: svg.querySelector("#" + CSS.escape(letter.id)) }))
         .filter(({ element }) => element);
-      for (const { element, delay } of u.letters) {
-        Object.assign(element.style, {
-          transformBox: "fill-box",
-          transformOrigin: "center",
-          transition: [
-            `translate 1100ms ${landing} ${delay}ms`,
-            `rotate 1100ms ${landing} ${delay}ms`,
-            `scale 1100ms ${landing} ${delay}ms`,
-            `opacity 500ms ease ${delay}ms`,
-          ].join(", "),
-        });
+      for (const letter of u.letters) {
+        Object.assign(letter.element.style, { transformBox: "fill-box", transformOrigin: "center" });
+        letter.transition = [
+          `translate 1100ms ${landing} ${letter.delay}ms`,
+          `rotate 1100ms ${landing} ${letter.delay}ms`,
+          `scale 1100ms ${landing} ${letter.delay}ms`,
+          `opacity 500ms ease ${letter.delay}ms`,
+        ].join(", ");
       }
       u.node = svg;
     }
     if (u.shownAs !== this.shown) {
       u.shownAs = this.shown;
-      for (const { element, from } of u.letters) {
+      // Flying in, with the transition it changes to; scattered, at once.
+      for (const { element, from, transition } of u.letters) {
         Object.assign(element.style, this.shown
-          ? { translate: "none", rotate: "none", scale: "none", opacity: "1" }
+          ? { translate: "none", rotate: "none", scale: "none", opacity: "1", transition }
           : {
             translate: `${from.x || 0}px ${from.y || 0}px`,
             rotate: (from.turn || 0) + "deg",
             scale: typeof(from.scale) === "number" ? String(from.scale) : "none",
             opacity: "0",
+            transition: "none",
           });
       }
     }

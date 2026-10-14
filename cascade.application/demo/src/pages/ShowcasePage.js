@@ -65,12 +65,15 @@ const ease = "cubic-bezier(0.16, 1, 0.3, 1)";
 // FlipAnimationContainer leaves alone: it draws with `transform`, and fades
 // with `opacity`, which it clears once done - so `translate`, and a
 // `filter` to fade with - up to `level`, for text that's a little quieter.
+// Only on its way in: back to not shown (the page entered anew - see
+// cascade.dom's elementVisibilityProvider()), it's there at once, ready to
+// rise again. A change of style takes the transition it changes to.
 function rise(shown, delay = 0, from = "below", level = 1) {
   const offset = { below: "0 48px", left: "-64px 0", right: "64px 0" }[from];
   return {
     filter: `opacity(${shown ? level : 0})`,
     translate: shown ? "none" : offset,
-    transition: `filter 900ms ${ease} ${delay}ms, translate 1100ms ${ease} ${delay}ms`,
+    transition: shown ? `filter 900ms ${ease} ${delay}ms, translate 1100ms ${ease} ${delay}ms` : "none",
   };
 }
 
@@ -80,6 +83,10 @@ function rise(shown, delay = 0, from = "below", level = 1) {
  * top, then one section after another, each revealing itself as it
  * scrolls into view - text rising, cards and pictures flying in from the
  * sides.
+ *
+ * Entered anew - the logotype clicked again - it's revealed anew: each
+ * section is not seen again until it comes into view (see
+ * elementVisibilityProvider()), so it all comes in again, from the top.
  *
  * Full screen: the app's frame shows it as an overlay, over its menu and
  * top bar alike (see ApplicationMenuFrame - a page with `fullScreen`) - so
@@ -296,7 +303,7 @@ class Hero extends Section {
         div({ style: { display: "flex", flexDirection: "column", gap: "18px" } }, stats),
       )),
       narrow ? null : div(
-        { style: { position: "absolute", bottom: "28px", left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", filter: `opacity(${this.shown ? 0.7 : 0})`, transition: `filter 1200ms ${ease} 900ms`, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase" } },
+        { style: { position: "absolute", bottom: "28px", left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", filter: `opacity(${this.shown ? 0.7 : 0})`, transition: this.shown ? `filter 1200ms ${ease} 900ms` : "none", fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase" } },
         text("Scroll to explore"),
         icon({ name: "keyboard_arrow_down", style: { fontSize: "28px" } }),
       ),

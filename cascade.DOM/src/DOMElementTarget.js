@@ -130,9 +130,10 @@ export class DOMElementTarget {
    * reads with this.fromTarget():
    *
    *  - `inView`: whether the element is in view right now.
-   *  - `seen`: whether it has ever been - once true, it stays true. What a
-   *    page that reveals itself as it's scrolled reads: shown once, it
-   *    stays shown.
+   *  - `seen`: whether it has been since it was last shown - once true,
+   *    it stays true, until resetVisibility() (the element hidden, and shown
+   *    again). What a page that reveals itself as it's scrolled reads:
+   *    revealed once, it stays revealed - and comes back to do it again.
    *
    * How much of it has to be visible to count as in view:
    *
@@ -159,14 +160,14 @@ export class DOMElementTarget {
     const element = this.element;
     const view = element.ownerDocument.defaultView;
     const timeless = this.timelessValues({ inView: false, seen: false });
-    const write = (inView) => {
-      if (withoutRecording(() => timeless.inView === inView && (timeless.seen || !inView))) return;
+    const write = (inView, seen = withoutRecording(() => timeless.seen) || inView) => {
+      if (withoutRecording(() => timeless.inView === inView && timeless.seen === seen)) return;
       // Both at once: what reads both is built again once, not twice.
       postponeInvalidations();
       try {
         accessInitialValues(() => {
           timeless.inView = inView;
-          if (inView) timeless.seen = true;
+          timeless.seen = seen;
         });
       } finally {
         continueInvalidations();
@@ -175,6 +176,7 @@ export class DOMElementTarget {
     if (!view || typeof(view.IntersectionObserver) !== "function") {
       write(true);
       meta.visibilityObserver = () => {};
+      meta.visibilityReset = () => {};
       return;
     }
     // How much of what it could be is visible: of its own height, or the
@@ -192,6 +194,22 @@ export class DOMElementTarget {
     }, { rootMargin: margin, threshold: Array.from({ length: 101 }, (_, index) => index / 100) });
     observer.observe(element);
     meta.visibilityObserver = () => observer.disconnect();
+    // Not seen again - and watched anew: observing reports at once, where
+    // it is now, whether that has changed since the last report or not.
+    meta.visibilityReset = () => {
+      write(false, false);
+      observer.unobserve(element);
+      observer.observe(element);
+    };
+  }
+
+  // Not seen, nor in view, until the element comes into view again - for
+  // one hidden (its page switched away from), and shown again: what it
+  // revealed, it reveals anew. Where nothing can tell (no
+  // IntersectionObserver), it stays seen.
+  resetVisibility() {
+    const meta = this.causality;
+    if (meta.visibilityReset) meta.visibilityReset();
   }
 
   // No longer watched - its element is gone for good.
@@ -200,6 +218,7 @@ export class DOMElementTarget {
     if (!meta.visibilityObserver) return;
     meta.visibilityObserver();
     meta.visibilityObserver = null;
+    meta.visibilityReset = null;
   }
 
   // The target's timeless side (see observeBounds()), created the first

@@ -19,6 +19,9 @@ class FakeIntersectionObserver {
   observe(element) {
     this.elements.add(element);
   }
+  unobserve(element) {
+    this.elements.delete(element);
+  }
   disconnect() {
     this.elements.clear();
     FakeIntersectionObserver.all.delete(this);
@@ -137,11 +140,44 @@ describe("DOMElementVisibilityProvider", function () {
     assert.deepEqual([second.unobservable.builds, second.unobservable.seen], [1, false]);
   });
 
+  it("hidden and shown again, it's not seen until it comes into view again - and watched anew", function () {
+    const model = observable({ shown: true });
+    const probe = new Probe();
+    const provider = new DOMElementVisibilityProvider({ child: probe });
+    class Frame extends Component {
+      render(target, context) {
+        if (model.shown) provider.renderOnto(target, context);
+      }
+    }
+    new Frame().renderOnto(new DOMElementTarget(container));
+    const element = provider.unobservable.node;
+    FakeIntersectionObserver.report(element, 100);
+    assert.equal(probe.unobservable.seen, true);
+
+    model.shown = false;
+    assert.equal(probe.unobservable.seen, true, "hidden, nothing is built");
+    model.shown = true;
+    assert.deepEqual([probe.unobservable.seen, probe.unobservable.inView], [false, false], "shown again: built not seen");
+    assert.ok(FakeIntersectionObserver.observing(element), "still watched");
+    FakeIntersectionObserver.report(element, 100);
+    assert.equal(probe.unobservable.seen, true, "and seen again, once in view");
+  });
+
   it("without an IntersectionObserver, everything counts as seen at once", function () {
     delete dom.window.IntersectionObserver;
     const probe = new Probe();
-    new DOMElementVisibilityProvider({ child: probe }).renderOnto(new DOMElementTarget(container));
+    const model = observable({ shown: true });
+    const provider = new DOMElementVisibilityProvider({ child: probe });
+    class Frame extends Component {
+      render(target, context) {
+        if (model.shown) provider.renderOnto(target, context);
+      }
+    }
+    new Frame().renderOnto(new DOMElementTarget(container));
     assert.deepEqual([probe.unobservable.inView, probe.unobservable.seen], [true, true]);
+    model.shown = false;
+    model.shown = true;
+    assert.deepEqual([probe.unobservable.inView, probe.unobservable.seen], [true, true], "and stays so, shown again: nothing could tell otherwise");
   });
 
   it("stops watching once dropped from its own build()-owning parent", function () {

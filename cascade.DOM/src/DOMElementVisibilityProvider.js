@@ -20,9 +20,10 @@ import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js
  * moment it comes into view. Built from `seen`, what's shown once stays
  * shown; from `inView`, it comes and goes with scrolling.
  *
- * `margin`: how far inside the viewport's edges the element has to come to
- * count (an IntersectionObserver's rootMargin - see observeVisibility() for
- * the default).
+ * `amount`: how much of it has to be visible to count as in view - a
+ * fraction of its height, or of the viewport's for one taller than that
+ * (default a quarter); `margin`: where the viewport's edges are taken to be
+ * (see observeVisibility()).
  *
  * Unlike a bounds provider, not size-contained: its size is its content's,
  * as for any element. Otherwise fully styleable, and as for any element,
@@ -33,10 +34,11 @@ export function elementVisibilityProvider(...parameters) {
 }
 
 export class DOMElementVisibilityProvider extends DOMNodeComponent {
-  setProperties({ child, style, className, margin }) {
+  setProperties({ child, style, className, amount, margin }) {
     this.child = child;
     this.style = frozen(style || null);
     this.className = className || null;
+    this.amount = typeof(amount) === "number" ? amount : undefined;
     this.margin = margin || undefined;
   }
 
@@ -62,7 +64,7 @@ export class DOMElementVisibilityProvider extends DOMNodeComponent {
     const u = this.unobservable;
     if (!u.childTarget) {
       u.childTarget = DOMElementTarget.forElement(u.node);
-      u.childTarget.observeVisibility(this.margin);
+      u.childTarget.observeVisibility({ amount: this.amount, margin: this.margin });
     }
     this.child.renderOnto(u.childTarget, context);
   }

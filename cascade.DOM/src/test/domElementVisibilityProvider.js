@@ -7,7 +7,8 @@ import { DOMElementBoundsProvider } from "../DOMElementBoundsProvider.js";
 
 // jsdom has no viewport and no IntersectionObserver - so a stand-in one,
 // reporting whatever a test says about an element, as a browser's would
-// as it's scrolled (see DOMElementTarget.observeVisibility()).
+// as it's scrolled (see DOMElementTarget.observeVisibility()): how many
+// pixels of it are visible, of how tall it is, in a viewport how tall.
 class FakeIntersectionObserver {
   constructor(callback, options) {
     this.callback = callback;
@@ -22,9 +23,16 @@ class FakeIntersectionObserver {
     this.elements.clear();
     FakeIntersectionObserver.all.delete(this);
   }
-  static report(element, isIntersecting) {
+  static report(element, visible, { height = 100, viewport = 1000 } = {}) {
+    const entry = {
+      target: element,
+      isIntersecting: visible > 0,
+      intersectionRect: { height: visible },
+      boundingClientRect: { height },
+      rootBounds: { height: viewport },
+    };
     for (const observer of FakeIntersectionObserver.all) {
-      if (observer.elements.has(element)) observer.callback([{ target: element, isIntersecting }]);
+      if (observer.elements.has(element)) observer.callback([entry]);
     }
   }
   static observing(element) {
@@ -67,20 +75,48 @@ describe("DOMElementVisibilityProvider", function () {
     assert.ok(FakeIntersectionObserver.observing(element));
     assert.deepEqual([u.builds, u.inView, u.seen], [1, false, false], "first built as not seen yet");
 
-    FakeIntersectionObserver.report(element, false);
+    FakeIntersectionObserver.report(element, 0);
     assert.equal(u.builds, 1, "nothing changed: nothing to build");
 
-    FakeIntersectionObserver.report(element, true);
+    FakeIntersectionObserver.report(element, 100);
     assert.deepEqual([u.builds, u.inView, u.seen], [2, true, true]);
 
-    FakeIntersectionObserver.report(element, false);
+    FakeIntersectionObserver.report(element, 0);
     assert.deepEqual([u.builds, u.inView, u.seen], [3, false, true], "scrolled out again: still seen");
   });
 
-  it("takes a margin - the observer's rootMargin", function () {
-    const provider = new DOMElementVisibilityProvider({ child: new Probe(), margin: "0px 0px -40% 0px" });
+  it("in view once enough of it is visible - a quarter, by default", function () {
+    const probe = new Probe();
+    const provider = new DOMElementVisibilityProvider({ child: probe });
     provider.renderOnto(new DOMElementTarget(container));
-    assert.equal(FakeIntersectionObserver.observing(provider.unobservable.node).options.rootMargin, "0px 0px -40% 0px");
+    const element = provider.unobservable.node;
+    FakeIntersectionObserver.report(element, 10);
+    assert.equal(probe.unobservable.seen, false, "a sliver of it isn't enough");
+    FakeIntersectionObserver.report(element, 25);
+    assert.equal(probe.unobservable.seen, true);
+    FakeIntersectionObserver.report(element, 20);
+    assert.equal(probe.unobservable.inView, false, "less than that again: out of view");
+  });
+
+  it("taller than the viewport, it's the viewport it has to fill that much of", function () {
+    const probe = new Probe();
+    const provider = new DOMElementVisibilityProvider({ child: probe, amount: 0.5 });
+    provider.renderOnto(new DOMElementTarget(container));
+    const element = provider.unobservable.node;
+    FakeIntersectionObserver.report(element, 400, { height: 3000, viewport: 1000 });
+    assert.equal(probe.unobservable.seen, false);
+    FakeIntersectionObserver.report(element, 500, { height: 3000, viewport: 1000 });
+    assert.equal(probe.unobservable.seen, true, "half the screen - a sixth of it");
+  });
+
+  it("amount 0: any part of it at all - and a margin moves the viewport's edges", function () {
+    const probe = new Probe();
+    const provider = new DOMElementVisibilityProvider({ child: probe, amount: 0, margin: "0px 0px -40% 0px" });
+    provider.renderOnto(new DOMElementTarget(container));
+    const element = provider.unobservable.node;
+    assert.equal(FakeIntersectionObserver.observing(element).options.rootMargin, "0px 0px -40% 0px");
+    FakeIntersectionObserver.report(element, 1);
+    assert.equal(probe.unobservable.seen, true);
   });
 
   it("only rebuilds what reads it: a sibling section stays as it is", function () {
@@ -96,7 +132,7 @@ describe("DOMElementVisibilityProvider", function () {
     const page = new Page();
     page.renderOnto(new DOMElementTarget(container));
     const [firstElement] = container.children;
-    FakeIntersectionObserver.report(firstElement, true);
+    FakeIntersectionObserver.report(firstElement, 100);
     assert.deepEqual([first.unobservable.builds, first.unobservable.seen], [2, true]);
     assert.deepEqual([second.unobservable.builds, second.unobservable.seen], [1, false]);
   });
@@ -128,7 +164,7 @@ describe("DOMElementVisibilityProvider", function () {
     const target = DOMElementTarget.forElement(container);
     target.observeVisibility();
     target.observeBounds();
-    FakeIntersectionObserver.report(container, true);
+    FakeIntersectionObserver.report(container, 100);
     assert.equal(target.timeless.seen, true);
     assert.ok("width" in target.timeless);
     // And a bounds provider's child still reads its size, as before.

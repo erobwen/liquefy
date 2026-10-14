@@ -14,7 +14,7 @@ import onelinerAnimation from "../../../../cascade/images/oneliner-animation.png
 const information = {
   summary: "The Introduction again - as a full-screen marketing page, revealing itself as you scroll:",
   points: [
-    "Each section is on an elementVisibilityProvider() - elementBoundsProvider()'s sibling, in cascade.dom: the section reads this.fromTarget(\"seen\") as it would read its width, and is built again the moment it scrolls into view.",
+    "Each section is on an elementVisibilityProvider() - elementBoundsProvider()'s sibling, in cascade.dom: the section reads this.fromTarget(\"seen\") as it would read its width, and is built again the moment it's well into view - 40% of it visible, or of the screen, for a section taller than that.",
     "What flies in is FlipAnimationContainer's ordinary animation. Until its section has been seen, a piece waits in a wing just outside the section's edge, clipped away. Seen, it's built in its slot instead - it moved to another parent, so the container makes it travel there.",
     "A section keeps the room it will need before it's revealed: each render, its pieces are put in their slots and the section is measured, then put back in their wings - within the render, before anything is drawn, the toolbar ellipsis' technique (see ../components/revealStage.js).",
     "Text, and the letters of the logotype, move with plain CSS transitions: in their place from the start, only invisible - so a prerendered page has every word in it.",
@@ -74,14 +74,16 @@ const ease = "cubic-bezier(0.16, 1, 0.3, 1)";
 
 // Text rising into view: in its place all along - so it's in a prerendered
 // page, and nothing moves under the reader - only invisible, and a little
-// off, until its section has been seen. A CSS transition, of `translate`:
-// a FlipAnimationContainer draws with `transform`, and the two add up.
-function rise(shown, delay = 0, from = "below") {
+// off, until its section has been seen. CSS transitions - of what a
+// FlipAnimationContainer leaves alone: it draws with `transform`, and fades
+// with `opacity`, which it clears once done - so `translate`, and a
+// `filter` to fade with - up to `level`, for text that's a little quieter.
+function rise(shown, delay = 0, from = "below", level = 1) {
   const offset = { below: "0 48px", left: "-64px 0", right: "64px 0" }[from];
   return {
-    opacity: shown ? 1 : 0,
+    filter: `opacity(${shown ? level : 0})`,
     translate: shown ? "none" : offset,
-    transition: `opacity 900ms ${ease} ${delay}ms, translate 1100ms ${ease} ${delay}ms`,
+    transition: `filter 900ms ${ease} ${delay}ms, translate 1100ms ${ease} ${delay}ms`,
   };
 }
 
@@ -129,7 +131,9 @@ export class ShowcasePage extends Component {
     // How large everything is: full size from 1200 pixels, down to 60% of it.
     room.scale = Math.min(1, Math.max(0.6, room.width / 1200));
     room.narrow = room.width < 820;
-    const revealing = (section) => elementVisibilityProvider({ child: section });
+    // Revealed once well into view: 40% of it visible - or, taller than
+    // the screen, filling 40% of the screen.
+    const revealing = (section) => elementVisibilityProvider({ child: section, amount: 0.4 });
     return div(
       // Clicks taken: it's on an overlay, which lets them through where
       // nothing is shown.
@@ -198,7 +202,7 @@ class Section extends Component {
 
   lead(content, delay = 0, style = {}) {
     return p(
-      { style: { fontSize: Math.round(21 * Math.max(this.room.scale, 0.85)) + "px", lineHeight: 1.6, opacity: 0.85, margin: "0 0 20px 0", ...rise(this.shown, delay), ...style } },
+      { style: { fontSize: Math.round(21 * Math.max(this.room.scale, 0.85)) + "px", lineHeight: 1.6, margin: "0 0 20px 0", ...rise(this.shown, delay, "below", 0.85), ...style } },
       ...content,
     );
   }
@@ -244,7 +248,7 @@ class Hero extends Section {
         },
       },
       div({ style: { fontSize: Math.round(40 * scale) + "px", fontWeight: 800, lineHeight: 1.1 } }, shine(figure, true)),
-      div({ style: { opacity: 0.8, marginTop: "4px" } }, text(label)),
+      div({ style: { filter: "opacity(0.8)", marginTop: "4px" } }, text(label)),
     ));
     const stats = [
       stat("statPass", "1 pass", "rendered straight onto the real DOM"),
@@ -288,7 +292,7 @@ class Hero extends Section {
         div({ style: { display: "flex", flexDirection: "column", gap: "18px" } }, stats),
       )),
       narrow ? null : div(
-        { style: { position: "absolute", bottom: "28px", left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", opacity: this.shown ? 0.7 : 0, transition: `opacity 1200ms ${ease} 900ms`, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase" } },
+        { style: { position: "absolute", bottom: "28px", left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", filter: `opacity(${this.shown ? 0.7 : 0})`, transition: `filter 1200ms ${ease} 900ms`, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase" } },
         text("Scroll to explore"),
         icon({ name: "keyboard_arrow_down", style: { fontSize: "28px" } }),
       ),
@@ -366,7 +370,7 @@ class Features extends Section {
         icon({ name: feature.icon, style: { fontSize: "28px" } }),
       ),
       h3({ style: { margin: "0 0 8px 0", fontSize: "20px" } }, text(feature.title)),
-      p({ style: { margin: 0, lineHeight: 1.55, opacity: 0.8 } }, text(feature.body)),
+      p({ style: { margin: 0, lineHeight: 1.55, filter: "opacity(0.8)" } }, text(feature.body)),
     )));
     return stage.build(
       { background: `linear-gradient(180deg, ${themeColor.page}, ${themeColor.accentFaint})` },
@@ -379,7 +383,7 @@ class Features extends Section {
         ),
         div({ style: { display: "grid", gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: "24px" } }, cards),
         p(
-          { style: { textAlign: "center", marginTop: "40px", opacity: 0.7, ...rise(this.shown, 300) } },
+          { style: { textAlign: "center", marginTop: "40px", ...rise(this.shown, 300, "below", 0.7) } },
           text("And more: JS Proxies for transparent dependency tracking, hydration, JSX support, component inheritance, JavaScript first - no CSS files, no compile step."),
         ),
       ),

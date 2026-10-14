@@ -134,11 +134,18 @@ export class DOMElementTarget {
    *    page that reveals itself as it's scrolled reads: shown once, it
    *    stays shown.
    *
-   * `margin`: how far inside the viewport's edges it has to come to count
-   * - an IntersectionObserver's rootMargin. By default it's in view once
-   * its top is above the lowest 15% of the screen: on its way in, not only
-   * just peeking up. The viewport is the root, and what clips the element
-   * on the way there (a scroll panel) counts: in view means visible.
+   * How much of it has to be visible to count as in view:
+   *
+   *  - `amount`: a fraction of the element - its height (default 0.25: a
+   *    quarter of it). Or, for one taller than the viewport, of the
+   *    viewport's: one that can never be a quarter visible is in view once
+   *    it fills a quarter of the screen. 0: any part of it at all.
+   *  - `margin`: where the viewport's edges are taken to be - an
+   *    IntersectionObserver's rootMargin (default none, "0px").
+   *
+   * The viewport is the root, and what clips the element on the way there
+   * (a scroll panel) counts: in view means visible. Reported as it scrolls,
+   * to the hundredth of the element's height.
    *
    * Both false until the IntersectionObserver first reports - between
    * frames, after the element's first render - so what's built from them
@@ -146,7 +153,7 @@ export class DOMElementTarget {
    * change, like a size. Where there is no IntersectionObserver (rendered
    * somewhere without a viewport), the element counts as seen at once.
    */
-  observeVisibility(margin = "0px 0px -15% 0px") {
+  observeVisibility({ amount = 0.25, margin = "0px" } = {}) {
     const meta = this.causality;
     if (meta.visibilityObserver) return;
     const element = this.element;
@@ -170,11 +177,19 @@ export class DOMElementTarget {
       meta.visibilityObserver = () => {};
       return;
     }
+    // How much of what it could be is visible: of its own height, or the
+    // viewport's, whichever is less.
+    const visible = (entry) => {
+      if (!entry.isIntersecting) return 0;
+      const viewport = entry.rootBounds ? entry.rootBounds.height : view.innerHeight;
+      const most = Math.min(entry.boundingClientRect.height, viewport);
+      return most > 0 ? entry.intersectionRect.height / most : 1;
+    };
     const observer = new view.IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target === element) write(entry.isIntersecting);
+        if (entry.target === element) write(entry.isIntersecting && visible(entry) >= amount);
       }
-    }, { rootMargin: margin });
+    }, { rootMargin: margin, threshold: Array.from({ length: 101 }, (_, index) => index / 100) });
     observer.observe(element);
     meta.visibilityObserver = () => observer.disconnect();
   }

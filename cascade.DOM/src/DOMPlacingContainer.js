@@ -222,7 +222,11 @@ export class DOMPlacingContainer extends DOMNodeComponent {
 
   // Hidden itself (its page switched away from, say): so is everything it
   // placed - and shown again with it. (Islands are rendered, so rendering
-  // tells them itself.)
+  // tells them itself.) Shown again, each one's properties are brought up
+  // to date first (see Component.refreshCreatorBuild()): this runs before
+  // the container places anew, and a creator invalidated meanwhile - its
+  // page placed under another context, say - has its writings retracted
+  // until it reruns. A portal source would find no portal to show in.
   onHide() {
     super.onHide();
     const u = this.unobservable;
@@ -235,7 +239,10 @@ export class DOMPlacingContainer extends DOMNodeComponent {
     const u = this.unobservable;
     if (!u.hidden) return;
     u.hidden = false;
-    for (const component of u.placed) component.onShow();
+    for (const component of u.placed) {
+      component.refreshCreatorBuild();
+      component.onShow();
+    }
   }
 }
 

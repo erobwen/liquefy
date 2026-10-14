@@ -353,4 +353,41 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     assert.deepEqual(events(), ["show", "hide", "show", "hide", "show"]);
     assert.equal(container.querySelector("p").textContent, "watched", "and it's all back");
   });
+
+  it("shown again, what it placed reads its properties - its creator invalidated while it was hidden", function () {
+    // What it was given when shown: a portal source's portal, say -
+    // undefined while its creator's writings are retracted.
+    const shownWith = [];
+    class Watched extends Component {
+      setProperties({ label }) {
+        this.label = label;
+      }
+      build() {
+        return p({ key: "watchedText" }, text({ key: "text", text: "watched" }));
+      }
+      onShow() {
+        shownWith.push(this.label);
+      }
+    }
+    const model = observable({ pageShown: true, label: "first" });
+    class Frame extends Component {
+      render(target, context) {
+        if (model.pageShown) this.flip.renderOnto(target, context);
+      }
+    }
+    class Holder extends Component {
+      build() {
+        return new Watched({ key: "watched", label: model.label });
+      }
+    }
+    const frame = new Frame();
+    frame.flip = flipAnimationContainer({ key: "flip" }, new Holder({ key: "holder" }));
+    frame.renderOnto(new DOMElementTarget(container));
+    assert.deepEqual(shownWith, ["first"]);
+
+    model.pageShown = false;
+    model.label = "second";
+    model.pageShown = true;
+    assert.deepEqual(shownWith, ["first", "second"]);
+  });
 });

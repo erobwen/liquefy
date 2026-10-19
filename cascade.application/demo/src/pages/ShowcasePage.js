@@ -2,13 +2,14 @@ import { Component, callback } from "@liquefy/cascade.component";
 import { a, div, h1, h2, h3, p, img, span, text, elementVisibilityProvider } from "@liquefy/cascade.dom";
 import { icon, themeColor } from "@liquefy/cascade.ui";
 import { InformationButton } from "../components/pageActions.js";
-import { CodeButton, HighlightedCode } from "../components/code.js";
+import { CodeButton, HighlightedCode, excerpt } from "../components/code.js";
 import { Stage } from "../components/revealStage.js";
 import { AnimatedLogotype } from "../components/animatedLogotype.js";
+import { FocusStore } from "./FocusStorePage.js";
 import source from "./ShowcasePage.js?raw";
+import focusStoreSource from "./FocusStorePage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import keyConcepts from "../../../../cascade/images/key-concepts.svg";
-import onelinerAnimation from "../../../../cascade/images/oneliner-animation.png";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
@@ -40,6 +41,10 @@ repeat(() => { heading.size = heading.size * 2; }, { time: 1 });
 // Time 2: sees the heading as times 0 and 1 left it.
 repeat(() => console.log(heading.text, heading.size + "px"), { time: 2 });
 // HELLO WORLD 32px`;
+
+// The Focus Store's own code - what animates it all, the very code running
+// in the store under it (see OneLiner).
+const focusStoreBuild = excerpt(focusStoreSource, { after: "export class FocusStore ", from: "build() {", to: "}" });
 
 const features = [
   { icon: "timer", title: "Sub-frame precision", body: "Every component renders in a well-defined order, with the real DOM at hand: measure, lay out and set up animations within the same frame." },
@@ -338,22 +343,69 @@ class TemporalSignals extends Section {
   }
 }
 
+// The standout feature, shown rather than told: the Focus Store's code,
+// its one line of animation marked - and right under it, that code
+// running: a smaller store, live, to click around in.
 class OneLiner extends Section {
   build() {
+    const { scale, narrow } = this.room;
     const stage = new Stage(this.shown, { animate: !calm });
-    const picture = stage.fly("left", this.picture("oneliner", onelinerAnimation, "The Reactive Form page's source: the whole form is animated by wrapping it in flipAnimationContainer().", "1004 / 733"));
+    const code = stage.fly("below", div(
+      { key: "onelinerCode", style: { borderRadius: "20px", overflow: "hidden", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.5)" } },
+      div(
+        { style: { display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 600, color: themeColor.onChrome, background: themeColor.chrome } },
+        icon({ name: "code", style: { fontSize: "20px" } }),
+        text("src/pages/FocusStorePage.js - FocusStore"),
+      ),
+      new HighlightedCode({ source: focusStoreBuild, marks: [{ call: "flipAnimationContainer" }], style: { padding: "12px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" } }),
+    ));
+    // Not flown in: it would be drawn squeezed into the wing's width on the
+    // way - it rises into view, as text does.
+    //
+    // The store fills the card, its label over the store's top padding -
+    // and before it, so the store's overlay greys the label out too, out to
+    // the card's edges.
+    const store = div(
+      { key: "onelinerStore", style: { position: "relative", marginTop: "24px", borderRadius: "20px", overflow: "hidden", color: themeColor.text, background: themeColor.page, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.6)", ...rise(this.shown, 200) } },
+      div(
+        { style: { position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "14px 20px 0" } },
+        span(
+          { style: { padding: "3px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "white", background: themeColor.accent } },
+          text("Live"),
+        ),
+        span({ style: { fontSize: "15px", filter: "opacity(0.8)" } }, text("That code, running. Click a product for a closer look - add it to the cart.")),
+      ),
+      new FocusStore({
+        key: "store",
+        products: ["coffee", "croissant", "icecream", "cake"],
+        compact: true,
+        animate: !calm,
+        speed: 1.5,
+        style: { height: narrow ? "620px" : "470px", padding: `${narrow ? 90 : 54}px 20px 20px` },
+      }),
+    );
     return stage.build(
       { color: "white", background: `linear-gradient(160deg, ${themeColor.chromeDark}, ${themeColor.accentDark})` },
-      this.inner(this.columns(
-        "1.1fr 1fr",
-        picture,
+      this.inner(
         div(
+          { style: { textAlign: "center", maxWidth: "820px", margin: "0 auto " + Math.round(48 * scale) + "px" } },
           this.eyebrow("Standout feature", 0, true),
-          this.title([text("Animate an entire form. "), shine("With one line.", true)], 100),
-          this.lead([text("Wrap it in flipAnimationContainer(), and everything in it moves, grows, appears and leaves smoothly - with no changes to the components animated. Sub-frame render precision makes the FLIP setup possible in the middle of a render.")], 200),
-          div({ style: { marginTop: "28px", ...rise(this.shown, 300) } }, new Cta({ key: "onelinerForm", path: "reactive-form", label: "See it in action", primary: true })),
+          this.title([text("Animate an entire interface. "), shine("With one line.", true)], 100),
+          this.lead([
+            text("A shelf, a close-up, a cart and an overlay - products growing, flying and fading between them. All of it fully animated by a single line of code: the highlighted one, wrapping the store in flipAnimationContainer()."),
+          ], 200),
+          this.lead([
+            text("No animation code anywhere else, and no changes to the components animated. Every element is measured where it really is, before and after each change, and glides between the two - set up in the middle of a render, thanks to sub-frame precision."),
+          ], 300, { fontSize: Math.round(17 * Math.max(scale, 0.9)) + "px" }),
         ),
-      )),
+        code,
+        store,
+        div(
+          { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "14px", marginTop: Math.round(40 * scale) + "px", ...rise(this.shown, 300) } },
+          new Cta({ key: "onelinerFull", path: "focus-store", label: "Open the full Focus Store", primary: true }),
+          new Cta({ key: "onelinerForm", path: "reactive-form", label: "See a form animate", onDark: true }),
+        ),
+      ),
     );
   }
 }

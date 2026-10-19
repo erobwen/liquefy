@@ -31,10 +31,24 @@ const products = [
 
 const price = (amount) => "$" + amount.toFixed(2);
 
-// A tile's size on the shelf - and so the size of the empty spot a focused
-// product leaves there.
-const tileWidth = "140px";
-const tileHeight = "184px";
+// How large everything is: the page's, or a smaller store's (`compact` -
+// on the Showcase page, say). The tile's size on the shelf is also the
+// size of the empty spot a focused product leaves there.
+const sizes = {
+  full: {
+    tileWidth: "140px", tileHeight: "184px", tilePadding: "16px", fontSize: null,
+    icon: { shelf: "48px", focus: "160px", cart: "20px" }, name: { other: "16px", focus: "30px" }, price: { other: "16px", focus: "22px" },
+    closeUp: { gap: "32px", padding: "32px", width: "min(560px, 100%)" }, statusBar: "64px",
+  },
+  compact: {
+    tileWidth: "112px", tileHeight: "150px", tilePadding: "12px", fontSize: "14px",
+    icon: { shelf: "40px", focus: "96px", cart: "18px" }, name: { other: "14px", focus: "22px" }, price: { other: "14px", focus: "17px" },
+    closeUp: { gap: "20px", padding: "20px", width: "min(460px, 100%)" }, statusBar: "52px",
+  },
+};
+
+// The store's own element: the overlay is positioned in it.
+const storeStyle = { position: "relative", display: "flex", flexDirection: "column", gap: "16px", boxSizing: "border-box" };
 
 /**
  * Focus Store - the Web Store page, with a closer look. Each product on the
@@ -61,12 +75,53 @@ const tileHeight = "184px";
  * something appearing fades in with everything in it, and a product
  * flying into a layer that just appeared would fade in on its way.
  *
+ * The store itself is a component of its own, FocusStore - so the Showcase
+ * page shows a smaller one, too.
+ */
+export class FocusStorePage extends Component {
+  // Whether the page animates, and how fast - its own, set from the
+  // controls in the top bar (see ../components/animationControls.js).
+  initialState() {
+    return { animate: true, speed: 1.5 };
+  }
+
+  build() {
+    return fullPage(
+      { style: { overflow: "hidden", gap: 0, padding: 0 } },
+      pageActions({ information, source, fileName: "src/pages/FocusStorePage.js" }),
+      animationControls({
+        animate: this.animate,
+        speed: this.speed,
+        onAnimate: callback("animate", (animate) => { this.animate = animate; }),
+        onSpeed: callback("speed", (speed) => { this.speed = speed; }),
+      }),
+      // The page's padding is the store's, so the overlay - positioned in
+      // it - reaches the page's edges.
+      new FocusStore({ key: "store", animate: this.animate, speed: this.speed, style: { height: "100%", padding: pagePadding } }),
+    );
+  }
+}
+
+/**
+ * Focus Store - the store: the shelf, the focus layer over it and the grey
+ * overlay, and the status bar with the cart - its `products` (ids; all of
+ * them by default), at full size or `compact`. Animated unless `animate`
+ * is false, at `speed`.
+ *
  * The rest is the Web Store's (see StorePage.js): the status bar with its
  * two portals, the cart and its summary, that ProductList fills.
  */
-export class FocusStorePage extends Component {
+export class FocusStore extends Component {
+  setProperties({ products: shown, compact, animate, speed, style }) {
+    this.products = shown ? shown.map((id) => products.find((product) => product.id === id)) : products;
+    this.size = compact ? sizes.compact : sizes.full;
+    this.animate = animate !== false;
+    this.speed = typeof(speed) === "number" ? speed : 1;
+    this.style = style || {};
+  }
+
   initialUnobservables() {
-    return { statusBar: new StatusBar({ key: "statusBar" }).establish() };
+    return { statusBar: new StatusBar({ key: "statusBar", height: this.size.statusBar }).establish() };
   }
 
   onDispose() {
@@ -81,45 +136,36 @@ export class FocusStorePage extends Component {
     return { cartPortal: bar.cart, cartSummaryPortal: bar.summary };
   }
 
-  // Whether the page animates, and how fast - its own, set from the
-  // controls in the top bar (see ../components/animationControls.js).
-  initialState() {
-    return { animate: true, speed: 1.5 };
-  }
-
+  // Everything in the store - the shelf, the close-up, the cart, the grey
+  // overlay - animated by one line: a FlipAnimationContainer around it (the
+  // Showcase page shows this method, that line marked). Or not: a plain
+  // element in its place - keyed apart, so one takes over from the other.
+  // The product list keyed, too: it goes from one to the other - and keeps
+  // what's chosen and focused.
+  //
+  // Confined: what appears in the close-up - its description - is revealed
+  // as the card grows, not drawn outside it meanwhile. Zooming along: and
+  // grows with it - as what leaves the close-up shrinks with the card, on
+  // its way back to the shelf.
   build() {
-    // The page's padding is the container's, so the overlay - positioned in
-    // it - reaches the page's edges.
-    const style = { position: "relative", display: "flex", flexDirection: "column", gap: "16px", height: "100%", padding: pagePadding, boxSizing: "border-box" };
-    // The product list keyed: it goes from one container to the other when
-    // animation is switched on or off - and keeps what's chosen and focused.
-    const content = [new ProductList({ key: "products" }), this.unobservable.statusBar];
-    return fullPage(
-      { style: { overflow: "hidden", gap: 0, padding: 0 } },
-      pageActions({ information, source, fileName: "src/pages/FocusStorePage.js" }),
-      animationControls({
-        animate: this.animate,
-        speed: this.speed,
-        onAnimate: callback("animate", (animate) => { this.animate = animate; }),
-        onSpeed: callback("speed", (speed) => { this.speed = speed; }),
-      }),
-      // Animated or not: a FlipAnimationContainer, or a plain element in its
-      // place - keyed apart, so one takes over from the other.
-      //
-      // Confined: what appears in the close-up - its description - is
-      // revealed as the card grows, not drawn outside it meanwhile. Zooming
-      // along: and grows with it - as what leaves the close-up shrinks with
-      // the card, on its way back to the shelf.
-      this.animate
-        ? flipAnimationContainer({ key: "animated", confine: true, zoomAlong: true, speed: this.speed, style }, content)
-        : div({ key: "still", style }, content),
-    );
+    const { products, size, speed } = this;
+    const style = { ...storeStyle, fontSize: size.fontSize, ...this.style };
+    const content = [new ProductList({ key: "products", products, size }), this.unobservable.statusBar];
+    // One line animates it all:
+    return this.animate
+      ? flipAnimationContainer({ key: "animated", confine: true, zoomAlong: true, speed, style }, content)
+      : div({ key: "still", style }, content);
   }
 }
 
 // The shelf, the focused product over it, and the chosen products - shown
 // in the cart portal.
 class ProductList extends Component {
+  setProperties({ products, size }) {
+    this.products = products;
+    this.size = size;
+  }
+
   initialState() {
     return { chosen: [], focused: null };
   }
@@ -141,9 +187,10 @@ class ProductList extends Component {
   // shows grows and shrinks with it, rather than being made anew.
   tile(product, place) {
     const id = product.id;
-    const productIcon = icon({ key: id + ".icon", name: product.icon, style: { fontSize: { shelf: "48px", focus: "160px", cart: "20px" }[place] } });
-    const name = div({ key: id + ".name", style: { fontWeight: "bold", fontSize: place === "focus" ? "30px" : "16px" } }, text(product.name));
-    const cost = div({ key: id + ".price", style: { opacity: 0.7, fontSize: place === "focus" ? "22px" : "16px" } }, text(price(product.price)));
+    const size = this.size;
+    const productIcon = icon({ key: id + ".icon", name: product.icon, style: { fontSize: size.icon[place] } });
+    const name = div({ key: id + ".name", style: { fontWeight: "bold", fontSize: place === "focus" ? size.name.focus : size.name.other } }, text(product.name));
+    const cost = div({ key: id + ".price", style: { opacity: 0.7, fontSize: place === "focus" ? size.price.focus : size.price.other } }, text(price(product.price)));
     // Made only where it's shown: a component built but not placed would
     // still be updated - and leave, fading out, from wherever it was.
     const add = () => button(
@@ -173,7 +220,7 @@ class ProductList extends Component {
           key: id,
           onclick: callback(id + "Focus", () => { this.focused = id; }),
           title: "Take a closer look",
-          style: { ...look, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "16px", width: tileWidth, height: tileHeight, boxSizing: "border-box" },
+          style: { ...look, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: size.tilePadding, width: size.tileWidth, height: size.tileHeight, boxSizing: "border-box" },
         },
         productIcon, name, cost, add(),
       );
@@ -181,7 +228,7 @@ class ProductList extends Component {
     // Focused: three times the tile, the icon beside what there is to say
     // about it. It takes clicks again - its layer lets them through.
     return card(
-      { key: id, style: { ...look, display: "flex", alignItems: "center", gap: "32px", padding: "32px", width: "min(560px, 100%)", boxSizing: "border-box", overflow: "hidden", pointerEvents: "auto" } },
+      { key: id, style: { ...look, display: "flex", alignItems: "center", gap: size.closeUp.gap, padding: size.closeUp.padding, width: size.closeUp.width, boxSizing: "border-box", overflow: "hidden", pointerEvents: "auto" } },
       productIcon,
       div(
         { style: { display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 } },
@@ -190,7 +237,7 @@ class ProductList extends Component {
         div({ style: { opacity: 0.7, fontStyle: "italic" } }, text(product.details)),
         div({ style: { lineHeight: 1.5 } }, text(product.description)),
         row(
-          { style: { gap: "8px", marginTop: "8px" } },
+          { style: { gap: "8px", marginTop: "8px", flexWrap: "wrap" } },
           add(),
           button(
             {
@@ -219,10 +266,10 @@ class ProductList extends Component {
         { style: { position: "relative", flex: "1 1 auto", minHeight: 0 } },
         div(
           { style: { display: "flex", flexWrap: "wrap", gap: "16px", alignContent: "flex-start", height: "100%", overflow: "visible" } },
-          products.filter((product) => !this.chosen.includes(product.id)).map((product) =>
+          this.products.filter((product) => !this.chosen.includes(product.id)).map((product) =>
             product === focused
               // Its spot, kept while it's away: the rest of the shelf stays put.
-              ? div({ key: product.id + ".spot", style: { width: tileWidth, height: tileHeight, boxSizing: "border-box", borderRadius: "12px", border: "2px dashed " + themeColor.border } })
+              ? div({ key: product.id + ".spot", style: { width: this.size.tileWidth, height: this.size.tileHeight, boxSizing: "border-box", borderRadius: "12px", border: "2px dashed " + themeColor.border } })
               : this.tile(product, "shelf")),
         ),
         div(
@@ -259,6 +306,10 @@ class ProductList extends Component {
 // portals of its own, the cart's items and its summary, filled by whoever
 // has something to put there.
 class StatusBar extends Component {
+  setProperties({ height }) {
+    this.height = height || "64px";
+  }
+
   initialState() {
     return { cartShown: true };
   }
@@ -283,7 +334,7 @@ class StatusBar extends Component {
     return row(
       {
         style: {
-          flex: "none", minHeight: "64px", gap: "12px", padding: "8px 16px", alignItems: "center", boxSizing: "border-box",
+          flex: "none", minHeight: this.height, gap: "12px", padding: "8px 16px", alignItems: "center", boxSizing: "border-box",
           overflow: "visible", background: themeColor.chromeDark, color: themeColor.onChrome, borderRadius: "8px",
         },
       },

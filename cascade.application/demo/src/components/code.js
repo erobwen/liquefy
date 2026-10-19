@@ -22,11 +22,18 @@ hljs.registerLanguage("bash", bash);
 // that HTML has to go in as innerHTML - which element properties can't
 // set (DOMElementComponent lowercases every property name, and
 // element.innerhtml is nothing). Highlighted again only when the source
-// changes.
+// (or what's marked in it) changes.
+//
+// `marks`: what to draw attention to, as with a highlighter pen - each
+// { call: "name" }, every call of that function, from its name to its
+// closing parenthesis, or { text: "..." }, every occurrence of that text.
+// `markStyle` is how a mark looks - a yellow marker by default.
 export class HighlightedCode extends DOMNodeComponent {
-  setProperties({ source, language, style }) {
+  setProperties({ source, language, marks, markStyle, style }) {
     this.source = source || "";
     this.language = language || "javascript";
+    this.marks = marks || [];
+    this.markStyle = markStyle || null;
     this.style = style || null;
   }
 
@@ -40,13 +47,117 @@ export class HighlightedCode extends DOMNodeComponent {
       Object.assign(u.code.style, { display: "inline-block", minWidth: "100%", boxSizing: "border-box", padding: "15px", fontSize: "14px", userSelect: "text" });
       u.node.appendChild(u.code);
     }
-    if (u.highlighted !== this.source) {
+    const highlighted = JSON.stringify([this.source, this.marks, this.markStyle]);
+    if (u.highlighted !== highlighted) {
       u.code.innerHTML = hljs.highlight(this.source, { language: this.language }).value;
-      u.highlighted = this.source;
+      markRanges(u.code, markedRanges(this.source, this.marks), { ...defaultMarkStyle, ...this.markStyle });
+      u.highlighted = highlighted;
     }
     Object.assign(u.node.style, this.style || {});
     return u.node;
   }
+}
+
+const defaultMarkStyle = { background: "rgba(255, 214, 10, 0.45)", color: "inherit", borderRadius: "2px", padding: "1px 0" };
+
+// Where each of `marks` (see HighlightedCode) is in `source`: [start, end)
+// character ranges, in order.
+function markedRanges(source, marks) {
+  const ranges = [];
+  for (const mark of marks) {
+    if (mark.call) {
+      // Its name, not part of another one's - a method call is a call too.
+      const name = new RegExp("(?<![\\w$])" + mark.call.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\(", "g");
+      for (const match of source.matchAll(name)) {
+        const close = closingParenthesis(source, match.index + match[0].length - 1);
+        if (close >= 0) ranges.push([match.index, close + 1]);
+      }
+    } else if (mark.text) {
+      for (let at = source.indexOf(mark.text); at >= 0; at = source.indexOf(mark.text, at + mark.text.length)) {
+        ranges.push([at, at + mark.text.length]);
+      }
+    }
+  }
+  return ranges.sort((one, other) => one[0] - other[0]);
+}
+
+// The parenthesis closing the one at `open` in JavaScript `source` - not
+// counting those in strings and comments - or -1.
+function closingParenthesis(source, open) {
+  let depth = 0;
+  for (let at = open; at < source.length; at++) {
+    const char = source[at];
+    if (char === "\"" || char === "'" || char === "`") {
+      for (at++; at < source.length && source[at] !== char; at++) {
+        if (source[at] === "\\") at++;
+      }
+    } else if (char === "/" && source[at + 1] === "/") {
+      at = source.indexOf("\n", at);
+      if (at < 0) return -1;
+    } else if (char === "/" && source[at + 1] === "*") {
+      at = source.indexOf("*/", at + 2) + 1;
+      if (at <= 0) return -1;
+    } else if (char === "(") {
+      depth++;
+    } else if (char === ")") {
+      depth--;
+      if (depth === 0) return at;
+    }
+  }
+  return -1;
+}
+
+// Wrap the characters in `ranges` of `code`'s text in marks - piece by
+// piece, since a range may well cross highlight.js's spans: each text node
+// it covers has its share of it marked.
+function markRanges(code, ranges, style) {
+  if (ranges.length === 0) return;
+  const document = code.ownerDocument;
+  const texts = [];
+  const walker = document.createTreeWalker(code, 4); // NodeFilter.SHOW_TEXT
+  while (walker.nextNode()) texts.push(walker.currentNode);
+  let offset = 0;
+  for (const node of texts) {
+    const start = offset;
+    const end = offset + node.data.length;
+    offset = end;
+    const covering = ranges.filter(([from, to]) => from < end && to > start);
+    if (covering.length === 0) continue;
+    const pieces = document.createDocumentFragment();
+    let at = start;
+    for (const [from, to] of covering) {
+      const markFrom = Math.max(from, at);
+      const markTo = Math.min(to, end);
+      if (markTo <= markFrom) continue;
+      if (markFrom > at) pieces.appendChild(document.createTextNode(node.data.slice(at - start, markFrom - start)));
+      const mark = document.createElement("mark");
+      Object.assign(mark.style, style);
+      mark.textContent = node.data.slice(markFrom - start, markTo - start);
+      pieces.appendChild(mark);
+      at = markTo;
+    }
+    if (at < end) pieces.appendChild(document.createTextNode(node.data.slice(at - start)));
+    node.parentNode.replaceChild(pieces, node);
+  }
+}
+
+// A piece of a file's text (a `?raw` import) - real code, shown as it is,
+// whatever it becomes: from the first line, after `after` (where to start
+// looking, if given), that starts with `from`, through the first line after
+// it, indented as much, that starts with `to` - its indentation taken off.
+//
+//   excerpt(source, { after: "class FocusStore ", from: "build() {", to: "}" })
+export function excerpt(source, { after, from, to }) {
+  const begin = after ? source.indexOf(after) : 0;
+  if (begin < 0) throw new Error("excerpt(): no \"" + after + "\" in the source");
+  const lines = source.slice(begin).split(/\r?\n/);
+  const indentOf = (line) => line.length - line.trimStart().length;
+  const first = lines.findIndex((line) => line.trimStart().startsWith(from));
+  if (first < 0) throw new Error("excerpt(): no line starting with \"" + from + "\"");
+  const indent = indentOf(lines[first]);
+  const last = lines.findIndex((line, index) => index > first && indentOf(line) === indent && line.trimStart().startsWith(to));
+  if (last < 0) throw new Error("excerpt(): no line starting with \"" + to + "\" after \"" + from + "\"");
+  return lines.slice(first, last + 1).map((line) => line.slice(Math.min(indent, indentOf(line)))).join("\n");
 }
 
 // A button that shows `source` (a file's text - see index.js's `?raw`

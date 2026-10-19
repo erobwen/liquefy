@@ -14,7 +14,7 @@ import source from "./ThemesPage.js?raw";
 const information = {
   summary: "Themes are service locators: every widget - every button on every page - is asked for through the render context, and whichever theme is in it provides one.",
   points: [
-    "A theme can change color and style, but it can also replace entire components. Switch the theme here, and it changes for the whole app - with all app state kept where it was (try the Recursive Demo or the Hybrid Modal Dialog afterwards).",
+    "A theme can change color and style, but it can also replace entire components. Switch the theme here, and it changes for the whole app - with all app state kept where it was (try the Recursive Tree or the Linkable Dialog afterwards).",
     "A theme is its colors too: a base and an accent, and every other color made from them. Pick them below - for the app's own theme, the whole app follows, frame and all.",
     "Each theme below is shown with its own services and colors, whatever the app's theme is: any part of an app can have a theme of its own.",
   ],

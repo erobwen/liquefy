@@ -68,7 +68,9 @@ export class ApplicationMenuFrame extends Component {
   // A page with `fullScreen` is shown over everything - the menu and the
   // top bar too - with the first page under it (see
   // ApplicationMenuFrameLayout). One with `inMenu: false` has no link in
-  // the menu - it's reached some other way (the logotype, say). `logoPage`:
+  // the menu - it's reached some other way (the logotype, say); with a
+  // `menuParent` (a page's key), the menu shows that page's link as the
+  // one you're at, while it's shown. `logoPage`:
   // the key of the page the logotype at the top of the menu leads to, if
   // any.
   setProperties({ pages, rootServiceLocator, location, logoPage }) {
@@ -337,7 +339,10 @@ class MenuList extends Component {
   // a group, set apart from it.
   pageLink(page, afterGroup, inGroup) {
     const { frame } = this;
-    const active = page === frame.currentPage();
+    // The page shown - or, for one not in the menu, the one it's reached
+    // from (its `menuParent` - see index.js).
+    const current = frame.currentPage();
+    const active = page === current || page.key === current.menuParent;
     // A real link, to the page's URL - opening it in a new tab, or
     // copying it, works as for any link. A plain click navigates here
     // instead of loading the page anew.

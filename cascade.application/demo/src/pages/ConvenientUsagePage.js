@@ -21,7 +21,7 @@ export class ConvenientUsagePage extends Component {
   build() {
     return article(
       pageActions({ source, fileName: "src/pages/ConvenientUsagePage.js" }),
-      h1("Convenient Usage"),
+      h1("Everyday Usage"),
       p(
         "Picking up where Getting Started left off: things nearly every app wants - animation, content shown ",
         "somewhere else, modal dialogs - each ready to use in a line or two.",

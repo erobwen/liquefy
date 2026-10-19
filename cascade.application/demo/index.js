@@ -21,6 +21,7 @@ import { FocusStorePage } from "./src/pages/FocusStorePage.js";
 import { WordProcessorPage } from "./src/pages/WordProcessorPage.js";
 import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
 import { ToolbarEllipsisPage } from "./src/pages/ToolbarEllipsisPage.js";
+import { ExamplesPage } from "./src/pages/ExamplesPage.js";
 import { rootServiceLocator } from "./src/services.js";
 import { setUpVersionNotice } from "./src/versionNotice.js";
 import faviconSvg from "../../cascade/images/favicon.svg";
@@ -70,6 +71,34 @@ const location = browserLocation({ base: import.meta.env.BASE_URL });
 // A first visit to the app's own address starts with the showcase: decided
 // in index.html, before anything is drawn.
 
+// The examples, by what they show (see ExamplesPage): the showcase - the
+// most impressive ones - is in the menu too; the rest only on the
+// examples page, which the menu leads to (`menuParent`: the menu shows
+// that link as the one you're at).
+const exampleSections = [
+  { title: "Showcase", description: "The most impressive ones - also in the menu." },
+  { title: "Layout and UI patterns", description: "Layout from real measurements, and the components that need it." },
+  { title: "Other ways to write a UI", description: "The same components, written as JSX or as plain data." },
+  { title: "Classics", description: "The demo's first examples - small, and to the point." },
+];
+const examples = [
+  { key: "focus-store", section: "Showcase", title: "Web Store", icon: "storefront", description: "A Cascade example: a web store where a product grows into a close-up over the greyed-out shelf, and flies into the cart.", component: new FocusStorePage().establish() },
+  { key: "reactive-form", section: "Showcase", title: "Booking Form", icon: "flight_takeoff", description: "A Cascade example: a travel booking form whose validation and cost follow its data - every change animated.", component: new ReactiveFormPage().establish() },
+  { key: "word-processor", section: "Showcase", title: "Word Processor", icon: "edit_document", description: "A Cascade example: a word processor laid out reactively onto pages, with cascade.print.", component: new WordProcessorPage().establish() },
+  { key: "file-system", section: "Showcase", title: "File System", icon: "folder_open", description: "A Cascade example: a file system of tags and filter folders - search by category, and find the files that need sorting.", component: new FileSystemPage().establish() },
+  { key: "programmatic-layout", section: "Layout and UI patterns", title: "Measured Layout", icon: "dashboard", description: "A Cascade example: layout decided in code, from measured sizes, rebuilt as they change.", component: new ProgrammaticReactiveLayout().establish() },
+  { key: "toolbar-ellipsis", section: "Layout and UI patterns", title: "Overflowing Toolbar", icon: "more_horiz", description: "A Cascade example: a toolbar that moves what doesn't fit into an overflow menu.", component: new ToolbarEllipsisPage().establish() },
+  { key: "hybrid-modal-dialog", section: "Layout and UI patterns", title: "Linkable Dialog", icon: "open_in_browser", description: "A Cascade example: a modal dialog with an address of its own.", component: new HybridModalDialog().establish() },
+  { key: "drawer", section: "Layout and UI patterns", title: "Drawer", icon: "side_navigation", description: "A Cascade example: a drawer sliding in from any edge - modal or not, with a header or a panel of its own.", component: new DrawerPage().establish() },
+  { key: "jsx", section: "Other ways to write a UI", title: "JSX", icon: "code", description: "A Cascade example: components written in JSX.", component: new JsxPage().establish() },
+  { key: "hydration", section: "Other ways to write a UI", title: "UI as Data", icon: "data_object", description: "A Cascade example: a page written as a document - plain data - and hydrated into components.", component: new HydrationPage().establish() },
+  { key: "recursive-demo", section: "Classics", title: "Recursive Tree", icon: "account_tree", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },
+  { key: "animation", section: "Classics", title: "Animation Basics", icon: "animation", description: "A Cascade example: FLIP animations of elements moving, entering and leaving.", component: new AnimationPage().establish() },
+  // { key: "store", title: "Web Store", description: "A Cascade example: a web store.", component: new StorePage().establish() },
+].map((example) => example.section === "Showcase"
+  ? { ...example, group: "Showcase" }
+  : { ...example, inMenu: false, menuParent: "examples" });
+
 // The root and its pages are created here, not built by anyone - so they're
 // established here (see cascade.component's Component.establish()). They
 // live as long as the app does: nothing to dispose of.
@@ -81,25 +110,13 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   pages: [
     { key: "introduction", title: "Introduction", icon: "info", description: "Cascade, a reactive front end framework built on temporal signals: components rendered straight onto the real DOM in one pass.", component: new IntroductionPage().establish() },
     { key: "showcase", title: "Showcase", icon: "auto_awesome", fullScreen: true, inMenu: false, description: "Cascade, the reactive front end framework built on temporal signals - one page that reveals itself as you scroll.", component: new ShowcasePage().establish() },
-    { key: "getting-started", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
-    { key: "convenient-usage", title: "Convenient Usage", description: "Convenient usage of Cascade: the everyday patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
-    { key: "advanced-usage", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },
-    // Examples
-    { key: "reactive-form", group: "Examples", title: "Reactive Form", description: "A Cascade example: a form whose validation and derived values follow its data.", component: new ReactiveFormPage().establish() },
-    { key: "focus-store", group: "Examples", title: "Focus Store", description: "A Cascade example: a web store where a product grows into a close-up over the greyed-out shelf.", component: new FocusStorePage().establish() },
-    { key: "toolbar-ellipsis", group: "Examples", title: "Toolbar Ellipsis", description: "A Cascade example: a toolbar that moves what doesn't fit into an overflow menu.", component: new ToolbarEllipsisPage().establish() },
-    // { key: "store", group: "Examples", title: "Web Store", description: "A Cascade example: a web store.", component: new StorePage().establish() },
-    { key: "hybrid-modal-dialog", group: "Examples", title: "Hybrid Modal Dialog", description: "A Cascade example: a modal dialog with an address of its own.", component: new HybridModalDialog().establish() },
-    { key: "word-processor", group: "Examples", title: "Word Processor", description: "A Cascade example: a word processor laid out reactively onto pages, with cascade.print.", component: new WordProcessorPage().establish() },
-    { key: "hydration", group: "Examples", title: "Hydration", description: "A Cascade example: a page written as a document - plain data - and hydrated into components.", component: new HydrationPage().establish() },
-    { key: "jsx", group: "Examples", title: "JSX", description: "A Cascade example: components written in JSX.", component: new JsxPage().establish() },
-    { key: "programmatic-layout", group: "Examples", title: "Programmatic Reactive Layout", description: "A Cascade example: layout decided in code, from measured sizes, rebuilt as they change.", component: new ProgrammaticReactiveLayout().establish() },
-    { key: "recursive-demo", group: "Examples", title: "Recursive Example", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },
-    { key: "animation", group: "Examples", title: "Animation", description: "A Cascade example: FLIP animations of elements moving, entering and leaving.", component: new AnimationPage().establish() },
-    { key: "drawer", group: "Examples", title: "Drawer", description: "A Cascade example: a drawer sliding in from any edge - modal or not, with a header or a panel of its own.", component: new DrawerPage().establish() },
-    { key: "file-system", group: "Examples", title: "File System", description: "A Cascade example: a file system of tags and filter folders - search by category, and find the files that need sorting.", component: new FileSystemPage().establish() },
-    
-    //Themes
+    // The guide
+    { key: "getting-started", group: "Guide", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
+    { key: "convenient-usage", group: "Guide", title: "Everyday Usage", description: "Everyday usage of Cascade: the patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
+    { key: "advanced-usage", group: "Guide", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },
+    // The examples - the showcase in the menu, then the way to all of them.
+    ...examples,
+    { key: "examples", group: "Showcase", title: "All Examples", icon: "apps", description: "Every Cascade example in the demo - the showcase, layout and UI patterns, other ways to write a UI, and the classics.", component: new ExamplesPage({ examples, sections: exampleSections }).establish() },
     { key: "themes", title: "Themes", icon: "palette", description: "Cascade's themes: the same app with basic and Material widgets, in any color.", component: new ThemesPage().establish() },
   ],
 }).establish();

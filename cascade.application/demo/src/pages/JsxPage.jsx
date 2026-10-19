@@ -11,7 +11,7 @@ const information = {
   summary: "A page written in JSX:",
   points: [
     "Vite compiles each JSX tag to a call into cascade.dom's JSX runtime, which returns a service query, not a component.",
-    "The whole JSX expression is a document, the same kind the Hydration page is written as, and hydrate() hands it to the service locator.",
+    "The whole JSX expression is a document, the same kind the UI as Data page is written as, and hydrate() hands it to the service locator.",
     "Callbacks ride along as plain properties, from the JSX to the query to the component the locator makes of it.",
     "Beside it: the very document this build produced, rebuilt on every click.",
   ],

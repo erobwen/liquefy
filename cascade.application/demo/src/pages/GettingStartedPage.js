@@ -143,7 +143,7 @@ export class GettingStartedPage extends Component {
         a({ href: "https://github.com/erobwen/liquefy#cascade" }, text("the repository's")),
         " on.",
       ),
-      nextPage({ path: "convenient-usage", label: "Ready for more? On to Convenient Usage →" }),
+      nextPage({ path: "convenient-usage", label: "Ready for more? On to Everyday Usage →" }),
     );
   }
 }

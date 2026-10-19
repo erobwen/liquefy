@@ -87,7 +87,7 @@ export class AdvancedUsagePage extends Component {
       pageActions({ source, fileName: "src/pages/AdvancedUsagePage.js" }),
       h1("Advanced Usage"),
       p(
-        "Picking up where Convenient Usage left off - and going straight to some of the hardest things, so you know ",
+        "Picking up where Everyday Usage left off - and going straight to some of the hardest things, so you know ",
         "they're there when you need them.",
       ),
 

@@ -402,7 +402,7 @@ class OneLiner extends Section {
         store,
         div(
           { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "14px", marginTop: Math.round(40 * scale) + "px", ...rise(this.shown, 300) } },
-          new Cta({ key: "onelinerFull", path: "focus-store", label: "Open the full Focus Store", primary: true }),
+          new Cta({ key: "onelinerFull", path: "focus-store", label: "Open the full Web Store", primary: true }),
           new Cta({ key: "onelinerForm", path: "reactive-form", label: "See a form animate", onDark: true }),
         ),
       ),

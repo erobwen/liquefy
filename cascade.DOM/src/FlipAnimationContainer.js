@@ -48,7 +48,10 @@ export function flipAnimationContainer(...parameters) {
  *    they grow. Newcomers in something that's on its way somewhere come
  *    along with it - each as far into it, for how large it's drawn, as it
  *    will be at rest, at its own size - rather than standing still while
- *    what's around them moves.
+ *    what's around them moves. As a ghost goes (see Leaving, below): one
+ *    with something to see of its own comes along whole, what's in it with
+ *    it; one that's only a box around others, as what's in it, each part
+ *    on its own.
  *  - Travelling: an element on its way to another parent (not just
  *    carried along by what it's in, nor making room among its siblings)
  *    is drawn above everything in the container - what it passes over, and
@@ -263,15 +266,22 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // title going back to its tile, say), or as it's carried along.
   // What's in it that's still in the tree isn't leaving at all.
   visibleParts(element, drawnAt, current) {
-    if (element.nodeType !== 1 || element.hasAttribute(this.constructor.islandAttribute) || !isBareBox(element)) return [element];
+    if (!this.isMereBox(element)) return [element];
     const parts = [];
     for (const child of element.childNodes) {
-      if (child.nodeType === 3 && child.textContent.trim() !== "") return [element];
       if (child.nodeType !== 1 || current.has(child)) continue;
       if (!drawnAt.has(child)) return [element];
       parts.push(child);
     }
     return parts.flatMap((part) => this.visibleParts(part, drawnAt, current));
+  }
+
+  // Whether an element is only a box around others: nothing to see of its
+  // own (see isBareBox()), no text of its own, and not an island. What's in
+  // one leaves - and appears - each on its own (see visibleParts() and
+  // startAnimations()); anything else does so whole.
+  isMereBox(element) {
+    return element.nodeType === 1 && !element.hasAttribute(this.constructor.islandAttribute) && isBareBox(element) && !hasOwnText(element);
   }
 
   // Put each part fading out (see visibleParts()) back where what it's
@@ -450,6 +460,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     }
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     u.following = new Map();
+    u.carried = new Set();
 
     for (const { element, ancestor } of u.tracked) {
       const before = drawnAt.get(element);
@@ -491,11 +502,18 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         spring.o = -1;
       }
       // New, in something that was there and is on its way (its carrier):
-      // it comes along - see applyAnimation().
+      // it comes along - see applyAnimation(). The way what leaves goes
+      // (see visibleParts()): what's only a box around others comes along
+      // as what's in it, each on its own path; what has something to see
+      // of its own comes along whole, everything new in it with it.
       if (!before && ancestor) {
-        let carrier = ancestor;
-        while (carrier && !drawnAt.has(carrier)) carrier = ancestorOf.get(carrier);
-        if (carrier && u.springs.has(carrier)) u.following.set(element, carrier);
+        if (u.carried.has(ancestor) || (u.following.has(ancestor) && !this.isMereBox(ancestor))) {
+          u.carried.add(element);
+        } else {
+          let carrier = ancestor;
+          while (carrier && !drawnAt.has(carrier)) carrier = ancestorOf.get(carrier);
+          if (carrier && u.springs.has(carrier)) u.following.set(element, carrier);
+        }
       }
       if (isSettled(spring)) {
         u.springs.delete(element);
@@ -537,6 +555,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         const zoom = at && zoomAlong ? Math.sqrt(at.sx * at.sy) : 1;
         if (at && carrierLayout) here = { x: at.x + (layout.x - carrierLayout.x) * at.sx, y: at.y + (layout.y - carrierLayout.y) * at.sy, sx: zoom, sy: zoom };
         if (!u.springs.has(carrier)) u.following.delete(element);
+      }
+      // New in a newcomer that comes along whole: drawn as part of it.
+      const whole = u.carried && u.carried.has(element) && drawn.get(ancestor);
+      if (whole) {
+        const ancestorLayout = u.layout.get(ancestor);
+        here = { x: whole.x + (layout.x - ancestorLayout.x) * whole.sx, y: whole.y + (layout.y - ancestorLayout.y) * whole.sy, sx: whole.sx, sy: whole.sy };
       }
       drawn.set(element, here);
       let tx = spring.x;
@@ -851,6 +875,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const u = this.unobservable;
     u.springs.clear();
     if (u.following) u.following.clear();
+    if (u.carried) u.carried.clear();
     for (const element of [...u.lifted.keys()]) this.unlift(element);
     this.lowerAll();
     this.endLooks();
@@ -941,13 +966,16 @@ function rectOf(element) {
 // The font size of an element's own text - undefined if it has no text of
 // its own (only elements, or whitespace), or no known font size.
 function textFontSize(element) {
-  let hasText = false;
-  for (const node of element.childNodes) {
-    if (node.nodeType === 3 && node.textContent.trim() !== "") { hasText = true; break; }
-  }
-  if (!hasText) return undefined;
+  if (!hasOwnText(element)) return undefined;
   const size = parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).fontSize);
   return size > 0 ? size : undefined;
+}
+
+function hasOwnText(element) {
+  for (const node of element.childNodes) {
+    if (node.nodeType === 3 && node.textContent.trim() !== "") return true;
+  }
+  return false;
 }
 
 // What an element looks like that's worth changing gradually, as it lands

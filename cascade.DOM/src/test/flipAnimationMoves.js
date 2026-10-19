@@ -556,6 +556,49 @@ describe("FlipAnimationContainer animations", function () {
     assert.deepEqual(drawnAt(extra), layoutOf(extra));
   });
 
+  it("a newcomer with something to see of its own comes along whole, as a ghost leaves - what's only a box comes along as what's in it", function () {
+    // A drawer opening: a list (only a box) of cards (with a background),
+    // each with a field in it - in a panel growing from 100 wide to 200.
+    class Drawer extends Component {
+      initialState() {
+        return { open: false };
+      }
+      build() {
+        return flipAnimationContainer(
+          { key: "flip" },
+          div(
+            { key: "panel", title: this.open ? "200" : "100" },
+            div({ key: "header" }, text({ key: "headerText", text: "header" })),
+            this.open
+              ? div(
+                { key: "list" },
+                div({ key: "card", style: { background: "white" } }, div({ key: "field" }, text({ key: "fieldText", text: "field" }))),
+              )
+              : null,
+          ),
+        );
+      }
+    }
+    const drawer = new Drawer();
+    drawer.renderOnto(new DOMElementTarget(container));
+    const named = (name) => Array.from(container.querySelectorAll("div")).find((each) => each.textContent === name && each.firstChild.nodeType === 3);
+    const panel = named("header").parentNode;
+    drawer.open = true;
+    const field = named("field");
+    const card = field.parentNode;
+    const list = card.parentNode;
+    const into = (element, box) => round(drawn(element).x - drawn(box).x);
+    const atRest = (element, box) => layoutOf(element).x - layoutOf(box).x;
+    assert.ok(drawn(panel).sx < 0.99, "the panel starts at its old size");
+    assert.equal(into(card, list), round(atRest(card, list) * drawn(panel).sx), "the card's place in the list is drawn as the panel is - on its own");
+    assert.equal(into(field, card), atRest(field, card), "but the field is where it belongs in the card - drawn as part of it");
+    runFrames(10);
+    assert.ok(drawn(panel).sx < 0.99, "the panel is still growing");
+    assert.equal(into(field, card), atRest(field, card), "all the way");
+    runToRest();
+    assert.deepEqual(drawnAt(field), layoutOf(field));
+  });
+
   it("a ghost in something shrinking goes along with it - its place in it shrinking with it - at its own size", function () {
     class Panel extends Component {
       initialState() {

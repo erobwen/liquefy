@@ -4,10 +4,11 @@ import { icon, themeColor } from "@liquefy/cascade.ui";
 
 /**
  * The playlist demo - the Showcase page's "Just change your objects": a
- * model of plain objects (`playlist`), shown as what it is - an object, its
- * values editable - and a small player app built on it, side by side. Lines
- * of code under the model change it when clicked, the very code shown run
- * as it stands; and the model is on `window`, for the browser's console.
+ * model of plain objects (`playlist`) and a small player app built on it.
+ * Lines of code beside the player change the model when clicked, the very
+ * code shown run as it stands; under both, the model is shown as what it
+ * is - an object, its values editable. And it's on `window`, for the
+ * browser's console.
  *
  * Nothing in the app is told what depends on what: each of its components
  * reads what it shows, and is rebuilt when - and only when - that changes.
@@ -124,8 +125,9 @@ function watched(Base) {
 }
 
 /**
- * The demo: the model and its lines of code on the left, the player on
- * the right - one under the other, when `narrow`.
+ * The demo: the lines of code first - top left, where a reader starts -
+ * the player beside them, and the model under both. One under the other,
+ * in that order, when `narrow`.
  */
 export class PlaylistDemo extends Component {
   setProperties({ narrow }) {
@@ -134,19 +136,31 @@ export class PlaylistDemo extends Component {
 
   build() {
     return div(
-      { style: { display: "grid", gridTemplateColumns: this.narrow ? "1fr" : "1.25fr 1fr", gap: "24px", alignItems: "start" } },
-      div(
-        { key: "model", style: { display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 } },
-        new ModelView({ playlist }),
-        new CodeLines({ playlist }),
-      ),
+      { style: { display: "grid", gridTemplateColumns: this.narrow ? "1fr" : "1.1fr 1fr", gap: "24px", alignItems: "start" } },
+      new CodeLines({ key: "lines", playlist }),
       div(
         { key: "app", style: { display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 } },
         new Player({ playlist }),
         new RebuildCounter(),
       ),
+      div(
+        { key: "model", style: { gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "10px", minWidth: 0 } },
+        demoCaption("data_object", "The model - plain objects, live. Edit a value, and the player follows:"),
+        new ModelView({ playlist }),
+      ),
     );
   }
+}
+
+// What a part of the demo is, above it - an icon and a line, in the
+// section's own color (and so on the Showcase page, for the code under the
+// demo too).
+export function demoCaption(iconName, words) {
+  return div(
+    { style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "16px", fontWeight: 700 } },
+    span({ class: "material-symbols-outlined", style: { fontSize: "22px", flex: "none" } }, text(iconName)),
+    text(words),
+  );
 }
 
 // --- The model, as an object ---------------------------------------------
@@ -228,6 +242,27 @@ class ModelSong extends Component {
   }
 }
 
+// A line's button: standing on a ledge of its own, and pushed down onto it
+// while pressed - and, once run, a ring spreading out from it.
+const raised = "0 3px 0 #a9b3c0, 0 8px 16px -10px rgba(0, 0, 0, 0.6)";
+const pressedDown = "0 0 0 #a9b3c0, 0 2px 6px -4px rgba(0, 0, 0, 0.6)";
+
+function press(element, down) {
+  element.style.translate = down ? "0 3px" : "";
+  element.style.boxShadow = down ? pressedDown : raised;
+}
+
+function ran(element) {
+  if (typeof(element.animate) !== "function") return;
+  element.animate(
+    [
+      { outline: "3px solid rgba(255, 196, 0, 0.9)", outlineOffset: "0px" },
+      { outline: "3px solid rgba(255, 196, 0, 0)", outlineOffset: "8px" },
+    ],
+    { duration: 600, easing: "ease-out" },
+  );
+}
+
 // Lines of code that change the model, each run as it's shown when
 // clicked - what they say changes as the model does.
 class CodeLines extends Component {
@@ -257,25 +292,35 @@ class CodeLines extends Component {
       { key: "play", source: `playlist.nowPlaying = playlist.songs[${played}]`, enabled: songs.length > 0, then: () => { this.played++; } },
     ];
     return div(
-      { style: { display: "flex", flexDirection: "column", gap: "8px" } },
-      div({ style: { fontSize: "14px", fontWeight: 600, filter: "opacity(0.8)" } }, text("Click a line to run it:")),
+      { style: { display: "flex", flexDirection: "column", gap: "10px", minWidth: 0 } },
+      demoCaption("touch_app", "Start here - click a line to run it:"),
       lines.map(({ key, source, enabled, then }) => htmlButton(
         {
           key,
           disabled: !enabled,
           title: "Run this line",
-          onclick: callback(key, () => {
+          onclick: callback(key, (event) => {
             // The very code shown - nothing else.
             new Function("playlist", "observable", source)(playlist, observable);
             if (then) then();
+            ran(event.currentTarget);
           }),
+          // Pressed: pushed down onto its ledge - with `translate`, which
+          // the stage's FlipAnimationContainer leaves alone (it moves
+          // things with `transform`).
+          onpointerdown: callback(key + "Down", (event) => { if (enabled) press(event.currentTarget, true); }),
+          onpointerup: callback(key + "Up", (event) => press(event.currentTarget, false)),
+          onpointerleave: callback(key + "Leave", (event) => press(event.currentTarget, false)),
           style: {
-            ...code, display: "flex", alignItems: "center", gap: "10px", textAlign: "left", padding: "8px 14px", borderRadius: "10px",
-            color: codeColors.plain, background: themeColor.surface, border: "1px solid " + themeColor.border,
-            cursor: enabled ? "pointer" : "default", opacity: enabled ? 1 : 0.45,
+            ...code, display: "flex", alignItems: "center", gap: "12px", textAlign: "left", padding: "9px 14px 9px 10px", borderRadius: "10px",
+            color: codeColors.plain, background: "linear-gradient(180deg, #f6f8fa, #e4e9ef)", border: "1px solid #c3ccd7",
+            boxShadow: raised, cursor: enabled ? "pointer" : "default", opacity: enabled ? 1 : 0.45,
           },
         },
-        span({ class: "material-symbols-outlined", style: { fontSize: "18px", color: themeColor.accent, flex: "none" } }, text("play_arrow")),
+        span(
+          { class: "material-symbols-outlined", style: { flex: "none", width: "26px", height: "26px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "white", background: themeColor.accent } },
+          text("play_arrow"),
+        ),
         span({ style: { minWidth: 0, overflowWrap: "anywhere" } }, text(source)),
       )),
     );

@@ -6,7 +6,7 @@ import { CodeButton, HighlightedCode, excerpt } from "../components/code.js";
 import { Stage } from "../components/revealStage.js";
 import { AnimatedLogotype } from "../components/animatedLogotype.js";
 import { FocusStore } from "./FocusStorePage.js";
-import { PlaylistDemo } from "../components/playlistDemo.js";
+import { PlaylistDemo, demoCaption } from "../components/playlistDemo.js";
 import source from "./ShowcasePage.js?raw";
 import focusStoreSource from "./FocusStorePage.js?raw";
 import playlistSource from "../components/playlistDemo.js?raw";
@@ -374,12 +374,16 @@ class StateManagement extends Section {
     const stage = new Stage(this.shown, { animate: !calm });
     const demo = stage.fly("below", div({ key: "stateDemo" }, new PlaylistDemo({ narrow })));
     const code = stage.fly("below", div(
-      { key: "stateCode", style: { marginTop: "32px", borderRadius: "20px", overflow: "hidden", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.35)" } },
-      new HighlightedCode({
-        source: playlistExample,
-        marks: [{ text: "deeplyObservable" }, { text: "this.playlist.songs.filter((song) => song.liked)" }, { text: "playlist.songs[1].liked = true" }],
-        style: { padding: "12px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" },
-      }),
+      { key: "stateCode", style: { marginTop: "32px", display: "flex", flexDirection: "column", gap: "10px" } },
+      demoCaption("code", "The code - the model, a component reading it, and one line changing it. Nothing else:"),
+      div(
+        { style: { borderRadius: "20px", overflow: "hidden", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.35)" } },
+        new HighlightedCode({
+          source: playlistExample,
+          marks: [{ text: "deeplyObservable" }, { text: "this.playlist.songs.filter((song) => song.liked)" }, { text: "playlist.songs[1].liked = true" }],
+          style: { padding: "12px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" },
+        }),
+      ),
     ));
     return stage.build(
       { color: "white", background: darkBackground(160) },
@@ -390,7 +394,7 @@ class StateManagement extends Section {
           this.title([text("Just change "), shine("your objects.", true)], 100),
           this.lead([text("Plain JavaScript objects, made observable. Change them however you like - assign, push, splice, reverse - and exactly the parts of the page that read them update. No store, no actions, no selectors, no dependency lists.")], 200),
           this.lead([
-            text("Try it below: edit the model, run a line of code, or use the player itself. Or open your browser's console and type "),
+            text("Try it below: run a line of code, use the player itself, or edit the model under it. Or open your browser's console and type "),
             span({ style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "0.9em", padding: "1px 6px", borderRadius: "6px", background: "rgba(255, 255, 255, 0.12)", border: "1px solid rgba(255, 255, 255, 0.25)" } }, text("playlist.songs[0].title = \"Hello\"")),
             text("."),
           ], 300, { fontSize: Math.round(17 * Math.max(scale, 0.9)) + "px" }),

@@ -6,8 +6,10 @@ import { CodeButton, HighlightedCode, excerpt } from "../components/code.js";
 import { Stage } from "../components/revealStage.js";
 import { AnimatedLogotype } from "../components/animatedLogotype.js";
 import { FocusStore } from "./FocusStorePage.js";
+import { PlaylistDemo } from "../components/playlistDemo.js";
 import source from "./ShowcasePage.js?raw";
 import focusStoreSource from "./FocusStorePage.js?raw";
+import playlistSource from "../components/playlistDemo.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import keyConcepts from "../../../../cascade/images/key-concepts.svg";
 
@@ -18,6 +20,7 @@ const information = {
     "Each section is on an elementVisibilityProvider() - elementBoundsProvider()'s sibling, in cascade.dom: the section reads this.fromTarget(\"seen\") as it would read its width, and is built again the moment it's well into view - 40% of it visible, or of the screen, for a section taller than that.",
     "What flies in is FlipAnimationContainer's ordinary animation. Until its section has been seen, a piece waits in a wing just outside the section's edge, clipped away. Seen, it's built in its slot instead - it moved to another parent, so the container makes it travel there.",
     "A section keeps the room it will need before it's revealed: each render, its pieces are put in their slots and the section is measured, then put back in their wings - within the render, before anything is drawn, the toolbar ellipsis' technique (see ../components/revealStage.js).",
+    "The playlist is plain objects made observable (deeplyObservable()) - on window, too, for the console. Each of the player's components reads what it shows and nothing else, so a change rebuilds only those that read it: they outline themselves in yellow as they do (see ../components/playlistDemo.js).",
     "Text, and the letters of the logotype, move with plain CSS transitions: in their place from the start, only invisible - so a prerendered page has every word in it.",
     "Sizes and columns follow the room the page has, measured - no media queries. Asked for less motion (prefers-reduced-motion), it's all simply there.",
     "Full screen: the app's frame shows it as an overlay, above its menu and top bar. A first visit to the app starts here.",
@@ -45,6 +48,18 @@ repeat(() => console.log(heading.text, heading.size + "px"), { time: 2 });
 // The Focus Store's own code - what animates it all, the very code running
 // in the store under it (see OneLiner).
 const focusStoreBuild = excerpt(focusStoreSource, { after: "export class FocusStore ", from: "build() {", to: "}" });
+
+// The playlist demo's own code (see StateManagement): its model, and one
+// of the components reading it - then the one line changing it.
+const playlistExample = [
+  excerpt(playlistSource, { from: "// The model: plain objects", to: "});" }),
+  "",
+  "// The liked badge reads what it shows - and so depends on it:",
+  excerpt(playlistSource, { after: "class LikedBadge extends", from: "build() {", to: "}" }),
+  "",
+  "// Change the model like any object - and the badge follows:",
+  "playlist.songs[1].liked = true;",
+].join("\n");
 
 const features = [
   { icon: "timer", title: "Sub-frame precision", body: "Every component renders in a well-defined order, with the real DOM at hand: measure, lay out and set up animations within the same frame." },
@@ -139,6 +154,7 @@ export class ShowcasePage extends Component {
       { style: { position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", pointerEvents: "auto", background: themeColor.page, color: themeColor.text } },
       revealing(new Hero({ room })),
       revealing(new TemporalSignals({ room })),
+      revealing(new StateManagement({ room })),
       revealing(new OneLiner({ room })),
       revealing(new Features({ room })),
       revealing(new KeyConcepts({ room })),
@@ -224,6 +240,12 @@ class Section extends Component {
     );
   }
 }
+
+// The sections take turns, dark and light, so each stands apart from the
+// next: light ones on the page's own color, or fading into the accent's
+// faintest; dark ones on the chrome's darkest, into the accent's darkest.
+const lightBackground = `linear-gradient(180deg, ${themeColor.page}, ${themeColor.accentFaint})`;
+const darkBackground = (angle) => `linear-gradient(${angle}deg, ${themeColor.chromeDark}, ${themeColor.accentDark})`;
 
 // Words in the accent's gradient - the flashy part. The image itself, not
 // the `background` shorthand: with a var() in it, and backgroundClip set
@@ -343,6 +365,43 @@ class TemporalSignals extends Section {
   }
 }
 
+// State management, shown: a model of plain objects and an app built on
+// it, side by side, live - change the one, and see exactly which parts of
+// the other rebuild (see ../components/playlistDemo.js). Then the code.
+class StateManagement extends Section {
+  build() {
+    const { scale, narrow } = this.room;
+    const stage = new Stage(this.shown, { animate: !calm });
+    const demo = stage.fly("below", div({ key: "stateDemo" }, new PlaylistDemo({ narrow })));
+    const code = stage.fly("below", div(
+      { key: "stateCode", style: { marginTop: "32px", borderRadius: "20px", overflow: "hidden", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.35)" } },
+      new HighlightedCode({
+        source: playlistExample,
+        marks: [{ text: "deeplyObservable" }, { text: "this.playlist.songs.filter((song) => song.liked)" }, { text: "playlist.songs[1].liked = true" }],
+        style: { padding: "12px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" },
+      }),
+    ));
+    return stage.build(
+      { color: "white", background: darkBackground(160) },
+      this.inner(
+        div(
+          { style: { textAlign: "center", maxWidth: "820px", margin: "0 auto " + Math.round(48 * scale) + "px" } },
+          this.eyebrow("Integrated state management", 0, true),
+          this.title([text("Just change "), shine("your objects.", true)], 100),
+          this.lead([text("Plain JavaScript objects, made observable. Change them however you like - assign, push, splice, reverse - and exactly the parts of the page that read them update. No store, no actions, no selectors, no dependency lists.")], 200),
+          this.lead([
+            text("Try it below: edit the model, run a line of code, or use the player itself. Or open your browser's console and type "),
+            span({ style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "0.9em", padding: "1px 6px", borderRadius: "6px", background: "rgba(255, 255, 255, 0.12)", border: "1px solid rgba(255, 255, 255, 0.25)" } }, text("playlist.songs[0].title = \"Hello\"")),
+            text("."),
+          ], 300, { fontSize: Math.round(17 * Math.max(scale, 0.9)) + "px" }),
+        ),
+        demo,
+        code,
+      ),
+    );
+  }
+}
+
 // The standout feature, shown rather than told: the Focus Store's code,
 // its one line of animation marked - and right under it, that code
 // running: a smaller store, live, to click around in.
@@ -366,7 +425,7 @@ class OneLiner extends Section {
     // and before it, so the store's overlay greys the label out too, out to
     // the card's edges.
     const store = div(
-      { key: "onelinerStore", style: { position: "relative", marginTop: "24px", borderRadius: "20px", overflow: "hidden", color: themeColor.text, background: themeColor.page, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.6)", ...rise(this.shown, 200) } },
+      { key: "onelinerStore", style: { position: "relative", marginTop: "24px", borderRadius: "20px", overflow: "hidden", color: themeColor.text, background: themeColor.page, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.45)", ...rise(this.shown, 200) } },
       div(
         { style: { position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "14px 20px 0" } },
         span(
@@ -385,12 +444,12 @@ class OneLiner extends Section {
       }),
     );
     return stage.build(
-      { color: "white", background: `linear-gradient(160deg, ${themeColor.chromeDark}, ${themeColor.accentDark})` },
+      { background: lightBackground },
       this.inner(
         div(
           { style: { textAlign: "center", maxWidth: "820px", margin: "0 auto " + Math.round(48 * scale) + "px" } },
-          this.eyebrow("Standout feature", 0, true),
-          this.title([text("Animate an entire interface. "), shine("With one line.", true)], 100),
+          this.eyebrow("Standout feature"),
+          this.title([text("Animate an entire interface. "), shine("With one line.")], 100),
           this.lead([
             text("A shelf, a close-up, a cart and an overlay - products growing, flying and fading between them. All of it fully animated by a single line of code: the highlighted one, wrapping the store in flipAnimationContainer()."),
           ], 200),
@@ -403,7 +462,7 @@ class OneLiner extends Section {
         div(
           { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "14px", marginTop: Math.round(40 * scale) + "px", ...rise(this.shown, 300) } },
           new Cta({ key: "onelinerFull", path: "focus-store", label: "Open the full Web Store", primary: true }),
-          new Cta({ key: "onelinerForm", path: "reactive-form", label: "See a form animate", onDark: true }),
+          new Cta({ key: "onelinerForm", path: "reactive-form", label: "See a form animate" }),
         ),
       ),
     );
@@ -424,8 +483,8 @@ class Features extends Section {
       {
         key: "feature" + index,
         style: {
-          padding: "28px", borderRadius: "20px", background: themeColor.surface, border: "1px solid " + themeColor.border,
-          boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.35)",
+          padding: "28px", borderRadius: "20px", color: themeColor.text, background: themeColor.surface, border: "1px solid " + themeColor.border,
+          boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.5)",
         },
       },
       div(
@@ -436,12 +495,12 @@ class Features extends Section {
       p({ style: { margin: 0, lineHeight: 1.55, filter: "opacity(0.8)" } }, text(feature.body)),
     )));
     return stage.build(
-      { background: `linear-gradient(180deg, ${themeColor.page}, ${themeColor.accentFaint})` },
+      { color: "white", background: darkBackground(200) },
       this.inner(
         div(
           { style: { textAlign: "center", maxWidth: "760px", margin: "0 auto " + Math.round(56 * scale) + "px" } },
-          this.eyebrow("Technical features"),
-          this.title([text("Built for "), shine("precision")], 100),
+          this.eyebrow("Technical features", 0, true),
+          this.title([text("Built for "), shine("precision", true)], 100),
           this.lead([text("Everything a modern front end needs - and a few things no other framework has.")], 200),
         ),
         div({ style: { display: "grid", gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: "24px" } }, cards),
@@ -464,8 +523,8 @@ class KeyConcepts extends Section {
         "1fr 1.2fr",
         div(
           this.eyebrow("Key concepts"),
-          this.title([text("Build, or "), shine("render.")], 100),
-          this.lead([text("Build components compose children and let them do the work. Render components take the render target in their own hands. App components build; library components render.")], 200),
+          this.title([text("Build for convenience. "), shine("Render for precision.")], 100),
+          this.lead([text("Two ways to write a component, so you never have to trade one for the other. Build components compose children and let them do the work - the convenient way, for app code. Render components take the render target in their own hands - full fidelity, for the library code that measures, lays out and animates.")], 200),
           this.lead([text("Both see the render context - timeless values only - so a build always sees the final value of every property.")], 300),
         ),
         picture,
@@ -482,7 +541,7 @@ class ForReactDevelopers extends Section {
       {
         key,
         style: {
-          padding: "32px", borderRadius: "20px", background: themeColor.surface, boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.35)",
+          padding: "32px", borderRadius: "20px", color: themeColor.text, background: themeColor.surface, boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.5)",
           border: "1px solid " + themeColor.border, borderTop: "4px solid " + (accent ? themeColor.accent : themeColor.borderStrong),
         },
       },
@@ -504,12 +563,12 @@ class ForReactDevelopers extends Section {
       "Object oriented: changes are detected in any object, no immutability required.",
     ], true));
     return stage.build(
-      { background: `linear-gradient(180deg, ${themeColor.page}, ${themeColor.accentFaint})` },
+      { color: "white", background: `radial-gradient(circle at 85% 0%, ${themeColor.accentDark} 0%, transparent 55%), ${themeColor.chromeDark}` },
       this.inner(
         div(
           { style: { textAlign: "center", maxWidth: "760px", margin: "0 auto " + Math.round(56 * scale) + "px" } },
-          this.eyebrow("Coming from React?"),
-          this.title([text("All of React and MobX. "), shine("Then some.")], 100),
+          this.eyebrow("Coming from React?", 0, true),
+          this.title([text("All of React and MobX. "), shine("Then some.", true)], 100),
         ),
         this.columns("1fr 1fr", similar, different),
         p(
@@ -521,25 +580,26 @@ class ForReactDevelopers extends Section {
   }
 }
 
-// The last screen: the way on.
+// The last screen: the way on. Light, after the dark one before it - the
+// accent glowing up from its bottom edge.
 class Finale extends Section {
   build() {
     const { height } = this.room;
     return new Stage(this.shown, { animate: !calm }).build(
       {
-        minHeight: Math.round(height * 0.8) + "px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center", color: "white",
-        background: `radial-gradient(circle at 50% 120%, ${themeColor.accent} 0%, transparent 60%), ${themeColor.chromeDark}`,
+        minHeight: Math.round(height * 0.8) + "px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center",
+        background: `radial-gradient(circle at 50% 130%, ${themeColor.accentSoft} 0%, transparent 65%), ${themeColor.accentFaint}`,
       },
       this.inner(
-        this.title([text("Ready to "), shine("cascade?", true)], 0, { fontSize: Math.round(72 * this.room.scale) + "px" }),
+        this.title([text("Ready to "), shine("cascade?")], 0, { fontSize: Math.round(72 * this.room.scale) + "px" }),
         this.lead([text("Start with the basics, or jump straight into the examples.")], 120),
         div(
           { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "14px", marginTop: "36px", ...rise(this.shown, 240) } },
           new Cta({ key: "finaleStart", path: "getting-started", label: "Get started", primary: true }),
-          new Cta({ key: "finaleStore", path: "focus-store", label: "Browse the examples", onDark: true }),
-          new Cta({ key: "finaleRepository", href: "https://github.com/erobwen/liquefy", label: "GitHub", onDark: true }),
+          new Cta({ key: "finaleExamples", path: "examples", label: "Browse the examples" }),
+          new Cta({ key: "finaleRepository", href: "https://github.com/erobwen/liquefy", label: "GitHub" }),
         ),
-        p({ style: { marginTop: "48px", color: "rgba(255, 255, 255, 0.55)", fontSize: "14px", ...rise(this.shown, 360) } }, text("This demo is a work in progress.")),
+        p({ style: { marginTop: "48px", color: themeColor.textSoft, fontSize: "14px", ...rise(this.shown, 360) } }, text("This demo is a work in progress.")),
       ),
     );
   }

@@ -6,9 +6,10 @@ import { icon, themeColor } from "@liquefy/cascade.ui";
  * The playlist demo - the Showcase page's "Just change your objects": a
  * model of plain objects (`playlist`) and a small player app built on it.
  * Lines of code beside the player change the model when clicked, the very
- * code shown run as it stands; under both, the model is shown as what it
- * is - an object, its values editable. And it's on `window`, for the
- * browser's console.
+ * code shown run as it stands; under the player, the model is shown as
+ * JSON, small and grey, like a debugger's panel - its values editable - so
+ * as not to look like code to edit. And it's on `window`, for the browser's
+ * console.
  *
  * Nothing in the app is told what depends on what: each of its components
  * reads what it shows, and is rebuilt when - and only when - that changes.
@@ -126,8 +127,8 @@ function watched(Base) {
 
 /**
  * The demo: the lines of code first - top left, where a reader starts -
- * the player beside them, and the model under both. One under the other,
- * in that order, when `narrow`.
+ * and beside them the player, with the model under it. One under the
+ * other, in that order, when `narrow`.
  */
 export class PlaylistDemo extends Component {
   setProperties({ narrow }) {
@@ -142,10 +143,6 @@ export class PlaylistDemo extends Component {
         { key: "app", style: { display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 } },
         new Player({ playlist }),
         new RebuildCounter(),
-      ),
-      div(
-        { key: "model", style: { gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "10px", minWidth: 0 } },
-        demoCaption("data_object", "The model - plain objects, live. Edit a value, and the player follows:"),
         new ModelView({ playlist }),
       ),
     );
@@ -163,26 +160,34 @@ export function demoCaption(iconName, words) {
   );
 }
 
-// --- The model, as an object ---------------------------------------------
+// --- The model, as JSON --------------------------------------------------
 
 const code = {
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "13px", lineHeight: 1.75,
 };
-const codeColors = { keyword: "#d73a49", name: "#6f42c1", string: "#032f62", value: "#005cc5", plain: "#24292e", quiet: "#6a737d" };
-const token = (color, words) => span({ style: { color } }, text(words));
+const codeColors = { plain: "#24292e" };
 
-// What a value is edited with, in the object: as wide as what's in it.
-const valueInput = (properties) => input({
+// The model's panel: small and grey, like the browser's debugger - looked
+// at, not the code to read. Its colors are the debugger's too.
+const json = { ...code, fontSize: "11px", lineHeight: 1.8 };
+const jsonColors = { key: "#881391", string: "#c41a16", value: "#1a1aa6", plain: "#303942", quiet: "#80868b" };
+const token = (color, words) => span({ style: { color } }, text(words));
+const key = (name) => token(jsonColors.key, JSON.stringify(name));
+const punctuation = (words) => token(jsonColors.plain, words);
+
+// What a value is edited with, in the JSON: as wide as what's in it.
+const valueInput = (color, { width, ...properties }) => input({
   ...properties,
   style: {
-    ...code, color: properties.type === "number" ? codeColors.value : codeColors.string, background: "rgba(3, 47, 98, 0.06)",
-    border: "1px dashed rgba(3, 47, 98, 0.3)", borderRadius: "4px", padding: "0 2px", margin: 0, boxSizing: "content-box",
-    width: properties.width, minWidth: "2ch",
+    ...json, color, background: "rgba(255, 255, 255, 0.7)",
+    border: "1px dashed rgba(0, 0, 0, 0.2)", borderRadius: "3px", padding: "0 2px", margin: 0, boxSizing: "content-box",
+    width, minWidth: "2ch",
   },
 });
 
-// The model as the object it is - `const playlist = deeplyObservable({...})`
-// - its values editable where they are.
+// The model as JSON - what it holds, not code making it - its values
+// editable where they are. The song playing shows as JSON has it: the
+// song itself, again - over a few lines, to fit.
 class ModelView extends Component {
   setProperties({ playlist }) {
     this.playlist = playlist;
@@ -190,54 +195,79 @@ class ModelView extends Component {
 
   build() {
     const { playlist } = this;
-    const playing = playlist.songs.indexOf(playlist.nowPlaying);
+    const playing = playlist.nowPlaying;
     return div(
-      { style: { ...code, color: codeColors.plain, padding: "16px 20px", borderRadius: "16px", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.35)", overflowX: "auto", whiteSpace: "nowrap" } },
-      div(token(codeColors.keyword, "const "), token(codeColors.plain, "playlist = "), token(codeColors.name, "deeplyObservable"), token(codeColors.plain, "({")),
+      { style: { borderRadius: "8px", overflow: "hidden", background: "#f1f3f4", border: "1px solid #dadce0" } },
       div(
-        { style: { paddingLeft: "2ch" } },
-        token(codeColors.plain, "nowPlaying: "),
-        playing >= 0 ? token(codeColors.plain, "songs[" + playing + "]") : token(codeColors.value, "null"),
-        token(codeColors.plain, ","),
+        { style: { display: "flex", alignItems: "center", gap: "6px", padding: "5px 10px", fontSize: "12px", color: jsonColors.quiet, borderBottom: "1px solid #dadce0", background: "#e8eaed" } },
+        span({ class: "material-symbols-outlined", style: { fontSize: "15px" } }, text("data_object")),
+        text("The model - plain objects, live. Edit a value:"),
       ),
-      div({ style: { paddingLeft: "2ch" } }, token(codeColors.plain, "songs: [")),
-      playlist.songs.map((song) => new ModelSong({ key: keyOf(song), song })),
-      div({ style: { paddingLeft: "2ch" } }, token(codeColors.plain, "],")),
-      div(token(codeColors.plain, "});")),
+      div(
+        { style: { ...json, color: jsonColors.plain, padding: "8px 12px", overflowX: "auto", whiteSpace: "nowrap" } },
+        div(punctuation("{")),
+        playing
+          ? [
+            div({ style: { paddingLeft: "2ch" } }, key("nowPlaying"), punctuation(": {")),
+            songJson(playing),
+            div({ style: { paddingLeft: "2ch" } }, punctuation("},")),
+          ]
+          : div({ style: { paddingLeft: "2ch" } }, key("nowPlaying"), punctuation(": "), token(jsonColors.value, "null"), punctuation(",")),
+        div({ style: { paddingLeft: "2ch" } }, key("songs"), punctuation(": [")),
+        playlist.songs.map((song, index) => new ModelSong({ key: keyOf(song), song, last: index === playlist.songs.length - 1 })),
+        div({ style: { paddingLeft: "2ch" } }, punctuation("]")),
+        div(punctuation("}")),
+      ),
     );
   }
 }
 
-// A song in the model: `{ title: "...", seconds: 214, liked: true },`.
+// A song's values, read only - a line each.
+function songJson(song) {
+  const line = (name, value, color, comma) => div(
+    { style: { paddingLeft: "4ch" } },
+    key(name), punctuation(": "), token(color, value), punctuation(comma ? "," : ""),
+  );
+  return [
+    line("title", JSON.stringify(song.title), jsonColors.string, true),
+    line("seconds", String(song.seconds), jsonColors.value, true),
+    line("liked", String(song.liked), jsonColors.value, false),
+  ];
+}
+
+// A song in the model's list, its values editable.
 class ModelSong extends Component {
-  setProperties({ song }) {
+  setProperties({ song, last }) {
     this.song = song;
+    this.last = !!last;
   }
 
   build() {
     const { song } = this;
     return div(
       { style: { paddingLeft: "4ch" } },
-      token(codeColors.plain, "{ title: "),
-      valueInput({
+      punctuation("{ "), key("title"), punctuation(": "),
+      token(jsonColors.string, "\""),
+      valueInput(jsonColors.string, {
         type: "text", value: song.title, width: Math.max(2, song.title.length) + "ch", "aria-label": "Title",
         oninput: callback("title", (event) => { song.title = event.target.value; }),
       }),
-      token(codeColors.plain, ", seconds: "),
-      valueInput({
-        type: "number", min: 1, max: 999, value: song.seconds, width: String(song.seconds).length + 2 + "ch", "aria-label": "Seconds",
+      token(jsonColors.string, "\""),
+      punctuation(", "), key("seconds"), punctuation(": "),
+      valueInput(jsonColors.value, {
+        type: "text", inputmode: "numeric", value: song.seconds, width: String(song.seconds).length + "ch", "aria-label": "Seconds",
         oninput: callback("seconds", (event) => { const seconds = Math.round(Number(event.target.value)); if (seconds > 0) song.seconds = seconds; }),
       }),
-      token(codeColors.plain, ", liked: "),
+      punctuation(", "), key("liked"), punctuation(": "),
       htmlButton(
         {
           title: "Click to change",
           onclick: callback("liked", () => { song.liked = !song.liked; }),
-          style: { ...code, color: codeColors.value, background: "rgba(0, 92, 197, 0.07)", border: "1px dashed rgba(0, 92, 197, 0.35)", borderRadius: "4px", padding: "0 4px", cursor: "pointer" },
+          style: { ...json, color: jsonColors.value, background: "rgba(255, 255, 255, 0.7)", border: "1px dashed rgba(0, 0, 0, 0.2)", borderRadius: "3px", padding: "0 4px", cursor: "pointer" },
         },
         text(String(song.liked)),
       ),
-      token(codeColors.plain, " },"),
+      punctuation(this.last ? " }" : " },"),
     );
   }
 }

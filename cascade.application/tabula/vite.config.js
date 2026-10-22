@@ -5,4 +5,10 @@ export default defineConfig({
   server: {
     historyApiFallback: true,
   },
+  build: {
+    rollupOptions: {
+      // Tabula, and the classic Tabula app it grew out of (classic.html).
+      input: { main: "index.html", classic: "classic.html" },
+    },
+  },
 });

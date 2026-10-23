@@ -4115,7 +4115,21 @@ function createWorld(configuration) {
             }
             node = node.nextSibling;
           }
-          this.pendingChildren = this.children;
+          if (this.pendingChildren.first === null) {
+            this.pendingChildren = this.children;
+          } else {
+            // Still holding what a run in progress hasn't reached yet:
+            // disposed mid-run - retracted by its own run (see refresh()).
+            // Added to it, not put in its place - replaced, what the run
+            // hadn't reached would be lost, never retracted, still
+            // subscribed to everything it read.
+            let child = this.children.first;
+            while (child !== null) {
+              const next = child.nextSibling;
+              appendToChildList(this.pendingChildren, child);
+              child = next;
+            }
+          }
           this.children = createChildList();
         }
         this.currentPartial = null;
@@ -4170,6 +4184,26 @@ function createWorld(configuration) {
         }
         repeater.isRecording = false;
         updateContextState()
+
+        // Retracted by its own run - by something the action brought up to
+        // date first (a component's render bringing its creator's build up
+        // to date, which no longer constructs that component at all - see
+        // cascade.component's renderOnto()). retractRepeater() has already
+        // done its part, its partial disposed, onRetract() fired: what
+        // this run did after that - partials, children, writings - is as
+        // gone as what it did before, so it goes the same way (without
+        // firing onRetract() twice), and there's nothing left to finish.
+        if (repeater.retracted) {
+          repeater.dispose();
+          finalizeChildren(repeater);
+          finalizeStaleWritings(repeater);
+          repeater.workStatus = null;
+          repeater.invalidatedWhileRunning = false;
+          while (state.context !== null && state.context !== contextBeforeThisRun) {
+            leaveContext(state.context);
+          }
+          return repeater;
+        }
 
         // The action may have created/relinked children, which closes the
         // current partial and opens new ones (see attachToCurrentParent) -

@@ -233,4 +233,35 @@ describe("Pattern matching (rebuilding without keys)", function () {
     assert.ok(Object.isFrozen(root.children), "still frozen after its references were replaced");
     assert.equal(html(), "<div><p>two</p><span>static</span></div>");
   });
+
+  it("unkeyed siblings stay in order when a keyed child is inserted before one whose own build changes in the same pass", function () {
+    // Each item gains a child once there are several - so the one already
+    // there is rebuilt too, as the new one goes in before it.
+    class Item extends Component {
+      setProperties({ name, several }) {
+        this.name = name;
+        this.several = several;
+      }
+      build() {
+        return div(this.several ? span(text("x ")) : null, text(this.name));
+      }
+    }
+    const model = observable({ names: ["T"] });
+    class List extends Component {
+      build() {
+        const names = model.names;
+        return div(
+          div(text("dot0")),
+          names.flatMap((name, index) => [new Item({ key: name, name, several: names.length > 1 }), div(text("dot" + (index + 1)))]),
+        );
+      }
+    }
+    render(new List());
+    const order = () => [...container.firstChild.children].map((child) => child.textContent).join(" | ");
+    assert.equal(order(), "dot0 | T | dot1");
+    model.names = ["S", "T"];
+    assert.equal(order(), "dot0 | x S | dot1 | x T | dot2");
+    model.names = ["T"];
+    assert.equal(order(), "dot0 | T | dot1");
+  });
 });

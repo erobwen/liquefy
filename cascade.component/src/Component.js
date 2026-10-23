@@ -723,6 +723,18 @@ export class Component {
         // right here too, in tree order, as above.
         u.repeater.restart();
         refreshIfNeeded(u.repeater);
+      } else {
+        // Reclaimed as it was, but with work pending - invalidated since
+        // it last rendered (its own build changed, say). Run right here
+        // too, in tree order, for the same reason as above: left to the
+        // scheduler, its siblings after it would place themselves before
+        // it has - after where its element was, not where it's going - and
+        // when it then reruns on its own, it moves away from them. Nothing
+        // corrects them: their own place in the order hasn't changed. A
+        // keyed child inserted before a sibling whose build changes in the
+        // same pass, say: the unkeyed siblings around them end up out of
+        // order. Up to date, it's the free no-op it always was.
+        refreshIfNeeded(u.repeater);
       }
     } else {
       // renderStack push/pop lives *inside* this callback, not wrapped
@@ -735,7 +747,7 @@ export class Component {
       // reaches it, leaving any child renderOnto()'d during that rerun
       // looking at whatever unrelated component happens to be on top at
       // that later moment.
-      u.repeater = startRepeater(() => {
+      u.repeater = startRepeater((repeater) => {
         // Its properties first, as before building (see
         // refreshCreatorBuild()): a component that renders straight from
         // its properties - a DOM element - can have its render queued, and
@@ -743,6 +755,12 @@ export class Component {
         // properties retracted with it (a creator correcting itself with
         // setState() and flush() from its own render, say).
         this.refreshCreatorBuild();
+        // Brought up to date, its creator may no longer construct it at
+        // all - this very component dropped, and its render retracted,
+        // right then (see onDispose()): nothing left to render, and no
+        // properties to render from. An overlay frame's sub-frame, say,
+        // gone with the overlay content its creator's build no longer has.
+        if (repeater.retracted) return;
         renderStack.push(this);
         try {
           // What enterTree() recorded, not the arguments this closure was

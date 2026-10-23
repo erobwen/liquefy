@@ -1,8 +1,10 @@
 import { paperSizes, margins, mm } from "../../print/index.js";
-import { Document, Paragraph } from "../../model/flows.js";
+import { Document, Paragraph, paragraphText } from "../../model/flows.js";
 import { documentPlugin } from "../../shell/documents.js";
 import { documentToJSON, documentFromJSON } from "./json.js";
 import { structuredTextEditor } from "./StructuredTextEditor.js";
+import { structuredTextWeb } from "./StructuredTextWeb.js";
+import { printPapers, outline } from "./output.js";
 
 /**
  * Structured text - Tabula's first kind of document: a tree of flows,
@@ -19,7 +21,11 @@ export const structuredText = {
   create: () => new Document({ title: "", paper: paperSizes.A4, margins: margins(mm(25)) }, [new Paragraph()]),
   hydrate: (properties) => documentFromJSON(properties),
   dehydrate: (model) => documentToJSON(model),
-  editor: (properties) => structuredTextEditor(properties),
+  // On paper, edited; on the web, read only, for now.
+  editor: ({ target, ...properties }) => target === "web" ? structuredTextWeb(properties) : structuredTextEditor(properties),
+  title: (model) => paragraphText(model.title),
+  print: (model) => printPapers(model),
+  outline: (model) => outline(model),
 };
 
 export const structuredTextPlugin = documentPlugin({

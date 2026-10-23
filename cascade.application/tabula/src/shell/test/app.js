@@ -6,6 +6,8 @@ import { basicTheme } from "@liquefy/cascade.ui";
 import { TabulaApp } from "../TabulaApp.js";
 import { plugins } from "../../plugins/index.js";
 import { dehydrateRoot } from "../documents.js";
+import { documentToJSON } from "../../plugins/structuredText/json.js";
+import { testDocument } from "../../model/testDocument.js";
 
 // Tabula started as index.js starts it - in jsdom, its canvas text
 // measuring faked: the null document, and creating from it.
@@ -82,5 +84,48 @@ describe("Tabula, the document editor", function () {
     assert.strictEqual(buttons("Remove").length, 0);
     assert.strictEqual(dehydrateRoot(tabula.documents, services).name, "structuredText");
     assert.ok(element.querySelectorAll("[data-page]").length >= 1);
+  });
+
+  it("renders onto the mode chosen - paper, web, JSON, tree - and takes from the JSON only what the plugins can hold", function () {
+    const serviceLocator = new CompoundServiceLocator(new DOMServiceLocator(), basicTheme, new DOMDebugServiceLocator());
+    const services = new ObservableCompoundServiceLocator(...plugins);
+    const element = document.getElementById("application");
+    element.innerHTML = "";
+    const tabula = new TabulaApp({ plugins, services }).establish();
+    tabula.renderOnto(DOMElementTarget.forElement(element), new RenderContext({ serviceLocator }));
+    const book = { type: "document", name: "structuredText", properties: documentToJSON(testDocument()) };
+    const plain = { type: "document", name: "plainText", properties: { text: "Hello" } };
+    assert.strictEqual(tabula.apply([book, plain]), null);
+    assert.ok(element.querySelectorAll("[data-page]").length >= 1);
+
+    // Web: the text, no papers.
+    tabula.mode = "web";
+    assert.strictEqual(element.querySelectorAll("[data-page]").length, 0);
+    assert.ok(element.textContent.includes("A word processor where a document is"));
+
+    // JSON: the whole root, as saved.
+    tabula.mode = "json";
+    assert.ok(element.textContent.includes("\"structuredText\""));
+    assert.ok(element.textContent.includes("\"plainText\""));
+
+    // Not taken: what the plugins can't hold - a paper there's no size of,
+    // a kind no plugin knows. Taken: anything they can.
+    const json = dehydrateRoot(tabula.documents, services);
+    const changed = (change) => {
+      const copy = structuredClone(json);
+      change(copy);
+      return copy;
+    };
+    assert.ok(tabula.apply(changed((copy) => { copy[0].properties.paper = "B9"; })));
+    assert.ok(tabula.apply(changed((copy) => { copy[1].name = "plainTex"; })));
+    assert.strictEqual(tabula.apply(changed((copy) => { copy[1].properties.text = "Changed"; })), null);
+    assert.strictEqual(tabula.documents[1].model.text, "Changed");
+    assert.ok(element.textContent.includes("Changed"));
+
+    // Tree: the sequence, its documents, a structured text's sections.
+    tabula.mode = "tree";
+    assert.ok(element.textContent.includes("Sequence"));
+    assert.ok(element.textContent.includes("Structured text - Tabula"));
+    assert.ok(element.textContent.includes("1  Flows"));
   });
 });

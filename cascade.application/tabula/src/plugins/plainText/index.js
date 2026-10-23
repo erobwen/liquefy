@@ -2,6 +2,7 @@ import { Component, callback, observable } from "@liquefy/cascade.component";
 import { div, textarea } from "@liquefy/cascade.dom";
 import { documentPlugin } from "../../shell/documents.js";
 import { removeButton } from "../../shell/removeButton.js";
+import { paperSizes, mm } from "../../print/index.js";
 
 /**
  * Plain text - just text, no structure, no styling: `{ "text": "..." }`.
@@ -14,7 +15,12 @@ export const plainText = {
   create: () => observable({ text: "" }),
   hydrate: (properties) => observable({ text: String(properties.text || "") }),
   dehydrate: (model) => ({ text: model.text }),
-  editor: (properties) => new PlainTextEditor(properties),
+  editor: ({ target, ...properties }) => target === "web" ? new PlainTextWeb(properties) : new PlainTextEditor(properties),
+  // Flowing over as many A4 pages as it takes.
+  print: (model) => [{ format: paperSizes.A4, margin: mm(20), node: printNode(model) }],
+  // Its paragraphs - what's between blank lines - by their first words.
+  outline: (model) => model.text.split(/\n\s*\n/).map((each) => each.trim()).filter((each) => each)
+    .map((each) => ({ label: each.length > 60 ? each.slice(0, 60) + " …" : each, icon: "notes", children: [] })),
 };
 
 // A sheet of it, as wide as a paper, growing with what's written - with a
@@ -49,6 +55,36 @@ class PlainTextEditor extends Component {
       ),
     );
   }
+}
+
+// On the web: only the text, as wide as the card it's in (see
+// ../../shell/layouts.js) - growing with what's written.
+class PlainTextWeb extends Component {
+  setProperties({ model }) {
+    this.model = model;
+  }
+
+  build() {
+    const { model } = this;
+    return textarea({
+      value: model.text,
+      placeholder: "Text",
+      spellcheck: false,
+      rows: Math.max(4, model.text.split("\n").length + 1),
+      oninput: callback("input", (event) => { model.text = event.target.value; }),
+      style: {
+        display: "block", width: "100%", boxSizing: "border-box", resize: "none", border: "none", outline: "none", padding: 0,
+        background: "transparent", color: "#222", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "14px", lineHeight: 1.6,
+      },
+    });
+  }
+}
+
+function printNode(model) {
+  const pre = document.createElement("pre");
+  Object.assign(pre.style, { margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "10pt", lineHeight: 1.5 });
+  pre.textContent = model.text;
+  return pre;
 }
 
 export const plainTextPlugin = documentPlugin({

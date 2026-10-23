@@ -27,12 +27,34 @@ import { cssMm, paperStyle, runStyle } from "./paperStyles.js";
 // ever left in the page.
 let removeLastPrint = null;
 
-export function printPaperSequence(sequence, { title = "", stylesheets = [], document: doc = globalThis.document } = {}) {
-  if (removeLastPrint) removeLastPrint();
-  const papers = withoutRecording(() => sequence.pages.map((format, index) => ({
+export function printPaperSequence(sequence, options = {}) {
+  return printPages(papersOf(sequence), options);
+}
+
+// A paper sequence's papers, as they're laid out right now - for
+// printPages().
+export function papersOf(sequence) {
+  return withoutRecording(() => sequence.pages.map((format, index) => ({
     format,
     lines: [...sequence.linesOf(index)],
   })));
+}
+
+/**
+ * Print pages of two kinds, in order - Tabula's sequences of documents of
+ * any kind (Tabula's own; cascade.print has only printPaperSequence()):
+ *
+ *  - `{ format, lines }` - a paper, laid out (papersOf()): printed as it is,
+ *    a sheet of its own size.
+ *  - `{ format, node, margin }` - a DOM node, flowing: on pages of that
+ *    size, `margin` (micrometers) around it, broken onto as many as it
+ *    takes by the browser. For what isn't laid out on paper - a plain text,
+ *    a spreadsheet.
+ *
+ * Each starts on a page of its own.
+ */
+export function printPages(papers, { title = "", stylesheets = [], document: doc = globalThis.document } = {}) {
+  if (removeLastPrint) removeLastPrint();
 
   const iframe = doc.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -41,13 +63,15 @@ export function printPaperSequence(sequence, { title = "", stylesheets = [], doc
   const printDocument = iframe.contentDocument;
   const view = iframe.contentWindow;
 
+  // A named page for every size - and margin, for flowing nodes.
   const sizes = new Map();
-  const pageName = (format) => {
+  const pageName = (format, margin = 0) => {
     const size = cssMm(format.width) + " " + cssMm(format.height);
-    if (!sizes.has(size)) sizes.set(size, "paper" + sizes.size);
-    return sizes.get(size);
+    const key = size + "|" + margin;
+    if (!sizes.has(key)) sizes.set(key, { name: "paper" + sizes.size, size, margin: cssMm(margin) });
+    return sizes.get(key).name;
   };
-  const names = papers.map((paper) => pageName(paper.format));
+  const names = papers.map((paper) => pageName(paper.format, paper.node ? paper.margin || 0 : 0));
 
   printDocument.open();
   printDocument.write("<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body></body></html>");
@@ -62,9 +86,9 @@ export function printPaperSequence(sequence, { title = "", stylesheets = [], doc
   const style = printDocument.createElement("style");
   style.textContent = [
     "html, body { margin: 0; padding: 0; background: white; }",
-    ...[...sizes].map(([size, name]) => "@page " + name + " { size: " + size + "; margin: 0; }"),
+    ...[...sizes.values()].map(({ name, size, margin }) => "@page " + name + " { size: " + size + "; margin: " + margin + "; }"),
     // The first size is the default, for a browser without named pages.
-    sizes.size > 0 ? "@page { size: " + [...sizes.keys()][0] + "; margin: 0; }" : "",
+    sizes.size > 0 ? "@page { size: " + [...sizes.values()][0].size + "; margin: 0; }" : "",
     ".paper { break-after: page; print-color-adjust: exact; -webkit-print-color-adjust: exact; }",
     ".paper:last-child { break-after: auto; }",
   ].join("\n");
@@ -73,6 +97,12 @@ export function printPaperSequence(sequence, { title = "", stylesheets = [], doc
   papers.forEach((paper, index) => {
     const element = printDocument.createElement("div");
     element.className = "paper";
+    if (paper.node) {
+      element.style.setProperty("page", names[index]);
+      element.appendChild(printDocument.importNode(paper.node, true));
+      printDocument.body.appendChild(element);
+      return;
+    }
     Object.assign(element.style, paperStyle(paper.format));
     element.style.setProperty("page", names[index]);
     for (const line of paper.lines) {

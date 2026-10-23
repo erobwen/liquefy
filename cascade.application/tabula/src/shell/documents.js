@@ -32,8 +32,17 @@
  *     create(),                         // a new, empty model
  *     hydrate(properties, documents),   // JSON properties -> the model
  *     dehydrate(model, documents),      // the model -> JSON properties
- *     editor({ key, model, zoom, onRemove }),  // the component editing it
+ *     editor({ key, model, zoom, onRemove, target }),  // the component editing it
+ *     title(model),                     // optional: what it is called
+ *     outline(model),                   // optional: what is in it, for the tree mode -
+ *                                       //   [{ label, icon, children }]
+ *     print(model),                     // optional: its pages, for printing (see
+ *                                       //   ../print/dom.js printPages())
  *   }
+ *
+ * `target` is what the app renders onto (its mode, see TabulaApp.js):
+ * "paper" or "web" - an editor shows its document as it can on that,
+ * paper being the default. JSON and the tree are the app's own.
  *
  * An editor renders at its own height - documents are stacked, one under
  * the other, in one scrolling column on the paper grey (see TabulaApp.js) -

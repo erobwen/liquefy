@@ -8,6 +8,7 @@ import { plugins } from "../../plugins/index.js";
 import { dehydrateRoot } from "../documents.js";
 import { documentToJSON } from "../../plugins/structuredText/json.js";
 import { testDocument } from "../../model/testDocument.js";
+import { printPapers } from "../../plugins/structuredText/output.js";
 
 // Tabula started as index.js starts it - in jsdom, its canvas text
 // measuring faked: the null document, and creating from it.
@@ -127,5 +128,15 @@ describe("Tabula, the document editor", function () {
     assert.ok(element.textContent.includes("Sequence"));
     assert.ok(element.textContent.includes("Structured text - Tabula"));
     assert.ok(element.textContent.includes("1  Flows"));
+  });
+
+  it("prints a structured text from a layout of its own, gone once read - the document's later changes reach nothing of it", function () {
+    const document = testDocument();
+    const papers = printPapers(document);
+    assert.ok(papers.length >= 1);
+    assert.ok(papers[0].lines.length > 0);
+    // Changed after: nothing of the print layout is left to lay it out again.
+    document.title.spans[0].text = "Changed after printing";
+    document.children.splice(0, 1);
   });
 });

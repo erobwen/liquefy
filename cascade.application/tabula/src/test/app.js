@@ -49,8 +49,10 @@ describe("Tabula, the app", function () {
     assert.ok(shown.includes("Tabula"));
     assert.ok(shown.includes("Click in the document"));
     assert.ok(element.querySelectorAll("[data-page]").length >= 1);
-    // Not disposed: as on the page, it lives as long as the page does - and
-    // disposing it now has the layout place a paragraph again with no flow
-    // to go on (sequence.next null): a teardown bug of its own, to look at.
+    // And goes again, its layout with it - which once placed a paragraph
+    // again on the way, with nowhere to put it (sequence.next null), and
+    // threw: retracted one repeater at a time (see cascade.reactive's
+    // retractRepeater()).
+    tabula.dispose();
   });
 });

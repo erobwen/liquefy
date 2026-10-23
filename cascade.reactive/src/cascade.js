@@ -3811,7 +3811,13 @@ function createWorld(configuration) {
   // intact and re-linkable later (see the docs); it's its own children/
   // pending-children that recurse here, since it isn't running again right
   // now for anything to reconcile against.
-  function finalizeChildren(repeater) {
+  //
+  // In two phases, as retractRepeater() below - `retracted`, when given, is
+  // that retraction's list of what it took down, and settling it is the
+  // caller's; without it, this is a retraction of its own, settled here.
+  function finalizeChildren(repeater, retracted = null) {
+    const settleHere = retracted === null;
+    if (settleHere) retracted = [];
     let node = repeater.pendingChildren.first;
     while (node !== null) {
       const next = node.nextSibling;
@@ -3830,11 +3836,12 @@ function createWorld(configuration) {
         // retracted early, on its own, stays in its parent's confirmed
         // children list until the parent's own next rerun brings it here,
         // where it just needs unlinking (done above), nothing more.
-        retractRepeater(node);
+        takeDown(node, retracted);
       }
       node = next;
     }
     repeater.pendingChildren = createChildList();
+    if (settleHere) settleRetracted(retracted);
   }
 
   // Genuinely retract a repeater: it is not running again unless something
@@ -3854,14 +3861,32 @@ function createWorld(configuration) {
   // dispose-event branch, and Component.onDispose()), is what makes the
   // scheduler's own `if (repeater.retracted) continue` check actually
   // catch it in time. Idempotent - retracting twice is a no-op.
+  //
+  // The whole tree under it goes together, in two phases: first all of it
+  // is taken down - disposed, unsubscribed, marked retracted (takeDown()) -
+  // and only then are its writings undone and onRetract() fired
+  // (settleRetracted()). Undoing a writing tells its readers, and outside
+  // a running pipeline they run right away: one at a time, a repeater in
+  // the tree reading what another one, retracted before it, wrote - where
+  // the next line goes on a render target, say - would run again against
+  // what was there before that writing, with the rest of what it depends
+  // on half gone. Taken down first, it's no longer a reader at all; readers
+  // outside the tree are still told, as they must be.
   function retractRepeater(node) {
     if (node.retracted) return;
+    const retracted = [];
+    takeDown(node, retracted);
+    settleRetracted(retracted);
+  }
+
+  // Retraction's first phase: `node` and everything under it disposed -
+  // its partials unsubscribed from what they read - and marked retracted,
+  // so nothing of it runs again; collected in `retracted`, children before
+  // their parent, for settleRetracted().
+  function takeDown(node, retracted) {
+    if (node.retracted) return;
     node.dispose();
-    finalizeChildren(node);
-    // node itself is never running again to reclaim any of its own
-    // staleWritings via a fresh write - what's left there (nothing
-    // was ever claimed, since it never reran) is genuinely gone.
-    finalizeStaleWritings(node);
+    finalizeChildren(node, retracted);
     // Pure hygiene, not a correctness requirement - a disposed/
     // retracted repeater found sitting in a sortedQueue is already
     // unconditionally discarded regardless of workStatus (see
@@ -3871,13 +3896,24 @@ function createWorld(configuration) {
     node.workStatus = null;
     node.flagRecords = null;
     node.retracted = true;
-    // Fires exactly once per genuine retraction (not on every dispose()
-    // - a rerun or a relink never reaches here). For side effects the
-    // reactive system doesn't know about (a DOM node parented outside
-    // any observable, a subscription, ...) that need cleaning up even
-    // though the repeater itself stays alive and re-linkable. If the
-    // repeater is later relinked and retracted again, this fires again.
-    if (node.options.onRetract) node.options.onRetract(node);
+    retracted.push(node);
+  }
+
+  // Retraction's second phase, once everything in it is taken down.
+  function settleRetracted(retracted) {
+    for (const node of retracted) {
+      // node itself is never running again to reclaim any of its own
+      // staleWritings via a fresh write - what's left there (nothing
+      // was ever claimed, since it never reran) is genuinely gone.
+      finalizeStaleWritings(node);
+      // Fires exactly once per genuine retraction (not on every dispose()
+      // - a rerun or a relink never reaches here). For side effects the
+      // reactive system doesn't know about (a DOM node parented outside
+      // any observable, a subscription, ...) that need cleaning up even
+      // though the repeater itself stays alive and re-linkable. If the
+      // repeater is later relinked and retracted again, this fires again.
+      if (node.options.onRetract) node.options.onRetract(node);
+    }
   }
 
   function defaultCreateRepeater(description, repeaterAction, repeaterNonRecordingAction, options, finishRebuilding) {

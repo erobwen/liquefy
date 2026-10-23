@@ -185,6 +185,17 @@ export class IntroductionPage extends Component {
         ),
       ),
       p("Cascade is what you would get if you took all the capabilities of React and MobX, added temporal signals, and mixed it all together. It can do everything those systems can do - but with temporal signals and sub-frame precision, it takes it to the next level."),
+      
+      h2("Can I use CSS?"),
+      p("Of course you can. Cascade was built trying to answer the simple question: Can everything be reactive and programmatic? And to make styling fully dynamic and programmtic it is natural to do it inline. Also, the ideomatic way of working with Cascade is to create reusalbe and configureable components instead of CSS classes. But there is nothing preventing you from using CSS just as before!"),
+      p("There are in fact reasons to why you still might want to do some styling in .css files:"),
+      ul(
+        li("Moseover-effects cannot be easily expressed in inline styling. It is possible to build a component that tracks mouse movements and re-styles, but it could be less convenient."),
+        li("Programmatic responsive layout does not work well with server side rendering and hydration. So if you are building a web-store based on server side rendering, you might want to use programmatic responsive layout with care. The result could otherwise be quite visible hydration."),
+        li(".css files set up correctly could potentially have performance benefits.")
+      ),
+      p("So for these reasons, there can be times when it is suitable to use a .css file for styling. You can also adopt the hybrid approach of using .css styling for default static styles, and use inline reactive styling for everything dynamic."),
+      p("There could be room for future development when it comes to this. For example, reactive .css stylesheets could be a thing. Maybe there is some clever solution to server side rendering of programmaticly laid out content."),
 
       h2("Repository"),
       a(text("https://github.com/erobwen/liquefy"), { href: "https://github.com/erobwen/liquefy" }),

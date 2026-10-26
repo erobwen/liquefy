@@ -22,18 +22,30 @@ import { iconButton } from "@liquefy/cascade.ui";
 export function animationControls({ animate, speed, onAnimate, onSpeed }) {
   return portalSource(
     { portal: "topBarEndPortal" },
+    animationControlsHere({ animate, speed, onAnimate, onSpeed, color: "white" }),
+  );
+}
+
+/**
+ * The same controls, right where they're built - an example in a card of
+ * its own, say (see the Showcase page) - in `color` (the text's own, by
+ * default), with `label` before the slider ("Animation speed", by
+ * default). An array: put it in whatever row it goes in.
+ */
+export function animationControlsHere({ animate, speed, onAnimate, onSpeed, color, label: words }) {
+  return [
     iconButton({
       icon: animate ? "animation" : "motion_photos_off",
       title: animate ? "Switch animation off" : "Switch animation on",
-      style: { color: "white" },
+      style: color ? { color } : {},
       onClick: callback("animationControlsToggle", () => onAnimate(!animate)),
     }),
     label(
       {
         title: "How fast animations run",
-        style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", whiteSpace: "nowrap", opacity: animate ? 1 : 0.4 },
+        style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", whiteSpace: "nowrap", opacity: animate ? 1 : 0.4, ...(color ? { color } : {}) },
       },
-      text("Animation speed"),
+      text(words || "Animation speed"),
       input({
         type: "range",
         min: 0.05,
@@ -46,5 +58,5 @@ export function animationControls({ animate, speed, onAnimate, onSpeed }) {
       }),
       div({ style: { minWidth: "36px", fontVariantNumeric: "tabular-nums" } }, text("×" + speed.toFixed(2))),
     ),
-  );
+  ];
 }

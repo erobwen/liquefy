@@ -21,9 +21,14 @@ import { div, FlipAnimationContainer, defaultToPx } from "@liquefy/cascade.dom";
  *   return stage.build({ background: ... }, heading, picture);
  */
 export class Stage {
-  constructor(shown, { animate = true } = {}) {
+  // `isUnit`: what the stage's container places as one piece, rendered
+  // rather than placed and animated part by part (see cascade.dom's
+  // DOMPlacingContainer) - something with animation of its own, say. Best
+  // a function made once, not in a build: a new one places all anew.
+  constructor(shown, { animate = true, isUnit = null } = {}) {
     this.shown = shown;
     this.animate = animate;
+    this.isUnit = isUnit;
     this.wings = { left: [], right: [], below: [] };
     this.slots = [];
   }
@@ -47,6 +52,7 @@ export class Stage {
     );
     return new RevealStage({
       enabled: this.animate,
+      isUnit: this.isUnit,
       trial: this.shown ? null : this.slots,
       style: { position: "relative", overflow: "hidden", boxSizing: "border-box", ...style },
       children: [

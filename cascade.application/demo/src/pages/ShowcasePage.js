@@ -7,6 +7,7 @@ import { Stage } from "../components/revealStage.js";
 import { AnimatedLogotype } from "../components/animatedLogotype.js";
 import { FocusStore } from "./FocusStorePage.js";
 import { PlaylistDemo, demoCaption } from "../components/playlistDemo.js";
+import { animationControlsHere } from "../components/animationControls.js";
 import source from "./ShowcasePage.js?raw";
 import focusStoreSource from "./FocusStorePage.js?raw";
 import playlistSource from "../components/playlistDemo.js?raw";
@@ -412,7 +413,9 @@ class StateManagement extends Section {
 class OneLiner extends Section {
   build() {
     const { scale, narrow } = this.room;
-    const stage = new Stage(this.shown, { animate: !calm });
+    // The live store is one piece to the stage: it animates itself - or,
+    // switched off, doesn't - and the stage mustn't do it instead.
+    const stage = new Stage(this.shown, { animate: !calm, isUnit: isLiveStore });
     const code = stage.fly("below", div(
       { key: "onelinerCode", style: { borderRadius: "20px", overflow: "hidden", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.5)" } },
       div(
@@ -424,29 +427,7 @@ class OneLiner extends Section {
     ));
     // Not flown in: it would be drawn squeezed into the wing's width on the
     // way - it rises into view, as text does.
-    //
-    // The store fills the card, its label over the store's top padding -
-    // and before it, so the store's overlay greys the label out too, out to
-    // the card's edges.
-    const store = div(
-      { key: "onelinerStore", style: { position: "relative", marginTop: "24px", borderRadius: "20px", overflow: "hidden", color: themeColor.text, background: themeColor.page, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.45)", ...rise(this.shown, 200) } },
-      div(
-        { style: { position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "14px 20px 0" } },
-        span(
-          { style: { padding: "3px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "white", background: themeColor.accent } },
-          text("Live"),
-        ),
-        span({ style: { fontSize: "15px", filter: "opacity(0.8)" } }, text("That code, running. Click a product for a closer look - add it to the cart.")),
-      ),
-      new FocusStore({
-        key: "store",
-        products: ["coffee", "croissant", "icecream", "cake"],
-        compact: true,
-        animate: !calm,
-        speed: 1.5,
-        style: { height: narrow ? "620px" : "470px", padding: `${narrow ? 90 : 54}px 20px 20px` },
-      }),
-    );
+    const store = new LiveStore({ key: "onelinerStore", narrow, shown: this.shown });
     return stage.build(
       { background: lightBackground },
       this.inner(
@@ -472,6 +453,67 @@ class OneLiner extends Section {
     );
   }
 }
+
+/**
+ * The Web Store, smaller and live, in a card of its own (see OneLiner):
+ * what it is on a row at its top - and, at the row's far end, whether it
+ * animates and how fast, its own state, the way the full page has them in
+ * the top bar. Asked for less motion, it starts switched off.
+ *
+ * The store fills the card, the row over the store's top padding - and
+ * before it, so the store's overlay greys the row out too, out to the
+ * card's edges (see the row's z-index).
+ */
+class LiveStore extends Component {
+  setProperties({ narrow, shown }) {
+    this.narrow = !!narrow;
+    this.shown = !!shown;
+  }
+
+  initialState() {
+    return { animate: !calm, speed: 1.5 };
+  }
+
+  build() {
+    const { narrow } = this;
+    return div(
+      { style: { position: "relative", marginTop: "24px", borderRadius: "20px", overflow: "hidden", color: themeColor.text, background: themeColor.page, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.45)", ...rise(this.shown, 200) } },
+      div(
+        // Above the store, to be clicked - its top padding is under it -
+        // and as high as the store's overlay, which comes later: so that
+        // still covers it.
+        { style: { position: "absolute", zIndex: 1, top: 0, left: 0, right: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px 10px", padding: "10px 12px 0 20px" } },
+        span(
+          { style: { padding: "3px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "white", background: themeColor.accent } },
+          text("Live"),
+        ),
+        span({ style: { fontSize: "15px", filter: "opacity(0.8)" } }, text("That code, running. Click a product for a closer look - add it to the cart.")),
+        div(
+          { style: { display: "flex", alignItems: "center", gap: "4px", marginLeft: "auto" } },
+          animationControlsHere({
+            animate: this.animate,
+            speed: this.speed,
+            label: "Speed",
+            onAnimate: callback("animate", (animate) => { this.animate = animate; }),
+            onSpeed: callback("speed", (speed) => { this.speed = speed; }),
+          }),
+        ),
+      ),
+      new FocusStore({
+        key: "store",
+        products: ["coffee", "croissant", "icecream", "cake"],
+        compact: true,
+        animate: this.animate,
+        speed: this.speed,
+        style: { height: narrow ? "660px" : "480px", padding: `${narrow ? 130 : 64}px 20px 20px` },
+      }),
+    );
+  }
+}
+
+// Made once: the stage's container would place everything anew for a new
+// one (see OneLiner).
+const isLiveStore = (component) => component instanceof LiveStore;
 
 class Features extends Section {
   build() {

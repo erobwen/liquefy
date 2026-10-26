@@ -748,6 +748,15 @@ export class Component {
       // looking at whatever unrelated component happens to be on top at
       // that later moment.
       u.repeater = startRepeater((repeater) => {
+        // Its repeater from its very first run on - not only once that
+        // returns: whatever it pulls while it runs finds it (a build it
+        // expands - see buildOneStep()'s pulledBy). Found via a
+        // FlipAnimationContainer rendered for the first time, a portal it
+        // placed refilled while it was still placing - by products moved
+        // into it along with their cart, animation switched on: the
+        // portal's rebuild went to the repeater it had before, retracted,
+        // and was dropped.
+        u.repeater = repeater;
         // Its properties first, as before building (see
         // refreshCreatorBuild()): a component that renders straight from
         // its properties - a DOM element - can have its render queued, and

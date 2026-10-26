@@ -7,6 +7,7 @@ import { DOMNodeComponent } from "../DOMNodeComponent.js";
 import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
 import { div, span, p, button, h1, h2, ul, li } from "../HTMLTags.js";
 import { text } from "../DOMTextComponent.js";
+import { portal, portalSource } from "../Portal.js";
 
 // FlipAnimationContainer, before any animation: it places its whole
 // subtree itself (expanding every child down to components that provide
@@ -352,6 +353,32 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     model.pageShown = true;
     assert.deepEqual(events(), ["show", "hide", "show", "hide", "show"]);
     assert.equal(container.querySelector("p").textContent, "watched", "and it's all back");
+  });
+
+  it("a portal source and its portal moved from a plain element into the container, and back, keep the portal filled", function () {
+    // The Web Store's cart, animation switched on and off: the plain
+    // element hides the source as it goes, the container shows it again -
+    // the very same contents - within the same render.
+    const model = observable({ animate: false });
+    const cart = portal({ key: "cart" }).establish();
+    class Source extends Component {
+      build() {
+        return portalSource({ portal: cart }, li({ key: "item" }, text({ key: "itemText", text: "coffee" })));
+      }
+    }
+    class App extends Component {
+      build() {
+        const content = [new Source({ key: "source" }), cart];
+        return model.animate ? flipAnimationContainer({ key: "flip" }, content) : div({ key: "plain" }, content);
+      }
+    }
+    new App().renderOnto(new DOMElementTarget(container));
+    const items = () => Array.from(container.querySelectorAll("li")).map((each) => each.textContent);
+    assert.deepEqual(items(), ["coffee"]);
+    model.animate = true;
+    assert.deepEqual(items(), ["coffee"], "moved into the container");
+    model.animate = false;
+    assert.deepEqual(items(), ["coffee"], "and back out");
   });
 
   it("shown again, what it placed reads its properties - its creator invalidated while it was hidden", function () {

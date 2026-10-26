@@ -3,6 +3,7 @@ import { div, textarea } from "@liquefy/cascade.dom";
 import { documentPlugin } from "../../shell/documents.js";
 import { removeButton } from "../../shell/removeButton.js";
 import { paperSizes, mm } from "../../print/index.js";
+import { takeFocus, releaseFocus, menuNote } from "../../shell/contextMenus.js";
 
 /**
  * Plain text - just text, no structure, no styling: `{ "text": "..." }`.
@@ -32,6 +33,17 @@ class PlainTextEditor extends Component {
     this.onRemove = onRemove || null;
   }
 
+  // A plain text has the focus while it's being written in - see
+  // contextPath() below.
+  contextPath() {
+    return contextPath(this.model);
+  }
+
+  onDispose() {
+    releaseFocus(this);
+    super.onDispose();
+  }
+
   build() {
     const { model } = this;
     const lines = model.text.split("\n").length;
@@ -45,6 +57,7 @@ class PlainTextEditor extends Component {
           spellcheck: false,
           rows: Math.max(12, lines + 1),
           oninput: callback("input", (event) => { model.text = event.target.value; }),
+          onfocus: callback("focus", () => takeFocus(this)),
           style: {
             display: "block", width: "100%", boxSizing: "border-box", resize: "none", border: "none", outline: "none",
             padding: "32px 40px", background: "white", boxShadow: "0 2px 12px rgba(0, 0, 0, 0.12)", color: "#222",
@@ -64,6 +77,15 @@ class PlainTextWeb extends Component {
     this.model = model;
   }
 
+  contextPath() {
+    return contextPath(this.model);
+  }
+
+  onDispose() {
+    releaseFocus(this);
+    super.onDispose();
+  }
+
   build() {
     const { model } = this;
     return textarea({
@@ -72,12 +94,26 @@ class PlainTextWeb extends Component {
       spellcheck: false,
       rows: Math.max(4, model.text.split("\n").length + 1),
       oninput: callback("input", (event) => { model.text = event.target.value; }),
+      onfocus: callback("focus", () => takeFocus(this)),
       style: {
         display: "block", width: "100%", boxSizing: "border-box", resize: "none", border: "none", outline: "none", padding: 0,
         background: "transparent", color: "#222", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "14px", lineHeight: 1.6,
       },
     });
   }
+}
+
+// A plain text's context menu (see ../../shell/contextMenus.js): there's
+// nothing to set - how much there is of it.
+function contextPath(model) {
+  const words = (model.text.match(/\S+/g) || []).length;
+  const lines = model.text === "" ? 0 : model.text.split("\n").length;
+  return [{
+    key: "plainText",
+    icon: "notes",
+    title: "Plain text",
+    build: () => [menuNote(words + " words, " + lines + " lines, " + model.text.length + " characters")],
+  }];
 }
 
 function printNode(model) {

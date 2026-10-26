@@ -13,9 +13,9 @@ import { readingOrder } from "./markers.js";
  *
  * `newSectionsBeside()`, asked each time it matters: whether a section made
  * from a blank paragraph - Enter on it, or Enter at a paragraph's start with
- * a blank one before it - is split off the section it's in right away, its
- * title on that section's level, beside it (besideParent()) - by default;
- * or, false, kept in it. `demoteWithChildren()`, likewise: whether a
+ * a blank one before it - skips going down (by default), or starts there
+ * (see placeNewSection(), and the ladder below). `refuse()`: told when what
+ * was asked for can't be done - a flash, say. `demoteWithChildren()`, likewise: whether a
  * section demoted into the one before it goes whole, its sections in it too
  * (moveInto()) - or, by default, flattened, its sections after it there
  * (mergeInto()): what promoting it again undoes exactly.
@@ -51,12 +51,28 @@ import { readingOrder } from "./markers.js";
  *    section in their place, the empty one gone, holding the paragraphs
  *    after it up to the next section; the caret at the start of its title
  *    (promote()). Backspace there makes it a paragraph again.
- *  - Enter at the start of a title - empty or not: its section split off
- *    the section it's in, as its second half - what came after it moved
- *    into it - and after that section, a level up; right in a document, a
- *    document of its own. The caret stays (splitOff()).
- *  - Backspace at the start of a title, or at a section's pre marker: the
- *    section merged with what's before it - after a section, into it,
+ *  - Either way, the new section is put on the lowest rung of a ladder
+ *    (placeNewSection()): going down - with sections after it, at their
+ *    level but depressed (a title offset), else in the section it's in, a
+ *    level down - unless `newSectionsBeside()` skips that rung: with
+ *    sections after it, one of them; else beside the section it's in.
+ *  - Enter at the start of a title - empty or not: its section a rung up
+ *    (stepUp()) - depressed, set at its own level; at its own level, split
+ *    off the section it's in, as its second half - what came after it moved
+ *    into it - and after that section, a level up (splitOff()). Never out
+ *    of the document's top: a document has one title on top, its own -
+ *    what's right in it can go no further up, and Enter there is refused
+ *    (`refuse()`), as Shift+Tab is, and Enter at a document's end. The
+ *    caret stays.
+ *
+ *    So the Enters after a paragraph: a paragraph; a section, going down;
+ *    across, at the level of what's around it; out, splitting the section
+ *    it's in - and on, as far as the document's top.
+ *  - Backspace at the start of a title, or at a section's pre marker: its
+ *    section a rung down (stepDown()) - every Enter undone, rung by rung,
+ *    by the same setting: at its own level before a section whose lowest
+ *    rung is depressed, depressed; otherwise merged with what's before it
+ *    (and beside, on down past the rung it skips) - after a section, into it,
  *    flattened: the section with its title and leading paragraphs its last
  *    child, the rest of what it held after it - undoing a split (exactly,
  *    when what the split moved into it began with a section: paragraphs it
@@ -65,8 +81,11 @@ import { readingOrder } from "./markers.js";
  *    paragraph first - or, empty, gone - undoing a section made on Enter
  *    (mergeBack()).
  *
- * So from the end of a paragraph, Enter, Enter, Enter and Backspace,
- * Backspace leave everything as it was.
+ * So from the end of a paragraph, any number of Enters and as many
+ * Backspaces leave everything as it was - going down or beside - each
+ * Backspace undoing the Enter before it. (One Backspace may undo the first
+ * two at once: a section made from a blank paragraph, holding what came
+ * after it, unwrapped, the blank paragraph goes with it.)
  *
  * Tab and Shift+Tab, as indenting goes: Shift+Tab anywhere in a title
  * promotes its section - out, the same as Enter at its start - and Tab
@@ -98,11 +117,11 @@ import { readingOrder } from "./markers.js";
  *
  * Whatever else leaves everything as it is.
  */
-export function tabulaEditing(root, { newSectionsBeside = () => true, demoteWithChildren = () => false } = {}) {
-  const options = { newSectionsBeside, demoteWithChildren };
+export function tabulaEditing(root, { newSectionsBeside = () => true, demoteWithChildren = () => false, refuse = () => {} } = {}) {
+  const options = { newSectionsBeside, demoteWithChildren, refuse };
   return {
     insertText: (at, text) => insertText(root, at, text, options),
-    deleteBackward: (at) => deleteBackward(root, at),
+    deleteBackward: (at) => deleteBackward(root, at, options),
     deleteForward: (at) => deleteForward(root, at),
     splitParagraph: (at) => pressEnter(root, at, options),
     tab: (at, { shift = false } = {}) => pressTab(root, at, shift, options),
@@ -167,15 +186,15 @@ function pressEnter(root, at, options = {}) {
   if (isText(at)) {
     const place = locate(root, at.paragraph);
     if (!place) return at;
-    if (place.titleOf && at.offset === 0) return splitOff(root, place.titleOf) || at;
+    if (place.titleOf && at.offset === 0) return stepUp(root, place.titleOf, options) ? at : refused(at, options);
     if (place.list && isSection(place.list) && paragraphText(at.paragraph) === "") {
       const made = sectionFrom(place.list, place.index);
-      besideParent(root, place.list, made.paragraph, options);
+      placeNewSection(root, place.list, made.paragraph, options);
       return made;
     }
     if (place.list && isSection(place.list) && at.offset === 0 && isEmptyParagraph(place.list.children[place.index - 1])) {
       promote(place.list, place.index, true);
-      besideParent(root, place.list, at.paragraph, options);
+      placeNewSection(root, place.list, at.paragraph, options);
       return at;
     }
     // At the end, with an empty one next - its placeholder showing: there,
@@ -192,13 +211,15 @@ function pressEnter(root, at, options = {}) {
   // At a section's pre marker - before its title's number, in a document
   // numbering its titles: as at its title's start, the caret staying.
   if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) {
-    splitOff(root, at.flow);
-    return at;
+    return stepUp(root, at.flow, options) ? at : refused(at, options);
   }
   if (isFlowEdge(at) && at.edge === "end") {
     const place = locate(root, at.flow);
     if (!place) return at;
     if (place.titleOf) return at;
+    // After a document: another one - a second title on top. Not in a
+    // structured text: another document is made beside it instead.
+    if (at.flow instanceof Document) return refused(at, options);
     const flow = flowLike(at.flow, 0);
     place.list.children.splice(place.index + 1, 0, flow);
     return textPosition(isSection(flow) ? flow.title : flow, 0);
@@ -206,7 +227,7 @@ function pressEnter(root, at, options = {}) {
   return at;
 }
 
-function deleteBackward(root, at) {
+function deleteBackward(root, at, options = {}) {
   if (isText(at)) {
     const { paragraph, offset } = at;
     if (offset > 0) {
@@ -215,14 +236,14 @@ function deleteBackward(root, at) {
       return textPosition(paragraph, from);
     }
     const place = locate(root, paragraph);
-    if (place && place.titleOf) return mergeBack(root, place.titleOf) || at;
+    if (place && place.titleOf) return stepDown(root, place.titleOf, options) || at;
     if (place && place.list) return joinParagraphs(place.list, place.index) || at;
     return at;
   }
   // At a pre marker: as at the start of the text it opens.
   if (isFlowEdge(at) && at.edge === "start") {
-    if (isSection(at.flow)) return mergeBack(root, at.flow) || at;
-    return deleteBackward(root, textPosition(at.flow, 0));
+    if (isSection(at.flow)) return stepDown(root, at.flow, options) || at;
+    return deleteBackward(root, textPosition(at.flow, 0), options);
   }
   // At a post marker: the flow gone.
   if (isFlowEdge(at) && at.edge === "end") return removeFlow(root, at.flow) || at;
@@ -249,14 +270,100 @@ function removeFlow(root, flow) {
 }
 
 // A section just made from a blank paragraph - by Enter on it, or near it -
-// with `newSectionsBeside()` on, split off the section it's in right away
-// (splitOff()): its title on that section's level, beside it, not under it.
-// Not right in a document: a document of its own it would be, on a paper of
-// its own - it stays in.
-function besideParent(root, parent, title, { newSectionsBeside } = {}) {
-  if (!newSectionsBeside || !newSectionsBeside() || parent instanceof Document) return;
+// put on the lowest rung of the ladder Enter climbs (see stepUp()):
+//
+//  - Going down (`newSectionsBeside()` off): with sections after it, at
+//    their level, but set a level further down - depressed, a title offset
+//    of 1, or theirs if they're depressed already; with none, where it is:
+//    a section in the one the paragraph was in, a level down.
+//  - Beside (`newSectionsBeside()` on - the default): the rung going down
+//    skipped. With sections after it, one of them, as they look; with
+//    none, split off the section it's in right away (splitOff()), beside
+//    it. Not right in a document: a document has one title on top, its
+//    own - it stays in.
+function placeNewSection(root, parent, title, options = {}) {
   const made = locate(root, title);
-  if (made && made.titleOf) splitOff(root, made.titleOf);
+  if (!made || !made.titleOf) return;
+  const section = made.titleOf;
+  const next = sectionAfter(root, section);
+  if (next) {
+    section.titleOffset = lowestRung(next, options);
+    return;
+  }
+  if (!goingDown(options) && !(parent instanceof Document)) splitOff(root, section);
+}
+
+const goingDown = ({ newSectionsBeside } = {}) => !(newSectionsBeside && newSectionsBeside());
+
+// The section right after `section`, in the same list - or null.
+function sectionAfter(root, section) {
+  const place = locate(root, section);
+  const next = place && place.list ? place.list.children[place.index + 1] : null;
+  return isSection(next) ? next : null;
+}
+
+// The title offset of the lowest rung before `next`, a section: going
+// down, depressed - a level further down than it, or as far as it is
+// already; beside, as it is.
+function lowestRung(next, options) {
+  return goingDown(options) ? Math.max(1, next.titleOffset) : next.titleOffset;
+}
+
+// Enter at the start of a title: its section a rung up - depressed (a
+// title offset), set at its own level (no offset); at its own level, split
+// off the section it's in (splitOff()), a level up - at its own level
+// there too: the section it was split off from ends where it should, no
+// exit title made for a section that only looks deeper. A section right in
+// a document can go no further up: there's one title on top, its
+// document's. So the Enters after a paragraph go down, across and out: the
+// first makes a paragraph, the next a section on the lowest rung
+// (placeNewSection()), each one after that a rung up. Whether it went up.
+function stepUp(root, section) {
+  if (section.titleOffset > 0) {
+    section.titleOffset = 0;
+    return true;
+  }
+  return !!splitOff(root, section);
+}
+
+// Backspace at the start of a title: its section a rung down - stepUp()
+// undone, rung by rung. What's right before it tells which way it came up:
+// a section - the one it was split off from (splitOff() puts it right
+// after it) - and it's merged back into it, at that section's level again
+// (mergeBack()); a paragraph or its parent's title - made right here, from
+// a blank paragraph - and it's depressed, before a section whose lowest
+// rung is (lowestRung()), or else unwrapped (mergeBack()). Where the caret
+// goes - null if it can't go down.
+function stepDown(root, section, options = {}) {
+  const place = locate(root, section);
+  const afterSection = !!place && !!place.list && isSection(flowBefore(place.list, place.index));
+  if (section.titleOffset === 0 && !afterSection) {
+    const next = sectionAfter(root, section);
+    const rung = next ? lowestRung(next, options) : 0;
+    if (rung > 0) {
+      section.titleOffset = rung;
+      return textPosition(section.title, 0);
+    }
+  }
+  const merged = mergeBack(root, section);
+  // Beside, a section never stops in a section with nothing after it - a
+  // level down: that's the rung going down, skipped (placeNewSection()), a
+  // section made from a blank paragraph there put beside it at once. So
+  // merged into one, there, it goes on down - unwrapped: Enter's two moves
+  // undone by one Backspace, too. Not right in a document, where a section
+  // made does stop.
+  if (merged && afterSection && !goingDown(options)) {
+    const now = locate(root, section);
+    if (now && !(now.list instanceof Document) && !sectionAfter(root, section)) return mergeBack(root, section) || merged;
+  }
+  return merged;
+}
+
+// What can't be done - told (`refuse()`: a flash, say), nothing done, the
+// caret where it was.
+function refused(at, { refuse } = {}) {
+  if (refuse) refuse();
+  return at;
 }
 
 // Enter on an empty paragraph: a section in its place - its title empty, to
@@ -308,22 +415,23 @@ function pressTab(root, at, shift, options = {}) {
     const next = paragraphAfter(root, at.paragraph);
     if (next && paragraphText(next) === "") return textPosition(next, 0);
     if (place.titleOf) return demote(root, place.titleOf, at, options) || at;
-  } else if (place.titleOf) splitOff(root, place.titleOf);
-  else if (place.list && isSection(place.list)) promote(place.list, place.index);
+  } else if (place.titleOf) {
+    if (!splitOff(root, place.titleOf)) return refused(at, options);
+  } else if (place.list && isSection(place.list)) promote(place.list, place.index);
   return at;
 }
 
-// Enter at the start of a title: its section split off the section it's
-// in, as the second half of it - what came after it there moved into it,
-// after what it holds, and it after that section, a level up. A section
-// right in a document becomes a document of its own, after it. The caret
-// where it was. Null if there's nothing to split off.
+// A section split off the section it's in, as the second half of it - what
+// came after it there moved into it, after what it holds, and it after
+// that section, a level up. Not one right in a document: a document has
+// one title on top, its own - split off, it would be a document of its
+// own, and another document is made beside it, not out of it. The caret
+// where it was. Null if it can't be split off.
 function splitOff(root, section) {
+  if (!canPromote(root, section)) return null;
   const place = locate(root, section);
-  if (!place || !place.list || !isSection(place.list)) return null;
   const parent = place.list;
   const outer = locate(root, parent);
-  if (!outer || !outer.list) return null;
   const tail = parent.children.splice(place.index).slice(1);
   // What comes in takes the place of a lone empty paragraph.
   if (tail.length > 0 && holdsOnlyAnEmptyParagraph(section)) section.children.splice(0);
@@ -331,7 +439,7 @@ function splitOff(root, section) {
   // Neither half left empty.
   fillIfEmpty(parent);
   fillIfEmpty(section);
-  outer.list.children.splice(outer.index + 1, 0, isSection(outer.list) ? section : asDocument(section, parent));
+  outer.list.children.splice(outer.index + 1, 0, section);
   return textPosition(section.title, 0);
 }
 
@@ -363,6 +471,9 @@ function mergeBack(root, section) {
   if (!before) return null;
   if (isSection(before)) {
     mergeInto(list, index, before);
+    // Back at the level it was split off from - where it had no offset
+    // (stepUp() splits only what has none).
+    section.titleOffset = 0;
     return textPosition(section.title, 0);
   }
   const title = section.title;
@@ -410,10 +521,13 @@ function moveInto(list, index, before) {
 }
 
 // Promoting a section - up a level in the document's structure: split off
-// the section it's in (splitOff()). Whether it can be: it's in a section.
+// the section it's in (splitOff()). Whether it can be: it's in a section
+// that's in another - not right in a document, on top.
 function canPromote(root, section) {
   const place = locate(root, section);
-  return !!place && !!place.list && isSection(place.list);
+  if (!place || !place.list || !isSection(place.list)) return false;
+  const outer = locate(root, place.list);
+  return !!outer && !!outer.list && isSection(outer.list);
 }
 
 // Demoting a section - down a level: into the section before it, as its
@@ -495,12 +609,9 @@ function flatten(list, index, at) {
   return textPosition(isSection(first) ? first.title : first, 0);
 }
 
-// A section as a document, on `like`'s paper - and a document as a section
-// - the same title, the same children.
-function asDocument(section, like) {
-  return new Document({ title: section.title, paper: like.paper, margins: like.margins, titleOffset: section.titleOffset }, section.children.splice(0));
-}
-
+// A document as a section - the same title, the same children: one merged
+// into the document before it (a document of a file made before a
+// document's top was kept to its own title).
 function asSection(document) {
   return new Section(document.title, document.children.splice(0), document.titleOffset);
 }

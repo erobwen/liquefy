@@ -1,7 +1,7 @@
 import assert from "assert";
 import {
   document, section, paragraph, bold, sequence as sequenceOf, paragraphText, isSection, isParagraph,
-  textPosition, flowEnd, flowStart, samePosition,
+  textPosition, flowEnd, flowStart, samePosition, hasExitTitle,
 } from "../../model/flows.js";
 import { tabulaEditing } from "../editing.js";
 import { PaperSequence } from "../../print/index.js";
@@ -26,6 +26,12 @@ function setUp(...children) {
   const doc = document({ title: "D", paper, margins }, ...children);
   const root = sequenceOf(doc);
   return { doc, root, editing: tabulaEditing(root, { newSectionsBeside: () => false }) };
+}
+
+// Every flow in a section, depth first.
+function* walk(flow) {
+  yield flow;
+  if (isSection(flow)) for (const child of flow.children) yield* walk(child);
 }
 
 describe("Editing a Tabula document", function () {
@@ -156,22 +162,32 @@ describe("Editing a Tabula document", function () {
       // Enter at the end of "p": an empty paragraph.
       let at = editing.splitParagraph(textPosition(p, 1));
       assert.equal(shape(doc), "D[Outer[p, _, x, Y[], z]]");
-      // Enter on it: a section in its place, holding "x" - up to Y.
+      // Enter on it: a section in its place, holding "x" - up to Y. Going
+      // down: at Y's level, but depressed - a level further down.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[Outer[p, [x], Y[], z]]");
+      assert.equal(shape(doc), "D[Outer[p, +1[x], Y[], z]]");
       const made = outer.children[1];
       assert.ok(samePosition(at, textPosition(made.title, 0)));
-      // Enter at its title's start: split off Outer - what came after it in
-      // Outer moved into it.
+      // Enter at its title's start: across - at its own level, as Y.
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[Outer[p, [x], Y[], z]]");
+      assert.ok(samePosition(at, textPosition(made.title, 0)));
+      // Enter again: out - split off Outer, what came after it in Outer
+      // moved into it.
       at = editing.splitParagraph(at);
       assert.equal(shape(doc), "D[Outer[p], [x, Y[], z]]");
       assert.ok(samePosition(at, textPosition(made.title, 0)));
-      // Backspace: back into Outer, flattened - as it was before the split.
+      // Backspace, each a rung down - every Enter undone: back into Outer,
+      // flattened - as it was before the split...
       at = editing.deleteBackward(at);
       assert.equal(shape(doc), "D[Outer[p, [x], Y[], z]]");
       assert.ok(samePosition(at, textPosition(made.title, 0)));
-      // Backspace: unwrapped - its empty title gone, all it held in its
-      // place. Back where it started.
+      // ...depressed again, before Y...
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[Outer[p, +1[x], Y[], z]]");
+      assert.ok(samePosition(at, textPosition(made.title, 0)));
+      // ...and unwrapped - its empty title gone, all it held in its place.
+      // Back where it started.
       at = editing.deleteBackward(at);
       assert.equal(shape(doc), original);
       assert.ok(samePosition(at, textPosition(outer.children[1], 0)));
@@ -184,9 +200,9 @@ describe("Editing a Tabula document", function () {
       let at = editing.splitParagraph(textPosition(x, 0));
       assert.equal(shape(doc), "D[p, _, Heading, y, S[]]");
       // Enter again, the empty one before it: a section, "Heading" its title,
-      // holding "y" - up to S.
+      // holding "y" - up to S; going down: depressed, before S.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[p, Heading[y], S[]]");
+      assert.equal(shape(doc), "D[p, Heading+1[y], S[]]");
       const made = doc.children[1];
       assert.ok(samePosition(at, textPosition(made.title, 0)));
       // Backspace at the start of its title: a paragraph again.
@@ -212,34 +228,131 @@ describe("Editing a Tabula document", function () {
       assert.equal(shape(doc), original);
     });
 
-    it("splits a section made from a blank paragraph off its parent right away, with newSectionsBeside - not right in a document", function () {
-      let beside = true;
+    it("climbs a ladder with Enter after a paragraph, going down first: a paragraph, a section a level down, across, out - and no further than the document's top", function () {
+      let refusals = 0;
+      const p = paragraph("p");
+      const s = section("S", p);
+      const doc = document({ title: "D", paper, margins }, s);
+      const root = sequenceOf(doc);
+      const editing = tabulaEditing(root, { newSectionsBeside: () => false, refuse: () => { refusals++; } });
+      // A paragraph.
+      let at = editing.splitParagraph(textPosition(p, 1));
+      assert.equal(shape(doc), "D[S[p, _]]");
+      // Down: a section in S - nothing after it to be beside.
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[p, [_]]]");
+      // Across: beside S - S split, nothing after it to take along.
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[p], [_]]");
+      // Out: no further - right in the document, on top: refused, nothing done.
+      const before = shape(doc);
+      const stayed = editing.splitParagraph(at);
+      assert.equal(shape(doc), before);
+      assert.equal(refusals, 1);
+      assert.ok(samePosition(stayed, at));
+      assert.equal(root.children.length, 1, "one document - one title on top");
+    });
+
+    it("undoes every Enter after a paragraph with a Backspace, rung by rung, back to where it started - going down or beside, wherever the paragraph is", function () {
+      // Each: a document with the paragraph "p" somewhere in it.
+      const structures = {
+        "in a section, nothing after it": () => [section("S", paragraph("p"))],
+        "before a section in its section": () => [section("S", paragraph("p"), section("X"))],
+        "before a depressed section": () => [section("S", paragraph("p"), section({ title: "X", titleOffset: 1 }))],
+        "in a section with one after it": () => [section("S", paragraph("p")), section("T")],
+        "two levels down": () => [section("O", section("S", paragraph("p")), section("T"))],
+        "right in the document, before a section": () => [paragraph("p"), section("T")],
+      };
+      for (const beside of [false, true]) {
+        for (const [name, children] of Object.entries(structures)) {
+          const doc = document({ title: "D", paper, margins }, ...children());
+          const root = sequenceOf(doc);
+          const editing = tabulaEditing(root, { newSectionsBeside: () => beside });
+          const p = [...walk(doc)].find((flow) => isParagraph(flow) && paragraphText(flow) === "p");
+          const shapes = [shape(doc)];
+          // Enter until refused - nothing changing - or ten times.
+          let at = textPosition(p, 1);
+          for (let n = 0; n < 10; n++) {
+            at = editing.splitParagraph(at);
+            if (shape(doc) === shapes[shapes.length - 1]) break;
+            shapes.push(shape(doc));
+          }
+          assert.ok(shapes.length >= 3, name + ": a paragraph, and a section");
+          // Backspace, back down every rung, each to the shape before it -
+          // but for the section the empty paragraph became: unwrapped, it
+          // takes the empty paragraph with it when it holds what came after
+          // it, so it may go straight back to the start.
+          let index = shapes.length - 1;
+          while (index > 0) {
+            at = editing.deleteBackward(at);
+            const now = shape(doc);
+            const label = (beside ? "beside" : "going down") + ", " + name + ": from " + shapes[index];
+            if (index === 2 && now === shapes[0]) break;
+            assert.equal(now, shapes[index - 1], label);
+            index--;
+          }
+          assert.equal(shape(doc), shapes[0]);
+        }
+      }
+    });
+
+    it("splits a section off at its own level, never depressed - the section it came out of left without an exit title - and Backspace merges it back", function () {
+      const blank = paragraph();
+      const s = section("S", paragraph("p"), blank);
+      const { doc, editing } = setUp(s, section("T"));
+      // Enter on the blank paragraph: going down, a section in S.
+      let at = editing.splitParagraph(textPosition(blank, 0));
+      assert.equal(shape(doc), "D[S[p, [_]], T[]]");
+      // Enter: across - beside S, before T, at its own level.
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[p], [_], T[]]");
+      assert.ok(!hasExitTitle(s, doc.children[1], 1), "S ends as a section does - nothing after it looks deeper");
+      // Backspace: back into S, as it came - not depressed first.
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[S[p, [_]], T[]]");
+      editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[S[p, _], T[]]");
+    });
+
+    it("goes down before a depressed section as far as it is depressed - Enter setting it at its own level", function () {
+      const p = paragraph("p");
+      const deep = section({ title: "Deep", titleOffset: 1 }, paragraph("d"));
+      const { doc, editing } = setUp(section("S", p, deep));
+      let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
+      assert.equal(shape(doc), "D[S[p, +1[_], Deep+1[d]]]");
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[p, [_], Deep+1[d]]]");
+    });
+
+    it("skips going down with newSectionsBeside: a section beside what's after it - or, with nothing after it, beside the section it's in; not right in a document", function () {
+      const editingOf = (doc) => tabulaEditing(sequenceOf(doc), { newSectionsBeside: () => true });
+      // Before Y: one of Y's level, as it looks.
       const p = paragraph("p");
       const outer = section("Outer", p, paragraph("x"), section("Y"));
       const doc = document({ title: "D", paper, margins }, outer, paragraph("top"));
-      const editing = tabulaEditing(sequenceOf(doc), { newSectionsBeside: () => beside });
-      // Enter, Enter at the end of "p": a section - beside Outer.
+      const editing = editingOf(doc);
       let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
+      assert.equal(shape(doc), "D[Outer[p, [x], Y[]], top]");
+      assert.ok(samePosition(at, textPosition(outer.children[1].title, 0)));
+      // Enter: out - Outer split, what came after it taken along.
+      at = editing.splitParagraph(at);
       assert.equal(shape(doc), "D[Outer[p], [x, Y[]], top]");
-      assert.ok(samePosition(at, textPosition(doc.children[1].title, 0)));
-      // Backspace: back into Outer; again: unwrapped - as it was.
-      editing.deleteBackward(editing.deleteBackward(at));
-      assert.equal(shape(doc), "D[Outer[p, x, Y[]], top]");
-      // Near a blank one - Enter twice at a paragraph's start: the same.
-      at = editing.splitParagraph(editing.splitParagraph(textPosition(outer.children[1], 0)));
-      assert.equal(shape(doc), "D[Outer[p], x[Y[]], top]");
       // Backspace, Backspace: as it was.
       editing.deleteBackward(editing.deleteBackward(at));
       assert.equal(shape(doc), "D[Outer[p, x, Y[]], top]");
-      editing.splitParagraph(editing.splitParagraph(textPosition(outer.children[1], 0)));
-      // Right in the document: stays in.
-      const top = doc.children[2];
-      editing.splitParagraph(editing.splitParagraph(textPosition(top, 0)));
-      assert.equal(shape(doc), "D[Outer[p], x[Y[]], top[_]]");
-      // Off: in its parent, as ever.
-      beside = false;
-      editing.splitParagraph(editing.splitParagraph(textPosition(outer.children[0], 1)));
-      assert.equal(shape(doc), "D[Outer[p, [_]], x[Y[]], top[_]]");
+      // With nothing after it: beside the section it's in.
+      const q = paragraph("q");
+      const lone = section("Lone", q);
+      const other = document({ title: "D", paper, margins }, lone);
+      const besides = editingOf(other);
+      besides.splitParagraph(besides.splitParagraph(textPosition(q, 1)));
+      assert.equal(shape(other), "D[Lone[q], [_]]");
+      // Right in the document: stays in - a document has one title on top.
+      const top = paragraph("top");
+      const third = document({ title: "D", paper, margins }, top);
+      const inDocument = editingOf(third);
+      inDocument.splitParagraph(inDocument.splitParagraph(textPosition(top, 3)));
+      assert.equal(shape(third), "D[top, [_]]");
     });
 
     it("undoes a section made on Enter with one Backspace", function () {
@@ -247,7 +360,7 @@ describe("Editing a Tabula document", function () {
       const { doc, editing } = setUp(p, paragraph("x"), section("Y"));
       const original = shape(doc);
       const at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
-      assert.equal(shape(doc), "D[p, [x], Y[]]");
+      assert.equal(shape(doc), "D[p, +1[x], Y[]]");
       editing.deleteBackward(at);
       assert.equal(shape(doc), original);
     });
@@ -266,17 +379,24 @@ describe("Editing a Tabula document", function () {
       assert.equal(shape(doc), "D[Outer[o], S[s, T[]]]");
     });
 
-    it("makes a section right in a document a document of its own on Enter at its title's start - and Backspace a section again", function () {
-      const s = section("S", paragraph("s"));
-      const { doc, root, editing } = setUp(paragraph("d"), s);
-      const at = editing.splitParagraph(textPosition(s.title, 0));
-      assert.equal(root.children.length, 2);
-      assert.equal(shape(root.children[1]), "S[s]");
-      assert.equal(root.children[1].paper, doc.paper);
-      assert.equal(root.children[1].title, s.title);
-      editing.deleteBackward(at);
-      assert.equal(root.children.length, 1);
+    it("keeps one title on top: Enter at the start of a title right in a document, or at a document's end, is refused - a depressed one set at its level first", function () {
+      let refusals = 0;
+      const s = section({ title: "S", titleOffset: 1 }, paragraph("s"));
+      const doc = document({ title: "D", paper, margins }, paragraph("d"), s);
+      const root = sequenceOf(doc);
+      const editing = tabulaEditing(root, { refuse: () => { refusals++; } });
+      // Depressed: set at its own level - a rung up.
+      editing.splitParagraph(textPosition(s.title, 0));
       assert.equal(shape(doc), "D[d, S[s]]");
+      assert.equal(refusals, 0);
+      // At its own level, right in the document: refused.
+      editing.splitParagraph(textPosition(s.title, 0));
+      editing.splitParagraph(flowStart(s));
+      editing.splitParagraph(textPosition(doc.title, 0));
+      editing.splitParagraph(flowEnd(doc));
+      assert.equal(shape(doc), "D[d, S[s]]");
+      assert.equal(root.children.length, 1);
+      assert.equal(refusals, 4);
     });
 
     it("keeps a title with text, on Backspace at its start after a paragraph, as a paragraph before what the section held", function () {
@@ -321,7 +441,10 @@ describe("Editing a Tabula document", function () {
       assert.equal(shape(doc), "D[p, Heading[y], S[], z]");
       assert.equal(doc.children[1].title, x);
       assert.ok(samePosition(at, textPosition(x, 3)));
-      // Backspace at the start of its title: a paragraph again.
+      // Backspace at the start of its title, going down (see setUp()): a
+      // rung down - depressed, before S - and then a paragraph again.
+      editing.deleteBackward(textPosition(x, 0));
+      assert.equal(shape(doc), "D[p, Heading+1[y], S[], z]");
       editing.deleteBackward(textPosition(x, 0));
       assert.equal(shape(doc), "D[p, Heading, y, S[], z]");
     });
@@ -416,7 +539,7 @@ describe("Editing a Tabula document", function () {
       const a = section("A", paragraph("a"), inner);
       const { doc, editing } = setUp(a);
       assert.ok(editing.canPromote(inner));
-      assert.ok(editing.canPromote(a));   // into a document of its own
+      assert.ok(!editing.canPromote(a), "right in the document: one title on top");
       assert.ok(editing.promoteSection(inner));
       assert.equal(shape(doc), "D[A[a], Inner[i]]");
       assert.ok(editing.canDemote(inner));
@@ -460,13 +583,16 @@ describe("Editing a Tabula document", function () {
       assert.ok(!atTop.canMoveOut(top));
     });
 
-    it("makes a section right in a document a document of its own on Shift+Tab", function () {
+    it("refuses Shift+Tab in the title of a section right in a document - one title on top", function () {
+      let refusals = 0;
       const s = section("S", paragraph("s"));
-      const { root, editing } = setUp(paragraph("d"), s, paragraph("after"));
+      const doc = document({ title: "D", paper, margins }, paragraph("d"), s, paragraph("after"));
+      const root = sequenceOf(doc);
+      const editing = tabulaEditing(root, { refuse: () => { refusals++; } });
       editing.tab(textPosition(s.title, 0), { shift: true });
-      assert.equal(root.children.length, 2);
-      assert.equal(shape(root.children[0]), "D[d]");
-      assert.equal(shape(root.children[1]), "S[s, after]");
+      assert.equal(root.children.length, 1);
+      assert.equal(shape(doc), "D[d, S[s], after]");
+      assert.equal(refusals, 1);
     });
 
     it("acts at a section's pre marker as at its title's start - Enter splitting it off, typing into the title", function () {

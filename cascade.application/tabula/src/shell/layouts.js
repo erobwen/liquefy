@@ -2,6 +2,7 @@ import { Component, callback } from "@liquefy/cascade.component";
 import { div, span, text, button as htmlButton } from "@liquefy/cascade.dom";
 import { card, iconButton, fitContainerStyle, drawers, drawerPanel, drawerBarSize } from "@liquefy/cascade.ui";
 import { infoButton } from "../InfoButton.js";
+import { contextMenuSlot } from "./contextMenus.js";
 
 /**
  * The layouts - what each mode makes of the app as a whole (see
@@ -13,18 +14,21 @@ import { infoButton } from "../InfoButton.js";
  *  - `settings`: what's set up - the plugins in use (components).
  *  - `modes`, `mode`, `onMode(name)`: the mode selector.
  *  - `content`: the documents, as the mode shows them.
+ *  - `menus`: the context menus of whatever has the focus (see
+ *    contextMenus.js) - the root's and the focused leaf's, in two slots.
  *  - `fileName`, `message`: what's open, and what went wrong last.
  *
  * Two of them:
  *
  *  - PaperLayout - for paper: nothing around the papers but cards floating
- *    over them - the file's top left, the mode's and the zoom's bottom
- *    right. Zoom is paper's alone (`zoom`, `onZoom(steps)`; null when
+ *    over them - the file's top left, the context menus top right (the
+ *    root's above the leaf's), the mode's and the zoom's bottom right. Zoom is paper's alone (`zoom`, `onZoom(steps)`; null when
  *    there's nothing to zoom).
  *  - AppLayout - for the web, JSON and the tree: an application's frame - a
  *    drawer on the left (the file and the settings; a bar of shortcuts when
- *    closed) and a bar along the bottom (what's open, the mode) - the
- *    content between them.
+ *    closed), a bar along the bottom (what's open, the mode), and the
+ *    context menus in a column on the right, while something has the focus -
+ *    the content between them.
  */
 
 // The modes, as buttons - icons only, or icons with labels.
@@ -58,8 +62,8 @@ function modeButtons({ modes, mode, onMode, labels }) {
 const activeStyle = { background: "#d3e3fd", color: "#0b57d0" };
 
 export class PaperLayout extends Component {
-  setProperties({ actions, settings, modes, mode, onMode, content, fileName, message, zoom, onZoom }) {
-    Object.assign(this, { actions, settings, modes, mode, onMode, content, fileName, message, zoom, onZoom });
+  setProperties({ actions, settings, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom }) {
+    Object.assign(this, { actions, settings, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom });
   }
 
   build() {
@@ -75,6 +79,13 @@ export class PaperLayout extends Component {
         ),
         this.fileName ? note(this.fileName) : null,
         this.message ? errorNote(this.message) : null,
+      ),
+      // Top right: the context menus - the root's, then the leaf's - over
+      // the papers, clear of the scroll bar and of the card below.
+      div(
+        { style: paperMenusStyle },
+        contextMenuSlot({ menus: this.menus, which: "root" }),
+        contextMenuSlot({ menus: this.menus, which: "focus" }),
       ),
       card(
         { style: { ...floatingStyle, right: "28px", bottom: "28px" } },
@@ -94,8 +105,8 @@ export class PaperLayout extends Component {
 }
 
 export class AppLayout extends Component {
-  setProperties({ actions, settings, modes, mode, onMode, content, fileName, message }) {
-    Object.assign(this, { actions, settings, modes, mode, onMode, content, fileName, message });
+  setProperties({ actions, settings, modes, mode, onMode, content, menus, fileName, message }) {
+    Object.assign(this, { actions, settings, modes, mode, onMode, content, menus, fileName, message });
   }
 
   initialState() {
@@ -104,6 +115,8 @@ export class AppLayout extends Component {
 
   build() {
     const open = this.drawerOpen;
+    // The context menus' column, while something has the focus.
+    const menus = this.menus.path().length > 0;
     return div(
       { style: { ...fitContainerStyle, position: "relative", background: appBackdrop } },
       // Above the bottom bar: the content, clear of the drawer - or its bar -
@@ -111,9 +124,16 @@ export class AppLayout extends Component {
       div(
         { style: { position: "absolute", top: 0, left: 0, right: 0, bottom: bottomBarHeight + "px" } },
         div(
-          { style: { position: "absolute", top: 0, right: 0, bottom: 0, left: (open ? drawerWidth : drawerBarSize) + "px", overflow: "auto", transition: "left 200ms ease-out" } },
+          { style: { position: "absolute", top: 0, right: (menus ? menuColumnWidth : 0) + "px", bottom: 0, left: (open ? drawerWidth : drawerBarSize) + "px", overflow: "auto", transition: "left 200ms ease-out" } },
           this.content,
         ),
+        menus
+          ? div(
+            { style: appMenusStyle },
+            contextMenuSlot({ menus: this.menus, which: "root", style: { boxShadow: "none", border: "1px solid #dadce0" } }),
+            contextMenuSlot({ menus: this.menus, which: "focus", style: { boxShadow: "none", border: "1px solid #dadce0" } }),
+          )
+          : null,
         drawers(
           { modal: false },
           drawerPanel(
@@ -196,6 +216,16 @@ export const paperLayout = (...parameters) => new PaperLayout(...parameters);
 export const appLayout = (...parameters) => new AppLayout(...parameters);
 
 export const appBackdrop = "#f1f3f4";
+const menuColumnWidth = 300;
+const paperMenusStyle = {
+  position: "absolute", top: "12px", right: "28px", bottom: "92px", width: "260px",
+  display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", pointerEvents: "none",
+};
+const appMenusStyle = {
+  position: "absolute", top: 0, right: 0, bottom: 0, width: menuColumnWidth + "px", boxSizing: "border-box",
+  padding: "16px 12px", display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto",
+  background: "white", borderLeft: "1px solid #dadce0",
+};
 const drawerWidth = 260;
 const bottomBarHeight = 52;
 const floatingStyle = {

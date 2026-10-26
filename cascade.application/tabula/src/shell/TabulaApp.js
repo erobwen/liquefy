@@ -1,6 +1,6 @@
-import { Component, callback, serviceProvider } from "@liquefy/cascade.component";
+import { Component, callback, serviceProvider, CompoundServiceLocator } from "@liquefy/cascade.component";
 import { div, text, a } from "@liquefy/cascade.dom";
-import { card, checkbox, fitContainerStyle, overlayFrame, colorSchemeScope } from "@liquefy/cascade.ui";
+import { card, checkbox, colorField, fitContainerStyle, overlayFrame, colorSchemeScope } from "@liquefy/cascade.ui";
 import { paperBackdrop } from "../paper/TabulaPaperView.js";
 import { nullDocument } from "./NullDocument.js";
 import { creationDot } from "./CreationDot.js";
@@ -11,6 +11,8 @@ import { jsonEditor } from "./json/JsonEditor.js";
 import { treeView } from "./TreeView.js";
 import { printPages } from "../print/dom.js";
 import { paperLayout, appLayout, documentCard, appBackdrop } from "./layouts.js";
+import { ContextMenus } from "./contextMenus.js";
+import { Settings, settingsLocator, appSettingsDefaults } from "./settings.js";
 
 const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -29,14 +31,19 @@ const modes = [
  * TabulaApp - Tabula as an editor of documents of any kind: the kinds come
  * from plugins (see documents.js), and Tabula itself is only this - the
  * documents, what can be done with them (new, open, save, print), the
- * settings and the mode - each placed where the mode's layout puts it.
+ * settings and the mode - each placed where the mode's layout puts it. All
+ * else is the documents' own: whatever has the focus offers its context
+ * menus (see contextMenus.js), and the layout shows them.
  *
- *   new TabulaApp({ plugins, services })
+ *   new TabulaApp({ plugins, services, settings })
  *
  * `plugins` are all there are; `services` the ObservableCompoundServiceLocator
  * of the ones in use - its `locators`, which the settings change. It's put
  * in front of the app's render context too (serviceProvider()), so a plugin
- * can offer more than document types: widgets of its own, say.
+ * can offer more than document types: widgets of its own, say. In front of
+ * them, `settings` (see settings.js - how Tabula is set up, kept between
+ * visits by whoever made it; for this visit only, if none is given), each
+ * part asking for its own section through the locator.
  *
  * What's open is the root (see documents.js): no document - the null
  * document, a dot in the middle of the window, for creating one (see
@@ -63,15 +70,31 @@ const modes = [
  * of, is kept as it was, at classic.html - a reference for this one.
  */
 export class TabulaApp extends Component {
-  setProperties({ plugins, services }) {
+  setProperties({ plugins, services, settings }) {
     this.plugins = plugins;
     this.services = services;
+    this.settings = settings || new Settings();
   }
 
   initialState() {
     // documents: hydrated - none, one, or a sequence of them. fileName:
     // what they were opened from, and are saved as.
     return { documents: [], fileName: null, message: null, zoom: 1, mode: "paper" };
+  }
+
+  initialUnobservables() {
+    // The context menus of whatever has the focus - taken by an editor, as
+    // its caret is placed (see contextMenus.js).
+    return {
+      menus: new ContextMenus(),
+      // The settings' sections first, then the plugins'.
+      locator: new CompoundServiceLocator(settingsLocator(this.settings), this.services),
+    };
+  }
+
+  // For the editors below: where to put their context menus.
+  provide() {
+    return { contextMenus: this.unobservable.menus };
   }
 
   show(documents, fileName = null) {
@@ -139,21 +162,27 @@ export class TabulaApp extends Component {
     const mode = modes.find((each) => each.name === this.mode);
     const parts = {
       actions: this.actions(),
-      settings: this.settings(),
+      settings: this.settingsMenu(),
       modes,
       mode: mode.name,
       onMode: callback("mode", (name) => { this.mode = name; }),
-      content: serviceProvider({ serviceLocator: this.services, child: this.content(mode) }),
+      content: this.content(mode),
       fileName: this.fileName,
+      menus: this.unobservable.menus,
       message: this.message,
     };
     return overlayFrame(
       { style: { ...fitContainerStyle } },
       colorSchemeScope(
         { style: { ...fitContainerStyle } },
-        mode.layout === "paper"
-          ? paperLayout({ ...parts, zoom: this.documents.length > 0 ? this.zoom : null, onZoom: callback("zoom", (steps) => this.zoomBy(steps)) })
-          : appLayout(parts),
+        // Around all of it - the documents, and the menus they put in the
+        // layout too.
+        serviceProvider({
+          serviceLocator: this.unobservable.locator,
+          child: mode.layout === "paper"
+            ? paperLayout({ ...parts, zoom: this.documents.length > 0 ? this.zoom : null, onZoom: callback("zoom", (steps) => this.zoomBy(steps)) })
+            : appLayout(parts),
+        }),
       ),
     );
   }
@@ -195,22 +224,27 @@ export class TabulaApp extends Component {
 
   // A creation dot, before the documents (`key` "first") or after one of
   // them. Keyed: each but the first belongs to the document before it - and
-  // comes and goes with it.
-  dot(key, index, title, height) {
+  // comes and goes with it. `row`: its room - its height, and where in it
+  // the dot is (see CreationDot.js for the shapes).
+  dot(key, index, title, shape, rowStyle) {
     return div(
-      { key, style: { ...dotRowStyle, height: height + "px" } },
-      creationDot({ documentTypes: documentTypes(this.services), size: "small", title, onCreate: callback(key, (type) => this.insert(index, type)) }),
+      { key, style: { ...dotRowStyle, ...rowStyle } },
+      creationDot({ documentTypes: documentTypes(this.services), shape, title, onCreate: callback(key, (type) => this.insert(index, type)) }),
     );
   }
 
   // The documents, each as `view` makes it, with a creation dot before,
-  // between and after them.
-  dots(documents, height, view) {
+  // between and after them - pointing up before the first, down after the
+  // last, both ways between two; or, where they're lined up on the left
+  // (`aligned` "left"), pointing right at their left edge.
+  dots(documents, rowStyle, view, aligned = "center") {
+    const shape = (index) => aligned === "left" ? "right"
+      : index === 0 ? "up" : index === documents.length ? "down" : "diamond";
     return [
-      this.dot("first", 0, documents.length === 1 ? "Create something before it" : "Create something first", height),
+      this.dot("first", 0, documents.length === 1 ? "Create something before it" : "Create something first", shape(0), rowStyle),
       documents.flatMap((document, index) => [
         view(document),
-        this.dot("after" + keyOf(document), index + 1, index === documents.length - 1 ? "Create something after it" : "Create something in between", height),
+        this.dot("after" + keyOf(document), index + 1, index === documents.length - 1 ? "Create something after it" : "Create something in between", shape(index + 1), rowStyle),
       ]),
     ];
   }
@@ -225,7 +259,7 @@ export class TabulaApp extends Component {
         // As wide as the widest document - or the window: centred in it, and
         // scrolled sideways, not cut off, when wider.
         { style: { display: "flex", flexDirection: "column", alignItems: "center", width: "fit-content", minWidth: "100%" } },
-        this.dots(documents, 40, (document) => this.documentView(document, documents.length > 1, "paper")),
+        this.dots(documents, { height: "40px" }, (document) => this.documentView(document, documents.length > 1, "paper")),
       ),
     );
   }
@@ -236,7 +270,7 @@ export class TabulaApp extends Component {
     const { documents } = this;
     return div(
       { key: "web", style: { display: "flex", flexDirection: "column", padding: "0 16px" } },
-      this.dots(documents, 32, (document) => {
+      this.dots(documents, { height: "32px", justifyContent: "flex-start", paddingLeft: "24px", boxSizing: "border-box" }, (document) => {
         const key = keyOf(document) + "-web";
         const type = document.documentType && documentType(this.services, document.documentType.name);
         return documentCard({
@@ -247,7 +281,7 @@ export class TabulaApp extends Component {
           onRemove: documents.length > 1 ? callback("remove" + key, () => this.remove(document)) : null,
           body: type ? type.editor({ model: document.model, target: "web" }) : noPluginNote(documentName(document)),
         });
-      }),
+      }, "left"),
     );
   }
 
@@ -275,10 +309,20 @@ export class TabulaApp extends Component {
     );
   }
 
-  // The plugins in use - Tabula's service locator, set up by the user.
-  settings() {
+  // The settings: the plugins in use - Tabula's service locator, set up by
+  // the user - and the app's own (see settings.js).
+  settingsMenu() {
     const { plugins, services } = this;
+    const app = this.settings.section("tabula", appSettingsDefaults);
     return [
+      heading("Appearance"),
+      colorField({
+        key: "creationColor",
+        label: "Creation dots",
+        value: app.creationColor,
+        onInput: (color) => { app.creationColor = color; },
+      }),
+      note("The dots and triangles that create something where they are."),
       heading("Plugins"),
       note("Each one adds kinds of documents to Tabula's service locator."),
       plugins.map((plugin) => [

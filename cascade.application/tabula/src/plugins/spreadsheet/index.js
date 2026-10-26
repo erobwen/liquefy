@@ -1,8 +1,9 @@
 import { Component, callback, observable, view } from "@liquefy/cascade.component";
 import { div, table, tbody, tr, th, td, input, text } from "@liquefy/cascade.dom";
-import { button } from "@liquefy/cascade.ui";
+import { iconButton, row as menuRow } from "@liquefy/cascade.ui";
 import { documentPlugin } from "../../shell/documents.js";
 import { removeButton } from "../../shell/removeButton.js";
+import { takeFocus, releaseFocus, menuHeading, menuNote } from "../../shell/contextMenus.js";
 import { paperSizes, mm } from "../../print/index.js";
 
 /**
@@ -51,6 +52,29 @@ class SpreadsheetEditor extends Component {
     this.target = target;
   }
 
+  onDispose() {
+    releaseFocus(this);
+    super.onDispose();
+  }
+
+  // A cell focused: the grid has the focus, and its context menu - its
+  // size - is shown (see ../../shell/contextMenus.js). A grid is all there
+  // is to it: its menu is the root's, with no leaf below.
+  contextPath() {
+    const { model } = this;
+    return [{
+      key: "spreadsheet",
+      icon: "table_chart",
+      title: "Spreadsheet",
+      build: () => [
+        menuHeading("Size"),
+        sizeRow("Rows", model.rows, callback("fewerRows", () => { model.rows = Math.max(1, model.rows - 1); }), callback("moreRows", () => { model.rows++; })),
+        sizeRow("Columns", model.columns, callback("fewerColumns", () => { model.columns = Math.max(1, model.columns - 1); }), callback("moreColumns", () => { model.columns++; })),
+        menuNote("What's in the cells taken away is kept, and back when they are."),
+      ],
+    }];
+  }
+
   // On paper: on a white sheet of its own, as wide as it is - with a remove
   // button at its corner, when in a sequence (see ../../shell/documents.js).
   // On the web: only the grid, in the card it's in (see ../../shell/layouts.js).
@@ -58,6 +82,8 @@ class SpreadsheetEditor extends Component {
     const { model } = this;
     const web = this.target === "web";
     const columns = Array.from({ length: model.columns }, (_, index) => columnName(index));
+    // A cell focused, the grid has the focus.
+    const onFocus = callback("focus", () => takeFocus(this));
     return div(
       { style: web ? { overflowX: "auto" } : { padding: "8mm", zoom: this.zoom, width: "fit-content" } },
       div(
@@ -72,26 +98,33 @@ class SpreadsheetEditor extends Component {
               // Each cell reads only its own value - typing in one rebuilds
               // that one. No keys: rows and columns are only ever added at
               // the end.
-              columns.map((name) => cell({ cells: model.cells, name: name + (row + 1) })),
+              columns.map((name) => cell({ cells: model.cells, name: name + (row + 1), onFocus })),
             )),
           ),
-        ),
-        div(
-          { style: { display: "flex", gap: "8px", marginTop: "12px" } },
-          button("Add row", callback("addRow", () => { model.rows++; })),
-          button("Add column", callback("addColumn", () => { model.columns++; })),
         ),
       ),
     );
   }
 }
 
-const cell = view("Cell", ({ cells, name }) => td(
+// A size in its menu: what it is, fewer and more.
+function sizeRow(label, count, fewer, more) {
+  return menuRow(
+    { style: { alignItems: "center", gap: "6px" } },
+    div({ style: { flex: "1" } }, text(label)),
+    iconButton({ icon: "remove", title: "Fewer " + label.toLowerCase(), disabled: count <= 1, onClick: fewer }),
+    div({ style: { minWidth: "24px", textAlign: "center" } }, text(String(count))),
+    iconButton({ icon: "add", title: "More " + label.toLowerCase(), onClick: more }),
+  );
+}
+
+const cell = view("Cell", ({ cells, name, onFocus }) => td(
   { style: { border: "1px solid #dadce0", padding: 0 } },
   input({
     value: cells[name] || "",
     "aria-label": name,
     oninput: callback("input", (event) => { cells[name] = event.target.value; }),
+    onfocus: onFocus,
     style: { border: "none", outline: "none", padding: "4px 6px", width: "96px", font: "inherit", background: "transparent" },
   }),
 ));

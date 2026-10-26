@@ -339,17 +339,21 @@ class CodeLines extends Component {
           // the stage's FlipAnimationContainer leaves alone (it moves
           // things with `transform`).
           onpointerdown: callback(key + "Down", (event) => { if (enabled) press(event.currentTarget, true); }),
-          onpointerup: callback(key + "Up", (event) => press(event.currentTarget, false)),
-          onpointerleave: callback(key + "Leave", (event) => press(event.currentTarget, false)),
+          onpointerup: callback(key + "Up", (event) => { if (enabled) press(event.currentTarget, false); }),
+          onpointerleave: callback(key + "Leave", (event) => { if (enabled) press(event.currentTarget, false); }),
+          // Disabled - nothing to pop, say: flat, off its ledge, greyed out.
+          // Faded with `filter`, not `opacity`: the stage's
+          // FlipAnimationContainer fades with opacity, and clears it.
           style: {
             ...code, display: "flex", alignItems: "center", gap: "12px", textAlign: "left", padding: "9px 14px 9px 10px", borderRadius: "10px",
-            color: codeColors.plain, background: "linear-gradient(180deg, #f6f8fa, #e4e9ef)", border: "1px solid #c3ccd7",
-            boxShadow: raised, cursor: enabled ? "pointer" : "default", opacity: enabled ? 1 : 0.45,
+            ...(enabled
+              ? { color: codeColors.plain, background: "linear-gradient(180deg, #f6f8fa, #e4e9ef)", border: "1px solid #c3ccd7", boxShadow: raised, translate: "", cursor: "pointer", filter: "none" }
+              : { color: codeColors.quiet, background: "#d5dbe2", border: "1px dashed #a9b3c0", boxShadow: "none", translate: "0 3px", cursor: "not-allowed", filter: "opacity(0.6)" }),
           },
         },
         span(
-          { class: "material-symbols-outlined", style: { flex: "none", width: "26px", height: "26px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "white", background: themeColor.accent } },
-          text("play_arrow"),
+          { class: "material-symbols-outlined", style: { flex: "none", width: "26px", height: "26px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "white", background: enabled ? themeColor.accent : "#9aa5b1" } },
+          text(enabled ? "play_arrow" : "block"),
         ),
         span({ style: { minWidth: 0, overflowWrap: "anywhere" } }, text(source)),
       )),

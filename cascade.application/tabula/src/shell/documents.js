@@ -48,7 +48,8 @@ import { hydrate, dehydrate, Unhydrated } from "./hydration.js";
  *     outline(model),                   // optional: what is in it, for the tree mode -
  *                                       //   [{ label, icon, children }]
  *     print(model),                     // optional: its pages, for printing (see
- *                                       //   ../print/dom.js printPages())
+ *                                       //   ../print/dom.js printPages()) - or a
+ *                                       //   promise of them
  *     settingsPage(),                   // optional: its page of the settings dialog -
  *                                       //   its options (see settingsDialog.js), built there
  *     frame: {                          // optional: how it's shown in a frame, in

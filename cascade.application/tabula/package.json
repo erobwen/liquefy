@@ -18,10 +18,11 @@
     "directory": "cascade.application/tabula"
   },
   "dependencies": {
-    "@liquefy/cascade.reactive": "^2.0.0",
     "@liquefy/cascade.component": "^2.0.0",
     "@liquefy/cascade.dom": "^2.0.0",
-    "@liquefy/cascade.ui": "^2.0.0"
+    "@liquefy/cascade.reactive": "^2.0.0",
+    "@liquefy/cascade.ui": "^2.0.0",
+    "pdfjs-dist": "^6.4.299"
   },
   "devDependencies": {
     "jsdom": "^24.1.1",

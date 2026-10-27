@@ -178,12 +178,17 @@ export class TabulaApp extends Component {
   }
 
   // All of it, on paper - each document as its plugin prints it.
-  print() {
-    const pages = this.documents.flatMap((document) => {
-      const type = document.documentType;
-      return type && type.print ? type.print(document.model) : [];
-    });
-    printPages(pages, { title: this.fileName || "Tabula" }).catch((error) => { this.message = "Couldn't print it: " + error.message; });
+  // A plugin's may take a while - a PDF's, drawn page by page: waited for.
+  async print() {
+    try {
+      const pages = await Promise.all(this.documents.map((document) => {
+        const type = document.documentType;
+        return type && type.print ? type.print(document.model) : [];
+      }));
+      await printPages(pages.flat(), { title: this.fileName || "Tabula" });
+    } catch (error) {
+      this.message = "Couldn't print it: " + error.message;
+    }
   }
 
   // A change to the whole root, from the JSON mode: hydrated through the

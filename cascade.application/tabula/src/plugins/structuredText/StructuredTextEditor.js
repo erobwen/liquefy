@@ -66,6 +66,7 @@ export class StructuredTextEditor extends Component {
     u.editing = tabulaEditing(root, {
       newSectionsBeside: () => this.unobservable.settings.newSectionsBeside,
       depressedTitles: () => this.unobservable.settings.depressedTitles,
+      keepEmptyLine: () => this.unobservable.settings.keepEmptyLine,
       demoteWithChildren: () => this.unobservable.settings.demoteWithChildren,
       refuse: () => this.refused(),
     });

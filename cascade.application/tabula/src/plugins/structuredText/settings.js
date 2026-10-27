@@ -22,6 +22,9 @@ import { settingsFor } from "../../shell/settings.js";
  *  - depressedTitles: whether Enter and Backspace ever set a section
  *    further down than its place (a title offset) on the way - and whether
  *    its appearance can be adjusted so by hand.
+ *  - keepEmptyLine: whether the empty line a section is made on stays,
+ *    before it, while it's being made - gone once the caret moves on; off
+ *    (the default), the section takes its place.
  *  - demoteWithChildren: a section demoted whole, its sub-sections in it.
  *  - showFocusOutline: the flow the caret is in, outlined.
  *  - showAllAreas: every marker's area drawn at once.
@@ -31,6 +34,7 @@ export const structuredTextDefaults = Object.freeze({
   sectionEnds: "bottomRight",
   newSectionsBeside: false,
   depressedTitles: false,
+  keepEmptyLine: false,
   demoteWithChildren: true,
   showFocusOutline: false,
   showAllAreas: false,

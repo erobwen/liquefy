@@ -98,6 +98,13 @@ function documentMenu(editor) {
     }),
     note("Off: Enter on an empty line digs down first - a section under the one you're in - and each Enter after that goes a level up."),
     checkbox({
+      key: "keepEmptyLine",
+      label: "Keep the empty line a section is made on",
+      checked: settings.keepEmptyLine,
+      onChange: callback("keepEmptyLine", (checked) => { settings.keepEmptyLine = checked; }),
+    }),
+    note("Before the new section, while you make it - gone when you move on. Off: the section takes its place."),
+    checkbox({
       key: "depressedTitles",
       label: "Allow depressed titles",
       checked: settings.depressedTitles,

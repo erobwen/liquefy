@@ -28,7 +28,9 @@ describe("A structured text's context menus", function () {
     const inner = flows.children.find(isSection);
     const paragraph = inner.children[0];
     const path = contextPath(editorAt(document, textPosition(paragraph, 0)));
-    assert.deepStrictEqual(path.map((entry) => entry.title), ["Tabula", "Section", "Section", "Paragraph"]);
+    // The sections on the way by their titles - each one's key its own, collapsed until opened.
+    assert.deepStrictEqual(path.map((entry) => entry.title), ["Tabula", "Flows", "Paragraphs", "Paragraph"]);
+    assert.deepStrictEqual(path.map((entry) => entry.key), ["document", "around1", "around2", "flow"]);
     assert.strictEqual(paragraphText(document.title), "Tabula");
     assert.ok(path.every((entry) => typeof(entry.build) === "function"));
   });

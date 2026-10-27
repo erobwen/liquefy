@@ -357,6 +357,20 @@ describe("FlipAnimationContainer animations", function () {
     assert.equal(listA.style.overflow, "auto");
   });
 
+  it("what scrolls one way keeps scrolling once what appears in it has - and what clips one way, scrolls the other, gets both back", function () {
+    const { lists, element } = setup();
+    const listA = element("one").parentNode;
+    listA.style.overflowY = "auto";
+    lists.a = ["one", "two", "three", "five"];
+    runToRest();
+    assert.equal(listA.style.overflowY, "auto", "not cleared by putting back an overflow it never changed");
+    listA.style.overflowX = "hidden";
+    lists.a = ["one", "two", "three", "five", "six"];
+    assert.equal(listA.style.overflow, "visible", "it clips: unclipped meanwhile");
+    runToRest();
+    assert.deepEqual([listA.style.overflowX, listA.style.overflowY], ["hidden", "auto"]);
+  });
+
   it("nothing fades in on the container's first render", function () {
     const { element } = setup();
     assert.equal(element("one").style.opacity, "");

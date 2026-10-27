@@ -1,5 +1,6 @@
 import { Component, repeat, retractRepeater, callback, frozen } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
+import { overlay } from "@liquefy/cascade.ui";
 import { PaperSequence } from "../../print/index.js";
 import { domMeasurer } from "../../print/dom.js";
 import { tabulaEditor } from "../../paper/TabulaEditor.js";
@@ -33,6 +34,11 @@ const paperInset = 8;
  * Two modes (`mode`): "write" - the text, edited - and "page" - its page
  * layout (see ../../model/pageLayout.js, ../../paper/PageLayoutEditor.js):
  * its margins, and what's drawn on its pages, the text showing through.
+ * Laying out the pages is modal: the papers stay where they are, and over
+ * the whole paper view - the overlay frame the app gives it there (see
+ * ../../shell/TabulaApp.js), under the menus - the page layout: its three
+ * papers, the view dimmed around them. Escape, or a double click inside
+ * the margins, back to writing.
  * Chosen in the document's menu; a double click in a paper's margins goes
  * to the page layout, one inside them back to the text. What's created
  * goes where the mode says: at the caret, writing; on a page, laying out
@@ -179,26 +185,33 @@ export class StructuredTextEditor extends Component {
     const corner = `calc(${paperInset}mm * ${this.zoom})`;
     return div(
       { style: { position: "relative" } },
+      tabulaEditor({
+        key: "text",
+        sequence, root, measurer, editing, controller, zoom: this.zoom,
+        showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
+        ...sectionEnds(settings),
+        onCaret: callback("caret", (at) => this.caretMoved(at)),
+        onMarginDoubleClick: callback("pages", () => this.setMode("page")),
+      }),
       this.mode === "page"
-        ? pageLayoutEditor({
-          key: "pages",
-          document: this.model, sequence, zoom: this.zoom,
-          selected: this.selectedElement,
-          onSelect: callback("selectElement", (selection) => this.selectElement(selection)),
-          onWrite: callback("write", () => this.setMode("write")),
-          takeDragged: callback("takeDragged", () => {
-            const menus = this.inherit("contextMenus");
-            return menus ? menus.takeDragged() : null;
-          }),
-        })
-        : tabulaEditor({
-          key: "text",
-          sequence, root, measurer, editing, controller, zoom: this.zoom,
-          showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
-          ...sectionEnds(settings),
-          onCaret: callback("caret", (at) => this.caretMoved(at)),
-          onMarginDoubleClick: callback("pages", () => this.setMode("page")),
-        }),
+        ? overlay(
+          { key: "pageLayout", showing: true },
+          div(
+            { style: pageLayoutCoverStyle },
+            pageLayoutEditor({
+              key: "pages",
+              document: this.model, sequence, zoom: this.zoom,
+              selected: this.selectedElement,
+              onSelect: callback("selectElement", (selection) => this.selectElement(selection)),
+              onWrite: callback("write", () => this.setMode("write")),
+              takeDragged: callback("takeDragged", () => {
+                const menus = this.inherit("contextMenus");
+                return menus ? menus.takeDragged() : null;
+              }),
+            }),
+          ),
+        )
+        : null,
       this.onRemove ? removeButton(this.onRemove, { left: corner, top: corner }) : null,
       // A new one every time - keyed by the count - so it flashes again.
       this.flash && this.flash.shown
@@ -207,6 +220,13 @@ export class StructuredTextEditor extends Component {
     );
   }
 }
+
+// Over the paper view, laying out the pages: the view dimmed, the page
+// layout's papers on it, scrolling on their own.
+const pageLayoutCoverStyle = {
+  position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "auto",
+  background: "rgba(48, 52, 58, 0.5)", pointerEvents: "auto",
+};
 
 // Where a section's end is, for the caret (see settings.js), as the editor
 // has it (see ../../paper/markers.js): "below" a bar under its last line;

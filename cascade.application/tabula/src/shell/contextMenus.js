@@ -1,5 +1,6 @@
-import { Component, observable, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
+import { Component, observable, accessInitialValues, withoutRecording, callback } from "@liquefy/cascade.component";
 import { div, span, text } from "@liquefy/cascade.dom";
+import { icon } from "./appStyle.js";
 import { card } from "@liquefy/cascade.ui";
 import { infoButton } from "../InfoButton.js";
 
@@ -16,15 +17,14 @@ import { infoButton } from "../InfoButton.js";
  *
  *   contextPath() -> [{ key, icon, title, details, build }, ...]
  *
- * `build()` makes the menu's content - components, built by the slot
+ * `build()` makes the menu's content - components, built by the card
  * showing it, so they follow whatever they read. `details()`, optional:
  * what's good to know but needn't take room, behind an info button.
  *
- * The layouts have two slots, for now (contextMenuSlot()): the root's menu
- * - "root", the path's first entry - and the focused leaf's - "focus", its
- * last (none, if the root is all there is). What's between them is in the
- * path already, for when the whole of it is shown, an accordion from the
- * root down.
+ * The layouts show the whole path as an accordion (contextAccordion()): a
+ * card for each entry, from the root down to the leaf, each collapsing to
+ * its title's row - the sections on the way to the leaf collapsed, until
+ * opened. An entry's `key` is what its being collapsed is remembered by.
  *
  * The focus is taken by whatever gets it (`focus(owner)`, an object with
  * `contextPath()` - an editor, typically, when its caret is placed), and
@@ -45,6 +45,9 @@ import { infoButton } from "../InfoButton.js";
  */
 export class ContextMenus {
   constructor() {
+    // Which of the accordion's entries are collapsed, by key - those not
+    // in it as by default (see collapsed()).
+    this.collapsedEntries = {};
     this.owner = null;
     this.dragged = null;
     return observable(this);
@@ -66,6 +69,18 @@ export class ContextMenus {
 
   path() {
     return this.owner ? this.owner.contextPath() : [];
+  }
+
+  // Whether the accordion's entry of `key` is collapsed to its row: as it
+  // was left - or, never touched, the sections on the way to the leaf
+  // (their keys "around...") collapsed, the rest open.
+  collapsed(key) {
+    const entries = this.collapsedEntries;
+    return key in entries ? entries[key] : key.startsWith("around");
+  }
+
+  toggle(key) {
+    this.collapsedEntries = Object.freeze({ ...this.collapsedEntries, [key]: !this.collapsed(key) });
   }
 
   insertPlace() {
@@ -90,50 +105,80 @@ export class ContextMenus {
   }
 }
 
-// The menu at one end of the focused path, as a card: its title - and
-// details behind an info button - and its content. Nothing, with no menu
-// there.
+// The context accordion: a card for every entry of a path - the root's
+// first, down to the focused leaf's - each with its title on a row of its
+// own, and under it, unless it's collapsed to that row, its menu. A click
+// on the row collapses it, or opens it again - remembered by the entry's
+// key, in `menus` (see ContextMenus' collapsed()). `entries`: the path,
+// whatever goes in front of it included (the app's view, say - see
+// layouts.js).
 //
-//   contextMenuSlot({ menus, which: "root" | "focus", style })
-export class ContextMenuSlot extends Component {
-  setProperties({ menus, which, style }) {
+//   contextAccordion({ menus, entries, flat })
+//
+// `flat`: cards with a border, no shadow - in a column of their own rather
+// than floating over the papers.
+export class ContextAccordion extends Component {
+  setProperties({ menus, entries, flat = false }) {
     this.menus = menus;
-    this.which = which;
-    this.style = style || {};
-  }
-
-  entry() {
-    const path = this.menus.path();
-    if (this.which === "root") return path[0] || null;
-    return path.length > 1 ? path[path.length - 1] : null;
+    this.entries = entries || [];
+    this.flat = !!flat;
   }
 
   build() {
-    const entry = this.entry();
-    if (!entry) return div({ style: { display: "none" } });
+    return this.entries.map((entry) => new AccordionCard({ key: "entry-" + entry.key, entry, menus: this.menus, flat: this.flat }));
+  }
+}
+
+// One entry's card - a component of its own, so what its menu is built of
+// is keyed in it alone, whatever the other entries' are.
+class AccordionCard extends Component {
+  setProperties({ entry, menus, flat }) {
+    this.entry = entry;
+    this.menus = menus;
+    this.flat = flat;
+  }
+
+  build() {
+    const { entry, menus } = this;
+    const collapsed = menus.collapsed(entry.key);
     return card(
-      { style: { ...slotStyle, ...this.style } },
+      { style: { ...cardStyle, ...(this.flat ? flatStyle : {}) } },
       div(
-        { style: { display: "flex", alignItems: "center", gap: "8px" } },
-        span({ class: "material-symbols-outlined", style: { fontSize: "18px", color: "#5f6368" } }, text(entry.icon || "tune")),
-        div({ style: { flex: "1", fontWeight: "bold", fontSize: "15px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, text(entry.title)),
-        entry.details ? infoButton({ key: "details", title: "About it", details: entry.details() }) : null,
+        {
+          key: "row",
+          title: collapsed ? "Open it" : "Collapse it",
+          onclick: callback("toggle", () => menus.toggle(entry.key)),
+          style: rowStyle,
+        },
+        icon(entry.icon || "tune", { color: "#5f6368" }),
+        div({ style: titleStyle }, text(entry.title)),
+        entry.details
+          ? span({ onclick: (event) => event.stopPropagation(), style: { display: "flex" } }, infoButton({ key: "details", title: "About it", details: entry.details() }))
+          : null,
+        icon(collapsed ? "expand_more" : "expand_less", { color: "#5f6368" }),
       ),
-      entry.build(),
+      collapsed ? null : div({ key: "menu", style: menuStyle }, entry.build()),
     );
   }
 }
 
-export const contextMenuSlot = (...parameters) => new ContextMenuSlot(...parameters);
+export const contextAccordion = (...parameters) => new ContextAccordion(...parameters);
 
 // What a menu is made of - for the menus' own builds.
 export const menuHeading = (label) => div({ style: { fontWeight: "bold", fontSize: "13px", margin: "6px 0 0" } }, text(label));
 export const menuNote = (words) => div({ style: { opacity: 0.7, fontSize: "12px" } }, text(words));
 
-const slotStyle = {
-  boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "6px",
-  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.18)", pointerEvents: "auto",
+const cardStyle = {
+  boxSizing: "border-box", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden",
+  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.16)", pointerEvents: "auto", flex: "none",
 };
+const flatStyle = { boxShadow: "none", border: "1px solid #dadce0" };
+const rowStyle = {
+  display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px 7px 12px", cursor: "pointer", userSelect: "none",
+  background: "#f1f3f4", minHeight: "34px", boxSizing: "border-box",
+};
+const titleStyle = { flex: "1", fontWeight: 600, fontSize: "14px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+const menuStyle = { display: "flex", flexDirection: "column", gap: "6px", padding: "8px 12px 12px" };
 
 // For a component taking the focus - its caret placed, a field of it
 // focused: the context menus it's placed under (provided as

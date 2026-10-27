@@ -13,7 +13,8 @@ import { printPages } from "../print/dom.js";
 import { paperLayout, appLayout, documentCard, appBackdrop } from "./layouts.js";
 import { ContextMenus } from "./contextMenus.js";
 import { Settings, settingsLocator, appSettingsDefaults } from "./settings.js";
-import { settingsDialog, settingGroup, settingOption, settingSwitch } from "./settingsDialog.js";
+import { settingsDialog, settingGroup, settingOption, settingSwitch, settingChoice } from "./settingsDialog.js";
+import { addAppStyle, iconSizeStyle } from "./appStyle.js";
 
 const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -106,6 +107,7 @@ export class TabulaApp extends Component {
   onEstablish() {
     super.onEstablish();
     if (typeof(document) === "undefined") return;
+    addAppStyle(document);
     const keys = (event) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
@@ -208,6 +210,7 @@ export class TabulaApp extends Component {
 
   build() {
     const mode = modes.find((each) => each.name === this.mode);
+    const app = this.settings.section("tabula", appSettingsDefaults);
     const parts = {
       actions: this.actions(),
       creations: this.creations(),
@@ -227,10 +230,20 @@ export class TabulaApp extends Component {
         // layout too, and the settings, whose pages read theirs.
         serviceProvider({
           serviceLocator: this.unobservable.locator,
+          // Its look - thin scroll bars, its icons' size - Tabula's own (see
+          // appStyle.js).
           child: div(
-            { style: { ...fitContainerStyle } },
+            { class: "tabula-app", style: { ...fitContainerStyle, ...iconSizeStyle(app.iconSize) } },
             mode.layout === "paper"
-              ? paperLayout({ ...parts, zoom: this.documents.length > 0 ? this.zoom : null, onZoom: callback("zoom", (steps) => this.zoomBy(steps)) })
+              ? paperLayout({
+                ...parts,
+                // On paper, the view - the papers, the grey around them - is a
+                // frame of its own for what covers it: a document's page
+                // layout, say, the menus still over it.
+                content: overlayFrame({ key: "paperView", style: { ...fitContainerStyle } }, parts.content),
+                zoom: this.documents.length > 0 ? this.zoom : null,
+                onZoom: callback("zoom", (steps) => this.zoomBy(steps)),
+              })
               : appLayout(parts),
             this.settingsOverlay(),
           ),
@@ -410,6 +423,15 @@ export class TabulaApp extends Component {
     const app = this.settings.section("tabula", appSettingsDefaults);
     return [
       settingGroup("Appearance"),
+      settingOption({
+        title: "Icon size",
+        description: "Every icon - in the cards, the menus, the buttons.",
+        control: settingChoice({
+          choices: [{ value: "small", label: "Small" }, { value: "medium", label: "Medium" }, { value: "large", label: "Large" }],
+          value: app.iconSize,
+          onChoose: (value) => { app.iconSize = value; },
+        }),
+      }),
       settingOption({
         title: "Creation dots",
         description: "The dots and triangles that create something where they are.",

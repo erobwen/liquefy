@@ -50,7 +50,10 @@ export function contextPath(editor) {
   // path is shown. The document is the first of them, already there.
   for (const [index, section] of focus.around.entries()) {
     if (index === 0) continue;
-    path.push(flowEntry(editor, section, focus.around.slice(0, index)));
+    // Keyed by how deep: collapsed, until opened (see
+    // ../../shell/contextMenus.js).
+    // Titled as it is - telling one from the next, collapsed.
+    path.push({ ...flowEntry(editor, section, focus.around.slice(0, index)), key: "around" + index, title: paragraphText(section.title) || titlePlaceholder });
   }
   path.push(flowEntry(editor, focus.flow, focus.around));
   const anchor = anchorAt(editor.caret);

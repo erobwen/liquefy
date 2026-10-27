@@ -118,4 +118,6 @@ export function persistSettings(key) {
 
 // The app's own settings (the "tabula" section): the creation dot's color -
 // the blue of the structured text's placeholders, unless it's picked.
-export const appSettingsDefaults = Object.freeze({ creationColor: "#4285f4" });
+// iconSize: "small", "medium" or "large" - every icon in the UI (see
+// appStyle.js).
+export const appSettingsDefaults = Object.freeze({ creationColor: "#4285f4", iconSize: "small" });

@@ -4,7 +4,6 @@ import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
 import { mm } from "../print/index.js";
 import { pageKinds, elementRect, placeElement, PageElement } from "../model/pageLayout.js";
 import { frameKind } from "../model/frames.js";
-import { paperBackdrop } from "./TabulaPaperView.js";
 import { frameView } from "./FrameView.js";
 import { pageElementView } from "./PageElementView.js";
 
@@ -29,8 +28,13 @@ import { pageElementView } from "./PageElementView.js";
  *  - Something dropped on a paper - dragged from the creation menu -
  *    becomes an element there, where it's dropped: `takeDragged()` gives
  *    what's being dragged (see ../shell/contextMenus.js).
- *  - A double click inside the margins: back to writing (`onWrite()`).
+ *  - A double click inside the margins, or Escape: back to writing
+ *    (`onWrite()`).
  *  - Delete or Backspace: the element selected taken out.
+ *
+ * Drawn on nothing: on whatever it's shown over (see
+ * ../plugins/structuredText/StructuredTextEditor.js - a modal over the
+ * paper view).
  */
 export class PageLayoutEditor extends Component {
   setProperties({ document, sequence, zoom = 1, selected = null, onSelect, onWrite, takeDragged }) {
@@ -44,11 +48,26 @@ export class PageLayoutEditor extends Component {
   }
 
   initialUnobservables() {
-    return { endDrag: null };
+    return { endDrag: null, removeEscape: null };
+  }
+
+  // Escape, wherever the keyboard is: back to writing.
+  onEstablish() {
+    super.onEstablish();
+    if (typeof(document) === "undefined") return;
+    const escape = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      this.onWrite();
+    };
+    document.addEventListener("keydown", escape);
+    this.unobservable.removeEscape = () => document.removeEventListener("keydown", escape);
   }
 
   onDispose() {
-    if (this.unobservable.endDrag) this.unobservable.endDrag();
+    const u = this.unobservable;
+    if (u.endDrag) u.endDrag();
+    if (u.removeEscape) u.removeEscape();
     super.onDispose();
   }
 
@@ -75,7 +94,7 @@ export class PageLayoutEditor extends Component {
         onkeydown: callback("key", (event) => this.key(event)),
         style: {
           display: "flex", flexDirection: "column", alignItems: "center", gap: "3mm", padding: "6mm 8mm 8mm",
-          background: paperBackdrop, boxSizing: "border-box", width: "fit-content", minWidth: "100%", zoom: this.zoom, outline: "none",
+          boxSizing: "border-box", width: "fit-content", minWidth: "100%", zoom: this.zoom, outline: "none",
         },
       },
       pageKinds.map(({ name, label }) => div(
@@ -312,4 +331,4 @@ const distance = (micrometers, place) => span(
 );
 
 const referenceStyle = { position: "absolute", pointerEvents: "none" };
-const labelStyle = { fontFamily: "sans-serif", fontSize: "12px", color: "#5f6368", marginTop: "2mm" };
+const labelStyle = { fontFamily: "sans-serif", fontSize: "12px", color: "white", marginTop: "2mm", textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" };

@@ -628,7 +628,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // `clip`): what scrolls (`auto`, `scroll`) keeps scrolling.
   //
   // Put back as it was as soon as nothing in it is appearing any more - or
-  // right away, if the container confines what appears.
+  // right away, if the container confines what appears. Its overflow only
+  // if it was changed - and all of it, the shorthand and both longhands:
+  // the shorthand alone, written back empty, would clear an `overflowY`
+  // given on its own, and an element scrolling one way would scroll no more.
   lift() {
     const u = this.unobservable;
     const lifting = new Set();
@@ -644,11 +647,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const element of lifting) {
       if (u.lifted.has(element)) continue;
       const style = element.ownerDocument.defaultView.getComputedStyle(element);
-      u.lifted.set(element, { zIndex: element.style.zIndex, position: this.positionOf(element), overflow: element.style.overflow });
+      const clips = (value) => value === "hidden" || value === "clip";
+      const clipped = clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow);
+      const { overflow, overflowX, overflowY } = element.style;
+      u.lifted.set(element, { zIndex: element.style.zIndex, position: this.positionOf(element), overflow: clipped ? { overflow, overflowX, overflowY } : null });
       if (!style.position || style.position === "static") element.style.position = "relative";
       element.style.zIndex = "1";
-      const clips = (value) => value === "hidden" || value === "clip";
-      if (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) element.style.overflow = "visible";
+      if (clipped) element.style.overflow = "visible";
     }
   }
 
@@ -658,7 +663,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     if (!saved) return;
     element.style.zIndex = saved.zIndex;
     this.setPosition(element, saved.position);
-    element.style.overflow = saved.overflow;
+    if (saved.overflow) {
+      element.style.overflow = saved.overflow.overflow;
+      element.style.overflowX = saved.overflow.overflowX;
+      element.style.overflowY = saved.overflow.overflowY;
+    }
     u.lifted.delete(element);
   }
 

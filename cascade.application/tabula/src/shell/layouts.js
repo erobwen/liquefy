@@ -1,7 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, span, text, button as htmlButton } from "@liquefy/cascade.dom";
 import { card, iconButton, fitContainerStyle, drawers, drawerPanel, drawerBarSize } from "@liquefy/cascade.ui";
-import { infoButton } from "../InfoButton.js";
 import { contextMenuSlot } from "./contextMenus.js";
 
 /**
@@ -10,8 +9,8 @@ import { contextMenuSlot } from "./contextMenus.js";
  * and hands them to the mode's layout, which places them where it likes:
  *
  *  - `actions`: what can be done with the document - new, open, save,
- *    print - each `{ icon, label, title, onClick, disabled }`.
- *  - `settings`: what's set up - the plugins in use (components).
+ *    print, the settings (a modal dialog, see settingsDialog.js) - each
+ *    `{ icon, label, title, onClick, disabled }`.
  *  - `modes`, `mode`, `onMode(name)`: the mode selector.
  *  - `content`: the documents, as the mode shows them.
  *  - `menus`: the context menus of whatever has the focus (see
@@ -25,7 +24,7 @@ import { contextMenuSlot } from "./contextMenus.js";
  *    root's above the leaf's), the mode's and the zoom's bottom right. Zoom is paper's alone (`zoom`, `onZoom(steps)`; null when
  *    there's nothing to zoom).
  *  - AppLayout - for the web, JSON and the tree: an application's frame - a
- *    drawer on the left (the file and the settings; a bar of shortcuts when
+ *    drawer on the left (the actions; a bar of shortcuts when
  *    closed), a bar along the bottom (what's open, the mode), and the
  *    context menus in a column on the right, while something has the focus -
  *    the content between them.
@@ -62,8 +61,8 @@ function modeButtons({ modes, mode, onMode, labels }) {
 const activeStyle = { background: "#d3e3fd", color: "#0b57d0" };
 
 export class PaperLayout extends Component {
-  setProperties({ actions, settings, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom }) {
-    Object.assign(this, { actions, settings, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom });
+  setProperties({ actions, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom }) {
+    Object.assign(this, { actions, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom });
   }
 
   build() {
@@ -75,7 +74,6 @@ export class PaperLayout extends Component {
         div(
           { style: { display: "flex", alignItems: "center", gap: "2px" } },
           this.actions.map((action) => iconButton({ icon: action.icon, title: action.title, disabled: action.disabled, onClick: action.onClick })),
-          infoButton({ key: "settings", icon: "settings", title: "Settings", details: this.settings }),
         ),
         this.fileName ? note(this.fileName) : null,
         this.message ? errorNote(this.message) : null,
@@ -105,8 +103,8 @@ export class PaperLayout extends Component {
 }
 
 export class AppLayout extends Component {
-  setProperties({ actions, settings, modes, mode, onMode, content, menus, fileName, message }) {
-    Object.assign(this, { actions, settings, modes, mode, onMode, content, menus, fileName, message });
+  setProperties({ actions, modes, mode, onMode, content, menus, fileName, message }) {
+    Object.assign(this, { actions, modes, mode, onMode, content, menus, fileName, message });
   }
 
   initialState() {
@@ -151,7 +149,7 @@ export class AppLayout extends Component {
     );
   }
 
-  // The drawer, open: the actions, with their names - and the settings.
+  // The drawer, open: the actions, with their names.
   panel() {
     return div(
       { style: { display: "flex", flexDirection: "column", gap: "2px", padding: "4px 8px 16px" } },
@@ -169,8 +167,6 @@ export class AppLayout extends Component {
         span({ class: "material-symbols-outlined", style: { fontSize: "20px", color: "#5f6368" } }, text(action.icon)),
         text(action.label),
       )),
-      div({ style: { borderTop: "1px solid #e0e0e0", margin: "8px 0" } }),
-      div({ style: { display: "flex", flexDirection: "column", gap: "6px", padding: "0 10px" } }, this.settings.flat(Infinity)),
     );
   }
 

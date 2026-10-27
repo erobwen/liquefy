@@ -4,8 +4,6 @@ import { button, checkbox, iconButton, row } from "@liquefy/cascade.ui";
 import { paperSizes, margins, mm, inch } from "../../print/index.js";
 import { Paragraph, Document, isSection, paragraphText, titleLevel, focusedFlow } from "../../model/flows.js";
 import { titlePlaceholder } from "../../layout/DocumentLayout.js";
-import { markerTypes } from "../../paper/markers.js";
-import { infoButton } from "../../InfoButton.js";
 import { menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
 
 /**
@@ -14,8 +12,8 @@ import { menuHeading as heading, menuNote as note } from "../../shell/contextMen
  * path from the document down to the flow the caret is in:
  *
  *  - the document - what goes for all of it: its paper, its titles
- *    numbered, its paragraphs indented, how it's edited (the experimental
- *    settings behind a cogwheel), clearing it;
+ *    numbered, its paragraphs indented, clearing it - and the way to how
+ *    it's edited: the settings dialog's page for it (see settingsPage.js);
  *  - every section the caret is in, on the way down;
  *  - the flow the caret is in - a section: where it is in the structure,
  *    how its title looks; a paragraph: making it a title, moving it out.
@@ -65,7 +63,6 @@ const paperMargins = { A4: margins(mm(25)), letter: margins(inch(1)) };
 
 function documentMenu(editor) {
   const document = editor.model;
-  const settings = editor.settings;
   const pages = editor.pageCount();
   return [
     heading("Paper"),
@@ -89,75 +86,21 @@ function documentMenu(editor) {
       checked: document.indentParagraphs,
       onChange: callback("indentParagraphs", (checked) => { document.indentParagraphs = checked; }),
     }),
-    heading("Editing"),
-    checkbox({
-      key: "newSectionsBeside",
-      label: "New sections on the same level",
-      checked: settings.newSectionsBeside,
-      onChange: callback("newSectionsBeside", (checked) => { settings.newSectionsBeside = checked; }),
-    }),
-    note("Off: Enter on an empty line digs down first - a section under the one you're in - and each Enter after that goes a level up."),
-    checkbox({
-      key: "keepEmptyLine",
-      label: "Keep the empty line a section is made on",
-      checked: settings.keepEmptyLine,
-      onChange: callback("keepEmptyLine", (checked) => { settings.keepEmptyLine = checked; }),
-    }),
-    note("Before the new section, while you make it - gone when you move on. Off: the section takes its place."),
-    checkbox({
-      key: "depressedTitles",
-      label: "Allow depressed titles",
-      checked: settings.depressedTitles,
-      onChange: callback("depressedTitles", (checked) => { settings.depressedTitles = checked; }),
-    }),
-    note("A title set further down than its place - only how it looks. Off: Enter and Backspace never set one so, and its appearance can't be adjusted."),
     row(
       { style: { gap: "6px", alignItems: "center" } },
       button({}, "Clear", callback("clear", () => clear(document))),
       div({ style: { flex: "1" } }),
-      infoButton({ key: "experimental", icon: "settings", title: "Experimental - where the caret goes, and what's shown", details: experimentalSettings(settings) }),
+      iconButton({ icon: "settings", title: "Editing settings - how structured text is edited", onClick: callback("editingSettings", () => openSettings(editor)) }),
     ),
   ];
 }
 
-// For experimenting: which places the caret goes to besides the text,
-// sections' ends below their last line or beside it - and what's shown.
-function experimentalSettings(settings) {
-  return [
-    heading("Caret goes to"),
-    // Section ends: below, for their own.
-    markerTypes.filter(({ type }) => type !== "sectionEnd").map(({ type, label }) => checkbox({
-      key: type,
-      label,
-      checked: settings.markerTypes[type] !== false,
-      onChange: (checked) => { settings.markerTypes = Object.freeze({ ...settings.markerTypes, [type]: checked }); },
-    })),
-    heading("Section ends"),
-    row(
-      { style: { gap: "6px" } },
-      sectionEndChoices.map(({ value, label }) => button(
-        { key: "sectionEnds" + value, variant: settings.sectionEnds === value ? "filled" : undefined },
-        label,
-        () => { settings.sectionEnds = value; },
-      )),
-    ),
-    note("Where the caret finds a section's end - Backspace there takes the whole section out. Bottom right: beside its last line, out of the way."),
-    heading("Show"),
-    checkbox({
-      key: "focusOutline",
-      label: "Outline around what the caret is in",
-      checked: settings.showFocusOutline,
-      onChange: (checked) => { settings.showFocusOutline = checked; },
-    }),
-    checkbox({ key: "allAreas", label: "Every marker's area", checked: settings.showAllAreas, onChange: (checked) => { settings.showAllAreas = checked; } }),
-  ];
+// The settings dialog, on structured text's page (see
+// ../../shell/TabulaApp.js) - from the app the editor is in.
+function openSettings(editor) {
+  const open = editor.inherit("openSettings");
+  if (open) open("structuredText");
 }
-
-const sectionEndChoices = [
-  { value: "bottomRight", label: "Bottom right" },
-  { value: "below", label: "Below" },
-  { value: "none", label: "None" },
-];
 
 const sameSize = (paper, size) => paper.width === size.width && paper.height === size.height;
 
@@ -224,7 +167,6 @@ function paragraphControls(editor, paragraph) {
 // the rest. The document changes.
 function structureControls(editor, section, around) {
   const { editing } = editor.unobservable;
-  const settings = editor.settings;
   return [
     heading("Structure"),
     row(
@@ -240,16 +182,6 @@ function structureControls(editor, section, around) {
         disabled: !editing.canDemoteIntoSection(section), onClick: callback("demote", () => inOneGo(() => editing.demoteSection(section))),
       }),
     ),
-    // Demoting (+, Tab) takes its sub-sections along - or leaves them after
-    // it, in the section it goes into. Promoting always takes them along.
-    section.children.some(isSection)
-      ? checkbox({
-        key: "includeSubSections",
-        label: "Include sub-sections",
-        checked: settings.demoteWithChildren,
-        onChange: callback("includeSubSections", (checked) => { settings.demoteWithChildren = checked; }),
-      })
-      : null,
     editing.canMakeParagraphs(section)
       ? button({ key: "makeParagraph" }, "Make into paragraph", callback("makeParagraph", () => inOneGo(() => editing.makeParagraphs(section))))
       : null,

@@ -38,6 +38,8 @@
  *                                       //   [{ label, icon, children }]
  *     print(model),                     // optional: its pages, for printing (see
  *                                       //   ../print/dom.js printPages())
+ *     settingsPage(),                   // optional: its page of the settings dialog -
+ *                                       //   its options (see settingsDialog.js), built there
  *   }
  *
  * `target` is what the app renders onto (its mode, see TabulaApp.js):

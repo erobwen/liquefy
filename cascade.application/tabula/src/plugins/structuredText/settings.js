@@ -6,7 +6,7 @@ import { settingsFor } from "../../shell/settings.js";
  * are: they're the document's, see ../../model/flows.js). The
  * "structuredText" section of Tabula's settings (see
  * ../../shell/settings.js): one for all of them, wherever they are, kept
- * between visits - changed from a document's context menu (see menus.js).
+ * between visits - changed in the settings dialog (see settingsPage.js).
  * The classic app's settings, all of them (see ../../Tabula.js):
  *
  *  - markerTypes: which kinds of marker the caret goes to besides the text
@@ -19,7 +19,13 @@ import { settingsFor } from "../../shell/settings.js";
  *    from a blank paragraph on the level of the section it's in, or of
  *    what comes after it, at once; off (the default), digging down first
  *    (see ../../paper/editing.js's ladder).
- *  - depressedTitles: whether Enter and Backspace ever set a section
+ *  - exitTitles, depressedTitles: the two fundamental ones - whether a
+ *    document may get exit titles ("end titles": a section with text after
+ *    it, in the section around) and depressed ones; the rules never take a
+ *    path that makes one, and any change that would is refused (see
+ *    ../../paper/editing.js's guarded()). End titles allowed, depressed ones
+ *    not, by default.
+ *  - depressedTitles, besides: whether Enter and Backspace ever set a section
  *    further down than its place (a title offset) on the way - and whether
  *    its appearance can be adjusted so by hand.
  *  - keepEmptyLine: whether the empty line a section is made on stays,
@@ -33,6 +39,7 @@ export const structuredTextDefaults = Object.freeze({
   markerTypes: Object.freeze({ paragraphStart: false, paragraphEnd: false, titleStart: false, sectionStart: false }),
   sectionEnds: "bottomRight",
   newSectionsBeside: false,
+  exitTitles: true,
   depressedTitles: false,
   keepEmptyLine: false,
   demoteWithChildren: true,

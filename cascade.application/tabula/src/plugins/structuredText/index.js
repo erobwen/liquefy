@@ -5,6 +5,7 @@ import { documentToJSON, documentFromJSON } from "./json.js";
 import { structuredTextEditor } from "./StructuredTextEditor.js";
 import { structuredTextWeb } from "./StructuredTextWeb.js";
 import { printPapers, outline } from "./output.js";
+import { structuredTextSettingsPage } from "./settingsPage.js";
 
 /**
  * Structured text - Tabula's first kind of document: a tree of flows,
@@ -27,6 +28,7 @@ export const structuredText = {
   title: (model) => paragraphText(model.title),
   print: (model) => printPapers(model),
   outline: (model) => outline(model),
+  settingsPage: () => structuredTextSettingsPage(),
 };
 
 export const structuredTextPlugin = documentPlugin({

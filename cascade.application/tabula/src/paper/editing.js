@@ -1,6 +1,6 @@
 import {
   Paragraph, Section, Document, isSection, isParagraph, isFlowEdge,
-  textPosition, samePosition, paragraphText, makeSpan,
+  textPosition, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
 } from "../model/flows.js";
 import { readingOrder } from "./markers.js";
 
@@ -20,7 +20,7 @@ import { readingOrder } from "./markers.js";
  * left out, going down as beside (lowestRung()). `refuse()`: told when what
  * was asked for can't be done - a flash, say. `demoteWithChildren()`, likewise: whether a
  * section demoted into the one before it goes whole, its sections in it too
- * (moveInto()) - or, by default, flattened, its sections after it there
+ * (mergeInto(), whole) - or, by default, flattened, its sections after it there
  * (mergeInto()): what promoting it again undoes exactly.
  *
  * In the text - a paragraph's, or a title's - as in any word processor:
@@ -48,12 +48,12 @@ import { readingOrder } from "./markers.js";
  *
  *  - Enter on an empty paragraph: a section in its place, holding the
  *    paragraphs after it in its list, up to the next section; the caret at
- *    the start of its (empty) title (sectionFrom()).
+ *    the start of its (empty) title (sectionOnLine()).
  *  - Or: Enter at the start of a paragraph, an empty one before it - as
  *    Enter at its start leaves: the paragraph promoted, the title of a
  *    section in their place, the empty one gone, holding the paragraphs
  *    after it up to the next section; the caret at the start of its title
- *    (promote()). Backspace there makes it a paragraph again.
+ *    (sectionOnLine()). Backspace there makes it a paragraph again.
  *  - Either way, the new section is put on the lowest rung of a ladder
  *    (placeNewSection()): going down - with sections after it, at their
  *    level but depressed (a title offset), else in the section it's in, a
@@ -122,47 +122,55 @@ import { readingOrder } from "./markers.js";
  *
  * Whatever else leaves everything as it is.
  */
-export function tabulaEditing(root, { newSectionsBeside = () => true, depressedTitles = () => true, keepEmptyLine = () => false, demoteWithChildren = () => false, refuse = () => {} } = {}) {
-  // The empty lines left behind by sections made on them (sectionFrom(),
-  // promote()) - there while the section is being made, Enter after Enter,
+export function tabulaEditing(root, { newSectionsBeside = () => true, depressedTitles = () => true, exitTitles = () => true, keepEmptyLine = () => false, demoteWithChildren = () => false, refuse = () => {} } = {}) {
+  // The empty lines left behind by sections made on them (sectionOnLine())
+  // - there while the section is being made, Enter after Enter,
   // gone once the caret moves on (settle()).
   const leftBehind = new Set();
-  const options = { newSectionsBeside, depressedTitles, keepEmptyLine, demoteWithChildren, refuse, leftBehind };
+  const options = { newSectionsBeside, depressedTitles, exitTitles, keepEmptyLine, demoteWithChildren, refuse, leftBehind };
+  // Every change, kept from making what isn't allowed (see guarded()) -
+  // where it stays as it was: the caret, or false.
+  const at = (change) => guarded(root, options, change, (position) => position);
+  const done = (change) => guarded(root, options, change, () => false);
   return {
-    insertText: (at, text) => insertText(root, at, text, options),
-    deleteBackward: (at) => deleteBackward(root, at, options),
-    deleteForward: (at) => deleteForward(root, at),
-    splitParagraph: (at) => pressEnter(root, at, options),
-    tab: (at, { shift = false } = {}) => pressTab(root, at, shift, options),
+    insertText: (position, text) => text.includes("\n")
+      ? at((position) => insertText(root, position, text, options))(position)
+      : insertText(root, position, text, options),
+    deleteBackward: at((position) => deleteBackward(root, position, options)),
+    deleteForward: at((position) => deleteForward(root, position)),
+    splitParagraph: at((position) => pressEnter(root, position, options)),
+    tab: (position, { shift = false } = {}) => at((position) => pressTab(root, position, shift, options))(position),
     // For a section's structure, outside the text - a panel's buttons:
     canPromote: (section) => canPromote(root, section),
     canDemote: (section) => canDemote(root, section),
     // Whether demoting it moves it into a section - to a title level of its
     // own still - not, with none before it, making it paragraphs.
     canDemoteIntoSection: (section) => canDemoteIntoSection(root, section),
-    promoteSection: (section) => !!splitOff(root, section),
-    demoteSection: (section) => !!demote(root, section, undefined, options),
+    promoteSection: done((section) => !!splitOff(root, section)),
+    demoteSection: done((section) => !!demote(root, section, undefined, options)),
     // A leaf section - none inside it - made paragraphs again, in its place
     // (flatten()): its title one, unless empty, and what it held.
     canMakeParagraphs: (section) => canMakeParagraphs(root, section),
-    makeParagraphs: (section) => {
+    makeParagraphs: done((section) => {
       if (!canMakeParagraphs(root, section)) return false;
       const { list, index } = locate(root, section);
       flatten(list, index, textPosition(section.title, 0));
       return true;
-    },
+    }),
     // A paragraph, and all after it in its section, moved out of it: after
     // the section, a level up (moveOut()).
-    canMoveOut: (paragraph) => canMoveOut(root, paragraph),
-    moveOut: (paragraph) => moveOut(root, paragraph),
+    // Never with no exit titles allowed: the section, a paragraph after it
+    // then, would have one.
+    canMoveOut: (paragraph) => on(exitTitles, true) && canMoveOut(root, paragraph),
+    moveOut: done((paragraph) => moveOut(root, paragraph)),
     // A paragraph made a section's title - as Shift+Tab in it (promote()).
-    promoteParagraph: (paragraph) => {
+    promoteParagraph: done((paragraph) => {
       const place = locate(root, paragraph);
       if (!place || !place.list || !isSection(place.list)) return false;
       promote(place.list, place.index);
       return true;
-    },
-    deleteBetween: (anchor, focus) => deleteBetween(root, anchor, focus),
+    }),
+    deleteBetween: (anchor, focus) => guarded(root, options, () => deleteBetween(root, anchor, focus), () => focus)(),
     // The caret moved on - not by an edit, but going somewhere (an arrow, a
     // click) - to `at` (null: nowhere): see settle().
     settle: (at) => settle(root, at, leftBehind),
@@ -172,6 +180,87 @@ export function tabulaEditing(root, { newSectionsBeside = () => true, depressedT
 }
 
 const isText = (at) => !!at && "paragraph" in at;
+
+/**
+ * What's allowed in a document - its two fundamental settings: exit titles
+ * (`exitTitles()`) and depressed titles (`depressedTitles()`), both allowed
+ * unless said otherwise. The rules themselves take no path that makes
+ * either, where they can help it - a depressed rung left out (lowestRung()),
+ * an empty line put inside a section rather than after it (lineBefore()) -
+ * and every change is checked besides: one that gives either to a section
+ * that hadn't it is undone, all of it, before anything is shown, and refused
+ * (`refuse()`: a flash where it was asked for) - whatever it was, by key or
+ * by button, and however it got there. What's there already stays: a
+ * document opened with some is edited as it is, only never given more.
+ */
+function guarded(root, options, change, otherwise) {
+  return (...parameters) => {
+    const exits = on(options.exitTitles, true);
+    const depressed = depressing(options);
+    if (exits && depressed) return change(...parameters);
+    const before = marked(root);
+    const saved = snapshot(root, options.leftBehind);
+    const result = change(...parameters);
+    const after = marked(root);
+    const gained = (kind) => [...after[kind]].some((section) => !before[kind].has(section));
+    if ((!exits && gained("exits")) || (!depressed && gained("depressed"))) {
+      restore(saved, options.leftBehind);
+      return refused(otherwise(...parameters), options);
+    }
+    return result;
+  };
+}
+
+// The sections with an exit title, and the depressed ones - a change may
+// keep them, or take them away, but give none to a section that hadn't one:
+// a section taken out, leaving a paragraph after the one before it, is
+// refused, though the exit title it had goes with it.
+function marked(root) {
+  const result = { exits: new Set(), depressed: new Set() };
+  const visit = (section, level) => section.children.forEach((child, index) => {
+    if (hasExitTitle(child, section.children[index + 1], level)) result.exits.add(child);
+    if (!isSection(child)) return;
+    if (child.titleOffset > 0) result.depressed.add(child);
+    visit(child, titleLevel(child, level));
+  });
+  for (const document of root.children) visit(document, titleLevel(document));
+  return result;
+}
+
+// The documents' structure and text as they are - every list's flows and
+// title offset, every paragraph's spans - for restore() to put back.
+function snapshot(root, leftBehind) {
+  const lists = [];
+  const texts = [];
+  const visit = (flow) => {
+    if (isParagraph(flow)) {
+      texts.push([flow, flow.spans.map(({ text, bold, italic }) => ({ text, bold, italic }))]);
+      return;
+    }
+    if (flow.title) visit(flow.title);
+    lists.push([flow, [...flow.children], flow.titleOffset]);
+    flow.children.forEach(visit);
+  };
+  visit(root);
+  return { lists, texts, leftBehind: leftBehind ? [...leftBehind] : [] };
+}
+
+function restore({ lists, texts, leftBehind: lines }, leftBehind) {
+  for (const [flow, children, titleOffset] of lists) {
+    if (flow.children.length !== children.length || flow.children.some((child, index) => child !== children[index])) {
+      flow.children.splice(0, flow.children.length, ...children);
+    }
+    if (typeof(titleOffset) === "number" && flow.titleOffset !== titleOffset) flow.titleOffset = titleOffset;
+  }
+  for (const [paragraph, spans] of texts) {
+    const now = paragraph.spans.map(({ text, bold, italic }) => ({ text, bold, italic }));
+    if (JSON.stringify(now) !== JSON.stringify(spans)) paragraph.spans.splice(0, paragraph.spans.length, ...spans.map(makeSpan));
+  }
+  if (leftBehind) {
+    leftBehind.clear();
+    for (const line of lines) leftBehind.add(line);
+  }
+}
 
 function insertText(root, at, text, options = {}) {
   const lines = text.split("\n");
@@ -198,28 +287,24 @@ function pressEnter(root, at, options = {}) {
   if (isText(at)) {
     const place = locate(root, at.paragraph);
     if (!place) return at;
-    if (place.titleOf && at.offset === 0) return stepUp(root, place.titleOf, options) ? at : lineBefore(root, place.titleOf, at, options);
-    if (place.list && isSection(place.list) && paragraphText(at.paragraph) === "") {
-      const keep = keepsEmptyLine(options);
-      if (keep) options.leftBehind.add(at.paragraph);
-      const made = sectionFrom(place.list, place.index, keep);
-      placeNewSection(root, place.list, made.paragraph, options);
-      return made;
-    }
-    if (place.list && isSection(place.list) && at.offset === 0 && isEmptyParagraph(place.list.children[place.index - 1])) {
-      // The empty line before it gone - or, kept, left behind, as on Enter
-      // on an empty line.
-      const keep = keepsEmptyLine(options);
-      if (keep) options.leftBehind.add(place.list.children[place.index - 1]);
-      promote(place.list, place.index, !keep);
-      placeNewSection(root, place.list, at.paragraph, options);
-      return at;
+    if (place.titleOf && at.offset === 0) return enterAtTitle(root, place.titleOf, at, options);
+    // On an empty line - or at the start of a paragraph, an empty line
+    // before it: a section, made on that line.
+    if (place.list && isSection(place.list)) {
+      const line = isEmptyParagraph(at.paragraph) ? place.index
+        : at.offset === 0 && isEmptyParagraph(place.list.children[place.index - 1]) ? place.index - 1
+        : -1;
+      if (line >= 0) {
+        const section = sectionOnLine(place.list, line, line < place.index, options);
+        placeNewSection(root, place.list, section, options);
+        return line < place.index ? at : textPosition(section.title, 0);
+      }
     }
     // At the end, with an empty one next - its placeholder showing: there,
     // nothing new made.
     if (at.offset === paragraphText(at.paragraph).length) {
-      const next = paragraphAfter(root, at.paragraph);
-      if (next && paragraphText(next) === "") return textPosition(next, 0);
+      const waiting = waitingAfter(root, at.paragraph);
+      if (waiting) return waiting;
     }
     const rest = new Paragraph(cutAfter(at.paragraph, at.offset));
     if (place.titleOf) place.titleOf.children.splice(0, 0, rest);
@@ -228,9 +313,7 @@ function pressEnter(root, at, options = {}) {
   }
   // At a section's pre marker - before its title's number, in a document
   // numbering its titles: as at its title's start, the caret staying.
-  if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) {
-    return stepUp(root, at.flow, options) ? at : lineBefore(root, at.flow, at, options);
-  }
+  if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) return enterAtTitle(root, at.flow, at, options);
   if (isFlowEdge(at) && at.edge === "end") {
     const place = locate(root, at.flow);
     if (!place) return at;
@@ -301,19 +384,22 @@ function removeFlow(root, flow) {
 //    none, split off the section it's in right away (splitOff()), beside
 //    it. Not right in a document: a document has one title on top, its
 //    own - it stays in.
-function placeNewSection(root, parent, title, options = {}) {
-  const made = locate(root, title);
-  if (!made || !made.titleOf) return;
-  const section = made.titleOf;
+function placeNewSection(root, parent, section, options = {}) {
   const next = sectionAfter(root, section);
   if (next || goingDown(options)) {
     section.titleOffset = lowestRung(next, options);
     return;
   }
-  if (!(parent instanceof Document)) splitOff(root, section);
+  // Beside the section it's in - splitOff() refuses at the top, where it
+  // stays in.
+  splitOff(root, section);
 }
 
-const goingDown = ({ newSectionsBeside } = {}) => !(newSectionsBeside && newSectionsBeside());
+// A setting, asked when it matters: `option` a function, or missing.
+const on = (option, otherwise = false) => option ? !!option() : otherwise;
+const goingDown = (options) => !on(options.newSectionsBeside);
+const keepsEmptyLine = (options) => on(options.keepEmptyLine);
+const depressing = (options) => on(options.depressedTitles, true);
 
 // The section right after `section`, in the same list - or null.
 function sectionAfter(root, section) {
@@ -328,7 +414,7 @@ function sectionAfter(root, section) {
 // as what's after it is. With no depressed titles (`depressedTitles()`
 // false), none: no rung is.
 function lowestRung(next, options) {
-  if (options.depressedTitles && !options.depressedTitles()) return 0;
+  if (!depressing(options)) return 0;
   const after = next ? next.titleOffset : 0;
   return goingDown(options) ? Math.max(1, after) : after;
 }
@@ -342,6 +428,10 @@ function lowestRung(next, options) {
 // document's. So the Enters after a paragraph go down, across and out: the
 // first makes a paragraph, the next a section on the lowest rung
 // (placeNewSection()), each one after that a rung up. Whether it went up.
+function enterAtTitle(root, section, at, options) {
+  return stepUp(root, section) ? at : lineBefore(root, section, at, options);
+}
+
 function stepUp(root, section) {
   if (section.titleOffset > 0) {
     section.titleOffset = 0;
@@ -364,16 +454,16 @@ function stepDown(root, section, options = {}) {
   // line Enter put there at the top, lineBefore(), undone so). But not the
   // one a section being made left behind (`leftBehind`, see settle()):
   // there, the section collapses onto it.
-  const at = locate(root, section);
-  const end = at && at.list ? endBefore(at.list, at.index) : null;
+  const place = locate(root, section);
+  if (!place || !place.list) return null;
+  const end = endBefore(place.list, place.index);
   const line = end ? end.list.children[end.index] : null;
-  const keepsTitle = !!end && end.list !== at.list && end.list.children.length === 1;
+  const keepsTitle = !!end && end.list !== place.list && end.list.children.length === 1;
   if (isEmptyParagraph(line) && !keepsTitle && !(options.leftBehind && options.leftBehind.has(line))) {
     end.list.children.splice(end.index, 1);
     return textPosition(section.title, 0);
   }
-  const place = locate(root, section);
-  const afterSection = !!place && !!place.list && isSection(flowBefore(place.list, place.index));
+  const afterSection = isSection(flowBefore(place.list, place.index));
   if (section.titleOffset === 0 && !afterSection) {
     const next = sectionAfter(root, section);
     const rung = lowestRung(next, options);
@@ -454,41 +544,51 @@ function refused(at, { refuse } = {}) {
   return at;
 }
 
-// Enter on an empty paragraph: a section in its place - its title empty, to
-// write - holding the paragraphs after it in its list, up to the next
-// section (an empty paragraph, if there are none). With `keepLine`, after
-// it instead: the empty paragraph left behind, an empty line before the
-// section, while the section is being made (see settle()). Either way, the
-// section unwrapped (mergeBack()), the line is there again. The caret at
-// the start of its title.
-function sectionFrom(list, index, keepLine = false) {
-  let end = index + 1;
-  while (isParagraph(list.children[end])) end++;
-  const section = newSection(0, list.children.slice(index + 1, end));
-  if (keepLine) list.children.splice(index + 1, end - index - 1, section);
-  else list.children.splice(index, end - index, section);
-  return textPosition(section.title, 0);
+// A section made on the empty line at `line` in `list` - Enter on it, or
+// at the start of the paragraph after it (`titled`): that paragraph its
+// title, or else a new, empty one, to write. It holds the paragraphs after
+// that, up to the next section (an empty one, if there are none), and takes
+// the line's place - or, with `keepEmptyLine()`, comes after it, the line
+// left behind while the section is being made (see settle()); not after a
+// section, though: a paragraph after a section would give it an exit title
+// for as long as it's there. Collapsed again (mergeBack()), the section
+// leaves the line there again, either way. The section.
+function sectionOnLine(list, line, titled, options = {}) {
+  const keep = keepsEmptyLine(options) && !isSection(list.children[line - 1]);
+  if (keep) options.leftBehind.add(list.children[line]);
+  const first = titled ? line + 2 : line + 1;
+  const end = runEnd(list, first);
+  const held = list.children.slice(first, end);
+  const section = titled ? new Section(list.children[line + 1], held.length > 0 ? held : [placeholder()]) : newSection(0, held);
+  const from = keep ? line + 1 : line;
+  list.children.splice(from, end - from, section);
+  return section;
 }
 
-// Whether the empty line a section is made on is kept, while it's made
-// (`keepEmptyLine()`, off by default) - or the section takes its place.
-const keepsEmptyLine = ({ keepEmptyLine } = {}) => !!(keepEmptyLine && keepEmptyLine());
-
-// The paragraph at `index` in `list` promoted: a section's title, the
-// section in its place, holding the paragraphs after it, up to the next
-// section (an empty paragraph, if there are none). With `dropBefore`, the
-// empty paragraph before it gone too - Enter at the start of a paragraph
-// with an empty one before it, left there by Enter at its start just
-// before. Shift+Tab anywhere in it: without. The paragraph, the same, the title
-// now - a position in it is where it was.
-function promote(list, index, dropBefore = false) {
-  const paragraph = list.children[index];
-  let end = index + 1;
-  while (isParagraph(list.children[end])) end++;
+// The paragraph at `index` in `list` promoted - Shift+Tab in it: a
+// section's title, the section in its place, holding the paragraphs after
+// it, up to the next section (an empty paragraph, if there are none). The
+// paragraph, the same, the title now - a position in it is where it was.
+function promote(list, index) {
+  const end = runEnd(list, index + 1);
   const held = list.children.slice(index + 1, end);
-  const section = new Section(paragraph, held.length > 0 ? held : [placeholder()]);
-  const from = dropBefore ? index - 1 : index;
-  list.children.splice(from, end - from, section);
+  list.children.splice(index, end - index, new Section(list.children[index], held.length > 0 ? held : [placeholder()]));
+}
+
+// Where the paragraphs from `from` on in `list` end - at the next
+// section, or the list's end.
+function runEnd(list, from) {
+  let end = from;
+  while (isParagraph(list.children[end])) end++;
+  return end;
+}
+
+// An empty paragraph next in reading order - its placeholder showing,
+// waiting: the caret there, for Enter at a paragraph's end and Tab - what's
+// waiting filled in, not more made. Or null.
+function waitingAfter(root, paragraph) {
+  const next = paragraphAfter(root, paragraph);
+  return isEmptyParagraph(next) ? textPosition(next, 0) : null;
 }
 
 const isEmptyParagraph = (flow) => isParagraph(flow) && paragraphText(flow) === "";
@@ -508,8 +608,8 @@ function pressTab(root, at, shift, options = {}) {
   const place = locate(root, at.paragraph);
   if (!place) return at;
   if (!shift) {
-    const next = paragraphAfter(root, at.paragraph);
-    if (next && paragraphText(next) === "") return textPosition(next, 0);
+    const waiting = waitingAfter(root, at.paragraph);
+    if (waiting) return waiting;
     if (place.titleOf) return demote(root, place.titleOf, at, options) || at;
   } else if (place.titleOf) {
     if (!splitOff(root, place.titleOf)) return refused(at, options);
@@ -558,7 +658,7 @@ const holdsOnlyAnEmptyParagraph = (section) => section.children.length === 1 && 
 // The empty paragraphs put in a section only so it isn't only a title -
 // its "Text" placeholder, when nothing else is there (newSection(),
 // fillIfEmpty(), promote()). Not an empty line the user made, or one left
-// behind (sectionFrom()): what's split off with what came after it takes
+// behind (sectionOnLine()): what's split off with what came after it takes
 // the place of a placeholder, never of a line; what's merged back only of
 // the one its split left (splitFillers, below) - the round trips stay exact. (Unwrapped or flattened, a section's lone
 // empty paragraph is dropped either way: no line is lost that anything
@@ -589,7 +689,7 @@ const holdsOnlyASplitFiller = (section) => holdsOnlyAnEmptyParagraph(section) &&
 // paragraph, or first in its section (its title before it): unwrapped,
 // what it held in its place, its title before it as a paragraph, an empty
 // line before that, the caret at its start - or, an empty title, gone: what
-// sectionFrom() did, undone, the caret at what came first in it, or else
+// sectionOnLine() did, undone, the caret at what came first in it, or else
 // the end of what's before. Null if there's nothing before it.
 function mergeBack(root, section) {
   const place = locate(root, section);
@@ -608,7 +708,7 @@ function mergeBack(root, section) {
   if (paragraphText(title) !== "") {
     // Its title a paragraph - a lone empty one, a placeholder, not needed -
     // an empty line before it, the caret at its start: as it was before
-    // Enter there, the empty line before it, made it a title (promote()). An empty line there already - a paragraph, not
+    // Enter there, the empty line before it, made it a title (sectionOnLine()). An empty line there already - a paragraph, not
     // its parent's title - does.
     const held = holdsOnlyAnEmptyParagraph(section) ? [] : section.children.splice(0);
     const blank = index > 0 && isEmptyParagraph(before) ? null : new Paragraph();
@@ -638,35 +738,32 @@ function mergeBack(root, section) {
 // on after it, `before`'s children too (a document becoming a section).
 // Into a section holding only an empty paragraph - as a split leaves one: in
 // its place. What splitOff() did, undone.
-function mergeInto(list, index, before) {
+//
+// `whole`: moved whole instead - all it holds, its sections too - demoting
+// it with `demoteWithChildren()` on; so not quite what promoting it again
+// undoes.
+function mergeInto(list, index, before, whole = false) {
   const section = list.children[index];
   if (holdsOnlyASplitFiller(before)) before.children.splice(0);
-  let end = 0;
-  while (isParagraph(section.children[end])) end++;
-  const rest = section.children.splice(end);
+  // Flattened: what it holds from its first section on, after it.
+  const rest = whole ? [] : section.children.splice(runEnd(section, 0));
   // Nothing left in it: its empty paragraph again.
   fillIfEmpty(section);
   list.children.splice(index, 1);
   before.children.push(section instanceof Document ? asSection(section) : section, ...rest);
 }
 
-// The section at `index` in `list` moved into `before`, the section before
-// it, whole - all it holds, its sections too: `before`'s last child. Into a
-// section holding only an empty paragraph: in its place. Demoting it, with
-// `demoteWithChildren()` on - not flattened, as mergeInto() does; so not
-// quite what promoting it again undoes.
-function moveInto(list, index, before) {
-  const section = list.children[index];
-  if (holdsOnlyASplitFiller(before)) before.children.splice(0);
-  list.children.splice(index, 1);
-  before.children.push(section instanceof Document ? asSection(section) : section);
-}
-
 // Promoting a section - up a level in the document's structure: split off
 // the section it's in (splitOff()). Whether it can be: it's in a section
 // that's in another - not right in a document, on top.
 function canPromote(root, section) {
-  const place = locate(root, section);
+  return inNestedSection(root, section);
+}
+
+// Whether `flow` is in a section that's in another - not right in a
+// document: there's somewhere for it to go out to.
+function inNestedSection(root, flow) {
+  const place = locate(root, flow);
   if (!place || !place.list || !isSection(place.list)) return false;
   const outer = locate(root, place.list);
   return !!outer && !!outer.list && isSection(outer.list);
@@ -687,10 +784,7 @@ function canDemote(root, section) {
 // section that's in another - not right in a document, with nothing around
 // it to move out to.
 function canMoveOut(root, paragraph) {
-  const place = locate(root, paragraph);
-  if (!place || !place.list || !isSection(place.list)) return false;
-  const outer = locate(root, place.list);
-  return !!outer && !!outer.list && isSection(outer.list);
+  return isParagraph(paragraph) && inNestedSection(root, paragraph);
 }
 
 // A paragraph, and all that comes after it in its section, moved out of it:
@@ -724,13 +818,9 @@ function canDemoteIntoSection(root, section) {
 function demote(root, section, at = textPosition(section.title, 0), { demoteWithChildren } = {}) {
   if (!canDemote(root, section)) return null;
   const { list, index } = locate(root, section);
-  if (index > 0 && isSection(list.children[index - 1])) {
-    const before = list.children[index - 1];
-    if (demoteWithChildren && demoteWithChildren()) moveInto(list, index, before);
-    else mergeInto(list, index, before);
-    return at;
-  }
-  return flatten(list, index, at);
+  if (!canDemoteIntoSection(root, section)) return flatten(list, index, at);
+  mergeInto(list, index, list.children[index - 1], on(demoteWithChildren));
+  return at;
 }
 
 // A section that can go no further down made paragraphs, in its place: its

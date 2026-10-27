@@ -302,12 +302,12 @@ describe("Editing a Tabula document", function () {
         "right in the document, before a section": () => [paragraph("p"), section("T")],
       };
       const settings = [];
-      for (const beside of [false, true]) for (const depressed of [true, false]) for (const keep of [false, true]) settings.push([beside, depressed, keep]);
-      for (const [beside, depressed, keep] of settings) {
+      for (const beside of [false, true]) for (const depressed of [true, false]) for (const keep of [false, true]) for (const exits of [true, false]) settings.push([beside, depressed, keep, exits]);
+      for (const [beside, depressed, keep, exits] of settings) {
         for (const [name, children] of Object.entries(structures)) {
           const doc = document({ title: "D", paper, margins }, ...children());
           const root = sequenceOf(doc);
-          const editing = tabulaEditing(root, { newSectionsBeside: () => beside, depressedTitles: () => depressed, keepEmptyLine: () => keep });
+          const editing = tabulaEditing(root, { newSectionsBeside: () => beside, depressedTitles: () => depressed, keepEmptyLine: () => keep, exitTitles: () => exits });
           const p = [...walk(doc)].find((flow) => isParagraph(flow) && paragraphText(flow) === "p");
           const shapes = [shape(doc)];
           // Enter until refused - nothing changing - or ten times.
@@ -320,7 +320,9 @@ describe("Editing a Tabula document", function () {
             at = next;
             shapes.push(shape(doc));
           }
-          assert.ok(shapes.length >= 3, name + ": a paragraph, and a section");
+          // A section, too - unless an exit title is in the way: none allowed,
+          // and the section after it depressed while none may be made.
+          assert.ok(shapes.length >= (exits || depressed ? 3 : 2), name + ": a paragraph, and a section");
           // Backspace, back down every rung, each to the shape before it -
           // but for the section the empty paragraph became: unwrapped, it
           // takes the empty paragraph with it when it holds what came after
@@ -329,7 +331,7 @@ describe("Editing a Tabula document", function () {
           while (index > 0) {
             at = editing.deleteBackward(at);
             const now = shape(doc);
-            const label = (beside ? "beside" : "going down") + (depressed ? "" : ", none depressed") + (keep ? ", line kept" : "") + ", " + name + ": from " + shapes[index];
+            const label = (beside ? "beside" : "going down") + (depressed ? "" : ", none depressed") + (keep ? ", line kept" : "") + (exits ? "" : ", no exit titles") + ", " + name + ": from " + shapes[index];
             if (index === 2 && now === shapes[0]) break;
             assert.equal(now, shapes[index - 1], label);
             index--;
@@ -551,6 +553,37 @@ describe("Editing a Tabula document", function () {
       assert.ok(samePosition(at, textPosition(first.title, 0)));
       editing.insertText(textPosition(doc.children[0], 0), "An introduction.");
       assert.equal(shape(doc), "D[An introduction., First[f]]");
+    });
+
+    it("never makes an exit title with none allowed - a change that would is undone and refused, whatever it is; those already there stay", function () {
+      let refusals = 0;
+      const a = section("A", paragraph("a"));
+      const s = section("S", paragraph("s"));
+      const p = paragraph("p");
+      const inner = paragraph("inner");
+      const doc = document({ title: "D", paper, margins }, a, s, p, section("Outer", section("Inner", inner)));
+      const editing = tabulaEditing(sequenceOf(doc), { exitTitles: () => false, refuse: () => { refusals++; } });
+      const original = shape(doc);
+      // Taking S out would leave p right after A: refused, nothing changed.
+      const at = flowEnd(s);
+      assert.ok(samePosition(editing.deleteBackward(at), at));
+      assert.equal(shape(doc), original);
+      assert.equal(refusals, 1);
+      // Moving a paragraph out of its section always gives the section one:
+      // not offered, and refused if asked.
+      assert.ok(!editing.canMoveOut(inner));
+      assert.ok(!editing.moveOut(inner));
+      assert.equal(shape(doc), original);
+      assert.equal(refusals, 2);
+      // S's exit title, there already (p after it), is no reason to refuse
+      // what changes nothing about it: text typed, a paragraph split.
+      editing.insertText(textPosition(p, 1), "q");
+      const after = editing.splitParagraph(textPosition(p, 2));
+      assert.equal(shape(doc), "D[A[a], S[s], pq, _, Outer[Inner[inner]]]");
+      assert.equal(refusals, 2);
+      // A refused change undone all of it - text joined on the way, too.
+      editing.insertText(after, "x");
+      assert.equal(paragraphText(doc.children[3]), "x");
     });
 
     it("keeps one title on top: Enter at the start of a title right in a document puts an empty line before it, at the document's own title or end it's refused - a depressed one set at its level first", function () {

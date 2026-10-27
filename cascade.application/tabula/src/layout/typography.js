@@ -4,7 +4,10 @@ import { pt } from "../print/index.js";
  * How a document looks - by where a flow is, since flows hold no style of
  * their own (see ../model/flows.js): body text, and a section's title by its
  * title level - a document's own title (1), a chapter's (2), a section in it
- * (3), and every level deeper (4 and on).
+ * (3), and three more below that (4, 5, 6) - each a step less prominent, so
+ * that a section set further down than its place (a title offset - see
+ * ../model/flows.js), and all in it, still looks it a few levels down; every
+ * level from 6 on looks the same.
  *
  * Each is a paragraph's layout for cascade.print (see its Paragraph.js):
  * `font` - what a span is set in, unless it's bold or italic itself - and
@@ -25,6 +28,8 @@ export const typography = Object.freeze({
     Object.freeze({ font: font(sans, 17, 700), spaceBefore: pt(18), spaceAfter: pt(8) }),
     Object.freeze({ font: font(sans, 13.5, 700), spaceBefore: pt(14), spaceAfter: pt(5) }),
     Object.freeze({ font: font(sans, 11, 700, true), spaceBefore: pt(10), spaceAfter: pt(3) }),
+    Object.freeze({ font: font(sans, 11, 400, true), spaceBefore: pt(8), spaceAfter: pt(2) }),
+    Object.freeze({ font: font(serif, 11, 400, true), spaceBefore: pt(6), spaceAfter: pt(2) }),
   ]),
 });
 

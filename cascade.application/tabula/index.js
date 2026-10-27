@@ -15,8 +15,10 @@ const serviceLocator = new CompoundServiceLocator(new DOMServiceLocator(), basic
 const services = new ObservableCompoundServiceLocator(...plugins);
 
 // How Tabula is set up - its own settings, and every kind of document's:
-// kept in this browser between visits (see src/shell/settings.js).
-const settings = persistSettings("tabula.settings");
+// kept in this browser between visits (see src/shell/settings.js). Under a
+// key of its own since only what differs from the defaults is kept: what
+// the first key holds has every default of its time in it.
+const settings = persistSettings("tabula.settings.2");
 
 // The app is created here, not built by anyone - so it's established here
 // (see cascade.component's Component.establish()). It lives as long as the

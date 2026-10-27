@@ -29,6 +29,9 @@ import { observable, repeat, accessInitialValues, withoutRecording, locateServic
 export class Settings {
   constructor(initial = {}) {
     this.sections = observable({});
+    // Each section's defaults, as asked for (see section()) - plain, not
+    // observable: what's saved is only what differs from them.
+    this.defaults = {};
     for (const name of Object.keys(initial)) {
       const values = initial[name];
       if (values && typeof(values) === "object") this.sections[name] = observable({ ...values });
@@ -41,6 +44,7 @@ export class Settings {
   // a plain write would be that build's, at its place in the tree, and
   // undone with it (see cascade.component's setState()).
   section(name, defaults = {}) {
+    this.defaults[name] = { ...this.defaults[name], ...defaults };
     let section = withoutRecording(() => this.sections[name]);
     const missing = withoutRecording(() => Object.keys(defaults).filter((key) => !section || !(key in section)));
     if (!section || missing.length > 0) {
@@ -55,10 +59,19 @@ export class Settings {
     return this.sections[name];
   }
 
-  // All of it, as plain data - for saving.
+  // All of it, as plain data - for saving: only what differs from the
+  // defaults, so that a default changed later is what's set, unless it was
+  // set otherwise.
   toJSON() {
     const result = {};
-    for (const name of Object.keys(this.sections)) result[name] = { ...this.sections[name] };
+    for (const name of Object.keys(this.sections)) {
+      const defaults = this.defaults[name] || {};
+      const values = {};
+      for (const [key, value] of Object.entries(this.sections[name])) {
+        if (!(key in defaults) || JSON.stringify(value) !== JSON.stringify(defaults[key])) values[key] = value;
+      }
+      if (Object.keys(values).length > 0) result[name] = values;
+    }
     return result;
   }
 }

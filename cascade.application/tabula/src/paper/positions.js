@@ -112,11 +112,16 @@ export function hitTest(rows, page, x, y, measurer) {
 
 // The place on the line at `order` nearest `x` across: in its text - or a
 // start or end beside it, if nearer than the text.
-function placeOnLine(rows, order, x, measurer) {
+// `sectionEnds`: whether a section's end beside the line is a place to
+// land too - for a click, yes; moving up and down, no: there, beside its
+// last line, at the right edge, it's out of the way - reached with Right
+// from the end of the text, or a click - not come upon on the way past.
+function placeOnLine(rows, order, x, measurer, { sectionEnds = true } = {}) {
   const line = rows[order].row;
   let across = Math.max(0, line.x - x, x - (line.x + line.width));
   let beside = null;
   for (const row of besideLine(rows, order)) {
+    if (!sectionEnds && row.type === "sectionEnd") continue;
     const away = Math.abs(x - row.x);
     if (away < across) {
       across = away;
@@ -182,7 +187,7 @@ function verticalMove(rows, at, goalX, measurer, direction) {
   if (!rows[target]) return direction < 0 ? lineStart(rows, at) : lineEnd(rows, at);
   // A bar below a line: a row of its own.
   if (isBelowRow(rows[target].row)) return rows[target].row.marker;
-  return placeOnLine(rows, target, goalX, measurer);
+  return placeOnLine(rows, target, goalX, measurer, { sectionEnds: false });
 }
 
 // Left and right: the place before or after a position, in reading order -

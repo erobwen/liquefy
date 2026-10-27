@@ -82,6 +82,8 @@ const headingStyles = [
   { fontFamily: sans, fontSize: "26px", fontWeight: 700, lineHeight: 1.25, margin: "1.2em 0 0.4em" },
   { fontFamily: sans, fontSize: "20px", fontWeight: 700, lineHeight: 1.3, margin: "1.1em 0 0.3em" },
   { fontFamily: sans, fontSize: "18px", fontWeight: 700, fontStyle: "italic", lineHeight: 1.35, margin: "1em 0 0.25em" },
+  { fontFamily: sans, fontSize: "18px", fontWeight: 400, fontStyle: "italic", lineHeight: 1.4, margin: "0.9em 0 0.2em" },
+  { fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "18px", fontWeight: 400, fontStyle: "italic", lineHeight: 1.45, margin: "0.8em 0 0.2em" },
 ];
 const placeholderStyle = { opacity: 0.35 };
 

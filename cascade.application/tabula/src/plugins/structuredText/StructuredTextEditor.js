@@ -65,6 +65,7 @@ export class StructuredTextEditor extends Component {
     // kept as it is.
     u.editing = tabulaEditing(root, {
       newSectionsBeside: () => this.unobservable.settings.newSectionsBeside,
+      depressedTitles: () => this.unobservable.settings.depressedTitles,
       demoteWithChildren: () => this.unobservable.settings.demoteWithChildren,
       refuse: () => this.refused(),
     });
@@ -126,7 +127,7 @@ export class StructuredTextEditor extends Component {
       tabulaEditor({
         sequence, root, measurer, editing, zoom: this.zoom,
         showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
-        markerTypes: settings.markerTypes, sectionEnds: settings.sectionEnds,
+        ...sectionEnds(settings),
         onCaret: callback("caret", (at) => this.caretMoved(at)),
       }),
       this.onRemove ? removeButton(this.onRemove, { left: corner, top: corner }) : null,
@@ -136,6 +137,18 @@ export class StructuredTextEditor extends Component {
         : null,
     );
   }
+}
+
+// Where a section's end is, for the caret (see settings.js), as the editor
+// has it (see ../../paper/markers.js): "below" a bar under its last line;
+// "bottomRight" beside it, at the right edge; "none" not at all - no
+// section end among the markers the caret goes to.
+function sectionEnds(settings) {
+  const where = settings.sectionEnds;
+  return {
+    sectionEnds: where === "below" ? "below" : "beside",
+    markerTypes: where === "none" ? { ...settings.markerTypes, sectionEnd: false } : settings.markerTypes,
+  };
 }
 
 // A red ring, widening and fading, centred on the caret.

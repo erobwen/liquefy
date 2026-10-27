@@ -162,35 +162,40 @@ describe("Editing a Tabula document", function () {
       // Enter at the end of "p": an empty paragraph.
       let at = editing.splitParagraph(textPosition(p, 1));
       assert.equal(shape(doc), "D[Outer[p, _, x, Y[], z]]");
-      // Enter on it: a section in its place, holding "x" - up to Y. Going
-      // down: at Y's level, but depressed - a level further down.
+      // Enter on it: a section after it - the empty line left behind -
+      // holding "x" - up to Y. Going down: at Y's level, but depressed - a
+      // level further down.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[Outer[p, +1[x], Y[], z]]");
-      const made = outer.children[1];
+      assert.equal(shape(doc), "D[Outer[p, _, +1[x], Y[], z]]");
+      const made = outer.children[2];
       assert.ok(samePosition(at, textPosition(made.title, 0)));
       // Enter at its title's start: across - at its own level, as Y.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[Outer[p, [x], Y[], z]]");
+      assert.equal(shape(doc), "D[Outer[p, _, [x], Y[], z]]");
       assert.ok(samePosition(at, textPosition(made.title, 0)));
       // Enter again: out - split off Outer, what came after it in Outer
       // moved into it.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[Outer[p], [x, Y[], z]]");
+      assert.equal(shape(doc), "D[Outer[p, _], [x, Y[], z]]");
       assert.ok(samePosition(at, textPosition(made.title, 0)));
       // Backspace, each a rung down - every Enter undone: back into Outer,
       // flattened - as it was before the split...
       at = editing.deleteBackward(at);
-      assert.equal(shape(doc), "D[Outer[p, [x], Y[], z]]");
+      assert.equal(shape(doc), "D[Outer[p, _, [x], Y[], z]]");
       assert.ok(samePosition(at, textPosition(made.title, 0)));
       // ...depressed again, before Y...
       at = editing.deleteBackward(at);
-      assert.equal(shape(doc), "D[Outer[p, +1[x], Y[], z]]");
+      assert.equal(shape(doc), "D[Outer[p, _, +1[x], Y[], z]]");
       assert.ok(samePosition(at, textPosition(made.title, 0)));
-      // ...and unwrapped - its empty title gone, all it held in its place.
-      // Back where it started.
+      // ...unwrapped - its empty title gone, all it held after the empty
+      // line, the caret on it, as the first Enter left it...
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[Outer[p, _, x, Y[], z]]");
+      assert.ok(samePosition(at, textPosition(outer.children[1], 0)));
+      // ...and the line gone. Back where it started.
       at = editing.deleteBackward(at);
       assert.equal(shape(doc), original);
-      assert.ok(samePosition(at, textPosition(outer.children[1], 0)));
+      assert.ok(samePosition(at, textPosition(p, 1)));
     });
 
     it("promotes a paragraph to a section's title on Enter at its start twice - the empty one the first Enter left gone; Backspace makes it a paragraph again", function () {
@@ -200,12 +205,18 @@ describe("Editing a Tabula document", function () {
       let at = editing.splitParagraph(textPosition(x, 0));
       assert.equal(shape(doc), "D[p, _, Heading, y, S[]]");
       // Enter again, the empty one before it: a section, "Heading" its title,
-      // holding "y" - up to S; going down: depressed, before S.
+      // holding "y" - up to S; going down: depressed, before S. The empty
+      // line left behind.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[p, Heading+1[y], S[]]");
-      const made = doc.children[1];
+      assert.equal(shape(doc), "D[p, _, Heading+1[y], S[]]");
+      const made = doc.children[2];
       assert.ok(samePosition(at, textPosition(made.title, 0)));
-      // Backspace at the start of its title: a paragraph again.
+      // Backspace at the start of its title: a paragraph again - an empty
+      // line before it, the caret at its start: as the first Enter left it.
+      // Backspace there: as it was.
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[p, _, Heading, y, S[]]");
+      assert.ok(samePosition(at, textPosition(made.title, 0)));
       editing.deleteBackward(at);
       assert.equal(shape(doc), "D[p, Heading, y, S[]]");
     });
@@ -214,21 +225,29 @@ describe("Editing a Tabula document", function () {
       const s = section("S", paragraph());
       const { doc, editing } = setUp(s, paragraph("after"));
       const original = shape(doc);
-      // Enter on the empty paragraph: a section in its place.
+      // Enter on the empty paragraph: a section in its place - going down,
+      // depressed first.
       let at = editing.splitParagraph(textPosition(s.children[0], 0));
-      assert.equal(shape(doc), "D[S[[_]], after]");
-      // Enter at its title: split off S - S left with an empty paragraph.
+      assert.equal(shape(doc), "D[S[_, +1[_]], after]");
+      // Enter at its title: at its own level.
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[_, [_]], after]");
+      // Enter again: split off S - S left with its empty line.
       at = editing.splitParagraph(at);
       assert.equal(shape(doc), "D[S[_], [_], after]");
-      // Backspace: back in S - in place of the empty paragraph there.
+      // Backspace: back in S - after the line, not in place of it: a line
+      // made, not a placeholder.
       at = editing.deleteBackward(at);
-      assert.equal(shape(doc), "D[S[[_]], after]");
+      assert.equal(shape(doc), "D[S[_, [_]], after]");
+      // Backspace: depressed again.
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[S[_, +1[_]], after]");
       // Backspace: unwrapped.
       editing.deleteBackward(at);
       assert.equal(shape(doc), original);
     });
 
-    it("climbs a ladder with Enter after a paragraph, going down first: a paragraph, a section a level down, across, out - and no further than the document's top", function () {
+    it("climbs a ladder with Enter after a paragraph, going down first: a paragraph, a section depressed, at its own level a level down, across, out - and no further than the document's top", function () {
       let refusals = 0;
       const p = paragraph("p");
       const s = section("S", p);
@@ -238,12 +257,15 @@ describe("Editing a Tabula document", function () {
       // A paragraph.
       let at = editing.splitParagraph(textPosition(p, 1));
       assert.equal(shape(doc), "D[S[p, _]]");
-      // Down: a section in S - nothing after it to be beside.
+      // Down: a section in S, depressed - a level further down than its own.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[S[p, [_]]]");
-      // Across: beside S - S split, nothing after it to take along.
+      assert.equal(shape(doc), "D[S[p, _, +1[_]]]");
+      // Its own level, in S.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[S[p], [_]]");
+      assert.equal(shape(doc), "D[S[p, _, [_]]]");
+      // Across: beside S - S split, its empty line left in S.
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[p, _], [_]]");
       // Out: no further - right in the document, on top: refused, nothing done.
       const before = shape(doc);
       const stayed = editing.splitParagraph(at);
@@ -263,11 +285,11 @@ describe("Editing a Tabula document", function () {
         "two levels down": () => [section("O", section("S", paragraph("p")), section("T"))],
         "right in the document, before a section": () => [paragraph("p"), section("T")],
       };
-      for (const beside of [false, true]) {
+      for (const [beside, depressed] of [[false, true], [true, true], [false, false], [true, false]]) {
         for (const [name, children] of Object.entries(structures)) {
           const doc = document({ title: "D", paper, margins }, ...children());
           const root = sequenceOf(doc);
-          const editing = tabulaEditing(root, { newSectionsBeside: () => beside });
+          const editing = tabulaEditing(root, { newSectionsBeside: () => beside, depressedTitles: () => depressed });
           const p = [...walk(doc)].find((flow) => isParagraph(flow) && paragraphText(flow) === "p");
           const shapes = [shape(doc)];
           // Enter until refused - nothing changing - or ten times.
@@ -286,7 +308,7 @@ describe("Editing a Tabula document", function () {
           while (index > 0) {
             at = editing.deleteBackward(at);
             const now = shape(doc);
-            const label = (beside ? "beside" : "going down") + ", " + name + ": from " + shapes[index];
+            const label = (beside ? "beside" : "going down") + (depressed ? "" : ", none depressed") + ", " + name + ": from " + shapes[index];
             if (index === 2 && now === shapes[0]) break;
             assert.equal(now, shapes[index - 1], label);
             index--;
@@ -296,22 +318,115 @@ describe("Editing a Tabula document", function () {
       }
     });
 
+    it("takes the empty line a section left behind away once the caret moves on - and collapsing the section makes it again", function () {
+      const p = paragraph("p");
+      const doc = document({ title: "D", paper, margins }, p, section("T"));
+      const editing = tabulaEditing(sequenceOf(doc), { newSectionsBeside: () => false, depressedTitles: () => false });
+      // Enter, Enter: a section, the empty line left behind.
+      let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
+      assert.equal(shape(doc), "D[p, _, [_], T[]]");
+      // Typing its title: an edit - the line still there.
+      at = editing.insertText(at, "New");
+      assert.equal(shape(doc), "D[p, _, New[_], T[]]");
+      // The caret moves on: the line goes.
+      editing.settle(textPosition(p, 0));
+      assert.equal(shape(doc), "D[p, New[_], T[]]");
+      // Backspace at the title's start: a paragraph again - the empty line
+      // made again before it, the caret at its start.
+      const made = doc.children[1];
+      at = editing.deleteBackward(textPosition(made.title, 0));
+      assert.equal(shape(doc), "D[p, _, New, T[]]");
+      assert.ok(samePosition(at, textPosition(made.title, 0)));
+
+      // An untitled one: its own empty paragraph the line again, the caret on it.
+      const q = paragraph("q");
+      const other = document({ title: "D", paper, margins }, q);
+      const editOther = tabulaEditing(sequenceOf(other), { newSectionsBeside: () => false, depressedTitles: () => false });
+      at = editOther.splitParagraph(editOther.splitParagraph(textPosition(q, 1)));
+      editOther.settle(textPosition(q, 0));
+      assert.equal(shape(other), "D[q, [_]]");
+      at = editOther.deleteBackward(at);
+      assert.equal(shape(other), "D[q, _]");
+      assert.ok(samePosition(at, textPosition(other.children[1], 0)));
+
+      // A line the caret moves onto - or typed into - stays.
+      const r = paragraph("r");
+      const third = document({ title: "D", paper, margins }, r);
+      const editThird = tabulaEditing(sequenceOf(third), { newSectionsBeside: () => false, depressedTitles: () => false });
+      editThird.splitParagraph(editThird.splitParagraph(textPosition(r, 1)));
+      editThird.settle(textPosition(third.children[1], 0));
+      assert.equal(shape(third), "D[r, _, [_]]");
+      editThird.settle(textPosition(r, 0));
+      assert.equal(shape(third), "D[r, _, [_]]", "remembered only until the caret first moves on");
+    });
+
+    it("keeps the empty paragraph of a section a section is merged into - but for the one a split put there, taken out again", function () {
+      const p = paragraph("p");
+      const doc = document({ title: "D", paper, margins }, p);
+      const editing = tabulaEditing(sequenceOf(doc), { newSectionsBeside: () => false, depressedTitles: () => false });
+      // Two sections, A and B, side by side - each holding only its
+      // placeholder: A made on the empty line after p; B in A, on A's
+      // placeholder, then split off A - A's placeholder left behind.
+      let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
+      assert.equal(shape(doc), "D[p, _, [_]]");
+      const a = doc.children[2];
+      at = editing.splitParagraph(textPosition(a.children[0], 0));
+      assert.equal(shape(doc), "D[p, _, [_, [_]]]");
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[p, _, [_], [_]]");
+      // Backspace at B's title: into A - after A's placeholder, kept.
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[p, _, [_, [_]]]");
+      // A split that leaves the section empty puts a placeholder in it - and
+      // merging back takes that one out again.
+      const first = section("First", paragraph("f"));
+      const outer = section("Outer", first);
+      const { doc: other, editing: editOther } = setUp(outer);
+      const back = editOther.splitParagraph(textPosition(first.title, 0));
+      assert.equal(shape(other), "D[Outer[_], First[f]]");
+      editOther.deleteBackward(back);
+      assert.equal(shape(other), "D[Outer[First[f]]]");
+    });
+
     it("splits a section off at its own level, never depressed - the section it came out of left without an exit title - and Backspace merges it back", function () {
       const blank = paragraph();
       const s = section("S", paragraph("p"), blank);
       const { doc, editing } = setUp(s, section("T"));
-      // Enter on the blank paragraph: going down, a section in S.
+      // Enter on the blank paragraph: going down, a section in S -
+      // depressed, then at its own level.
       let at = editing.splitParagraph(textPosition(blank, 0));
-      assert.equal(shape(doc), "D[S[p, [_]], T[]]");
+      assert.equal(shape(doc), "D[S[p, _, +1[_]], T[]]");
+      at = editing.splitParagraph(at);
+      assert.equal(shape(doc), "D[S[p, _, [_]], T[]]");
       // Enter: across - beside S, before T, at its own level.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[S[p], [_], T[]]");
+      assert.equal(shape(doc), "D[S[p, _], [_], T[]]");
       assert.ok(!hasExitTitle(s, doc.children[1], 1), "S ends as a section does - nothing after it looks deeper");
-      // Backspace: back into S, as it came - not depressed first.
+      // Backspace: back into S, as it came - not depressed first; then down
+      // its rungs in S - depressed, unwrapped.
       at = editing.deleteBackward(at);
-      assert.equal(shape(doc), "D[S[p, [_]], T[]]");
+      assert.equal(shape(doc), "D[S[p, _, [_]], T[]]");
+      at = editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[S[p, _, +1[_]], T[]]");
       editing.deleteBackward(at);
       assert.equal(shape(doc), "D[S[p, _], T[]]");
+    });
+
+    it("never depresses a title without depressed titles - going down: a section a level down, or at the level of what's after it; Backspace back the same way", function () {
+      const p = paragraph("p");
+      const q = paragraph("q");
+      const doc = document({ title: "D", paper, margins }, section("S", p), section("T", q, section("X")));
+      const editing = tabulaEditing(sequenceOf(doc), { newSectionsBeside: () => false, depressedTitles: () => false });
+      // Nothing after it: a section in S, at its own level at once.
+      let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
+      assert.equal(shape(doc), "D[S[p, _, [_]], T[q, X[]]]");
+      editing.deleteBackward(editing.deleteBackward(at));
+      // Before X: one of X's level, as X.
+      at = editing.splitParagraph(editing.splitParagraph(textPosition(q, 1)));
+      assert.equal(shape(doc), "D[S[p], T[q, _, [_], X[]]]");
+      // Backspace: not depressed - unwrapped, the blank paragraph back.
+      editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[S[p], T[q, _, X[]]]");
     });
 
     it("goes down before a depressed section as far as it is depressed - Enter setting it at its own level", function () {
@@ -319,9 +434,9 @@ describe("Editing a Tabula document", function () {
       const deep = section({ title: "Deep", titleOffset: 1 }, paragraph("d"));
       const { doc, editing } = setUp(section("S", p, deep));
       let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
-      assert.equal(shape(doc), "D[S[p, +1[_], Deep+1[d]]]");
+      assert.equal(shape(doc), "D[S[p, _, +1[_], Deep+1[d]]]");
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[S[p, [_], Deep+1[d]]]");
+      assert.equal(shape(doc), "D[S[p, _, [_], Deep+1[d]]]");
     });
 
     it("skips going down with newSectionsBeside: a section beside what's after it - or, with nothing after it, beside the section it's in; not right in a document", function () {
@@ -332,13 +447,13 @@ describe("Editing a Tabula document", function () {
       const doc = document({ title: "D", paper, margins }, outer, paragraph("top"));
       const editing = editingOf(doc);
       let at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
-      assert.equal(shape(doc), "D[Outer[p, [x], Y[]], top]");
-      assert.ok(samePosition(at, textPosition(outer.children[1].title, 0)));
+      assert.equal(shape(doc), "D[Outer[p, _, [x], Y[]], top]");
+      assert.ok(samePosition(at, textPosition(outer.children[2].title, 0)));
       // Enter: out - Outer split, what came after it taken along.
       at = editing.splitParagraph(at);
-      assert.equal(shape(doc), "D[Outer[p], [x, Y[]], top]");
-      // Backspace, Backspace: as it was.
-      editing.deleteBackward(editing.deleteBackward(at));
+      assert.equal(shape(doc), "D[Outer[p, _], [x, Y[]], top]");
+      // Backspace, Backspace, Backspace - one for each Enter: as it was.
+      editing.deleteBackward(editing.deleteBackward(editing.deleteBackward(at)));
       assert.equal(shape(doc), "D[Outer[p, x, Y[]], top]");
       // With nothing after it: beside the section it's in.
       const q = paragraph("q");
@@ -346,29 +461,29 @@ describe("Editing a Tabula document", function () {
       const other = document({ title: "D", paper, margins }, lone);
       const besides = editingOf(other);
       besides.splitParagraph(besides.splitParagraph(textPosition(q, 1)));
-      assert.equal(shape(other), "D[Lone[q], [_]]");
+      assert.equal(shape(other), "D[Lone[q, _], [_]]");
       // Right in the document: stays in - a document has one title on top.
       const top = paragraph("top");
       const third = document({ title: "D", paper, margins }, top);
       const inDocument = editingOf(third);
       inDocument.splitParagraph(inDocument.splitParagraph(textPosition(top, 3)));
-      assert.equal(shape(third), "D[top, [_]]");
+      assert.equal(shape(third), "D[top, _, [_]]");
     });
 
-    it("undoes a section made on Enter with one Backspace", function () {
+    it("undoes the Enters that made a section with as many Backspaces", function () {
       const p = paragraph("p");
       const { doc, editing } = setUp(p, paragraph("x"), section("Y"));
       const original = shape(doc);
       const at = editing.splitParagraph(editing.splitParagraph(textPosition(p, 1)));
-      assert.equal(shape(doc), "D[p, +1[x], Y[]]");
-      editing.deleteBackward(at);
+      assert.equal(shape(doc), "D[p, _, +1[x], Y[]]");
+      editing.deleteBackward(editing.deleteBackward(at));
       assert.equal(shape(doc), original);
     });
 
     it("makes a section holding an empty paragraph, on Enter on the last, empty paragraph", function () {
       const { doc, editing } = setUp(paragraph("p"), paragraph());
       editing.splitParagraph(textPosition(doc.children[1], 0));
-      assert.equal(shape(doc), "D[p, [_]]");
+      assert.equal(shape(doc), "D[p, _, +1[_]]");
     });
 
     it("splits a section off on Enter at its title's start even with text in the title - what came after it moved into it", function () {
@@ -402,9 +517,21 @@ describe("Editing a Tabula document", function () {
     it("keeps a title with text, on Backspace at its start after a paragraph, as a paragraph before what the section held", function () {
       const s = section("Named", paragraph("in"));
       const { doc, editing } = setUp(paragraph("p"), s);
+      // Going down (see setUp()): a rung down first - depressed - then a
+      // paragraph.
+      editing.deleteBackward(textPosition(s.title, 0));
+      assert.equal(shape(doc), "D[p, Named+1[in]]");
+      // Its title a paragraph, an empty line before it - the caret at its
+      // start.
       const at = editing.deleteBackward(textPosition(s.title, 0));
-      assert.equal(shape(doc), "D[p, Named, in]");
+      assert.equal(shape(doc), "D[p, _, Named, in]");
       assert.ok(samePosition(at, textPosition(s.title, 0)));
+      // An empty line there already: no second one.
+      const t = section("Again", paragraph("a"));
+      const { doc: other, editing: editOther } = setUp(paragraph("p"), paragraph(), t);
+      editOther.deleteBackward(textPosition(t.title, 0));
+      editOther.deleteBackward(textPosition(t.title, 0));
+      assert.equal(shape(other), "D[p, _, Again, a]");
     });
 
     it("flattens a section merged into the section before it - itself holding its leading paragraphs, the rest after it", function () {
@@ -446,7 +573,7 @@ describe("Editing a Tabula document", function () {
       editing.deleteBackward(textPosition(x, 0));
       assert.equal(shape(doc), "D[p, Heading+1[y], S[], z]");
       editing.deleteBackward(textPosition(x, 0));
-      assert.equal(shape(doc), "D[p, Heading, y, S[], z]");
+      assert.equal(shape(doc), "D[p, _, Heading, y, S[], z]");
     });
 
     it("only moves the caret on Tab when what's next is empty - its placeholder waiting - not demoting", function () {

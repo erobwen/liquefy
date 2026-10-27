@@ -53,7 +53,7 @@ function flowEntry(editor, flow, around) {
     title: flow instanceof Document ? "Document" : section ? "Section" : "Paragraph",
     details: () => flowDetails(flow, around),
     build: () => section
-      ? [...structureControls(editor, flow, around), ...appearanceControls(flow, around)]
+      ? [...structureControls(editor, flow, around), ...(editor.settings.depressedTitles ? appearanceControls(flow, around) : [])]
       : paragraphControls(editor, flow),
   };
 }
@@ -92,10 +92,18 @@ function documentMenu(editor) {
     heading("Editing"),
     checkbox({
       key: "newSectionsBeside",
-      label: "New sections beside their parent",
+      label: "New sections on the same level",
       checked: settings.newSectionsBeside,
       onChange: callback("newSectionsBeside", (checked) => { settings.newSectionsBeside = checked; }),
     }),
+    note("Off: Enter on an empty line digs down first - a section under the one you're in - and each Enter after that goes a level up."),
+    checkbox({
+      key: "depressedTitles",
+      label: "Allow depressed titles",
+      checked: settings.depressedTitles,
+      onChange: callback("depressedTitles", (checked) => { settings.depressedTitles = checked; }),
+    }),
+    note("A title set further down than its place - only how it looks. Off: Enter and Backspace never set one so, and its appearance can't be adjusted."),
     row(
       { style: { gap: "6px", alignItems: "center" } },
       button({}, "Clear", callback("clear", () => clear(document))),
@@ -110,18 +118,23 @@ function documentMenu(editor) {
 function experimentalSettings(settings) {
   return [
     heading("Caret goes to"),
-    markerTypes.map(({ type, label }) => checkbox({
+    // Section ends: below, for their own.
+    markerTypes.filter(({ type }) => type !== "sectionEnd").map(({ type, label }) => checkbox({
       key: type,
       label,
       checked: settings.markerTypes[type] !== false,
       onChange: (checked) => { settings.markerTypes = Object.freeze({ ...settings.markerTypes, [type]: checked }); },
     })),
-    checkbox({
-      key: "sectionEndsBelow",
-      label: "Section ends below their last line",
-      checked: settings.sectionEnds === "below",
-      onChange: (checked) => { settings.sectionEnds = checked ? "below" : "beside"; },
-    }),
+    heading("Section ends"),
+    row(
+      { style: { gap: "6px" } },
+      sectionEndChoices.map(({ value, label }) => button(
+        { key: "sectionEnds" + value, variant: settings.sectionEnds === value ? "filled" : undefined },
+        label,
+        () => { settings.sectionEnds = value; },
+      )),
+    ),
+    note("Where the caret finds a section's end - Backspace there takes the whole section out. Bottom right: beside its last line, out of the way."),
     heading("Show"),
     checkbox({
       key: "focusOutline",
@@ -132,6 +145,12 @@ function experimentalSettings(settings) {
     checkbox({ key: "allAreas", label: "Every marker's area", checked: settings.showAllAreas, onChange: (checked) => { settings.showAllAreas = checked; } }),
   ];
 }
+
+const sectionEndChoices = [
+  { value: "bottomRight", label: "Bottom right" },
+  { value: "below", label: "Below" },
+  { value: "none", label: "None" },
+];
 
 const sameSize = (paper, size) => paper.width === size.width && paper.height === size.height;
 

@@ -17,8 +17,9 @@ export const structuredText = {
   icon: "article",
   description: "Sections, titles and paragraphs, on paper.",
   // As the classic app's Clear leaves one: no title, one empty paragraph -
-  // their placeholders, "Title" and "Text", showing.
-  create: () => new Document({ title: "", paper: paperSizes.A4, margins: margins(mm(25)) }, [new Paragraph()]),
+  // their placeholders, "Title" and "Text", showing. Its titles numbered -
+  // for now: the structure plain to see, while it's tried out.
+  create: () => new Document({ title: "", paper: paperSizes.A4, margins: margins(mm(25)), numberTitles: true }, [new Paragraph()]),
   hydrate: (properties) => documentFromJSON(properties),
   dehydrate: (model) => documentToJSON(model),
   // On paper, edited; on the web, read only, for now.

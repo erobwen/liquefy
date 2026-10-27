@@ -188,6 +188,23 @@ describe("Tabula's markers", function () {
     assert.ok(samePosition(hitTest(rows, 0, line.x + 1000, bottom(rows, a) + 1000, measurer), textPosition(a, 1)));
   });
 
+  it("never lands on a section's end beside its last line, moving up and down - out of the way, there for Right at the text's end, or a click", function () {
+    const a = paragraph("aaaa");
+    const b = paragraph("bb");
+    const s = section("S", b);
+    const doc = document({ title: "D", paper, margins }, a, s);
+    // No paragraph ends: only the section's and the document's beside b.
+    const { rows } = layOut(sequenceOf(doc), { types: { paragraphEnd: false }, sectionEnds: "beside" });
+    // Far right, past the text, down onto b's line: in b, at its end - not
+    // at either end beside it.
+    assert.ok(samePosition(rowBelow(rows, textPosition(s.title, 1), textAreaRight, measurer), textPosition(b, 2)));
+    // Right at the end of b: the section's end.
+    assert.ok(samePosition(stepRight(rows, textPosition(b, 2)), flowEnd(s)));
+    // A click there: the section's end too.
+    const end = markerRow(rows, flowEnd(s));
+    assert.ok(samePosition(hitTest(rows, 0, end.x, end.top + 1000, measurer), flowEnd(s)));
+  });
+
   it("are gone past moving up and down - from line to line - unless the caret's x is nearer them than the text", function () {
     const a = paragraph("aaaa");
     const b = paragraph("bb");

@@ -51,6 +51,7 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  *     tab(at, { shift }),            // Tab - optional
  *     deleteBetween(anchor, focus),  // a selection, either way round
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
+ *     settle(at),                    // optional: the caret going to `at` - not by an edit
  *   }
  *
  * Every one returns the position after it - where the caret goes. Without
@@ -352,15 +353,18 @@ export class TabulaEditor extends Component {
     } finally {
       continueInvalidations();
     }
-    this.moveCaret(after);
+    this.moveCaret(after, { edited: true });
   }
 
   // The caret to `at`: the selection collapsed there - or, extending,
   // stretched from its anchor (where the caret was, if nothing was
-  // selected) to there.
-  moveCaret(at, { extend = false, vertical = false } = {}) {
+  // selected) to there. Not by an edit (`edited`) - going somewhere: the
+  // editing told, to settle what it leaves only while the caret stays
+  // (see editing.js's settle()).
+  moveCaret(at, { extend = false, vertical = false, edited = false } = {}) {
     if (!vertical) this.unobservable.goalX = null;
     postponeInvalidations();
+    if (!edited) this.settle(at);
     if (!extend) this.anchor = null;
     else if (!this.anchor) this.anchor = this.caret;
     this.caret = at;
@@ -375,6 +379,7 @@ export class TabulaEditor extends Component {
     if (!this.caret && !this.anchor) return;
     this.unobservable.goalX = null;
     postponeInvalidations();
+    this.settle(null);
     this.anchor = null;
     this.caret = null;
     continueInvalidations();
@@ -385,12 +390,19 @@ export class TabulaEditor extends Component {
     if (!anchor || !focus) return;
     this.unobservable.goalX = null;
     postponeInvalidations();
+    this.settle(focus);
     this.anchor = anchor;
     this.caret = focus;
     this.blink++;
     continueInvalidations();
     this.followCaret();
     this.tellCaret();
+  }
+
+  // The caret going somewhere, not moved by an edit: the editing told, if it
+  // wants to be (`editing.settle(at)`, optional).
+  settle(at) {
+    if (this.editing && this.editing.settle) this.editing.settle(at);
   }
 
   // Whoever placed the editor told where the caret is now (`onCaret`).

@@ -11,17 +11,26 @@ import { settingsFor } from "../../shell/settings.js";
  *
  *  - markerTypes: which kinds of marker the caret goes to besides the text
  *    ({ type: false } for one it doesn't - see ../../paper/markers.js).
- *  - sectionEnds: a section's end "below" its last line, or "beside" it.
- *  - newSectionsBeside: a section made from a blank paragraph split off
- *    its parent at once (see ../../paper/editing.js).
+ *  - sectionEnds: where a section's end is, for the caret - "bottomRight"
+ *    (beside its last line, at the right edge: out of the way, there for
+ *    who knows it is - to take the whole section out with Backspace, say),
+ *    "below" (a bar under its last line, a row of its own) or "none".
+ *  - newSectionsBeside: "New sections on the same level" - a section made
+ *    from a blank paragraph on the level of the section it's in, or of
+ *    what comes after it, at once; off (the default), digging down first
+ *    (see ../../paper/editing.js's ladder).
+ *  - depressedTitles: whether Enter and Backspace ever set a section
+ *    further down than its place (a title offset) on the way - and whether
+ *    its appearance can be adjusted so by hand.
  *  - demoteWithChildren: a section demoted whole, its sub-sections in it.
  *  - showFocusOutline: the flow the caret is in, outlined.
  *  - showAllAreas: every marker's area drawn at once.
  */
 export const structuredTextDefaults = Object.freeze({
   markerTypes: Object.freeze({ paragraphStart: false, paragraphEnd: false, titleStart: false, sectionStart: false }),
-  sectionEnds: "below",
-  newSectionsBeside: true,
+  sectionEnds: "bottomRight",
+  newSectionsBeside: false,
+  depressedTitles: false,
   demoteWithChildren: true,
   showFocusOutline: false,
   showAllAreas: false,

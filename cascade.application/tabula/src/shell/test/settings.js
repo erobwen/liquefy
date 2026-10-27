@@ -9,7 +9,11 @@ describe("Settings", function () {
     assert.strictEqual(section.newSectionsBeside, false, "what was set stays set");
     assert.strictEqual(section.showAllAreas, false, "what's new gets its default");
     assert.strictEqual(settings.section("structuredText"), section, "the same section every time");
-    assert.deepStrictEqual(settings.toJSON(), { structuredText: { newSectionsBeside: false, showAllAreas: false } });
+    // Saved: only what differs from the defaults - a default changed later
+    // is what's set, unless set otherwise.
+    assert.deepStrictEqual(settings.toJSON(), { structuredText: { newSectionsBeside: false } });
+    const later = new Settings(settings.toJSON());
+    assert.strictEqual(later.section("structuredText", { newSectionsBeside: true, showAllAreas: true }).showAllAreas, true);
   });
 
   it("are found through the service locator, by name", function () {

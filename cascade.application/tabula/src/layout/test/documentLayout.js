@@ -162,6 +162,17 @@ describe("Laying out a Tabula document", function () {
     assert.deepEqual(lines(sequence).map(([, text]) => text)[4], "Inner");
   });
 
+  it("numbers titles by where their sections are, whatever their offsets - a depressed section only looks deeper", function () {
+    const doc = document({ title: "Book", paper: { width: 22000, height: 80000 }, margins, numberTitles: true },
+      section({ title: "One", titleOffset: 1 }, section({ title: "Deep", titleOffset: 2 }), section("Next")),
+      section("Two"));
+    const texts = lines(layOut(doc)).map(([, text]) => text);
+    assert.deepEqual(texts, [
+      "Book", "1" + titleNumberGap + "One", "1.1" + titleNumberGap + "Deep", "1.2" + titleNumberGap + "Next",
+      "2" + titleNumberGap + "Two",
+    ]);
+  });
+
   it("indents paragraphs rather than spacing them apart, in a document set so - the first of a run not indented", function () {
     const spaced = { ...plain, body: { ...plain.body, spaceAfter: 3000 }, paragraphIndent: 2000 };
     const doc = document({ title: "B", paper: { width: 22000, height: 80000 }, margins, indentParagraphs: true },

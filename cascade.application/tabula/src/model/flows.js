@@ -1,4 +1,5 @@
 import { observable } from "@liquefy/cascade.component";
+import { PageLayout } from "./pageLayout.js";
 
 /**
  * Tabula's document model - a tree of flows, as a DAISY 2 book is: sections,
@@ -7,11 +8,14 @@ import { observable } from "@liquefy/cascade.component";
  *  - Flow: what every node of the document is.
  *  - Paragraph: a leaf - its text, as spans. A span is styled on its own
  *    ({ text, bold, italic }); a paragraph as a whole holds no style at all.
+ *    A span can hold a frame anchor instead of text ({ anchor }, see
+ *    frames.js): one character, standing for a frame - an image, a table.
  *  - Section: a title - a paragraph - and its children: paragraphs and
  *    sections, in any order (see checkChildren()) - a paragraph after a
  *    section closed by the section's exit title (see below).
- *  - Document: a section at the top - its title the document's - and the
- *    paper it's printed on.
+ *  - Document: a section at the top - its title the document's - the
+ *    paper it's printed on, and its page layout: its margins, and what's
+ *    drawn on its pages around the text (see pageLayout.js).
  *  - Sequence: the root of it all - a list of documents, one after another.
  *
  * What a flow looks like comes from where it is, not from the flow: a
@@ -78,12 +82,13 @@ export class Section extends Flow {
 // A document - the root of a tree of flows - holds what goes for all of it:
 // its paper, whether its titles are numbered (`numberTitles`, see
 // titleNumber()), and whether its paragraphs are indented rather than
-// spaced apart (`indentParagraphs`, see ../layout).
+// spaced apart (`indentParagraphs`, see ../layout) - and its page layout
+// (see pageLayout.js): given, or made of `margins`, nothing on its pages.
 export class Document extends Section {
-  constructor({ title, paper, margins, titleOffset = 0, numberTitles = false, indentParagraphs = false }, children = []) {
+  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
-    this.margins = margins;
+    this.pageLayout = pageLayout || new PageLayout({ margins });
     this.numberTitles = !!numberTitles;
     this.indentParagraphs = !!indentParagraphs;
   }
@@ -209,11 +214,13 @@ export function paragraphText(paragraph) {
   return text;
 }
 
-// A span, as a paragraph holds it: a string, or { text, bold, italic }.
+// A span, as a paragraph holds it: a string, or { text, bold, italic } -
+// or { anchor }: a frame anchor, its one character U+FFFC (see frames.js).
 export const makeSpan = (span) => toSpan(span);
 
 function toSpan(span) {
   if (typeof(span) === "string") return observable({ text: span, bold: false, italic: false });
+  if (span.anchor) return observable({ text: "\uFFFC", bold: !!span.bold, italic: !!span.italic, anchor: span.anchor });
   return observable({ text: span.text, bold: !!span.bold, italic: !!span.italic });
 }
 

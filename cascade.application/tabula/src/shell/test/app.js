@@ -88,6 +88,8 @@ describe("Tabula, the document editor", function () {
   });
 
   it("renders onto the mode chosen - paper, web, JSON, tree - and takes from the JSON only what the plugins can hold", function () {
+    // The whole app, four times over, in jsdom.
+    this.timeout(10000);
     const serviceLocator = new CompoundServiceLocator(new DOMServiceLocator(), basicTheme, new DOMDebugServiceLocator());
     const services = new ObservableCompoundServiceLocator(...plugins);
     const element = document.getElementById("application");

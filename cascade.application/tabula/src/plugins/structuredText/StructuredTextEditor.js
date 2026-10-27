@@ -3,6 +3,7 @@ import { div } from "@liquefy/cascade.dom";
 import { PaperSequence } from "../../print/index.js";
 import { domMeasurer } from "../../print/dom.js";
 import { tabulaEditor } from "../../paper/TabulaEditor.js";
+import { pageLayoutEditor, newElement } from "../../paper/PageLayoutEditor.js";
 import { tabulaEditing } from "../../paper/editing.js";
 import { sequence as sequenceOf } from "../../model/flows.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
@@ -29,6 +30,14 @@ const paperInset = 8;
  * Tabula's settings for structured text (see settings.js), found through
  * the service locator.
  *
+ * Two modes (`mode`): "write" - the text, edited - and "page" - its page
+ * layout (see ../../model/pageLayout.js, ../../paper/PageLayoutEditor.js):
+ * its margins, and what's drawn on its pages, the text showing through.
+ * Chosen in the document's menu; a double click in a paper's margins goes
+ * to the page layout, one inside them back to the text. What's created
+ * goes where the mode says: at the caret, writing; on a page, laying out
+ * the pages.
+ *
  * As in the classic app, the layout is a root of its own: the document
  * rendered onto a PaperSequence, created in initialization, laid out in a
  * repeater of its own from establishment on, disposed with the editor. A
@@ -44,8 +53,11 @@ export class StructuredTextEditor extends Component {
   initialState() {
     // Where the caret is (the editor's onCaret) - for the context menus.
     // flash: where the last refused key was flashed - and how many there
-    // have been, so each one flashes anew (see refused()).
-    return { caret: null, flash: null };
+    // have been, so each one flashes anew (see refused()). mode: "write" or
+    // "page" (see above). selectedElement: in the page layout, the element
+    // selected - { element, kind }, kind the page it's on (see
+    // ../../model/pageLayout.js).
+    return { caret: null, flash: null, mode: "write", selectedElement: null };
   }
 
   initialUnobservables() {
@@ -59,6 +71,8 @@ export class StructuredTextEditor extends Component {
       sequence: new PaperSequence(),
       layout: new SequenceLayout({ sequence: root, measurer }).establish(),
       layoutRoot: null,
+      // Where the TabulaEditor puts itself - for edits from outside it.
+      controller: {},
     };
     // Asked when it matters - from the component's own unobservables, where
     // the build puts the settings, not from `u`: what this returns isn't
@@ -85,6 +99,45 @@ export class StructuredTextEditor extends Component {
   // See ../../shell/contextMenus.js.
   contextPath() {
     return contextPath(this);
+  }
+
+  // Where what's created goes (see ../../shell/contextMenus.js): on a page,
+  // laying out the pages; in the text, writing, with a caret.
+  insertPlace() {
+    if (this.mode === "page") return "page";
+    return this.caret ? "text" : null;
+  }
+
+  // Something created, put where the caret is: "insert this here" - the
+  // caret's place deciding what that makes (see ../../paper/editing.js's
+  // insert()). False with no caret. Laying out the pages: in the middle of
+  // the page the element selected is on - the first, with none - selected.
+  insert(content) {
+    if (this.mode === "page") {
+      const kind = this.selectedElement ? this.selectedElement.kind : "first";
+      const { paper } = this.model;
+      const element = newElement(content, paper, { x: paper.width / 2, y: paper.height / 2 });
+      this.model.pageLayout[kind].push(element);
+      this.selectElement({ element, kind });
+      return true;
+    }
+    const { controller, editing } = this.unobservable;
+    return !!controller.editor && controller.editor.editAtCaret((at) => editing.insert(at, content));
+  }
+
+  // Writing, or laying out the pages: the caret, or the selected element,
+  // left behind - this editor with the focus, its menus showing.
+  setMode(mode) {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    this.caret = null;
+    this.selectedElement = null;
+    takeFocus(this);
+  }
+
+  selectElement(selection) {
+    this.selectedElement = selection ? frozen(selection) : null;
+    takeFocus(this);
   }
 
   // The caret placed, or moved: this editor has the focus.
@@ -120,18 +173,32 @@ export class StructuredTextEditor extends Component {
   }
 
   build() {
-    const { root, sequence, measurer, editing } = this.unobservable;
+    const { root, sequence, measurer, editing, controller } = this.unobservable;
     const settings = structuredTextSettings();
     this.unobservable.settings = settings;
     const corner = `calc(${paperInset}mm * ${this.zoom})`;
     return div(
       { style: { position: "relative" } },
-      tabulaEditor({
-        sequence, root, measurer, editing, zoom: this.zoom,
-        showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
-        ...sectionEnds(settings),
-        onCaret: callback("caret", (at) => this.caretMoved(at)),
-      }),
+      this.mode === "page"
+        ? pageLayoutEditor({
+          key: "pages",
+          document: this.model, sequence, zoom: this.zoom,
+          selected: this.selectedElement,
+          onSelect: callback("selectElement", (selection) => this.selectElement(selection)),
+          onWrite: callback("write", () => this.setMode("write")),
+          takeDragged: callback("takeDragged", () => {
+            const menus = this.inherit("contextMenus");
+            return menus ? menus.takeDragged() : null;
+          }),
+        })
+        : tabulaEditor({
+          key: "text",
+          sequence, root, measurer, editing, controller, zoom: this.zoom,
+          showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
+          ...sectionEnds(settings),
+          onCaret: callback("caret", (at) => this.caretMoved(at)),
+          onMarginDoubleClick: callback("pages", () => this.setMode("page")),
+        }),
       this.onRemove ? removeButton(this.onRemove, { left: corner, top: corner }) : null,
       // A new one every time - keyed by the count - so it flashes again.
       this.flash && this.flash.shown

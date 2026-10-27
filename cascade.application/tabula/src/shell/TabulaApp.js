@@ -5,7 +5,7 @@ import { paperBackdrop } from "../paper/TabulaPaperView.js";
 import { nullDocument } from "./NullDocument.js";
 import { creationDot } from "./CreationDot.js";
 import { removeButton } from "./removeButton.js";
-import { documentTypes, documentType, documentName, createDocument, hydrateRoot, dehydrateRoot } from "./documents.js";
+import { documentTypes, rootDocumentTypes, frameTypes, documentType, documentName, createDocument, hydrateRoot, dehydrateRoot } from "./documents.js";
 import { openFile, saveFile } from "./files.js";
 import { jsonEditor } from "./json/JsonEditor.js";
 import { treeView } from "./TreeView.js";
@@ -170,6 +170,7 @@ export class TabulaApp extends Component {
     const mode = modes.find((each) => each.name === this.mode);
     const parts = {
       actions: this.actions(),
+      creations: this.creations(),
       modes,
       mode: mode.name,
       onMode: callback("mode", (name) => { this.mode = name; }),
@@ -210,6 +211,27 @@ export class TabulaApp extends Component {
     ];
   }
 
+  // What can be created where the focus is - put there by whatever has it,
+  // as it likes (see contextMenus.js): in a structured text's text, at the
+  // caret, an image, a table; on its pages, in its page layout, a shape, a
+  // picture, a page number - there, or dragged to where it goes. Each kind
+  // that can be in a frame there (see documents.js), a new one of it, as if
+  // loaded.
+  creations() {
+    const menus = this.unobservable.menus;
+    const place = menus.insertPlace();
+    return frameTypes(this.services, place || "text").map((type) => ({
+      icon: type.icon,
+      label: type.label,
+      title: !place ? type.label + " - put the caret where it goes first"
+        : place === "page" ? type.label + " - drag it onto a page, or click to put it on the one selected"
+        : type.label + " - where the caret is",
+      disabled: !place,
+      onClick: callback("create" + type.name, () => menus.insert(createDocument(type))),
+      onDragStart: place === "page" ? callback("drag" + type.name, () => menus.drag(createDocument(type))) : null,
+    }));
+  }
+
   // The settings, a modal dialog (see settingsDialog.js): Tabula's own page,
   // then a page for every kind of document in use that has settings.
   settingsOverlay() {
@@ -234,7 +256,7 @@ export class TabulaApp extends Component {
     if (documents.length === 0) {
       return nullDocument({
         key: "null",
-        documentTypes: documentTypes(this.services),
+        documentTypes: rootDocumentTypes(this.services),
         onCreate: callback("createFirst", (type) => this.insert(0, type)),
         background: mode.layout === "paper" ? null : appBackdrop,
       });
@@ -259,7 +281,7 @@ export class TabulaApp extends Component {
   dot(key, index, title, shape, rowStyle) {
     return div(
       { key, style: { ...dotRowStyle, ...rowStyle } },
-      creationDot({ documentTypes: documentTypes(this.services), shape, title, onCreate: callback(key, (type) => this.insert(index, type)) }),
+      creationDot({ documentTypes: rootDocumentTypes(this.services), shape, title, onCreate: callback(key, (type) => this.insert(index, type)) }),
     );
   }
 

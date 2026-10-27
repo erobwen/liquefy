@@ -21,8 +21,8 @@ export const structuredText = {
   // their placeholders, "Title" and "Text", showing. Its titles numbered -
   // for now: the structure plain to see, while it's tried out.
   create: () => new Document({ title: "", paper: paperSizes.A4, margins: margins(mm(25)), numberTitles: true }, [new Paragraph()]),
-  hydrate: (properties) => documentFromJSON(properties),
-  dehydrate: (model) => documentToJSON(model),
+  hydrate: (properties, documents) => documentFromJSON(properties, documents),
+  dehydrate: (model, documents) => documentToJSON(model, documents),
   // On paper, edited; on the web, read only, for now.
   editor: ({ target, ...properties }) => target === "web" ? structuredTextWeb(properties) : structuredTextEditor(properties),
   title: (model) => paragraphText(model.title),

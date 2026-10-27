@@ -1,6 +1,7 @@
 import { frozen } from "@liquefy/cascade.component";
 import { Box, Section, Paragraph, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
 import { isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
+import { frameSize } from "../model/frames.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 
 const fallbackMeasurer = monospaceMeasurer();
@@ -39,7 +40,9 @@ export const exitTitlePrefix = "❧ → ";
  *    title's its title level's; only its spans are bold or italic of their
  *    own. An empty one shows "Title" or "Text", faintly - a placeholder,
  *    no text: the caret only before its first letter, and typing there
- *    takes its place.
+ *    takes its place. A frame anchor in it (see ../model/frames.js) is its
+ *    frame, as wide as its anchor says - no wider than the text area - and
+ *    placed as it says (see ../print/lineBreaking.js).
  *  - ExitTitleLayout: a section's exit title - a fleuron, an arrow, and the
  *    title of the section it's in, what comes next being back out there -
  *    set one title level below the level of that section, whatever offsets
@@ -83,9 +86,11 @@ export class DocumentLayout extends Section {
     this.exit = !!exit;
   }
 
+  // Its paper - and its page layout, for what shows the paper to draw on it
+  // what's drawn on its pages (see ../model/pageLayout.js).
   pageFormat() {
-    const { paper, margins } = this.document;
-    return frozen({ width: paper.width, height: paper.height, margins });
+    const { paper, pageLayout } = this.document;
+    return frozen({ width: paper.width, height: paper.height, margins: pageLayout.margins, pageLayout });
   }
 
   build() {
@@ -184,7 +189,7 @@ export class ParagraphLayout extends Paragraph {
       font,
       spans: [
         ...number,
-        ...(paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font)),
+        ...(paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font, this.width)),
       ],
     };
   }
@@ -212,16 +217,22 @@ export class ExitTitleLayout extends Paragraph {
       font,
       spans: [
         { text: exitTitlePrefix, font },
-        ...(!title ? [] : paragraphText(title) === "" ? [{ text: titlePlaceholder, font }] : styledSpans(title.spans, font)),
+        // Its title's text - not its frames.
+        ...(!title ? [] : paragraphText(title) === "" ? [{ text: titlePlaceholder, font }] : styledSpans(title.spans.filter((span) => !span.anchor), font)),
       ],
     };
   }
 }
 
-// A paragraph's spans, set in `font` - bold or italic as each span is.
-function styledSpans(spans, font) {
-  return spans.map((span) => ({
+// A paragraph's spans, set in `font` - bold or italic as each span is - a
+// frame anchor's its frame, at most `width` wide.
+function styledSpans(spans, font, width = Infinity) {
+  return spans.map((span) => span.anchor ? {
+    text: span.text,
+    font,
+    frame: { ...frameSize(span.anchor, width), placement: span.anchor.placement, source: span.anchor },
+  } : {
     text: span.text,
     font: { ...font, weight: span.bold ? 700 : font.weight, italic: span.italic || font.italic },
-  }));
+  });
 }

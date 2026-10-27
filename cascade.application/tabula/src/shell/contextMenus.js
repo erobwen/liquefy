@@ -31,10 +31,22 @@ import { infoButton } from "../InfoButton.js";
  * kept until something else takes it, or its owner lets it go
  * (`release(owner)` - when it's gone). Provided by the app, as
  * `contextMenus` (see cascade.component's provide()/inherit()).
+ *
+ * What's created - from the app's creation menu (see TabulaApp.js) - goes
+ * to what has the focus, too: `insert(content)`, "insert this here", the
+ * owner's `insert(content)` deciding what that makes where its caret is
+ * (a frame in a structured text's text, see ../model/frames.js) - and
+ * false if it takes none. `insertPlace()`: where what's created would go -
+ * "text", "page" (a page layout, see ../model/pageLayout.js), as the owner
+ * says (its `insertPlace()`) - null with nowhere: the creation menu offers
+ * what can go there. And dragged from it instead - on a page, to where it's
+ * dropped: `drag(content)` as the drag starts, `takeDragged()` where it
+ * ends.
  */
 export class ContextMenus {
   constructor() {
     this.owner = null;
+    this.dragged = null;
     return observable(this);
   }
 
@@ -54,6 +66,27 @@ export class ContextMenus {
 
   path() {
     return this.owner ? this.owner.contextPath() : [];
+  }
+
+  insertPlace() {
+    const owner = this.owner;
+    if (!owner || typeof(owner.insert) !== "function") return null;
+    return typeof(owner.insertPlace) === "function" ? owner.insertPlace() : "text";
+  }
+
+  insert(content) {
+    return !!this.insertPlace() && this.owner.insert(content);
+  }
+
+  // Not observed: nothing shows what's being dragged.
+  drag(content) {
+    withoutRecording(() => { this.dragged = content; });
+  }
+
+  takeDragged() {
+    const content = withoutRecording(() => this.dragged);
+    withoutRecording(() => { this.dragged = null; });
+    return content || null;
   }
 }
 

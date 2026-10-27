@@ -2,6 +2,8 @@ import { Component } from "@liquefy/cascade.component";
 import { div, span, text, b, i } from "@liquefy/cascade.dom";
 import { isSection, titleLevel, titleNumber } from "../../model/flows.js";
 import { titlePlaceholder, textPlaceholder } from "../../layout/DocumentLayout.js";
+import { frameKind, frameSize } from "../../model/frames.js";
+import { cssMm } from "../../print/dom.js";
 
 /**
  * StructuredTextWeb - a structured text in the web mode: not on paper but
@@ -64,13 +66,32 @@ function paragraph(flow, indented) {
   );
 }
 
+// Its spans - a frame anchor's its frame (see ../../model/frames.js), as
+// the web places a box: floated left or right, a block of its own, or in
+// the line - never wider than the text.
 function spans(paragraph) {
   return paragraph.spans.map((each) => {
+    if (each.anchor) return frame(each.anchor);
     if (each.bold && each.italic) return b(i(text(each.text)));
     if (each.bold) return b(text(each.text));
     if (each.italic) return i(text(each.text));
     return text(each.text);
   });
+}
+
+function frame(anchor) {
+  const { width, height } = frameSize(anchor);
+  const kind = frameKind(anchor);
+  const placed = {
+    inline: { display: "inline-block", verticalAlign: "baseline" },
+    block: { display: "block", margin: "0.5em auto" },
+    left: { float: "left", margin: "0.3em 1em 0.5em 0" },
+    right: { float: "right", margin: "0.3em 0 0.5em 1em" },
+  }[anchor.placement] || {};
+  return span(
+    { style: { ...placed, width: cssMm(width), maxWidth: "100%", aspectRatio: width + " / " + height, overflow: "hidden", textIndent: 0 } },
+    kind ? kind.view(anchor.content.model) : null,
+  );
 }
 
 const sans = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";

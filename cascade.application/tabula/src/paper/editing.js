@@ -2,6 +2,7 @@ import {
   Paragraph, Section, Document, isSection, isParagraph, isFlowEdge,
   textPosition, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
 } from "../model/flows.js";
+import { FrameAnchor, anchorCharacter } from "../model/frames.js";
 import { readingOrder } from "./markers.js";
 
 /**
@@ -120,6 +121,12 @@ import { readingOrder } from "./markers.js";
  * Backspace at a post marker takes the flow out - a paragraph, a section and
  * all in it - the caret at the end of the text before it (removeFlow()).
  *
+ * Something else than text, inserted - "insert this here", the position
+ * deciding what that makes (insert(at, content)): in the text, a frame
+ * anchor (see ../model/frames.js) holding it, the caret after it - one
+ * character, as far as the text goes. At a marker typing goes into, the
+ * same there; at any other, refused, for now.
+ *
  * Whatever else leaves everything as it is.
  */
 export function tabulaEditing(root, { newSectionsBeside = () => true, depressedTitles = () => true, exitTitles = () => true, keepEmptyLine = () => false, demoteWithChildren = () => false, refuse = () => {} } = {}) {
@@ -140,6 +147,7 @@ export function tabulaEditing(root, { newSectionsBeside = () => true, depressedT
     deleteForward: at((position) => deleteForward(root, position)),
     splitParagraph: at((position) => pressEnter(root, position, options)),
     tab: (position, { shift = false } = {}) => at((position) => pressTab(root, position, shift, options))(position),
+    insert: (position, content) => at((position) => insertContent(root, position, content, options))(position),
     // For a section's structure, outside the text - a panel's buttons:
     canPromote: (section) => canPromote(root, section),
     canDemote: (section) => canDemote(root, section),
@@ -234,7 +242,7 @@ function snapshot(root, leftBehind) {
   const texts = [];
   const visit = (flow) => {
     if (isParagraph(flow)) {
-      texts.push([flow, flow.spans.map(({ text, bold, italic }) => ({ text, bold, italic }))]);
+      texts.push([flow, flow.spans.map((span) => [span, span.text])]);
       return;
     }
     if (flow.title) visit(flow.title);
@@ -253,8 +261,9 @@ function restore({ lists, texts, leftBehind: lines }, leftBehind) {
     if (typeof(titleOffset) === "number" && flow.titleOffset !== titleOffset) flow.titleOffset = titleOffset;
   }
   for (const [paragraph, spans] of texts) {
-    const now = paragraph.spans.map(({ text, bold, italic }) => ({ text, bold, italic }));
-    if (JSON.stringify(now) !== JSON.stringify(spans)) paragraph.spans.splice(0, paragraph.spans.length, ...spans.map(makeSpan));
+    if (paragraph.spans.length === spans.length && spans.every(([span, text], index) => paragraph.spans[index] === span && span.text === text)) continue;
+    for (const [span, text] of spans) if (span.text !== text) span.text = text;
+    paragraph.spans.splice(0, paragraph.spans.length, ...spans.map(([span]) => span));
   }
   if (leftBehind) {
     leftBehind.clear();
@@ -263,24 +272,37 @@ function restore({ lists, texts, leftBehind: lines }, leftBehind) {
 }
 
 function insertText(root, at, text, options = {}) {
+  text = text.split(anchorCharacter).join("");
   const lines = text.split("\n");
   if (lines.length > 1) {
     let after = insertText(root, at, lines[0]);
     for (const line of lines.slice(1)) after = insertText(root, pressEnter(root, after, options), line, options);
     return after;
   }
-  if (isText(at)) {
-    insertInto(at.paragraph, at.offset, text);
-    return textPosition(at.paragraph, at.offset + text.length);
-  }
-  // At a section's pre marker: typing at its title's start.
-  if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) return insertText(root, textPosition(at.flow.title, 0), text);
-  if (isFlowEdge(at) && isParagraph(at.flow)) {
-    const offset = at.edge === "start" ? 0 : paragraphText(at.flow).length;
-    insertInto(at.flow, offset, text);
-    return textPosition(at.flow, offset + text.length);
-  }
-  return at;
+  // At a section's pre marker: typing at its title's start - at a
+  // paragraph's markers, at its start or end.
+  const place = textAt(at);
+  if (!place) return at;
+  insertInto(place.paragraph, place.offset, text);
+  return textPosition(place.paragraph, place.offset + text.length);
+}
+
+// Content inserted at a position (see above): a frame anchor holding it,
+// in the text there.
+function insertContent(root, at, content, options) {
+  const place = textAt(at);
+  if (!place) return refused(at, options);
+  insertSpan(place.paragraph, place.offset, makeSpan({ anchor: new FrameAnchor({ content }) }));
+  return textPosition(place.paragraph, place.offset + 1);
+}
+
+// The place in the text typing at a position goes to - null at a marker
+// typing goes nowhere from.
+function textAt(at) {
+  if (isText(at)) return at;
+  if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) return textPosition(at.flow.title, 0);
+  if (isFlowEdge(at) && isParagraph(at.flow)) return textPosition(at.flow, at.edge === "start" ? 0 : paragraphText(at.flow).length);
+  return null;
 }
 
 function pressEnter(root, at, options = {}) {
@@ -934,7 +956,7 @@ function flowLike(flow, titleOffset, children = []) {
 
 function newSection(titleOffset = 0, children = [], document = null) {
   const content = children.length > 0 ? children : [placeholder()];
-  if (document) return new Document({ title: "", paper: document.paper, margins: document.margins, titleOffset }, content);
+  if (document) return new Document({ title: "", paper: document.paper, margins: document.pageLayout.margins, titleOffset }, content);
   return new Section("", content, titleOffset);
 }
 
@@ -977,19 +999,54 @@ function inReadingOrder(root, a, b) {
 }
 
 // The text of a paragraph's spans, changed in place - typing goes into the
-// span before the caret, so it takes that span's style.
+// span before the caret, so it takes that span's style. Never into a frame
+// anchor's: right after one, into the span after it; with none there, or
+// right before one starting the paragraph, a span of its own, styled as
+// the anchor.
 function insertInto(paragraph, offset, text) {
   if (text === "") return;
+  const spans = paragraph.spans;
   let start = 0;
-  for (const span of paragraph.spans) {
+  for (let index = 0; index < spans.length; index++) {
+    const span = spans[index];
     const end = start + span.text.length;
     if (offset <= end) {
-      span.text = span.text.slice(0, offset - start) + text + span.text.slice(offset - start);
+      if (!span.anchor) {
+        span.text = span.text.slice(0, offset - start) + text + span.text.slice(offset - start);
+        return;
+      }
+      if (offset === end && index + 1 < spans.length) {
+        start = end;
+        continue;
+      }
+      spans.splice(offset === start ? index : index + 1, 0, makeSpan({ text, bold: span.bold, italic: span.italic }));
       return;
     }
     start = end;
   }
-  paragraph.spans.push(makeSpan(text));
+  spans.push(makeSpan(text));
+}
+
+// A span put in at `offset` - the one there split in two around it.
+function insertSpan(paragraph, offset, inserted) {
+  const spans = paragraph.spans;
+  let start = 0;
+  for (let index = 0; index < spans.length; index++) {
+    const span = spans[index];
+    const end = start + span.text.length;
+    if (offset <= start) {
+      spans.splice(index, 0, inserted);
+      return;
+    }
+    if (offset < end) {
+      const rest = makeSpan({ text: span.text.slice(offset - start), bold: span.bold, italic: span.italic });
+      span.text = span.text.slice(0, offset - start);
+      spans.splice(index + 1, 0, inserted, rest);
+      return;
+    }
+    start = end;
+  }
+  spans.push(inserted);
 }
 
 function deleteRange(paragraph, from, to) {
@@ -1013,7 +1070,7 @@ function cutAfter(paragraph, offset) {
     const length = span.text.length;
     const cut = Math.max(0, Math.min(length, offset - start));
     if (cut < length) {
-      after.push({ text: span.text.slice(cut), bold: span.bold, italic: span.italic });
+      after.push({ text: span.text.slice(cut), bold: span.bold, italic: span.italic, anchor: span.anchor });
       span.text = span.text.slice(0, cut);
     }
     start += length;

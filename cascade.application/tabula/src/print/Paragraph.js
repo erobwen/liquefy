@@ -38,6 +38,10 @@ import { breakIntoLines } from "./lineBreaking.js";
  *
  *   { ...line, x, top, baseline, paragraph, index }
  *
+ * Its frames (see lineBreaking.js) placed with it - x and top on the paper
+ * too - and on the same paper: a line goes on the next one if its frames
+ * don't fit on this one, as if they were part of it.
+ *
  * `paragraph` is the paragraph's `source` - whatever a model wants it to
  * be, typically its own paragraph object - and `index` which of its lines
  * it is. With the line's `start`/`end`, what finds the place in the text
@@ -115,9 +119,12 @@ export class Paragraph extends Box {
     if (!atPageTop) y += sequence.next.spaceAfter + spaceBefore;
     let pageLines = sequence.linesOf(page);
     lines.forEach((line, index) => {
-      // A line that doesn't fit goes on the next paper - unless it's the
-      // first on this one: then it would fit on none.
-      if (!atPageTop && y + line.height > bottom) {
+      // Below the frames beside the lines before it.
+      y += line.before || 0;
+      // A line that doesn't fit goes on the next paper - its frames with it -
+      // unless it's the first on this one: then it would fit on none.
+      const reach = Math.max(line.height, ...(line.frames || []).map((frame) => frame.top + frame.height));
+      if (!atPageTop && y + reach > bottom) {
         sequence.pages.push(format);
         page += 1;
         y = format.margins.top;
@@ -131,8 +138,9 @@ export class Paragraph extends Box {
         baseline: y + line.ascent,
         paragraph: this.source,
         index,
+        frames: (line.frames || []).map((frame) => ({ ...frame, x: format.margins.left + frame.x, top: y + frame.top })),
       }));
-      y += line.height;
+      y += line.height + (line.after || 0);
       atPageTop = false;
     });
     sequence.next = frozen({ page, y, spaceAfter, atPageTop });

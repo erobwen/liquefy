@@ -11,6 +11,8 @@ import { contextMenuSlot } from "./contextMenus.js";
  *  - `actions`: what can be done with the document - new, open, save,
  *    print, the settings (a modal dialog, see settingsDialog.js) - each
  *    `{ icon, label, title, onClick, disabled }`.
+ *  - `creations`: what can be created where the caret is - an image, a
+ *    table - each as an action.
  *  - `modes`, `mode`, `onMode(name)`: the mode selector.
  *  - `content`: the documents, as the mode shows them.
  *  - `menus`: the context menus of whatever has the focus (see
@@ -20,11 +22,11 @@ import { contextMenuSlot } from "./contextMenus.js";
  * Two of them:
  *
  *  - PaperLayout - for paper: nothing around the papers but cards floating
- *    over them - the file's top left, the context menus top right (the
+ *    over them - the file's top left, the creation menu under it, the context menus top right (the
  *    root's above the leaf's), the mode's and the zoom's bottom right. Zoom is paper's alone (`zoom`, `onZoom(steps)`; null when
  *    there's nothing to zoom).
  *  - AppLayout - for the web, JSON and the tree: an application's frame - a
- *    drawer on the left (the actions; a bar of shortcuts when
+ *    drawer on the left (the actions and the creation menu; a bar of shortcuts when
  *    closed), a bar along the bottom (what's open, the mode), and the
  *    context menus in a column on the right, while something has the focus -
  *    the content between them.
@@ -61,22 +63,33 @@ function modeButtons({ modes, mode, onMode, labels }) {
 const activeStyle = { background: "#d3e3fd", color: "#0b57d0" };
 
 export class PaperLayout extends Component {
-  setProperties({ actions, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom }) {
-    Object.assign(this, { actions, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom });
+  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom }) {
+    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, zoom, onZoom });
   }
 
   build() {
     return div(
       { style: { ...fitContainerStyle, position: "relative" } },
       this.content,
-      card(
-        { style: { ...floatingStyle, top: "12px", left: "12px", flexDirection: "column", alignItems: "stretch", gap: "2px" } },
-        div(
-          { style: { display: "flex", alignItems: "center", gap: "2px" } },
-          this.actions.map((action) => iconButton({ icon: action.icon, title: action.title, disabled: action.disabled, onClick: action.onClick })),
+      // Top left: the file's card, and the creation menu under it.
+      div(
+        { style: { position: "absolute", top: "12px", left: "12px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "12px" } },
+        card(
+          { style: { ...floatingStyle, position: "static", flexDirection: "column", alignItems: "stretch", gap: "2px" } },
+          div(
+            { style: { display: "flex", alignItems: "center", gap: "2px" } },
+            this.actions.map((action) => iconButton({ icon: action.icon, title: action.title, disabled: action.disabled, onClick: action.onClick })),
+          ),
+          this.fileName ? note(this.fileName) : null,
+          this.message ? errorNote(this.message) : null,
         ),
-        this.fileName ? note(this.fileName) : null,
-        this.message ? errorNote(this.message) : null,
+        this.creations.length > 0
+          ? card(
+            { style: { ...floatingStyle, position: "static", flexDirection: "column", alignItems: "stretch", gap: "0", padding: "8px 6px", minWidth: "150px" } },
+            div({ style: { fontWeight: "bold", fontSize: "13px", padding: "0 8px 4px" } }, text("Create")),
+            this.creations.map(creationButton),
+          )
+          : null,
       ),
       // Top right: the context menus - the root's, then the leaf's - over
       // the papers, clear of the scroll bar and of the card below.
@@ -103,8 +116,8 @@ export class PaperLayout extends Component {
 }
 
 export class AppLayout extends Component {
-  setProperties({ actions, modes, mode, onMode, content, menus, fileName, message }) {
-    Object.assign(this, { actions, modes, mode, onMode, content, menus, fileName, message });
+  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message }) {
+    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message });
   }
 
   initialState() {
@@ -149,24 +162,19 @@ export class AppLayout extends Component {
     );
   }
 
-  // The drawer, open: the actions, with their names.
+  // The drawer, open: the actions, with their names - and the creation
+  // menu.
   panel() {
     return div(
       { style: { display: "flex", flexDirection: "column", gap: "2px", padding: "4px 8px 16px" } },
-      this.actions.map((action) => htmlButton(
-        {
-          title: action.title,
-          disabled: action.disabled,
-          onclick: action.onClick,
-          style: {
-            display: "flex", alignItems: "center", gap: "12px", padding: "8px 10px", border: "none", borderRadius: "8px",
-            background: "transparent", font: "inherit", fontSize: "14px", textAlign: "left", color: "#1f1f1f",
-            cursor: action.disabled ? "default" : "pointer", opacity: action.disabled ? 0.4 : 1,
-          },
-        },
-        span({ class: "material-symbols-outlined", style: { fontSize: "20px", color: "#5f6368" } }, text(action.icon)),
-        text(action.label),
-      )),
+      this.actions.map((action) => actionRow(action)),
+      this.creations.length > 0
+        ? [
+          div({ style: { borderTop: "1px solid #e0e0e0", margin: "8px 0 4px" } }),
+          div({ style: { fontWeight: "bold", fontSize: "13px", padding: "4px 10px" } }, text("Create")),
+          this.creations.map(creationButton),
+        ]
+        : null,
     );
   }
 
@@ -228,5 +236,31 @@ const floatingStyle = {
   position: "absolute", display: "flex", flexDirection: "row", alignItems: "center",
   padding: "6px 10px", boxShadow: "0 4px 16px rgba(0, 0, 0, 0.18)",
 };
+// An action, its icon and its name, in a row of its own.
+function actionRow(action, extra = {}) {
+  return htmlButton(
+    {
+      title: action.title,
+      disabled: action.disabled,
+      onclick: action.onClick,
+      ...extra,
+      style: {
+        display: "flex", alignItems: "center", gap: "12px", padding: "8px 10px", border: "none", borderRadius: "8px",
+        background: "transparent", font: "inherit", fontSize: "14px", textAlign: "left", color: "#1f1f1f",
+        cursor: action.disabled ? "default" : "pointer", opacity: action.disabled ? 0.4 : 1,
+      },
+    },
+    span({ class: "material-symbols-outlined", style: { fontSize: "20px", color: "#5f6368" } }, text(action.icon)),
+    text(action.label),
+  );
+}
+
+// Something to create, where the focus is: pressed, the text keeps the
+// keyboard - and the caret. Or, where it can be dragged to its place,
+// dragged.
+const creationButton = (creation) => creation.onDragStart
+  ? actionRow(creation, { draggable: true, ondragstart: (event) => { event.dataTransfer.setData("text/plain", creation.label); creation.onDragStart(); } })
+  : actionRow(creation, { onmousedown: (event) => event.preventDefault() });
+
 const note = (words) => div({ style: { opacity: 0.7, fontSize: "12px" } }, text(words));
 const errorNote = (words) => div({ style: { fontSize: "12px", color: "#b3261e", maxWidth: "260px" } }, text(words));

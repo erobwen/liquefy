@@ -1,4 +1,4 @@
-import { positionInLine } from "../print/index.js";
+import { positionInLine, runPrefixWidth } from "../print/index.js";
 import { textPosition, isMarker, samePosition, paragraphText } from "../model/flows.js";
 
 /**
@@ -313,7 +313,7 @@ function xInLine(line, offset, measurer) {
     // place is after it.
     if (run.fixed) continue;
     if (offset >= run.start && offset <= run.start + textLength(run)) {
-      return line.x + run.x + measurer.measure(run.text.slice(0, offset - run.start), run.font);
+      return line.x + run.x + runPrefixWidth(run, offset - run.start, measurer);
     }
   }
   if (line.runs.length === 0) return line.x;

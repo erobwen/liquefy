@@ -1,3 +1,4 @@
+import { runPrefixWidth } from "./lineBreaking.js";
 
 /**
  * Between a paper sequence and the model: which place in the text a point
@@ -25,7 +26,6 @@
  * caret lands exactly between the characters the line breaking measured -
  * measured as prefixes of a whole run, as the run is drawn.
  */
-
 export function position(paragraph, offset, lineEnd = false) {
   return Object.freeze({ paragraph, offset, lineEnd });
 }
@@ -132,7 +132,7 @@ export function positionInLine(line, x, measurer) {
     // A placeholder, or something fixed, is no text: only its start is a
     // place.
     for (let count = 0; count <= (run.placeholder || run.fixed ? 0 : run.text.length); count++) {
-      const at = line.x + run.x + measurer.measure(run.text.slice(0, count), run.font);
+      const at = line.x + run.x + runPrefixWidth(run, count, measurer);
       if (Math.abs(x - at) < distance) {
         distance = Math.abs(x - at);
         best = run.start + count;
@@ -185,7 +185,7 @@ function verticalMove(sequence, at, goalX, measurer, direction) {
 function xInLine(line, offset, measurer) {
   for (const run of line.runs) {
     if (offset >= run.start && offset <= run.start + run.text.length) {
-      return line.x + run.x + measurer.measure(run.text.slice(0, offset - run.start), run.font);
+      return line.x + run.x + runPrefixWidth(run, offset - run.start, measurer);
     }
   }
   if (line.runs.length === 0) return line.x;

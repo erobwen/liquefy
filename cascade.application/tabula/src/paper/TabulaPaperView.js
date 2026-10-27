@@ -1,6 +1,9 @@
 import { Component, frozen } from "@liquefy/cascade.component";
 import { div, span, text } from "@liquefy/cascade.dom";
 import { cssMm, paperStyle, runStyle, paperShadow, placeholderColor } from "../print/dom.js";
+import { frameView } from "./FrameView.js";
+import { pageElementView, pagesInDocuments } from "./PageElementView.js";
+import { pageElements } from "../model/pageLayout.js";
 
 /**
  * TabulaPaperView - Tabula's papers on screen: cascade.print's
@@ -22,7 +25,9 @@ import { cssMm, paperStyle, runStyle, paperShadow, placeholderColor } from "../p
  * positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its
  * blink shown.
- * `areas`, if given, are drawn under everything else - under the
+ * Under everything else, what its page layout draws on each paper (see
+ * ../model/pageLayout.js) - a paper's format says which, its `pageLayout`.
+ * `areas`, if given, are drawn under everything but that - under the
  * selection, under the text: rectangles, [{ page, x, top, width, height }]
  * in µm - what a marker stands for (see markers.js) - each a faint, light blue,
  * see-through box with a slightly stronger 1px edge.
@@ -30,6 +35,8 @@ import { cssMm, paperStyle, runStyle, paperShadow, placeholderColor } from "../p
  * only: the flow the caret is in.
  * `offsetMarks`, if given, each a title's box - a section with a title
  * offset - get an arrow pointing right, just left of it.
+ * `frame`, if given, is the frame anchor the caret is at (see
+ * ../model/frames.js): its frame outlined.
  * `selection`, if given, is highlighted under the text: { rects, focused } -
  * rects as positions.js's selectionRects() gives them; blue while the editor
  * has the keyboard, grey while it doesn't.
@@ -45,8 +52,9 @@ import { cssMm, paperStyle, runStyle, paperShadow, placeholderColor } from "../p
  * paper a click is on.
  */
 export class TabulaPaperView extends Component {
-  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, outlines = null, offsetMarks = null, style }) {
+  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, outlines = null, offsetMarks = null, frame = null, style }) {
     this.sequence = sequence;
+    this.frame = frame;
     this.zoom = zoom;
     this.caret = frozen(caret);
     this.selection = frozen(selection);
@@ -63,6 +71,7 @@ export class TabulaPaperView extends Component {
   build() {
     const { sequence, caret, selection, areas, outlines, offsetMarks } = this;
     const highlight = selection && selection.focused ? selectedColor : unfocusedSelectedColor;
+    const pages = pagesInDocuments(sequence.pages);
     return div(
       {
         style: {
@@ -90,6 +99,8 @@ export class TabulaPaperView extends Component {
         areas: areas.filter((rect) => rect.page === index),
         outlines: outlines.filter((rect) => rect.page === index),
         offsetMarks: offsetMarks.filter((rect) => rect.page === index),
+        frame: this.frame,
+        page: pages[index],
       })),
     );
   }
@@ -103,8 +114,10 @@ export function tabulaPaperView(...parameters) {
 }
 
 class PaperView extends Component {
-  setProperties({ sequence, index, format, caret, highlights, highlight, areas, outlines, offsetMarks }) {
+  setProperties({ sequence, index, format, caret, highlights, highlight, areas, outlines, offsetMarks, frame, page }) {
     this.sequence = sequence;
+    this.page = frozen(page);
+    this.frame = frame || null;
     this.index = index;
     this.format = frozen(format);
     this.caret = frozen(caret);
@@ -115,36 +128,51 @@ class PaperView extends Component {
     this.offsetMarks = frozen(offsetMarks || []);
   }
 
+  // What its page layout draws on it - this page of its document's.
+  elements() {
+    const { index, count } = this.page;
+    return pageElements(this.format.pageLayout, index, count, this.format).map(({ element, rect }) => pageElementView({
+      key: "element" + element.causality.id, element, rect, page: { page: index + 1, pages: count },
+    }));
+  }
+
   build() {
     const caret = this.caret;
     return div(
       { "data-page": this.index, style: { ...paperStyle(this.format), boxShadow: paperShadow } },
       // Under the text: drawn first - the areas lowest, then the selection.
       // Keyed, as the text after them is: how many there are comes and goes
-      // with the caret and the selection.
+      // with the caret and the selection. Lowest of all, the page layout's.
+      this.elements(),
       this.areas.map((rect, index) => div({ key: "area" + index, "data-area": "", style: areaStyle(rect) })),
       this.outlines.map((rect, index) => div({ key: "outline" + index, "data-outline": "", style: outlineStyle(rect) })),
       this.offsetMarks.map((rect, index) => div({ key: "offset" + index, "data-offset": "", style: offsetMarkStyle(rect) }, text("→"))),
       this.highlights.map((rect, index) => div({ key: "highlight" + index, "data-selection": "", style: highlightStyle(rect, this.highlight) })),
-      new PaperText({ key: "text", sequence: this.sequence, index: this.index }),
+      new PaperText({ key: "text", sequence: this.sequence, index: this.index, frame: this.frame }),
       caret ? div({ key: "caret", "data-caret": "", style: caretStyle(caret) }) : null,
     );
   }
 }
 
-// The text on one paper: its runs, in a row.
+// The text on one paper: its runs, in a row - and its frames (see
+// FrameView.js), keyed by their anchors, `frame` the one the caret is at.
 class PaperText extends Component {
-  setProperties({ sequence, index }) {
+  setProperties({ sequence, index, frame }) {
     this.sequence = sequence;
     this.index = index;
+    this.frame = frame;
   }
 
   build() {
     const runs = [];
+    const frames = [];
     for (const line of this.sequence.linesOf(this.index)) {
-      for (const run of line.runs) runs.push(span({ style: runStyle(line, run) }, text(run.text)));
+      for (const run of line.runs) if (!run.frame) runs.push(span({ style: runStyle(line, run) }, text(run.text)));
+      for (const frame of line.frames || []) {
+        frames.push(frameView({ key: "frame" + frame.source.causality.id, frame, selected: frame.source === this.frame }));
+      }
     }
-    return runs;
+    return [...runs, ...frames];
   }
 }
 

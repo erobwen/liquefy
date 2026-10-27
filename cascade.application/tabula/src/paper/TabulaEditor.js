@@ -2,6 +2,7 @@ import { Component, callback, frozen, postponeInvalidations, continueInvalidatio
 import { div } from "@liquefy/cascade.dom";
 import { TextInput } from "../print/dom.js";
 import { samePosition, isMarker, isSection, focusedFlow } from "../model/flows.js";
+import { anchorAt } from "../model/frames.js";
 import { caretRows, flowBoxes } from "./markers.js";
 import {
   caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, wordLeft, wordRight, rowAt,
@@ -49,6 +50,7 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  *     insertText(at, text),          // typed - with "\n" for a paragraph break
  *     deleteBackward(at), deleteForward(at), splitParagraph(at),
  *     tab(at, { shift }),            // Tab - optional
+ *     insert(at, content),           // optional: something inserted there (editAtCaret())
  *     deleteBetween(anchor, focus),  // a selection, either way round
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
  *     settle(at),                    // optional: the caret going to `at` - not by an edit
@@ -58,8 +60,9 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * `editing`, the editor is a caret only: it moves and selects, and nothing
  * typed changes anything.
  *
- * Selecting: drag, Shift+click, double click (a word), triple click (a
- * paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything). A
+ * Selecting: drag, Shift+click, double click (a word - but outside the
+ * text area, in a paper's margins, `onMarginDoubleClick()`: the page
+ * layout, say), triple click (a paragraph), Shift with any of the moving keys, Ctrl/Cmd+A (everything). A
  * click off the papers selects nothing, and leaves no caret.
  *
  * Moving: the arrows - Left and Right through every place (with Ctrl, or
@@ -70,14 +73,21 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  *
  * For whatever else changes the model around the caret - a toolbar:
  * selection() tells what's selected, apply(change) makes a change in one go
- * and gives the keyboard back to the text. And `shortcuts` - { b: "Bold" }:
+ * and gives the keyboard back to the text; editAtCaret(change) makes an
+ * edit at the caret, as a key does - `change(at)` returning where the caret
+ * goes - from outside: "insert this here", say. Whoever placed the editor
+ * reaches it through `controller`, an object of its own: the editor puts
+ * itself there, as `controller.editor`. A frame the caret is right at (see
+ * ../model/frames.js) is outlined. And `shortcuts` - { b: "Bold" }:
  * Ctrl/Cmd plus a key, handed to `onShortcut(name)`. And `onCaret(position)`,
  * told every time the caret moves - an edit moving it too - for showing
  * what it's in.
  */
 export class TabulaEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, onMarginDoubleClick, controller, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
     this.sequence = sequence;
+    this.controller = controller || null;
+    this.onMarginDoubleClick = onMarginDoubleClick || null;
     this.onCaret = onCaret || null;
     this.root = root;
     this.showAllAreas = !!showAllAreas;
@@ -155,7 +165,17 @@ export class TabulaEditor extends Component {
     this.followCaret();
   }
 
+  // An edit at the caret, from outside - the keyboard back to the text. False
+  // with no caret to make it at.
+  editAtCaret(change) {
+    if (!this.caret) return false;
+    this.edit(change);
+    this.unobservable.input.focus();
+    return true;
+  }
+
   build() {
+    if (this.controller) this.controller.editor = this;
     const { caret, focused, sequence, measurer } = this;
     const selected = this.hasSelection();
     const rows = caret || this.showAllAreas ? this.rows() : [];
@@ -173,6 +193,7 @@ export class TabulaEditor extends Component {
       tabulaPaperView({
         sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas,
         outlines: this.showFocusOutline ? this.focusOutline() : [], offsetMarks: this.offsetMarks(),
+        frame: selected ? null : anchorAt(caret),
       }),
       this.unobservable.input,
     );
@@ -213,6 +234,10 @@ export class TabulaEditor extends Component {
     const paper = event.target.closest && event.target.closest("[data-page]");
     // Off the papers: nothing selected, no caret.
     if (!paper) return this.deselect();
+    if (event.detail === 2 && this.onMarginDoubleClick && this.inMargins(paper, event)) {
+      event.preventDefault();
+      return this.onMarginDoubleClick();
+    }
     // Not the paper taking focus from the input - the input takes it.
     event.preventDefault();
     const u = this.unobservable;
@@ -225,6 +250,17 @@ export class TabulaEditor extends Component {
     else if (event.detail === 2 && editing && editing.wordAt) this.select(...editing.wordAt(at));
     else this.moveCaret(at, { extend: event.shiftKey && !!this.caret });
     this.followMouse(event);
+  }
+
+  // Whether a click on a paper is outside its text area - in its margins.
+  inMargins(paper, event) {
+    const format = this.sequence.pages[Number(paper.getAttribute("data-page"))];
+    if (!format) return false;
+    const rect = paper.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width * format.width;
+    const y = (event.clientY - rect.top) / rect.height * format.height;
+    const { margins } = format;
+    return x < margins.left || x > format.width - margins.right || y < margins.top || y > format.height - margins.bottom;
   }
 
   followMouse(event) {

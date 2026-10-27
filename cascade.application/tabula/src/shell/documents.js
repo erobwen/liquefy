@@ -40,7 +40,24 @@
  *                                       //   ../print/dom.js printPages())
  *     settingsPage(),                   // optional: its page of the settings dialog -
  *                                       //   its options (see settingsDialog.js), built there
+ *     frame: {                          // optional: how it's shown in a frame, in
+ *                                       //   another document (see ../model/frames.js)
+ *       places,                         //   where it can be created: ["text", "page"] -
+ *                                       //   in the text, on a page (../model/pageLayout.js)
+ *       aspectRatio(model),             //   width / height
+ *       view(model, page),              //   the component showing it, filling the frame -
+ *                                       //   on a page, `page` is { page, pages }
+ *       printNode(model, page),         //   optional: a DOM node of it, for printing
+ *       controls(model),                //   optional: its own, in the frame's context menu
+ *     },
  *   }
+ *
+ * A type with an editor is a document of its own - created at the root,
+ * from the creation dots (rootDocumentTypes()); one with a frame is
+ * created in another, from the creation menu, where the focus is - in the
+ * text, at the caret; on a page, in a page layout - if it can be there
+ * (frameTypes(services, place)). An image has only a frame, for now; a structured text
+ * only an editor - in the end, either could be both.
  *
  * `target` is what the app renders onto (its mode, see TabulaApp.js):
  * "paper" or "web" - an editor shows its document as it can on that,
@@ -91,6 +108,12 @@ export function documentPlugin({ name, label, description, documentTypes }) {
 export function documentTypes(services) {
   return services.locators.flatMap((locator) => locator.locate({ type: "documentTypes" }) || []);
 }
+
+// The kinds a document of its own can be - and the kinds a frame in one can
+// hold (see above).
+export const rootDocumentTypes = (services) => documentTypes(services).filter((type) => !!type.editor);
+export const frameTypes = (services, place = null) => documentTypes(services)
+  .filter((type) => !!type.frame && (!place || (type.frame.places || ["text"]).includes(place)));
 
 export const documentType = (services, name) => services.locate({ type: "documentType", name });
 

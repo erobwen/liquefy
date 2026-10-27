@@ -3,22 +3,44 @@ import { PaperSequence } from "../../print/index.js";
 import { domMeasurer, papersOf } from "../../print/dom.js";
 import { sequence as sequenceOf, isSection, paragraphText, titleNumber } from "../../model/flows.js";
 import { SequenceLayout, titlePlaceholder } from "../../layout/DocumentLayout.js";
+import { frameNode } from "../../model/frames.js";
+import { pageElements } from "../../model/pageLayout.js";
 
 // A structured text's papers, for printing - laid out anew, onto papers of
 // its own, not taken from the screen: the same however it's shown, or
-// whether it's shown at all. The layout is thrown away once read.
+// whether it's shown at all. The layout is thrown away once read. Its
+// frames printed as their kinds print them (see ../../model/frames.js) -
+// and what its page layout draws on each page, under the text (see
+// ../../model/pageLayout.js).
 export function printPapers(document) {
   const measurer = domMeasurer();
   const sequence = new PaperSequence();
   const layout = new SequenceLayout({ sequence: sequenceOf(document), measurer }).establish();
   const root = repeat(() => layout.renderOnto(sequence), { independent: true });
   try {
-    return papersOf(sequence);
+    const papers = papersOf(sequence);
+    return papers.map((paper, index) => ({
+      ...paper,
+      frames: [
+        ...pageElements(document.pageLayout, index, papers.length, paper.format).map(({ element, rect }) => ({
+          ...rect, under: true, node: elementNode(element, { page: index + 1, pages: papers.length }),
+        })),
+        ...paper.lines.flatMap((line) => line.frames || []).map((frame) => ({ ...frame, node: frameNode(frame.source) })),
+      ],
+    }));
   } finally {
     retractRepeater(root);
     layout.dispose();
     measurer.dispose();
   }
+}
+
+// A page element's content, as its kind prints it - an empty box if it
+// doesn't.
+function elementNode(element, page) {
+  const kind = element.content && element.content.documentType ? element.content.documentType.frame : null;
+  if (kind && kind.printNode) return kind.printNode(element.content.model, page);
+  return globalThis.document.createElement("div");
 }
 
 // A structured text as a tree, for the tree mode (see ../../shell/TreeView.js):

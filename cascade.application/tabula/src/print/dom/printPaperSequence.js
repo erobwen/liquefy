@@ -44,8 +44,11 @@ export function papersOf(sequence) {
  * Print pages of two kinds, in order - Tabula's sequences of documents of
  * any kind (Tabula's own; cascade.print has only printPaperSequence()):
  *
- *  - `{ format, lines }` - a paper, laid out (papersOf()): printed as it is,
- *    a sheet of its own size.
+ *  - `{ format, lines, frames }` - a paper, laid out (papersOf()): printed
+ *    as it is, a sheet of its own size - and, optionally, `frames` on it,
+ *    [{ x, top, width, height, node, under }] in µm: a DOM node for each
+ *    of the frames its lines placed (see ../lineBreaking.js), filling it -
+ *    or, `under`, for what's drawn under the text: a page layout's.
  *  - `{ format, node, margin }` - a DOM node, flowing: on pages of that
  *    size, `margin` (micrometers) around it, broken onto as many as it
  *    takes by the browser. For what isn't laid out on paper - a plain text,
@@ -105,14 +108,24 @@ export function printPages(papers, { title = "", stylesheets = [], document: doc
     }
     Object.assign(element.style, paperStyle(paper.format));
     element.style.setProperty("page", names[index]);
+    const frames = paper.frames || [];
+    const drawFrame = (frame) => {
+      const box = printDocument.createElement("div");
+      Object.assign(box.style, { position: "absolute", left: cssMm(frame.x), top: cssMm(frame.top), width: cssMm(frame.width), height: cssMm(frame.height), overflow: "hidden" });
+      box.appendChild(printDocument.importNode(frame.node, true));
+      element.appendChild(box);
+    };
+    frames.filter((frame) => frame.under).forEach(drawFrame);
     for (const line of paper.lines) {
       for (const run of line.runs) {
+        if (run.frame) continue;
         const span = printDocument.createElement("span");
         Object.assign(span.style, runStyle(line, run));
         span.textContent = run.text;
         element.appendChild(span);
       }
     }
+    frames.filter((frame) => !frame.under).forEach(drawFrame);
     printDocument.body.appendChild(element);
   });
 

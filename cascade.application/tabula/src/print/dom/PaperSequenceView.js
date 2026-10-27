@@ -114,7 +114,7 @@ class PaperText extends Component {
   build() {
     const runs = [];
     for (const line of this.sequence.linesOf(this.index)) {
-      for (const run of line.runs) runs.push(span({ style: runStyle(line, run) }, text(run.text)));
+      for (const run of line.runs) if (!run.frame) runs.push(span({ style: runStyle(line, run) }, text(run.text)));
     }
     return runs;
   }

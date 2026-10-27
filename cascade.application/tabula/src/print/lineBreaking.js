@@ -17,12 +17,29 @@
  *    but shown with the text, not in place of it - a title's number, before
  *    it - its runs `fixed: true`: a position where one starts is after it,
  *    before the text.
+ *    A span with `frame` is a frame (see Tabula's ../model/frames.js): a
+ *    rectangle in the text, `{ width, height, placement, source }` in µm,
+ *    its text one character - one offset, a place before it and one after.
+ *    Where it goes is its `placement`:
+ *     - "inline": in the line, a word of its own as wide as it is, on the
+ *       baseline - the line as tall as it reaches;
+ *     - "block": a line of its own, centred - text above and below it -
+ *       below any frame beside the text (that line's `before`);
+ *     - "left", "right": at that side, its top at the top of the line it's
+ *       on - or the next line's, with text before it on its own - the
+ *       lines beside it narrowed by its width and `frameGap`. Reaching
+ *       further down than the paragraph's last line, the paragraph ends
+ *       below it (that line's `after`). In the text, it takes no room.
+ *    Each line lists the frames placed on it - `frames`, [{ x, top, width,
+ *    height, source }], x from the content area's left, top from the
+ *    line's top - and a frame's run is marked `frame`: the frame's place
+ *    in the text, drawn as the frame, not as text.
  *  - font: the paragraph's own font - for the height of a paragraph with no
  *    text in it.
  *  - width: of the content area, in µm.
  *  - align ("left", "center", "right"), lineSpacing (a multiple of the
- *    line's height), indentLeft, indentRight, firstLineIndent (µm) - all
- *    optional.
+ *    line's height), indentLeft, indentRight, firstLineIndent, frameGap
+ *    (µm) - all optional.
  *  - measurer.
  *
  * Returns the lines, each:
@@ -36,6 +53,9 @@
  *     runs: [{ text, font, x, width, start, ascent, descent }],  // x from the line's own start
  *     trailing,         // the whitespace it was broken at, after its last run
  *     last,             // whether it's the paragraph's last line
+ *     frames,           // the frames placed on it (see above)
+ *     before,           // a frame's own line's: the room frames beside the text take above it
+ *     after,            // the last line's: how far frames beside the text reach below it
  *   }
  *
  * Lines break at whitespace - the whitespace stays at the end of the line it
@@ -43,42 +63,108 @@
  * broken between characters. A paragraph with no text still has one line,
  * as tall as its font.
  */
-export function breakIntoLines({ spans, font, width, measurer, align = "left", lineSpacing = 1, indentLeft = 0, indentRight = 0, firstLineIndent = 0 }) {
+export function breakIntoLines({ spans, font, width, measurer, align = "left", lineSpacing = 1, indentLeft = 0, indentRight = 0, firstLineIndent = 0, frameGap = 4000 }) {
   const style = { font, align, lineSpacing, indentLeft, indentRight, firstLineIndent };
   const words = splitIntoWords(spans, measurer);
   const fullLimit = Math.max(0, width - style.indentLeft - style.indentRight);
-  const limitOf = (lineIndex) => Math.max(0, fullLimit - (lineIndex === 0 ? style.firstLineIndent : 0));
+  const end = words.length > 0 ? words[words.length - 1].end : 0;
 
-  const lineWords = [];
+  const lines = [];
+  // How far down the next line starts, from the paragraph's top.
+  let y = 0;
+  // The frames beside the text, reaching down to the line at `y` or
+  // further - { frame, side, x, bottom } - and those starting with the
+  // line being made, or the one after it.
+  let beside = [];
+  let starting = [];
+  let waiting = [];
+  const started = new Set();
+  // What the frames beside the line at `y` take, at each side.
+  const taken = (side) => beside.filter((each) => each.side === side).reduce((sum, each) => sum + each.frame.width + frameGap, 0);
+  const limit = () => Math.max(0, fullLimit - (lines.length === 0 ? style.firstLineIndent : 0) - taken("left") - taken("right"));
+  // A frame beside the text, from the line at `y` on: after what's at
+  // its side already.
+  const startBeside = (frame) => {
+    const side = frame.placement;
+    const x = side === "left" ? style.indentLeft + taken("left") : style.indentLeft + fullLimit - taken("right") - frame.width;
+    const placed = { frame, side, x, bottom: y + frame.height };
+    beside.push(placed);
+    return placed;
+  };
+  const placedBeside = (top) => ({ frame, x }) => ({ x, top, width: frame.width, height: frame.height, source: frame.source });
+
+  const close = (lineWords, { block = false } = {}) => {
+    // A frame's own line: below the frames beside the text, none beside it.
+    const before = block ? Math.max(0, ...beside.map((each) => each.bottom - y)) : 0;
+    if (before > 0) {
+      y += before;
+      beside = [];
+    }
+    const line = makeLine(lineWords, lines.length, block ? { ...style, lineSpacing: 1, firstLineIndent: 0 } : style, measurer, limit(), end);
+    // A frame of its own line: centred in all of it. Otherwise, after the
+    // frames on the left.
+    if (block) line.x = style.indentLeft + Math.round((fullLimit - line.width) / 2);
+    else line.x += taken("left");
+    line.frames = [
+      // Starting with it - above it, cleared, where it started.
+      ...starting.map(placedBeside(-before)),
+      ...line.runs.filter((run) => run.frame && run.width > 0).map((run) => ({
+        x: line.x + run.x, top: line.ascent - run.frame.height, width: run.frame.width, height: run.frame.height, source: run.frame.source,
+      })),
+    ];
+    if (before > 0) line.before = before;
+    line.last = false;
+    lines.push(line);
+    y += line.height;
+    beside = beside.filter((each) => each.bottom > y);
+    starting = waiting.map(startBeside);
+    waiting = [];
+  };
+
   let current = [];
   let used = 0;
   const pending = [...words];
   while (pending.length > 0) {
     const word = pending.shift();
-    const limit = limitOf(lineWords.length);
-    if (used + word.width <= limit) {
+    const frame = word.frame;
+    if (frame && frame.placement === "block") {
+      if (current.length > 0) close(current);
+      close([word], { block: true });
+      current = [];
+      used = 0;
+      continue;
+    }
+    if (frame && !started.has(frame) && (frame.placement === "left" || frame.placement === "right")) {
+      started.add(frame);
+      // Its top at this line's, if nothing's on it yet - else the next's.
+      if (current.length === 0) starting.push(startBeside(frame));
+      else waiting.push(frame);
+    }
+    const room = limit();
+    if (word.width === 0 || used + word.width <= room) {
       current.push(word);
       used += word.width + word.spaceWidth;
     } else if (current.length > 0) {
-      lineWords.push(current);
+      close(current);
       current = [];
       used = 0;
       pending.unshift(word);
     } else {
       // Wider than a whole line on its own: as much of it as fits, the rest
       // on the lines after.
-      const [head, tail] = splitWord(word, limit, measurer);
-      lineWords.push([head]);
+      const [head, tail] = splitWord(word, room, measurer);
+      close([head]);
       if (tail) pending.unshift(tail);
     }
   }
-  if (current.length > 0 || lineWords.length === 0) lineWords.push(current);
-
-  const end = words.length > 0 ? words[words.length - 1].end : 0;
-  return lineWords.map((wordsOnLine, index) => ({
-    ...makeLine(wordsOnLine, index, style, measurer, limitOf(index), end),
-    last: index === lineWords.length - 1,
-  }));
+  if (current.length > 0 || lines.length === 0) close(current);
+  const last = lines[lines.length - 1];
+  last.last = true;
+  // Frames that were to start with a line after the last: below it, the
+  // paragraph ending below them - and below every frame beside it.
+  last.frames.push(...starting.map(placedBeside(last.height)));
+  last.after = Math.max(0, ...beside.map((each) => each.bottom - y));
+  return lines;
 }
 
 // Whitespace a line can break at: every kind but the non-breaking ones - a
@@ -97,6 +183,17 @@ function splitIntoWords(spans, measurer) {
   let offset = 0;
   for (const span of spans) {
     const font = span.font;
+    if (span.frame) {
+      // A word of its own: one offset, as wide as it is in the line - none,
+      // beside the text.
+      const frame = span.frame;
+      word = newWord(words);
+      word.frame = frame;
+      addPiece(word, { text: span.text, font, start: offset, width: isBesideText(frame) ? 0 : frame.width, frame });
+      offset += span.text.length;
+      word.end = offset;
+      continue;
+    }
     const placeholder = !!span.placeholder;
     const fixed = !!span.fixed;
     for (const token of span.text.match(tokens) || []) {
@@ -116,7 +213,7 @@ function splitIntoWords(spans, measurer) {
           addPiece(word, piece);
         }
       } else {
-        if (!word || word.space.length > 0 || word.leading) word = newWord(words);
+        if (!word || word.space.length > 0 || word.leading || word.frame) word = newWord(words);
         addPiece(word, piece);
       }
       word.end = offset;
@@ -187,13 +284,14 @@ function makeLine(words, index, style, measurer, limit, paragraphEnd) {
   let x = 0;
   for (const piece of pieces) {
     const last = runs[runs.length - 1];
-    if (last && sameFont(last.font, piece.font) && !!last.placeholder === piece.placeholder && !!last.fixed === piece.fixed) {
+    if (last && !last.frame && !piece.frame && sameFont(last.font, piece.font) && !!last.placeholder === piece.placeholder && !!last.fixed === piece.fixed) {
       last.text += piece.text;
       last.width += piece.width;
     } else {
       const run = { text: piece.text, font: piece.font, x, width: piece.width, start: piece.start };
       if (piece.placeholder) run.placeholder = true;
       if (piece.fixed) run.fixed = true;
+      if (piece.frame) run.frame = piece.frame;
       runs.push(run);
     }
     x += piece.width;
@@ -206,7 +304,8 @@ function makeLine(words, index, style, measurer, limit, paragraphEnd) {
   let descent = 0;
   const fontsReach = runs.length > 0 ? runs : [{ font: style.font }];
   for (const run of fontsReach) {
-    const metrics = measurer.metrics(run.font);
+    // A frame in the line stands on the baseline, as tall as it is.
+    const metrics = run.frame && !isBesideText(run.frame) ? { ascent: run.frame.height, descent: 0 } : measurer.metrics(run.font);
     run.ascent = metrics.ascent;
     run.descent = metrics.descent;
     ascent = Math.max(ascent, metrics.ascent);
@@ -235,4 +334,13 @@ function makeLine(words, index, style, measurer, limit, paragraphEnd) {
 
 function sameFont(a, b) {
   return a.family === b.family && a.size === b.size && a.weight === b.weight && a.italic === b.italic;
+}
+
+const isBesideText = (frame) => frame.placement === "left" || frame.placement === "right";
+
+// The width of a run's first `count` characters - a frame's: all of it, or
+// nothing.
+export function runPrefixWidth(run, count, measurer) {
+  if (run.frame) return count > 0 ? run.width : 0;
+  return measurer.measure(run.text.slice(0, count), run.font);
 }

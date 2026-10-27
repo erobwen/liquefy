@@ -123,7 +123,7 @@ export class Tabula extends Component {
     const document = this.unobservable.document;
     postponeInvalidations();
     document.paper = paperSizes[name];
-    document.margins = paperMargins[name];
+    document.pageLayout.margins = paperMargins[name];
     continueInvalidations();
   }
 

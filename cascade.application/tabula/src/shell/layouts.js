@@ -3,6 +3,7 @@ import { div, span, text, button as htmlButton, flipAnimationContainer } from "@
 import { card, iconButton, fitContainerStyle, drawers, drawerPanel, drawerBarSize } from "@liquefy/cascade.ui";
 import { contextAccordion, menuNote } from "./contextMenus.js";
 import { icon } from "./appStyle.js";
+import { scrollColumn, gutterWidth, gutterEasing } from "./ScrollColumn.js";
 
 /**
  * The layouts - what each mode makes of the app as a whole (see
@@ -27,12 +28,18 @@ import { icon } from "./appStyle.js";
  *  - PaperLayout - for paper: nothing around the papers but cards floating
  *    over them - the file's top left, the creation menu under it, as wide;
  *    the context accordion top right, alone in its column, scrolling when
- *    it's taller than the window. Zoom is paper's alone (`zoom`,
+ *    it's taller than the window - from the window's very top to its very
+ *    bottom, the cards dissolving as they near either edge - its scroll bar
+ *    its own (see ScrollColumn.js), easing open beside the cards when
+ *    there's something to scroll, closed when there isn't: the cards never
+ *    change width, they move aside. Zoom is paper's alone (`zoom`,
  *    `onZoom(steps)`; null when there's nothing to zoom) - not the
- *    accordion's: a small card of its own, under the accordion while
- *    there's room for it, beside it, bottom left of it, once the accordion
- *    fills its column - moving from the one place to the other, as the
- *    accordion's cards open and close, in a FlipAnimationContainer.
+ *    accordion's: a small card of its own, at the bottom right of the
+ *    window - its right edge the accordion's - while there's room for it
+ *    under the accordion; once the accordion grows to need that room,
+ *    beside it, bottom left of it - moving from the one place to the
+ *    other, as the accordion's cards open and close, in a
+ *    FlipAnimationContainer.
  *  - AppLayout - for the web, JSON and the tree: an application's frame - a
  *    drawer on the left (the actions and the creation menu; a bar of
  *    shortcuts when closed), a bar along the bottom (what's open), and the
@@ -80,7 +87,9 @@ export class PaperLayout extends Component {
 
   initialState() {
     // crowded: the accordion filling its column - the zoom moved out of it.
-    return { crowded: false };
+    // scrolls: the accordion's scroll bar there, beside its cards - the
+    // zoom under them easing aside with them, to line up.
+    return { crowded: false, scrolls: false };
   }
 
   initialUnobservables() {
@@ -99,7 +108,9 @@ export class PaperLayout extends Component {
       const content = document.querySelector("[data-menu-content]");
       if (!area || !content) return false;
       const zoom = document.querySelector("[data-zoom]");
-      const needed = content.offsetHeight + (zoom ? zoom.offsetHeight : 32) + 8;
+      // The cards and the room around them, and the zoom under them, the
+      // room under it.
+      const needed = content.offsetHeight + edgeTop * 2 + (zoom ? zoom.offsetHeight : 32) + edgeBottom;
       const crowded = needed > area.clientHeight;
       if (crowded !== this.crowded) this.crowded = crowded;
       if (!observer) {
@@ -156,15 +167,29 @@ export class PaperLayout extends Component {
           { style: { display: "flex", flexDirection: "row", alignItems: "flex-start", gap: "8px", height: "100%", pointerEvents: "none" } },
           div({ key: "aside", style: { alignSelf: "flex-end", display: "flex", pointerEvents: "auto" } }, crowded ? zoom : null),
           div(
-            { key: "column", style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px", width: menuWidth + "px", maxHeight: "100%" } },
-            div(
-              { key: "scroll", style: { overflowY: "auto", minHeight: 0, flex: "0 1 auto", width: "100%", boxSizing: "border-box", padding: "2px 6px 10px", margin: "-2px -6px 0", pointerEvents: "auto" } },
+            { key: "column", style: { display: "flex", flexDirection: "column", alignItems: "flex-end", height: "100%" } },
+            scrollColumn(
+              {
+                key: "scroll",
+                style: { flex: "0 1 auto", pointerEvents: "auto" },
+                scrollStyle: { ...menuScrollStyle, paddingBottom: (crowded ? edgeBottom : edgeTop) + "px" },
+                onScrolls: callback("scrolls", (scrolls) => { this.scrolls = scrolls; }),
+              },
               div(
                 { key: "content", "data-menu-content": "", style: { display: "flex", flexDirection: "column", gap: "8px" } },
                 contextAccordion({ menus: this.menus, entries: [viewEntry(this), ...this.menus.path()] }),
               ),
             ),
-            crowded ? null : zoom,
+            // Between them, the room left: the zoom at the bottom.
+            div({ key: "room", style: { flex: "1 1 0", minHeight: 0 } }),
+            // Its place under the cards: their right edge - inside the room
+            // around them, and the scroll bar's, easing as it does. The slot's,
+            // always there: flying in from beside the cards, the zoom lands
+            // where it's to be, not where an easing of its own would start.
+            div(
+              { key: "zoomSlot", style: { display: "flex", pointerEvents: "none", paddingRight: cardsInset + (this.scrolls ? gutterWidth : 0) + "px", transition: "padding-right " + gutterEasing } },
+              crowded ? null : zoom,
+            ),
           ),
         ),
       ),
@@ -175,7 +200,13 @@ export class PaperLayout extends Component {
   zoomCard() {
     if (this.zoom === null) return null;
     return div(
-      { key: "zoom", "data-zoom": "", style: { display: "flex", pointerEvents: "auto", flex: "none" } },
+      {
+        key: "zoom",
+        "data-zoom": "",
+        style: {
+          display: "flex", pointerEvents: "auto", flex: "none", marginBottom: edgeBottom + "px",
+        },
+      },
       card(
         { style: { ...floatingStyle, position: "static", padding: "2px 4px", gap: "0" } },
         iconButton({ icon: "zoom_out", title: "Zoom out", onClick: () => this.onZoom(-1) }),
@@ -284,10 +315,25 @@ export const appLayout = (...parameters) => new AppLayout(...parameters);
 export const appBackdrop = "#f1f3f4";
 const menuWidth = 280;
 const menuColumnWidth = 300;
-const menuAreaStyle = { position: "absolute", top: "12px", right: "16px", bottom: "16px", pointerEvents: "none" };
+// The accordion's column runs the whole height: what keeps the cards off
+// the window's edges at rest is room inside it - `edgeTop`, `edgeBottom` -
+// so, scrolled, they go all the way, fading out over the last `fade` px.
+// The scroll bar's room is kept whether it's there or not (a thin one).
+const edgeTop = 12;
+const edgeBottom = 16;
+const fade = 10;
+// The room either side of the cards, for their shadows - the column pushed
+// that much further right, the cards where they'd be without it.
+const cardsInset = 6;
+const menuAreaStyle = { position: "absolute", top: 0, right: 16 - cardsInset + "px", bottom: 0, pointerEvents: "none" };
+const fadedEdges = `linear-gradient(to bottom, transparent 0, black ${fade}px, black calc(100% - ${fade}px), transparent 100%)`;
+const menuScrollStyle = {
+  width: menuWidth + 2 * cardsInset + "px", padding: edgeTop + "px " + cardsInset + "px 0",
+  maskImage: fadedEdges, WebkitMaskImage: fadedEdges,
+};
 const appMenusStyle = {
   position: "absolute", top: 0, right: 0, bottom: 0, width: menuColumnWidth + "px", boxSizing: "border-box",
-  padding: "12px", display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto",
+  padding: "12px", display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto", scrollbarGutter: "stable",
   background: "white", borderLeft: "1px solid #dadce0",
 };
 const drawerWidth = 260;

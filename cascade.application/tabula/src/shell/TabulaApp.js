@@ -231,9 +231,12 @@ export class TabulaApp extends Component {
         serviceProvider({
           serviceLocator: this.unobservable.locator,
           // Its look - thin scroll bars, its icons' size - Tabula's own (see
-          // appStyle.js).
+          // appStyle.js). Clipped: what scrolls has its own place to - the
+          // papers, the menus - and nothing drawn outside the window for a
+          // moment (a card flying from one place to another) gives the page
+          // scroll bars.
           child: div(
-            { class: "tabula-app", style: { ...fitContainerStyle, ...iconSizeStyle(app.iconSize) } },
+            { class: "tabula-app", style: { ...fitContainerStyle, overflow: "clip", ...iconSizeStyle(app.iconSize) } },
             mode.layout === "paper"
               ? paperLayout({
                 ...parts,

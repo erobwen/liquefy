@@ -188,21 +188,51 @@ describe("Tabula's markers", function () {
     assert.ok(samePosition(hitTest(rows, 0, line.x + 1000, bottom(rows, a) + 1000, measurer), textPosition(a, 1)));
   });
 
-  it("never lands on a section's end beside its last line, moving up and down - out of the way, there for Right at the text's end, or a click", function () {
+  it("lands on a section's end beside its last line, moving up and down with the caret's x there - and on up, on the ends of the sections before it", function () {
     const a = paragraph("aaaa");
     const b = paragraph("bb");
     const s = section("S", b);
     const doc = document({ title: "D", paper, margins }, a, s);
     // No paragraph ends: only the section's and the document's beside b.
     const { rows } = layOut(sequenceOf(doc), { types: { paragraphEnd: false }, sectionEnds: "beside" });
-    // Far right, past the text, down onto b's line: in b, at its end - not
-    // at either end beside it.
-    assert.ok(samePosition(rowBelow(rows, textPosition(s.title, 1), textAreaRight, measurer), textPosition(b, 2)));
+    // Far right, past the text, down onto b's line: the section's end - the
+    // innermost of the ends there.
+    const end = markerRow(rows, flowEnd(s));
+    assert.ok(samePosition(rowBelow(rows, textPosition(s.title, 1), end.x, measurer), flowEnd(s)));
+    // Nearer the text: in it.
+    assert.ok(samePosition(rowBelow(rows, textPosition(s.title, 1), textArea.x + 1000, measurer), textPosition(b, 1)));
     // Right at the end of b: the section's end.
     assert.ok(samePosition(stepRight(rows, textPosition(b, 2)), flowEnd(s)));
     // A click there: the section's end too.
-    const end = markerRow(rows, flowEnd(s));
     assert.ok(samePosition(hitTest(rows, 0, end.x, end.top + 1000, measurer), flowEnd(s)));
+  });
+
+  it("are each reached moving up from the end of the last of sibling sections - the caret's x kept past the lines between", function () {
+    const [p1, p2, p3] = [paragraph("one"), paragraph("two"), paragraph("three")];
+    const [s1, s2, s3] = [section("S1", p1), section("S2", p2), section("S3", p3)];
+    const doc = document({ title: "D", paper, margins }, s1, s2, s3);
+    const { rows } = layOut(sequenceOf(doc), { types: { paragraphEnd: false }, sectionEnds: "beside" });
+    const x = markerRow(rows, flowEnd(s3)).x;
+    const stops = [];
+    let at = flowEnd(s3);
+    for (let n = 0; n < 5; n++) stops.push(at = rowAbove(rows, at, x, measurer));
+    // Each title's end, on the way - the text nearest there - and each
+    // section's end.
+    const expected = [textPosition(s3.title, 2), flowEnd(s2), textPosition(s2.title, 2), flowEnd(s1), textPosition(s1.title, 2)];
+    expected.forEach((place, index) => assert.ok(samePosition(stops[index], place), "stop " + index));
+  });
+
+  it("aren't landed on moving up and down only for being nearer than the text - the caret's x must be at them", function () {
+    const title = paragraph("aa");
+    const empty = paragraph();
+    const doc = document({ title: "D", paper, margins }, title, empty);
+    const { rows } = layOut(sequenceOf(doc), { types: { paragraphEnd: false }, sectionEnds: "beside" });
+    const end = markerRow(rows, flowEnd(doc));
+    // Nearer the document's end than the empty line's start - but short of it.
+    const x = end.x - 1000;
+    assert.ok(samePosition(rowBelow(rows, textPosition(title, 2), x, measurer), textPosition(empty, 0)));
+    // At it: there.
+    assert.ok(samePosition(rowBelow(rows, textPosition(title, 2), end.x, measurer), flowEnd(doc)));
   });
 
   it("are gone past moving up and down - from line to line - unless the caret's x is nearer them than the text", function () {

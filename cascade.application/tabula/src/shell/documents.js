@@ -1,3 +1,6 @@
+import { CompoundServiceLocator } from "@liquefy/cascade.component";
+import { hydrate, dehydrate, Unhydrated } from "./hydration.js";
+
 /**
  * Documents and the plugins that know them - Tabula's core, the way
  * OpenDoc had it: Tabula itself edits nothing. Every kind of document -
@@ -10,19 +13,26 @@
  *   { "type": "document", "name": "structuredText", "properties": { ... } }
  *
  * `name` says what kind of document it is, `properties` what's in it - in
- * whatever shape that kind's plugin likes. And `null` is the null document:
- * nothing yet - the place where something is to be created.
+ * whatever shape that kind's plugin likes, further queries in it for the
+ * objects it's made of (see hydration.js): every object in a file is a
+ * query. And `null` is the null document: nothing yet - the place where
+ * something is to be created.
  *
  * A plugin is a service locator (anything with `locate(query)`, see
- * documentPlugin() below) answering two queries:
+ * documentPlugin() below) answering:
  *
  *   { type: "documentType", name }  - the document type of that name, if it has it
  *   { type: "documentTypes" }       - all of them, for the creation menu
+ *   { type: "document", name, properties }  - a document of that kind, hydrated
+ *   { type: "family", name }        - a family of objects it makes: { baseClass }
+ *   { type, name, properties }      - an object of a kind of its own, hydrated - a
+ *                                     flow, say: the objects its documents are made of
  *
  * The plugins in use are composed into one locator - an
  * ObservableCompoundServiceLocator, so turning a plugin on or off rebuilds
  * whatever looked something up through it. Loading a document hydrates it
- * through that locator (hydrateDocument()); saving it dehydrates it
+ * through that locator (hydrateDocument()) - Tabula's own in front, saying
+ * what every document is (a HydratedDocument) - and saving it dehydrates it
  * (dehydrateDocument()).
  *
  * A document type:
@@ -30,8 +40,9 @@
  *   {
  *     name, label, icon, description,   // icon: a Material Symbols name
  *     create(),                         // a new, empty model
- *     hydrate(properties, documents),   // JSON properties -> the model
- *     dehydrate(model, documents),      // the model -> JSON properties
+ *     hydrate(properties),              // its properties, hydrated -> the model
+ *     dehydrate(model),                 // the model -> its properties: plain values,
+ *                                       //   and objects that dehydrate themselves
  *     editor({ key, model, zoom, onRemove, target }),  // the component editing it
  *     title(model),                     // optional: what it is called
  *     outline(model),                   // optional: what is in it, for the tree mode -
@@ -70,14 +81,15 @@
  * the sequence it's in: the editor shows a remove button for it - where it
  * likes, at the top left of its first surface, say (removeButton()).
  *
- * `documents`, given to hydrate() and dehydrate(), does the same for a
- * document inside the document - `documents.hydrate(json)`,
- * `documents.dehydrate(hydrated)` - so that a spreadsheet can live in a text
- * and a text in a spreadsheet, each kind knowing only its own.
+ * A document inside a document - a picture in a text's frame, in the end a
+ * spreadsheet in a text, a text in a spreadsheet - is a query like any other
+ * in its properties: hydrated by its own kind's plugin, each kind knowing
+ * only its own.
  *
- * Hydrated, a document is `{ documentType, model }` - or, if no plugin in
- * use knows its kind, `{ name, json }`: kept as it was, to be saved as it
- * was, until a plugin that knows it is turned on.
+ * Hydrated, a document is a HydratedDocument - its `documentType` and its
+ * `model` - or, if no plugin in use knows its kind (or something in it), an
+ * Unhydrated one (see hydration.js) - its `name`, and its `json`: kept as
+ * it was, to be saved as it was, until a plugin that knows it is turned on.
  *
  * What a file holds - the root - is one of three: `null` (the null
  * document), a document, or a list of documents (a sequence) - JSON allows
@@ -88,7 +100,23 @@
  * but one leaves the one, on its own, at the root again.
  */
 
-export function documentPlugin({ name, label, description, documentTypes }) {
+// A document, hydrated: what kind it is, and its model.
+export class HydratedDocument {
+  constructor(documentType, model) {
+    this.documentType = documentType;
+    this.model = model;
+  }
+
+  dehydrate() {
+    return { type: "document", name: this.documentType.name, properties: this.documentType.dehydrate(this.model) };
+  }
+}
+
+// A plugin: its document types - and the kinds of object their documents
+// are made of, `kinds`, { [family]: { [name]: (properties) => object } },
+// and what each family is, `families`, { [family]: { baseClass } } (see
+// hydration.js).
+export function documentPlugin({ name, label, description, documentTypes, kinds = {}, families = {} }) {
   return {
     name,
     label,
@@ -97,10 +125,23 @@ export function documentPlugin({ name, label, description, documentTypes }) {
     locate(query) {
       if (query.type === "documentType") return documentTypes.find((type) => type.name === query.name);
       if (query.type === "documentTypes") return documentTypes;
-      return undefined;
+      if (query.type === "document") {
+        const type = documentTypes.find((each) => each.name === query.name);
+        return type ? new HydratedDocument(type, type.hydrate(query.properties || {})) : undefined;
+      }
+      if (query.type === "family") return families[query.name];
+      const make = kinds[query.type] && kinds[query.type][query.name];
+      return make ? make(query.properties || {}) : undefined;
     },
   };
 }
+
+// Tabula's own, in front of the plugins: what every document is - kept, if
+// no plugin in use knows it.
+const tabulaLocator = {
+  locate: (query) => query.type === "family" && query.name === "document" ? { baseClass: HydratedDocument, keepUnknown: true } : undefined,
+};
+const withTabula = (services) => new CompoundServiceLocator(tabulaLocator, services);
 
 // The document types every plugin in `services` has - in the order the
 // plugins are in. Not a lookup - the first one answering - but all of
@@ -119,7 +160,7 @@ export const documentType = (services, name) => services.locate({ type: "documen
 
 // A new document of `type` - hydrated, as if loaded.
 export function createDocument(type) {
-  return { documentType: type, model: type.create() };
+  return new HydratedDocument(type, type.create());
 }
 
 export function hydrateDocument(json, services) {
@@ -127,16 +168,11 @@ export function hydrateDocument(json, services) {
   if (typeof(json) !== "object" || json.type !== "document" || typeof(json.name) !== "string") {
     throw new Error("Not a document: " + JSON.stringify(json).slice(0, 80));
   }
-  const type = documentType(services, json.name);
-  if (!type) return { name: json.name, json };
-  return { documentType: type, model: type.hydrate(json.properties || {}, documentsWith(services)) };
+  return hydrate(json, withTabula(services));
 }
 
-export function dehydrateDocument(hydrated, services) {
-  if (!hydrated) return null;
-  if (!hydrated.documentType) return hydrated.json;
-  const { documentType: type, model } = hydrated;
-  return { type: "document", name: type.name, properties: type.dehydrate(model, documentsWith(services)) };
+export function dehydrateDocument(hydrated) {
+  return hydrated ? dehydrate(hydrated) : null;
 }
 
 export function hydrateRoot(json, services) {
@@ -150,17 +186,13 @@ export function hydrateRoot(json, services) {
   return [hydrateDocument(json, services)];
 }
 
-export function dehydrateRoot(documents, services) {
+export function dehydrateRoot(documents) {
   if (documents.length === 0) return null;
-  if (documents.length === 1) return dehydrateDocument(documents[0], services);
-  return documents.map((each) => dehydrateDocument(each, services));
+  if (documents.length === 1) return dehydrateDocument(documents[0]);
+  return documents.map((each) => dehydrateDocument(each));
 }
-
-// What a document type is given, for the documents inside its own.
-const documentsWith = (services) => ({
-  hydrate: (json) => hydrateDocument(json, services),
-  dehydrate: (hydrated) => dehydrateDocument(hydrated, services),
-});
 
 // What kind of document it is, whether or not a plugin knows it.
 export const documentName = (hydrated) => hydrated.documentType ? hydrated.documentType.name : hydrated.name;
+
+export { Unhydrated };

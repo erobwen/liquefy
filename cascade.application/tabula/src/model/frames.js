@@ -16,10 +16,10 @@ import { isFlowEdge } from "./flows.js";
  * The anchor holds the frame - a rectangle of a fixed aspect ratio - and
  * what's in it:
  *
- *  - `content`: a hydrated document (see ../shell/documents.js) - its
- *    `documentType` saying what it is, and how it's shown in a frame
+ *  - `content`: a document (see ../shell/documents.js) - a HydratedDocument,
+ *    its `documentType` saying what it is, and how it's shown in a frame
  *    (the type's `frame`, see frameTypes() there) - or, if no plugin in use
- *    knows its kind, `{ name, json }`, kept as it is.
+ *    knows its kind, an Unhydrated one (`name`, `json`), kept as it is.
  *  - `placement`: where the frame goes, laid out (see
  *    ../print/lineBreaking.js) - "inline": in the line, as a word; "block":
  *    on a line of its own; "left", "right": at that side, the text flowing
@@ -45,6 +45,12 @@ export class FrameAnchor {
     this.placement = placement;
     this.width = width;
     return observable(this);
+  }
+
+  // Saved: { type: "frame", name: "anchor", properties } - what's in it a
+  // document, dehydrated by its own kind (see ../shell/hydration.js).
+  dehydrate() {
+    return { type: "frame", name: "anchor", properties: { placement: this.placement, width: this.width, content: this.content } };
   }
 }
 

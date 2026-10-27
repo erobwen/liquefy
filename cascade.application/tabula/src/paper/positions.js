@@ -111,17 +111,18 @@ export function hitTest(rows, page, x, y, measurer) {
 }
 
 // The place on the line at `order` nearest `x` across: in its text - or a
-// start or end beside it, if nearer than the text.
-// `sectionEnds`: whether a section's end beside the line is a place to
-// land too - for a click, yes; moving up and down, no: there, beside its
-// last line, at the right edge, it's out of the way - reached with Right
-// from the end of the text, or a click - not come upon on the way past.
-function placeOnLine(rows, order, x, measurer, { sectionEnds = true } = {}) {
+// start or end beside it, if nearer than the text: a click there. Moving up
+// and down (`reaching`), one only with `x` at it, or past it on its side -
+// an end at its right or further, a start at its left or further: with the
+// caret's x at a section's end at the right edge, up and down, the end of
+// every section before and after it - but never just for being nearer than
+// the text far from it.
+function placeOnLine(rows, order, x, measurer, { reaching = false } = {}) {
   const line = rows[order].row;
   let across = Math.max(0, line.x - x, x - (line.x + line.width));
   let beside = null;
   for (const row of besideLine(rows, order)) {
-    if (!sectionEnds && row.type === "sectionEnd") continue;
+    if (reaching && (row.kind === "flowEnd" ? x < row.x : x > row.x)) continue;
     const away = Math.abs(x - row.x);
     if (away < across) {
       across = away;
@@ -164,11 +165,14 @@ export function lineEnd(rows, at) {
 }
 
 // Up and down: the caret row before or after - a line, at `goalX` (the x
-// the caret had when moving up and down began) - or a section's end below a
-// line, each of those one on top of the other a stop of its own, in reading
-// order. Starts and ends beside a line are on its row: moving up and down
-// goes past them, from the line to the next - to one only with `goalX`
-// nearer it than the line's text, as a click there would. Beyond the first
+// the caret had when moving up and down began, kept all the way - see
+// TabulaEditor.js) - or a section's end below a line, each of those one on
+// top of the other a stop of its own, in reading order. Starts and ends
+// beside a line are on its row: moving up and down goes past them, from the
+// line to the next - to one only with `goalX` at it or past it, and nearer
+// it than the line's text (see placeOnLine()): from a section's end at the
+// right edge, up and down, the ends of the sections around it, one after
+// the other. Beyond the first
 // or last row: the start or end of the line, or the marker, it's on.
 export function rowAbove(rows, at, goalX, measurer) {
   return verticalMove(rows, at, goalX, measurer, -1);
@@ -187,7 +191,7 @@ function verticalMove(rows, at, goalX, measurer, direction) {
   if (!rows[target]) return direction < 0 ? lineStart(rows, at) : lineEnd(rows, at);
   // A bar below a line: a row of its own.
   if (isBelowRow(rows[target].row)) return rows[target].row.marker;
-  return placeOnLine(rows, target, goalX, measurer, { sectionEnds: false });
+  return placeOnLine(rows, target, goalX, measurer, { reaching: true });
 }
 
 // Left and right: the place before or after a position, in reading order -

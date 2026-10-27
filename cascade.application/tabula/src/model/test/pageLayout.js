@@ -6,7 +6,7 @@ import { PageLayout, PageElement, pageKind, elementRect, placeElement, pageEleme
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { structuredTextPlugin, structuredText } from "../../plugins/structuredText/index.js";
 import { framesPlugin, shape, pageNumber } from "../../plugins/frames/index.js";
-import { createDocument, hydrateDocument, dehydrateDocument } from "../../shell/documents.js";
+import { createDocument, hydrateDocument, dehydrateDocument, HydratedDocument } from "../../shell/documents.js";
 import { newElement } from "../../paper/PageLayoutEditor.js";
 import { pagesInDocuments } from "../../paper/PageElementView.js";
 
@@ -71,18 +71,20 @@ describe("A page layout", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
     const element = new PageElement({ content: createDocument(shape), horizontal: "right", x: mm(5), vertical: "top", y: mm(5), width: mm(30), height: mm(10) });
     const doc = document({ title: "D", paper: a4, pageLayout: new PageLayout({ margins: margins(mm(25)), first: [element] }) }, paragraph("x"));
-    const json = JSON.parse(JSON.stringify(dehydrateDocument({ documentType: structuredText, model: doc }, services)));
-    assert.deepEqual(json.properties.pages.first[0], {
-      horizontal: "right", x: mm(5), vertical: "top", y: mm(5), width: mm(30), height: mm(10),
-      content: { type: "document", name: "shape", properties: { fill: "#4285f4", to: null, angle: 135, rounded: false } },
+    const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
+    const layout = json.properties.pageLayout;
+    assert.deepEqual([layout.type, layout.name, layout.properties.margins], ["pageLayout", "pages", margins(mm(25))]);
+    assert.deepEqual(layout.properties.first[0], {
+      type: "pageElement", name: "element",
+      properties: {
+        horizontal: "right", x: mm(5), vertical: "top", y: mm(5), width: mm(30), height: mm(10),
+        content: { type: "document", name: "shape", properties: { fill: "#4285f4", to: null, angle: 135, rounded: false } },
+      },
     });
-    assert.deepEqual([json.properties.pages.middle, json.properties.pages.last], [[], []]);
+    assert.deepEqual([layout.properties.middle, layout.properties.last], [[], []]);
     const back = hydrateDocument(json, services);
     assert.equal(back.model.pageLayout.first[0].content.documentType, shape);
     assert.deepEqual(back.model.pageLayout.margins, margins(mm(25)));
-    assert.deepEqual(dehydrateDocument(back, services), json);
-    // Nothing on the pages: nothing saved for them.
-    const plain = dehydrateDocument({ documentType: structuredText, model: document({ title: "", paper: a4, margins: margins(mm(25)) }, paragraph("")) }, services);
-    assert.equal(plain.properties.pages, undefined);
+    assert.deepEqual(JSON.parse(JSON.stringify(dehydrateDocument(back))), json);
   });
 });

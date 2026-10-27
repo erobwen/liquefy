@@ -6,7 +6,7 @@ import { FrameAnchor, anchorAt, frameSize } from "../frames.js";
 import { tabulaEditing } from "../../paper/editing.js";
 import { structuredTextPlugin, structuredText } from "../../plugins/structuredText/index.js";
 import { framesPlugin, image, table, shape, pageNumber } from "../../plugins/frames/index.js";
-import { createDocument, hydrateDocument, dehydrateDocument, rootDocumentTypes, frameTypes } from "../../shell/documents.js";
+import { createDocument, hydrateDocument, dehydrateDocument, rootDocumentTypes, frameTypes, HydratedDocument, Unhydrated } from "../../shell/documents.js";
 
 const anchorCharacter = String.fromCharCode(0xfffc);
 const spansOf = (p) => p.spans.map((span) => span.anchor ? "[frame]" : span.text);
@@ -86,13 +86,23 @@ describe("Frames", function () {
   it("are saved with their text, what's in them by its own plugin - and loaded back", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
     const { doc } = setUp("a", { anchor: new FrameAnchor({ content: createDocument(image), placement: "left", width: mm(50) }) }, "b");
-    const json = JSON.parse(JSON.stringify(dehydrateDocument({ documentType: structuredText, model: doc }, services)));
-    const spans = json.properties.children[0].spans;
-    assert.deepEqual(spans[1], { frame: { placement: "left", width: mm(50), content: { type: "document", name: "image", properties: { src: null, aspectRatio: 4 / 3 } } } });
+    const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
+    const spans = json.properties.children[0].properties.spans;
+    assert.deepEqual(spans[1], {
+      type: "frame", name: "anchor",
+      properties: { placement: "left", width: mm(50), content: { type: "document", name: "image", properties: { src: null, aspectRatio: 4 / 3 } } },
+    });
     const back = hydrateDocument(json, services);
     const anchor = back.model.children[0].spans[1].anchor;
     assert.deepEqual([anchor.placement, anchor.width, anchor.content.documentType], ["left", mm(50), image]);
-    assert.deepEqual(dehydrateDocument(back, services), json);
+    assert.deepEqual(JSON.parse(JSON.stringify(dehydrateDocument(back))), json);
+    // Without the plugin for what's in it: the frame there, what's in it
+    // kept as it was - and saved so.
+    const without = hydrateDocument(json, new ObservableCompoundServiceLocator(structuredTextPlugin));
+    const kept = without.model.children[0].spans[1].anchor.content;
+    assert.ok(kept instanceof Unhydrated);
+    assert.equal(kept.name, "image");
+    assert.deepEqual(JSON.parse(JSON.stringify(dehydrateDocument(without))), json);
   });
 
   it("hold the kinds that have a frame - created in another document, never at the root - each where it can be", function () {

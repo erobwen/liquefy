@@ -25,6 +25,14 @@ import { PageLayout } from "./pageLayout.js";
  * Every flow is observable, all the way down - its spans, its children - so
  * what's laid out from it follows every change.
  *
+ * Saved, a flow is a query (see ../shell/hydration.js) - of the family
+ * "flow", every one a Flow: `{ type: "flow", name: "paragraph", properties:
+ * { spans } }`, `{ type: "flow", name: "section", properties: { title,
+ * titleOffset, children } }` - each giving its own (dehydrate()); made again
+ * by whichever plugin provides flows (see
+ * ../plugins/structuredText/json.js). A document, at the root of them, is
+ * its document type's to save (see there too).
+ *
  * Positions - where a caret can be - are of two kinds:
  *
  *   textPosition(paragraph, offset, lineEnd)  - in a paragraph's text, as
@@ -63,6 +71,14 @@ export class Paragraph extends Flow {
     this.spans = observable(spans.map(toSpan));
     return observable(this);
   }
+
+  // Its spans: a string unless bold or italic - a frame anchor as itself,
+  // dehydrated in turn.
+  dehydrate() {
+    const spans = this.spans.map(({ text, bold, italic, anchor }) => anchor
+      || ((bold || italic) ? { text, ...(bold ? { bold } : {}), ...(italic ? { italic } : {}) } : text));
+    return { type: "flow", name: "paragraph", properties: { spans } };
+  }
 }
 
 export class Section extends Flow {
@@ -76,6 +92,14 @@ export class Section extends Flow {
     this.titleOffset = titleOffset;
     this.children = observable(checkChildren(children));
     return observable(this);
+  }
+
+  dehydrate() {
+    return {
+      type: "flow",
+      name: "section",
+      properties: { title: this.title, ...(this.titleOffset ? { titleOffset: this.titleOffset } : {}), children: [...this.children] },
+    };
   }
 }
 

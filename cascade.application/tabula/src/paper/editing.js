@@ -1,6 +1,6 @@
 import {
   Paragraph, Section, Document, isSection, isParagraph, isFlowEdge,
-  textPosition, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
+  textPosition, flowStart, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
 } from "../model/flows.js";
 import { FrameAnchor, anchorCharacter } from "../model/frames.js";
 import { readingOrder } from "./markers.js";
@@ -120,6 +120,10 @@ import { readingOrder } from "./markers.js";
  * opens;
  * Backspace at a post marker takes the flow out - a paragraph, a section and
  * all in it - the caret at the end of the text before it (removeFlow()).
+ * Delete at a section's pre marker takes the section out, all of it, the
+ * other way: the caret at the start of what came after it - a section's
+ * pre marker, a paragraph's text - or, with nothing after it, in an empty
+ * paragraph put in its place (deleteSection()). Not a document: refused.
  *
  * Something else than text, inserted - "insert this here", the position
  * deciding what that makes (insert(at, content)): in the text, a frame
@@ -144,7 +148,7 @@ export function tabulaEditing(root, { newSectionsBeside = () => true, depressedT
       ? at((position) => insertText(root, position, text, options))(position)
       : insertText(root, position, text, options),
     deleteBackward: at((position) => deleteBackward(root, position, options)),
-    deleteForward: at((position) => deleteForward(root, position)),
+    deleteForward: at((position) => deleteForward(root, position, options)),
     splitParagraph: at((position) => pressEnter(root, position, options)),
     tab: (position, { shift = false } = {}) => at((position) => pressTab(root, position, shift, options))(position),
     insert: (position, content) => at((position) => insertContent(root, position, content, options))(position),
@@ -390,6 +394,22 @@ function removeFlow(root, flow) {
   if (before) return textPosition(before, paragraphText(before).length);
   const first = readingOrder(root).find((item) => item.block && !item.exit);
   return first ? textPosition(first.block, 0) : null;
+}
+
+// A section taken out from its start, forward (see above): the caret at
+// the start of what came after it in its list - or in an empty paragraph,
+// in its place, with nothing after it. Null for a document - nothing a
+// section is in.
+function deleteSection(root, section) {
+  const place = locate(root, section);
+  if (!place || !place.list || !isSection(place.list)) return null;
+  const { list, index } = place;
+  list.children.splice(index, 1);
+  const next = list.children[index];
+  if (next) return isSection(next) ? flowStart(next) : textPosition(next, 0);
+  const empty = new Paragraph();
+  list.children.splice(index, 0, empty);
+  return textPosition(empty, 0);
 }
 
 // A section just made from a blank paragraph - by Enter on it, or near it -
@@ -870,7 +890,8 @@ function asSection(document) {
   return new Section(document.title, document.children.splice(0), document.titleOffset);
 }
 
-function deleteForward(root, at) {
+function deleteForward(root, at, options = {}) {
+  if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) return deleteSection(root, at.flow) || refused(at, options);
   if (isText(at)) {
     const { paragraph, offset } = at;
     const text = paragraphText(paragraph);

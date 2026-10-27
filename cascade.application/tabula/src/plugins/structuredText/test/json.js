@@ -1,52 +1,85 @@
 import assert from "assert";
 import { ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
 import { testDocument } from "../../../model/testDocument.js";
-import { isSection, paragraphText } from "../../../model/flows.js";
-import { documentToJSON, documentFromJSON } from "../json.js";
-import { structuredTextPlugin } from "../index.js";
-import { hydrateDocument, dehydrateDocument, documentTypes, hydrateRoot, dehydrateRoot } from "../../../shell/documents.js";
+import { Flow, isSection, paragraphText } from "../../../model/flows.js";
+import { structuredTextPlugin, structuredText } from "../index.js";
+import { framesPlugin } from "../../frames/index.js";
+import {
+  hydrateDocument, dehydrateDocument, documentTypes, hydrateRoot, dehydrateRoot, HydratedDocument, Unhydrated,
+} from "../../../shell/documents.js";
 
-describe("Structured text, as JSON", function () {
-  it("goes there and back: the same document, its JSON the same", function () {
-    const json = JSON.parse(JSON.stringify(documentToJSON(testDocument())));
-    const back = documentFromJSON(json);
-    assert.deepStrictEqual(documentToJSON(back), json);
-    assert.strictEqual(paragraphText(back.title), "Tabula");
-    assert.ok(back.children.some(isSection));
+const saved = (document) => JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, document))));
+
+describe("Structured text, saved and loaded", function () {
+  it("goes there and back: the same document, saved the same", function () {
+    const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
+    const json = saved(testDocument());
+    const back = hydrateDocument(json, services);
+    assert.ok(back instanceof HydratedDocument);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(dehydrateDocument(back))), json);
+    assert.strictEqual(paragraphText(back.model.title), "Tabula");
+    assert.ok(back.model.children.some(isSection));
   });
 
-  it("writes spans compactly - a string unless bold or italic - and the paper by name", function () {
-    const json = documentToJSON(testDocument());
-    assert.strictEqual(json.paper, "A4");
-    assert.deepStrictEqual(json.title, ["Tabula"]);
-    const spans = json.children[0].spans;
-    assert.strictEqual(typeof(spans[0]), "string");
-    assert.deepStrictEqual(spans[1], { text: "tree of flows", bold: true });
+  it("is a query, every object in it a query too - a family and a kind - plain values between", function () {
+    const json = saved(testDocument());
+    assert.deepStrictEqual([json.type, json.name], ["document", "structuredText"]);
+    const { properties } = json;
+    assert.strictEqual(properties.paper, "A4");
+    assert.deepStrictEqual(properties.title, { type: "flow", name: "paragraph", properties: { spans: ["Tabula"] } });
+    assert.deepStrictEqual([properties.pageLayout.type, properties.pageLayout.name], ["pageLayout", "pages"]);
+    const [first] = properties.children;
+    assert.deepStrictEqual([first.type, first.name], ["flow", "paragraph"]);
+    // A span: a string unless bold or italic.
+    assert.strictEqual(typeof(first.properties.spans[0]), "string");
+    assert.deepStrictEqual(first.properties.spans[1], { text: "tree of flows", bold: true });
+    const section = properties.children.find((child) => child.name === "section");
+    assert.deepStrictEqual(Object.keys(section.properties).sort(), ["children", "title"]);
   });
 
-  it("is hydrated through the plugins in use - and kept as it was when none knows it", function () {
+  it("is made by whichever plugin provides flows - checked to be one, whoever made it", function () {
+    const json = saved(testDocument());
+    // A plugin making something else for a paragraph.
+    const impostor = {
+      locate: (query) => query.type === "flow" && query.name === "paragraph" ? { notAFlow: true } : undefined,
+    };
+    const services = new ObservableCompoundServiceLocator(impostor, structuredTextPlugin);
+    assert.throws(() => hydrateDocument(json, services), /isn't a Flow/);
+    // The base class asked for, for a plugin to choose by.
+    let asked = null;
+    const watcher = { locate: (query) => { if (query.type === "flow" && !asked) asked = query.baseClass; } };
+    hydrateDocument(json, new ObservableCompoundServiceLocator(watcher, structuredTextPlugin));
+    assert.strictEqual(asked, Flow);
+  });
+
+  it("is kept as it was, when no plugin in use knows it - or something in it - and saved as it was", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin);
-    const json = { type: "document", name: "structuredText", properties: documentToJSON(testDocument()) };
+    const json = saved(testDocument());
     const hydrated = hydrateDocument(json, services);
     assert.strictEqual(hydrated.documentType.name, "structuredText");
-    assert.deepStrictEqual(dehydrateDocument(hydrated, services), json);
     assert.deepStrictEqual(documentTypes(services).map((type) => type.name), ["structuredText"]);
 
     services.locators = [];
     const unknown = hydrateDocument(json, services);
-    assert.strictEqual(unknown.documentType, undefined);
-    assert.strictEqual(dehydrateDocument(unknown, services), json);
+    assert.ok(unknown instanceof Unhydrated);
+    assert.strictEqual(unknown.name, "structuredText");
+    assert.strictEqual(dehydrateDocument(unknown), json);
     assert.strictEqual(hydrateDocument(null, services), null);
+    // What it's made of wrong - a paper there's no size of - isn't unknown:
+    // it fails.
+    services.locators = [structuredTextPlugin];
+    assert.throws(() => hydrateDocument({ ...json, properties: { ...json.properties, paper: "B9" } }, services), /Unknown paper/);
   });
 
   it("is the root of a file on its own, or in a list - a sequence - and a list of one is the one again", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin);
-    const json = { type: "document", name: "structuredText", properties: documentToJSON(testDocument()) };
+    const json = saved(testDocument());
     assert.deepStrictEqual(hydrateRoot(null, services), []);
-    assert.strictEqual(dehydrateRoot([], services), null);
+    assert.strictEqual(dehydrateRoot([]), null);
     assert.strictEqual(hydrateRoot(json, services).length, 1);
-    assert.deepStrictEqual(dehydrateRoot(hydrateRoot([json, json], services), services), [json, json]);
-    assert.deepStrictEqual(dehydrateRoot(hydrateRoot([json], services), services), json);
+    const twice = JSON.parse(JSON.stringify(dehydrateRoot(hydrateRoot([json, json], services))));
+    assert.deepStrictEqual(twice, [json, json]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(dehydrateRoot(hydrateRoot([json], services)))), json);
     assert.throws(() => hydrateRoot([json, [json]], services));
   });
 });

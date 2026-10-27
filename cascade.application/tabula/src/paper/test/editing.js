@@ -114,6 +114,48 @@ describe("Editing a Tabula document", function () {
     });
   });
 
+  describe("at a section's pre marker", function () {
+    it("takes the whole section out on Delete - the caret at the start of what came after it; with nothing after, an empty paragraph in its place", function () {
+      const s1 = section("S1", paragraph("a"), section("Inner", paragraph("i")));
+      const s2 = section("S2", paragraph("b"));
+      const s3 = section("S3", paragraph("c"));
+      const { doc, editing } = setUp(paragraph("p"), s1, s2, paragraph("q"), s3);
+      // A section next: at its start - Delete again takes it out too.
+      let at = editing.deleteForward(flowStart(s1));
+      assert.equal(shape(doc), "D[p, S2[b], q, S3[c]]");
+      assert.ok(samePosition(at, flowStart(s2)));
+      // A paragraph next: at its text's start.
+      at = editing.deleteForward(at);
+      assert.equal(shape(doc), "D[p, q, S3[c]]");
+      assert.ok(samePosition(at, textPosition(doc.children[1], 0)));
+      // Nothing next: an empty paragraph in its place, the caret in it.
+      at = editing.deleteForward(flowStart(s3));
+      assert.equal(shape(doc), "D[p, q, _]");
+      assert.ok(samePosition(at, textPosition(doc.children[2], 0)));
+    });
+
+    it("refuses Delete at a document's start - nothing a document is in", function () {
+      let refusals = 0;
+      const doc = document({ title: "D", paper, margins }, paragraph("p"));
+      const editing = tabulaEditing(sequenceOf(doc), { refuse: () => { refusals++; } });
+      assert.ok(samePosition(editing.deleteForward(flowStart(doc)), flowStart(doc)));
+      assert.equal(refusals, 1);
+      assert.equal(shape(doc), "D[p]");
+    });
+
+    it("leaves no end title behind with none allowed: a section with text after it, before the one taken out, keeps it", function () {
+      let refusals = 0;
+      const s1 = section("S1", paragraph("a"));
+      const s2 = section("S2", paragraph("b"));
+      const doc = document({ title: "D", paper, margins }, s1, s2, paragraph("q"));
+      const editing = tabulaEditing(sequenceOf(doc), { exitTitles: () => false, refuse: () => { refusals++; } });
+      // Out, S1 would be followed by q - an end title: refused.
+      assert.ok(samePosition(editing.deleteForward(flowStart(s2)), flowStart(s2)));
+      assert.equal(refusals, 1);
+      assert.equal(shape(doc), "D[S1[a], S2[b], q]");
+    });
+  });
+
   describe("at a post marker", function () {
     it("takes the flow out on Backspace - the caret at the end of the text before it; a section left empty given an empty paragraph", function () {
       const inner = section("Inner", paragraph("i"));

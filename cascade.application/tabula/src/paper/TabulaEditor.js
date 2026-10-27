@@ -31,8 +31,9 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * down - or "beside" it (see markers.js).
  *
  * At a post marker, the marker's area - what it stands for (see markers.js)
- * - is drawn under the text: the flow whose end it is (not at a pre
- * marker). `showAllAreas` draws every marker's at once, to see them all. And wherever the caret is,
+ * - is drawn under the text: the flow whose end it is - and at a section's
+ * pre marker, the section's: all of it, what Delete there takes out (see
+ * editing.js) - not at a paragraph's or a title's. `showAllAreas` draws every marker's at once, to see them all. And wherever the caret is,
  * the flow it's in - a title standing for its section - is outlined: what
  * the caret is in, at a glance - with, for a section with a title offset,
  * an arrow beside its title, outside its box, pointing right: its title set
@@ -67,7 +68,9 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  *
  * Moving: the arrows - Left and Right through every place (with Ctrl, or
  * Cmd, a word at a time), Up and Down from line to line, past the markers
- * beside them (keeping the x moving up and down began at) - and Home and
+ * beside them - or onto one, nearer the x moving up and down began at than
+ * the text: that x kept, however many rows go by, until the caret moves
+ * otherwise (Left, Right, a click, an edit) - and Home and
  * End (Ctrl/Cmd: the start and end of everything). With something selected, Left and Right go to its start and
  * end.
  *
@@ -221,7 +224,8 @@ export class TabulaEditor extends Component {
   // pre marker: a place before a flow, not one closing it.
   areaAtCaret(rows) {
     const caret = this.caret;
-    if (!caret || !isMarker(caret) || caret.edge !== "end" || this.hasSelection()) return [];
+    if (!caret || !isMarker(caret) || this.hasSelection()) return [];
+    if (caret.edge !== "end" && !isSection(caret.flow)) return [];
     const found = rows.find(({ row }) => "marker" in row && samePosition(row.marker, caret));
     return found ? found.row.area : [];
   }

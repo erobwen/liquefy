@@ -1,7 +1,7 @@
 import { paperSizes, margins, mm } from "../../print/index.js";
 import { Document, Paragraph, paragraphText } from "../../model/flows.js";
 import { documentPlugin } from "../../shell/documents.js";
-import { documentToJSON, documentFromJSON } from "./json.js";
+import { documentFromProperties, documentProperties, structuredTextKinds, structuredTextFamilies } from "./json.js";
 import { structuredTextEditor } from "./StructuredTextEditor.js";
 import { structuredTextWeb } from "./StructuredTextWeb.js";
 import { printPapers, outline } from "./output.js";
@@ -21,8 +21,8 @@ export const structuredText = {
   // their placeholders, "Title" and "Text", showing. Its titles numbered -
   // for now: the structure plain to see, while it's tried out.
   create: () => new Document({ title: "", paper: paperSizes.A4, margins: margins(mm(25)), numberTitles: true }, [new Paragraph()]),
-  hydrate: (properties, documents) => documentFromJSON(properties, documents),
-  dehydrate: (model, documents) => documentToJSON(model, documents),
+  hydrate: (properties) => documentFromProperties(properties),
+  dehydrate: (model) => documentProperties(model),
   // On paper, edited; on the web, read only, for now.
   editor: ({ target, ...properties }) => target === "web" ? structuredTextWeb(properties) : structuredTextEditor(properties),
   title: (model) => paragraphText(model.title),
@@ -36,4 +36,7 @@ export const structuredTextPlugin = documentPlugin({
   label: "Structured text",
   description: "Documents of sections and paragraphs, on paper.",
   documentTypes: [structuredText],
+  // What a structured text is made of: flows, frames, its page layout.
+  kinds: structuredTextKinds,
+  families: structuredTextFamilies,
 });

@@ -5,8 +5,8 @@ import { DOMElementTarget, DOMServiceLocator, DOMDebugServiceLocator } from "@li
 import { basicTheme } from "@liquefy/cascade.ui";
 import { TabulaApp } from "../TabulaApp.js";
 import { plugins } from "../../plugins/index.js";
-import { dehydrateRoot } from "../documents.js";
-import { documentToJSON } from "../../plugins/structuredText/json.js";
+import { dehydrateRoot, dehydrateDocument, HydratedDocument } from "../documents.js";
+import { structuredText } from "../../plugins/structuredText/index.js";
 import { testDocument } from "../../model/testDocument.js";
 import { printPapers } from "../../plugins/structuredText/output.js";
 
@@ -76,14 +76,14 @@ describe("Tabula, the document editor", function () {
     menuItem("Spreadsheet").click();
     assert.deepStrictEqual(tabula.documents.map((each) => each.documentType.name), ["plainText", "structuredText", "spreadsheet"]);
     assert.strictEqual(buttons("Remove").length, 3);
-    assert.strictEqual(dehydrateRoot(tabula.documents, services).length, 3);
+    assert.strictEqual(dehydrateRoot(tabula.documents).length, 3);
 
     // Removed down to one: no sequence any more - the one, on its own.
     buttons("Remove")[0].click();
     buttons("Remove")[1].click();
     assert.deepStrictEqual(tabula.documents.map((each) => each.documentType.name), ["structuredText"]);
     assert.strictEqual(buttons("Remove").length, 0);
-    assert.strictEqual(dehydrateRoot(tabula.documents, services).name, "structuredText");
+    assert.strictEqual(dehydrateRoot(tabula.documents).name, "structuredText");
     assert.ok(element.querySelectorAll("[data-page]").length >= 1);
   });
 
@@ -96,7 +96,7 @@ describe("Tabula, the document editor", function () {
     element.innerHTML = "";
     const tabula = new TabulaApp({ plugins, services }).establish();
     tabula.renderOnto(DOMElementTarget.forElement(element), new RenderContext({ serviceLocator }));
-    const book = { type: "document", name: "structuredText", properties: documentToJSON(testDocument()) };
+    const book = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, testDocument()))));
     const plain = { type: "document", name: "plainText", properties: { text: "Hello" } };
     assert.strictEqual(tabula.apply([book, plain]), null);
     assert.ok(element.querySelectorAll("[data-page]").length >= 1);
@@ -113,7 +113,7 @@ describe("Tabula, the document editor", function () {
 
     // Not taken: what the plugins can't hold - a paper there's no size of,
     // a kind no plugin knows. Taken: anything they can.
-    const json = dehydrateRoot(tabula.documents, services);
+    const json = dehydrateRoot(tabula.documents);
     const changed = (change) => {
       const copy = structuredClone(json);
       change(copy);

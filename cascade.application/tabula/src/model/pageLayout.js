@@ -33,6 +33,16 @@ export class PageLayout {
     this.last = observable(last);
     return observable(this);
   }
+
+  // Saved: { type: "pageLayout", name: "pages", properties } (see
+  // ../shell/hydration.js).
+  dehydrate() {
+    return {
+      type: "pageLayout",
+      name: "pages",
+      properties: { margins: { ...this.margins }, first: [...this.first], middle: [...this.middle], last: [...this.last] },
+    };
+  }
 }
 
 export class PageElement {
@@ -45,6 +55,11 @@ export class PageElement {
     this.width = width;
     this.height = height;
     return observable(this);
+  }
+
+  dehydrate() {
+    const { content, horizontal, x, vertical, y, width, height } = this;
+    return { type: "pageElement", name: "element", properties: { horizontal, x, vertical, y, width, height, content } };
   }
 }
 

@@ -54,8 +54,11 @@ const modes = [
  * creates a document there: one document becomes a sequence of them. With
  * more than one, each has a remove button; removing all but one leaves
  * the one, on its own, at the root again. The documents are hydrated when
- * opened, dehydrated when saved: in between, each is whatever model its
- * plugin made of it.
+ * opened, dehydrated when saved (see documents.js, hydration.js): in
+ * between, each is whatever model its plugin made of it. Saved, they go
+ * back to the file they were opened from, where the browser lets them (see
+ * files.js) - Save as asks where - and Ctrl+S (Cmd+S) saves, Ctrl+Shift+S
+ * saves as, Ctrl+O opens.
  *
  * The mode is what the whole app renders onto - paper (the default), the
  * web, JSON (the root as it's saved, edited as JSON, see
@@ -87,11 +90,37 @@ export class TabulaApp extends Component {
   initialUnobservables() {
     // The context menus of whatever has the focus - taken by an editor, as
     // its caret is placed (see contextMenus.js).
+    // file: the file what's open was opened from, or saved to - where the
+    // browser lets it be kept hold of (see files.js) - for Save to write to.
     return {
       menus: new ContextMenus(),
       // The settings' sections first, then the plugins'.
       locator: new CompoundServiceLocator(settingsLocator(this.settings), this.services),
+      file: null,
+      removeKeys: null,
     };
+  }
+
+  // Ctrl+S (Cmd+S) and Ctrl+O, wherever the keyboard is - not the browser's
+  // own saving and opening.
+  onEstablish() {
+    super.onEstablish();
+    if (typeof(document) === "undefined") return;
+    const keys = (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key !== "s" && key !== "o") return;
+      event.preventDefault();
+      if (key === "o") this.open();
+      else if (this.documents.length > 0) this.save({ as: event.shiftKey });
+    };
+    document.addEventListener("keydown", keys, true);
+    this.unobservable.removeKeys = () => document.removeEventListener("keydown", keys, true);
+  }
+
+  onDispose() {
+    if (this.unobservable.removeKeys) this.unobservable.removeKeys();
+    super.onDispose();
   }
 
   // For the editors below: where to put their context menus - and the
@@ -105,10 +134,11 @@ export class TabulaApp extends Component {
     this.settingsShown = page;
   }
 
-  show(documents, fileName = null) {
+  show(documents, fileName = null, file = null) {
     this.documents = documents;
     this.fileName = fileName;
     this.message = null;
+    this.unobservable.file = file;
   }
 
   insert(index, type) {
@@ -124,15 +154,25 @@ export class TabulaApp extends Component {
     try {
       const file = await openFile();
       if (!file) return;
-      this.show(hydrateRoot(JSON.parse(file.text), this.services), file.name);
+      this.show(hydrateRoot(JSON.parse(file.text), this.services), file.name, file.handle);
     } catch (error) {
       this.message = "Couldn't open it: " + error.message;
     }
   }
 
-  save() {
-    const json = dehydrateRoot(this.documents, this.services);
-    saveFile(this.fileName || "document.json", JSON.stringify(json, null, 2));
+  // Back to the file it came from - or, the first time, or `as`, where
+  // the user says.
+  async save({ as = false } = {}) {
+    try {
+      const text = JSON.stringify(dehydrateRoot(this.documents), null, 2);
+      const saved = await saveFile({ name: this.fileName || "document.json", text, handle: this.unobservable.file, as });
+      if (!saved) return;
+      this.unobservable.file = saved.handle;
+      this.fileName = saved.name;
+      this.message = null;
+    } catch (error) {
+      this.message = "Couldn't save it: " + error.message;
+    }
   }
 
   // All of it, on paper - each document as its plugin prints it.
@@ -204,8 +244,9 @@ export class TabulaApp extends Component {
     const none = this.documents.length === 0;
     return [
       { icon: "note_add", label: "New", title: "New - the null document", onClick: callback("new", () => this.show([])) },
-      { icon: "folder_open", label: "Open…", title: "Open a document", onClick: callback("open", () => this.open()) },
-      { icon: "download", label: "Save", title: "Save the document", disabled: none, onClick: callback("save", () => this.save()) },
+      { icon: "folder_open", label: "Open…", title: "Open a document (Ctrl+O)", onClick: callback("open", () => this.open()) },
+      { icon: "save", label: "Save", title: "Save (Ctrl+S) - to the file it came from", disabled: none, onClick: callback("save", () => this.save()) },
+      { icon: "save_as", label: "Save as…", title: "Save as (Ctrl+Shift+S) - somewhere else", disabled: none, onClick: callback("saveAs", () => this.save({ as: true })) },
       { icon: "print", label: "Print", title: "Print - on paper, whatever the mode", disabled: none, onClick: callback("print", () => this.print()) },
       { icon: "settings", label: "Settings…", title: "Settings", onClick: callback("settings", () => this.openSettings()) },
     ];
@@ -264,7 +305,7 @@ export class TabulaApp extends Component {
     if (mode.name === "json") {
       return div(
         { key: "json", style: { padding: "16px" } },
-        jsonEditor({ json: dehydrateRoot(documents, this.services), apply: callback("apply", (json) => this.apply(json)) }),
+        jsonEditor({ json: dehydrateRoot(documents), apply: callback("apply", (json) => this.apply(json)) }),
       );
     }
     if (mode.name === "tree") {

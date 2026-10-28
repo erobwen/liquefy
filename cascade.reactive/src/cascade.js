@@ -140,6 +140,7 @@ function createWorld(configuration) {
     flush,
     accessInitialValues,
     declareState,
+    declareGiven,
     retractRepeater,
     refreshIfNeeded,
 
@@ -386,6 +387,21 @@ function createWorld(configuration) {
     accessInitialValues(() => {
       Object.keys(defaults).forEach((key) => { object[key] = defaults[key]; });
     });
+    return object;
+  }
+
+  // Declare some of an observable's properties as *given*: written by
+  // whoever creates it, and changed only by that creator giving them
+  // again - a rebuild copying the new values over, inside a repeater.
+  // Never assigned afterwards: a write to one from outside any repeater
+  // (an event handler assigning it) calls onWrite(key) - the creator's
+  // value comes back at its next rebuild, so such a write is almost
+  // certainly a mistake. Only reported, not refused.
+  function declareGiven(object, keys, onWrite) {
+    if (!isObservable(object)) throw new Error("declareGiven() expects an observable object.");
+    const meta = object[objectMetaProperty];
+    meta.givenProperties = new Set(keys);
+    meta.onGivenWrite = onWrite;
     return object;
   }
 
@@ -2565,6 +2581,11 @@ function createWorld(configuration) {
         "State is written at initialization (declareState/initialState), from an event handler outside any repeater, " +
         "or deliberately at initial time via accessInitialValues()/setState()."
       );
+    }
+
+    // Given properties (see declareGiven()) are given, not assigned.
+    if (this.meta.givenProperties && state.inRepeater === null && this.meta.givenProperties.has(key)) {
+      this.meta.onGivenWrite(key);
     }
 
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {

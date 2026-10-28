@@ -1,4 +1,4 @@
-# 1. Introduction
+# 1. Concepts
 
 Cascade is a reactive front-end framework. You write components as classes
 with a `build()` method, as in React, and state is observed automatically, as
@@ -93,7 +93,7 @@ this manual (see [10.1](10-pitfalls-and-rules.md#101-write-shared-state-at-the-b
 
 ## What to read first
 
-Before building anything, read [2](02-getting-started.md) to
+Before building anything, read [2](02-project-setup.md) to
 [5](05-callbacks-and-frozen.md) - components, identity, callbacks and
 `frozen()` - and [10](10-pitfalls-and-rules.md). Most surprises in Cascade
 come from identity (which component a rebuild keeps) and from properties

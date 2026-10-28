@@ -18,7 +18,7 @@ const source = (name) => Object.entries(files).find(([path]) => fileName(path) =
 
 // Shorter titles, for the menu.
 const menuTitles = {
-  "introduction": "Introduction", "getting-started": "Getting Started", "components": "Components",
+  "concepts": "Concepts", "project-setup": "Project Setup", "components": "Components",
   "identity": "Identity and Keys", "callbacks-and-frozen": "Callbacks and frozen()", "context": "Context",
   "services-and-hydration": "Services and Hydration", "reactivity": "Reactivity", "dom-and-ui": "DOM and UI",
   "pitfalls-and-rules": "Pitfalls and Rules", "api-reference": "API Reference",
@@ -56,7 +56,12 @@ const github = "https://github.com/erobwen/liquefy/blob/main/cascade/docs/manual
 // heading, without loading the app anew; another file of the repository is
 // on GitHub; anything else is the web's.
 function linker(location) {
+  // A callback of its own for each link - the same place may be linked
+  // to more than once.
+  const linked = new Map();
   return (href) => {
+    const occurrence = (linked.get(href) || 0) + 1;
+    linked.set(href, occurrence);
     if (/^[a-z]+:/i.test(href)) return { href, target: "_blank", rel: "noopener" };
     const [file, anchor] = href.split("#");
     const chapter = file === "" ? null : chapters.find((each) => each.file === file);
@@ -65,7 +70,7 @@ function linker(location) {
     const path = key ? [key] : location.path;
     return {
       href: location.href(path) + (anchor ? "#" + anchor : ""),
-      onclick: callback("link " + href, (event) => {
+      onclick: callback("link " + href + " " + occurrence, (event) => {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         if (key) location.navigate(path);

@@ -27,6 +27,7 @@ export const {
   flush,
   accessInitialValues,
   declareState,
+  declareGiven,
   retractRepeater,
   refreshIfNeeded,
   state,

@@ -17,8 +17,8 @@ npm install @liquefy/cascade.ui @liquefy/cascade.dom @liquefy/cascade.component 
 
 Contents:
 
-1. [Introduction](01-introduction.md)
-2. [Getting started](02-getting-started.md)
+1. [Concepts](01-concepts.md)
+2. [Setting up a project](02-project-setup.md)
 3. [Components](03-components.md)
 4. [Identity: keys and pattern matching](04-identity.md)
 5. [Callbacks, view() and frozen()](05-callbacks-and-frozen.md)

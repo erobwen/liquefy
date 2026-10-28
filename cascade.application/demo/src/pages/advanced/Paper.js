@@ -41,7 +41,7 @@ class Sentence extends Component {
   }
 
   build() {
-    return this.words.words.map((text, index) => new Word({ key: "word" + index, text }));
+    return this.words.words.map((text) => new Word({ text }));
   }
 }
 

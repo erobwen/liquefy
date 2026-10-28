@@ -144,4 +144,37 @@ describe("a dropped component is retracted on dispose, before any stale rerun of
     assert.ok(sibling.unobservable.repeater.retracted, "retracted on dispose, not left to whoever rendered it");
   });
 
+  it("a property assigned afterwards - from an event handler, say - is warned about: properties are given, not assigned", function () {
+    const warnings = [];
+    const warn = console.warn;
+    console.warn = (message) => warnings.push(message);
+    class Stepper extends Component {
+      setProperties({ step }) {
+        this.step = step;
+      }
+      render() {}
+    }
+    class Holder extends Component {
+      build() {
+        return new Stepper({ key: "stepper", step: this.step });
+      }
+    }
+    try {
+      const holder = new Holder();
+      holder.step = 1; // a root's own: nobody gives it anything again
+      holder.renderOnto({});
+      holder.step = 2;
+      assert.equal(warnings.length, 0, "giving it, and rebuilding with it, is fine");
+      const counter = holder.currentBuild;
+      assert.equal(counter.step, 2);
+      counter.step = 5;
+      assert.equal(warnings.length, 1);
+      assert.ok(/'step' of Stepper was assigned/.test(warnings[0]), warnings[0]);
+      counter.step = 6;
+      assert.equal(warnings.length, 1, "once per class and property");
+    } finally {
+      console.warn = warn;
+    }
+  });
+
 });

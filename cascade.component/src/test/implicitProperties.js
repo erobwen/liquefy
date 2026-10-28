@@ -1,6 +1,7 @@
 import assert from "assert";
 import { Component } from "../Component.js";
 import { frozen } from "../frozen.js";
+import { observable } from "../Cascade.js";
 import { toPropertiesWithChildren } from "../implicitProperties.js";
 
 // The argument list a component is constructed with is sorted into its
@@ -17,6 +18,30 @@ describe("implicit properties", function () {
     assert.equal(first.key, "save");
     assert.equal(second.key, "save", "the key wasn't taken out of the caller's object");
     assert.deepEqual(properties, { key: "save", label: "Save" });
+  });
+
+  it("a key of 0 is a key - an id can be 0 - and only no key is none", function () {
+    assert.strictEqual(new Leaf({ key: 0 }).key, 0);
+    assert.strictEqual(new Leaf({ key: "" }).key, "");
+    assert.strictEqual(new Leaf().key, null);
+    assert.strictEqual(new Leaf({ key: null }).key, null);
+
+    // Kept by it through a rebuild, as any key: the same item, moved.
+    const model = observable({ ids: [0, 1] });
+    class Item extends Component {
+      render() {}
+    }
+    class List extends Component {
+      build() {
+        return model.ids.map((id) => new Item({ key: id }));
+      }
+    }
+    const list = new List();
+    list.renderOnto({ name: "target" });
+    const [zero, one] = list.currentBuild;
+    model.ids = [1, 0];
+    assert.equal(list.currentBuild[0], one);
+    assert.equal(list.currentBuild[1], zero, "item 0 is still item 0");
   });
 
   it("a frozen properties object is fine", function () {

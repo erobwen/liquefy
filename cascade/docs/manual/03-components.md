@@ -42,8 +42,9 @@ div("toolbar", buttonA, buttonB)                  // leading lowercase string: t
 - The first loose argument, if it is a number or a string starting with a
   lowercase letter, becomes the implicit `key` - not a child. A key with
   whitespace in it warns, since it was probably meant as text.
-- `key` may also be given in the properties. Use strings: a falsy explicit
-  key (`key: 0`, `key: ""`) counts as no key at all.
+- `key` may also be given in the properties. Any value given is a key - an
+  id of `0` too; only `undefined` or `null` means no key. A key is a string
+  as far as matching goes: `0` and `"0"` are the same key.
 - `children` given both loosely and in the properties throws.
 
 Watch out for values that look like booleans but aren't: `count && badge()`
@@ -95,10 +96,14 @@ plain-data properties (styles, option lists, `children`) and pass
 `callback()`s rather than fresh closures, and a rebuild stops where nothing
 changed.
 
-Properties are the creator's to write. Assigning one from an event handler
-doesn't even take effect: the write lands at the baseline, *before* the
-creator's build wrote it, and readers go on seeing the creator's value. A
-value the component changes itself is state.
+Properties are given, never assigned: they're written in `setProperties()`,
+when the creator gives them, and changed only by the creator giving them
+again. Assigning one from an event handler doesn't even take effect: the
+write lands at the baseline, *before* the creator's build wrote it, and
+readers go on seeing the creator's value. Cascade warns about it, once per
+class and property ("Property 'x' of Y was assigned"). A value the component
+changes itself is state. (A root component, built by nobody, is the
+exception: there's no creator to give it anything again.)
 
 ## 3.3 State
 

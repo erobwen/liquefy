@@ -29,8 +29,10 @@ import { div } from "./HTMLTags.js";
  * typically rendered *after* the portal (a page's work area comes after
  * the top bar), so assigning them is a write backwards in the pipeline -
  * setState() puts it at the baseline, where the portal's build reads it,
- * and flush() gets it rebuilt in the same wave, so the portal fills in the
- * same frame, not the next.
+ * and flush() gets it rebuilt in the same wave, in tree order. Without it,
+ * the portal would still fill in before the write that started it all
+ * returns - but in a wave of its own after this one, once everything
+ * after the portal has already run with it empty.
  *
  * Who holds the portal: something that creates it itself and owns it (not
  * one built in some build() and also referenced - see

@@ -1,4 +1,4 @@
-import { observable, repeat, linkRepeater, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, withoutRecording, establish as establishObject, dispose as disposeObject } from "./Cascade.js";
+import { observable, repeat, linkRepeater, accessInitialValues, declareState, declareGiven, retractRepeater, refreshIfNeeded, withoutRecording, establish as establishObject, dispose as disposeObject } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 import { RenderContext } from "./RenderContext.js";
 
@@ -76,7 +76,7 @@ export function componentPath(component) {
   const parts = [];
   withoutRecording(() => {
     for (let scan = component; scan; scan = scan.creator) {
-      parts.unshift(scan.getComponentTypeName() + (scan.key ? "(" + scan.key + ")" : ""));
+      parts.unshift(scan.getComponentTypeName() + (scan.key !== null ? "(" + scan.key + ")" : ""));
     }
   });
   return parts.join(" › ");
@@ -94,6 +94,19 @@ function withComponentPath(error, component, method) {
   error.message = message + "\n    in " + component.getComponentTypeName() + "." + method + " (" + path + ")";
   if (typeof(error.stack) === "string" && message) error.stack = error.stack.replace(message, error.message);
   return error;
+}
+
+// A property assigned, outside any build or render - an event handler
+// writing one. Properties are given, in setProperties(), never assigned
+// afterwards: the creator gives its own value again at its next rebuild,
+// and the assignment is gone. Warned about once per class and property.
+const warnedGivenWrites = new Set();
+function warnGivenWrite(component, name) {
+  const type = withoutRecording(() => component.getComponentTypeName());
+  if (warnedGivenWrites.has(type + "." + name)) return;
+  warnedGivenWrites.add(type + "." + name);
+  console.warn("Property '" + name + "' of " + type + " was assigned: properties are given by whoever builds it (in setProperties()), not assigned afterwards"
+    + " - its creator's value comes back at its next rebuild. Make it state (initialState()) if it's the component's own, or change what the creator gives.");
 }
 
 // cascade.reactive's own duplicate key error, told in a component's terms:
@@ -258,7 +271,9 @@ export class Component {
     // not "whoever constructed me" in general - see buildOneStep(),
     // the actual push/pop site, and its own comment on why.
     this.creator = getCreator();
-    this.key = extractProperty(properties, "key") || null;
+    // Any key given is a key - an id of 0 too. Only none is none.
+    const key = extractProperty(properties, "key");
+    this.key = typeof(key) === "undefined" ? null : key;
     let me;
     try {
       me = observable(this, this.key);
@@ -266,7 +281,20 @@ export class Component {
       if (typeof(error.duplicateKey) === "undefined") throw error;
       throw duplicateKeyError(error, this, properties);
     }
+    // What setProperties() writes is given, never assigned afterwards (see
+    // warnGivenWrite() below) - noted the first time only: in a rebuild,
+    // its writes go to a throwaway twin. Only for one built by another: a
+    // root has no creator to give it anything again.
+    const firstConstruction = me.causality.rebuildTwin === null && me.creator !== null;
+    // Read without recording: the build constructing it doesn't depend on
+    // what its child has.
+    const keys = () => withoutRecording(() => Object.keys(me));
+    const before = firstConstruction ? new Set(keys()) : null;
     me.setProperties(properties);
+    if (firstConstruction) {
+      const given = keys().filter((name) => !before.has(name));
+      if (given.length > 0) declareGiven(me, given, (name) => warnGivenWrite(me, name));
+    }
     // Unconditionally - no attempt to detect a rebuild here. During one,
     // `me` is the established object but its writes are redirected to the
     // throwaway twin (see cascade.reactive's setHandlerObject/rebuildTwin),
@@ -964,7 +992,7 @@ export class Component {
     // invalidate whoever merely asked this component to describe itself.
     let result;
     withoutRecording(() => {
-      result = this.getComponentTypeName() + ":" + this.causality.id + (this.key ? "(" + this.key + ")" : "");
+      result = this.getComponentTypeName() + ":" + this.causality.id + (this.key !== null ? "(" + this.key + ")" : "");
     });
     return result;
   }

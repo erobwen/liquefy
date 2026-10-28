@@ -326,7 +326,7 @@ const widgets = {
     ensureStyleSheet();
     return span(
       { ...rest, key, class: "material-symbols-outlined cb-icon", style: style || {} },
-      text({ key: key ? key + "Name" : undefined, text: name || "" }),
+      text({ key: key !== undefined && key !== null ? key + "Name" : undefined, text: name || "" }),
     );
   },
 

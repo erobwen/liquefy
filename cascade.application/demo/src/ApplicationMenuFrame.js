@@ -1,5 +1,5 @@
-import { Component, callback } from "@liquefy/cascade.component";
-import { a, button, div, img, span, text, providingElement, elementBoundsProvider, portal } from "@liquefy/cascade.dom";
+import { Component, callback, frozen } from "@liquefy/cascade.component";
+import { a, button, div, img, span, text, providingElement, elementBoundsProvider, portal, flipAnimationContainer } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
 import { versionNotice, showVersionNotice } from "./versionNotice.js";
@@ -72,21 +72,37 @@ export class ApplicationMenuFrame extends Component {
   // `menuParent` (a page's key), the menu shows that page's link as the
   // one you're at, while it's shown. `logoPage`:
   // the key of the page the logotype at the top of the menu leads to, if
-  // any.
-  setProperties({ pages, rootServiceLocator, location, logoPage }) {
+  // any. `collapsibleGroups`: the names of the groups (see `group`) whose
+  // header opens and closes them in the menu (see groupIsOpen()).
+  setProperties({ pages, rootServiceLocator, location, logoPage, collapsibleGroups }) {
     this.pages = pages;
     this.logoPage = logoPage || null;
     this.rootServiceLocator = rootServiceLocator || null;
     this.location = location;
+    this.collapsibleGroups = frozen(collapsibleGroups || []);
   }
 
   // Whether the modal menu is open is *state* (see
   // cascade.component/README.md): established once here, changed only by the
   // user - the hamburger and the backdrop (see ApplicationMenuFrameLayout
   // below) are event handlers, outside any repeater - and never reset by a
-  // rebuild.
+  // rebuild. So is which collapsible groups the user opened or closed -
+  // kept here, not in the menu: the menu is built anew wherever it's shown.
   initialState() {
-    return { menuOpen: false };
+    return { menuOpen: false, groupsToggled: {} };
+  }
+
+  // Whether a group shows its pages in the menu: a group that can't be
+  // collapsed always does. One that can is as the user last left it - or,
+  // until they've opened or closed it, open while one of its pages is shown.
+  groupIsOpen(group) {
+    if (!this.collapsibleGroups.includes(group)) return true;
+    if (group in this.groupsToggled) return this.groupsToggled[group];
+    return this.currentPage().group === group;
+  }
+
+  toggleGroup(group) {
+    this.groupsToggled = { ...this.groupsToggled, [group]: !this.groupIsOpen(group) };
   }
 
   // The top bar's portals, where the page shown puts its own buttons (see
@@ -315,23 +331,71 @@ class MenuList extends Component {
 
   build() {
     const { frame } = this;
-    const items = [];
-    let previousGroup = null;
+    // The pages in the menu, in runs: each page on its own, or a group's.
+    const runs = [];
     for (const page of frame.pages) {
       if (page.inMenu === false) continue;
-      // Pages grouped together (see index.js - `group`) get a header above
-      // them, and a gap after them, before the next page on its own.
       const group = page.group || null;
-      const startsGroup = group !== null && group !== previousGroup;
-      const endsGroup = group === null && previousGroup !== null;
-      if (startsGroup) items.push(groupHeader(group));
-      items.push(this.pageLink(page, endsGroup, group !== null));
-      previousGroup = group;
+      const last = runs[runs.length - 1];
+      if (group !== null && last && last.group === group) last.pages.push(page);
+      else runs.push({ group, pages: [page] });
     }
+    // A group gets a header above its pages, and a gap after them, before
+    // the next page on its own (see index.js - `group`). Its pages are in a
+    // box of their own, there even while the group is collapsed: opening
+    // it, the box grows from nothing, and its pages are revealed as it does
+    // (see below).
+    const items = [];
+    runs.forEach(({ group, pages }, index) => {
+      if (group === null) {
+        const afterGroup = index > 0 && runs[index - 1].group !== null;
+        items.push(this.pageLink(pages[0], afterGroup, false));
+        return;
+      }
+      items.push(this.groupHeader(group));
+      items.push(div(
+        { key: "pages" + group, style: { overflow: "hidden" } },
+        frame.groupIsOpen(group) ? pages.map((page) => this.pageLink(page, false, true)) : [],
+      ));
+    });
     return div(
       { style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
       logo(frame),
-      ...items,
+      // Animated: a group opening grows to make room for its pages, which
+      // stay within it as it does - `confine` - and closing, shrinks it
+      // away, the rest of the menu closing the gap.
+      flipAnimationContainer({ confine: true }, ...items),
+    );
+  }
+
+  // A group's header in the menu: small, and quieter than the pages under
+  // it. One that can be collapsed (see ApplicationMenuFrame's groupIsOpen())
+  // opens and closes it, with a chevron showing which.
+  groupHeader(name) {
+    const { frame } = this;
+    const style = {
+      display: "flex", alignItems: "center", padding: "0 12px", margin: "16px 0 6px 0", fontSize: "12px", fontWeight: "bold",
+      letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.6,
+    };
+    if (!frame.collapsibleGroups.includes(name)) return div({ key: "group" + name, style }, text(name));
+    const open = frame.groupIsOpen(name);
+    return div(
+      {
+        key: "group" + name,
+        role: "button",
+        tabindex: 0,
+        "aria-expanded": String(open),
+        title: open ? "Hide " + name : "Show " + name,
+        onclick: callback("toggle" + name, () => frame.toggleGroup(name)),
+        onkeydown: callback("toggleKey" + name, (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          frame.toggleGroup(name);
+        }),
+        style: { ...style, cursor: "pointer", userSelect: "none", borderRadius: "4px" },
+      },
+      span({ style: { flex: "1 1 auto" } }, text(name)),
+      span({ class: "material-symbols-outlined", style: { fontSize: "18px", lineHeight: "1", flex: "none" } }, text(open ? "expand_less" : "expand_more")),
     );
   }
 
@@ -369,20 +433,6 @@ class MenuList extends Component {
     // icon font's glyph itself, not the theme's icon widget.
     page.icon ? span({ key: page.key + "Icon", class: "material-symbols-outlined", style: { fontSize: "20px", lineHeight: "1", flex: "none", userSelect: "none" } }, text(page.icon)) : null);
   }
-}
-
-// A group's header in the menu: small, and quieter than the pages under it.
-function groupHeader(name) {
-  return div(
-    {
-      key: "group" + name,
-      style: {
-        padding: "0 12px", margin: "16px 0 6px 0", fontSize: "12px", fontWeight: "bold",
-        letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.6,
-      },
-    },
-    text(name),
-  );
 }
 
 // A small warning sign, at the top bar's right end, showing the version notice

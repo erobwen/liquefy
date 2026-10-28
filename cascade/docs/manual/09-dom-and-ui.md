@@ -74,7 +74,7 @@ string or number is the **key**, not text
 ## 9.2 Render targets, the root, and DOM components
 
 `DOMElementTarget.forElement(element)` wraps an element that components
-render into - the app's root (see [2](02-getting-started.md#2-getting-started))
+render into - the app's root (see [2](02-project-setup.md#2-setting-up-a-project))
 and every element's own children. Its `lastChild` is an observable read and
 written in tree order: each component inserts its node after what the
 component before it placed, and re-confirms its position on every render
@@ -396,7 +396,7 @@ Notes:
   components of their own, so their inner keys never collide with yours.
 - Both themes draw icons from Google's icon fonts: the basic theme uses
   Material Symbols Outlined, the Material theme `mdui-icon` (Material
-  Icons). Link the fonts ([2](02-getting-started.md#2-getting-started)).
+  Icons). Link the fonts ([2](02-project-setup.md#2-setting-up-a-project)).
 - The basic theme adds a small stylesheet (`data-cascade-theme="basic"`) on
   first use for hover/focus states; inline style is left for yours.
 

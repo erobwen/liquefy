@@ -51,6 +51,7 @@ World members:
 | `dispose` | `dispose(object)` | Emits the dispose event and calls its `onDispose()`. |
 | `finalize` | `finalize(object) → object` | Merges a rebuilt object's twin back, or establishes a new one. Internal to rebuilding. |
 | `declareState` | `declareState(object, defaults) → object` | Declares state properties with baseline defaults (written only outside repeaters or at initial time). |
+| `declareGiven` | `declareGiven(object, keys, onWrite) → object` | Declares given properties: a write to one from outside any repeater calls `onWrite(key)` (reported, not refused). `Component` uses it to warn about assigned properties. |
 | `withoutRecording` | `withoutRecording(fn) → result` | Runs `fn` without recording dependencies. |
 | `withoutReactions` | `withoutReactions(fn)` | Runs `fn` without notifying anyone of its writes. |
 | `accessInitialValues` | `accessInitialValues(fn) → result` | Runs `fn` as if outside any repeater: writes at the baseline, reads latest. |

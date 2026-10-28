@@ -108,6 +108,8 @@ const applicationMenuFrame = new ApplicationMenuFrame({
   location,
   // The showcase is reached by the logotype, not from the menu.
   logoPage: "showcase",
+  // The manual's chapters take room: opened when wanted.
+  collapsibleGroups: ["Reference Manual"],
   pages: [
     { key: "introduction", title: "Introduction", icon: "info", description: "Cascade, a reactive front end framework built on temporal signals: components rendered straight onto the real DOM in one pass.", component: new IntroductionPage().establish() },
     { key: "showcase", title: "Showcase", icon: "auto_awesome", fullScreen: true, inMenu: false, description: "Cascade, the reactive front end framework built on temporal signals - one page that reveals itself as you scroll.", component: new ShowcasePage().establish() },

@@ -1,4 +1,4 @@
-# 2. Getting started
+# 2. Setting up a project
 
 A Cascade app needs three things: a **render target** (where it goes), a
 **render context** carrying a **service locator** (where components get their

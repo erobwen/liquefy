@@ -183,8 +183,8 @@ function buildPropertiesObject(arglist) {
     properties.componentContent = content;
   }
 
-  if (implicitKey) {
-    if (properties.key) {
+  if (implicitKey !== null) {
+    if (typeof(properties.key) !== "undefined" && properties.key !== null) {
       throw new Error("Cannot define key both explicitly and implicitly in one argument list.");
     }
     properties.key = implicitKey;

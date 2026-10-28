@@ -392,6 +392,12 @@ enforced:
 `setState()` is the sanctioned way to write state from inside a pipeline (see
 [3.3](03-components.md#33-state)).
 
+Its counterpart for properties is `declareGiven(object, keys, onWrite)`:
+properties are changed only by a rebuild copying new values over, inside a
+repeater, so a write to one from *outside* any repeater calls `onWrite(key)`.
+`Component`'s constructor declares whatever `setProperties()` wrote, and
+warns (see [3.2](03-components.md#32-properties)).
+
 ## 8.14 Errors
 
 - An error thrown in a repeater's first run comes out of `repeat()`.

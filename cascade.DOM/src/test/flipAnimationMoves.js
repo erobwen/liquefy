@@ -1068,4 +1068,69 @@ describe("FlipAnimationContainer animations", function () {
       delete Element.prototype.animate;
     }
   });
+
+  it("rounded corners keep their roundness while what they're on is scaled - going gradually from how round they were drawn to how round they are", function () {
+    // jsdom computes no border radius: an element's own is its data-radius.
+    const view = document.defaultView;
+    const computed = view.getComputedStyle;
+    view.getComputedStyle = function (element, ...rest) {
+      const style = computed.call(this, element, ...rest);
+      const radius = element.getAttribute("data-radius") || "0px";
+      return new Proxy(style, { get: (target, key) => {
+        if (typeof key === "string" && /^border\w+Radius$/.test(key)) return radius;
+        const value = Reflect.get(target, key);
+        return typeof value === "function" ? value.bind(target) : value;
+      } });
+    };
+    try {
+      class Box extends Component {
+        initialState() {
+          return { wide: false };
+        }
+        build() {
+          return flipAnimationContainer(
+            { key: "flip" },
+            div({ key: "box", title: this.wide ? "200" : "100", "data-radius": this.wide ? "16px" : "8px" }, div({ key: "label" })),
+          );
+        }
+      }
+      const boxes = new Box();
+      boxes.renderOnto(new DOMElementTarget(container));
+      const box = container.querySelector("[data-radius]");
+      boxes.wide = true;
+      assert.equal(transformOf(box).sx, 0.5, "drawn as wide as it was");
+      assert.equal(box.style.borderRadius, "16px 16px 16px 16px / 8px 8px 8px 8px", "as round as it was drawn: 8px, at half its width");
+      runFrames(10);
+      const [x] = box.style.borderRadius.split(" ").map(parseFloat);
+      const drawnX = x * transformOf(box).sx;
+      assert.ok(drawnX > 8 && drawnX < 16, "on its way to 16px: " + drawnX);
+      runToRest();
+      assert.equal(box.style.borderRadius, "", "as round as the app says, once arrived");
+    } finally {
+      view.getComputedStyle = computed;
+    }
+  });
+
+  it("its own box grows and shrinks to its new size - rather than snapping shut as the last of what's in it leaves", function () {
+    // How tall the container is in the fake layout: 20px per element in it
+    // that isn't absolutely positioned (a ghost is).
+    const HTMLElement = document.defaultView.HTMLElement;
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get() {
+      return 20 * Array.from(this.querySelectorAll("*")).filter((each) => each.style.position !== "absolute").length;
+    } });
+    try {
+      const { lists, element } = setup();
+      const root = element("four").parentElement.parentElement;
+      lists.b = [];
+      assert.equal(root.style.height, "120px", "as tall as it was");
+      runFrames(10);
+      const midway = parseFloat(root.style.height);
+      assert.ok(midway > 100 && midway < 120, "shrinking: " + root.style.height);
+      runToRest();
+      assert.equal(root.style.height, "", "its own size again, once there");
+      assert.equal(root.style.boxSizing, "");
+    } finally {
+      delete HTMLElement.prototype.offsetHeight;
+    }
+  });
 });

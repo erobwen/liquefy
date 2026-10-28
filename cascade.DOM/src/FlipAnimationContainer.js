@@ -31,7 +31,8 @@ export function flipAnimationContainer(...parameters) {
  * dead. Every element animates from where it was, so a container growing
  * to make room for a newcomer (or shrinking after one leaves) just glides
  * to its new size, and everything around it glides out of the way - no
- * wrappers needed. A nested element is drawn relative to its nearest
+ * wrappers needed. So does the container's own box, and with it what's
+ * around the container (see startSizing()). A nested element is drawn relative to its nearest
  * tracked ancestor (its scale compensated), so movement and resizing never
  * add up twice, and a panel resizing doesn't squash what's in it.
  *
@@ -117,12 +118,20 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // mean of the carrier's width and height scales - so text keeps its
   // shape. Off by default: they keep their own size, and only go along
   // with where their carrier goes. Read as frames are drawn, too.
-  setProperties({ enabled, speed, confine, zoomAlong, ...rest }) {
+  //
+  // `keepCorners`: rounded corners keep their roundness while what they're
+  // on is scaled on its way - rather than squashed and stretched along with
+  // it - going gradually from how round they were drawn to how round they
+  // are at rest (see drawCorners()). On by default. It repaints what's
+  // scaled every frame, where a transform alone wouldn't: off, nothing but
+  // transforms and opacity change while things move.
+  setProperties({ enabled, speed, confine, zoomAlong, keepCorners, ...rest }) {
     super.setProperties(rest);
     this.enabled = enabled !== false;
     this.speed = typeof(speed) === "number" ? speed : null;
     this.confine = !!confine;
     this.zoomAlong = !!zoomAlong;
+    this.keepCorners = keepCorners !== false;
   }
 
   initialUnobservables() {
@@ -146,14 +155,26 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // elements positioned to hold them, with the position they had.
     result.ghosts = new Map();
     result.positioning = new Map();
+    // Rounded corners kept round while what they're on is scaled, with the
+    // inline border radius each had - see drawCorners().
+    result.corners = new Map();
+    // Where (and how large) each tracked element was last drawn - see
+    // applyAnimation().
+    result.drawn = new Map();
+    // The container's own box, growing or shrinking to its new size - see
+    // startSizing().
+    result.sizing = null;
     result.framePending = false;
     result.hasRendered = false;
     return result;
   }
 
   render(target, context) {
-    super.render(target, context);
     const u = this.unobservable;
+    // How large its own box is drawn right now - on its way to another size
+    // included.
+    const sizedAt = u.node && u.node.isConnected ? { width: u.node.offsetWidth, height: u.node.offsetHeight } : null;
+    super.render(target, context);
 
     // Only meaningful while the container is in the page: hidden, nothing
     // has a position - it just places, and whatever was animating stops.
@@ -180,6 +201,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         rect.parent = raised ? raised.placeholder.parentNode : element.parentNode;
         // And how it looks - as drawn, a change of look under way included.
         if (element.nodeType === 1) rect.looks = looksOf(element);
+        // How round its corners are drawn.
+        if (element.nodeType === 1) rect.corners = cornersOf(element, u.drawn.get(element));
         drawnAt.set(element, rect);
       }
       for (const element of u.ghosts.keys()) drawnAt.set(element, rectOf(element));
@@ -187,6 +210,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // Changes of look under way are done with: the new looks are read
     // as the app has them, and each change goes on from where it's drawn.
     const changingLooks = this.endLooks();
+    // Corners too: as the app has them, before it updates them. And its own
+    // box, as the app has it, to be placed anew.
+    this.endCorners();
+    this.endSizing();
     // Everything raised back in its place, before anything is placed - and
     // raised again once the new layout is known, if still on its way.
     this.lowerAll();
@@ -221,7 +248,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
     if (animate) {
       const ghosts = this.removeAsGhosts(fading, drawnAt);
-      this.startAnimations(drawnAt, changingLooks);
+      this.startAnimations(drawnAt, changingLooks, sizedAt);
       this.positionGhosts(ghosts, drawnAt);
       // Restored ghosts have been placed elsewhere by now.
       this.releasePositioning();
@@ -438,8 +465,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
   // Given where and how large each element was drawn before this render,
   // read where each one lies now, and start (or redirect) the springs that
-  // close the gap.
-  startAnimations(drawnAt, changingLooks) {
+  // close the gap. And its own box, from the size it was drawn at
+  // (`sizedAt`), to its size now.
+  startAnimations(drawnAt, changingLooks, sizedAt) {
     const u = this.unobservable;
     const tracked = new Set(u.tracked.map(({ element }) => element));
     for (const element of u.springs.keys()) {
@@ -453,11 +481,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       element.style.transformOrigin = "";
     }
     u.layout = new Map(u.tracked.map(({ element }) => [element, rectOf(element)]));
+    const sizedNow = { width: u.node.offsetWidth, height: u.node.offsetHeight };
     const fonts = new Map();
     for (const { element } of u.tracked) {
       const font = textFontSize(element);
       if (font) fonts.set(element, font);
     }
+    const keepCorners = withoutRecording(() => this.keepCorners);
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     u.following = new Map();
     u.carried = new Set();
@@ -497,6 +527,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
           spring.w = 0;
           spring.h = 0;
         }
+        if (keepCorners && before.corners) this.startCorners(element, before.corners, spring);
       } else if (!ancestor || drawnAt.has(ancestor)) {
         // Appearing (the outermost new element): fades in where it lies.
         spring.o = -1;
@@ -522,9 +553,109 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         u.springs.set(element, spring);
       }
     }
+    if (sizedAt) this.startSizing(sizedAt, sizedNow);
 
     this.applyAnimation();
-    if (u.springs.size > 0 || u.ghosts.size > 0) this.requestFrame();
+    if (this.isAnimating()) this.requestFrame();
+  }
+
+  isAnimating() {
+    const u = this.unobservable;
+    return u.springs.size > 0 || u.ghosts.size > 0 || !!u.sizing;
+  }
+
+  // The container's own box, too, grows or shrinks to its new size - from
+  // the size it was drawn at (`from`), by a spring of its own - rather than
+  // taking it at once: what's around it then makes room for what's in it,
+  // or closes up after it, as gradually as what's in it moves. A ghost
+  // doesn't hold the space it leaves, and a newcomer needs the space it
+  // will take: with the last of what's in it leaving, or the first coming,
+  // the container would otherwise snap shut, or open. Its width and height
+  // are set meanwhile - only the ones that change, and only while they do
+  // (see drawSize()) - which places what's around it anew every frame.
+  startSizing(from, to) {
+    const u = this.unobservable;
+    const dx = from.width - to.width;
+    const dy = from.height - to.height;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    const spring = newSpring();
+    spring.x = dx;
+    spring.y = dy;
+    // Going on from where the last one was, at its pace.
+    const previous = u.sizing && u.sizing.spring;
+    if (previous) {
+      spring.vx = previous.vx;
+      spring.vy = previous.vy;
+    }
+    const style = u.node.style;
+    const saved = { boxSizing: style.boxSizing };
+    if (Math.abs(dx) >= 1) saved.width = style.width;
+    if (Math.abs(dy) >= 1) saved.height = style.height;
+    u.sizing = { spring, to, saved, written: {} };
+  }
+
+  drawSize() {
+    const u = this.unobservable;
+    const { spring, to, saved, written } = u.sizing;
+    written.boxSizing = "border-box";
+    if ("width" in saved) written.width = round(Math.max(0, to.width + spring.x)) + "px";
+    if ("height" in saved) written.height = round(Math.max(0, to.height + spring.y)) + "px";
+    Object.assign(u.node.style, written);
+  }
+
+  // Its own box as the app has it again - what the app has given it
+  // meanwhile (its style updated) kept.
+  endSizing() {
+    const u = this.unobservable;
+    if (!u.sizing) return;
+    const style = u.node.style;
+    const { saved, written } = u.sizing;
+    for (const key of Object.keys(written)) {
+      if (style[key] === written[key]) style[key] = saved[key];
+    }
+    u.sizing = null;
+  }
+
+  // Rounded corners on something on its way, kept round: drawn as round as
+  // they were (`from`, in page terms - see cornersOf()) at first, then
+  // gradually as round as they are at rest - at the pace of its spring's k,
+  // as a change of look is - however it's scaled on the way (see
+  // drawCorners()). Corners given in percent are left alone: they're
+  // relative to the box, and go along with it anyway.
+  startCorners(element, from, spring) {
+    const u = this.unobservable;
+    const to = cornersOf(element);
+    if (!to || !from) return;
+    if (to.every(([x, y]) => x === 0 && y === 0) && from.every(([x, y]) => x === 0 && y === 0)) return;
+    u.corners.set(element, { saved: element.style.borderRadius, from, to });
+    if (to.some(([x, y], i) => Math.abs(x - from[i][0]) > 0.01 || Math.abs(y - from[i][1]) > 0.01)) {
+      spring.k = 1;
+      spring.vk = 0;
+    }
+  }
+
+  // Its corners as round as they're drawn at this point on its way (see
+  // startCorners()), at `here` - its drawn scale: each radius divided by
+  // that, so it isn't scaled along.
+  drawCorners(element, corners, spring, here) {
+    if (!(here.sx > 0) || !(here.sy > 0)) return;
+    const k = Math.max(0, Math.min(1, spring.k));
+    const horizontal = [];
+    const vertical = [];
+    corners.to.forEach(([x, y], i) => {
+      const [fromX, fromY] = corners.from[i];
+      horizontal.push(round((x + (fromX - x) * k) / here.sx) + "px");
+      vertical.push(round((y + (fromY - y) * k) / here.sy) + "px");
+    });
+    element.style.borderRadius = horizontal.join(" ") + " / " + vertical.join(" ");
+  }
+
+  endCorners(element) {
+    const u = this.unobservable;
+    for (const each of element ? [element] : [...u.corners.keys()]) {
+      each.style.borderRadius = u.corners.get(each).saved;
+      u.corners.delete(each);
+    }
   }
 
   // Draw every tracked element where its spring says - relative to its
@@ -595,7 +726,16 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         element.style.width = layout.width * (1 + spring.w) + "px";
         element.style.height = layout.height * (1 + spring.h) + "px";
       }
+      // Rounded corners kept round on the way (see startCorners()) - as the
+      // app has them again once it has arrived.
+      const corners = u.corners.get(element);
+      if (corners) {
+        if (u.springs.has(element)) this.drawCorners(element, corners, spring, here);
+        else this.endCorners(element);
+      }
     }
+    u.drawn = drawn;
+    if (u.sizing) this.drawSize();
     // How far along each change of look is: as far as its spring.
     for (const [element, change] of u.looks) {
       const spring = u.springs.get(element);
@@ -854,7 +994,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       this.stopAll();
       return;
     }
-    if (u.springs.size === 0 && u.ghosts.size === 0) return;
+    if (!this.isAnimating()) return;
     const now = FlipAnimationContainer.clock.now();
     // Capped, so a frame after the tab was in the background doesn't fling
     // everything past its target; scaled by its speed.
@@ -863,6 +1003,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     while (remaining > 0) {
       const step = Math.min(remaining, SPRING_STEP);
       for (const spring of u.springs.values()) advanceSpring(spring, step);
+      if (u.sizing) advanceSpring(u.sizing.spring, step);
       for (const ghost of u.ghosts.values()) {
         const a = -STIFFNESS * ghost.opacity - DAMPING * ghost.velocity;
         ghost.velocity += a * step;
@@ -873,11 +1014,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const [element, spring] of u.springs) {
       if (isSettled(spring)) u.springs.delete(element);
     }
+    if (u.sizing && isSettled(u.sizing.spring)) this.endSizing();
     this.applyAnimation();
     for (const [element, ghost] of [...u.ghosts]) {
       if (ghost.opacity < 0.02) this.removeGhost(element);
     }
-    if (u.springs.size > 0 || u.ghosts.size > 0) this.requestFrame();
+    if (this.isAnimating()) this.requestFrame();
   }
 
   stopAll() {
@@ -888,6 +1030,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     for (const element of [...u.lifted.keys()]) this.unlift(element);
     this.lowerAll();
     this.endLooks();
+    this.endCorners();
+    this.endSizing();
+    u.drawn = new Map();
     for (const { element } of u.tracked) {
       element.style.transform = "";
       element.style.transformOrigin = "";
@@ -965,6 +1110,25 @@ function isBareBox(element) {
   return clear(style.backgroundColor) && none(style.backgroundImage) && none(style.boxShadow)
     && thin(style.borderTopWidth) && thin(style.borderRightWidth) && thin(style.borderBottomWidth) && thin(style.borderLeftWidth)
     && (none(style.outlineStyle) || thin(style.outlineWidth));
+}
+
+function round(value) {
+  return Math.round(value * 100) / 100;
+}
+
+// How round an element's corners are drawn: each corner's horizontal and
+// vertical radius, top left first, clockwise - at `scale`, how large it's
+// drawn (by default, as large as it is). Null if any is given in percent.
+function cornersOf(element, scale = { sx: 1, sy: 1 }) {
+  const style = element.ownerDocument.defaultView.getComputedStyle(element);
+  const corners = [];
+  for (const key of ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"]) {
+    const value = style[key] || "0px";
+    if (value.includes("%")) return null;
+    const [x, y = x] = value.split(/\s+/).map((each) => parseFloat(each) || 0);
+    corners.push([x * scale.sx, y * scale.sy]);
+  }
+  return corners;
 }
 
 function rectOf(element) {

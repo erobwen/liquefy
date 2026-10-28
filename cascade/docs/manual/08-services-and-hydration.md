@@ -1,4 +1,4 @@
-# 7. Services and hydration
+# 8. Services and hydration
 
 Every element and widget is asked for through the **service locators** in
 the render context, so themes can replace whole components, and any part of
@@ -16,7 +16,7 @@ other directly - whoever wants a different implementation replaces the whole
 component through a locator, not its insides. Your *own* component classes
 you construct with `new` as usual.
 
-## 7.1 Locators and queries
+## 8.1 Locators and queries
 
 A locator is any object with `locate(query)`, returning what it provides, or
 `undefined`. A query is always an object, so different domains never collide
@@ -61,7 +61,7 @@ reads are tracked, so a build depends on which locators its context holds.
 ### The root and fallback locators
 
 The application puts its root locator in the root context
-([6.1](06-context.md#61-provide-and-inherit)). A typical one:
+([7.1](07-context.md#71-provide-and-inherit)). A typical one:
 
 ```js
 import { CompoundServiceLocator } from "@liquefy/cascade.component";
@@ -135,7 +135,7 @@ locator as `rootServiceLocator`, a theme menu does
 `this.inherit("rootServiceLocator")` to change it, and a subtree that should
 not be able to provides `rootServiceLocator: null`.
 
-## 7.2 Hydration
+## 8.2 Hydration
 
 A document is plain data: a tree of queries whose `properties.children`
 (an array, or a single one) hold further queries, strings and already-built
@@ -179,4 +179,4 @@ build's to reconcile and the locators are those of the building component.
 - A query no locator provides throws.
 - `isServiceQuery(value)` - a plain object (not an array, not an observable)
   with a string `type`.
-- JSX compiles to these same queries (see [9.6](09-dom-and-ui.md#96-jsx)).
+- JSX compiles to these same queries (see [10.6](10-dom-and-ui.md#106-jsx)).

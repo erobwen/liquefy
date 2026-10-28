@@ -1,4 +1,4 @@
-# 8. Reactivity in depth
+# 9. Reactivity in depth
 
 cascade.reactive is a signal library with one twist: **temporal signals**.
 Readers and writers of the same object are ordered in time, so one object can
@@ -7,7 +7,7 @@ here", the next renderer reading it - and a change reruns only the readers
 after it. This chapter covers the whole public API of cascade.reactive and how
 cascade.component uses it.
 
-## 8.1 Worlds
+## 9.1 Worlds
 
 cascade.reactive's API comes from a *world*:
 
@@ -39,9 +39,9 @@ Options of `getWorld()` (defaults in brackets):
 
 - `name` - the world's identity. Without one, worlds are told apart by their
   whole configuration.
-- `timeLevels` [4] - how many time levels repeaters can be put in (8.4).
+- `timeLevels` [4] - how many time levels repeaters can be put in (9.4).
 - `sendEventsToObjects` [true] - call `onChange(event)` on an observable that
-  has such a method (8.15). `onEventGlobal` [null] - a function called with
+  has such a method (9.15). `onEventGlobal` [null] - a function called with
   every event. `emitReBuildEvents` [false] - also emit events for rebuild
   twins.
 - `useNonObservablesAsValues` [false], `valueComparisonDepthLimit` [5] -
@@ -54,7 +54,7 @@ Options of `getWorld()` (defaults in brackets):
   `customCreateRepeater`, `customCreateInvalidator`, `objectMetaProperty`
   ["causality"] - hooks for extensions; leave them alone in an application.
 
-## 8.2 Observables
+## 9.2 Observables
 
 ```js
 const store = observable({ items: [], filter: "" });
@@ -83,10 +83,10 @@ enumerated.
   (`pop()`, `at(-1)`).
 - Writing the same value is not a change: nothing reruns. `NaN` equals
   `NaN`, and two *frozen* plain objects or arrays are compared by content
-  (see [5.3](05-callbacks-and-frozen.md#53-frozen)); everything else by
+  (see [6.3](06-callbacks-and-frozen.md#63-frozen)); everything else by
   identity.
 
-## 8.3 Reads and writes in time
+## 9.3 Reads and writes in time
 
 Every write is a *writing* at a position; every read finds the writing that
 applies at its own position.
@@ -94,7 +94,7 @@ applies at its own position.
 - **Inside a repeater**, a read resolves to the writing with the largest
   position at or before the reader; a write is a writing at the repeater's
   position. Positions are compared by `time` level first, then by tree
-  position (8.4).
+  position (9.4).
 - **Outside any repeater** (event handlers, timers, top-level code), a write
   lands at the **baseline** - time 0, writer `null` - feeding the pipeline as
   input; a read sees the **latest** writing - the pipeline's settled output.
@@ -103,7 +103,7 @@ applies at its own position.
   are withdrawn at once (readers after it fall through to what is below) and
   reclaimed where the rerun writes the same property again; an unchanged
   value settles quietly. When it is retracted, its writings are undone.
-- Independent repeaters (8.4) are parallel pipelines: each reads the other's
+- Independent repeaters (9.4) are parallel pipelines: each reads the other's
   latest writings.
 
 ```js
@@ -132,16 +132,16 @@ m.v;             // "fromRepeater"
 So never let a repeater and an event handler both write the same property.
 And code that may run *inside* a repeater (a `build()`, an `onDispose()` run
 by a rebuild) but means to write input must write at the baseline
-explicitly, with `accessInitialValues()` (8.8, and
-[10.1](10-pitfalls-and-rules.md#101-write-shared-state-at-the-baseline-when-a-repeater-might-be-running)).
+explicitly, with `accessInitialValues()` (9.8, and
+[11.1](11-pitfalls-and-rules.md#111-write-shared-state-at-the-baseline-when-a-repeater-might-be-running)).
 
 **When work runs.** Everything is synchronous. A write outside any repeater
 runs every affected repeater - in pipeline order, lower time levels first -
 before the assignment returns. A write inside a running pipeline schedules
 its readers, which run when the scheduler reaches their position. To make
-several writes and react once, batch them (8.6).
+several writes and react once, batch them (9.6).
 
-## 8.4 repeat()
+## 9.4 repeat()
 
 ```js
 const repeater = repeat([description], action, [nonRecordedAction], [options]);
@@ -193,11 +193,11 @@ read).
 **Partials.** A repeater is a *tree position*: its run is split into
 **partials** at each child it creates or relinks. Writes made between child
 *k* and child *k+1* are seen by child *k+1* and after, not by child *k* (the
-`doc.line` example in 8.3). This is how a parent can write "before",
+`doc.line` example in 9.3). This is how a parent can write "before",
 "between" and "after" its children - how a component's `render()` places its
 own node, then its children, each seeing where the previous one left off.
 
-## 8.5 linkRepeater() and refreshIfNeeded()
+## 9.5 linkRepeater() and refreshIfNeeded()
 
 - `linkRepeater(repeater)` reattaches an existing repeater as a child at the
   current position (what `renderOnto()` does for an already rendered
@@ -209,10 +209,10 @@ own node, then its children, each seeing where the previous one left off.
   No-op for an up-to-date or retracted repeater. Whatever the running code
   wrote so far is settled first, so the pulled repeater sees it.
 
-## 8.6 Batching: postponeInvalidations / continueInvalidations
+## 9.6 Batching: postponeInvalidations / continueInvalidations
 
 Without a batch, each write outside a repeater runs its readers before it
-returns (8.3) - two writes, two runs, and the first run sees a half-made
+returns (9.3) - two writes, two runs, and the first run sees a half-made
 change. A batch collects the invalidations and runs them once at the end:
 
 ```js
@@ -231,7 +231,7 @@ every `postponeInvalidations()` needs its `continueInvalidations()`, also
 when the code in between throws. Don't *read* inside a batch expecting
 derived values to be up to date - nothing has rerun yet.
 
-## 8.7 flush()
+## 9.7 flush()
 
 Work is processed in *waves* that move forward through each pipeline, lower
 time levels first. A change discovered *behind* the current wave (a later
@@ -257,7 +257,7 @@ show(contents) {
 pipeline runs. An oscillating correction (A writes back to B, which changes
 A again) is your responsibility, like any loop. Returns `fn`'s result.
 
-## 8.8 accessInitialValues()
+## 9.8 accessInitialValues()
 
 `accessInitialValues(fn)` runs `fn` as if outside any repeater: writes land
 at the baseline, reads see the latest. It changes *where* a write lands.
@@ -267,10 +267,10 @@ Use it for:
 
 - writing *input* from code that might run inside a repeater - shared state
   touched from a `build()`, `render()`, `onDispose()` (see
-  [10.1](10-pitfalls-and-rules.md#101-write-shared-state-at-the-baseline-when-a-repeater-might-be-running));
+  [11.1](11-pitfalls-and-rules.md#111-write-shared-state-at-the-baseline-when-a-repeater-might-be-running));
 - writing component state from inside a pipeline - `Component.setState()` is
   `accessInitialValues()` around the writes;
-- writing anything a render context holds ([6.1](06-context.md#61-provide-and-inherit)).
+- writing anything a render context holds ([7.1](07-context.md#71-provide-and-inherit)).
 
 Compare first, so an unchanged value writes nothing:
 
@@ -283,7 +283,7 @@ if (withoutRecording(() => focus.owner) !== owner) {
 Compose with `flush()` when the effect must also settle in the same wave:
 `accessInitialValues(() => flush(() => ...))` (either order).
 
-## 8.9 withoutRecording()
+## 9.9 withoutRecording()
 
 `withoutRecording(fn)` reads without creating dependencies and returns `fn`'s
 result: debug output, comparing before writing, reads in `onShow()`, reading
@@ -293,7 +293,7 @@ something you must not rerun on. Writes inside it are ordinary writes.
 without notifying anyone. Readers keep stale values until they rerun for
 some other reason - rarely what you want.
 
-## 8.10 Retraction: retractRepeater() and restart()
+## 9.10 Retraction: retractRepeater() and restart()
 
 `retractRepeater(repeater)` takes a repeater and its whole subtree down.
 
@@ -325,7 +325,7 @@ component that is merely not shown for a while keeps its build repeater (it
 is left invalid and revalidated when shown again), so keyed children keep
 their identity and state.
 
-## 8.11 invalidateOnChange()
+## 9.11 invalidateOnChange()
 
 ```js
 invalidateOnChange(() => { cache = compute(); }, () => { cache = null; });
@@ -347,7 +347,7 @@ then. For values read all the time, whose inputs change without changing
 them, a repeater that keeps the value up to date is better (that is how
 `inherit()` caches).
 
-## 8.12 Rebuilding data structures with build ids
+## 9.12 Rebuilding data structures with build ids
 
 Outside components, `observable(object, buildId)` inside a repeater gives a
 created object a build identity: on the next run, constructing the same
@@ -374,9 +374,9 @@ repeat(() => {
 
 Components use exactly this mechanism (a component's key is its build id;
 without one, `rebuildShapeAnalysis` matches by class and place - see
-[4](04-identity.md)).
+[5](05-identity.md)).
 
-## 8.13 State: declareState()
+## 9.13 State: declareState()
 
 `declareState(object, defaults)` declares some properties of an observable
 as *state* and writes their defaults at the baseline. Two rules are then
@@ -398,7 +398,7 @@ repeater, so a write to one from *outside* any repeater calls `onWrite(key)`.
 `Component`'s constructor declares whatever `setProperties()` wrote, and
 warns (see [3.2](03-components.md#32-properties)).
 
-## 8.14 Errors
+## 9.14 Errors
 
 - An error thrown in a repeater's first run comes out of `repeat()`.
 - An error thrown in a rerun comes out of whatever triggered it - usually the
@@ -408,7 +408,7 @@ warns (see [3.2](03-components.md#32-properties)).
 - The world's global state (the running repeater, recording, batching) is
   always restored, even when a callback throws.
 
-## 8.15 Events and debugging
+## 9.15 Events and debugging
 
 - With `sendEventsToObjects` on (the default), an observable whose class has
   an `onChange(event)` method - or which was created with an `onChange`

@@ -19,37 +19,18 @@ export const card = (...parameters) => new Card(...parameters);
 
 ## 3.1 Constructing a component
 
-The constructor accepts a flexible argument list (inherited from Flow):
+The constructor accepts the same flexible argument list as every creator
+function - properties, children and key told apart by type and position:
 
 ```js
 new Card({ key: "summary", title: "Summary" })   // one properties object
-div({ style: { padding: "8px" } }, childA, childB) // properties, then loose children
-div("toolbar", buttonA, buttonB)                  // leading lowercase string: the key
+new Card({ title: "Summary" }, childA, childB)    // properties, then loose children
+new Card("summary", childA, childB)               // leading lowercase string: the key
 ```
 
-- One plain object anywhere in the list is the properties bag (two throw).
-  It is copied, never used as is, so you may reuse or freeze the object you
-  pass.
-- Loose components, strings and numbers become `children`. Arrays are
-  flattened into them, however deeply nested, so `ul(header, items.map(...))`
-  is one flat list.
-- `null`, `undefined` and `false` hold a place among the children but render
-  nothing (trailing ones are dropped). Holding a place matters for matching
-  (see [4](04-identity.md#4-identity-keys-and-pattern-matching)). A loose
-  `true` or a function throws, with a message naming the build it happened
-  in. (Factories may take a loose function out first: cascade.ui's
-  `button(text("Go"), onClick)`.)
-- The first loose argument, if it is a number or a string starting with a
-  lowercase letter, becomes the implicit `key` - not a child. A key with
-  whitespace in it warns, since it was probably meant as text.
-- `key` may also be given in the properties. Any value given is a key - an
-  id of `0` too; only `undefined` or `null` means no key. A key is a string
-  as far as matching goes: `0` and `"0"` are the same key.
-- `children` given both loosely and in the properties throws.
-
-Watch out for values that look like booleans but aren't: `count && badge()`
-with `count === 0` passes the number `0`, which becomes a key (or a child
-`"0"`). Write `count > 0 ? badge() : null`.
+The rules - what each argument becomes, the implicit key, what a loose
+function means, and how to write creator functions of your own - are
+chapter [4](04-creator-functions.md#4-creator-functions-and-argument-lists).
 
 Inside a `build()`, constructing a component is how you create a child: the
 component whose `build()` is running becomes its **creator**
@@ -60,7 +41,7 @@ against: the key is just a label.
 To write a factory that takes the same argument list, call the constructor
 with it (`(...parameters) => new Card(...parameters)`), or use
 `toPropertiesWithChildren(parameters)` to get the properties object yourself
-(see [11.2](11-api-reference.md#112-liquefycascadecomponent)).
+(see [12.2](12-api-reference.md#122-liquefycascadecomponent)).
 
 ## 3.2 Properties
 
@@ -84,7 +65,7 @@ On a rebuild, a new instance is constructed and its properties are copied onto
 the established instance. A property that did not change does not invalidate
 anything. "Did not change" means *identical* - unless both values are
 `frozen()` plain data, which is compared by content (see
-[5.3](05-callbacks-and-frozen.md#53-frozen)).
+[6.3](06-callbacks-and-frozen.md#63-frozen)).
 
 This is why the shape of `setProperties()` matters. With the default, every
 property is compared by identity, and a creator that writes
@@ -125,7 +106,7 @@ Rules:
   later, the state keeps its value.
 - State lives as long as the component. A component that is dropped and
   constructed again is a new one, with fresh defaults (see
-  [4.2](04-identity.md#42-a-dropped-keyed-child-is-gone-for-good)).
+  [5.2](05-identity.md#52-a-dropped-keyed-child-is-gone-for-good)).
 - State may be written **from an event handler** (outside any repeater) by
   plain assignment: `this.open = true`.
 - Writing state **from inside a repeater** (a build, a render, `onEstablish()`,
@@ -158,7 +139,7 @@ initialUnobservables() {
 `initialUnobservables()` runs lazily, the first time `this.unobservable` is
 read, inside `accessInitialValues()` - normally on the established object, so
 it runs once per component, not once per rebuild. What it returns is copied
-(see [10.17](10-pitfalls-and-rules.md#1017-what-initialunobservables-returns-is-copied)).
+(see [11.17](11-pitfalls-and-rules.md#1117-what-initialunobservables-returns-is-copied)).
 Some names are reserved by `Component` itself (`repeater`, `buildRepeater`,
 `pullingComponent`, `renderTarget`, `renderContext`, `renderParent`,
 `ownContext`, `childContext`, `renderTimeless`, `callbacks`, `callbackBuild`,
@@ -182,7 +163,7 @@ element. It runs in its own repeater:
   not rendered (a hidden page), its build is simply left invalid and is run
   again when the component is rendered again - its keyed children intact.
 - The result is matched against the previous result (see
-  [4](04-identity.md#4-identity-keys-and-pattern-matching)), and kept on
+  [5](05-identity.md#5-identity-keys-and-pattern-matching)), and kept on
   `this.currentBuild`.
 - A build may read the render context (`this.inherit()`,
   `this.renderContext`) and timeless target values (`this.fromTarget()`), but
@@ -194,7 +175,7 @@ element. It runs in its own repeater:
 `.showIf(condition)` returns the component, or `null`:
 `new Panel({ key: "details" }).showIf(this.expanded)`. A child left out this
 way is still constructed, so with a key it stays alive while hidden (see
-[4.2](04-identity.md#42-a-dropped-keyed-child-is-gone-for-good)).
+[5.2](05-identity.md#52-a-dropped-keyed-child-is-gone-for-good)).
 
 An error thrown from `build()` (or `render()`) has the component's path added
 to its message: `in Editor.build() (App › Workspace › Editor)`.

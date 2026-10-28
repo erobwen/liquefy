@@ -179,8 +179,7 @@ function buildPropertiesObject(arglist) {
     }
     // Places held after the last child hold nothing for anyone.
     while (content.length > 0 && content[content.length - 1] === null) content.pop();
-    if (content.length === 0) content = null;
-    properties.componentContent = content;
+    if (content.length > 0) properties.componentContent = content;
   }
 
   if (implicitKey !== null) {

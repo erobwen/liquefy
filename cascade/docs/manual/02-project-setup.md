@@ -77,7 +77,7 @@ What happens:
   before - so only the text of the `p` changes in the page.
 - `callback("click", ...)` gives the button the same function on every
   build, so the button itself doesn't count as changed (see
-  [5.1](05-callbacks-and-frozen.md#51-callbackkey-fn)). A plain arrow
+  [6.1](06-callbacks-and-frozen.md#61-callbackkey-fn)). A plain arrow
   function works too; it just makes the button re-render each time.
 - `button` is a themed widget from cascade.ui: a loose function given to it
   is its `onClick`, anything else loose is its content.
@@ -97,7 +97,7 @@ Notes:
   mounted into a page you don't own, a test - is taken down with
   `dispose()`, which stops its repeaters and removes what it rendered.
 - To switch themes while the app runs, use an `ObservableCompoundServiceLocator`
-  and replace a locator in it (see [7](07-services-and-hydration.md#7-services-and-hydration)).
+  and replace a locator in it (see [8](08-services-and-hydration.md#8-services-and-hydration)).
 - The themes draw icons with Google's icon fonts; link them in your page if
   you use `icon()` or `iconButton()` (Material Symbols for the basic theme,
   Material Icons for the Material theme):
@@ -105,14 +105,14 @@ Notes:
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   ```
-- If you prefer JSX, see [9.6](09-dom-and-ui.md#96-jsx). This manual uses
+- If you prefer JSX, see [10.6](10-dom-and-ui.md#106-jsx). This manual uses
   the function calls.
 
 > **Text is `text()`.** A leading lowercase string (or a number) given to an
 > element or widget function is its *key*, not its text: `div("header", ...)`
 > is a div keyed `"header"`, and `td(42)` an empty cell keyed `"42"`. Wrap
 > text in `text("...")`. See
-> [10.6](10-pitfalls-and-rules.md#106-a-leading-lowercase-string-is-a-key-not-text).
+> [11.6](11-pitfalls-and-rules.md#116-a-leading-lowercase-string-is-a-key-not-text).
 
 ## A project's shape
 
@@ -124,4 +124,4 @@ components, and let builds read them: a change anywhere reruns exactly the
 builds that read it. Keep in component state only what belongs to that
 component's own display (an open panel, a selected tab), and remember that
 state lives as long as the component does (see
-[4.2](04-identity.md#42-a-dropped-keyed-child-is-gone-for-good)).
+[5.2](05-identity.md#52-a-dropped-keyed-child-is-gone-for-good)).

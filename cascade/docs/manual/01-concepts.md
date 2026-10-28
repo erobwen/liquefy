@@ -48,7 +48,7 @@ console.log(layout.width); // 1000 - read from outside: after the whole pipeline
 (This example makes a world of its own, to show cascade.reactive alone. In an
 app, import `observable` and the rest from `@liquefy/cascade.component`, so
 your models live in the same world as your components - see
-[8.1](08-reactivity.md#81-worlds).)
+[9.1](09-reactivity.md#91-worlds).)
 
 This is what lets a sequence of steps transform the *same* objects - a word
 processor laying paragraphs onto pages, a toolbar claiming height before the
@@ -70,7 +70,7 @@ one paragraph, and only it and what comes after it run again.
   closure or a new object literal is a change every time, so stable
   callbacks (`callback()`) and value-compared data (`frozen()`) are what keep
   a rebuild from rippling down the whole tree (see
-  [5](05-callbacks-and-frozen.md#5-callbacks-view-and-frozen)).
+  [6](06-callbacks-and-frozen.md#6-callbacks-view-and-frozen)).
 - Rendering is a tree of reactive **repeaters** (a repeater is MobX's
   `autorun`). Each component's render is one repeater, a child of its parent's.
   The whole tree is one **pipeline**; position in the tree is time.
@@ -89,12 +89,12 @@ one paragraph, and only it and what comes after it run again.
   repeater see the latest value, after the whole pipeline.
 
 Keep the last point in mind: it is the source of the most important rule in
-this manual (see [10.1](10-pitfalls-and-rules.md#101-write-shared-state-at-the-baseline-when-a-repeater-might-be-running)).
+this manual (see [11.1](11-pitfalls-and-rules.md#111-write-shared-state-at-the-baseline-when-a-repeater-might-be-running)).
 
 ## What to read first
 
 Before building anything, read [2](02-project-setup.md) to
-[5](05-callbacks-and-frozen.md) - components, identity, callbacks and
-`frozen()` - and [10](10-pitfalls-and-rules.md). Most surprises in Cascade
+[6](06-callbacks-and-frozen.md) - components, identity, callbacks and
+`frozen()` - and [11](11-pitfalls-and-rules.md). Most surprises in Cascade
 come from identity (which component a rebuild keeps) and from properties
 that change when they shouldn't; those chapters are about exactly that.

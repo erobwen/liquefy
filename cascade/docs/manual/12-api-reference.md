@@ -1,18 +1,18 @@
-# 11. API reference
+# 12. API reference
 
 Every export of the five packages, grouped by package. Signatures use
 `[optional]` for optional arguments. "Shorthand" means a function
 `name(...parameters)` that constructs the class with the flexible argument
-list of [3.1](03-components.md#31-constructing-a-component) (key, properties
+list of [4](04-creator-functions.md#4-creator-functions-and-argument-lists) (key, properties
 object, loose children in any order). **Internal** marks something exported
 for other Cascade packages, theme authors or tests - not for application
 code.
 
-## 11.1 @liquefy/cascade.reactive
+## 12.1 @liquefy/cascade.reactive
 
 Exports: `getWorld(configuration)` (also the default export). Everything else
 is a member of the world it returns. Applications normally use the
-`"cascade.component"` world re-exported by cascade.component (11.2), not a
+`"cascade.component"` world re-exported by cascade.component (12.2), not a
 world of their own: observables of different worlds don't see each other.
 
 `getWorld({ name, ...options })` returns the world with that name, creating
@@ -39,7 +39,7 @@ World members:
 | Member | Signature | Description |
 |---|---|---|
 | `name` | string | The world's name. |
-| `observable` | `observable([target], [buildId]) → proxy` | Wraps an object or array (default `{}`) in a tracked proxy; non-objects are returned as they are; throws for an observable. `buildId` gives it a rebuild identity inside a repeater (8.12). |
+| `observable` | `observable([target], [buildId]) → proxy` | Wraps an object or array (default `{}`) in a tracked proxy; non-objects are returned as they are; throws for an observable. `buildId` gives it a rebuild identity inside a repeater (9.12). |
 | `deeplyObservable` | `deeplyObservable(object, [copy])` | Makes a tree of plain objects and arrays observable, in place or as a copy. |
 | `isObservable` | `isObservable(value) → boolean` | Whether `value` is an observable of this world. |
 | `repeat` | `repeat([description], action, [nonRecordedAction], [options]) → repeater` | Runs `action(repeater)` now and whenever what it read changes; `nonRecordedAction` runs after it without recording. Options: `independent` (own pipeline, not a child of the running repeater), `time` (time level), `pulledBy` (a repeater, or function returning one, that pulls this one instead of it being scheduled), `onRetract(repeater)`, `onRefresh(repeater)`, `rebuildShapeAnalysis`, `onStartBuildUpdate`, `onEndBuildUpdate` (the last three are used by component builds). |
@@ -55,7 +55,7 @@ World members:
 | `withoutRecording` | `withoutRecording(fn) → result` | Runs `fn` without recording dependencies. |
 | `withoutReactions` | `withoutReactions(fn)` | Runs `fn` without notifying anyone of its writes. |
 | `accessInitialValues` | `accessInitialValues(fn) → result` | Runs `fn` as if outside any repeater: writes at the baseline, reads latest. |
-| `flush` | `flush(fn) → result` | Lets invalidations caused in `fn` be processed in the current wave, in order, rather than in a later one (see [8.7](08-reactivity.md#87-flush)). |
+| `flush` | `flush(fn) → result` | Lets invalidations caused in `fn` be processed in the current wave, in order, rather than in a later one (see [9.7](09-reactivity.md#97-flush)). |
 | `transaction` | `transaction(fn) → result` | Batches invalidations around `fn` (processed even if `fn` throws). |
 | `postponeInvalidations` / `continueInvalidations` | `()` | Start / end (and process) a batch by hand. |
 | `sameAsPreviousDeep` | `sameAsPreviousDeep(a, b, [depthLimit = 8])` | Deep comparison of plain (non-observable) values. |
@@ -87,25 +87,25 @@ const priceOf = world.caching((product) => product.base * prices.factor);
 Repeater object: `restart()` (invalidate and run again; brings back a
 retracted root repeater), `retracted`, `disposed` (booleans), `options`.
 
-## 11.2 @liquefy/cascade.component
+## 12.2 @liquefy/cascade.component
 
 Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `deeplyObservable`, `isObservable`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 11.1. |
-| `finalize`, `state` | **Internal**, as in 11.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
+| `observable`, `deeplyObservable`, `isObservable`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:
 
 | Export | Signature | Description |
 |---|---|---|
 | `Component` | `new Component(...parameters)` | Base class (below). |
-| `ContextScope` / `contextScope` | `contextScope({ context, children })` | Build-only: its children enter the tree with `context` instead of the one where it stands (6.3). |
-| `view` | `view(name, build, [methods]) → (...parameters) => Component` | A component class from a build function (5.2). |
-| `callback` | `callback(key, fn) → function` | A stable named callback for the running build (5.1). |
-| `frozen` | `frozen(value) → value` | Deep-freezes plain data in place: then compared by content (5.3). |
+| `ContextScope` / `contextScope` | `contextScope({ context, children })` | Build-only: its children enter the tree with `context` instead of the one where it stands (7.3). |
+| `view` | `view(name, build, [methods]) → (...parameters) => Component` | A component class from a build function (6.2). |
+| `callback` | `callback(key, fn) → function` | A stable named callback for the running build (6.1). |
+| `frozen` | `frozen(value) → value` | Deep-freezes plain data in place: then compared by content (6.3). |
 | `isPlainData` | `isPlainData(value) → boolean` | Plain object or array, not observable. |
 | `RenderContext` | `new RenderContext([provided], [parent])` | A context link; the root context of an app provides `serviceLocator`. Methods `inherit(name)`, `serviceLocators()` (generator, nearest first). `RenderContext.empty` provides nothing. |
 | `CompoundServiceLocator` | `new CompoundServiceLocator(...locators)` | Asks each locator in order; `locate(query)`, `hydrate(query)`. Not tracked. |
@@ -159,7 +159,7 @@ Fields: `key`, `creator`, `renderContext` (observable), `unobservable`,
 `currentBuild`, `causality` (meta data), `componentTypeName` (optional
 override for the debug name).
 
-## 11.3 @liquefy/cascade.dom
+## 12.3 @liquefy/cascade.dom
 
 Entry points: `@liquefy/cascade.dom`, and `@liquefy/cascade.dom/jsx-runtime`
 / `jsx-dev-runtime` (`jsx`, `jsxs`, `jsxDEV`, `Fragment`) for the compiler.
@@ -168,7 +168,7 @@ Rendering and services:
 
 | Export | Signature | Description |
 |---|---|---|
-| `DOMElementTarget` | `DOMElementTarget.forElement(element)` | A render target for an element (9.2). Fields `element`, `lastChild`, `timeless`. Methods `appendElement(tag)`, `reattachElement(element)`, `observeBounds()`, `stopObservingBounds()`, `observeVisibility({ amount = 0.25, margin = "0px" })`, `resetVisibility()`, `stopObservingVisibility()`. |
+| `DOMElementTarget` | `DOMElementTarget.forElement(element)` | A render target for an element (10.2). Fields `element`, `lastChild`, `timeless`. Methods `appendElement(tag)`, `reattachElement(element)`, `observeBounds()`, `stopObservingBounds()`, `observeVisibility({ amount = 0.25, margin = "0px" })`, `resetVisibility()`, `stopObservingVisibility()`. |
 | `DOMServiceLocator` | `new DOMServiceLocator()` | Provides `htmlElement`, `textNode` and `domComponent` queries. |
 | `DOMDebugServiceLocator` | `new DOMDebugServiceLocator()` | Provides a visible placeholder for any query, warning once per name. Put it last. |
 | `defaultDOMServiceLocator` | `CompoundServiceLocator` | `DOMServiceLocator` then `DOMDebugServiceLocator`: the fallback of every factory function. |
@@ -180,7 +180,7 @@ Elements and text:
 
 | Export | Signature | Description |
 |---|---|---|
-| tag functions | `div(...parameters)` etc. | `address article aside footer header h1 h2 h3 h4 h5 h6 group main nav section search blockquote dd div dl dt figcaption figure hr li menu ol p pre ul a abbr b bdi bdo br cite code data dfn em i kbd mark q rp rt ruby s samp small span strong sub sup time u htmlVar wbr area audio img map track video embed iframe object picture htmlPortal source svg math canvas noscript script del ins caption col colgroup table tbody td tfoot th thead tr button datalist fieldset form input label legend meter optgroup option output progress select textarea details dialog summary slot template` (9.1). |
+| tag functions | `div(...parameters)` etc. | `address article aside footer header h1 h2 h3 h4 h5 h6 group main nav section search blockquote dd div dl dt figcaption figure hr li menu ol p pre ul a abbr b bdi bdo br cite code data dfn em i kbd mark q rp rt ruby s samp small span strong sub sup time u htmlVar wbr area audio img map track video embed iframe object picture htmlPortal source svg math canvas noscript script del ins caption col colgroup table tbody td tfoot th thead tr button datalist fieldset form input label legend meter optgroup option output progress select textarea details dialog summary slot template` (10.1). |
 | `element` | `element(tagName, ...parameters)` | Any element by tag name, custom elements included. |
 | `text` | `text(value, [properties])`, `text({ key, text })` | A Text node, through the locator. |
 | `DOMElementComponent` / `taggedElement` | `taggedElement(tagName, properties)` | **Internal**: a real element, constructed directly (bypassing locators). Use `element()`. |
@@ -188,7 +188,7 @@ Elements and text:
 | `applyStyle` | `applyStyle(element, newStyle, previouslySetStyle) → nextPreviouslySet` | Diffs a style object onto an element (for your own DOM components). |
 | `defaultToPx` | `defaultToPx(value, [property])` | A style value as CSS: bare numbers in px unless unitless or a custom property. |
 
-Base classes for DOM components (9.2):
+Base classes for DOM components (10.2):
 
 | Export | Description |
 |---|---|
@@ -196,7 +196,7 @@ Base classes for DOM components (9.2):
 | `SingleNodeComponent` | A `build()`-composed component that must build exactly one `DOMNodeComponent`. |
 | `DOMPlacingContainer` | Base of containers that place their subtree themselves: properties `children`, `style`, `isUnit`. Static `islandAttribute` (`"data-island"`). |
 
-Measurement, layout, animation (9.3, 9.4):
+Measurement, layout, animation (10.3, 10.4):
 
 | Export | Signature | Description |
 |---|---|---|
@@ -208,7 +208,7 @@ Measurement, layout, animation (9.3, 9.4):
 | `textWidth` | `textWidth(text, { fontSize = 13, fontWeight = 400, fontFamily })` | Text width in px, measured on a canvas. |
 | `fitTextWithinWidth` | `fitTextWithinWidth(text, targetWidth, { fontWeight, fontFamily })` | Font size at which one line is `targetWidth` wide. |
 
-Portals, context, routing, head (9.5):
+Portals, context, routing, head (10.5):
 
 | Export | Signature | Description |
 |---|---|---|
@@ -221,9 +221,9 @@ Portals, context, routing, head (9.5):
 JSX runtime: `jsx(type, props, key)`, `jsxs`, `jsxDEV` (the same function),
 `Fragment`.
 
-## 11.4 @liquefy/cascade.ui
+## 12.4 @liquefy/cascade.ui
 
-Overlays and modals (9.8):
+Overlays and modals (10.8):
 
 | Export | Signature | Description |
 |---|---|---|
@@ -236,7 +236,7 @@ Overlays and modals (9.8):
 | `popover` | `popover({ anchor, showing, close, style }, ...content)` | Content beside an element or viewport rectangle, via `overlay()`. |
 | `Dropdown` / `dropdown` | `dropdown({ options, value, onSelect, disabled, title, placeholder, style })` | One choice out of several (`options: [{ value, label, style }]`). |
 
-Drawers (9.8):
+Drawers (10.8):
 
 | Export | Signature | Description |
 |---|---|---|
@@ -245,7 +245,7 @@ Drawers (9.8):
 | `DrawerPanel` / `drawerPanel` | `drawerPanel({ open, close, onOpen, side = "left", size = 300, header = true, title, collapsed = "nothing", bar, style }, ...content)` | One panel of `drawers()`; never rendered itself. `collapsed`: `"nothing"`, `"handle"`, `"bar"`. |
 | `drawerBarSize` | constant | `48` - the room a collapsed bar takes. |
 
-Widgets (9.7):
+Widgets (10.7):
 
 | Export | Signature | Description |
 |---|---|---|
@@ -257,7 +257,7 @@ Widgets (9.7):
 | `keyAsLabel` | `keyAsLabel(key) → string` | `"openDialog"` → `"Open dialog"`. |
 | `alertSeverities` | object | Icon and colors per severity, shared by the themes. For theme authors. |
 
-Layout (9.7):
+Layout (10.7):
 
 | Export | Description |
 |---|---|
@@ -266,7 +266,7 @@ Layout (9.7):
 | `flexContainerStyle`, `rowStyle`, `columnStyle`, `centerStyle`, `middleStyle`, `centerMiddleStyle` | Flex container styles. |
 | `naturalSizeStyle`, `fitContainerStyle`, `fillerStyle`, `autoFillerStyle`, `overflowVisibleStyle`, `zStackElementStyle`, `layoutBorderStyle` | Element styles (`layoutBorderStyle` is for development). |
 
-Themes and colors (9.9):
+Themes and colors (10.9):
 
 | Export | Signature | Description |
 |---|---|---|
@@ -281,10 +281,10 @@ Themes and colors (9.9):
 | `defaultColors` | constant | `{ base: "#34495e", accent: "#2e86c1" }`. |
 | `hexToRgb`, `rgbToHex`, `rgbToHsb`, `hsbToRgb` | color conversions | HSB with hue in degrees, saturation and brightness 0 to 1. |
 
-## 11.5 @liquefy/cascade.ui.material
+## 12.5 @liquefy/cascade.ui.material
 
 Importing the package registers the mdui components it uses and mdui's CSS
-(browser only) - 9.10.
+(browser only) - 10.10.
 
 | Export | Signature | Description |
 |---|---|---|

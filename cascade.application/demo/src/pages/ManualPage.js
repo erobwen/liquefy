@@ -18,7 +18,7 @@ const source = (name) => Object.entries(files).find(([path]) => fileName(path) =
 
 // Shorter titles, for the menu.
 const menuTitles = {
-  "concepts": "Concepts", "project-setup": "Project Setup", "components": "Components",
+  "concepts": "Concepts", "project-setup": "Project Setup", "components": "Components", "creator-functions": "Creator Functions",
   "identity": "Identity and Keys", "callbacks-and-frozen": "Callbacks and frozen()", "context": "Context",
   "services-and-hydration": "Services and Hydration", "reactivity": "Reactivity", "dom-and-ui": "DOM and UI",
   "pitfalls-and-rules": "Pitfalls and Rules", "api-reference": "API Reference",

@@ -1,12 +1,12 @@
-# 6. Context: provide(), inherit(), render target and render context
+# 7. Context: provide(), inherit(), render target and render context
 
 Every component is rendered with two things: a **target** (where its output
 goes) and a **context** (what it inherits from). This chapter is about the
 context and the strict line between the two. Services, the most important
 thing a context carries, have a chapter of their own
-([7](07-services-and-hydration.md)).
+([8](08-services-and-hydration.md)).
 
-## 6.1 provide() and inherit()
+## 7.1 provide() and inherit()
 
 A component provides values to its subtree by returning an object from
 `provide()` (default `null`: provides nothing). Anything below finds a field
@@ -51,7 +51,7 @@ const board = this.inherit("noticeBoard");
     ```
   - fields of an observable object the component keeps and rewrites. Write
     them **at the baseline, and only when they change** (see
-    [8.8](08-reactivity.md#88-accessinitialvalues)), because whatever
+    [9.8](09-reactivity.md#98-accessinitialvalues)), because whatever
     rewrites them usually runs inside a repeater:
     ```js
     provide() {
@@ -99,7 +99,7 @@ What a component inherits depends on where it is **placed** (rendered), not
 on which build constructed it. A component built by A but handed to B as a
 property inherits from wherever B renders it. (Service lookups are the
 opposite: they happen when a component is constructed, in the constructing
-build's context - see [7.1](07-services-and-hydration.md#71-locators-and-queries).)
+build's context - see [8.1](08-services-and-hydration.md#81-locators-and-queries).)
 
 ### The root context
 
@@ -126,7 +126,7 @@ lookup as `this.inherit(name)`; `context.serviceLocators()` yields every
 own provider returned. Use `inherit()` in application code - provided values
 are not fields of the context object.
 
-## 6.2 Render target vs render context
+## 7.2 Render target vs render context
 
 A component is rendered onto a *target* with a *context* -
 `renderOnto(target, context)` - and the two are kept strictly apart:
@@ -143,7 +143,7 @@ A component is rendered onto a *target* with a *context* -
 
 **Why it matters.** A component's build runs in an *independent* repeater -
 a pipeline of its own, unrelated in time to the render pipeline (see
-[8.4](08-reactivity.md#84-repeat)). A read from it sees the *latest* writing
+[9.4](09-reactivity.md#94-repeat)). A read from it sees the *latest* writing
 of whatever it reads. For a value with one value per pass, the latest writing
 is the right one. For a temporal value - "the last node placed so far", "the
 height left after the toolbar" - the latest writing is whatever the *last*
@@ -177,7 +177,7 @@ Invariants (from cascade.component's design notes):
 
 **Rule:** never put a temporal value - a measured size, a position - in the
 context. Read timeless target values with `this.fromTarget()`, or hand a
-measurement to a direct child as a property. See [10.13](10-pitfalls-and-rules.md#1013-never-put-a-temporal-value-in-the-render-context).
+measurement to a direct child as a property. See [11.13](11-pitfalls-and-rules.md#1113-never-put-a-temporal-value-in-the-render-context).
 
 ```js
 class Profile extends Component {
@@ -199,7 +199,7 @@ next element. What is rendered into an element of its own is placed on that
 element's target, which knows nothing of the size - pass the value down as a
 property if a deeper component needs it.
 
-## 6.3 ContextScope
+## 7.3 ContextScope
 
 `contextScope({ context, children })` renders its children with the given
 context instead of the one where it stands (no `context`: the one where it
@@ -208,7 +208,7 @@ right through it. It is how portals and overlays show content with the
 context of its origin: a `portalSource` hands the portal its own child
 context, and the portal shows the contents inside a `contextScope` with it -
 unless the source says `inheritFrom: "portal"` (see
-[9.5](09-dom-and-ui.md#95-portals-providing-elements-routing-head)).
+[10.5](10-dom-and-ui.md#105-portals-providing-elements-routing-head)).
 
 For the same effect in a component of your own, override
 `enteredContext(given)`: it receives the context the component was given and

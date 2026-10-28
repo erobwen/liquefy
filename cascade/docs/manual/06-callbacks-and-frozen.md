@@ -1,15 +1,15 @@
-# 5. Callbacks, view() and frozen()
+# 6. Callbacks, view() and frozen()
 
 When a creator rebuilds, each child it constructs again is compared, property
 by property, with what it was given last time (see
-[4.3](04-identity.md#43-what-happens-to-a-matched-component)). Only a changed
+[5.3](05-identity.md#53-what-happens-to-a-matched-component)). Only a changed
 property reruns what read it. Two kinds of value are new every build without
 meaning anything new: closures and object literals. `callback()` and
 `frozen()` are how you tell Cascade they are the same as before, so that a
 rebuild stops at the children that really changed instead of rippling down
 through every one of them.
 
-## 5.1 callback(key, fn)
+## 6.1 callback(key, fn)
 
 A plain closure is a new function every build, so passed as a property it
 counts as a change every time, and the child re-renders (or rebuilds, if its
@@ -41,7 +41,7 @@ a passed-in function to build its content into it. There a new function
 really is new, and must count as a change. That is why Cascade doesn't make
 function properties stable by itself.
 
-## 5.2 view(name, build, methods)
+## 6.2 view(name, build, methods)
 
 For the many small components that only build:
 
@@ -57,7 +57,7 @@ tbody(lines.map((line) => provenanceRow({ key: line.key, line })));
   `build()`.
 - `name` is the class name used in errors, component paths and debug ids.
 - The returned function takes the same argument list a constructor does
-  (key, properties, children - see [3.1](03-components.md#31-constructing-a-component)).
+  (key, properties, children - see [4](04-creator-functions.md#4-creator-functions-and-argument-lists)).
 - `methods` go onto the class as they are - written as methods, not arrow
   functions, so `this` is the component - e.g. `setProperties()` to
   `frozen()` plain-data properties, or `initialState()`. `build` may not be
@@ -83,7 +83,7 @@ const card = view("Card", ({ style, children }) => div({ style }, children), {
 
 Anything more than this is clearer as a class.
 
-## 5.3 frozen()
+## 6.3 frozen()
 
 `frozen(value)` deep-freezes the plain data in `value` (plain objects and
 arrays) in place and returns it. Two frozen values are compared **by

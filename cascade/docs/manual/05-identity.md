@@ -1,4 +1,4 @@
-# 4. Identity: keys and pattern matching
+# 5. Identity: keys and pattern matching
 
 When a build runs again, it constructs all its children anew - `new Item(...)`
 really does construct a new object. Then what it constructed is matched to
@@ -37,7 +37,7 @@ Also key:
 
 Everything else - the fixed layout of a page, a toolbar's buttons, the parts
 of a card - should go without keys. Keys on static structure are noise, and
-since they are unique across a whole build (4.1), they get in the way.
+since they are unique across a whole build (5.1), they get in the way.
 
 A child left out - `cond ? child : null`, or `.showIf(false)` - still holds
 its place: the unkeyed siblings after it are matched as if it were there. So
@@ -82,7 +82,7 @@ What goes wrong without a match, concretely:
   new Field({ value: b })` is one `Field` with its properties switched; its
   state (what the user did with the first) stays.
 
-## 4.1 Keys are unique across a whole build
+## 5.1 Keys are unique across a whole build
 
 Keys are unique across *everything one `build()` constructs*, not just among
 siblings. That is what lets a keyed component move to another parent within
@@ -91,14 +91,14 @@ both components. Consequence: a helper that builds keyed structure can't be
 used twice in one build. Drop the inner keys (static structure is matched by
 pattern anyway), or make the helper a component of its own - every
 component's build has keys of its own, and `view()` makes one from the
-function as it is (see [5.2](05-callbacks-and-frozen.md#52-viewname-build-methods)).
-See also [10.7](10-pitfalls-and-rules.md#107-keys-are-unique-across-everything-one-build-constructs).
+function as it is (see [6.2](06-callbacks-and-frozen.md#62-viewname-build-methods)).
+See also [11.7](11-pitfalls-and-rules.md#117-keys-are-unique-across-everything-one-build-constructs).
 
 Keys are strings (a number given as the implicit key becomes one). Use
 something stable from the data - an id, not the item's index, which moves
 with insertions just as pattern matching does.
 
-## 4.2 A dropped keyed child is gone for good
+## 5.2 A dropped keyed child is gone for good
 
 If a build does not construct a given key on some run, that key's component
 is disposed - permanently. Constructed again later, it is a brand-new
@@ -118,7 +118,7 @@ To keep a child alive across such a toggle:
    built children.
 2. **Own it** (see [3.8](03-components.md#38-components-you-own-created-outside-build)).
 
-## 4.3 What happens to a matched component
+## 5.3 What happens to a matched component
 
 A matched component (by key or by pattern) is merged into the established
 one: its properties copied over, its state never. A property that is the

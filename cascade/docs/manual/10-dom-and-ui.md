@@ -1,4 +1,4 @@
-# 9. DOM specifics and UI widgets
+# 10. DOM specifics and UI widgets
 
 This chapter covers `@liquefy/cascade.dom` (rendering onto the real DOM) and
 `@liquefy/cascade.ui` (themed widgets, layout, overlays) with the Material
@@ -12,9 +12,9 @@ cascade.DOM's own components construct each other directly (a
 `DOMElementComponent` its text children, say): whoever wants another
 implementation replaces the whole component through a locator, so its
 insides need not go through one. See
-[7](07-services-and-hydration.md#7-services-and-hydration).
+[8](08-services-and-hydration.md#8-services-and-hydration).
 
-## 9.1 HTML tag functions
+## 10.1 HTML tag functions
 
 Every HTML element has a function - `div()`, `span()`, `input()`, `table()`,
 ... - plus `element(tagName, ...)` for any other tag, custom elements
@@ -25,9 +25,9 @@ the building component's render context for
 `{ type: "htmlElement", name, properties }`, falling back to
 `defaultDOMServiceLocator` when none answers (so a theme or another platform
 can decide what a `div` is). Arguments follow the flexible convention of
-[3.1](03-components.md#31-constructing-a-component): a leading lowercase
+[4](04-creator-functions.md#4-creator-functions-and-argument-lists): a leading lowercase
 string or number is the **key**, not text
-([10.6](10-pitfalls-and-rules.md#106-a-leading-lowercase-string-is-a-key-not-text)).
+([11.6](11-pitfalls-and-rules.md#116-a-leading-lowercase-string-is-a-key-not-text)).
 `br()` takes no children.
 
 - `style` is a plain object, diffed against what was applied last time
@@ -50,7 +50,7 @@ string or number is the **key**, not text
 - Event handlers are element properties: `onclick`, `oninput`, `onkeydown`,
   `onfocus`, ... An `on...` name the element has no property for is set as
   an attribute string - see
-  [10.5](10-pitfalls-and-rules.md#105-event-handlers-must-be-element-properties).
+  [11.5](11-pitfalls-and-rules.md#115-event-handlers-must-be-element-properties).
 - Properties no longer given are cleared: removed attribute, property reset
   to `false`, `null` or `""`. Anything set on the element from outside in
   between (an animation's inline transform) is left alone - only what changed
@@ -62,7 +62,7 @@ string or number is the **key**, not text
   is patched.
 - `children` and every property are passed through `frozen()`: a rebuild
   with an equal style object or children array is not a change
-  ([5.3](05-callbacks-and-frozen.md#53-frozen)).
+  ([6.3](06-callbacks-and-frozen.md#63-frozen)).
 - A component reconciled under the same key with a different tag (a theme
   swap turning `button` into `mdui-button`) gets a new element in the old
   one's place, its child nodes moved over.
@@ -71,7 +71,7 @@ string or number is the **key**, not text
   Click it in DevTools to see which component (and which builders) made it.
   An `id` you give as a property replaces it.
 
-## 9.2 Render targets, the root, and DOM components
+## 10.2 Render targets, the root, and DOM components
 
 `DOMElementTarget.forElement(element)` wraps an element that components
 render into - the app's root (see [2](02-project-setup.md#2-setting-up-a-project))
@@ -81,7 +81,7 @@ component before it placed, and re-confirms its position on every render
 (without touching the DOM when nothing moved). A target holds what is
 temporal - what has been placed so far, its measured size - never services
 or provided values: those travel in the render context
-([6.2](06-context.md#62-render-target-vs-render-context)).
+([7.2](07-context.md#72-render-target-vs-render-context)).
 
 `observeBounds()` and `observeVisibility({ amount, margin })` opt a target
 in to keeping its element's size or visibility on `target.timeless`, read
@@ -95,14 +95,14 @@ replaces the prerendered snapshot with the live app in one frame. That is the
 only prerender-specific code in an app; cascade.dom itself knows nothing of
 prerendering. Snapshots are taken at one viewport width, so what must be
 right on a phone at first paint should be done with CSS (media queries), not
-with measured layout ([9.3](#93-measurement-and-layout)).
+with measured layout ([10.3](#103-measurement-and-layout)).
 
 Writing a DOM component of your own (rare - a canvas, a third-party widget):
 
 - Extend `DOMNodeComponent` and implement **`ensureNode()`** - create the
   node if there is none (`this.unobservable.node`), bring it up to date,
   return it, without placing it. Such a component can also be placed by a
-  placing container ([9.4](#94-placing-containers-and-flipanimationcontainer)).
+  placing container ([10.4](#104-placing-containers-and-flipanimationcontainer)).
   Or implement **`renderNode(target, existingElement)`** to create, update
   and place it yourself (measuring, owning a target for children): such a
   component can only be rendered, and is an island inside a placing
@@ -113,7 +113,7 @@ Writing a DOM component of your own (rare - a canvas, a third-party widget):
 - `applyStyle(element, style, previous)` gives you the same style diffing
   as elements; keep its return value in `unobservable`.
 
-## 9.3 Measurement and layout
+## 10.3 Measurement and layout
 
 Cascade lays out from real measurements when you ask it to: a component
 reads the size of the element it is placed in, and builds for that size.
@@ -141,7 +141,7 @@ Measurement is an advanced feature with rules:
   - The size means something only to the child placed on that element:
     what the child renders into an element of its own has another target.
     **Never put a measured size in the render context**; hand it to a child
-    as a property ([10.13](10-pitfalls-and-rules.md#1013-never-put-a-temporal-value-in-the-render-context)).
+    as a property ([11.13](11-pitfalls-and-rules.md#1113-never-put-a-temporal-value-in-the-render-context)).
 - `elementVisibilityProvider({ child, style, className, amount, margin })` -
   a div (not size-contained) whose child reads `this.fromTarget("inView")`
   (in view now) and `this.fromTarget("seen")` (has been since last shown;
@@ -169,7 +169,7 @@ Measurement is an advanced feature with rules:
   text measured on a canvas (cached; nothing laid out). `fontFamily`
   defaults to the body's.
 
-## 9.4 Placing containers and FlipAnimationContainer
+## 10.4 Placing containers and FlipAnimationContainer
 
 `FlipAnimationContainer` and `OverflowContainer` are **placing containers**
 (`DOMPlacingContainer`): instead of letting each component in their subtree
@@ -199,7 +199,7 @@ places its subtree and **animates every change in it**: moves within a parent
 or to another, resizes, appearing and leaving. The components inside know
 nothing about animation. Items must keep their identity to animate as moves:
 give keys to what can move, appear or disappear
-([4](04-identity.md#4-identity-keys-and-pattern-matching)).
+([5](05-identity.md#5-identity-keys-and-pattern-matching)).
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -252,7 +252,7 @@ How it animates (FLIP with springs):
   `FlipAnimationContainer.clock` (`now`, `requestFrame`) can be replaced -
   tests drive frames by hand.
 
-## 9.5 Portals, providing elements, routing, head
+## 10.5 Portals, providing elements, routing, head
 
 ### Portals
 
@@ -274,7 +274,7 @@ locator.
 - The portal is usually rendered before its source (the top bar before the
   work area), so assigning is a backward write: done with `setState()` and
   `flush()`, so the portal fills in within the same wave, in order. This
-  is intended (see [10.21](10-pitfalls-and-rules.md#1021-writing-back-to-something-already-rendered-setstate-and-flush-and-make-it-converge)).
+  is intended (see [11.21](11-pitfalls-and-rules.md#1121-writing-back-to-something-already-rendered-setstate-and-flush-and-make-it-converge)).
 - **Own the portal**: create it in `initialUnobservables()`,
   `.establish()` it there, `dispose()` it in `onDispose()`, and provide it
   ([3.8](03-components.md#38-components-you-own-created-outside-build)):
@@ -337,12 +337,12 @@ data. `describe()` runs as an independent repeater and returns
 - Returns a handle; `dispose()` stops it and removes its tags. Call it once
   at startup, outside any build.
 
-## 9.6 JSX
+## 10.6 JSX
 
 With Vite (esbuild): `esbuild: { jsx: "automatic", jsxImportSource: "@liquefy/cascade.dom" }`.
 JSX tags compile to **service queries** (plain data), not components; pass
 them to `hydrate()` inside a build
-([7.2](07-services-and-hydration.md#72-hydration)). Lowercase tags are HTML
+([8.2](08-services-and-hydration.md#82-hydration)). Lowercase tags are HTML
 element queries; `<widget.button>` with `const widget = serviceQueries("widget")`
 asks for a themed widget; a Component class tag constructs that class once
 its children are hydrated; any other function tag is called with the
@@ -362,7 +362,7 @@ build() {
 }
 ```
 
-## 9.7 cascade.ui widgets
+## 10.7 cascade.ui widgets
 
 Themed widgets ask the locators for `{ type: "widget", name, properties }`;
 which theme answers is decided by whoever set up the render context (the root,
@@ -411,7 +411,7 @@ add `overflow: "hidden"` where you want clipping. `fitContainerStyle` is
 edge to edge (absolutely, via a class rule) - a child's own style can still
 deviate.
 
-## 9.8 Overlays, modals, drawers, popovers
+## 10.8 Overlays, modals, drawers, popovers
 
 Overlays are how anything appears above the page: modals, popovers, the
 dropdown's list. The design: the overlay is **built where it belongs** (next
@@ -492,7 +492,7 @@ to the button that opens it, keeping that place's context and state) and
 Drawers are not overlays: they live where you place them, not on the
 overlay frame.
 
-## 9.9 Color schemes
+## 10.9 Color schemes
 
 A theme's colors derive from two: a **base** (frame, surfaces, text, in tones
 of it) and an **accent** (emphasis, focus, the active item). `deriveColors(base, accent)`
@@ -516,7 +516,7 @@ them as CSS variables: `themeColor.page` is
 - Each theme locator instance owns one scheme, so changing it affects
   everything using that theme instance.
 
-## 9.10 The Material theme
+## 10.10 The Material theme
 
 `materialTheme` (from `@liquefy/cascade.ui.material`) implements the same
 widgets with mdui 2 web components (`mdui-button`, `mdui-icon`,
@@ -540,4 +540,4 @@ new CompoundServiceLocator(new DOMServiceLocator(), materialTheme, new DOMDebugS
   taken out and put back quickly) on import.
 - To switch themes at runtime use an `ObservableCompoundServiceLocator` and
   replace the theme in its `locators`; everything built with a themed widget
-  rebuilds ([7](07-services-and-hydration.md#7-services-and-hydration)).
+  rebuilds ([8](08-services-and-hydration.md#8-services-and-hydration)).

@@ -93,6 +93,11 @@ const target = DOMElementTarget.forElement(document.getElementById("app"));
 new Hello({ to: "World" }).establish().renderOnto(target, new RenderContext({ serviceLocator: basicTheme }));
 ```
 
+Before building anything real with Cascade, read the
+[reference manual](cascade/docs/manual/README.md): every package, chapter by
+chapter, the rules to follow and why, and an API reference. It's also in the
+demo app, under Reference Manual, with a search through all of it.
+
 ## Flow
 
 The generation before Cascade. Flow is what you get if you take all the

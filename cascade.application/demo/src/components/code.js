@@ -5,11 +5,13 @@ import hljs from "highlight.js/lib/core";
 import javascript from "highlight.js/lib/languages/javascript";
 import xml from "highlight.js/lib/languages/xml";
 import bash from "highlight.js/lib/languages/bash";
+import plaintext from "highlight.js/lib/languages/plaintext";
 import "highlight.js/styles/github.css";
 
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("html", xml);
 hljs.registerLanguage("bash", bash);
+hljs.registerLanguage("plaintext", plaintext);
 
 /**
  * Showing a page's own source code - ported from
@@ -17,7 +19,7 @@ hljs.registerLanguage("bash", bash);
  * CodeDisplay.
  */
 
-// Source, syntax highlighted - JavaScript, or `language`: "html" or "bash": a <pre><code> whose content is
+// Source, syntax highlighted - JavaScript, or `language`: "html", "bash" or "plaintext": a <pre><code> whose content is
 // highlight.js's HTML. A node of its own rather than a code() tag, since
 // that HTML has to go in as innerHTML - which element properties can't
 // set (DOMElementComponent lowercases every property name, and

@@ -6,6 +6,7 @@ import { IntroductionPage } from "./src/pages/IntroductionPage.js";
 import { ShowcasePage } from "./src/pages/ShowcasePage.js";
 import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
 import { ConvenientUsagePage } from "./src/pages/ConvenientUsagePage.js";
+import { ManualContentsPage, ManualChapterPage, chapters } from "./src/pages/ManualPage.js";
 import { AdvancedUsagePage } from "./src/pages/AdvancedUsagePage.js";
 import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
 import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
@@ -114,6 +115,13 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "getting-started", group: "Guide", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
     { key: "convenient-usage", group: "Guide", title: "Everyday Usage", description: "Everyday usage of Cascade: the patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
     { key: "advanced-usage", group: "Guide", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },
+    // The reference manual - cascade/docs/manual, a page per chapter.
+    { key: "manual", group: "Reference Manual", title: "Contents and Search", description: "The Cascade reference manual: everything to know before building with Cascade, chapter by chapter - and a search through all of it.", component: new ManualContentsPage().establish() },
+    ...chapters.map((chapter) => ({
+      key: chapter.key, group: "Reference Manual", title: chapter.menuTitle,
+      description: "The Cascade reference manual - " + chapter.title + ".",
+      component: new ManualChapterPage({ chapter }).establish(),
+    })),
     // The examples - the showcase in the menu, then the way to all of them.
     ...examples,
     { key: "examples", group: "Showcase", title: "All Examples", icon: "apps", description: "Every Cascade example in the demo - the showcase, layout and UI patterns, other ways to write a UI, and the classics.", component: new ExamplesPage({ examples, sections: exampleSections }).establish() },

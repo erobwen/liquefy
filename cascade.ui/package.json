@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.ui",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Themed widgets, layout, overlays, modals, popovers, a dropdown and color schemes for Cascade - and its basic theme.",
   "keywords": [
     "reactive",

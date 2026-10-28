@@ -821,7 +821,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // And none of them clips: one drawn smaller than it now is, on its way
   // to its new size, would cut off what's already drawn where it will be -
   // at rest, it fits. Only what clips, though (`overflow: hidden` or
-  // `clip`): what scrolls (`auto`, `scroll`) keeps scrolling.
+  // `clip`): what scrolls (`auto`, `scroll`) keeps scrolling. Nor one with
+  // rounded corners: clipping is what rounds what's in it (a card's header,
+  // square at the top otherwise) - its corners are part of how it looks.
+  // What appears in it is revealed within it as it grows, as if confined.
   //
   // Put back as it was as soon as nothing in it is appearing any more - or
   // right away, if the container confines what appears. Its overflow only
@@ -844,7 +847,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       if (u.lifted.has(element)) continue;
       const style = element.ownerDocument.defaultView.getComputedStyle(element);
       const clips = (value) => value === "hidden" || value === "clip";
-      const clipped = clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow);
+      const clipped = (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) && !hasRoundedCorners(style);
       const { overflow, overflowX, overflowY } = element.style;
       u.lifted.set(element, { zIndex: element.style.zIndex, position: this.positionOf(element), overflow: clipped ? { overflow, overflowX, overflowY } : null });
       if (!style.position || style.position === "static") element.style.position = "relative";
@@ -1232,6 +1235,13 @@ function isBareBox(element) {
   return clear(style.backgroundColor) && none(style.backgroundImage) && none(style.boxShadow)
     && thin(style.borderTopWidth) && thin(style.borderRightWidth) && thin(style.borderBottomWidth) && thin(style.borderLeftWidth)
     && (none(style.outlineStyle) || thin(style.outlineWidth));
+}
+
+// Whether an element (its computed `style`) has rounded corners - any of
+// them, by any radius.
+function hasRoundedCorners(style) {
+  return ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"]
+    .some((key) => parseFloat(style[key]) > 0);
 }
 
 function round(value) {

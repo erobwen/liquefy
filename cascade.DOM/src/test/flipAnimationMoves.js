@@ -371,6 +371,33 @@ describe("FlipAnimationContainer animations", function () {
     assert.deepEqual([listA.style.overflowX, listA.style.overflowY], ["hidden", "auto"]);
   });
 
+  it("what clips with rounded corners keeps clipping while something appears in it - its corners round what's in it", function () {
+    // jsdom computes no border radius: the list's own is given here.
+    const view = document.defaultView;
+    const computed = view.getComputedStyle;
+    let rounded = null;
+    view.getComputedStyle = function (element, ...rest) {
+      const style = computed.call(this, element, ...rest);
+      return new Proxy(style, { get: (target, key) => {
+        if (typeof key === "string" && /^border\w+Radius$/.test(key)) return element === rounded ? "12px" : "0px";
+        const value = Reflect.get(target, key);
+        return typeof value === "function" ? value.bind(target) : value;
+      } });
+    };
+    try {
+      const { lists, element } = setup();
+      rounded = element("one").parentNode;
+      rounded.style.overflow = "hidden";
+      lists.a = ["one", "two", "three", "five"];
+      assert.equal(rounded.style.zIndex, "1", "lifted");
+      assert.equal(rounded.style.overflow, "hidden", "still clipping");
+      runToRest();
+      assert.equal(rounded.style.overflow, "hidden");
+    } finally {
+      view.getComputedStyle = computed;
+    }
+  });
+
   it("nothing fades in on the container's first render", function () {
     const { element } = setup();
     assert.equal(element("one").style.opacity, "");

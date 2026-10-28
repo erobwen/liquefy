@@ -201,8 +201,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         rect.parent = raised ? raised.placeholder.parentNode : element.parentNode;
         // And how it looks - as drawn, a change of look under way included.
         if (element.nodeType === 1) rect.looks = looksOf(element);
-        // How round its corners are drawn.
+        // How round its corners are drawn - and where its own texts are.
         if (element.nodeType === 1) rect.corners = cornersOf(element, u.drawn.get(element));
+        if (element.nodeType === 1) rect.texts = textsOf(element);
         drawnAt.set(element, rect);
       }
       for (const element of u.ghosts.keys()) drawnAt.set(element, rectOf(element));
@@ -491,12 +492,17 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     u.following = new Map();
     u.carried = new Set();
+    // Where each element, and each element's own texts, were drawn - for
+    // what's in one raised to be sized (see applyAnimation() and raise()).
+    u.from = new Map();
+    u.relaid = new Set();
 
     for (const { element, ancestor } of u.tracked) {
       const before = drawnAt.get(element);
       const now = u.layout.get(element);
       const spring = u.springs.get(element) || newSpring();
       if (before) {
+        u.from.set(element, before);
         spring.x = before.x - now.x;
         spring.y = before.y - now.y;
         // Moved to another parent: on its way somewhere - raised, until it
@@ -709,11 +715,23 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       // In a raised element being sized (see raise()), laid out anew as it
       // grows or shrinks: where that puts it, at its own scale - around its
       // middle - rather than where it will be once that has its new size.
+      // And at first where it was drawn, gliding from there to where the
+      // layout puts it (see relay()): laid out otherwise there - a column
+      // turned into a row - it doesn't jump to its new place in it.
       const raisedAncestor = ancestor && u.raised.get(ancestor);
       if (ancestor && (inSized.has(ancestor) || (raisedAncestor && raisedAncestor.sized))) {
         inSized.add(element);
-        tx = (1 - sx) * layout.width / 2;
-        ty = (1 - sy) * layout.height / 2;
+        const scale = above || { sx: 1, sy: 1 };
+        const middleX = (1 - sx) * layout.width / 2;
+        const middleY = (1 - sy) * layout.height / 2;
+        // Measured as drawn around its middle.
+        const measure = () => {
+          const at = rectOf(element);
+          return { x: at.x + middleX * scale.sx, y: at.y + middleY * scale.sy };
+        };
+        const offset = this.relay(element, u.from.get(element), measure) || RESTING;
+        tx = middleX + offset.x / scale.sx;
+        ty = middleY + offset.y / scale.sy;
       }
       const moved = Math.abs(tx) > 0.01 || Math.abs(ty) > 0.01 || Math.abs(sx - 1) > 0.0001 || Math.abs(sy - 1) > 0.0001;
       element.style.transform = moved ? "translate(" + tx + "px, " + ty + "px) scale(" + sx + ", " + sy + ")" : "";
@@ -735,6 +753,22 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       }
     }
     u.drawn = drawn;
+    // The texts of each raised element being sized, as what's in it.
+    for (const [element, { texts }] of u.raised) {
+      const scale = drawn.get(element) || { sx: 1, sy: 1 };
+      for (const text of texts) {
+        const { node, span, from, appearing, leaving } = text;
+        const spring = u.springs.get(span);
+        if (leaving || appearing) {
+          // Fading out until gone - or in, where it lies.
+          if (leaving && !spring) span.remove();
+          span.style.opacity = !spring ? "" : String(Math.max(0, Math.min(1, leaving ? spring.o : 1 + spring.o)));
+          continue;
+        }
+        const offset = this.relay(span, from, () => textRectOf(node));
+        span.style.transform = offset ? "translate(" + offset.x / scale.sx + "px, " + offset.y / scale.sy + "px)" : "";
+      }
+    }
     if (u.sizing) this.drawSize();
     // How far along each change of look is: as far as its spring.
     for (const [element, change] of u.looks) {
@@ -753,6 +787,28 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       if (carrier) this.follow(element, ghost, carrier, zoomAlong);
     }
     this.lift();
+  }
+
+  // The spring moving something in a raised element being sized (`key`:
+  // an element in it, or a wrapped text of its own - see wrapTexts()) from
+  // where it was drawn (`from`) to where the layout puts it. Started the
+  // first time it's drawn there, measured (`measure`) where it's laid out
+  // in it at the size it's drawn at then: from there on, the layout carries
+  // it as the element grows or shrinks, and the spring only takes it the
+  // rest of the way. Null for what has no spring: nothing to start from, or
+  // arrived.
+  relay(key, from, measure) {
+    const u = this.unobservable;
+    if (u.relaid.has(key)) return u.springs.get(key) || null;
+    if (!from) return null;
+    u.relaid.add(key);
+    key.style.transform = "";
+    const at = measure();
+    const spring = u.springs.get(key) || newSpring();
+    spring.x = from.x - at.x;
+    spring.y = from.y - at.y;
+    u.springs.set(key, spring);
+    return spring;
   }
 
   // Lift every appearing element, and every animated element it's inside,
@@ -882,13 +938,79 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const at = rectOf(layer);
     element.style.left = (layout.x - at.x) + "px";
     element.style.top = (layout.y - at.y) + "px";
-    u.raised.set(element, { placeholder, saved, sized });
+    u.raised.set(element, { placeholder, saved, sized, texts: sized ? this.wrapTexts(element) : [] });
+  }
+
+  // The texts of an element raised to be sized, each wrapped in an element
+  // of its own while it is - so they, too, glide to where its layout puts
+  // them, rather than jumping there (see applyAnimation()): "Add luggage"
+  // beside its plus, after being below it. Only in a flex or grid box,
+  // where a text is laid out as a box of its own anyway - so wrapped, it's
+  // laid out exactly the same.
+  //
+  // A text that says something else now ("Add to cart", once "Add") is a
+  // new one: it fades in where it lies, and what it said before leaves as
+  // a ghost of its own (see textGhost()) - the way an element appears and
+  // leaves in something on its way.
+  wrapTexts(element) {
+    const u = this.unobservable;
+    const from = u.from.get(element);
+    if (!from || !from.texts || !isBoxLayout(element)) return [];
+    const texts = [];
+    const shown = new Set();
+    for (const node of [...element.childNodes]) {
+      if (node.nodeType !== 3 || node.textContent.trim() === "") continue;
+      const span = element.ownerDocument.createElement("span");
+      TEXT_WRAPPERS.add(span);
+      element.replaceChild(span, node);
+      span.appendChild(node);
+      const at = from.texts.get(node);
+      if (at && at.text === node.textContent) {
+        shown.add(node);
+        texts.push({ node, span, from: at });
+      } else {
+        const spring = newSpring();
+        spring.o = -1;
+        u.springs.set(span, spring);
+        texts.push({ node, span, appearing: true });
+      }
+    }
+    for (const [node, at] of from.texts) {
+      if (!shown.has(node)) texts.push(this.textGhost(element, from, at));
+    }
+    return texts;
+  }
+
+  // What a text said before (`at`: where it was drawn, and what it said),
+  // fading out in the element it was in (drawn at `box`) - as far into it,
+  // its middle, for how large that's drawn, as it was: so it goes along as
+  // that grows or shrinks, the way a ghost goes along with its carrier.
+  textGhost(element, box, at) {
+    const u = this.unobservable;
+    const span = element.ownerDocument.createElement("span");
+    span.textContent = at.text;
+    const share = (offset, size) => (size > 0 ? offset / size * 100 : 50) + "%";
+    Object.assign(span.style, {
+      position: "absolute", whiteSpace: "pre", pointerEvents: "none",
+      left: share(at.x + at.width / 2 - box.x, box.width), top: share(at.y + at.height / 2 - box.y, box.height),
+      transform: "translate(-50%, -50%)",
+    });
+    element.appendChild(span);
+    const spring = newSpring();
+    spring.o = 1;
+    u.springs.set(span, spring);
+    return { span, leaving: true };
   }
 
   // Back in its place - and the layer gone, once nothing is in it.
   lower(element) {
     const u = this.unobservable;
-    const { placeholder, saved } = u.raised.get(element);
+    const { placeholder, saved, texts } = u.raised.get(element);
+    for (const { node, span, leaving } of texts) {
+      if (leaving) span.remove();
+      else if (span.parentNode) span.parentNode.replaceChild(node, span);
+      u.springs.delete(span);
+    }
     Object.assign(element.style, saved);
     if (placeholder.parentNode) placeholder.parentNode.replaceChild(element, placeholder);
     else element.remove();
@@ -1131,6 +1253,32 @@ function cornersOf(element, scale = { sx: 1, sy: 1 }) {
   return corners;
 }
 
+// Whether an element lays out its children as boxes - a flex or grid box.
+function isBoxLayout(element) {
+  return /flex|grid/.test(element.ownerDocument.defaultView.getComputedStyle(element).display);
+}
+
+// Where an element's own texts are drawn - each non-blank text node of its
+// own - if it's a flex or grid box with any (see wrapTexts()).
+function textsOf(element) {
+  if (!hasOwnText(element) || !isBoxLayout(element)) return undefined;
+  const texts = new Map();
+  for (const each of element.childNodes) {
+    // Already wrapped, on its way: the text in the wrapper.
+    const node = TEXT_WRAPPERS.has(each) ? each.firstChild : each;
+    if (node && node.nodeType === 3 && node.textContent.trim() !== "") texts.set(node, { ...textRectOf(node), text: node.textContent });
+  }
+  return texts;
+}
+
+function textRectOf(node) {
+  const range = node.ownerDocument.createRange();
+  range.selectNodeContents(node);
+  if (typeof range.getBoundingClientRect !== "function") return rectOf(node.parentNode);
+  const rect = range.getBoundingClientRect();
+  return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+}
+
 function rectOf(element) {
   const rect = element.getBoundingClientRect();
   return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
@@ -1144,9 +1292,11 @@ function textFontSize(element) {
   return size > 0 ? size : undefined;
 }
 
+// Text in a wrapper of the container's own (see wrapTexts()) is still the
+// element's own.
 function hasOwnText(element) {
   for (const node of element.childNodes) {
-    if (node.nodeType === 3 && node.textContent.trim() !== "") return true;
+    if ((node.nodeType === 3 || TEXT_WRAPPERS.has(node)) && node.textContent.trim() !== "") return true;
   }
   return false;
 }
@@ -1179,5 +1329,9 @@ function computedLooks(element) {
 // Every leaving element currently shown as a ghost (see removeAsGhosts()),
 // whichever container it belongs to - so placement leaves them alone.
 const GHOSTS = new WeakSet();
+
+// Every wrapper a text is in while what it's in is raised to be sized (see
+// wrapTexts()).
+const TEXT_WRAPPERS = new WeakSet();
 
 registerDOMComponent("flipAnimationContainer", FlipAnimationContainer);

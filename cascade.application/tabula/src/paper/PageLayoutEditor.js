@@ -2,7 +2,9 @@ import { Component, callback, frozen } from "@liquefy/cascade.component";
 import { div, span, text } from "@liquefy/cascade.dom";
 import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
 import { mm } from "../print/index.js";
-import { pageKinds, elementRect, placeElement, PageElement } from "../model/pageLayout.js";
+import { pageKinds, elementRect, placeElement, PageElement, isVerso } from "../model/pageLayout.js";
+import { formatOfPage } from "../print/index.js";
+import { gutterShade } from "./TabulaPaperView.js";
 import { frameKind } from "../model/frames.js";
 import { frameView } from "./FrameView.js";
 import { pageElementView } from "./PageElementView.js";
@@ -31,6 +33,12 @@ import { pageElementView } from "./PageElementView.js";
  *  - A double click inside the margins, or Escape: back to writing
  *    (`onWrite()`).
  *  - Delete or Backspace: the element selected taken out.
+ *
+ * Printed on both sides (the page layout's `duplex`), each paper is the
+ * side its page is - the first a right-hand page, the middle ones shown as
+ * the second, a left-hand one, the last as it falls - mirrored as it's
+ * printed: its inner margin, and everything measured from the inner side,
+ * by the binding, its shade there.
  *
  * Drawn on nothing: on whatever it's shown over (see
  * ../plugins/structuredText/StructuredTextEditor.js - a modal over the
@@ -71,10 +79,21 @@ export class PageLayoutEditor extends Component {
     super.onDispose();
   }
 
-  // The paper: the document's, its margins the page layout's.
-  format() {
+  // The paper: the document's, its margins the page layout's - printed on
+  // both sides, page `index` (from 0) as that side of a sheet has it (see
+  // ../print/Section.js's formatOfPage()).
+  format(index = 0) {
     const { paper, pageLayout } = this.document;
-    return { width: paper.width, height: paper.height, margins: pageLayout.margins };
+    const sides = pageLayout.duplex ? { duplex: true, side: "recto" } : {};
+    return formatOfPage({ width: paper.width, height: paper.height, margins: pageLayout.margins, ...sides }, index, 0);
+  }
+
+  // Which page each paper stands for, as a side: the first; the middle, the
+  // second; the last, as it falls - the third, at least.
+  pageIndex(kind) {
+    if (kind === "first") return 0;
+    if (kind === "middle") return 1;
+    return Math.max(this.sequence.pages.length - 1, 2);
   }
 
   // Which page of the text each paper shows: the first; the middle - the
@@ -104,7 +123,8 @@ export class PageLayoutEditor extends Component {
           key: "paper" + name,
           kind: name,
           editor: this,
-          format: this.format(),
+          format: this.format(this.pageIndex(name)),
+          verso: isVerso(this.document.pageLayout, this.pageIndex(name)),
           textPage: this.textPage(name),
           pages: Math.max(count, 1),
           selected: this.selected && this.selected.kind === name ? this.selected.element : null,
@@ -152,8 +172,8 @@ export class PageLayoutEditor extends Component {
   }
 
   // An element pressed: selected - and moved, or by its handle resized, as
-  // the mouse goes.
-  pressElement(event, element, kind) {
+  // the mouse goes - on a left-hand page, as it's shown there: mirrored.
+  pressElement(event, element, kind, verso = false) {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -162,7 +182,7 @@ export class PageLayoutEditor extends Component {
     const paper = event.currentTarget.closest("[data-layout-page]");
     const format = this.format();
     const start = this.pointOn(paper, event);
-    const from = elementRect(element, format);
+    const from = elementRect(element, format, verso);
     const resizing = !!event.target.closest("[data-handle]");
     this.follow(event, paper, (point) => {
       const dx = point.x - start.x;
@@ -170,13 +190,14 @@ export class PageLayoutEditor extends Component {
       const rect = resizing
         ? { ...from, width: Math.max(mm(2), from.width + dx), height: Math.max(mm(2), from.height + dy) }
         : { ...from, x: from.x + dx, top: from.top + dy };
-      placeElement(element, rect, format);
+      placeElement(element, rect, format, verso);
     });
   }
 
   // A margin's line pressed: the margin follows the mouse - leaving the text
-  // at least 20 mm each way.
-  pressMargin(event, side) {
+  // at least 20 mm each way. On a left-hand page, the one on the left is the
+  // outer margin - the page layout's right one - and the other way round.
+  pressMargin(event, side, verso = false) {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -184,7 +205,8 @@ export class PageLayoutEditor extends Component {
     const layout = this.document.pageLayout;
     const { width, height } = this.format();
     this.follow(event, paper, (point) => {
-      const margins = layout.margins;
+      // As this paper shows them.
+      const { margins } = this.format(verso ? 1 : 0);
       const room = mm(20);
       const value = {
         top: Math.min(point.y, height - margins.bottom - room),
@@ -193,27 +215,28 @@ export class PageLayoutEditor extends Component {
         right: Math.min(width - point.x, width - margins.left - room),
       }[side];
       const rounded = Math.max(0, Math.round(value / 500) * 500);
-      if (rounded !== margins[side]) layout.margins = Object.freeze({ ...margins, [side]: rounded });
+      const which = verso && side === "left" ? "right" : verso && side === "right" ? "left" : side;
+      if (rounded !== layout.margins[which]) layout.margins = Object.freeze({ ...layout.margins, [which]: rounded });
     });
   }
 
   // Something dragged from the creation menu, dropped on a paper: an
   // element there, centred where it's dropped - selected.
-  drop(event, kind) {
+  drop(event, kind, verso = false) {
     event.preventDefault();
     const content = this.takeDragged();
     if (!content) return;
     const paper = event.currentTarget;
-    const element = newElement(content, this.format(), this.pointOn(paper, event));
+    const element = newElement(content, this.format(), this.pointOn(paper, event), { verso });
     this.document.pageLayout[kind].push(element);
     this.onSelect({ element, kind });
   }
 
   // A double click inside the margins: back to the text.
-  doubleClick(event) {
+  doubleClick(event, verso = false) {
     const paper = event.currentTarget;
     const { x, y } = this.pointOn(paper, event);
-    const { width, height, margins } = this.format();
+    const { width, height, margins } = this.format(verso ? 1 : 0);
     if (x > margins.left && x < width - margins.right && y > margins.top && y < height - margins.bottom) this.onWrite();
   }
 }
@@ -223,14 +246,15 @@ export const pageLayoutEditor = (...parameters) => new PageLayoutEditor(...param
 // A new element holding `content`, centred at `center` on a paper of
 // `{ width, height }` - 50 mm wide, as tall as its kind's proportions make
 // it - on the paper, all of it, however near an edge it's put - measured
-// from the edges nearest it. (Moved, it can go over the edge: a bleed.)
-export function newElement(content, paper, center, width = mm(50)) {
+// from the edges nearest it (on a left-hand page, `verso`, as it's shown
+// there, mirrored). Moved, it can go over the edge: a bleed.
+export function newElement(content, paper, center, { width = mm(50), verso = false } = {}) {
   const kind = frameKind({ content });
   const ratio = (kind && kind.aspectRatio && kind.aspectRatio(content.model)) || 4 / 3;
   const height = Math.round(width / ratio);
   const element = new PageElement({ content, width, height });
   const within = (value, room) => Math.max(0, Math.min(room, value));
-  placeElement(element, { x: within(center.x - width / 2, paper.width - width), top: within(center.y - height / 2, paper.height - height), width, height }, paper);
+  placeElement(element, { x: within(center.x - width / 2, paper.width - width), top: within(center.y - height / 2, paper.height - height), width, height }, paper, verso);
   return element;
 }
 
@@ -238,8 +262,9 @@ export function newElement(content, paper, center, width = mm(50)) {
 // for, faintly, its margins - and, for the element selected, what it's
 // measured from.
 class LayoutPaper extends Component {
-  setProperties({ kind, editor, format, textPage, pages, selected }) {
+  setProperties({ kind, editor, format, verso = false, textPage, pages, selected }) {
     this.kind = kind;
+    this.verso = !!verso;
     this.editor = editor;
     this.format = frozen(format);
     this.textPage = textPage;
@@ -248,7 +273,7 @@ class LayoutPaper extends Component {
   }
 
   build() {
-    const { kind, editor, format, selected } = this;
+    const { kind, editor, format, selected, verso } = this;
     const layout = editor.document.pageLayout;
     // Which page it stands for, for a page number: the first, the second,
     // the last.
@@ -257,22 +282,23 @@ class LayoutPaper extends Component {
       {
         "data-layout-page": kind,
         onmousedown: callback("deselect", (event) => { if (event.button === 0) editor.onSelect(null); }),
-        ondblclick: callback("doubleClick", (event) => editor.doubleClick(event)),
+        ondblclick: callback("doubleClick", (event) => editor.doubleClick(event, verso)),
         ondragover: callback("dragOver", (event) => event.preventDefault()),
-        ondrop: callback("drop", (event) => editor.drop(event, kind)),
+        ondrop: callback("drop", (event) => editor.drop(event, kind, verso)),
         style: { ...paperStyle(format), boxShadow: paperShadow },
       },
       this.text(),
       layout[kind].map((element) => pageElementView({
         key: "element" + element.causality.id,
         element,
-        rect: elementRect(element, format),
+        rect: elementRect(element, format, verso),
         page,
         selected: element === selected,
-        onPress: callback("press" + element.causality.id, (event) => editor.pressElement(event, element, kind)),
+        onPress: callback("press" + element.causality.id, (event) => editor.pressElement(event, element, kind, verso)),
       })),
-      ["top", "right", "bottom", "left"].map((side) => marginLine(side, format, callback("margin" + side, (event) => editor.pressMargin(event, side)))),
-      selected ? referenceLines(elementRect(selected, format), selected, format) : null,
+      ["top", "right", "bottom", "left"].map((side) => marginLine(side, format, callback("margin" + side, (event) => editor.pressMargin(event, side, verso)))),
+      selected ? referenceLines(elementRect(selected, format, verso), selected, format, verso) : null,
+      gutterShade(format.side),
     );
   }
 
@@ -311,11 +337,13 @@ function marginLine(side, format, onPress) {
 }
 
 // What an element is measured from: a line across, from its side to the
-// paper's edge it's measured from, and one down - each saying how far.
-function referenceLines(rect, element, format) {
+// paper's edge it's measured from, and one down - each saying how far. On a
+// left-hand page, the inner side - "left" - is on the right.
+function referenceLines(rect, element, format, verso = false) {
   const middleY = rect.top + rect.height / 2;
   const middleX = rect.x + rect.width / 2;
-  const across = element.horizontal === "left" ? { from: 0, to: rect.x } : { from: rect.x + rect.width, to: format.width };
+  const onLeft = (element.horizontal === "left") !== verso;
+  const across = onLeft ? { from: 0, to: rect.x } : { from: rect.x + rect.width, to: format.width };
   const down = element.vertical === "top" ? { from: 0, to: rect.top } : { from: rect.top + rect.height, to: format.height };
   return [
     div({ key: "across", "data-reference": "horizontal", style: { ...referenceStyle, left: cssMm(across.from), width: cssMm(across.to - across.from), top: cssMm(middleY), height: 0, borderTop: "1.5px solid #4285f4" } },

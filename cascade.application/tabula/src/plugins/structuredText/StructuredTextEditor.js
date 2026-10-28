@@ -122,7 +122,7 @@ export class StructuredTextEditor extends Component {
     if (this.mode === "page") {
       const kind = this.selectedElement ? this.selectedElement.kind : "first";
       const { paper } = this.model;
-      const element = newElement(content, paper, { x: paper.width / 2, y: paper.height / 2 });
+      const element = newElement(content, paper, { x: paper.width / 2, y: paper.height / 2 }, { verso: kind === "middle" && this.model.pageLayout.duplex });
       this.model.pageLayout[kind].push(element);
       this.selectElement({ element, kind });
       return true;

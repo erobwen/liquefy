@@ -6,6 +6,11 @@ import { observable } from "@liquefy/cascade.component";
  *
  *  - `margins`: { top, right, bottom, left } in µm, each from its own edge
  *    of the paper - the box the text flows in, on every page.
+ *  - `duplex`: printed on both sides of the paper - a book, its pages
+ *    facing each other, rather than a letter. Then "left" means the inner
+ *    side, by the binding, and "right" the outer: the margins, and where an
+ *    element is measured from, mirrored on every left-hand page (a verso -
+ *    every second page, counted from the first, a right-hand one).
  *  - `first`, `middle`, `last`: what's drawn on the first page, on every
  *    page between, and on the last - each a list of page elements (below):
  *    a page number at the foot, a coloured band along the top, a picture.
@@ -26,8 +31,9 @@ import { observable } from "@liquefy/cascade.component";
  * a page number can say it.
  */
 export class PageLayout {
-  constructor({ margins, first = [], middle = [], last = [] }) {
+  constructor({ margins, duplex = false, first = [], middle = [], last = [] }) {
     this.margins = margins;
+    this.duplex = !!duplex;
     this.first = observable(first);
     this.middle = observable(middle);
     this.last = observable(last);
@@ -40,7 +46,11 @@ export class PageLayout {
     return {
       type: "pageLayout",
       name: "pages",
-      properties: { margins: { ...this.margins }, first: [...this.first], middle: [...this.middle], last: [...this.last] },
+      properties: {
+        margins: { ...this.margins },
+        ...(this.duplex ? { duplex: true } : {}),
+        first: [...this.first], middle: [...this.middle], last: [...this.last],
+      },
     };
   }
 }
@@ -76,22 +86,33 @@ export function pageKind(index, count) {
   return index === count - 1 ? "last" : "middle";
 }
 
+// Whether page `index` (from 0) of a document laid out with `layout` is a
+// left-hand page - the back of a sheet, its inner side on the right.
+export const isVerso = (layout, index) => !!layout && !!layout.duplex && index % 2 === 1;
+
+// A rectangle on a paper of `{ width }`, mirrored across it - as on the
+// other side of the sheet.
+export const mirrored = (rect, paper) => ({ ...rect, x: paper.width - rect.x - rect.width });
+
 // Where an element is on a paper of `{ width, height }`: { x, top, width,
-// height } from its top left corner, in µm.
-export function elementRect(element, paper) {
+// height } from its top left corner, in µm - on a left-hand page
+// (`verso`), mirrored: measured from the inner side, there on the right.
+export function elementRect(element, paper, verso = false) {
   const { width, height } = element;
-  return {
+  const rect = {
     x: element.horizontal === "right" ? paper.width - element.x - width : element.x,
     top: element.vertical === "bottom" ? paper.height - element.y - height : element.y,
     width,
     height,
   };
+  return verso ? mirrored(rect, paper) : rect;
 }
 
 // An element placed at `rect` on a paper of `{ width, height }` - measured
 // from the edges nearest it, across and down, its centre deciding: what
 // keeps it where it is on a paper of another size.
-export function placeElement(element, rect, paper) {
+export function placeElement(element, rect, paper, verso = false) {
+  if (verso) rect = mirrored(rect, paper);
   const right = rect.x + rect.width / 2 > paper.width / 2;
   const bottom = rect.top + rect.height / 2 > paper.height / 2;
   element.horizontal = right ? "right" : "left";
@@ -106,5 +127,5 @@ export function placeElement(element, rect, paper) {
 // with `layout` - each with where it is, on `paper`.
 export function pageElements(layout, index, count, paper) {
   if (!layout) return [];
-  return layout[pageKind(index, count)].map((element) => ({ element, rect: elementRect(element, paper) }));
+  return layout[pageKind(index, count)].map((element) => ({ element, rect: elementRect(element, paper, isVerso(layout, index)) }));
 }

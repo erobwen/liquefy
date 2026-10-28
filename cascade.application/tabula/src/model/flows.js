@@ -108,13 +108,43 @@ export class Section extends Flow {
 // titleNumber()), and whether its paragraphs are indented rather than
 // spaced apart (`indentParagraphs`, see ../layout) - and its page layout
 // (see pageLayout.js): given, or made of `margins`, nothing on its pages.
+//
+// And the start of a book - none, as every document starts out, until it's
+// asked for (see book.js, and ../paper/editing.js's pageBreak()):
+//
+//  - `front`: pages before the title - a half title, say - as paragraphs
+//    (a Front: a list of them, not a section).
+//  - `pageStarts`: the flows that start a page - in the front, or among
+//    its children before its first section: the title page, the pages after
+//    it, the body. Pages there, a paragraph each to start with, rather than
+//    the paragraphs of a flow.
+//  - `chaptersOnNewPage`: in a book, every section right in it - a
+//    chapter - on a page of its own (a right-hand one, printed on both
+//    sides).
 export class Document extends Section {
-  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false }, children = []) {
+  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, front = [], chaptersOnNewPage = true }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
     this.pageLayout = pageLayout || new PageLayout({ margins });
     this.numberTitles = !!numberTitles;
     this.indentParagraphs = !!indentParagraphs;
+    this.front = new Front(front);
+    this.pageStarts = observable([]);
+    this.chaptersOnNewPage = !!chaptersOnNewPage;
+  }
+}
+
+// A document's front: the paragraphs before its title (see Document) - a
+// list of them, as a section's children are, but no section: no title, no
+// structure, only pages.
+export class Front extends Flow {
+  constructor(children = []) {
+    super();
+    children.forEach((child, index) => {
+      if (!(child instanceof Paragraph)) throw new Error("A document's front holds paragraphs - its child " + index + " isn't one.");
+    });
+    this.children = observable(children);
+    return observable(this);
   }
 }
 
@@ -185,6 +215,8 @@ export function sectionsAround(root, flow) {
   const visit = (section, path) => {
     const here = [...path, section];
     if (section.title === flow) return here;
+    // Before a document's title: in the document, as its children are.
+    if (section.front && section.front.children.includes(flow)) return here;
     for (const child of section.children) {
       if (child === flow) return here;
       if (isSection(child)) {

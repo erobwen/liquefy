@@ -1,6 +1,7 @@
 import { frozen, repeat, refreshIfNeeded, retractRepeater } from "@liquefy/cascade.component";
 import { Box } from "./Box.js";
 import { breakIntoLines } from "./lineBreaking.js";
+import { formatOfPage } from "./Section.js";
 
 /**
  * Paragraph - a paragraph of text laid out onto a paper sequence, in two
@@ -51,14 +52,19 @@ import { breakIntoLines } from "./lineBreaking.js";
  * Measured with the text measurer it inherits, as `textMeasurer`.
  *
  * Properties: `source`, `width` - of the content area it's laid out in -
- * and `format` - the paper it's on ({ width, height, margins }). A subclass
- * taking properties of its own passes these on with super.setProperties().
+ * and `format` - the paper it's on ({ width, height, margins }) - and,
+ * optionally, `breakBefore`: the paragraph starts a fresh paper, unless
+ * it's at the top of one already - or, "recto", a right-hand one: printed on
+ * both sides, a blank page left before it, if the fresh one would be a
+ * left-hand page (see Section.js's formatOfPage()). A subclass taking properties of its own
+ * passes these on with super.setProperties().
  */
 export class Paragraph extends Box {
-  setProperties({ source, width, format }) {
+  setProperties({ source, width, format, breakBefore = false }) {
     this.source = source;
     this.width = width;
     this.format = frozen(format);
+    this.breakBefore = breakBefore === "recto" ? "recto" : !!breakBefore;
   }
 
   // Override: what this paragraph is made of (see above).
@@ -113,7 +119,18 @@ export class Paragraph extends Box {
     this.unobservable.placements++;
     const format = this.format;
     const bottom = format.height - format.margins.bottom;
-    let { page, y, atPageTop } = sequence.next;
+    let { page, y, atPageTop, firstPage = 0 } = sequence.next;
+    // Each new paper as its side has it (see Section.js's formatOfPage()).
+    const newPaper = () => {
+      page += 1;
+      sequence.pages.push(formatOfPage(format, page, firstPage));
+      y = format.margins.top;
+      atPageTop = true;
+    };
+    // A fresh paper, if it's to start one - a right-hand one, if it's to:
+    // a left-hand page left blank on the way.
+    if (this.breakBefore && !atPageTop) newPaper();
+    if (this.breakBefore === "recto" && formatOfPage(format, page, firstPage).side === "verso") newPaper();
     // Space between paragraphs - after the one before, and before this one -
     // but none at the top of a paper.
     if (!atPageTop) y += sequence.next.spaceAfter + spaceBefore;
@@ -125,25 +142,24 @@ export class Paragraph extends Box {
       // unless it's the first on this one: then it would fit on none.
       const reach = Math.max(line.height, ...(line.frames || []).map((frame) => frame.top + frame.height));
       if (!atPageTop && y + reach > bottom) {
-        sequence.pages.push(format);
-        page += 1;
-        y = format.margins.top;
-        atPageTop = true;
+        newPaper();
         pageLines = sequence.linesOf(page);
       }
+      // From the left margin of the paper it's on - the inner or the outer.
+      const left = formatOfPage(format, page, firstPage).margins.left;
       pageLines.push(frozen({
         ...line,
-        x: format.margins.left + line.x,
+        x: left + line.x,
         top: y,
         baseline: y + line.ascent,
         paragraph: this.source,
         index,
-        frames: (line.frames || []).map((frame) => ({ ...frame, x: format.margins.left + frame.x, top: y + frame.top })),
+        frames: (line.frames || []).map((frame) => ({ ...frame, x: left + frame.x, top: y + frame.top })),
       }));
       y += line.height + (line.after || 0);
       atPageTop = false;
     });
-    sequence.next = frozen({ page, y, spaceAfter, atPageTop });
+    sequence.next = frozen({ page, y, spaceAfter, atPageTop, firstPage });
   }
 
   onDispose() {

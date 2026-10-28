@@ -25,6 +25,10 @@ import { pageElements } from "../model/pageLayout.js";
  * positions.js's caretAt()) - with
  * `blink`, a count to change whenever the caret moves, so it restarts its
  * blink shown.
+ * A paper printed on both sides - its format's `side`, see
+ * ../print/Section.js's formatOfPage() - shows where it's bound: a shade
+ * along its inner edge (gutterShade()), on the left of a right-hand page,
+ * the right of a left-hand one. On screen only: nothing printed.
  * Under everything else, what its page layout draws on each paper (see
  * ../model/pageLayout.js) - a paper's format says which, its `pageLayout`.
  * `areas`, if given, are drawn under everything but that - under the
@@ -106,6 +110,25 @@ export class TabulaPaperView extends Component {
   }
 }
 
+// Where a paper printed on both sides is bound (see above): a shade along
+// its inner edge, from dark at the edge to nothing - none on a paper printed
+// on one side.
+export function gutterShade(side) {
+  if (side !== "recto" && side !== "verso") return null;
+  const left = side === "recto";
+  return div({
+    key: "gutter",
+    "data-gutter": side,
+    style: {
+      position: "absolute", top: 0, bottom: 0, width: gutterWidth + "px", pointerEvents: "none",
+      [left ? "left" : "right"]: 0,
+      background: `linear-gradient(to ${left ? "right" : "left"}, rgba(60, 64, 67, 0.32), rgba(60, 64, 67, 0))`,
+    },
+  });
+}
+
+const gutterWidth = 16;
+
 // The grey the papers lie on - for whatever goes around them to match.
 export const paperBackdrop = "#d9dce1";
 
@@ -150,6 +173,7 @@ class PaperView extends Component {
       this.highlights.map((rect, index) => div({ key: "highlight" + index, "data-selection": "", style: highlightStyle(rect, this.highlight) })),
       new PaperText({ key: "text", sequence: this.sequence, index: this.index, frame: this.frame }),
       caret ? div({ key: "caret", "data-caret": "", style: caretStyle(caret) }) : null,
+      gutterShade(this.format.side),
     );
   }
 }

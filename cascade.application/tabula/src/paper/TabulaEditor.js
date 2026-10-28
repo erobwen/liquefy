@@ -52,6 +52,7 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  *     deleteBackward(at), deleteForward(at), splitParagraph(at),
  *     tab(at, { shift }),            // Tab - optional
  *     insert(at, content),           // optional: something inserted there (editAtCaret())
+ *     pageBreak(at),                 // optional: Ctrl+Enter - a page starting there
  *     deleteBetween(anchor, focus),  // a selection, either way round
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
  *     settle(at),                    // optional: the caret going to `at` - not by an edit
@@ -343,7 +344,8 @@ export class TabulaEditor extends Component {
     switch (key) {
       case "Backspace": return editing && this.edit(selected ? null : (at) => editing.deleteBackward(at));
       case "Delete": return editing && this.edit(selected ? null : (at) => editing.deleteForward(at));
-      case "Enter": return editing && this.edit((at) => editing.splitParagraph(at));
+      // With Ctrl (Cmd): where a page starts - if the model has any to say.
+      case "Enter": return editing && this.edit((at) => primary && editing.pageBreak ? editing.pageBreak(at) : editing.splitParagraph(at));
       // Tab: whatever the model makes of it - with something selected, nothing.
       case "Tab": return editing && editing.tab && !selected && this.edit((at) => editing.tab(at, { shift }));
       case "SelectAll": return this.select(sequenceStart(rows), sequenceEnd(rows));

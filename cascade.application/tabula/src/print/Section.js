@@ -28,12 +28,35 @@ export class Section extends Box {
   render(sequence, context) {
     const format = frozen(this.pageFormat());
     sequence.pages.push(format);
-    sequence.next = frozen({ page: sequence.pages.length - 1, y: format.margins.top, spaceAfter: 0, atPageTop: true });
+    const page = sequence.pages.length - 1;
+    // Its first paper - where its sides are counted from (see formatOfPage()).
+    sequence.next = frozen({ page, y: format.margins.top, spaceAfter: 0, atPageTop: true, firstPage: page });
     const built = this.buildOneStep();
     for (const paragraph of built instanceof Array ? built : [built]) {
       if (paragraph) paragraph.renderOnto(sequence, context);
     }
   }
+}
+
+// The paper of page `page` in a run of them that starts at `firstPage`
+// (a section's): `format`, as given - or, printed on both sides
+// (`format.duplex`), every second one the back of the one before: its left
+// and right margins swapped, so that the left one is always the inner one,
+// by the binding, whichever side that's on. Each page's paper says which side
+// it is - `side`, "recto" (right-hand: the first, and every other after it)
+// or "verso" - for what shows it (the binding's shade) and what's drawn on it
+// (mirrored). The width a paper leaves for text is the same on both sides:
+// lines are broken once, and only placed by the paper they're on.
+const versos = new WeakMap();
+
+export function formatOfPage(format, page, firstPage = 0) {
+  if (!format.duplex || (page - firstPage) % 2 === 0) return format;
+  let verso = versos.get(format);
+  if (!verso) {
+    verso = frozen({ ...format, side: "verso", margins: frozen({ ...format.margins, left: format.margins.right, right: format.margins.left }) });
+    versos.set(format, verso);
+  }
+  return verso;
 }
 
 // The width a paper leaves for text, inside its margins.

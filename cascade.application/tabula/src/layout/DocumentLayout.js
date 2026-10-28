@@ -2,6 +2,7 @@ import { frozen } from "@liquefy/cascade.component";
 import { Box, Section, Paragraph, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
 import { isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
 import { frameSize } from "../model/frames.js";
+import { isBook, startsPage, hint } from "../model/book.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 
 const fallbackMeasurer = monospaceMeasurer();
@@ -32,7 +33,13 @@ export const exitTitlePrefix = "❧ → ";
  *    document starts on a paper of its own), and the document itself, as a
  *    section at the root.
  *  - SectionLayout: a section - its title, then its children, in order, and
- *    its exit title, if it has one (see ../model/flows.js). It places
+ *    its exit title, if it has one (see ../model/flows.js). A document's,
+ *    its front before its title, too - and, the start of a book (see
+ *    ../model/book.js), its pages each on a fresh paper (`breakBefore` - a
+ *    section's, its title's): each page start's; its title's, after a
+ *    front; its chapters' - right-hand ones, the title and the chapters,
+ *    printed on both sides. An empty page shows what it usually is (its
+ *    paragraph's `hint`, in place of "Text"). It places
  *    nothing itself: what it builds renders onto the paper sequence one
  *    after another, in the tree's order - which is reading order.
  *  - ParagraphLayout: a paragraph (a cascade.print Paragraph) - a section's
@@ -87,10 +94,13 @@ export class DocumentLayout extends Section {
   }
 
   // Its paper - and its page layout, for what shows the paper to draw on it
-  // what's drawn on its pages (see ../model/pageLayout.js).
+  // what's drawn on its pages (see ../model/pageLayout.js) - printed on both
+  // sides, or one: its first page the front of a sheet, a right-hand page,
+  // the next its back (see ../print/Section.js's formatOfPage()).
   pageFormat() {
     const { paper, pageLayout } = this.document;
-    return frozen({ width: paper.width, height: paper.height, margins: pageLayout.margins, pageLayout });
+    const sides = pageLayout.duplex ? { duplex: true, side: "recto" } : {};
+    return frozen({ width: paper.width, height: paper.height, margins: pageLayout.margins, pageLayout, ...sides });
   }
 
   build() {
@@ -112,8 +122,9 @@ export class DocumentLayout extends Section {
 // none for the document's own - and each section in it its own: this one's,
 // a dot, and its place among the sections in it.
 export class SectionLayout extends Box {
-  setProperties({ section, parent = null, level, exit, width, format, numbered = false, number = null, indented = false }) {
+  setProperties({ section, parent = null, level, exit, width, format, numbered = false, number = null, indented = false, breakBefore = false }) {
     this.section = section;
+    this.breakBefore = breakBefore;
     this.parent = parent;
     this.level = level;
     this.exit = !!exit;
@@ -129,8 +140,27 @@ export class SectionLayout extends Box {
     const children = section.children;
     let sections = 0;
     const numberOf = () => numbered ? (number ? number + "." : "") + ++sections : null;
+    // A document's start as a book: where its pages start.
+    const document = section.front ? section : null;
+    const book = !!document && isBook(document);
+    const pageBreak = (child) => {
+      if (!document) return false;
+      if (isSection(child) && book && document.chaptersOnNewPage) return "recto";
+      return startsPage(document, child);
+    };
+    const hintOf = (paragraph) => document && paragraphText(paragraph) === "" ? hint(document, paragraph) : null;
+    const front = document ? document.front.children.map((paragraph, index) => new ParagraphLayout({
+      key: "front" + paragraph.causality.id,
+      paragraph,
+      breakBefore: index > 0 && startsPage(document, paragraph),
+      role: frozen({ body: true, hint: hintOf(paragraph) }),
+      width,
+      format,
+    })) : [];
+    const titleBreak = front.length > 0 ? "recto" : this.breakBefore;
     const boxes = [
-      new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level, number }), width, format }),
+      ...front,
+      new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level, number }), width, format, breakBefore: titleBreak }),
       ...children.map((child, index) => isSection(child)
         ? new SectionLayout({
           key: "flow" + child.causality.id,
@@ -143,13 +173,15 @@ export class SectionLayout extends Box {
           numbered,
           indented,
           number: numberOf(),
+          breakBefore: pageBreak(child),
         })
         : new ParagraphLayout({
           key: "flow" + child.causality.id,
           paragraph: child,
+          breakBefore: pageBreak(child),
           // Indented, in a document indenting its paragraphs - but the first of
           // a run, a section's first, or after a section, isn't.
-          role: frozen({ body: true, indented, follows: indented && index > 0 && !isSection(children[index - 1]) }),
+          role: frozen({ body: true, indented, follows: indented && index > 0 && !isSection(children[index - 1]), hint: hintOf(child) }),
           width,
           format,
         })),
@@ -166,8 +198,8 @@ export class SectionLayout extends Box {
 // spaced apart, and, following another paragraph, its first line indented. Its lines are placed with the paragraph as
 // their source - what a position on the papers then refers to.
 export class ParagraphLayout extends Paragraph {
-  setProperties({ paragraph, role, width, format }) {
-    super.setProperties({ source: paragraph, width, format });
+  setProperties({ paragraph, role, width, format, breakBefore = false }) {
+    super.setProperties({ source: paragraph, width, format, breakBefore });
     this.role = frozen(role);
   }
 
@@ -182,7 +214,8 @@ export class ParagraphLayout extends Paragraph {
       layout.spaceAfter = 0;
       layout.firstLineIndent = this.role.follows ? (typography.paragraphIndent ?? defaultParagraphIndent) : 0;
     }
-    const placeholder = this.role.body ? textPlaceholder : titlePlaceholder;
+    // An empty page's: what it usually is (see ../model/book.js).
+    const placeholder = this.role.hint || (this.role.body ? textPlaceholder : titlePlaceholder);
     const number = this.role.number ? [{ text: this.role.number + titleNumberGap, font, fixed: true }] : [];
     return {
       ...layout,

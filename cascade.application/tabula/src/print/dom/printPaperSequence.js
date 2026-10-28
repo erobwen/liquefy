@@ -118,7 +118,9 @@ export function printPages(papers, { title = "", stylesheets = [], document: doc
     frames.filter((frame) => frame.under).forEach(drawFrame);
     for (const line of paper.lines) {
       for (const run of line.runs) {
-        if (run.frame) continue;
+        // A frame's place, or a placeholder - "Text" in an empty paragraph:
+        // nothing printed there.
+        if (run.frame || run.placeholder) continue;
         const span = printDocument.createElement("span");
         Object.assign(span.style, runStyle(line, run));
         span.textContent = run.text;

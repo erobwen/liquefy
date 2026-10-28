@@ -17,6 +17,10 @@ import { PageLayout, PageElement } from "../../model/pageLayout.js";
  *     } },
  *     "numberTitles": true,
  *     "indentParagraphs": false,
+ *     "front": [ ...paragraphs ],          // pages before the title, if any
+ *     "frontBreaks": [1],                  // the front's paragraphs starting a page (after the first)
+ *     "breaks": [1, 3],                    // the children starting a page, before the body
+ *     "chaptersOnNewPage": false,          // only when it's off
  *     "children": [
  *       { "type": "flow", "name": "paragraph", "properties": { "spans": ["Plain, ", { "text": "bold", "bold": true }] } },
  *       { "type": "flow", "name": "section", "properties": { "title": ..., "titleOffset": 1, "children": [...] } }
@@ -52,7 +56,7 @@ export const structuredTextKinds = {
     anchor: ({ placement, width, content }) => new FrameAnchor({ placement, width, content }),
   },
   pageLayout: {
-    pages: ({ margins, first = [], middle = [], last = [] }) => new PageLayout({ margins: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0, ...margins }), first, middle, last }),
+    pages: ({ margins, duplex = false, first = [], middle = [], last = [] }) => new PageLayout({ margins: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0, ...margins }), duplex, first, middle, last }),
   },
   pageElement: {
     element: (properties) => new PageElement(properties),
@@ -64,7 +68,7 @@ export const structuredTextKinds = {
 export function documentFromProperties(properties) {
   const paper = typeof(properties.paper) === "string" ? paperSizes[properties.paper] : properties.paper;
   if (!paper) throw new Error("Unknown paper: " + JSON.stringify(properties.paper));
-  return new Document(
+  const document = new Document(
     {
       title: properties.title || new Paragraph(),
       paper: Object.freeze({ width: paper.width, height: paper.height }),
@@ -72,9 +76,19 @@ export function documentFromProperties(properties) {
       titleOffset: properties.titleOffset || 0,
       numberTitles: !!properties.numberTitles,
       indentParagraphs: !!properties.indentParagraphs,
+      front: properties.front || [],
+      chaptersOnNewPage: properties.chaptersOnNewPage !== false,
     },
     properties.children || [],
   );
+  // Where its pages start: an empty paragraph where one's past the end.
+  const starts = (list, indices) => (indices || []).forEach((index) => {
+    while (index >= list.children.length) list.children.push(new Paragraph());
+    document.pageStarts.push(list.children[index]);
+  });
+  starts(document.front, properties.frontBreaks);
+  starts(document, properties.breaks);
+  return document;
 }
 
 // And back: its properties - the objects in them as they are, each
@@ -87,7 +101,20 @@ export function documentProperties(document) {
     numberTitles: document.numberTitles,
     indentParagraphs: document.indentParagraphs,
     ...(document.titleOffset ? { titleOffset: document.titleOffset } : {}),
+    ...breaks(document),
     children: [...document.children],
+  };
+}
+
+// Its pages before the body (see ../../model/book.js) - none, to begin with:
+// nothing saved for them.
+function breaks(document) {
+  const indices = (list) => list.children.map((flow, index) => document.pageStarts.includes(flow) ? index : -1).filter((index) => index >= 0);
+  const front = document.front.children;
+  return {
+    ...(front.length > 0 ? { front: [...front], frontBreaks: indices(document.front) } : {}),
+    ...(indices(document).length > 0 ? { breaks: indices(document) } : {}),
+    ...(document.chaptersOnNewPage ? {} : { chaptersOnNewPage: false }),
   };
 }
 

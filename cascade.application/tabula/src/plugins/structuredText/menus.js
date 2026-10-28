@@ -4,6 +4,7 @@ import { button, checkbox, iconButton, row } from "@liquefy/cascade.ui";
 import { paperSizes, margins, mm, inch } from "../../print/index.js";
 import { Paragraph, Document, isSection, paragraphText, titleLevel, focusedFlow } from "../../model/flows.js";
 import { anchorAt, frameKind, placements } from "../../model/frames.js";
+import { isBook } from "../../model/book.js";
 import { elementRect, pageKinds } from "../../model/pageLayout.js";
 import { titlePlaceholder } from "../../layout/DocumentLayout.js";
 import { menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
@@ -136,7 +137,7 @@ function marginControls(document) {
     div(
       { key: "margins", style: { display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: "6px 8px", alignItems: "center", fontSize: "14px" } },
       ["top", "bottom", "left", "right"].map((side) => [
-        div({ key: "label" + side }, text(side[0].toUpperCase() + side.slice(1))),
+        div({ key: "label" + side }, text(sideName(side, layout.duplex))),
         input({
           key: "margin" + side,
           type: "number", min: 0, step: 1,
@@ -149,9 +150,14 @@ function marginControls(document) {
         }),
       ]),
     ),
-    note("In millimetres, each from its own edge - the same on every page. Or drag the dashed lines."),
+    note(layout.duplex
+      ? "In millimetres, each from its own edge - inner by the binding, outer away from it, mirrored on facing pages. Or drag the dashed lines."
+      : "In millimetres, each from its own edge - the same on every page. Or drag the dashed lines."),
   ];
 }
+
+// Printed on both sides, left and right are inner and outer.
+const sideName = (side, duplex) => ({ left: duplex ? "Inner" : "Left", right: duplex ? "Outer" : "Right", top: "Top", bottom: "Bottom" })[side];
 
 // The page element selected: its size, the edges it's measured from - the
 // ones nearest it, as it's placed, or the others, as chosen - what its
@@ -161,6 +167,7 @@ function elementEntry(editor, { element, kind }) {
   const frame = type ? type.frame : null;
   const paper = editor.model.paper;
   const page = pageKinds.find((each) => each.name === kind);
+  const duplex = editor.model.pageLayout.duplex;
   // Measured from another edge, it stays where it is.
   const measureFrom = (horizontal, vertical) => {
     const rect = elementRect(element, paper);
@@ -199,7 +206,7 @@ function elementEntry(editor, { element, kind }) {
       size("Width", "width"),
       size("Height", "height"),
       heading("Measured from"),
-      choice("horizontal", [{ value: "left", label: "Left edge" }, { value: "right", label: "Right edge" }], element.horizontal, (value) => measureFrom(value, element.vertical)),
+      choice("horizontal", [{ value: "left", label: sideName("left", duplex) + " edge" }, { value: "right", label: sideName("right", duplex) + " edge" }], element.horizontal, (value) => measureFrom(value, element.vertical)),
       choice("vertical", [{ value: "top", label: "Top edge" }, { value: "bottom", label: "Bottom edge" }], element.vertical, (value) => measureFrom(element.horizontal, value)),
       note("Where it stays, on paper of another size - the nearest edges, as it's placed."),
       frame && frame.controls ? [heading(type.label), ...frame.controls(element.content.model)] : null,
@@ -240,6 +247,14 @@ function documentMenu(editor) {
       button({ variant: sameSize(document.paper, paperSizes.letter) ? "filled" : undefined }, "Letter", callback("letter", () => setPaper(document, "letter"))),
       div({ style: { opacity: 0.7, fontSize: "13px", marginLeft: "4px" } }, text(pages + (pages === 1 ? " page" : " pages"))),
     ),
+    row(
+      { key: "sides", style: { gap: "6px", alignItems: "center" } },
+      button({ key: "single", variant: document.pageLayout.duplex ? undefined : "filled" }, "Single-sided", callback("single", () => { document.pageLayout.duplex = false; })),
+      button({ key: "double", variant: document.pageLayout.duplex ? "filled" : undefined }, "Double-sided", callback("double", () => { document.pageLayout.duplex = true; })),
+    ),
+    note(document.pageLayout.duplex
+      ? "Printed on both sides, like a book: the pages face each other, mirrored - the shade is where they're bound."
+      : "Printed on one side, like a letter."),
     ...(editor.mode === "page" ? marginControls(document) : []),
     heading("Whole document"),
     checkbox({
@@ -249,6 +264,18 @@ function documentMenu(editor) {
       onChange: callback("numberTitles", (checked) => { document.numberTitles = checked; }),
     }),
     note("Every title but the document's own numbered by where it is - 2.1, and on. The numbers aren't text: they follow the structure."),
+    // A book: once it has pages before its body (see ../../model/book.js).
+    isBook(document)
+      ? [
+        checkbox({
+          key: "chapters",
+          label: document.pageLayout.duplex ? "Chapters start on a right-hand page" : "Chapters start on a new page",
+          checked: document.chaptersOnNewPage,
+          onChange: callback("chapters", (checked) => { document.chaptersOnNewPage = checked; }),
+        }),
+        note("A book: pages before its text - Ctrl+Enter there adds one, Backspace at a page's start takes it away."),
+      ]
+      : note("Ctrl+Enter after the title: a title page - a book."),
     checkbox({
       key: "indentParagraphs",
       label: "Indent paragraphs instead of spacing them",

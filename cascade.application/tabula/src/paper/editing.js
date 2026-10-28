@@ -1,8 +1,9 @@
 import {
-  Paragraph, Section, Document, isSection, isParagraph, isFlowEdge,
+  Paragraph, Section, Document, Front, isSection, isParagraph, isFlowEdge,
   textPosition, flowStart, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
 } from "../model/flows.js";
 import { FrameAnchor, anchorCharacter } from "../model/frames.js";
+import { startsPage, firstSectionIndex, frontPages, pageOf, isEmptyPage } from "../model/book.js";
 import { readingOrder } from "./markers.js";
 
 /**
@@ -125,6 +126,27 @@ import { readingOrder } from "./markers.js";
  * pre marker, a paragraph's text - or, with nothing after it, in an empty
  * paragraph put in its place (deleteSection()). Not a document: refused.
  *
+ * Pages - the start of a book (see ../model/book.js): in the body, no hard
+ * page breaks - where its pages start is the structure's to say (its
+ * chapters'). But before the body, the unit is the page: Ctrl+Enter
+ * (pageBreak()) - in a document's front, its title, or among its children
+ * before its first section - starts a page at the caret: at a paragraph's
+ * start, there; at its end, after it - a new, empty paragraph, with nothing
+ * after it; in its middle, split there. In the title: the title page ends
+ * after it - or, at the very start of a title written, a page before it, in
+ * the front. Printed on both sides, the unit is the sheet: a page starting
+ * gets an empty page before it - the back of the one it ends (the title
+ * page's: the copyright page); where a page starts already, an empty sheet
+ * - two pages - is put in, as one empty page is, on one side. Anywhere
+ * else: refused.
+ *
+ * Backspace at a page's start takes the break away - before anything else
+ * it'd do there - and an empty page before it, the back left behind; on an
+ * empty page, the page itself, and on both sides its sheet's other empty
+ * page (unbreak()). Delete at a page's very end takes away the break after
+ * it. Each the other's undoing, Ctrl+Enter's - all of it pages, so going
+ * from both sides to one and back changes nothing.
+ *
  * Something else than text, inserted - "insert this here", the position
  * deciding what that makes (insert(at, content)): in the text, a frame
  * anchor (see ../model/frames.js) holding it, the caret after it - one
@@ -152,6 +174,7 @@ export function tabulaEditing(root, { newSectionsBeside = () => true, depressedT
     splitParagraph: at((position) => pressEnter(root, position, options)),
     tab: (position, { shift = false } = {}) => at((position) => pressTab(root, position, shift, options))(position),
     insert: (position, content) => at((position) => insertContent(root, position, content, options))(position),
+    pageBreak: at((position) => pageBreak(root, position, options)),
     // For a section's structure, outside the text - a panel's buttons:
     canPromote: (section) => canPromote(root, section),
     canDemote: (section) => canDemote(root, section),
@@ -206,7 +229,7 @@ const isText = (at) => !!at && "paragraph" in at;
  * document opened with some is edited as it is, only never given more.
  */
 function guarded(root, options, change, otherwise) {
-  return (...parameters) => {
+  return (...parameters) => keepingPageStarts(root, () => {
     const exits = on(options.exitTitles, true);
     const depressed = depressing(options);
     if (exits && depressed) return change(...parameters);
@@ -220,7 +243,25 @@ function guarded(root, options, change, otherwise) {
       return refused(otherwise(...parameters), options);
     }
     return result;
-  };
+  });
+}
+
+// A change that may replace a flow a page starts with - a section made on
+// its empty line, say - its page starting where it did: with whatever stands
+// where it stood. Taken out with nothing after it: no page there.
+function keepingPageStarts(root, change) {
+  const starts = root.children.flatMap((document) => document.pageStarts.map((flow) => {
+    const list = document.front.children.includes(flow) ? document.front : document;
+    return { document, flow, list, index: list.children.indexOf(flow) };
+  }));
+  const result = change();
+  for (const { document, flow, list, index } of starts) {
+    if (list.children.includes(flow) || !document.pageStarts.includes(flow)) continue;
+    remove(document.pageStarts, flow);
+    const replacement = list.children[index];
+    if (replacement && !document.pageStarts.includes(replacement)) document.pageStarts.push(replacement);
+  }
+  return result;
 }
 
 // The sections with an exit title, and the depressed ones - a change may
@@ -249,15 +290,23 @@ function snapshot(root, leftBehind) {
       texts.push([flow, flow.spans.map((span) => [span, span.text])]);
       return;
     }
+    if (flow.front) visit(flow.front);
+    if (flow.pageStarts) starts.push([flow, [...flow.pageStarts]]);
     if (flow.title) visit(flow.title);
     lists.push([flow, [...flow.children], flow.titleOffset]);
     flow.children.forEach(visit);
   };
+  const starts = [];
   visit(root);
-  return { lists, texts, leftBehind: leftBehind ? [...leftBehind] : [] };
+  return { lists, texts, starts, leftBehind: leftBehind ? [...leftBehind] : [] };
 }
 
-function restore({ lists, texts, leftBehind: lines }, leftBehind) {
+function restore({ lists, texts, starts, leftBehind: lines }, leftBehind) {
+  for (const [document, pageStarts] of starts) {
+    if (document.pageStarts.length !== pageStarts.length || document.pageStarts.some((flow, index) => flow !== pageStarts[index])) {
+      document.pageStarts.splice(0, document.pageStarts.length, ...pageStarts);
+    }
+  }
   for (const [flow, children, titleOffset] of lists) {
     if (flow.children.length !== children.length || flow.children.some((child, index) => child !== children[index])) {
       flow.children.splice(0, flow.children.length, ...children);
@@ -355,6 +404,9 @@ function pressEnter(root, at, options = {}) {
 }
 
 function deleteBackward(root, at, options = {}) {
+  // At a page's start, before the body: the page break gone, first.
+  const unbroken = unbreak(root, at, options);
+  if (unbroken) return unbroken;
   if (isText(at)) {
     const { paragraph, offset } = at;
     if (offset > 0) {
@@ -394,6 +446,162 @@ function removeFlow(root, flow) {
   if (before) return textPosition(before, paragraphText(before).length);
   const first = readingOrder(root).find((item) => item.block && !item.exit);
   return first ? textPosition(first.block, 0) : null;
+}
+
+// Ctrl+Enter - a page starting at `at` (see above), in a document's front,
+// its title, or among its children before its first section: at a
+// paragraph's start, there; at its end, after it; in its middle, a split
+// there - in the title, after it, or, at the very start of a title written,
+// before it, in the front. Anywhere else, refused.
+function pageBreak(root, at, options) {
+  const place = textAt(at);
+  const found = place && locate(root, place.paragraph);
+  if (!found) return refused(at, options);
+  const { paragraph, offset } = place;
+  let document = null;
+  let list = null;
+  let index = 0;
+  if (found.titleOf instanceof Document) {
+    document = found.titleOf;
+    // Before the title: pages of the front, the caret on the first of them.
+    if (offset === 0 && paragraphText(paragraph) !== "") return pagesBefore(document);
+    list = document;
+  } else if (found.list instanceof Front || found.list instanceof Document) {
+    list = found.list;
+    document = list instanceof Front ? root.children.find((each) => each.front === list) : list;
+    const length = paragraphText(paragraph).length;
+    if (offset > 0 && offset < length) list.children.splice(found.index + 1, 0, new Paragraph(cutAfter(paragraph, offset)));
+    index = offset === 0 ? found.index : found.index + 1;
+  }
+  if (!document || (list === document && index > firstSectionIndex(document))) return refused(at, options);
+  return pageAt(document, list, index);
+}
+
+// A page starting before child `index` of `list` - the document, or its
+// front. Where none starts yet: one, there - and, printed on both sides, an
+// empty page before it, the back of the one it ends: a sheet more (the title
+// page's back, the copyright page). Where one starts already, more pages:
+// an empty one - an empty sheet, printed on both sides. The caret where the
+// new page's text starts.
+function pageAt(document, list, index) {
+  const duplex = document.pageLayout.duplex;
+  const next = list.children[index];
+  const started = !!next && startsPage(document, next);
+  if (started) {
+    const pages = emptyPages(duplex ? 2 : 1);
+    list.children.splice(index, 0, ...pages);
+    document.pageStarts.push(...pages);
+    return textPosition(pages[0], 0);
+  }
+  if (!next) list.children.push(new Paragraph());
+  const first = list.children[index];
+  document.pageStarts.push(first);
+  if (duplex) {
+    const [back] = emptyPages(1);
+    list.children.splice(index, 0, back);
+    document.pageStarts.push(back);
+  }
+  return isSection(first) ? textPosition(first.title, 0) : textPosition(first, 0);
+}
+
+// Pages before the title, in the front: a page - a sheet, printed on both
+// sides - the caret on it.
+function pagesBefore(document) {
+  const pages = emptyPages(document.pageLayout.duplex ? 2 : 1);
+  const front = document.front.children;
+  const first = front.length;
+  front.push(...pages);
+  document.pageStarts.push(...pages.filter((page, index) => first + index > 0));
+  return textPosition(pages[0], 0);
+}
+
+const emptyPages = (count) => Array.from({ length: count }, () => new Paragraph());
+
+// Backspace at a page's start (see above): the page break taken away, the
+// caret staying - on an empty page, the page itself (with, printed on both
+// sides, an empty page beside it - its sheet), the caret at the end of the
+// page before. Before the title: the empty pages before it taken away - if
+// they're empty. Null where no page starts at `at`.
+function unbreak(root, at, options) {
+  for (const document of root.children) {
+    const first = pageStartAt(document, at);
+    if (!first) continue;
+    if (first === document.title) {
+      const pages = frontPages(document).filter((page) => page.where === "front");
+      const last = pages[pages.length - 1];
+      if (!isEmptyPage(last)) return refused(at, options);
+      const gone = [last.flows[0]];
+      const before = pages[pages.length - 2];
+      if (document.pageLayout.duplex && isEmptyPage(before)) gone.push(before.flows[0]);
+      removePages(document, gone);
+      return at;
+    }
+    const { page, before, after } = pageOf(document, first);
+    if (isEmptyPage(page)) {
+      const gone = [first];
+      if (document.pageLayout.duplex) {
+        if (isEmptyPage(after)) gone.push(after.flows[0]);
+        else if (isEmptyPage(before)) gone.push(before.flows[0]);
+      }
+      const caret = endOfPageBefore(root, document, first, gone);
+      removePages(document, gone);
+      return caret;
+    }
+    remove(document.pageStarts, first);
+    if (isEmptyPage(before)) removePages(document, [before.flows[0]]);
+    return at;
+  }
+  return null;
+}
+
+// The flow whose page starts right at `at` - its text's start, a
+// section's pre marker - in `document`: one of its page starts, or its title
+// with a front before it. Null if none does.
+function pageStartAt(document, at) {
+  const candidates = [...document.pageStarts, ...(document.front.children.length > 0 ? [document.title] : [])];
+  return candidates.find((flow) => {
+    if (isFlowEdge(at)) return at.edge === "start" && at.flow === flow;
+    return at.offset === 0 && (at.paragraph === flow || (isSection(flow) && at.paragraph === flow.title));
+  }) || null;
+}
+
+// Empty pages taken out - their paragraphs, and their page breaks.
+function removePages(document, flows) {
+  for (const flow of flows) {
+    remove(document.pageStarts, flow);
+    for (const list of [document.front, document]) remove(list.children, flow);
+  }
+}
+
+const remove = (list, item) => {
+  const index = list.indexOf(item);
+  if (index >= 0) list.splice(index, 1);
+};
+
+// The end of the text before `flow`, in reading order - not counting
+// `gone`, the pages about to go.
+function endOfPageBefore(root, document, flow, gone) {
+  const blocks = readingOrder(root).filter((item) => item.block && !item.exit && !gone.includes(item.block)).map((item) => item.block);
+  const all = readingOrder(root).filter((item) => item.block && !item.exit).map((item) => item.block);
+  const index = all.indexOf(flow);
+  const before = all.slice(0, index).reverse().find((block) => blocks.includes(block));
+  return before ? textPosition(before, paragraphText(before).length) : textPosition(document.title, 0);
+}
+
+// Delete at the very end of a page before the body: the break after it
+// taken away - Backspace's mirror. Null where no page ends at `at`.
+function pageEndingAt(root, at) {
+  if (!isText(at)) return null;
+  for (const document of root.children) {
+    for (const list of [document.front, document]) {
+      const index = list.children.indexOf(at.paragraph);
+      const isEnd = at.offset === paragraphText(at.paragraph).length;
+      if (index >= 0 && isEnd && list.children[index + 1] && startsPage(document, list.children[index + 1])) return { document, flow: list.children[index + 1] };
+    }
+    const first = document.children[0];
+    if (at.paragraph === document.title && at.offset === paragraphText(document.title).length && first && startsPage(document, first)) return { document, flow: first };
+  }
+  return null;
 }
 
 // A section taken out from its start, forward (see above): the caret at
@@ -891,6 +1099,12 @@ function asSection(document) {
 }
 
 function deleteForward(root, at, options = {}) {
+  // At a page's very end, before the body: the break after it gone, first.
+  const ending = pageEndingAt(root, at);
+  if (ending) {
+    remove(ending.document.pageStarts, ending.flow);
+    return at;
+  }
   if (isFlowEdge(at) && at.edge === "start" && isSection(at.flow)) return deleteSection(root, at.flow) || refused(at, options);
   if (isText(at)) {
     const { paragraph, offset } = at;
@@ -989,6 +1203,11 @@ function locate(root, flow) {
       const child = list.children[index];
       if (child === flow) return { list, index };
       if (isSection(child)) {
+        // A document's front, before its title.
+        if (child.front) {
+          const found = visit(child.front);
+          if (found) return found;
+        }
         if (child.title === flow) return { titleOf: child };
         const found = visit(child);
         if (found) return found;

@@ -2,7 +2,7 @@ import assert from "assert";
 import { repeat, retractRepeater, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
 import { mm, paperSizes, margins, PaperSequence, monospaceMeasurer } from "../../print/index.js";
 import { document, paragraph, sequence } from "../flows.js";
-import { PageLayout, PageElement, pageKind, elementRect, placeElement, pageElements } from "../pageLayout.js";
+import { PageLayout, PageElement, pageKind, elementRect, placeElement, pageElements, isVerso } from "../pageLayout.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { structuredTextPlugin, structuredText } from "../../plugins/structuredText/index.js";
 import { framesPlugin, shape, pageNumber } from "../../plugins/frames/index.js";
@@ -86,5 +86,53 @@ describe("A page layout", function () {
     assert.equal(back.model.pageLayout.first[0].content.documentType, shape);
     assert.deepEqual(back.model.pageLayout.margins, margins(mm(25)));
     assert.deepEqual(JSON.parse(JSON.stringify(dehydrateDocument(back))), json);
+  });
+
+  it("printed on both sides, faces pages to each other: every second page mirrored - its inner margin by the binding, on the right", function () {
+    const number = new PageElement({ content: createDocument(pageNumber), horizontal: "right", x: mm(10), vertical: "bottom", y: mm(10), width: mm(20), height: mm(5) });
+    const pageLayout = new PageLayout({ margins: { top: mm(20), bottom: mm(20), left: mm(30), right: mm(15) }, duplex: true, middle: [number], last: [number] });
+    const doc = document({ title: "D", paper: a4, pageLayout }, ...Array.from({ length: 200 }, (_, index) => paragraph("Paragraph " + index)));
+    const seq = new PaperSequence();
+    const layout = new SequenceLayout({ sequence: sequence(doc), measurer: monospaceMeasurer() }).establish();
+    const root = repeat(() => layout.renderOnto(seq), { independent: true });
+    try {
+      assert.ok(seq.pages.length >= 3);
+      assert.deepEqual(seq.pages.slice(0, 3).map((format) => format.side), ["recto", "verso", "recto"]);
+      // The inner margin - "left" - on the left of a right-hand page, on the
+      // right of a left-hand one: the lines there from the outer margin.
+      assert.deepEqual(seq.pages.slice(0, 2).map((format) => [format.margins.left, format.margins.right]), [[mm(30), mm(15)], [mm(15), mm(30)]]);
+      assert.equal(seq.linesOf(0)[1].x, mm(30));
+      assert.equal(seq.linesOf(1)[0].x, mm(15));
+      // Everything measured from the outer side ("right"): there on both.
+      const corner = (index) => pageElements(pageLayout, index, seq.pages.length, a4)[0].rect.x;
+      assert.equal(corner(1), mm(10), "on a left-hand page, the outer side is the left");
+      assert.equal(corner(2), a4.width - mm(10) - mm(20));
+      assert.deepEqual([isVerso(pageLayout, 1), isVerso(pageLayout, 2)], [true, false]);
+      // One-sided again: every page as the first.
+      pageLayout.duplex = false;
+      assert.ok(seq.pages.every((format) => !format.side && format.margins.left === mm(30)));
+    } finally {
+      retractRepeater(root);
+      layout.dispose();
+    }
+  });
+
+  it("places an element on a left-hand page as it's shown there, mirrored - measured from the edge nearest it, inner or outer", function () {
+    const element = new PageElement({ content: null, width: mm(40), height: mm(10) });
+    // Shown near the left edge of a left-hand page: the outer side - "right".
+    placeElement(element, { x: mm(12), top: mm(12), width: mm(40), height: mm(10) }, a4, true);
+    assert.deepEqual([element.horizontal, element.x], ["right", mm(12)]);
+    assert.equal(elementRect(element, a4, true).x, mm(12));
+    assert.equal(elementRect(element, a4).x, a4.width - mm(52), "on a right-hand page: the outer side on the right");
+  });
+
+  it("is saved double-sided, if it is - and only then", function () {
+    const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
+    const doc = document({ title: "D", paper: a4, pageLayout: new PageLayout({ margins: margins(mm(25)), duplex: true }) }, paragraph("x"));
+    const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
+    assert.equal(json.properties.pageLayout.properties.duplex, true);
+    assert.equal(hydrateDocument(json, services).model.pageLayout.duplex, true);
+    doc.pageLayout.duplex = false;
+    assert.equal(dehydrateDocument(new HydratedDocument(structuredText, doc)).properties.pageLayout.properties.duplex, undefined);
   });
 });

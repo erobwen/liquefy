@@ -3,6 +3,7 @@ import { a, button, div, img, span, text, providingElement, elementBoundsProvide
 import { overlayFrame, iconButton, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
 import { versionNotice, showVersionNotice } from "./versionNotice.js";
+import { indicatedScroll } from "./components/scrollIndicator.js";
 
 const MENU_WIDTH = 220;
 const TOP_BAR_HEIGHT = 48;
@@ -358,14 +359,19 @@ class MenuList extends Component {
         frame.groupIsOpen(group) ? pages.map((page) => this.pageLink(page, false, true)) : [],
       ));
     });
-    return div(
-      { style: { boxSizing: "border-box", padding: "16px", background: themeColor.chrome, color: themeColor.onChrome, overflow: "auto", ...this.style } },
-      logo(frame),
-      // Animated: a group opening grows to make room for its pages, which
-      // stay within it as it does - `confine` - and closing, shrinks it
-      // away, the rest of the menu closing the gap.
-      flipAnimationContainer({ confine: true }, ...items),
-    );
+    // Scrolling, when it's taller than the window - with an indicator of
+    // where it is, rather than a scroll bar (see indicatedScroll()).
+    return indicatedScroll({
+      style: { boxSizing: "border-box", background: themeColor.chrome, color: themeColor.onChrome, ...this.style },
+      child: div(
+        { style: { boxSizing: "border-box", padding: "16px" } },
+        logo(frame),
+        // Animated: a group opening grows to make room for its pages, which
+        // stay within it as it does - `confine` - and closing, shrinks it
+        // away, the rest of the menu closing the gap.
+        flipAnimationContainer({ confine: true }, ...items),
+      ),
+    });
   }
 
   // A group's header in the menu: small, and quieter than the pages under
@@ -424,7 +430,11 @@ class MenuList extends Component {
         ...(inGroup ? { marginLeft: "16px" } : {}),
         color: "inherit", textDecoration: "none",
         background: active ? "rgba(255,255,255,0.2)" : "transparent",
-        fontWeight: active ? "bold" : "normal",
+        // Emphasized by an outline around its letters, not a bolder font:
+        // bold letters are wider, and a title that just fits would break
+        // onto a second line as it's chosen - the menu changing shape.
+        // Outlined, every letter stays as wide as it was.
+        webkitTextStroke: active ? "0.6px currentColor" : "",
       },
     },
     span({ style: { flex: "1 1 auto" } }, text(page.title)),

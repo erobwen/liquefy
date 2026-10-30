@@ -5,28 +5,31 @@ import {
   document, section, paragraph, sequence as sequenceOf, paragraphText, isParagraph, isSection,
   textPosition, flowStart, samePosition,
 } from "../../model/flows.js";
-import { isBook, frontPages, hint } from "../../model/book.js";
+import { isBook, bookPages, hint } from "../../model/book.js";
 import { PageLayout } from "../../model/pageLayout.js";
 import { tabulaEditing } from "../editing.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { structuredTextPlugin, structuredText } from "../../plugins/structuredText/index.js";
-import { hydrateDocument, dehydrateDocument, HydratedDocument } from "../../shell/documents.js";
+import { hydrateDocument, dehydrateDocument, HydratedDocument, createDocument } from "../../shell/documents.js";
+import { image } from "../../plugins/frames/index.js";
+import { pageFrameOf } from "../../model/frames.js";
 
 const paper = paperSizes.A4;
 
 function setUp(children, { duplex = false } = {}) {
   const doc = document({ title: "Book", paper, pageLayout: new PageLayout({ margins: margins(mm(25)), duplex }) }, ...children);
   let refusals = 0;
-  const editing = tabulaEditing(sequenceOf(doc), { refuse: () => { refusals++; } });
+  const editing = tabulaEditing(sequenceOf(doc), { refuse: () => { refusals++; }, pageContent: () => createDocument(image) });
   return { doc, editing, refusals: () => refusals };
 }
 
-// The pages before the body, readable: "a | Book, b | _ || c" - each page's
-// flows ("_" an empty paragraph, "Name[...]" a section), the title page
-// with the title first, "||" before the body's page.
+// The pages around the body, readable: "a | Book, b | _ | | c || d" - each
+// page's flows ("_" an empty paragraph, "Name[...]" a section), the title
+// page with the title first, "| |" before the body's page, "||" before each
+// page after the body.
 const text = (flow) => isParagraph(flow) ? paragraphText(flow) || "_" : paragraphText(flow.title) + "[...]";
 function pages(doc) {
-  return frontPages(doc).map((page) => (page.where === "body" ? "| " : "")
+  return bookPages(doc).map((page) => (page.where === "body" ? "| " : page.where === "back" ? "|| " : "")
     + [...(page.where === "title" ? [paragraphText(doc.title)] : []), ...page.flows.map(text)].join(", ")).join(" | ");
 }
 
@@ -193,6 +196,77 @@ describe("The start of a book", function () {
     });
   });
 
+  describe("at the end", function () {
+    it("has pages after the body: Ctrl+Enter at its very end - the colophon last - Backspace on an empty one takes it away", function () {
+      const { doc, editing } = setUp([paragraph("a"), section("One", paragraph("the end"))]);
+      const last = doc.children[1].children[0];
+      const at = editing.pageBreak(textPosition(last, 7));
+      // The body - its chapter - not a page of the book's own: not listed.
+      assert.equal(pages(doc), "Book, a | || _");
+      assert.equal(at.paragraph, doc.back.children[0]);
+      assert.ok(isBook(doc));
+      assert.equal(hint(doc, doc.back.children[0]), "Colophon");
+      // Another, at the end of the back: the colophon still last.
+      editing.pageBreak(textPosition(doc.back.children[0], 0));
+      assert.deepEqual(doc.back.children.map((page) => hint(doc, page)), ["About the author", "Colophon"]);
+      // Laid out after the body, each on a page of its own.
+      assert.deepEqual(papers(doc), ["Book a", "One the end", "·", "·"]);
+      editing.deleteBackward(textPosition(doc.back.children[1], 0));
+      editing.deleteBackward(textPosition(doc.back.children[0], 0));
+      assert.equal(doc.back.children.length, 0);
+      assert.ok(!isBook(doc));
+    });
+
+    it("takes the document's post marker, too - and is a sheet, printed on both sides", function () {
+      const { doc, editing } = setUp([section("One", paragraph("text"))], { duplex: true });
+      editing.pageBreak({ flow: doc, edge: "end" });
+      assert.equal(doc.back.children.length, 2);
+      // Not in the middle of the body, though.
+      assert.ok(samePosition(editing.pageBreak(textPosition(doc.children[0].children[0], 2)), textPosition(doc.children[0].children[0], 2)));
+    });
+  });
+
+  describe("a page made a picture", function () {
+    it("is made with Tab on an empty page of the book's own - the whole paper - and is an empty page again with Tab", function () {
+      const { doc, editing } = setUp([paragraph("text")]);
+      editing.pageBreak(textPosition(doc.title, 0));
+      const cover = doc.front.children[0];
+      const at = editing.tab(textPosition(cover, 0));
+      const anchor = pageFrameOf(cover);
+      assert.ok(anchor, "a frame, all there is on the page");
+      assert.equal(anchor.content.documentType, image);
+      assert.ok(samePosition(at, textPosition(cover, 1)), "the caret after it - its menu showing");
+      // Laid out: the whole paper, from its corner.
+      const seq = new PaperSequence();
+      const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer() }).establish();
+      const root = repeat(() => layout.renderOnto(seq), { independent: true });
+      try {
+        const frames = seq.linesOf(0).flatMap((line) => line.frames);
+        assert.deepEqual(frames.map(({ x, top, width, height, page }) => [x, top, width, height, page]), [[0, 0, paper.width, paper.height, true]]);
+        assert.equal(seq.pages.length, 2, "the title still on the next page");
+      } finally {
+        retractRepeater(root);
+        layout.dispose();
+      }
+      editing.tab(textPosition(cover, 1));
+      assert.equal(pageFrameOf(cover), null);
+      assert.equal(paragraphText(cover), "");
+    });
+
+    it("isn't made of a page with something on it, of the title page, or in the body - nor without images to make it of", function () {
+      const { doc, editing } = setUp([paragraph("text"), section("One", paragraph("in it"))]);
+      editing.pageBreak(textPosition(doc.title, 4));
+      editing.tab(textPosition(doc.title, 0));
+      editing.tab(textPosition(doc.children[0], 0));
+      assert.equal(pages(doc), "Book | | text");
+      assert.ok(!doc.children[0].spans.some((span) => span.anchor));
+      const plain = tabulaEditing(sequenceOf(doc), { refuse: () => {} });
+      editing.pageBreak(textPosition(doc.title, 0));
+      plain.tab(textPosition(doc.front.children[0], 0));
+      assert.equal(pageFrameOf(doc.front.children[0]), null);
+    });
+  });
+
   it("is saved - its front, where its pages start - and loaded back", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin);
     const { doc, editing } = setUp([paragraph("Subtitle"), paragraph("text")]);
@@ -200,8 +274,11 @@ describe("The start of a book", function () {
     assert.deepEqual([plain.properties.front, plain.properties.breaks], [undefined, undefined], "nothing saved for none");
     editing.pageBreak(textPosition(doc.children[0], 8));
     editing.pageBreak(textPosition(doc.title, 0));
+    editing.pageBreak({ flow: doc, edge: "end" });
+    editing.pageBreak({ flow: doc, edge: "end" });
     const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
     assert.deepEqual([json.properties.front.length, json.properties.frontBreaks, json.properties.breaks], [1, [], [1]]);
+    assert.deepEqual([json.properties.back.length, json.properties.backBreaks], [2, [1]]);
     const back = hydrateDocument(json, services).model;
     assert.equal(pages(back), pages(doc));
     assert.deepEqual(JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, back)))), json);

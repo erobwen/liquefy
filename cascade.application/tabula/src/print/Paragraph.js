@@ -140,7 +140,7 @@ export class Paragraph extends Box {
       y += line.before || 0;
       // A line that doesn't fit goes on the next paper - its frames with it -
       // unless it's the first on this one: then it would fit on none.
-      const reach = Math.max(line.height, ...(line.frames || []).map((frame) => frame.top + frame.height));
+      const reach = Math.max(line.height, ...(line.frames || []).filter((frame) => !frame.page).map((frame) => frame.top + frame.height));
       if (!atPageTop && y + reach > bottom) {
         newPaper();
         pageLines = sequence.linesOf(page);
@@ -154,7 +154,8 @@ export class Paragraph extends Box {
         baseline: y + line.ascent,
         paragraph: this.source,
         index,
-        frames: (line.frames || []).map((frame) => ({ ...frame, x: left + frame.x, top: y + frame.top })),
+        // The whole paper's from its corner; the rest from the line's place.
+        frames: (line.frames || []).map((frame) => frame.page ? { ...frame } : { ...frame, x: left + frame.x, top: y + frame.top }),
       }));
       y += line.height + (line.after || 0);
       atPageTop = false;

@@ -19,6 +19,8 @@ import { PageLayout, PageElement } from "../../model/pageLayout.js";
  *     "indentParagraphs": false,
  *     "front": [ ...paragraphs ],          // pages before the title, if any
  *     "frontBreaks": [1],                  // the front's paragraphs starting a page (after the first)
+ *     "back": [ ...paragraphs ],           // pages after the body, if any
+ *     "backBreaks": [1],                   // the back's, the same
  *     "breaks": [1, 3],                    // the children starting a page, before the body
  *     "chaptersOnNewPage": false,          // only when it's off
  *     "children": [
@@ -77,6 +79,7 @@ export function documentFromProperties(properties) {
       numberTitles: !!properties.numberTitles,
       indentParagraphs: !!properties.indentParagraphs,
       front: properties.front || [],
+      back: properties.back || [],
       chaptersOnNewPage: properties.chaptersOnNewPage !== false,
     },
     properties.children || [],
@@ -87,6 +90,7 @@ export function documentFromProperties(properties) {
     document.pageStarts.push(list.children[index]);
   });
   starts(document.front, properties.frontBreaks);
+  starts(document.back, properties.backBreaks);
   starts(document, properties.breaks);
   return document;
 }
@@ -111,8 +115,10 @@ export function documentProperties(document) {
 function breaks(document) {
   const indices = (list) => list.children.map((flow, index) => document.pageStarts.includes(flow) ? index : -1).filter((index) => index >= 0);
   const front = document.front.children;
+  const back = document.back.children;
   return {
     ...(front.length > 0 ? { front: [...front], frontBreaks: indices(document.front) } : {}),
+    ...(back.length > 0 ? { back: [...back], backBreaks: indices(document.back) } : {}),
     ...(indices(document).length > 0 ? { breaks: indices(document) } : {}),
     ...(document.chaptersOnNewPage ? {} : { chaptersOnNewPage: false }),
   };

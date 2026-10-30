@@ -1,4 +1,4 @@
-import { Component, repeat, retractRepeater, callback, frozen } from "@liquefy/cascade.component";
+import { Component, repeat, retractRepeater, callback, frozen, locateService } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { overlay } from "@liquefy/cascade.ui";
 import { PaperSequence } from "../../print/index.js";
@@ -11,6 +11,17 @@ import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { removeButton } from "../../shell/removeButton.js";
 import { takeFocus, releaseFocus } from "../../shell/contextMenus.js";
 import { structuredTextSettings } from "./settings.js";
+import { createDocument } from "../../shell/documents.js";
+
+// The image document type, if a plugin in use has one - found through the
+// service locators where the editor is.
+function imageType() {
+  try {
+    return locateService({ type: "documentType", name: "image" }) || null;
+  } catch (error) {
+    return null;
+  }
+}
 import { contextPath } from "./menus.js";
 
 // Around the papers, and between them (see ../../paper/TabulaPaperView.js).
@@ -89,6 +100,8 @@ export class StructuredTextEditor extends Component {
       exitTitles: () => this.unobservable.settings.exitTitles,
       keepEmptyLine: () => this.unobservable.settings.keepEmptyLine,
       demoteWithChildren: () => this.unobservable.settings.demoteWithChildren,
+      // A page made a picture: an image - if a plugin in use has images.
+      pageContent: () => this.unobservable.image ? createDocument(this.unobservable.image) : null,
       refuse: () => this.refused(),
     });
     return u;
@@ -182,6 +195,7 @@ export class StructuredTextEditor extends Component {
     const { root, sequence, measurer, editing, controller } = this.unobservable;
     const settings = structuredTextSettings();
     this.unobservable.settings = settings;
+    this.unobservable.image = imageType();
     const corner = `calc(${paperInset}mm * ${this.zoom})`;
     return div(
       { style: { position: "relative" } },

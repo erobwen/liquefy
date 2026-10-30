@@ -113,7 +113,8 @@ export class Section extends Flow {
 // asked for (see book.js, and ../paper/editing.js's pageBreak()):
 //
 //  - `front`: pages before the title - a half title, say - as paragraphs
-//    (a Front: a list of them, not a section).
+//    (Matter: a list of them, not a section). `back`: pages after the body
+//    - notes, the colophon - the same.
 //  - `pageStarts`: the flows that start a page - in the front, or among
 //    its children before its first section: the title page, the pages after
 //    it, the body. Pages there, a paragraph each to start with, rather than
@@ -122,26 +123,27 @@ export class Section extends Flow {
 //    chapter - on a page of its own (a right-hand one, printed on both
 //    sides).
 export class Document extends Section {
-  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, front = [], chaptersOnNewPage = true }, children = []) {
+  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, front = [], back = [], chaptersOnNewPage = true }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
     this.pageLayout = pageLayout || new PageLayout({ margins });
     this.numberTitles = !!numberTitles;
     this.indentParagraphs = !!indentParagraphs;
-    this.front = new Front(front);
+    this.front = new Matter(front);
+    this.back = new Matter(back);
     this.pageStarts = observable([]);
     this.chaptersOnNewPage = !!chaptersOnNewPage;
   }
 }
 
-// A document's front: the paragraphs before its title (see Document) - a
-// list of them, as a section's children are, but no section: no title, no
-// structure, only pages.
-export class Front extends Flow {
+// A document's front or back matter: the paragraphs before its title, or
+// after its body (see Document) - a list of them, as a section's children
+// are, but no section: no title, no structure, only pages.
+export class Matter extends Flow {
   constructor(children = []) {
     super();
     children.forEach((child, index) => {
-      if (!(child instanceof Paragraph)) throw new Error("A document's front holds paragraphs - its child " + index + " isn't one.");
+      if (!(child instanceof Paragraph)) throw new Error("A document's front or back matter holds paragraphs - its child " + index + " isn't one.");
     });
     this.children = observable(children);
     return observable(this);
@@ -215,8 +217,9 @@ export function sectionsAround(root, flow) {
   const visit = (section, path) => {
     const here = [...path, section];
     if (section.title === flow) return here;
-    // Before a document's title: in the document, as its children are.
-    if (section.front && section.front.children.includes(flow)) return here;
+    // Before a document's title, after its body: in the document, as its
+    // children are.
+    if (section.front && (section.front.children.includes(flow) || section.back.children.includes(flow))) return here;
     for (const child of section.children) {
       if (child === flow) return here;
       if (isSection(child)) {

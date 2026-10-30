@@ -34,13 +34,13 @@ export const image = {
     places: ["text", "page"],
     aspectRatio: (model) => model.aspectRatio,
     view: (model) => model.src
-      ? img({ src: model.src, alt: "", style: { display: "block", width: "100%", height: "100%" } })
+      ? img({ src: model.src, alt: "", style: { display: "block", width: "100%", height: "100%", objectFit: "cover" } })
       : emptyBox("image", "Image"),
     printNode: (model) => {
       if (!model.src) return greyBox();
       const node = globalThis.document.createElement("img");
       node.src = model.src;
-      Object.assign(node.style, { display: "block", width: "100%", height: "100%" });
+      Object.assign(node.style, { display: "block", width: "100%", height: "100%", objectFit: "cover" });
       return node;
     },
     controls: (model) => [

@@ -158,6 +158,15 @@ export class SectionLayout extends Box {
       format,
     })) : [];
     const titleBreak = front.length > 0 ? "recto" : this.breakBefore;
+    // After the body: its back, each page on a fresh paper - the first, too.
+    const back = document ? document.back.children.map((paragraph, index) => new ParagraphLayout({
+      key: "back" + paragraph.causality.id,
+      paragraph,
+      breakBefore: index === 0 || startsPage(document, paragraph),
+      role: frozen({ body: true, hint: hintOf(paragraph) }),
+      width,
+      format,
+    })) : [];
     const boxes = [
       ...front,
       new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level, number }), width, format, breakBefore: titleBreak }),
@@ -186,6 +195,7 @@ export class SectionLayout extends Box {
           format,
         })),
     ];
+    boxes.push(...back);
     if (this.exit) boxes.push(new ExitTitleLayout({ key: "exit", section, parent: this.parent, level: level - section.titleOffset, width, format }));
     return boxes;
   }
@@ -222,7 +232,7 @@ export class ParagraphLayout extends Paragraph {
       font,
       spans: [
         ...number,
-        ...(paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font, this.width)),
+        ...(paragraphText(this.source) === "" ? [{ text: placeholder, font, placeholder: true }] : styledSpans(this.source.spans, font, this.width, this.format)),
       ],
     };
   }
@@ -258,12 +268,17 @@ export class ExitTitleLayout extends Paragraph {
 }
 
 // A paragraph's spans, set in `font` - bold or italic as each span is - a
-// frame anchor's its frame, at most `width` wide.
-function styledSpans(spans, font, width = Infinity) {
+// frame anchor's its frame, at most `width` wide - the whole paper, for a
+// page made a picture.
+function styledSpans(spans, font, width = Infinity, paper = null) {
   return spans.map((span) => span.anchor ? {
     text: span.text,
     font,
-    frame: { ...frameSize(span.anchor, width), placement: span.anchor.placement, source: span.anchor },
+    frame: {
+      ...(span.anchor.placement === "page" && paper ? { width: paper.width, height: paper.height } : frameSize(span.anchor, width)),
+      placement: span.anchor.placement,
+      source: span.anchor,
+    },
   } : {
     text: span.text,
     font: { ...font, weight: span.bold ? 700 : font.weight, italic: span.italic || font.italic },

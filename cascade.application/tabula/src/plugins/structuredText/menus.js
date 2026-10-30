@@ -4,7 +4,7 @@ import { button, checkbox, iconButton, row } from "@liquefy/cascade.ui";
 import { paperSizes, margins, mm, inch } from "../../print/index.js";
 import { Paragraph, Document, isSection, paragraphText, titleLevel, focusedFlow } from "../../model/flows.js";
 import { anchorAt, frameKind, placements } from "../../model/frames.js";
-import { isBook } from "../../model/book.js";
+import { isBook, isWholePage } from "../../model/book.js";
 import { elementRect, pageKinds } from "../../model/pageLayout.js";
 import { titlePlaceholder } from "../../layout/DocumentLayout.js";
 import { menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
@@ -89,6 +89,10 @@ function frameEntry(editor, anchor) {
   const step = mm(10);
   const width = Math.min(anchor.width, widest);
   const setWidth = (value) => { anchor.width = Math.max(step, Math.min(widest, value)); };
+  // The whole page: only for a page of a book's own, the frame all that's on it.
+  const caret = editor.caret;
+  const wholePage = caret && "paragraph" in caret && isWholePage(editor.model, caret.paragraph) && caret.paragraph.spans.length === 1;
+  const choices = placements.filter(({ value }) => value !== "page" || wholePage || anchor.placement === "page");
   return {
     key: "frame",
     icon: type ? type.icon : "help",
@@ -98,28 +102,29 @@ function frameEntry(editor, anchor) {
       heading("Placement"),
       row(
         { style: { gap: "4px", flexWrap: "wrap" } },
-        placements.map(({ value, label }) => button(
+        choices.map(({ value, label }) => button(
           { key: "placement" + value, variant: anchor.placement === value ? "filled" : undefined },
           label,
           callback("placement" + value, () => { anchor.placement = value; }),
         )),
       ),
       note(placementNotes[anchor.placement] || ""),
-      heading("Size"),
-      row(
+      anchor.placement === "page" ? null : heading("Size"),
+      anchor.placement === "page" ? null : row(
         { style: { alignItems: "center", gap: "6px" } },
         div({ style: { flex: "1" } }, text("Width")),
         iconButton({ icon: "remove", title: "Narrower", disabled: width <= step, onClick: callback("narrower", () => setWidth(width - step)) }),
         div({ style: { minWidth: "48px", textAlign: "center" } }, text(Math.round(width / 1000) + " mm")),
         iconButton({ icon: "add", title: "Wider", disabled: width >= widest, onClick: callback("wider", () => setWidth(width + step)) }),
       ),
-      note("Its height follows - what's in it keeps its proportions."),
+      anchor.placement === "page" ? null : note("Its height follows - what's in it keeps its proportions."),
       kind && kind.controls ? [heading(type.label), ...kind.controls(anchor.content.model)] : null,
     ],
   };
 }
 
 const placementNotes = {
+  page: "The whole page, edge to edge - a picture cropped to fill it. Tab makes it an empty page again.",
   inline: "In the line, as a word - the line as tall as it is.",
   block: "On a line of its own, centred - the text above and below it.",
   left: "At the left, its top at the line it's in - the text flowing around it on the right.",

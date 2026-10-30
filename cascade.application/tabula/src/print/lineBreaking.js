@@ -25,6 +25,8 @@
  *       baseline - the line as tall as it reaches;
  *     - "block": a line of its own, centred - text above and below it -
  *       below any frame beside the text (that line's `before`);
+ *     - "page": the whole paper it's on, from its top left corner - the
+ *       line it's on as if it weren't there;
  *     - "left", "right": at that side, its top at the top of the line it's
  *       on - or the next line's, with text before it on its own - the
  *       lines beside it narrowed by its width and `frameGap`. Reaching
@@ -79,6 +81,7 @@ export function breakIntoLines({ spans, font, width, measurer, align = "left", l
   let starting = [];
   let waiting = [];
   const started = new Set();
+  let wholePages = [];
   // What the frames beside the line at `y` take, at each side.
   const taken = (side) => beside.filter((each) => each.side === side).reduce((sum, each) => sum + each.frame.width + frameGap, 0);
   const limit = () => Math.max(0, fullLimit - (lines.length === 0 ? style.firstLineIndent : 0) - taken("left") - taken("right"));
@@ -106,6 +109,8 @@ export function breakIntoLines({ spans, font, width, measurer, align = "left", l
     if (block) line.x = style.indentLeft + Math.round((fullLimit - line.width) / 2);
     else line.x += taken("left");
     line.frames = [
+      // The whole paper - a page made a picture.
+      ...wholePages.map((frame) => ({ x: 0, top: 0, width: frame.width, height: frame.height, source: frame.source, page: true })),
       // Starting with it - above it, cleared, where it started.
       ...starting.map(placedBeside(-before)),
       ...line.runs.filter((run) => run.frame && run.width > 0).map((run) => ({
@@ -113,6 +118,7 @@ export function breakIntoLines({ spans, font, width, measurer, align = "left", l
       })),
     ];
     if (before > 0) line.before = before;
+    wholePages = [];
     line.last = false;
     lines.push(line);
     y += line.height;
@@ -133,6 +139,11 @@ export function breakIntoLines({ spans, font, width, measurer, align = "left", l
       current = [];
       used = 0;
       continue;
+    }
+    // The whole paper: placed with the line it's on, nothing else moved.
+    if (frame && frame.placement === "page" && !started.has(frame)) {
+      started.add(frame);
+      wholePages.push(frame);
     }
     if (frame && !started.has(frame) && (frame.placement === "left" || frame.placement === "right")) {
       started.add(frame);
@@ -336,7 +347,8 @@ function sameFont(a, b) {
   return a.family === b.family && a.size === b.size && a.weight === b.weight && a.italic === b.italic;
 }
 
-const isBesideText = (frame) => frame.placement === "left" || frame.placement === "right";
+// Out of the line - beside the text, or the whole paper: taking no room in it.
+const isBesideText = (frame) => frame.placement === "left" || frame.placement === "right" || frame.placement === "page";
 
 // The width of a run's first `count` characters - a frame's: all of it, or
 // nothing.

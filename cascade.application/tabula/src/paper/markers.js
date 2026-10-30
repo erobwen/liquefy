@@ -150,6 +150,8 @@ export function readingOrder(root) {
       if (isSection(child)) visitSection(child, level + 1, titleLevel(child, titleAt), hasExitTitle(child, children[index + 1], titleAt), numbering);
       else visitParagraph(child, level + 1, "paragraph");
     });
+    // A document's back, after its body.
+    if (section.back) section.back.children.forEach((paragraph) => visitParagraph(paragraph, level + 1, "paragraph"));
     if (exit) items.push({ block: exitTitle(section), exit: true });
     items.push({ marker: flowEnd(section), kind: "flowEnd", type: "sectionEnd", level, flow: section });
   };

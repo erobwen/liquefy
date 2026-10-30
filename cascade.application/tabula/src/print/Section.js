@@ -25,12 +25,20 @@ export class Section extends Box {
     throw new Error(this.constructor.name + " must implement pageFormat()");
   }
 
+  // Override, optionally: the side of a sheet its first paper is - "recto"
+  // (the default) or "verso", printed on both sides (see formatOfPage()).
+  firstPageSide() {
+    return "recto";
+  }
+
   render(sequence, context) {
     const format = frozen(this.pageFormat());
-    sequence.pages.push(format);
-    const page = sequence.pages.length - 1;
-    // Its first paper - where its sides are counted from (see formatOfPage()).
-    sequence.next = frozen({ page, y: format.margins.top, spaceAfter: 0, atPageTop: true, firstPage: page });
+    const page = sequence.pages.length;
+    // Where its sides are counted from (see formatOfPage()): its first paper
+    // - or the one before, if that's a left-hand one.
+    const firstPage = this.firstPageSide() === "verso" ? page - 1 : page;
+    sequence.pages.push(formatOfPage(format, page, firstPage));
+    sequence.next = frozen({ page, y: format.margins.top, spaceAfter: 0, atPageTop: true, firstPage });
     const built = this.buildOneStep();
     for (const paragraph of built instanceof Array ? built : [built]) {
       if (paragraph) paragraph.renderOnto(sequence, context);

@@ -2,6 +2,7 @@ import { paperSizes } from "../../print/index.js";
 import { Flow, Document, Section, Paragraph } from "../../model/flows.js";
 import { FrameAnchor } from "../../model/frames.js";
 import { PageLayout, PageElement } from "../../model/pageLayout.js";
+import { InnerSequence } from "../../model/sequences.js";
 
 /**
  * A structured text saved - a Document, a tree of flows (see ../../model) -
@@ -17,12 +18,8 @@ import { PageLayout, PageElement } from "../../model/pageLayout.js";
  *     } },
  *     "numberTitles": true,
  *     "indentParagraphs": false,
- *     "front": [ ...paragraphs ],          // pages before the title, if any
- *     "frontBreaks": [1],                  // the front's paragraphs starting a page (after the first)
- *     "back": [ ...paragraphs ],           // pages after the body, if any
- *     "backBreaks": [1],                   // the back's, the same
- *     "breaks": [1, 3],                    // the children starting a page, before the body
- *     "chaptersOnNewPage": false,          // only when it's off
+ *     "bookMode": true,                    // only when it's on
+ *     "before": { "type": "sequence", ... }, "after": ...,   // pages of their own, if any
  *     "children": [
  *       { "type": "flow", "name": "paragraph", "properties": { "spans": ["Plain, ", { "text": "bold", "bold": true }] } },
  *       { "type": "flow", "name": "section", "properties": { "title": ..., "titleOffset": 1, "children": [...] } }
@@ -36,6 +33,13 @@ import { PageLayout, PageElement } from "../../model/pageLayout.js";
  *   { "type": "frame", "name": "anchor", "properties": { "placement": "left", "width": 60000,
  *     "content": { "type": "document", "name": "image", "properties": { ... } } } }
  *
+ * Pages of their own (see ../../model/sequences.js) anchored to a flow are
+ * in its properties too - a paragraph's `after`, a section's `before` and
+ * `after` - each a sequence of documents, each loaded by its own kind's
+ * plugin, or null, a place for one:
+ *
+ *   { "type": "sequence", "name": "inner", "properties": { "items": [null, { "type": "document", ... }] } }
+ *
  * What makes them again - the kinds of object a structured text is made
  * of, by family, and what each family is (its base class): structured
  * text's plugin provides them (see index.js and ../../shell/documents.js's
@@ -47,12 +51,23 @@ export const structuredTextFamilies = {
   frame: { baseClass: FrameAnchor },
   pageLayout: { baseClass: PageLayout },
   pageElement: { baseClass: PageElement },
+  sequence: { baseClass: InnerSequence },
+};
+
+// Pages of their own anchored to a flow, as loaded.
+const anchored = (flow, { before = null, after = null }) => {
+  if (before && "before" in flow) flow.before = before;
+  if (after) flow.after = after;
+  return flow;
 };
 
 export const structuredTextKinds = {
   flow: {
-    paragraph: ({ spans = [] }) => new Paragraph(spans.map((span) => span instanceof FrameAnchor ? { anchor: span } : span)),
-    section: ({ title, titleOffset = 0, children = [] }) => new Section(title, children, titleOffset),
+    paragraph: ({ spans = [], after }) => anchored(new Paragraph(spans.map((span) => span instanceof FrameAnchor ? { anchor: span } : span)), { after }),
+    section: ({ title, titleOffset = 0, children = [], before, after }) => anchored(new Section(title, children, titleOffset), { before, after }),
+  },
+  sequence: {
+    inner: ({ items = [] }) => new InnerSequence(items),
   },
   frame: {
     anchor: ({ placement, width, content }) => new FrameAnchor({ placement, width, content }),
@@ -78,21 +93,11 @@ export function documentFromProperties(properties) {
       titleOffset: properties.titleOffset || 0,
       numberTitles: !!properties.numberTitles,
       indentParagraphs: !!properties.indentParagraphs,
-      front: properties.front || [],
-      back: properties.back || [],
-      chaptersOnNewPage: properties.chaptersOnNewPage !== false,
+      bookMode: !!properties.bookMode,
     },
     properties.children || [],
   );
-  // Where its pages start: an empty paragraph where one's past the end.
-  const starts = (list, indices) => (indices || []).forEach((index) => {
-    while (index >= list.children.length) list.children.push(new Paragraph());
-    document.pageStarts.push(list.children[index]);
-  });
-  starts(document.front, properties.frontBreaks);
-  starts(document.back, properties.backBreaks);
-  starts(document, properties.breaks);
-  return document;
+  return anchored(document, properties);
 }
 
 // And back: its properties - the objects in them as they are, each
@@ -105,22 +110,10 @@ export function documentProperties(document) {
     numberTitles: document.numberTitles,
     indentParagraphs: document.indentParagraphs,
     ...(document.titleOffset ? { titleOffset: document.titleOffset } : {}),
-    ...breaks(document),
+    ...(document.bookMode ? { bookMode: true } : {}),
+    ...(document.before ? { before: document.before } : {}),
+    ...(document.after ? { after: document.after } : {}),
     children: [...document.children],
-  };
-}
-
-// Its pages before the body (see ../../model/book.js) - none, to begin with:
-// nothing saved for them.
-function breaks(document) {
-  const indices = (list) => list.children.map((flow, index) => document.pageStarts.includes(flow) ? index : -1).filter((index) => index >= 0);
-  const front = document.front.children;
-  const back = document.back.children;
-  return {
-    ...(front.length > 0 ? { front: [...front], frontBreaks: indices(document.front) } : {}),
-    ...(back.length > 0 ? { back: [...back], backBreaks: indices(document.back) } : {}),
-    ...(indices(document).length > 0 ? { breaks: indices(document) } : {}),
-    ...(document.chaptersOnNewPage ? {} : { chaptersOnNewPage: false }),
   };
 }
 

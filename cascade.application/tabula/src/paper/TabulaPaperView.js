@@ -29,6 +29,9 @@ import { pageElements } from "../model/pageLayout.js";
  * ../print/Section.js's formatOfPage() - shows where it's bound: a shade
  * along its inner edge (gutterShade()), on the left of a right-hand page,
  * the right of a left-hand one. On screen only: nothing printed.
+ * Between the papers, pages of their own (inner sequences, see
+ * ../model/sequences.js) - where the paper sequence says they go, each made
+ * by `renderInsert(insert)`, given.
  * Under everything else, what its page layout draws on each paper (see
  * ../model/pageLayout.js) - a paper's format says which, its `pageLayout`.
  * `areas`, if given, are drawn under everything but that - under the
@@ -56,8 +59,9 @@ import { pageElements } from "../model/pageLayout.js";
  * paper a click is on.
  */
 export class TabulaPaperView extends Component {
-  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, outlines = null, offsetMarks = null, frame = null, style }) {
+  setProperties({ sequence, zoom = 1, caret = null, selection = null, areas = null, outlines = null, offsetMarks = null, frame = null, renderInsert = null, style }) {
     this.sequence = sequence;
+    this.renderInsert = renderInsert;
     this.frame = frame;
     this.zoom = zoom;
     this.caret = frozen(caret);
@@ -92,21 +96,35 @@ export class TabulaPaperView extends Component {
           ...this.style,
         },
       },
-      sequence.pages.map((format, index) => new PaperView({
-        key: "paper" + index,
-        sequence,
-        index,
-        format,
-        caret: caret && caret.page === index ? caret : null,
-        highlights: selection ? selection.rects.filter((rect) => rect.page === index) : [],
-        highlight,
-        areas: areas.filter((rect) => rect.page === index),
-        outlines: outlines.filter((rect) => rect.page === index),
-        offsetMarks: offsetMarks.filter((rect) => rect.page === index),
-        frame: this.frame,
-        page: pages[index],
-      })),
+      sequence.pages.map((format, index) => [
+        this.inserts(index, true),
+        new PaperView({
+          key: "paper" + index,
+          sequence,
+          index,
+          format,
+          caret: caret && caret.page === index ? caret : null,
+          highlights: selection ? selection.rects.filter((rect) => rect.page === index) : [],
+          highlight,
+          areas: areas.filter((rect) => rect.page === index),
+          outlines: outlines.filter((rect) => rect.page === index),
+          offsetMarks: offsetMarks.filter((rect) => rect.page === index),
+          frame: this.frame,
+          page: pages[index],
+        }),
+        this.inserts(index, false),
+      ]),
     );
+  }
+
+  // Pages of their own between the papers (see ../print/PaperSequence.js's
+  // `inserts`): before paper `index`, or after it - each as `renderInsert`
+  // makes it, from what the paper sequence says.
+  inserts(index, before) {
+    if (!this.renderInsert) return null;
+    return this.sequence.inserts
+      .filter((insert) => insert.page === index && insert.before === before)
+      .map((insert) => this.renderInsert(insert));
   }
 }
 

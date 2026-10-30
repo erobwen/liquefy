@@ -141,8 +141,6 @@ export function readingOrder(root) {
   // always there: a place before the number, which is no text.
   const visitSection = (section, level, titleAt, exit, numbered = false) => {
     items.push({ marker: flowStart(section), kind: "flowStart", type: "sectionStart", level, flow: section, always: numbered });
-    // A document's front, before its title (see ../model/flows.js).
-    if (section.front) section.front.children.forEach((paragraph) => visitParagraph(paragraph, level + 1, "paragraph"));
     visitParagraph(section.title, level + 1, "title");
     const children = section.children;
     const numbering = numbered || (section instanceof Document && section.numberTitles);
@@ -150,8 +148,6 @@ export function readingOrder(root) {
       if (isSection(child)) visitSection(child, level + 1, titleLevel(child, titleAt), hasExitTitle(child, children[index + 1], titleAt), numbering);
       else visitParagraph(child, level + 1, "paragraph");
     });
-    // A document's back, after its body.
-    if (section.back) section.back.children.forEach((paragraph) => visitParagraph(paragraph, level + 1, "paragraph"));
     if (exit) items.push({ block: exitTitle(section), exit: true });
     items.push({ marker: flowEnd(section), kind: "flowEnd", type: "sectionEnd", level, flow: section });
   };

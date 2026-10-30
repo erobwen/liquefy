@@ -132,9 +132,9 @@ describe("Tabula, the document editor", function () {
     assert.ok(element.textContent.includes("1  Flows"));
   });
 
-  it("prints a structured text from a layout of its own, gone once read - the document's later changes reach nothing of it", function () {
+  it("prints a structured text from a layout of its own, gone once read - the document's later changes reach nothing of it", async function () {
     const document = testDocument();
-    const papers = printPapers(document);
+    const papers = await printPapers(document);
     assert.ok(papers.length >= 1);
     assert.ok(papers[0].lines.length > 0);
     // Changed after: nothing of the print layout is left to lay it out again.

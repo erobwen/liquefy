@@ -1,8 +1,8 @@
 import { frozen } from "@liquefy/cascade.component";
 import { Box, Section, Paragraph, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
-import { isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
+import { Document, isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
+import { pageCount } from "../model/sequences.js";
 import { frameSize } from "../model/frames.js";
-import { isBook, startsPage, hint } from "../model/book.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 
 const fallbackMeasurer = monospaceMeasurer();
@@ -33,13 +33,11 @@ export const exitTitlePrefix = "❧ → ";
  *    document starts on a paper of its own), and the document itself, as a
  *    section at the root.
  *  - SectionLayout: a section - its title, then its children, in order, and
- *    its exit title, if it has one (see ../model/flows.js). A document's,
- *    its front before its title, too - and, the start of a book (see
- *    ../model/book.js), its pages each on a fresh paper (`breakBefore` - a
- *    section's, its title's): each page start's; its title's, after a
- *    front; its chapters' - right-hand ones, the title and the chapters,
- *    printed on both sides. An empty page shows what it usually is (its
- *    paragraph's `hint`, in place of "Text"). It places
+ *    its exit title, if it has one (see ../model/flows.js) - and, anchored
+ *    to them, pages of their own: inner sequences (InsertLayout). A
+ *    document in book mode: its chapters each on a fresh paper - a
+ *    right-hand one, printed on both sides (`breakBefore` - a section's,
+ *    its title's). It places
  *    nothing itself: what it builds renders onto the paper sequence one
  *    after another, in the tree's order - which is reading order.
  *  - ParagraphLayout: a paragraph (a cascade.print Paragraph) - a section's
@@ -63,8 +61,12 @@ export const exitTitlePrefix = "❧ → ";
  * ../paper/markers.js): they take no room, so they can never move a flow.
  */
 export class SequenceLayout extends Box {
-  setProperties({ sequence, measurer, typography }) {
+  // `firstSide`: the side of a sheet its first page is - "recto" (the
+  // default) or "verso": among pages of their own in another document,
+  // after a right-hand page there, say (see ../print/Section.js).
+  setProperties({ sequence, measurer, typography, firstSide = "recto" }) {
     this.sequence = sequence;
+    this.firstSide = firstSide;
     this.measurer = measurer || null;
     this.typography = typography || defaultTypography;
   }
@@ -83,14 +85,20 @@ export class SequenceLayout extends Box {
       key: "document" + document.causality.id,
       document,
       exit: hasExitTitle(document, documents[index + 1]),
+      firstSide: index === 0 ? this.firstSide : "recto",
     }));
   }
 }
 
 export class DocumentLayout extends Section {
-  setProperties({ document, exit }) {
+  setProperties({ document, exit, firstSide = "recto" }) {
     this.document = document;
     this.exit = !!exit;
+    this.firstSide = firstSide;
+  }
+
+  firstPageSide() {
+    return this.firstSide;
   }
 
   // Its paper - and its page layout, for what shows the paper to draw on it
@@ -140,64 +148,81 @@ export class SectionLayout extends Box {
     const children = section.children;
     let sections = 0;
     const numberOf = () => numbered ? (number ? number + "." : "") + ++sections : null;
-    // A document's start as a book: where its pages start.
-    const document = section.front ? section : null;
-    const book = !!document && isBook(document);
-    const pageBreak = (child) => {
-      if (!document) return false;
-      if (isSection(child) && book && document.chaptersOnNewPage) return "recto";
-      return startsPage(document, child);
-    };
-    const hintOf = (paragraph) => document && paragraphText(paragraph) === "" ? hint(document, paragraph) : null;
-    const front = document ? document.front.children.map((paragraph, index) => new ParagraphLayout({
-      key: "front" + paragraph.causality.id,
-      paragraph,
-      breakBefore: index > 0 && startsPage(document, paragraph),
-      role: frozen({ body: true, hint: hintOf(paragraph) }),
-      width,
-      format,
-    })) : [];
-    const titleBreak = front.length > 0 ? "recto" : this.breakBefore;
-    // After the body: its back, each page on a fresh paper - the first, too.
-    const back = document ? document.back.children.map((paragraph, index) => new ParagraphLayout({
-      key: "back" + paragraph.causality.id,
-      paragraph,
-      breakBefore: index === 0 || startsPage(document, paragraph),
-      role: frozen({ body: true, hint: hintOf(paragraph) }),
-      width,
-      format,
-    })) : [];
+    // A document as a book: its chapters each on a page of its own - a
+    // right-hand one, printed on both sides.
+    const book = section instanceof Document && section.bookMode;
+    // Pages of their own anchored to a flow (see ../model/sequences.js).
+    const sequence = (flow, side) => flow[side]
+      ? [new InsertLayout({ key: side + flow.causality.id, sequence: flow[side], breakAfter: side === "before" || isSection(flow) || flow instanceof Document, before: side === "before" && flow instanceof Document })]
+      : [];
     const boxes = [
-      ...front,
-      new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level, number }), width, format, breakBefore: titleBreak }),
-      ...children.map((child, index) => isSection(child)
-        ? new SectionLayout({
-          key: "flow" + child.causality.id,
-          section: child,
-          parent: section,
-          level: titleLevel(child, level),
-          exit: hasExitTitle(child, children[index + 1], level),
-          width,
-          format,
-          numbered,
-          indented,
-          number: numberOf(),
-          breakBefore: pageBreak(child),
-        })
-        : new ParagraphLayout({
-          key: "flow" + child.causality.id,
-          paragraph: child,
-          breakBefore: pageBreak(child),
-          // Indented, in a document indenting its paragraphs - but the first of
-          // a run, a section's first, or after a section, isn't.
-          role: frozen({ body: true, indented, follows: indented && index > 0 && !isSection(children[index - 1]), hint: hintOf(child) }),
-          width,
-          format,
-        })),
+      ...(section instanceof Document ? sequence(section, "before") : []),
+      new ParagraphLayout({ key: "title", paragraph: section.title, role: frozen({ title: level, number }), width, format, breakBefore: this.breakBefore }),
+      ...sequence(section.title, "after"),
+      ...children.flatMap((child, index) => isSection(child)
+        ? [
+          ...sequence(child, "before"),
+          new SectionLayout({
+            key: "flow" + child.causality.id,
+            section: child,
+            parent: section,
+            level: titleLevel(child, level),
+            exit: hasExitTitle(child, children[index + 1], level),
+            width,
+            format,
+            numbered,
+            indented,
+            number: numberOf(),
+            breakBefore: book ? "recto" : false,
+          }),
+          ...sequence(child, "after"),
+        ]
+        : [
+          new ParagraphLayout({
+            key: "flow" + child.causality.id,
+            paragraph: child,
+            // Indented, in a document indenting its paragraphs - but the first of
+            // a run, a section's first, or after a section, isn't.
+            role: frozen({ body: true, indented, follows: indented && index > 0 && !isSection(children[index - 1]) }),
+            width,
+            format,
+          }),
+          ...sequence(child, "after"),
+        ]),
     ];
-    boxes.push(...back);
     if (this.exit) boxes.push(new ExitTitleLayout({ key: "exit", section, parent: this.parent, level: level - section.titleOffset, width, format }));
+    if (section instanceof Document) boxes.push(...sequence(section, "after"));
     return boxes;
+  }
+}
+
+// Pages of their own, anchored here (see ../model/sequences.js): where they
+// fall among the papers, written down for what shows them (see
+// ../print/PaperSequence.js's `inserts`) - after the paper the text has
+// got to, or, before a document's title, before its first. What comes
+// after them, after a section (`breakAfter`), starts a fresh paper; after
+// a paragraph, the text goes on filling the paper it's on. The papers after
+// them counted on past their pages (`pages`): a right-hand one, or a
+// left-hand one, as it falls. Before a document's title, its first paper
+// a right-hand one, printed on both sides: a blank back after them (`pad`)
+// where they'd end on a right-hand page.
+export class InsertLayout extends Box {
+  setProperties({ sequence, breakAfter = false, before = false }) {
+    this.sequence = sequence;
+    this.breakAfter = !!breakAfter;
+    this.before = !!before;
+  }
+
+  render(sequence) {
+    const next = sequence.next;
+    const format = sequence.pages[next.page];
+    const pages = pageCount(this.sequence);
+    const pad = this.before && !!format.duplex && pages % 2 === 1;
+    sequence.inserts.push(frozen({ page: next.page, before: this.before, sequence: this.sequence, format, pages, pad }));
+    if (this.before) return;
+    // The side of a sheet counted from a page further back - as far as
+    // their pages.
+    sequence.next = frozen({ ...next, firstPage: (next.firstPage || 0) - pages, ...(this.breakAfter ? { breakNext: true } : {}) });
   }
 }
 
@@ -224,8 +249,7 @@ export class ParagraphLayout extends Paragraph {
       layout.spaceAfter = 0;
       layout.firstLineIndent = this.role.follows ? (typography.paragraphIndent ?? defaultParagraphIndent) : 0;
     }
-    // An empty page's: what it usually is (see ../model/book.js).
-    const placeholder = this.role.hint || (this.role.body ? textPlaceholder : titlePlaceholder);
+    const placeholder = this.role.body ? textPlaceholder : titlePlaceholder;
     const number = this.role.number ? [{ text: this.role.number + titleNumberGap, font, fixed: true }] : [];
     return {
       ...layout,

@@ -119,7 +119,7 @@ export class Paragraph extends Box {
     this.unobservable.placements++;
     const format = this.format;
     const bottom = format.height - format.margins.bottom;
-    let { page, y, atPageTop, firstPage = 0 } = sequence.next;
+    let { page, y, atPageTop, firstPage = 0, breakNext = false } = sequence.next;
     // Each new paper as its side has it (see Section.js's formatOfPage()).
     const newPaper = () => {
       page += 1;
@@ -129,7 +129,8 @@ export class Paragraph extends Box {
     };
     // A fresh paper, if it's to start one - a right-hand one, if it's to:
     // a left-hand page left blank on the way.
-    if (this.breakBefore && !atPageTop) newPaper();
+    // After pages of their own (see Section.js's `breakNext`): a fresh one too.
+    if ((this.breakBefore || breakNext) && !atPageTop) newPaper();
     if (this.breakBefore === "recto" && formatOfPage(format, page, firstPage).side === "verso") newPaper();
     // Space between paragraphs - after the one before, and before this one -
     // but none at the top of a paper.
@@ -145,8 +146,9 @@ export class Paragraph extends Box {
         newPaper();
         pageLines = sequence.linesOf(page);
       }
-      // From the left margin of the paper it's on - the inner or the outer.
-      const left = formatOfPage(format, page, firstPage).margins.left;
+      // From the left margin of the paper it's on - the inner or the outer:
+      // as that paper is, whatever comes after it.
+      const left = sequence.pages[page].margins.left;
       pageLines.push(frozen({
         ...line,
         x: left + line.x,

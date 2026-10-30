@@ -52,7 +52,9 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  *     deleteBackward(at), deleteForward(at), splitParagraph(at),
  *     tab(at, { shift }),            // Tab - optional
  *     insert(at, content),           // optional: something inserted there (editAtCaret())
- *     pageBreak(at),                 // optional: Ctrl+Enter - a page starting there
+ *     pageBreak(at),                 // optional: Ctrl+Enter - pages of their own, book mode
+ *     unanchor(at),                  // optional: Ctrl+Backspace - pageBreak() undone
+ *     anchoredAt(at),                // optional: the flow to show pages of their own anchored to
  *     deleteBetween(anchor, focus),  // a selection, either way round
  *     wordAt(at), paragraphAt(at),   // [start, end] around a position
  *     settle(at),                    // optional: the caret going to `at` - not by an edit
@@ -88,8 +90,9 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * what it's in.
  */
 export class TabulaEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, onMarginDoubleClick, controller, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, onMarginDoubleClick, controller, renderInsert, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
     this.sequence = sequence;
+    this.renderInsert = renderInsert || null;
     this.controller = controller || null;
     this.onMarginDoubleClick = onMarginDoubleClick || null;
     this.onCaret = onCaret || null;
@@ -183,7 +186,12 @@ export class TabulaEditor extends Component {
     const { caret, focused, sequence, measurer } = this;
     const selected = this.hasSelection();
     const rows = caret || this.showAllAreas ? this.rows() : [];
-    const areas = this.showAllAreas ? rows.flatMap(({ row }) => row.area || []) : this.areaAtCaret(rows);
+    const areas = [
+      ...(this.showAllAreas ? rows.flatMap(({ row }) => row.area || []) : this.areaAtCaret(rows)),
+      // What pages of their own, still to be filled, are anchored to - as
+      // Ctrl+Enter climbs.
+      ...this.anchoredArea(),
+    ];
     // With something selected, the selection shows where the caret is.
     const geometry = caret && focused && !selected ? caretAt(rows, caret, measurer) : null;
     const selection = selected
@@ -195,6 +203,7 @@ export class TabulaEditor extends Component {
         onmousedown: callback("press", (event) => this.press(event)),
       },
       tabulaPaperView({
+        renderInsert: this.renderInsert,
         sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection, areas,
         outlines: this.showFocusOutline ? this.focusOutline() : [], offsetMarks: this.offsetMarks(),
         frame: selected ? null : anchorAt(caret),
@@ -221,6 +230,13 @@ export class TabulaEditor extends Component {
     return first ? [first] : [];
   }
 
+  // The flow the caret's pages of their own are anchored to (the editing's
+  // `anchoredAt()`): its content box - none, with none.
+  anchoredArea() {
+    const flow = this.caret && this.editing && this.editing.anchoredAt ? this.editing.anchoredAt(this.caret) : null;
+    return flow ? flowBoxes(this.sequence)(flow).content : [];
+  }
+
   // The area of the post marker the caret is at - none in the text, nor at a
   // pre marker: a place before a flow, not one closing it.
   areaAtCaret(rows) {
@@ -236,6 +252,10 @@ export class TabulaEditor extends Component {
   // down and dragged, the selection follows the mouse.
   press(event) {
     if (event.button !== 0) return;
+    // In pages of their own between this editor's papers: theirs, not its -
+    // but an editor in such pages takes what's pressed on its own.
+    const insert = event.target.closest && event.target.closest("[data-insert]");
+    if (insert && event.currentTarget.contains(insert)) return;
     const paper = event.target.closest && event.target.closest("[data-page]");
     // Off the papers: nothing selected, no caret.
     if (!paper) return this.deselect();
@@ -342,7 +362,8 @@ export class TabulaEditor extends Component {
       return start && this.moveCaret(start);
     }
     switch (key) {
-      case "Backspace": return editing && this.edit(selected ? null : (at) => editing.deleteBackward(at));
+      // With Ctrl (Cmd): pages of their own, or book mode, undone.
+      case "Backspace": return editing && this.edit(selected ? null : (at) => primary && editing.unanchor ? editing.unanchor(at) : editing.deleteBackward(at));
       case "Delete": return editing && this.edit(selected ? null : (at) => editing.deleteForward(at));
       // With Ctrl (Cmd): where a page starts - if the model has any to say.
       case "Enter": return editing && this.edit((at) => primary && editing.pageBreak ? editing.pageBreak(at) : editing.splitParagraph(at));

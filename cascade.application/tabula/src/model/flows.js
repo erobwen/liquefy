@@ -25,6 +25,10 @@ import { PageLayout } from "./pageLayout.js";
  * Every flow is observable, all the way down - its spans, its children - so
  * what's laid out from it follows every change.
  *
+ * Anchored to a flow, pages of their own (see sequences.js): an inner
+ * sequence after a paragraph (`after`), or before or after a section
+ * (`before`, `after`) - a document's, before its title or after it all.
+ *
  * Saved, a flow is a query (see ../shell/hydration.js) - of the family
  * "flow", every one a Flow: `{ type: "flow", name: "paragraph", properties:
  * { spans } }`, `{ type: "flow", name: "section", properties: { title,
@@ -69,15 +73,16 @@ export class Paragraph extends Flow {
   constructor(spans = []) {
     super();
     this.spans = observable(spans.map(toSpan));
+    this.after = null;
     return observable(this);
   }
 
   // Its spans: a string unless bold or italic - a frame anchor as itself,
-  // dehydrated in turn.
+  // dehydrated in turn - and the inner sequence after it, if there is one.
   dehydrate() {
     const spans = this.spans.map(({ text, bold, italic, anchor }) => anchor
       || ((bold || italic) ? { text, ...(bold ? { bold } : {}), ...(italic ? { italic } : {}) } : text));
-    return { type: "flow", name: "paragraph", properties: { spans } };
+    return { type: "flow", name: "paragraph", properties: { spans, ...(this.after ? { after: this.after } : {}) } };
   }
 }
 
@@ -91,6 +96,8 @@ export class Section extends Flow {
     this.title = toParagraph(title);
     this.titleOffset = titleOffset;
     this.children = observable(checkChildren(children));
+    this.before = null;
+    this.after = null;
     return observable(this);
   }
 
@@ -98,7 +105,13 @@ export class Section extends Flow {
     return {
       type: "flow",
       name: "section",
-      properties: { title: this.title, ...(this.titleOffset ? { titleOffset: this.titleOffset } : {}), children: [...this.children] },
+      properties: {
+        title: this.title,
+        ...(this.titleOffset ? { titleOffset: this.titleOffset } : {}),
+        ...(this.before ? { before: this.before } : {}),
+        ...(this.after ? { after: this.after } : {}),
+        children: [...this.children],
+      },
     };
   }
 }
@@ -107,46 +120,19 @@ export class Section extends Flow {
 // its paper, whether its titles are numbered (`numberTitles`, see
 // titleNumber()), and whether its paragraphs are indented rather than
 // spaced apart (`indentParagraphs`, see ../layout) - and its page layout
-// (see pageLayout.js): given, or made of `margins`, nothing on its pages.
-//
-// And the start of a book - none, as every document starts out, until it's
-// asked for (see book.js, and ../paper/editing.js's pageBreak()):
-//
-//  - `front`: pages before the title - a half title, say - as paragraphs
-//    (Matter: a list of them, not a section). `back`: pages after the body
-//    - notes, the colophon - the same.
-//  - `pageStarts`: the flows that start a page - in the front, or among
-//    its children before its first section: the title page, the pages after
-//    it, the body. Pages there, a paragraph each to start with, rather than
-//    the paragraphs of a flow.
-//  - `chaptersOnNewPage`: in a book, every section right in it - a
-//    chapter - on a page of its own (a right-hand one, printed on both
-//    sides).
+// (see pageLayout.js): given, or made of `margins`, nothing on its pages -
+// and whether it's a book (`bookMode`): its chapters, the sections right in
+// it, each starting a page of its own (a right-hand one, printed on both
+// sides) - its title, and what's before its first chapter, its title page.
+// Not, as every document starts out: its chapters running on.
 export class Document extends Section {
-  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, front = [], back = [], chaptersOnNewPage = true }, children = []) {
+  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, bookMode = false }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
     this.pageLayout = pageLayout || new PageLayout({ margins });
     this.numberTitles = !!numberTitles;
     this.indentParagraphs = !!indentParagraphs;
-    this.front = new Matter(front);
-    this.back = new Matter(back);
-    this.pageStarts = observable([]);
-    this.chaptersOnNewPage = !!chaptersOnNewPage;
-  }
-}
-
-// A document's front or back matter: the paragraphs before its title, or
-// after its body (see Document) - a list of them, as a section's children
-// are, but no section: no title, no structure, only pages.
-export class Matter extends Flow {
-  constructor(children = []) {
-    super();
-    children.forEach((child, index) => {
-      if (!(child instanceof Paragraph)) throw new Error("A document's front or back matter holds paragraphs - its child " + index + " isn't one.");
-    });
-    this.children = observable(children);
-    return observable(this);
+    this.bookMode = !!bookMode;
   }
 }
 
@@ -217,9 +203,6 @@ export function sectionsAround(root, flow) {
   const visit = (section, path) => {
     const here = [...path, section];
     if (section.title === flow) return here;
-    // Before a document's title, after its body: in the document, as its
-    // children are.
-    if (section.front && (section.front.children.includes(flow) || section.back.children.includes(flow))) return here;
     for (const child of section.children) {
       if (child === flow) return here;
       if (isSection(child)) {

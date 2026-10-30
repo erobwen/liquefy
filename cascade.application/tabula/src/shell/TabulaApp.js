@@ -5,7 +5,8 @@ import { paperBackdrop } from "../paper/TabulaPaperView.js";
 import { nullDocument } from "./NullDocument.js";
 import { creationDot } from "./CreationDot.js";
 import { removeButton } from "./removeButton.js";
-import { documentTypes, rootDocumentTypes, frameTypes, documentType, documentName, createDocument, hydrateRoot, dehydrateRoot } from "./documents.js";
+import { documentTypes, rootDocumentTypes, frameTypes, documentType, documentName, createDocument, hydrateFile, dehydrateFile } from "./documents.js";
+import { picturePage } from "./InsertView.js";
 import { openFile, saveFile } from "./files.js";
 import { jsonEditor } from "./json/JsonEditor.js";
 import { treeView } from "./TreeView.js";
@@ -85,7 +86,11 @@ export class TabulaApp extends Component {
     // documents: hydrated - none, one, or a sequence of them. fileName:
     // what they were opened from, and are saved as.
     // settingsShown: the settings dialog's page, while it's open.
-    return { documents: [], fileName: null, message: null, zoom: 1, mode: "paper", settingsShown: null };
+    // print: how the whole of it is printed - the printer's settings, the
+    // file's root's: both sides of the paper, or one (see documents.js's
+    // hydrateFile()). A document's own page setup is what it asks for; the
+    // printer does its best by it.
+    return { documents: [], fileName: null, message: null, zoom: 1, mode: "paper", settingsShown: null, print: Object.freeze({ duplex: false }) };
   }
 
   initialUnobservables() {
@@ -128,16 +133,28 @@ export class TabulaApp extends Component {
   // For the editors below: where to put their context menus - and the
   // settings dialog, opened on a page of it: a document type's name (see
   // documents.js), or "tabula", the app's own.
+  // And, for pages of their own in a document (see InsertView.js), how
+  // documents are shown, made and told apart - as the app shows its own.
   provide() {
-    return { contextMenus: this.unobservable.menus, openSettings: (page) => this.openSettings(page) };
+    return {
+      contextMenus: this.unobservable.menus,
+      openSettings: (page) => this.openSettings(page),
+      documentViews: {
+        types: () => [...rootDocumentTypes(this.services), ...frameTypes(this.services, "page").filter((type) => !type.editor)],
+        create: (type) => createDocument(type),
+        view: (document, properties) => this.itemView(document, properties),
+        keyOf: (document) => keyOf(document),
+      },
+    };
   }
 
   openSettings(page = "tabula") {
     this.settingsShown = page;
   }
 
-  show(documents, fileName = null, file = null) {
+  show(documents, fileName = null, file = null, print = Object.freeze({ duplex: false })) {
     this.documents = documents;
+    this.print = print;
     this.fileName = fileName;
     this.message = null;
     this.unobservable.file = file;
@@ -156,7 +173,8 @@ export class TabulaApp extends Component {
     try {
       const file = await openFile();
       if (!file) return;
-      this.show(hydrateRoot(JSON.parse(file.text), this.services), file.name, file.handle);
+      const { documents, print } = hydrateFile(JSON.parse(file.text), this.services);
+      this.show(documents, file.name, file.handle, print);
     } catch (error) {
       this.message = "Couldn't open it: " + error.message;
     }
@@ -166,7 +184,7 @@ export class TabulaApp extends Component {
   // the user says.
   async save({ as = false } = {}) {
     try {
-      const text = JSON.stringify(dehydrateRoot(this.documents), null, 2);
+      const text = JSON.stringify(dehydrateFile(this.documents, this.print), null, 2);
       const saved = await saveFile({ name: this.fileName || "document.json", text, handle: this.unobservable.file, as });
       if (!saved) return;
       this.unobservable.file = saved.handle;
@@ -177,15 +195,22 @@ export class TabulaApp extends Component {
     }
   }
 
-  // All of it, on paper - each document as its plugin prints it.
-  // A plugin's may take a while - a PDF's, drawn page by page: waited for.
-  async print() {
+  // All of it, on paper - each document as its plugin prints it. A
+  // plugin's may take a while - a PDF's, drawn page by page: waited for.
+  // Printed on both sides: each document from a right-hand page - a blank
+  // back left before it, where it'd start on a left-hand one.
+  async printAll() {
     try {
-      const pages = await Promise.all(this.documents.map((document) => {
+      const printed = await Promise.all(this.documents.map((document) => {
         const type = document.documentType;
         return type && type.print ? type.print(document.model) : [];
       }));
-      await printPages(pages.flat(), { title: this.fileName || "Tabula" });
+      const pages = [];
+      for (const each of printed) {
+        if (this.print.duplex && pages.length % 2 === 1 && each.length > 0) pages.push(blankPage(each[0]));
+        pages.push(...each);
+      }
+      await printPages(pages, { title: this.fileName || "Tabula" });
     } catch (error) {
       this.message = "Couldn't print it: " + error.message;
     }
@@ -197,11 +222,12 @@ export class TabulaApp extends Component {
   // them knows (but those there already). Says why not, if not.
   apply(json) {
     try {
-      const documents = hydrateRoot(json, this.services);
+      const { documents, print } = hydrateFile(json, this.services);
       const unknown = (list) => list.filter((each) => !each.documentType).length;
       if (unknown(documents) > unknown(this.documents)) return "no plugin in use knows a document of that name";
       if (documents.length === 0) return "the root can't be emptied here - New does that";
       this.documents = documents;
+      this.print = print;
       return null;
     } catch (error) {
       return error.message;
@@ -226,6 +252,8 @@ export class TabulaApp extends Component {
       fileName: this.fileName,
       menus: this.unobservable.menus,
       message: this.message,
+      print: this.print,
+      onPrint: callback("printing", (print) => { this.print = Object.freeze({ ...print }); }),
     };
     return overlayFrame(
       { style: { ...fitContainerStyle } },
@@ -268,7 +296,7 @@ export class TabulaApp extends Component {
       { icon: "folder_open", label: "Open…", title: "Open a document (Ctrl+O)", onClick: callback("open", () => this.open()) },
       { icon: "save", label: "Save", title: "Save (Ctrl+S) - to the file it came from", disabled: none, onClick: callback("save", () => this.save()) },
       { icon: "save_as", label: "Save as…", title: "Save as (Ctrl+Shift+S) - somewhere else", disabled: none, onClick: callback("saveAs", () => this.save({ as: true })) },
-      { icon: "print", label: "Print", title: "Print - on paper, whatever the mode", disabled: none, onClick: callback("print", () => this.print()) },
+      { icon: "print", label: "Print", title: "Print - on paper, whatever the mode", disabled: none, onClick: callback("print", () => this.printAll()) },
       { icon: "settings", label: "Settings…", title: "Settings", onClick: callback("settings", () => this.openSettings()) },
     ];
   }
@@ -326,7 +354,7 @@ export class TabulaApp extends Component {
     if (mode.name === "json") {
       return div(
         { key: "json", style: { padding: "16px" } },
-        jsonEditor({ json: dehydrateRoot(documents), apply: callback("apply", (json) => this.apply(json)) }),
+        jsonEditor({ json: dehydrateFile(documents, this.print), apply: callback("apply", (json) => this.apply(json)) }),
       );
     }
     if (mode.name === "tree") {
@@ -411,6 +439,16 @@ export class TabulaApp extends Component {
     return type.editor({ key, model: document.model, zoom: this.zoom, onRemove, target });
   }
 
+  // A document among pages of their own in another (see InsertView.js): its
+  // plugin's editor, on paper, at the zoom of the papers it's among; a kind
+  // with no editor, only a frame - a picture - a page it fills.
+  itemView(document, { key, format, onRemove }) {
+    const type = document.documentType && documentType(this.services, document.documentType.name);
+    if (!type) return this.noPlugin(key, documentName(document), onRemove);
+    if (type.editor) return type.editor({ key, model: document.model, zoom: 1, onRemove, target: "paper" });
+    return picturePage({ key, type, model: document.model, format, onRemove });
+  }
+
   noPlugin(key, name, onRemove) {
     return div(
       { key, style: { padding: "8mm" } },
@@ -460,6 +498,9 @@ export class TabulaApp extends Component {
     ];
   }
 }
+
+// A blank page, as `page` is - the back of the sheet before it.
+const blankPage = (page) => ({ format: page.format, lines: [], frames: [] });
 
 // A document's key, in the column showing it - a hydrated document is a
 // plain object, with nothing but its type and model in it.

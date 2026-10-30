@@ -1,4 +1,4 @@
-import { Component, repeat, retractRepeater, callback, frozen, locateService } from "@liquefy/cascade.component";
+import { Component, repeat, retractRepeater, callback, frozen, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { overlay } from "@liquefy/cascade.ui";
 import { PaperSequence } from "../../print/index.js";
@@ -11,17 +11,9 @@ import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { removeButton } from "../../shell/removeButton.js";
 import { takeFocus, releaseFocus } from "../../shell/contextMenus.js";
 import { structuredTextSettings } from "./settings.js";
-import { createDocument } from "../../shell/documents.js";
-
-// The image document type, if a plugin in use has one - found through the
-// service locators where the editor is.
-function imageType() {
-  try {
-    return locateService({ type: "documentType", name: "image" }) || null;
-  } catch (error) {
-    return null;
-  }
-}
+import { insertView } from "../../shell/InsertView.js";
+import { anchorOf, hintFor, anchoredSequences } from "../../model/sequences.js";
+import { clamp } from "../../shell/clamp.js";
 import { contextPath } from "./menus.js";
 
 // Around the papers, and between them (see ../../paper/TabulaPaperView.js).
@@ -100,8 +92,6 @@ export class StructuredTextEditor extends Component {
       exitTitles: () => this.unobservable.settings.exitTitles,
       keepEmptyLine: () => this.unobservable.settings.keepEmptyLine,
       demoteWithChildren: () => this.unobservable.settings.demoteWithChildren,
-      // A page made a picture: an image - if a plugin in use has images.
-      pageContent: () => this.unobservable.image ? createDocument(this.unobservable.image) : null,
       refuse: () => this.refused(),
     });
     return u;
@@ -113,6 +103,13 @@ export class StructuredTextEditor extends Component {
 
   pageCount() {
     return this.unobservable.sequence.pages.length;
+  }
+
+  // One level deeper, for pages of their own in it (see
+  // ../../shell/clamp.js).
+  provide() {
+    const editor = this;
+    return { get groupDepth() { return editor.unobservable.depth + 1; } };
   }
 
   // See ../../shell/contextMenus.js.
@@ -142,6 +139,26 @@ export class StructuredTextEditor extends Component {
     }
     const { controller, editing } = this.unobservable;
     return !!controller.editor && controller.editor.editAtCaret((at) => editing.insert(at, content));
+  }
+
+  // Pages of their own, between the papers (see ../../model/sequences.js):
+  // what's in them, as the app shows documents - what's still a place
+  // saying what it usually is, where it's anchored. The last item taken out,
+  // gone from where it's anchored.
+  insertView(insert) {
+    const anchor = anchorOf(this.model, insert.sequence);
+    return insertView({
+      key: "insert" + insert.sequence.causality.id,
+      sequence: insert.sequence,
+      format: insert.format,
+      before: insert.before,
+      pad: insert.pad,
+      hint: anchor ? hintFor(this.model, anchor.flow, anchor.side) : "",
+      onEmpty: callback("empty" + insert.sequence.causality.id, () => {
+        const place = anchorOf(this.model, insert.sequence);
+        if (place) place.flow[place.side] = null;
+      }),
+    });
   }
 
   // Writing, or laying out the pages: the caret, or the selected element,
@@ -195,8 +212,20 @@ export class StructuredTextEditor extends Component {
     const { root, sequence, measurer, editing, controller } = this.unobservable;
     const settings = structuredTextSettings();
     this.unobservable.settings = settings;
-    this.unobservable.image = imageType();
     const corner = `calc(${paperInset}mm * ${this.zoom})`;
+    // Among pages of their own in another document (see
+    // ../../shell/InsertView.js): how many pages it takes, told - and the side
+    // of a sheet its first page is, as told.
+    const report = this.inherit("reportPageCount");
+    if (report) report(Math.max(1, sequence.pages.length));
+    const side = this.inherit("firstSide") || "recto";
+    const layout = this.unobservable.layout;
+    if (withoutRecording(() => layout.firstSide) !== side) accessInitialValues(() => { layout.firstSide = side; });
+    // A clamp along its papers, where it has pages of their own - or is
+    // among another's: which pages belong to it (see ../../shell/clamp.js).
+    const depth = this.inherit("groupDepth") || 0;
+    this.unobservable.depth = depth;
+    const clamped = depth > 0 || anchoredSequences(this.model).length > 0;
     return div(
       { style: { position: "relative" } },
       tabulaEditor({
@@ -206,6 +235,7 @@ export class StructuredTextEditor extends Component {
         ...sectionEnds(settings),
         onCaret: callback("caret", (at) => this.caretMoved(at)),
         onMarginDoubleClick: callback("pages", () => this.setMode("page")),
+        renderInsert: callback("insert", (insert) => this.insertView(insert)),
       }),
       this.mode === "page"
         ? overlay(
@@ -226,6 +256,7 @@ export class StructuredTextEditor extends Component {
           ),
         )
         : null,
+      clamped ? clamp({ depth, paperWidth: this.model.paper.width, inset: paperInset * 1000, zoom: this.zoom }) : null,
       this.onRemove ? removeButton(this.onRemove, { left: corner, top: corner }) : null,
       // A new one every time - keyed by the count - so it flashes again.
       this.flash && this.flash.shown

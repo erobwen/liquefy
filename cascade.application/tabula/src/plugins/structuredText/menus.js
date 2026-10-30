@@ -4,7 +4,6 @@ import { button, checkbox, iconButton, row } from "@liquefy/cascade.ui";
 import { paperSizes, margins, mm, inch } from "../../print/index.js";
 import { Paragraph, Document, isSection, paragraphText, titleLevel, focusedFlow } from "../../model/flows.js";
 import { anchorAt, frameKind, placements } from "../../model/frames.js";
-import { isBook, isWholePage } from "../../model/book.js";
 import { elementRect, pageKinds } from "../../model/pageLayout.js";
 import { titlePlaceholder } from "../../layout/DocumentLayout.js";
 import { menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
@@ -89,10 +88,7 @@ function frameEntry(editor, anchor) {
   const step = mm(10);
   const width = Math.min(anchor.width, widest);
   const setWidth = (value) => { anchor.width = Math.max(step, Math.min(widest, value)); };
-  // The whole page: only for a page of a book's own, the frame all that's on it.
-  const caret = editor.caret;
-  const wholePage = caret && "paragraph" in caret && isWholePage(editor.model, caret.paragraph) && caret.paragraph.spans.length === 1;
-  const choices = placements.filter(({ value }) => value !== "page" || wholePage || anchor.placement === "page");
+  const choices = placements;
   return {
     key: "frame",
     icon: type ? type.icon : "help",
@@ -124,7 +120,6 @@ function frameEntry(editor, anchor) {
 }
 
 const placementNotes = {
-  page: "The whole page, edge to edge - a picture cropped to fill it. Tab makes it an empty page again.",
   inline: "In the line, as a word - the line as tall as it is.",
   block: "On a line of its own, centred - the text above and below it.",
   left: "At the left, its top at the line it's in - the text flowing around it on the right.",
@@ -269,18 +264,14 @@ function documentMenu(editor) {
       onChange: callback("numberTitles", (checked) => { document.numberTitles = checked; }),
     }),
     note("Every title but the document's own numbered by where it is - 2.1, and on. The numbers aren't text: they follow the structure."),
-    // A book: once it has pages before its body (see ../../model/book.js).
-    isBook(document)
-      ? [
-        checkbox({
-          key: "chapters",
-          label: document.pageLayout.duplex ? "Chapters start on a right-hand page" : "Chapters start on a new page",
-          checked: document.chaptersOnNewPage,
-          onChange: callback("chapters", (checked) => { document.chaptersOnNewPage = checked; }),
-        }),
-        note("A book: pages before its text - Ctrl+Enter there adds one, Backspace at a page's start takes it away."),
-      ]
-      : note("Ctrl+Enter after the title: a title page - a book."),
+    // A book: its chapters each on a page of its own.
+    checkbox({
+      key: "bookMode",
+      label: document.pageLayout.duplex ? "A book: chapters start on a right-hand page" : "A book: chapters start on a new page",
+      checked: document.bookMode,
+      onChange: callback("bookMode", (checked) => { document.bookMode = checked; }),
+    }),
+    note("Or Ctrl+Enter at a chapter's start - Ctrl+Backspace there undoes it. Ctrl+Enter in the text: pages of their own after it - again, a step further out."),
     checkbox({
       key: "indentParagraphs",
       label: "Indent paragraphs instead of spacing them",

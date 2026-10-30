@@ -1,6 +1,6 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, span, text, button as htmlButton, flipAnimationContainer } from "@liquefy/cascade.dom";
-import { card, iconButton, fitContainerStyle, drawers, drawerPanel, drawerBarSize } from "@liquefy/cascade.ui";
+import { card, checkbox, iconButton, fitContainerStyle, drawers, drawerPanel, drawerBarSize } from "@liquefy/cascade.ui";
 import { contextAccordion, menuNote } from "./contextMenus.js";
 import { icon } from "./appStyle.js";
 import { scrollColumn, gutterWidth, gutterEasing } from "./ScrollColumn.js";
@@ -49,7 +49,7 @@ import { scrollColumn, gutterWidth, gutterEasing } from "./ScrollColumn.js";
 // The view - what the documents are shown on - as the accordion's first
 // entry: the root of everything in it, the whole of what's shown its
 // subject.
-function viewEntry({ modes, mode, onMode }) {
+function viewEntry({ modes, mode, onMode, print, onPrint }) {
   const current = modes.find((each) => each.name === mode) || modes[0];
   return {
     key: "view",
@@ -70,6 +70,15 @@ function viewEntry({ modes, mode, onMode }) {
           text(each.label),
         )),
       ),
+      // The printer's: the whole file printed on both sides of the paper.
+      print
+        ? checkbox({
+          key: "duplex",
+          label: "Print on both sides",
+          checked: print.duplex,
+          onChange: (checked) => onPrint({ ...print, duplex: checked }),
+        })
+        : null,
     ],
   };
 }
@@ -81,8 +90,8 @@ const modeStyle = {
 };
 
 export class PaperLayout extends Component {
-  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom }) {
-    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, zoom, onZoom });
+  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom, print, onPrint }) {
+    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, zoom, onZoom, print, onPrint });
   }
 
   initialState() {
@@ -218,8 +227,8 @@ export class PaperLayout extends Component {
 }
 
 export class AppLayout extends Component {
-  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message }) {
-    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message });
+  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, print, onPrint }) {
+    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, print, onPrint });
   }
 
   initialState() {

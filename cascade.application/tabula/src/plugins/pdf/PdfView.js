@@ -95,6 +95,9 @@ export class PdfView extends Component {
   build() {
     const { model } = this;
     const focus = callback("focus", () => takeFocus(this));
+    // Among pages of their own in a document: how many pages it takes, told.
+    const report = this.inherit("reportPageCount");
+    if (report && this.pages) report(this.pages.length);
     if (!model.data) return this.chooser(focus);
     const pages = this.pages;
     if (this.target === "web") {

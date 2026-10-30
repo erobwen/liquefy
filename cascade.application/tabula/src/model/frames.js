@@ -23,9 +23,7 @@ import { isFlowEdge } from "./flows.js";
  *  - `placement`: where the frame goes, laid out (see
  *    ../print/lineBreaking.js) - "inline": in the line, as a word; "block":
  *    on a line of its own; "left", "right": at that side, the text flowing
- *    around it; "page": the whole paper, edge to edge - a page of a book's
- *    own made a picture (see book.js's isWholePage()), its anchor all the
- *    text there is on it.
+ *    around it.
  *  - `width`, in µm - its height from its content's aspect ratio (see
  *    frameSize()).
  *
@@ -39,14 +37,7 @@ export const placements = Object.freeze([
   { value: "block", label: "Own line", icon: "horizontal_rule" },
   { value: "left", label: "Left", icon: "format_image_left" },
   { value: "right", label: "Right", icon: "format_image_right" },
-  { value: "page", label: "Full page", icon: "crop_free" },
 ]);
-
-// The anchor a paragraph is all of, its frame the whole page - or null.
-export function pageFrameOf(paragraph) {
-  const spans = paragraph.spans;
-  return spans.length === 1 && spans[0].anchor && spans[0].anchor.placement === "page" ? spans[0].anchor : null;
-}
 
 export class FrameAnchor {
   constructor({ content, placement = "block", width = mm(80) }) {

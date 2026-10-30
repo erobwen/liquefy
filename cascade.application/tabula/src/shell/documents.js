@@ -187,6 +187,23 @@ export function hydrateRoot(json, services) {
   return [hydrateDocument(json, services)];
 }
 
+// A whole file - what hydrateRoot() reads, or, with how it's printed set
+// (`print`: { duplex } - the printer's, the paper's both sides, or one),
+// a sequence saying so: { type: "sequence", name: "root", properties: {
+// print, items } }. Hydrated: { documents, print }.
+export function hydrateFile(json, services) {
+  if (json && typeof(json) === "object" && !(json instanceof Array) && json.type === "sequence" && json.name === "root") {
+    const properties = json.properties || {};
+    return { documents: hydrateRoot(properties.items || [], services), print: Object.freeze({ duplex: !!(properties.print && properties.print.duplex) }) };
+  }
+  return { documents: hydrateRoot(json, services), print: Object.freeze({ duplex: false }) };
+}
+
+export function dehydrateFile(documents, print = {}) {
+  if (!print.duplex) return dehydrateRoot(documents);
+  return { type: "sequence", name: "root", properties: { print: { duplex: true }, items: documents.map((each) => dehydrateDocument(each)) } };
+}
+
 export function dehydrateRoot(documents) {
   if (documents.length === 0) return null;
   if (documents.length === 1) return dehydrateDocument(documents[0]);

@@ -125,7 +125,10 @@ export function placeElement(element, rect, paper, verso = false) {
 
 // The elements of a page - page `index` of `count` in a document laid out
 // with `layout` - each with where it is, on `paper`.
+// A paper that says which side it is (`side`, see ../print/Section.js's
+// formatOfPage()) is that side - whatever came before it.
 export function pageElements(layout, index, count, paper) {
   if (!layout) return [];
-  return layout[pageKind(index, count)].map((element) => ({ element, rect: elementRect(element, paper, isVerso(layout, index)) }));
+  const verso = paper.side ? paper.side === "verso" : isVerso(layout, index);
+  return layout[pageKind(index, count)].map((element) => ({ element, rect: elementRect(element, paper, verso) }));
 }

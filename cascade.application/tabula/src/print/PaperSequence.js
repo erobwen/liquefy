@@ -21,10 +21,15 @@ import { observable } from "@liquefy/cascade.component";
  *    leaves the next one where it was - and nothing after it lays out again.
  *  - `linesOf(page)`: the lines on one paper (see Paragraph.js for what a
  *    placed line holds).
+ *  - `inserts`: what goes between the papers - each { page, before,
+ *    sequence, format }: after paper `page` (or, `before`, before it), pages
+ *    of their own, shown and printed by whoever knows what they are; the
+ *    paper they follow's format, for theirs to go by.
  */
 export class PaperSequence {
   constructor() {
     this.pages = observable([]);
+    this.inserts = observable([]);
     this.next = null;
     // No timeless side (see cascade.component's fromTarget()): nothing about
     // a paper sequence is the same throughout a pass.

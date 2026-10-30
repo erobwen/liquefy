@@ -1,10 +1,10 @@
-import { callback, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { callback } from "@liquefy/cascade.component";
 import { div, text, input } from "@liquefy/cascade.dom";
 import { button, checkbox, iconButton, row } from "@liquefy/cascade.ui";
 import { paperSizes, margins, mm, inch } from "../../print/index.js";
 import { Paragraph, Document, isSection, paragraphText, titleLevel, focusedFlow } from "../../model/flows.js";
 import { anchorAt, frameKind, placements } from "../../model/frames.js";
-import { elementRect, pageKinds } from "../../model/pageLayout.js";
+import { elementEntry, sideName, inOneGo } from "../../paper/pageElementMenu.js";
 import { titlePlaceholder } from "../../layout/DocumentLayout.js";
 import { menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
 
@@ -157,68 +157,6 @@ function marginControls(document) {
 }
 
 // Printed on both sides, left and right are inner and outer.
-const sideName = (side, duplex) => ({ left: duplex ? "Inner" : "Left", right: duplex ? "Outer" : "Right", top: "Top", bottom: "Bottom" })[side];
-
-// The page element selected: its size, the edges it's measured from - the
-// ones nearest it, as it's placed, or the others, as chosen - what its
-// kind has to offer, and taking it out.
-function elementEntry(editor, { element, kind }) {
-  const type = element.content && element.content.documentType;
-  const frame = type ? type.frame : null;
-  const paper = editor.model.paper;
-  const page = pageKinds.find((each) => each.name === kind);
-  const duplex = editor.model.pageLayout.duplex;
-  // Measured from another edge, it stays where it is.
-  const measureFrom = (horizontal, vertical) => {
-    const rect = elementRect(element, paper);
-    inOneGo(() => {
-      element.horizontal = horizontal;
-      element.x = horizontal === "left" ? rect.x : paper.width - rect.x - rect.width;
-      element.vertical = vertical;
-      element.y = vertical === "top" ? rect.top : paper.height - rect.top - rect.height;
-    });
-  };
-  const size = (label, key) => row(
-    { key, style: { alignItems: "center", gap: "6px" } },
-    div({ style: { flex: "1" } }, text(label)),
-    input({
-      key: key + "Input", type: "number", min: 1, step: 1,
-      value: String(Math.round(element[key] / 100) / 10),
-      onchange: callback(key, (event) => {
-        const value = Number(event.target.value);
-        if (Number.isFinite(value) && value > 0) element[key] = Math.round(value * 1000);
-      }),
-      style: { width: "72px", font: "inherit", padding: "2px 4px" },
-    }),
-    div({ style: { fontSize: "13px", opacity: 0.7 } }, text("mm")),
-  );
-  const choice = (key, values, current, choose) => row(
-    { key, style: { gap: "4px" } },
-    values.map(({ value, label }) => button({ key: key + value, variant: current === value ? "filled" : undefined }, label, callback(key + value, () => choose(value)))),
-  );
-  return {
-    key: "element",
-    icon: type ? type.icon : "help",
-    title: type ? type.label : "Element",
-    details: () => [note("On the " + page.label.toLowerCase() + ". Drag it to move it, its corner to resize it - Delete takes it out.")],
-    build: () => [
-      heading("Size"),
-      size("Width", "width"),
-      size("Height", "height"),
-      heading("Measured from"),
-      choice("horizontal", [{ value: "left", label: sideName("left", duplex) + " edge" }, { value: "right", label: sideName("right", duplex) + " edge" }], element.horizontal, (value) => measureFrom(value, element.vertical)),
-      choice("vertical", [{ value: "top", label: "Top edge" }, { value: "bottom", label: "Bottom edge" }], element.vertical, (value) => measureFrom(element.horizontal, value)),
-      note("Where it stays, on paper of another size - the nearest edges, as it's placed."),
-      frame && frame.controls ? [heading(type.label), ...frame.controls(element.content.model)] : null,
-      button({ key: "remove" }, "Remove", callback("remove", () => {
-        const list = editor.model.pageLayout[kind];
-        const index = list.indexOf(element);
-        if (index >= 0) list.splice(index, 1);
-        editor.selectElement(null);
-      })),
-    ],
-  };
-}
 
 // --- The document ----------------------------------------------------------
 
@@ -228,6 +166,29 @@ const paperMargins = { A4: margins(mm(25)), letter: margins(inch(1)) };
 function documentMenu(editor) {
   const document = editor.model;
   const pages = editor.pageCount();
+  // Among pages of their own in another document: on that one's page
+  // settings (see ../../layout/DocumentLayout.js) - unless it keeps its own.
+  const embedded = !!editor.paperSequence;
+  const paperOfItsOwn = !embedded || document.ownPaper;
+  return [
+    ...(!embedded ? [] : [
+      heading("Paper"),
+      checkbox({
+        key: "ownPaper",
+        label: "Its own paper",
+        checked: document.ownPaper,
+        onChange: callback("ownPaper", (checked) => { document.ownPaper = checked; }),
+      }),
+      paperOfItsOwn ? null : note("On the paper of the document it's in - its size, its margins, its sides - " + pages + (pages === 1 ? " page." : " pages.")),
+    ]),
+    ...(paperOfItsOwn ? pageSettings(editor, document, pages, !embedded) : []),
+    heading("Whole document"),
+    ...wholeDocument(editor, document),
+  ];
+}
+
+// Its own page settings: its paper, its sides, its page layout.
+function pageSettings(editor, document, pages, titled = true) {
   return [
     row(
       { key: "mode", style: { gap: "4px" } },
@@ -240,7 +201,7 @@ function documentMenu(editor) {
     editor.mode === "page"
       ? note("The first page, every page between, the last: what's drawn on them, and the margins - the text showing through. Double click inside the margins to write again.")
       : null,
-    heading("Paper"),
+    titled ? heading("Paper") : null,
     row(
       { style: { gap: "6px", alignItems: "center" } },
       button({ variant: sameSize(document.paper, paperSizes.A4) ? "filled" : undefined }, "A4", callback("A4", () => setPaper(document, "A4"))),
@@ -256,7 +217,13 @@ function documentMenu(editor) {
       ? "Printed on both sides, like a book: the pages face each other, mirrored - the shade is where they're bound."
       : "Printed on one side, like a letter."),
     ...(editor.mode === "page" ? marginControls(document) : []),
-    heading("Whole document"),
+  ];
+}
+
+// What goes for the whole document: its titles numbered, a book, its
+// paragraphs indented.
+function wholeDocument(editor, document) {
+  return [
     checkbox({
       key: "numberTitles",
       label: "Number titles",
@@ -314,15 +281,6 @@ function clear(document) {
 }
 
 // A change to the document from a menu - in one go, laid out once.
-function inOneGo(change) {
-  postponeInvalidations();
-  try {
-    change();
-  } finally {
-    continueInvalidations();
-  }
-}
-
 // --- The flow the caret is in -------------------------------------------------
 
 // What's good to know about a flow, but needn't take room all the time:

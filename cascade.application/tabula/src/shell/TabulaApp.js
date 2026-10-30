@@ -5,6 +5,7 @@ import { paperBackdrop } from "../paper/TabulaPaperView.js";
 import { nullDocument } from "./NullDocument.js";
 import { creationDot } from "./CreationDot.js";
 import { removeButton } from "./removeButton.js";
+import { surfacePadding, dotLineStyle } from "./spacing.js";
 import { documentTypes, rootDocumentTypes, frameTypes, documentType, documentName, createDocument, hydrateFile, dehydrateFile } from "./documents.js";
 import { picturePage } from "./InsertView.js";
 import { openFile, saveFile } from "./files.js";
@@ -140,7 +141,7 @@ export class TabulaApp extends Component {
       contextMenus: this.unobservable.menus,
       openSettings: (page) => this.openSettings(page),
       documentViews: {
-        types: () => [...rootDocumentTypes(this.services), ...frameTypes(this.services, "page").filter((type) => !type.editor)],
+        types: () => rootDocumentTypes(this.services),
         create: (type) => createDocument(type),
         view: (document, properties) => this.itemView(document, properties),
         keyOf: (document) => keyOf(document),
@@ -379,14 +380,17 @@ export class TabulaApp extends Component {
   // between and after them - pointing up before the first, down after the
   // last, both ways between two; or, where they're lined up on the left
   // (`aligned` "left"), pointing right at their left edge.
-  dots(documents, rowStyle, view, aligned = "center") {
+  // `edgeStyle`: the room of the first and the last - `rowStyle` the
+  // others', by default theirs too.
+  dots(documents, rowStyle, view, aligned = "center", edgeStyle = rowStyle) {
     const shape = (index) => aligned === "left" ? "right"
       : index === 0 ? "up" : index === documents.length ? "down" : "diamond";
+    const last = documents.length - 1;
     return [
-      this.dot("first", 0, documents.length === 1 ? "Create something before it" : "Create something first", shape(0), rowStyle),
+      this.dot("first", 0, documents.length === 1 ? "Create something before it" : "Create something first", shape(0), edgeStyle),
       documents.flatMap((document, index) => [
         view(document),
-        this.dot("after" + keyOf(document), index + 1, index === documents.length - 1 ? "Create something after it" : "Create something in between", shape(index + 1), rowStyle),
+        this.dot("after" + keyOf(document), index + 1, index === last ? "Create something after it" : "Create something in between", shape(index + 1), index === last ? edgeStyle : rowStyle),
       ]),
     ];
   }
@@ -400,8 +404,10 @@ export class TabulaApp extends Component {
       div(
         // As wide as the widest document - or the window: centred in it, and
         // scrolled sideways, not cut off, when wider.
+        // Room above the first and below the last for their dots; between
+        // two, the dots float over the gap (see spacing.js).
         { style: { display: "flex", flexDirection: "column", alignItems: "center", width: "fit-content", minWidth: "100%" } },
-        this.dots(documents, { height: "40px" }, (document) => this.documentView(document, documents.length > 1, "paper")),
+        this.dots(documents, dotLineStyle, (document) => this.documentView(document, documents.length > 1, "paper"), "center", { height: "28px" }),
       ),
     );
   }
@@ -442,16 +448,16 @@ export class TabulaApp extends Component {
   // A document among pages of their own in another (see InsertView.js): its
   // plugin's editor, on paper, at the zoom of the papers it's among; a kind
   // with no editor, only a frame - a picture - a page it fills.
-  itemView(document, { key, format, onRemove }) {
+  itemView(document, { key, format, onRemove, paperSequence }) {
     const type = document.documentType && documentType(this.services, document.documentType.name);
     if (!type) return this.noPlugin(key, documentName(document), onRemove);
-    if (type.editor) return type.editor({ key, model: document.model, zoom: 1, onRemove, target: "paper" });
+    if (type.editor) return type.editor({ key, model: document.model, zoom: 1, onRemove, target: "paper", paperSequence });
     return picturePage({ key, type, model: document.model, format, onRemove });
   }
 
   noPlugin(key, name, onRemove) {
     return div(
-      { key, style: { padding: "8mm" } },
+      { key, style: { padding: surfacePadding } },
       card(
         { style: { position: "relative", width: "340px", display: "flex", flexDirection: "column", gap: "6px" } },
         onRemove ? removeButton(onRemove) : null,

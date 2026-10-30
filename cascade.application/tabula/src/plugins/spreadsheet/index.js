@@ -3,6 +3,7 @@ import { div, table, tbody, tr, th, td, input, text } from "@liquefy/cascade.dom
 import { iconButton, row as menuRow } from "@liquefy/cascade.ui";
 import { documentPlugin } from "../../shell/documents.js";
 import { removeButton } from "../../shell/removeButton.js";
+import { surfacePadding } from "../../shell/spacing.js";
 import { takeFocus, releaseFocus, menuHeading, menuNote } from "../../shell/contextMenus.js";
 import { paperSizes, mm } from "../../print/index.js";
 
@@ -85,7 +86,7 @@ class SpreadsheetEditor extends Component {
     // A cell focused, the grid has the focus.
     const onFocus = callback("focus", () => takeFocus(this));
     return div(
-      { style: web ? { overflowX: "auto" } : { padding: "8mm", zoom: this.zoom, width: "fit-content" } },
+      { style: web ? { overflowX: "auto" } : { padding: surfacePadding, zoom: this.zoom, width: "fit-content" } },
       div(
         { style: web ? {} : { position: "relative", background: "white", padding: "16px", boxShadow: "0 2px 12px rgba(0, 0, 0, 0.12)" } },
         this.onRemove ? removeButton(this.onRemove) : null,

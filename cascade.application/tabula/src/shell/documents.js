@@ -43,13 +43,19 @@ import { hydrate, dehydrate, Unhydrated } from "./hydration.js";
  *     hydrate(properties),              // its properties, hydrated -> the model
  *     dehydrate(model),                 // the model -> its properties: plain values,
  *                                       //   and objects that dehydrate themselves
- *     editor({ key, model, zoom, onRemove, target }),  // the component editing it
+ *     editor({ key, model, zoom, onRemove, target, paperSequence }),  // the component editing it
  *     title(model),                     // optional: what it is called
  *     outline(model),                   // optional: what is in it, for the tree mode -
  *                                       //   [{ label, icon, children }]
- *     print(model),                     // optional: its pages, for printing (see
+ *     layout({ key, model }),           // optional: its layout - a cascade.print Box (see
+ *                                       //   ../print/Box.js) laying it out onto paper:
+ *                                       //   among pages of their own in another
+ *                                       //   document (see ../layout/DocumentLayout.js's
+ *                                       //   InsertLayout), on that one's papers
+ *     print(model, { paperSequence }),  // optional: its pages, for printing (see
  *                                       //   ../print/dom.js printPages()) - or a
- *                                       //   promise of them
+ *                                       //   promise of them; `paperSequence`, as
+ *                                       //   for its editor: where it's laid out
  *     settingsPage(),                   // optional: its page of the settings dialog -
  *                                       //   its options (see settingsDialog.js), built there
  *     frame: {                          // optional: how it's shown in a frame, in
@@ -63,6 +69,11 @@ import { hydrate, dehydrate, Unhydrated } from "./hydration.js";
  *       controls(model),                //   optional: its own, in the frame's context menu
  *     },
  *   }
+ *
+ * A shortcut is a type of its own in the creation menus, but no kind of
+ * document - { name, label, icon, description, createDocument() }: a
+ * document of another kind, made ready (an Image: a page with a picture on
+ * it, see ../plugins/page).
  *
  * A type with an editor is a document of its own - created at the root,
  * from the creation dots (rootDocumentTypes()); one with a frame is
@@ -81,6 +92,9 @@ import { hydrate, dehydrate, Unhydrated } from "./hydration.js";
  * app's (1 for 100%). `onRemove`, when given, takes the document out of
  * the sequence it's in: the editor shows a remove button for it - where it
  * likes, at the top left of its first surface, say (removeButton()).
+ * `paperSequence`, when given, is where its kind's layout has already laid it
+ * out - among pages of their own in another document, by that one's layout:
+ * its papers, to show and edit, not laid out again.
  *
  * A document inside a document - a picture in a text's frame, in the end a
  * spreadsheet in a text, a text in a spreadsheet - is a query like any other
@@ -151,17 +165,22 @@ export function documentTypes(services) {
   return services.locators.flatMap((locator) => locator.locate({ type: "documentTypes" }) || []);
 }
 
-// The kinds a document of its own can be - and the kinds a frame in one can
-// hold (see above).
-export const rootDocumentTypes = (services) => documentTypes(services).filter((type) => !!type.editor);
+// The kinds a document of its own can be - what the creation dots create,
+// at the top level and among pages of their own: a kind with an editor, or
+// a shortcut making one (`createDocument()`, see createDocument()) - and
+// the kinds a frame in one can hold (see above): what's created in a
+// document, from the creation menu - pictures, shapes, page numbers.
+export const rootDocumentTypes = (services) => documentTypes(services).filter((type) => !!type.editor || !!type.createDocument);
 export const frameTypes = (services, place = null) => documentTypes(services)
   .filter((type) => !!type.frame && (!place || (type.frame.places || ["text"]).includes(place)));
 
 export const documentType = (services, name) => services.locate({ type: "documentType", name });
 
-// A new document of `type` - hydrated, as if loaded.
+// A new document of `type` - hydrated, as if loaded. A shortcut - a type
+// with `createDocument()` - makes a document of another kind, as it likes:
+// a page with a picture on it, say (see ../plugins/page).
 export function createDocument(type) {
-  return new HydratedDocument(type, type.create());
+  return type.createDocument ? type.createDocument() : new HydratedDocument(type, type.create());
 }
 
 export function hydrateDocument(json, services) {

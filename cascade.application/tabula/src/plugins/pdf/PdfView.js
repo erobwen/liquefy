@@ -5,6 +5,7 @@ import { cssMm, paperStyle, paperShadow } from "../../print/dom.js";
 import { pt } from "../../print/index.js";
 import { paperBackdrop } from "../../paper/TabulaPaperView.js";
 import { removeButton } from "../../shell/removeButton.js";
+import { surfacePadding, paperGap } from "../../shell/spacing.js";
 import { takeFocus, releaseFocus, menuNote as note } from "../../shell/contextMenus.js";
 import { pageSizes, drawPage, choosePdf } from "./pdfjs.js";
 
@@ -95,9 +96,6 @@ export class PdfView extends Component {
   build() {
     const { model } = this;
     const focus = callback("focus", () => takeFocus(this));
-    // Among pages of their own in a document: how many pages it takes, told.
-    const report = this.inherit("reportPageCount");
-    if (report && this.pages) report(this.pages.length);
     if (!model.data) return this.chooser(focus);
     const pages = this.pages;
     if (this.target === "web") {
@@ -147,7 +145,7 @@ export class PdfView extends Component {
 export const pdfView = (...parameters) => new PdfView(...parameters);
 
 const columnStyle = {
-  display: "flex", flexDirection: "column", alignItems: "center", gap: "8mm", padding: "8mm",
+  display: "flex", flexDirection: "column", alignItems: "center", gap: paperGap + "mm", padding: surfacePadding,
   background: paperBackdrop, boxSizing: "border-box", width: "fit-content", minWidth: "100%",
 };
 

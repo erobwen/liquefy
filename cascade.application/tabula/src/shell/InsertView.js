@@ -1,10 +1,11 @@
-import { Component, callback, frozen, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
+import { Component, callback, frozen } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
 import { card } from "@liquefy/cascade.ui";
 import { paperStyle, paperShadow } from "../print/dom.js";
 import { creationDot } from "./CreationDot.js";
 import { removeButton } from "./removeButton.js";
-import { clamp } from "./clamp.js";
+import { clamp, clampLeft } from "./clamp.js";
+import { paperGap, dotLineStyle } from "./spacing.js";
 
 /**
  * Pages of their own, between a document's papers - an inner sequence (see
@@ -13,24 +14,31 @@ import { clamp } from "./clamp.js";
  * together (see clamp.js - its depth one more than the document's around
  * it), and in it each of its items, one under the other - each as
  * the app shows a document of its kind (`documentViews`, provided by the
- * app - see TabulaApp.js), its pages its own, a remove button on it. A
+ * app - see TabulaApp.js), a remove button on it. A
  * place for one, nothing chosen yet: a page drawn dashed, what it usually is
- * faintly in it (`hint`), and a creation dot - what it's to be. After
- * them, a dot for another.
+ * faintly in it (`hint`), and a creation dot - what it's to be. Before
+ * them, an angle pointing up, for something first; between two, a diamond;
+ * after them, an angle pointing down - each on its clamp, where the gap
+ * there is (see spacing.js): its papers one gap from each other, and from
+ * the papers around them - its dots its own, apart from those of what it's
+ * in, at its edges.
  *
- *   insertView({ sequence, format, before, pad, hint, onEmpty })
+ *   insertView({ sequence, items, format, before, pad, hint, onEmpty })
  *
- * `format`: the paper of the page they follow (or, `before` a document's
- * title, come before) - theirs, to begin with; printed on both sides, the
- * side it is says the side each item starts on: each told (`firstSide`,
- * provided to it - see ItemSlot) - and each tells how many pages it takes
- * (`reportPageCount(count)`), for the pages after them to count on. `pad`:
- * a blank back after them, for the page after them to be a right-hand one.
- * `onEmpty()`: its last item removed - the sequence to go.
+ * `items`: as the layout of the document they're in laid them out (see
+ * ../layout/DocumentLayout.js's InsertLayout) - each { item, pages }: what's
+ * in it, and the paper sequence it's laid out on, there, handed to what
+ * shows it (`paperSequence` - see documents.js). `format`: the paper of the
+ * page they follow (or, `before` a document's title, come before) - a
+ * place's. `pad`: a blank back after them, for the page after them to be a
+ * right-hand one. `onEmpty()`: its last item removed - the sequence to go.
+ * Its creation dots the size of the app's own, whatever the papers around
+ * it are drawn at (`paperZoom`, inherited - see StructuredTextEditor.js).
  */
 export class InsertView extends Component {
-  setProperties({ sequence, format, before = false, pad = false, hint = "", onEmpty }) {
+  setProperties({ sequence, items = [], format, before = false, pad = false, hint = "", onEmpty }) {
     this.sequence = sequence;
+    this.items = items;
     this.format = frozen(format);
     this.before = !!before;
     this.pad = !!pad;
@@ -57,94 +65,73 @@ export class InsertView extends Component {
     const types = views ? views.types() : [];
     const remove = (index) => {
       items.splice(index, 1);
-      sequence.pageCounts.splice(index, 1);
       if (items.length === 0) this.onEmpty();
     };
-    // The side each item starts on: after a right-hand page, a left-hand
-    // one; before a document's title, a right-hand one - and on, past the
-    // pages before it.
-    const flip = (side) => side === "recto" ? "verso" : "recto";
-    let side = !format.side ? null : this.before ? "recto" : flip(format.side);
-    const sides = items.map((item, index) => {
-      const own = side;
-      const count = item === null ? 1 : sequence.pageCounts[index] || 1;
-      if (side && count % 2 === 1) side = flip(side);
-      return own;
-    });
+    // Something more, made at `index` - with a creation dot there.
+    const insert = (index, type) => { items.splice(index, 0, views.create(type)); };
+    const dot = (key, index, shape, title) => div(
+      { key, style: dotLineStyle },
+      div(
+        { style: { ...onClampStyle, left: clampLeft({ depth, paperWidth: format.width }) } },
+        div({ style: { zoom: 1 / zoom } }, creationDot({ documentTypes: types, shape, title, onCreate: callback(key, (type) => insert(index, type)) })),
+      ),
+    );
+    const count = this.items.length;
+    const zoom = this.inherit("paperZoom") || 1;
     return div(
       { "data-insert": "", style: groupStyle },
       clamp({ depth, paperWidth: format.width }),
-      items.map((item, index) => {
-        const key = "item" + index + (item ? "-" + views.keyOf(item) : "");
-        if (item === null) {
-          return div(
-            { key, style: { ...paperStyle(format), ...placeStyle } },
-            div({ style: hintStyle }, text(this.hint)),
-            creationDot({ documentTypes: types, title: "What's to be here", onCreate: callback("create" + index, (type) => { items[index] = views.create(type); }) }),
-          );
-        }
-        return new ItemSlot({
-          key: "slot-" + key,
-          sequence,
-          index,
-          side: sides[index],
-          item,
-          itemKey: key,
-          format,
-          onRemove: callback("remove" + key, () => remove(index)),
-        });
+      dot("first", 0, "up", "Create something before them"),
+      this.items.map(({ item, pages }, index) => {
+        const key = item ? "item-" + views.keyOf(item) + "-" + pages.causality.id : "place" + index;
+        // Between it and the one before: a diamond, for something in between.
+        return [
+          index === 0 ? null : dot("between" + key, index, "diamond", "Create something in between"),
+          this.item(item, pages, index, key, views, remove),
+        ];
       }),
       // Its back left blank: the page after it a right-hand one.
-      this.pad ? div({ key: "blank", style: { ...paperStyle(format), ...blankStyle } }, div({ style: { ...hintStyle, fontSize: "11pt" } }, text("Left blank"))) : null,
-      // Another, after them - once they're all something.
-      items.length > 0 && !items.includes(null)
-        ? div({ key: "more", style: { height: "10mm", display: "flex", alignItems: "center" } },
-          creationDot({ documentTypes: types, shape: "down", title: "More pages of their own", onCreate: callback("more", (type) => { items.push(views.create(type)); }) }))
-        : null,
+      this.pad ? div({ key: "blank", style: { ...paperStyle(format), ...blankStyle, ...spaced } }, div({ style: { ...hintStyle, fontSize: "11pt" } }, text("Left blank"))) : null,
+      dot("last", count, "down", "Create something after them"),
     );
+  }
+
+  // One of its items: a place, nothing chosen yet - or what's chosen, as
+  // the app shows it, on the papers it's laid out on.
+  item(item, pages, index, key, views, remove) {
+    const { sequence, format } = this;
+    if (item === null) {
+      return div(
+        { key, style: { ...paperStyle(format), ...placeStyle, ...spaced } },
+        div({ style: hintStyle }, text(this.hint)),
+        creationDot({ documentTypes: views.types(), title: "What's to be here", onCreate: callback("create" + index, (type) => { sequence.items[index] = views.create(type); }) }),
+      );
+    }
+    return views.view(item, {
+      key,
+      format: pages.pages[0] || format,
+      paperSequence: pages,
+      onRemove: callback("remove" + key, () => remove(index)),
+    });
   }
 }
 
 export const insertView = (...parameters) => new InsertView(...parameters);
 
-// One item of pages of their own: what shows it, as the app shows a
-// document of its kind - built here, its own - told the side of a sheet it
-// starts on (`firstSide`), telling how many pages it takes
-// (`reportPageCount(count)`), both provided to it.
-class ItemSlot extends Component {
-  setProperties({ sequence, index, side, item, itemKey, format, onRemove }) {
-    this.sequence = sequence;
-    this.index = index;
-    this.side = side;
-    this.item = item;
-    this.itemKey = itemKey;
-    this.format = frozen(format);
-    this.onRemove = onRemove;
-  }
-
-  provide() {
-    const slot = this;
-    return {
-      get firstSide() { return slot.side; },
-      // Written where the counts are read from - the papers' layout - at
-      // the baseline, and only when it's another.
-      reportPageCount: (count) => {
-        const counts = slot.sequence.pageCounts;
-        if (withoutRecording(() => counts[slot.index]) !== count) accessInitialValues(() => { counts[slot.index] = count; });
-      },
-    };
-  }
-
-  build() {
-    const views = this.inherit("documentViews");
-    return views ? views.view(this.item, { key: this.itemKey, format: this.format, onRemove: this.onRemove }) : null;
-  }
-}
-
+// Over the gaps before and after it, half each (see spacing.js) - its own
+// edges where the papers around it meet its own, and its dots there; what
+// shows a document in it leaves half a gap around its papers itself, a
+// page of its own here is given it.
 const groupStyle = {
-  position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "8mm",
-  alignSelf: "stretch",
+  position: "relative", display: "flex", flexDirection: "column", alignItems: "center",
+  alignSelf: "stretch", margin: `-${paperGap / 2}mm 0`,
 };
+// A point on the clamp's line - what's on it centred there.
+const onClampStyle = {
+  position: "absolute", top: 0, width: 0, height: 0,
+  display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible",
+};
+const spaced = { margin: `${paperGap / 2}mm 0`, flex: "none" };
 const blankStyle = { background: "rgba(255, 255, 255, 0.55)", border: "1.5px dashed rgba(66, 133, 244, 0.3)", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" };
 const placeStyle = {
   display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "6mm",
@@ -158,7 +145,7 @@ const hintStyle = { fontFamily: "Georgia, serif", fontSize: "18pt", color: "rgba
 export function picturePage({ key, type, model, format, onRemove }) {
   const kind = type.frame;
   return div(
-    { key, style: { ...paperStyle(format), boxShadow: paperShadow } },
+    { key, style: { ...paperStyle(format), boxShadow: paperShadow, ...spaced } },
     div({ style: { position: "absolute", inset: 0 } }, kind.view(model)),
     kind.controls
       ? div({ style: { position: "absolute", left: 0, right: 0, bottom: "6mm", display: "flex", justifyContent: "center" } },

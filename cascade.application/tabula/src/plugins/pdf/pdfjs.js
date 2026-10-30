@@ -8,6 +8,8 @@
  * observable, and PDF.js's objects, with private fields of their own, don't
  * work through a proxy. Read again when the model's `data` changes.
  */
+import { observable } from "@liquefy/cascade.component";
+
 let library = null;
 
 export function pdfjs() {
@@ -38,15 +40,38 @@ export function pdfDocument(model) {
 }
 
 // The sizes of its pages, in points (1/72 inch), rotation included -
-// [{ width, height }].
+// [{ width, height }] - known from then on (knownPageSizes()).
 export async function pageSizes(model) {
+  const data = model.data;
   const document = await pdfDocument(model);
   const sizes = [];
   for (let number = 1; number <= document.numPages; number++) {
     const viewport = (await document.getPage(number)).getViewport({ scale: 1 });
     sizes.push({ width: viewport.width, height: viewport.height });
   }
+  const known = knownOf(model);
+  if (known.data !== data || known.sizes === null) Object.assign(known, { data, sizes: Object.freeze(sizes) });
   return sizes;
+}
+
+// The sizes of its pages, as far as they're known: null until read - and,
+// asked for in a browser, read then (pageSizes()). Observable: what reads
+// them follows, once they're read.
+export function knownPageSizes(model) {
+  const known = knownOf(model);
+  if (!model.data) return null;
+  if (known.data === model.data) return known.sizes;
+  if (typeof(globalThis.document) !== "undefined" && !known.reading) {
+    known.reading = true;
+    pageSizes(model).catch(() => {}).finally(() => { known.reading = false; });
+  }
+  return null;
+}
+
+const knownSizes = new WeakMap();
+function knownOf(model) {
+  if (!knownSizes.has(model)) knownSizes.set(model, observable({ data: null, sizes: null, reading: false }));
+  return knownSizes.get(model);
 }
 
 // Page `number` (from 1) drawn onto `canvas`, `scale` canvas pixels to a

@@ -1,8 +1,8 @@
 import { observable } from "@liquefy/cascade.component";
-import { pt, margins } from "../../print/index.js";
+import { pt, margins, Box } from "../../print/index.js";
 import { documentPlugin } from "../../shell/documents.js";
 import { pdfView } from "./PdfView.js";
-import { pdfDocument } from "./pdfjs.js";
+import { pdfDocument, knownPageSizes } from "./pdfjs.js";
 
 /**
  * PDF - a PDF document, among Tabula's own: its pages shown as they are
@@ -22,6 +22,7 @@ export const pdf = {
   hydrate: (properties) => observable({ name: properties.name || null, data: properties.data || null }),
   dehydrate: (model) => ({ name: model.name, data: model.data }),
   editor: (properties) => pdfView(properties),
+  layout: ({ key, model }) => new PdfLayout({ key, model }),
   title: (model) => model.name || "",
   print: (model) => printPages(model),
 };
@@ -32,6 +33,24 @@ export const pdfPlugin = documentPlugin({
   description: "PDF documents, their pages shown and printed as they are.",
   documentTypes: [pdf],
 });
+
+// Laid out among pages of their own in a document (see
+// ../../layout/DocumentLayout.js's InsertLayout): a paper for each of its
+// pages, of that page's size - one, the size of the papers it's among,
+// until its pages are known.
+class PdfLayout extends Box {
+  setProperties({ model }) {
+    this.model = model;
+  }
+
+  render(sequence) {
+    const sizes = knownPageSizes(this.model);
+    const formats = sizes
+      ? sizes.map((size) => ({ width: pt(size.width), height: pt(size.height), margins: margins(0) }))
+      : [this.inherit("pageSettings")];
+    for (const format of formats) sequence.pages.push(Object.freeze(format));
+  }
+}
 
 // Its pages for printing (see ../../print/dom.js's printPages()): a paper of
 // each page's size, the page drawn on it as a picture - at 3 pixels to a

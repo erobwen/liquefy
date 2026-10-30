@@ -1,4 +1,4 @@
-import { Component, repeat, retractRepeater, callback, frozen, accessInitialValues, withoutRecording } from "@liquefy/cascade.component";
+import { Component, repeat, retractRepeater, callback, frozen } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { overlay } from "@liquefy/cascade.ui";
 import { PaperSequence } from "../../print/index.js";
@@ -14,10 +14,9 @@ import { structuredTextSettings } from "./settings.js";
 import { insertView } from "../../shell/InsertView.js";
 import { anchorOf, hintFor, anchoredSequences } from "../../model/sequences.js";
 import { clamp } from "../../shell/clamp.js";
+import { surfaceInset } from "../../shell/spacing.js";
 import { contextPath } from "./menus.js";
 
-// Around the papers, and between them (see ../../paper/TabulaPaperView.js).
-const paperInset = 8;
 
 /**
  * StructuredTextEditor - a structured text (a Document, see ../../model)
@@ -51,12 +50,17 @@ const paperInset = 8;
  * rendered onto a PaperSequence, created in initialization, laid out in a
  * repeater of its own from establishment on, disposed with the editor. A
  * different document is a different editor (keyed by whoever shows it).
+ * Among pages of their own in another document, it's laid out there,
+ * with that one (see ../../layout/DocumentLayout.js's InsertLayout):
+ * `paperSequence`, given - its papers, shown and edited, no layout of its
+ * own.
  */
 export class StructuredTextEditor extends Component {
-  setProperties({ model, zoom = 1, onRemove }) {
+  setProperties({ model, zoom = 1, onRemove, paperSequence }) {
     this.model = model;
     this.zoom = zoom;
     this.onRemove = onRemove || null;
+    this.paperSequence = paperSequence || null;
   }
 
   initialState() {
@@ -77,11 +81,14 @@ export class StructuredTextEditor extends Component {
       measurer,
       // The settings - found by the build, where the service locators are.
       settings: null,
-      sequence: new PaperSequence(),
-      layout: new SequenceLayout({ sequence: root, measurer }).establish(),
+      sequence: this.paperSequence || new PaperSequence(),
+      layout: this.paperSequence ? null : new SequenceLayout({ sequence: root, measurer }).establish(),
       layoutRoot: null,
       // Where the TabulaEditor puts itself - for edits from outside it.
       controller: {},
+      // What it's in, as its build found it - for what it provides.
+      depth: 0,
+      paperZoom: 1,
     };
     // Asked when it matters - from the component's own unobservables, where
     // the build puts the settings, not from `u`: what this returns isn't
@@ -107,9 +114,14 @@ export class StructuredTextEditor extends Component {
 
   // One level deeper, for pages of their own in it (see
   // ../../shell/clamp.js).
+  // And what its papers are drawn at, all told - its zoom, in whatever
+  // zoom it's drawn at itself.
   provide() {
     const editor = this;
-    return { get groupDepth() { return editor.unobservable.depth + 1; } };
+    return {
+      get groupDepth() { return editor.unobservable.depth + 1; },
+      get paperZoom() { return editor.zoom * editor.unobservable.paperZoom; },
+    };
   }
 
   // See ../../shell/contextMenus.js.
@@ -151,6 +163,7 @@ export class StructuredTextEditor extends Component {
       key: "insert" + insert.sequence.causality.id,
       sequence: insert.sequence,
       format: insert.format,
+      items: insert.items,
       before: insert.before,
       pad: insert.pad,
       hint: anchor ? hintFor(this.model, anchor.flow, anchor.side) : "",
@@ -185,7 +198,7 @@ export class StructuredTextEditor extends Component {
   onEstablish() {
     super.onEstablish();
     const u = this.unobservable;
-    u.layoutRoot = repeat(() => u.layout.renderOnto(u.sequence), { independent: true });
+    if (u.layout) u.layoutRoot = repeat(() => u.layout.renderOnto(u.sequence), { independent: true });
     if (typeof(document) !== "undefined") addFlashKeyframes(document);
   }
 
@@ -203,7 +216,7 @@ export class StructuredTextEditor extends Component {
     const u = this.unobservable;
     releaseFocus(this);
     if (u.layoutRoot) retractRepeater(u.layoutRoot);
-    u.layout.dispose();
+    if (u.layout) u.layout.dispose();
     u.measurer.dispose();
     super.onDispose();
   }
@@ -212,20 +225,17 @@ export class StructuredTextEditor extends Component {
     const { root, sequence, measurer, editing, controller } = this.unobservable;
     const settings = structuredTextSettings();
     this.unobservable.settings = settings;
-    const corner = `calc(${paperInset}mm * ${this.zoom})`;
-    // Among pages of their own in another document (see
-    // ../../shell/InsertView.js): how many pages it takes, told - and the side
-    // of a sheet its first page is, as told.
-    const report = this.inherit("reportPageCount");
-    if (report) report(Math.max(1, sequence.pages.length));
-    const side = this.inherit("firstSide") || "recto";
-    const layout = this.unobservable.layout;
-    if (withoutRecording(() => layout.firstSide) !== side) accessInitialValues(() => { layout.firstSide = side; });
-    // A clamp along its papers, where it has pages of their own - or is
-    // among another's: which pages belong to it (see ../../shell/clamp.js).
+    // Its first paper's top left corner - the papers drawn inset (see
+    // ../../shell/spacing.js).
+    const zoomed = (millimetres) => `calc(${millimetres}mm * ${this.zoom})`;
+    const corner = { left: zoomed(surfaceInset.horizontal), top: zoomed(surfaceInset.vertical) };
+    // A clamp along its papers, where it has pages of their own: which pages
+    // belong to it (see ../../shell/clamp.js). Without - a leaf - none, even
+    // among another's pages: the clamp of those says it's theirs.
     const depth = this.inherit("groupDepth") || 0;
     this.unobservable.depth = depth;
-    const clamped = depth > 0 || anchoredSequences(this.model).length > 0;
+    this.unobservable.paperZoom = this.inherit("paperZoom") || 1;
+    const clamped = anchoredSequences(this.model).length > 0;
     return div(
       { style: { position: "relative" } },
       tabulaEditor({
@@ -234,7 +244,8 @@ export class StructuredTextEditor extends Component {
         showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
         ...sectionEnds(settings),
         onCaret: callback("caret", (at) => this.caretMoved(at)),
-        onMarginDoubleClick: callback("pages", () => this.setMode("page")),
+        // Its page layout - where it has one of its own.
+        onMarginDoubleClick: callback("pages", () => { if (!this.paperSequence || this.model.ownPaper) this.setMode("page"); }),
         renderInsert: callback("insert", (insert) => this.insertView(insert)),
       }),
       this.mode === "page"
@@ -256,8 +267,8 @@ export class StructuredTextEditor extends Component {
           ),
         )
         : null,
-      clamped ? clamp({ depth, paperWidth: this.model.paper.width, inset: paperInset * 1000, zoom: this.zoom }) : null,
-      this.onRemove ? removeButton(this.onRemove, { left: corner, top: corner }) : null,
+      clamped ? clamp({ depth, paperWidth: this.model.paper.width, inset: surfaceInset.vertical * 1000, zoom: this.zoom }) : null,
+      this.onRemove ? removeButton(this.onRemove, corner) : null,
       // A new one every time - keyed by the count - so it flashes again.
       this.flash && this.flash.shown
         ? div({ key: "flash" + this.flash.count, style: { ...flashStyle, left: this.flash.x + "px", top: this.flash.y + "px" } })

@@ -124,15 +124,18 @@ export class Section extends Flow {
 // and whether it's a book (`bookMode`): its chapters, the sections right in
 // it, each starting a page of its own (a right-hand one, printed on both
 // sides) - its title, and what's before its first chapter, its title page.
-// Not, as every document starts out: its chapters running on.
+// Not, as every document starts out: its chapters running on. Among pages
+// of their own in another document, on that one's paper - unless it keeps
+// its own (`ownPaper`, see ../layout/DocumentLayout.js).
 export class Document extends Section {
-  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, bookMode = false }, children = []) {
+  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, bookMode = false, ownPaper = false }, children = []) {
     super(title, children, titleOffset);
     this.paper = paper;
     this.pageLayout = pageLayout || new PageLayout({ margins });
     this.numberTitles = !!numberTitles;
     this.indentParagraphs = !!indentParagraphs;
     this.bookMode = !!bookMode;
+    this.ownPaper = !!ownPaper;
   }
 }
 

@@ -20,29 +20,21 @@ import { isSection, sectionsAround } from "./flows.js";
  * one holds one such place: fresh (isFresh()) - and, fresh, it can still be
  * moved from flow to flow (see ../paper/editing.js's pageBreak()).
  *
- * How many pages each item takes (`pageCounts`, by its index) is told by
- * what shows it - its editor, as it lays it out (see
- * ../shell/InsertView.js) - for the pages around them to count on from
- * (pageCount()): a right-hand page, or a left-hand one, after them.
+ * How many pages each item takes - and so the side of a sheet each page
+ * after them is - is worked out where they're laid out: in what they're
+ * in (see ../layout/DocumentLayout.js's InsertLayout).
  *
  * Saved: { type: "sequence", name: "inner", properties: { items } }.
  */
 export class InnerSequence {
   constructor(items = [null]) {
     this.items = observable(items);
-    this.pageCounts = observable([]);
     return observable(this);
   }
 
   dehydrate() {
     return { type: "sequence", name: "inner", properties: { items: [...this.items] } };
   }
-}
-
-// How many pages its items take: each as told, a page if not told yet - a
-// place, a page.
-export function pageCount(sequence) {
-  return sequence.items.reduce((sum, item, index) => sum + (item === null ? 1 : sequence.pageCounts[index] || 1), 0);
 }
 
 // Nothing chosen in it yet: places only.

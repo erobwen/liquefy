@@ -43,15 +43,26 @@ import { pageElementView } from "./PageElementView.js";
  * Drawn on nothing: on whatever it's shown over (see
  * ../plugins/structuredText/StructuredTextEditor.js - a modal over the
  * paper view).
+ *
+ * A page layout of its own - a page, no text (see ../plugins/page): only
+ * the papers it has (`kinds` - its first, say), no `sequence`, no margins
+ * (`margins` false), nothing to go back to (no `onWrite`) - its paper
+ * given (`paperFormat`: as it's laid out, among pages of their own in a
+ * document), and its number (`page`, { page, pages }), drawn as it is.
  */
 export class PageLayoutEditor extends Component {
-  setProperties({ document, sequence, zoom = 1, selected = null, onSelect, onWrite, takeDragged }) {
+  setProperties({ document, sequence = null, zoom = 1, selected = null, onSelect, onWrite = null, takeDragged, kinds = null, margins = true, paperFormat = null, page = null, style = null }) {
     this.document = document;
     this.sequence = sequence;
+    this.kinds = kinds;
+    this.showMargins = !!margins;
+    this.paperFormat = frozen(paperFormat);
+    this.page = frozen(page);
+    this.style = style;
     this.zoom = zoom;
     this.selected = frozen(selected);
     this.onSelect = onSelect || (() => {});
-    this.onWrite = onWrite || (() => {});
+    this.onWrite = onWrite;
     this.takeDragged = takeDragged || (() => null);
   }
 
@@ -62,7 +73,7 @@ export class PageLayoutEditor extends Component {
   // Escape, wherever the keyboard is: back to writing.
   onEstablish() {
     super.onEstablish();
-    if (typeof(document) === "undefined") return;
+    if (typeof(document) === "undefined" || !this.onWrite) return;
     const escape = (event) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
@@ -83,6 +94,7 @@ export class PageLayoutEditor extends Component {
   // both sides, page `index` (from 0) as that side of a sheet has it (see
   // ../print/Section.js's formatOfPage()).
   format(index = 0) {
+    if (this.paperFormat) return this.paperFormat;
     const { paper, pageLayout } = this.document;
     const sides = pageLayout.duplex ? { duplex: true, side: "recto" } : {};
     return formatOfPage({ width: paper.width, height: paper.height, margins: pageLayout.margins, ...sides }, index, 0);
@@ -93,12 +105,17 @@ export class PageLayoutEditor extends Component {
   pageIndex(kind) {
     if (kind === "first") return 0;
     if (kind === "middle") return 1;
-    return Math.max(this.sequence.pages.length - 1, 2);
+    return Math.max(this.pageCount() - 1, 2);
+  }
+
+  pageCount() {
+    return this.sequence ? this.sequence.pages.length : 1;
   }
 
   // Which page of the text each paper shows: the first; the middle - the
   // second, with a third after it; the last - with more than one.
   textPage(kind) {
+    if (!this.sequence) return null;
     const count = this.sequence.pages.length;
     if (kind === "first") return 0;
     if (kind === "middle") return count > 2 ? 1 : null;
@@ -106,7 +123,8 @@ export class PageLayoutEditor extends Component {
   }
 
   build() {
-    const count = this.sequence.pages.length;
+    const count = this.pageCount();
+    const kinds = this.kinds ? pageKinds.filter(({ name }) => this.kinds.includes(name)) : pageKinds;
     return div(
       {
         tabindex: 0,
@@ -114,11 +132,12 @@ export class PageLayoutEditor extends Component {
         style: {
           display: "flex", flexDirection: "column", alignItems: "center", gap: "3mm", padding: "6mm 8mm 8mm",
           boxSizing: "border-box", width: "fit-content", minWidth: "100%", zoom: this.zoom, outline: "none",
+          ...this.style,
         },
       },
-      pageKinds.map(({ name, label }) => div(
+      kinds.map(({ name, label }) => div(
         { key: "page" + name, style: { display: "flex", flexDirection: "column", gap: "2mm" } },
-        div({ style: labelStyle }, text(label + (this.textPage(name) === null ? " - none yet" : name === "middle" ? " - " + Math.max(0, count - 2) + " now" : ""))),
+        kinds.length > 1 ? div({ style: labelStyle }, text(label + (this.textPage(name) === null ? " - none yet" : name === "middle" ? " - " + Math.max(0, count - 2) + " now" : ""))) : null,
         new LayoutPaper({
           key: "paper" + name,
           kind: name,
@@ -234,6 +253,7 @@ export class PageLayoutEditor extends Component {
 
   // A double click inside the margins: back to the text.
   doubleClick(event, verso = false) {
+    if (!this.onWrite) return;
     const paper = event.currentTarget;
     const { x, y } = this.pointOn(paper, event);
     const { width, height, margins } = this.format(verso ? 1 : 0);
@@ -277,7 +297,7 @@ class LayoutPaper extends Component {
     const layout = editor.document.pageLayout;
     // Which page it stands for, for a page number: the first, the second,
     // the last.
-    const page = { page: kind === "first" ? 1 : kind === "middle" ? 2 : this.pages, pages: this.pages };
+    const page = editor.page || { page: kind === "first" ? 1 : kind === "middle" ? 2 : this.pages, pages: this.pages };
     return div(
       {
         "data-layout-page": kind,
@@ -296,7 +316,7 @@ class LayoutPaper extends Component {
         selected: element === selected,
         onPress: callback("press" + element.causality.id, (event) => editor.pressElement(event, element, kind, verso)),
       })),
-      ["top", "right", "bottom", "left"].map((side) => marginLine(side, format, callback("margin" + side, (event) => editor.pressMargin(event, side, verso)))),
+      !editor.showMargins ? null : ["top", "right", "bottom", "left"].map((side) => marginLine(side, format, callback("margin" + side, (event) => editor.pressMargin(event, side, verso)))),
       selected ? referenceLines(elementRect(selected, format, verso), selected, format, verso) : null,
       gutterShade(format.side),
     );

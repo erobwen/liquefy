@@ -1,7 +1,6 @@
-import { paperSizes } from "../../print/index.js";
 import { Flow, Document, Section, Paragraph } from "../../model/flows.js";
 import { FrameAnchor } from "../../model/frames.js";
-import { PageLayout, PageElement } from "../../model/pageLayout.js";
+import { PageLayout, pageLayoutKinds, pageLayoutFamilies, paperFromJson, paperToJson } from "../../model/pageLayout.js";
 import { InnerSequence } from "../../model/sequences.js";
 
 /**
@@ -49,8 +48,7 @@ import { InnerSequence } from "../../model/sequences.js";
 export const structuredTextFamilies = {
   flow: { baseClass: Flow },
   frame: { baseClass: FrameAnchor },
-  pageLayout: { baseClass: PageLayout },
-  pageElement: { baseClass: PageElement },
+  ...pageLayoutFamilies,
   sequence: { baseClass: InnerSequence },
 };
 
@@ -72,28 +70,23 @@ export const structuredTextKinds = {
   frame: {
     anchor: ({ placement, width, content }) => new FrameAnchor({ placement, width, content }),
   },
-  pageLayout: {
-    pages: ({ margins, duplex = false, first = [], middle = [], last = [] }) => new PageLayout({ margins: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0, ...margins }), duplex, first, middle, last }),
-  },
-  pageElement: {
-    element: (properties) => new PageElement(properties),
-  },
+  ...pageLayoutKinds,
 };
 
 // A structured text's properties, hydrated - its title, its children, its
 // page layout objects already - made into the Document.
 export function documentFromProperties(properties) {
-  const paper = typeof(properties.paper) === "string" ? paperSizes[properties.paper] : properties.paper;
-  if (!paper) throw new Error("Unknown paper: " + JSON.stringify(properties.paper));
+  const paper = paperFromJson(properties.paper);
   const document = new Document(
     {
       title: properties.title || new Paragraph(),
-      paper: Object.freeze({ width: paper.width, height: paper.height }),
+      paper,
       pageLayout: properties.pageLayout || new PageLayout({ margins: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 }) }),
       titleOffset: properties.titleOffset || 0,
       numberTitles: !!properties.numberTitles,
       indentParagraphs: !!properties.indentParagraphs,
       bookMode: !!properties.bookMode,
+      ownPaper: !!properties.ownPaper,
     },
     properties.children || [],
   );
@@ -105,18 +98,15 @@ export function documentFromProperties(properties) {
 export function documentProperties(document) {
   return {
     title: document.title,
-    paper: paperName(document.paper) || { width: document.paper.width, height: document.paper.height },
+    paper: paperToJson(document.paper),
     pageLayout: document.pageLayout,
     numberTitles: document.numberTitles,
     indentParagraphs: document.indentParagraphs,
     ...(document.titleOffset ? { titleOffset: document.titleOffset } : {}),
     ...(document.bookMode ? { bookMode: true } : {}),
+    ...(document.ownPaper ? { ownPaper: true } : {}),
     ...(document.before ? { before: document.before } : {}),
     ...(document.after ? { after: document.after } : {}),
     children: [...document.children],
   };
-}
-
-function paperName(paper) {
-  return Object.keys(paperSizes).find((name) => paperSizes[name].width === paper.width && paperSizes[name].height === paper.height);
 }

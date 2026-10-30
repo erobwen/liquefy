@@ -1,4 +1,5 @@
 import { observable } from "@liquefy/cascade.component";
+import { paperSizes } from "../print/index.js";
 
 /**
  * A document's page layout - how each of its pages is set up, around the
@@ -71,6 +72,33 @@ export class PageElement {
     const { content, horizontal, x, vertical, y, width, height } = this;
     return { type: "pageElement", name: "element", properties: { horizontal, x, vertical, y, width, height, content } };
   }
+}
+
+// What a page layout is made of, as files have it - for the plugins whose
+// documents have one (see ../shell/documents.js's documentPlugin()).
+export const pageLayoutFamilies = {
+  pageLayout: { baseClass: PageLayout },
+  pageElement: { baseClass: PageElement },
+};
+export const pageLayoutKinds = {
+  pageLayout: {
+    pages: ({ margins, duplex = false, first = [], middle = [], last = [] }) => new PageLayout({ margins: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0, ...margins }), duplex, first, middle, last }),
+  },
+  pageElement: {
+    element: (properties) => new PageElement(properties),
+  },
+};
+
+// A paper, as a file has it - a size's name ("A4"), or { width, height }
+// - and back.
+export function paperFromJson(json) {
+  const paper = typeof(json) === "string" ? paperSizes[json] : json;
+  if (!paper) throw new Error("Unknown paper: " + JSON.stringify(json));
+  return Object.freeze({ width: paper.width, height: paper.height });
+}
+export function paperToJson(paper) {
+  const name = Object.keys(paperSizes).find((each) => paperSizes[each].width === paper.width && paperSizes[each].height === paper.height);
+  return name || { width: paper.width, height: paper.height };
 }
 
 export const pageKinds = Object.freeze([

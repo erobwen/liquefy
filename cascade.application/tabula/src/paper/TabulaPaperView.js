@@ -4,6 +4,7 @@ import { cssMm, paperStyle, runStyle, paperShadow, placeholderColor } from "../p
 import { frameView } from "./FrameView.js";
 import { pageElementView, pagesInDocuments } from "./PageElementView.js";
 import { pageElements } from "../model/pageLayout.js";
+import { surfacePadding, paperGap } from "../shell/spacing.js";
 
 /**
  * TabulaPaperView - Tabula's papers on screen: cascade.print's
@@ -86,8 +87,8 @@ export class TabulaPaperView extends Component {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: "8mm",
-          padding: "8mm",
+          gap: paperGap + "mm",
+          padding: surfacePadding,
           background: paperBackdrop,
           boxSizing: "border-box",
           width: "fit-content",
@@ -110,7 +111,9 @@ export class TabulaPaperView extends Component {
           outlines: outlines.filter((rect) => rect.page === index),
           offsetMarks: offsetMarks.filter((rect) => rect.page === index),
           frame: this.frame,
-          page: pages[index],
+          // Which page of its document's page layout it is - and its number,
+          // as the paper sequence counts (see ../print/PaperSequence.js).
+          page: { ...pages[index], number: sequence.numberOf(index), last: sequence.lastNumber() },
         }),
         this.inserts(index, false),
       ]),
@@ -169,11 +172,12 @@ class PaperView extends Component {
     this.offsetMarks = frozen(offsetMarks || []);
   }
 
-  // What its page layout draws on it - this page of its document's.
+  // What its page layout draws on it - this page of its document's,
+  // numbered as it's numbered.
   elements() {
-    const { index, count } = this.page;
+    const { index, count, number, last } = this.page;
     return pageElements(this.format.pageLayout, index, count, this.format).map(({ element, rect }) => pageElementView({
-      key: "element" + element.causality.id, element, rect, page: { page: index + 1, pages: count },
+      key: "element" + element.causality.id, element, rect, page: { page: number, pages: last },
     }));
   }
 

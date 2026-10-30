@@ -8,14 +8,34 @@ import { pageElements } from "../../model/pageLayout.js";
 
 // A structured text's papers, for printing - laid out anew, onto papers of
 // its own, not taken from the screen: the same however it's shown, or
-// whether it's shown at all. The layout is thrown away once read. Its
-// frames printed as their kinds print them (see ../../model/frames.js) -
-// and what its page layout draws on each page, under the text (see
-// ../../model/pageLayout.js) - and, between its papers, its pages of their
-// own (see ../../model/sequences.js): each document in them as its kind
-// prints it - a picture, a paper it fills - waited for.
-export async function printPapers(document) {
-  const { papers, inserts } = layOutPapers(document);
+// whether it's shown at all. The layout is thrown away once printed. Among
+// pages of their own in another document (`paperSequence` - see
+// ../../layout/DocumentLayout.js's InsertLayout), the papers it's laid
+// out on there instead, as that one is laid out.
+export async function printPapers(document, { paperSequence = null } = {}) {
+  if (paperSequence) return printSequence(paperSequence);
+  const measurer = domMeasurer();
+  const sequence = new PaperSequence();
+  const layout = new SequenceLayout({ sequence: sequenceOf(document), measurer }).establish();
+  const root = repeat(() => layout.renderOnto(sequence), { independent: true });
+  try {
+    return await printSequence(sequence);
+  } finally {
+    retractRepeater(root);
+    layout.dispose();
+    measurer.dispose();
+  }
+}
+
+// Papers laid out, printed: their frames as their kinds print them (see
+// ../../model/frames.js) - and what their page layout draws on each, under
+// the text (see ../../model/pageLayout.js) - and, between them, pages of
+// their own (see ../../model/sequences.js): each document in them as its
+// kind prints it - laid out with them, a picture, a paper it fills -
+// waited for.
+async function printSequence(sequence) {
+  const papers = laidOutPapers(sequence);
+  const inserts = withoutRecording(() => [...sequence.inserts]);
   const result = [];
   for (let index = 0; index < papers.length; index++) {
     for (const insert of inserts.filter((each) => each.page === index && each.before)) result.push(...await printItems(insert));
@@ -27,43 +47,35 @@ export async function printPapers(document) {
 
 // What's in pages of their own, printed - and their blank back, if they
 // have one (see ../../layout/DocumentLayout.js's InsertLayout).
-async function printItems({ sequence, format, pad }) {
+async function printItems({ items, format, pad }) {
   const pages = [];
-  for (const item of sequence.items) {
+  for (const { item, pages: paperSequence } of items) {
     const type = item && item.documentType;
     if (!type) continue;
-    if (type.print) pages.push(...await type.print(item.model));
+    if (type.print) pages.push(...await type.print(item.model, { paperSequence }));
     else if (type.frame && type.frame.printNode) {
-      pages.push({ format, lines: [], frames: [{ x: 0, top: 0, width: format.width, height: format.height, node: type.frame.printNode(item.model) }] });
+      const paper = withoutRecording(() => paperSequence.pages[0]) || format;
+      pages.push({ format: paper, lines: [], frames: [{ x: 0, top: 0, width: paper.width, height: paper.height, node: type.frame.printNode(item.model) }] });
     }
   }
   if (pad) pages.push({ format, lines: [], frames: [] });
   return pages;
 }
 
-// Its papers, as printed - and where pages of their own go between them.
-export function layOutPapers(document) {
-  const measurer = domMeasurer();
-  const sequence = new PaperSequence();
-  const layout = new SequenceLayout({ sequence: sequenceOf(document), measurer }).establish();
-  const root = repeat(() => layout.renderOnto(sequence), { independent: true });
-  try {
-    const papers = papersOf(sequence);
-    const inserts = withoutRecording(() => [...sequence.inserts]);
-    return { inserts, papers: papers.map((paper, index) => ({
-      ...paper,
-      frames: [
-        ...pageElements(document.pageLayout, index, papers.length, paper.format).map(({ element, rect }) => ({
-          ...rect, under: true, node: elementNode(element, { page: index + 1, pages: papers.length }),
-        })),
-        ...paper.lines.flatMap((line) => line.frames || []).map((frame) => ({ ...frame, node: frameNode(frame.source) })),
-      ],
-    })) };
-  } finally {
-    retractRepeater(root);
-    layout.dispose();
-    measurer.dispose();
-  }
+// Papers, as laid out - with their frames, and their page layout's.
+// Numbered as the paper sequence numbers them.
+function laidOutPapers(sequence) {
+  const papers = papersOf(sequence);
+  const last = withoutRecording(() => sequence.lastNumber());
+  return papers.map((paper, index) => ({
+    ...paper,
+    frames: [
+      ...pageElements(paper.format.pageLayout, index, papers.length, paper.format).map(({ element, rect }) => ({
+        ...rect, under: true, node: elementNode(element, { page: withoutRecording(() => sequence.numberOf(index)), pages: last }),
+      })),
+      ...paper.lines.flatMap((line) => line.frames || []).map((frame) => ({ ...frame, node: frameNode(frame.source) })),
+    ],
+  }));
 }
 
 // A page element's content, as its kind prints it - an empty box if it

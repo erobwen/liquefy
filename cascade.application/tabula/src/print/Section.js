@@ -26,17 +26,20 @@ export class Section extends Box {
   }
 
   // Override, optionally: the side of a sheet its first paper is - "recto"
-  // (the default) or "verso", printed on both sides (see formatOfPage()).
+  // or "verso", printed on both sides (see formatOfPage()) - or null (the
+  // default): as the paper sequence's first is (PaperSequence's
+  // `firstSide`), for the first section on it; "recto" for any other.
   firstPageSide() {
-    return "recto";
+    return null;
   }
 
   render(sequence, context) {
     const format = frozen(this.pageFormat());
     const page = sequence.pages.length;
+    const side = this.firstPageSide() || (page === 0 && sequence.firstSide) || "recto";
     // Where its sides are counted from (see formatOfPage()): its first paper
     // - or the one before, if that's a left-hand one.
-    const firstPage = this.firstPageSide() === "verso" ? page - 1 : page;
+    const firstPage = side === "verso" ? page - 1 : page;
     sequence.pages.push(formatOfPage(format, page, firstPage));
     sequence.next = frozen({ page, y: format.margins.top, spaceAfter: 0, atPageTop: true, firstPage });
     const built = this.buildOneStep();

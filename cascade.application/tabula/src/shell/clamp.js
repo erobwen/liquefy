@@ -18,13 +18,19 @@ import { cssMm } from "../print/dom.js";
  */
 const deepest = 3;
 
-export function clamp({ depth = 0, paperWidth, inset = 0, zoom = 1 }) {
+// Where a clamp's line is, across its box (CSS): what's placed on it -
+// the creation dots of pages of their own (see InsertView.js) - placed there.
+export function clampLeft({ depth = 0, paperWidth, zoom = 1 }) {
   const away = 3000 + (deepest - Math.min(depth, deepest)) * 2500;
+  return `calc(50% - ${cssMm((paperWidth / 2 + away) * zoom)})`;
+}
+
+export function clamp({ depth = 0, paperWidth, inset = 0, zoom = 1 }) {
   return div({
     "data-clamp": depth,
     style: {
       position: "absolute",
-      left: `calc(50% - ${cssMm((paperWidth / 2 + away) * zoom)})`,
+      left: clampLeft({ depth, paperWidth, zoom }),
       top: cssMm(inset * zoom),
       bottom: cssMm(inset * zoom),
       width: cssMm(1500 * zoom),
@@ -33,6 +39,8 @@ export function clamp({ depth = 0, paperWidth, inset = 0, zoom = 1 }) {
       borderRight: "none",
       borderRadius: "2px 0 0 2px",
       pointerEvents: "none",
+      // Over what's in the box - an item's own backdrop, drawn after it.
+      zIndex: 1,
     },
   });
 }

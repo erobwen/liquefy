@@ -3,6 +3,7 @@ import { Document, Paragraph, paragraphText } from "../../model/flows.js";
 import { documentPlugin } from "../../shell/documents.js";
 import { documentFromProperties, documentProperties, structuredTextKinds, structuredTextFamilies } from "./json.js";
 import { structuredTextEditor } from "./StructuredTextEditor.js";
+import { DocumentLayout } from "../../layout/DocumentLayout.js";
 import { structuredTextWeb } from "./StructuredTextWeb.js";
 import { printPapers, outline } from "./output.js";
 import { structuredTextSettingsPage } from "./settingsPage.js";
@@ -25,8 +26,9 @@ export const structuredText = {
   dehydrate: (model) => documentProperties(model),
   // On paper, edited; on the web, read only, for now.
   editor: ({ target, ...properties }) => target === "web" ? structuredTextWeb(properties) : structuredTextEditor(properties),
+  layout: ({ key, model }) => new DocumentLayout({ key, document: model }),
   title: (model) => paragraphText(model.title),
-  print: (model) => printPapers(model),
+  print: (model, options) => printPapers(model, options),
   outline: (model) => outline(model),
   settingsPage: () => structuredTextSettingsPage(),
 };

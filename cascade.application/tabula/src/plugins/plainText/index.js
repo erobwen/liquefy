@@ -2,6 +2,7 @@ import { Component, callback, observable } from "@liquefy/cascade.component";
 import { div, textarea } from "@liquefy/cascade.dom";
 import { documentPlugin } from "../../shell/documents.js";
 import { removeButton } from "../../shell/removeButton.js";
+import { surfacePadding } from "../../shell/spacing.js";
 import { paperSizes, mm } from "../../print/index.js";
 import { takeFocus, releaseFocus, menuNote } from "../../shell/contextMenus.js";
 
@@ -48,7 +49,7 @@ class PlainTextEditor extends Component {
     const { model } = this;
     const lines = model.text.split("\n").length;
     return div(
-      { style: { padding: "8mm", zoom: this.zoom } },
+      { style: { padding: surfacePadding, zoom: this.zoom } },
       div(
         { style: { position: "relative", width: "210mm" } },
         textarea({

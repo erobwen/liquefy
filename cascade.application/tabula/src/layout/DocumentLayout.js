@@ -1,7 +1,6 @@
-import { frozen } from "@liquefy/cascade.component";
-import { Box, Section, Paragraph, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
+import { frozen, withoutRecording, accessInitialValues } from "@liquefy/cascade.component";
+import { Box, Section, Paragraph, PaperSequence, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
 import { Document, isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
-import { pageCount } from "../model/sequences.js";
 import { frameSize } from "../model/frames.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
 
@@ -31,10 +30,15 @@ export const exitTitlePrefix = "❧ → ";
  *    everything in it.
  *  - DocumentLayout: a document's paper (a cascade.print Section: each
  *    document starts on a paper of its own), and the document itself, as a
- *    section at the root.
+ *    section at the root. Its page settings - its paper, its page layout -
+ *    provided to what's in it (`pageSettings`): a document among pages
+ *    of their own in it laid out on them, not its own - the outermost
+ *    document's, all through.
  *  - SectionLayout: a section - its title, then its children, in order, and
  *    its exit title, if it has one (see ../model/flows.js) - and, anchored
- *    to them, pages of their own: inner sequences (InsertLayout). A
+ *    to them, pages of their own: inner sequences (InsertLayout) - each
+ *    document in them laid out as its kind lays it out, onto a paper
+ *    sequence of its own, starting where the papers around it leave off. A
  *    document in book mode: its chapters each on a fresh paper - a
  *    right-hand one, printed on both sides (`breakBefore` - a section's,
  *    its title's). It places
@@ -61,12 +65,8 @@ export const exitTitlePrefix = "❧ → ";
  * ../paper/markers.js): they take no room, so they can never move a flow.
  */
 export class SequenceLayout extends Box {
-  // `firstSide`: the side of a sheet its first page is - "recto" (the
-  // default) or "verso": among pages of their own in another document,
-  // after a right-hand page there, say (see ../print/Section.js).
-  setProperties({ sequence, measurer, typography, firstSide = "recto" }) {
+  setProperties({ sequence, measurer, typography }) {
     this.sequence = sequence;
-    this.firstSide = firstSide;
     this.measurer = measurer || null;
     this.typography = typography || defaultTypography;
   }
@@ -85,13 +85,17 @@ export class SequenceLayout extends Box {
       key: "document" + document.causality.id,
       document,
       exit: hasExitTitle(document, documents[index + 1]),
-      firstSide: index === 0 ? this.firstSide : "recto",
+      // The first as the paper sequence's first page is; the others on a
+      // right-hand one.
+      firstSide: index === 0 ? null : "recto",
     }));
   }
 }
 
+// A document: `firstSide`, the side of a sheet its first page is - null: as
+// the paper sequence's first is (see ../print/Section.js).
 export class DocumentLayout extends Section {
-  setProperties({ document, exit, firstSide = "recto" }) {
+  setProperties({ document, exit = false, firstSide = null }) {
     this.document = document;
     this.exit = !!exit;
     this.firstSide = firstSide;
@@ -101,11 +105,20 @@ export class DocumentLayout extends Section {
     return this.firstSide;
   }
 
+  provide() {
+    const layout = this;
+    return { get pageSettings() { return layout.pageFormat(); } };
+  }
+
   // Its paper - and its page layout, for what shows the paper to draw on it
   // what's drawn on its pages (see ../model/pageLayout.js) - printed on both
   // sides, or one: its first page the front of a sheet, a right-hand page,
-  // the next its back (see ../print/Section.js's formatOfPage()).
+  // the next its back (see ../print/Section.js's formatOfPage()). In
+  // another document - among pages of their own there - that one's, unless
+  // it keeps its own (`ownPaper`).
   pageFormat() {
+    const inherited = this.inherit("pageSettings");
+    if (inherited && !this.document.ownPaper) return inherited;
     const { paper, pageLayout } = this.document;
     const sides = pageLayout.duplex ? { duplex: true, side: "recto" } : {};
     return frozen({ width: paper.width, height: paper.height, margins: pageLayout.margins, pageLayout, ...sides });
@@ -201,10 +214,21 @@ export class SectionLayout extends Box {
 // ../print/PaperSequence.js's `inserts`) - after the paper the text has
 // got to, or, before a document's title, before its first. What comes
 // after them, after a section (`breakAfter`), starts a fresh paper; after
-// a paragraph, the text goes on filling the paper it's on. The papers after
-// them counted on past their pages (`pages`): a right-hand one, or a
-// left-hand one, as it falls. Before a document's title, its first paper
-// a right-hand one, printed on both sides: a blank back after them (`pad`)
+// a paragraph, the text goes on filling the paper it's on.
+//
+// Each document in them laid out as its kind lays it out (its type's
+// `layout({ key, model })` - see ../shell/documents.js; a page it fills, for
+// a kind that's only a frame), onto a paper sequence of its own - kept for
+// it, what shows it showing that (`items`, each { item, pages, side,
+// count }: a place, nothing chosen yet, a page, no papers) - starting where
+// the papers before it leave off: printed on both sides, after a right-hand
+// page, a left-hand one (`side` - the paper sequence's `firstSide`) - and
+// numbered on from the pages before it (its `firstNumber`). On
+// papers of their own, but laid out here, in what they're in: on its page
+// settings (see DocumentLayout), measured as it is - and the papers after
+// them counted on past all their pages (`pages`): a right-hand one, or a
+// left-hand one, as it falls. Before a document's title, its first paper a
+// right-hand one, printed on both sides: a blank back after them (`pad`)
 // where they'd end on a right-hand page.
 export class InsertLayout extends Box {
   setProperties({ sequence, breakAfter = false, before = false }) {
@@ -213,16 +237,82 @@ export class InsertLayout extends Box {
     this.before = !!before;
   }
 
-  render(sequence) {
+  initialUnobservables() {
+    // Each document's paper sequence, and its key, by the document.
+    return { targets: new WeakMap(), keys: new WeakMap() };
+  }
+
+  // A document's paper sequence - the same for as long as it's here.
+  targetOf(item) {
+    const { targets } = this.unobservable;
+    if (!targets.has(item)) targets.set(item, withoutRecording(() => new PaperSequence()));
+    return targets.get(item);
+  }
+
+  keyOf(item) {
+    const { keys } = this.unobservable;
+    if (!keys.has(item)) keys.set(item, "item" + (++lastItemKey));
+    return keys.get(item);
+  }
+
+  build() {
+    return this.sequence.items.map((item) => {
+      if (item === null) return null;
+      const key = this.keyOf(item);
+      const type = item.documentType;
+      return type && type.layout ? type.layout({ key, model: item.model }) : new PageOfItsOwnLayout({ key });
+    });
+  }
+
+  render(sequence, context) {
     const next = sequence.next;
     const format = sequence.pages[next.page];
-    const pages = pageCount(this.sequence);
-    const pad = this.before && !!format.duplex && pages % 2 === 1;
-    sequence.inserts.push(frozen({ page: next.page, before: this.before, sequence: this.sequence, format, pages, pad }));
+    const flip = (side) => side === "recto" ? "verso" : "recto";
+    // The side each starts on: after a right-hand page, a left-hand one;
+    // before a document's title, a right-hand one - and on, past the pages
+    // before it.
+    let side = !format.duplex ? null : this.before ? "recto" : flip(format.side || "recto");
+    let number = sequence.insertNumber(next.page, this.before);
+    const built = this.buildOneStep();
+    const layouts = built instanceof Array ? built : [built];
+    const items = this.sequence.items.map((item, index) => {
+      const own = side;
+      let pages = null;
+      let count = 1;
+      if (item !== null && layouts[index]) {
+        pages = this.targetOf(item);
+        if (withoutRecording(() => pages.firstSide) !== own) accessInitialValues(() => { pages.firstSide = own; });
+        const first = number;
+        if (withoutRecording(() => pages.firstNumber) !== first) accessInitialValues(() => { pages.firstNumber = first; });
+        if (withoutRecording(() => pages.outer) !== sequence) accessInitialValues(() => { pages.outer = sequence; });
+        layouts[index].renderOnto(pages, context);
+        count = Math.max(1, pages.pages.length);
+      }
+      if (side && count % 2 === 1) side = flip(side);
+      number += count;
+      return { item, pages, side: own, count };
+    });
+    const total = items.reduce((sum, each) => sum + each.count, 0);
+    const pad = this.before && !!format.duplex && total % 2 === 1;
+    sequence.inserts.push(frozen({ page: next.page, before: this.before, sequence: this.sequence, format, items, pages: total, pad }));
     if (this.before) return;
     // The side of a sheet counted from a page further back - as far as
     // their pages.
-    sequence.next = frozen({ ...next, firstPage: (next.firstPage || 0) - pages, ...(this.breakAfter ? { breakNext: true } : {}) });
+    sequence.next = frozen({ ...next, firstPage: (next.firstPage || 0) - total, ...(this.breakAfter ? { breakNext: true } : {}) });
+  }
+}
+
+let lastItemKey = 0;
+
+// A document of a kind that's only a frame - a picture - among pages of
+// their own: a page it fills, on the page settings of what it's in.
+class PageOfItsOwnLayout extends Section {
+  pageFormat() {
+    return this.inherit("pageSettings");
+  }
+
+  build() {
+    return null;
   }
 }
 

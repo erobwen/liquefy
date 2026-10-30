@@ -156,26 +156,34 @@ describe("Pages of their own - inner sequences", function () {
 });
 
 describe("Pages of their own, printed on both sides", function () {
-  // A document printed on both sides, laid out: each paper's side - and,
-  // where pages of their own are, "[n]" (how many) - and its last line's x.
-  function sides(doc, { firstSide = "recto" } = {}) {
+  // A document printed on both sides, laid out: each paper's side and its
+  // last line's x - and, where pages of their own are, theirs, in brackets,
+  // or how many: "[n]" (and "+blank" - a blank back after them).
+  function sides(doc, { firstSide = null, inner = false } = {}) {
     const seq = new PaperSequence();
-    const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer(), firstSide }).establish();
+    seq.firstSide = firstSide;
+    const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer() }).establish();
     const root = repeat(() => layout.renderOnto(seq), { independent: true });
     try {
-      const result = [];
-      seq.pages.forEach((format, index) => {
-        for (const insert of seq.inserts.filter((each) => each.page === index && each.before)) result.push("[" + insert.pages + (insert.pad ? "+blank" : "") + "]");
-        const lines = seq.linesOf(index);
-        // Its last line's x - body text, not a centred title.
-        result.push(format.side + "@" + (lines.length ? lines[lines.length - 1].x / 1000 : "-"));
-        for (const insert of seq.inserts.filter((each) => each.page === index && !each.before)) result.push("[" + insert.pages + "]");
-      });
-      return result;
+      return papers(seq, inner);
     } finally {
       retractRepeater(root);
       layout.dispose();
     }
+  }
+  function papers(seq, inner) {
+    const result = [];
+    const insert = (each) => inner
+      ? "[" + each.items.map(({ pages }) => pages ? papers(pages, inner).join(" ") : "place").join(" | ") + (each.pad ? " +blank" : "") + "]"
+      : "[" + each.pages + (each.pad ? "+blank" : "") + "]";
+    seq.pages.forEach((format, index) => {
+      for (const each of seq.inserts.filter((one) => one.page === index && one.before)) result.push(insert(each));
+      const lines = seq.linesOf(index);
+      // Its last line's x - body text, not a centred title.
+      result.push(format.side + "@" + (lines.length ? lines[lines.length - 1].x / 1000 : "-"));
+      for (const each of seq.inserts.filter((one) => one.page === index && !one.before)) result.push(insert(each));
+    });
+    return result;
   }
 
   const book = (...children) => document({ title: "Book", paper, pageLayout: new PageLayout({ margins: { top: mm(20), bottom: mm(20), left: mm(30), right: mm(15) }, duplex: true }) }, ...children);
@@ -190,9 +198,26 @@ describe("Pages of their own, printed on both sides", function () {
     const one = sides(doc);
     assert.deepEqual(one.slice(0, 4), ["recto@30", "[1]", "recto@30", "verso@15"], "the paper after them a right-hand one - after their left-hand page");
     // Two pages: the next a left-hand one again.
-    doc.children[0].after.pageCounts[0] = 1;
     doc.children[0].after.items.push(null);
     assert.deepEqual(sides(doc).slice(0, 4), ["recto@30", "[2]", "verso@15", "recto@30"]);
+  });
+
+  it("lay out a document in them with the one they're in - on its paper, its sides going on from there - and count on past its pages", function () {
+    const doc = book(...lots(60));
+    // A structured text of its own, on paper of its own - A5.
+    const own = structuredText.create();
+    own.paper = paperSizes.A5;
+    own.children.splice(0, 1, ...lots(30));
+    doc.children[0].after = new InnerSequence([new HydratedDocument(structuredText, own)]);
+    const laidOut = sides(doc, { inner: true });
+    // Its pages: the book's paper and margins - its first a left-hand one,
+    // after the book's right-hand page - three of them...
+    assert.deepEqual(laidOut.slice(0, 2), ["recto@30", "[verso@15 recto@30 verso@15]"]);
+    // ... so the book's next a right-hand one.
+    assert.deepEqual(laidOut.slice(2, 4), ["recto@30", "verso@15"]);
+    // Shorter, two pages: the next a left-hand one.
+    own.children.splice(20);
+    assert.deepEqual(sides(doc, { inner: true }).slice(0, 4), ["recto@30", "[verso@15 recto@30]", "verso@15", "recto@30"]);
   });
 
   it("before the title: a blank back after them, where they'd end on a right-hand page - the title's page a right-hand one", function () {
@@ -203,7 +228,54 @@ describe("Pages of their own, printed on both sides", function () {
     assert.deepEqual(sides(doc), ["[2]", "recto@30"]);
   });
 
-  it("start a document among them on the side they're told - its first page a left-hand one, after a right-hand one", function () {
+  it("follow a document in them as it's edited - laid out once, with the one they're in", function () {
+    const doc = book(...lots(60));
+    const own = structuredText.create();
+    own.children.splice(0, 1, ...lots(30));
+    doc.children[0].after = new InnerSequence([new HydratedDocument(structuredText, own)]);
+    const seq = new PaperSequence();
+    const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer() }).establish();
+    const root = repeat(() => layout.renderOnto(seq), { independent: true });
+    try {
+      assert.deepEqual(papers(seq, true).slice(0, 3), ["recto@30", "[verso@15 recto@30 verso@15]", "recto@30"]);
+      own.children.splice(20);
+      assert.deepEqual(papers(seq, true).slice(0, 3), ["recto@30", "[verso@15 recto@30]", "verso@15"]);
+      // And the book's margins changed: its pages' too.
+      doc.pageLayout.margins = { ...doc.pageLayout.margins, left: mm(40) };
+      assert.deepEqual(papers(seq, true).slice(0, 2), ["recto@40", "[verso@15 recto@40]"]);
+    } finally {
+      retractRepeater(root);
+      layout.dispose();
+    }
+  });
+
+  it("are numbered on from the page they follow - and the pages after them on, past them", function () {
+    const doc = book(...lots(60));
+    const own = structuredText.create();
+    own.children.splice(0, 1, ...lots(30));
+    doc.children[0].after = new InnerSequence([null, new HydratedDocument(structuredText, own)]);
+    doc.before = new InnerSequence();
+    const seq = new PaperSequence();
+    const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer() }).establish();
+    const root = repeat(() => layout.renderOnto(seq), { independent: true });
+    try {
+      // A cover and its blank back: 1 and 2 - the title page 3; then a
+      // place, 4, and the document after it, 5 to 7; the book on from 8.
+      const numbers = seq.pages.map((format, index) => seq.numberOf(index));
+      assert.deepEqual(numbers.slice(0, 3), [3, 8, 9]);
+      const after = seq.inserts.find((insert) => !insert.before);
+      const own = after.items[1].pages;
+      assert.deepEqual([own.numberOf(0), own.numberOf(own.pages.length - 1)], [5, 7]);
+      // The last of them all - theirs, too: "of" counts the whole book.
+      assert.equal(seq.lastNumber(), 7 + seq.pages.length - 1);
+      assert.equal(own.lastNumber(), seq.lastNumber());
+    } finally {
+      retractRepeater(root);
+      layout.dispose();
+    }
+  });
+
+  it("start a document among them on the side their paper sequence starts on - its first page a left-hand one, after a right-hand one", function () {
     const doc = book(...lots(30));
     assert.deepEqual(sides(doc, { firstSide: "verso" }).slice(0, 2), ["verso@15", "recto@30"]);
   });

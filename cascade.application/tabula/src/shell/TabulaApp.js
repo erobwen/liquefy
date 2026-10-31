@@ -1,4 +1,4 @@
-import { Component, callback, serviceProvider, CompoundServiceLocator } from "@liquefy/cascade.component";
+import { Component, callback, serviceProvider, CompoundServiceLocator, repeat, retractRepeater } from "@liquefy/cascade.component";
 import { div, text, a } from "@liquefy/cascade.dom";
 import { card, colorField, fitContainerStyle, overlayFrame, overlay, modalAssembly, colorSchemeScope } from "@liquefy/cascade.ui";
 import { paperBackdrop } from "../paper/TabulaPaperView.js";
@@ -11,7 +11,11 @@ import { picturePage } from "./InsertView.js";
 import { openFile, saveFile } from "./files.js";
 import { jsonEditor } from "./json/JsonEditor.js";
 import { treeView } from "./TreeView.js";
-import { printPages } from "../print/dom.js";
+import { printPages, domMeasurer } from "../print/dom.js";
+import { PaperSequence } from "../print/index.js";
+import { RootLayout, laidOutPages } from "../layout/DocumentLayout.js";
+import { rootPageLayout, pageLayoutProvider } from "../model/pageLayout.js";
+import { pageSettingsControls } from "./pageSettingsMenu.js";
 import { paperLayout, appLayout, documentCard, appBackdrop } from "./layouts.js";
 import { ContextMenus } from "./contextMenus.js";
 import { Settings, settingsLocator, appSettingsDefaults } from "./settings.js";
@@ -89,9 +93,11 @@ export class TabulaApp extends Component {
     // settingsShown: the settings dialog's page, while it's open.
     // print: how the whole of it is printed - the printer's settings, the
     // file's root's: both sides of the paper, or one (see documents.js's
-    // hydrateFile()). A document's own page setup is what it asks for; the
-    // printer does its best by it.
-    return { documents: [], fileName: null, message: null, zoom: 1, mode: "paper", settingsShown: null, print: Object.freeze({ duplex: false }) };
+    // hydrateFile()). pageLayout: what it's designed for - the file's page
+    // layout, the base (see ../model/pageLayout.js), each document's derived
+    // from it; the
+    // printer does its best by them.
+    return { documents: [], fileName: null, message: null, zoom: 1, mode: "paper", settingsShown: null, print: Object.freeze({ duplex: false }), pageLayout: rootPageLayout() };
   }
 
   initialUnobservables() {
@@ -105,13 +111,31 @@ export class TabulaApp extends Component {
       locator: new CompoundServiceLocator(settingsLocator(this.settings), this.services),
       file: null,
       removeKeys: null,
+      // The whole file laid out (see ../layout/DocumentLayout.js's
+      // RootLayout): onto `rootTarget`, from establishment on - each
+      // document's papers its editor's to show.
+      rootTarget: null,
+      rootLayout: null,
+      layoutRoot: null,
+      measurer: null,
     };
+  }
+
+  // The paper sequence `document` is laid out on - null, if it isn't.
+  pagesOf(document) {
+    const target = this.unobservable.rootTarget;
+    return target ? laidOutPages(target, document) : null;
   }
 
   // Ctrl+S (Cmd+S) and Ctrl+O, wherever the keyboard is - not the browser's
   // own saving and opening.
   onEstablish() {
     super.onEstablish();
+    const u = this.unobservable;
+    u.measurer = typeof(document) !== "undefined" ? domMeasurer() : null;
+    u.rootTarget = new PaperSequence();
+    u.rootLayout = new RootLayout({ source: this, measurer: u.measurer }).establish();
+    u.layoutRoot = repeat(() => u.rootLayout.renderOnto(u.rootTarget), { independent: true });
     if (typeof(document) === "undefined") return;
     addAppStyle(document);
     const keys = (event) => {
@@ -127,7 +151,11 @@ export class TabulaApp extends Component {
   }
 
   onDispose() {
-    if (this.unobservable.removeKeys) this.unobservable.removeKeys();
+    const u = this.unobservable;
+    if (u.removeKeys) u.removeKeys();
+    if (u.layoutRoot) retractRepeater(u.layoutRoot);
+    if (u.rootLayout) u.rootLayout.dispose();
+    if (u.measurer) u.measurer.dispose();
     super.onDispose();
   }
 
@@ -136,8 +164,11 @@ export class TabulaApp extends Component {
   // documents.js), or "tabula", the app's own.
   // And, for pages of their own in a document (see InsertView.js), how
   // documents are shown, made and told apart - as the app shows its own.
+  // And the file's page layout, to all of it (see ../model/pageLayout.js).
   provide() {
-    return {
+    const app = this;
+    // Its getters kept - read as they're asked for.
+    return Object.assign(pageLayoutProvider(() => app.pageLayout), {
       contextMenus: this.unobservable.menus,
       openSettings: (page) => this.openSettings(page),
       documentViews: {
@@ -146,16 +177,17 @@ export class TabulaApp extends Component {
         view: (document, properties) => this.itemView(document, properties),
         keyOf: (document) => keyOf(document),
       },
-    };
+    });
   }
 
   openSettings(page = "tabula") {
     this.settingsShown = page;
   }
 
-  show(documents, fileName = null, file = null, print = Object.freeze({ duplex: false })) {
+  show(documents, fileName = null, file = null, print = Object.freeze({ duplex: false }), pageLayout = rootPageLayout()) {
     this.documents = documents;
     this.print = print;
+    this.pageLayout = pageLayout;
     this.fileName = fileName;
     this.message = null;
     this.unobservable.file = file;
@@ -174,8 +206,8 @@ export class TabulaApp extends Component {
     try {
       const file = await openFile();
       if (!file) return;
-      const { documents, print } = hydrateFile(JSON.parse(file.text), this.services);
-      this.show(documents, file.name, file.handle, print);
+      const { documents, print, pageLayout } = hydrateFile(JSON.parse(file.text), this.services);
+      this.show(documents, file.name, file.handle, print, pageLayout);
     } catch (error) {
       this.message = "Couldn't open it: " + error.message;
     }
@@ -185,7 +217,7 @@ export class TabulaApp extends Component {
   // the user says.
   async save({ as = false } = {}) {
     try {
-      const text = JSON.stringify(dehydrateFile(this.documents, this.print), null, 2);
+      const text = JSON.stringify(dehydrateFile(this.documents, this.print, this.pageLayout), null, 2);
       const saved = await saveFile({ name: this.fileName || "document.json", text, handle: this.unobservable.file, as });
       if (!saved) return;
       this.unobservable.file = saved.handle;
@@ -196,19 +228,23 @@ export class TabulaApp extends Component {
     }
   }
 
-  // All of it, on paper - each document as its plugin prints it. A
-  // plugin's may take a while - a PDF's, drawn page by page: waited for.
-  // Printed on both sides: each document from a right-hand page - a blank
-  // back left before it, where it'd start on a left-hand one.
+  // All of it, on paper - each document as its plugin prints it, from the
+  // papers it's laid out on, with the rest of the file (`paperSequence`,
+  // see documents.js). A plugin's may take a while - a PDF's, drawn page by
+  // page: waited for. Printed on both sides, but designed for one: each
+  // document from a right-hand page - a blank back left before it, where
+  // it'd start on a left-hand one. Designed for both, its sides are as
+  // they're laid out.
   async printAll() {
     try {
       const printed = await Promise.all(this.documents.map((document) => {
         const type = document.documentType;
-        return type && type.print ? type.print(document.model) : [];
+        return type && type.print ? type.print(document.model, { paperSequence: this.pagesOf(document) }) : [];
       }));
       const pages = [];
+      const padded = this.print.duplex && !this.pageLayout.duplex;
       for (const each of printed) {
-        if (this.print.duplex && pages.length % 2 === 1 && each.length > 0) pages.push(blankPage(each[0]));
+        if (padded && pages.length % 2 === 1 && each.length > 0) pages.push(blankPage(each[0]));
         pages.push(...each);
       }
       await printPages(pages, { title: this.fileName || "Tabula" });
@@ -223,12 +259,13 @@ export class TabulaApp extends Component {
   // them knows (but those there already). Says why not, if not.
   apply(json) {
     try {
-      const { documents, print } = hydrateFile(json, this.services);
+      const { documents, print, pageLayout } = hydrateFile(json, this.services);
       const unknown = (list) => list.filter((each) => !each.documentType).length;
       if (unknown(documents) > unknown(this.documents)) return "no plugin in use knows a document of that name";
       if (documents.length === 0) return "the root can't be emptied here - New does that";
       this.documents = documents;
       this.print = print;
+      this.pageLayout = pageLayout;
       return null;
     } catch (error) {
       return error.message;
@@ -255,6 +292,10 @@ export class TabulaApp extends Component {
       message: this.message,
       print: this.print,
       onPrint: callback("printing", (print) => { this.print = Object.freeze({ ...print }); }),
+      // On paper, with something to put on it: what it's designed for.
+      pageSettings: mode.name === "paper" && this.documents.length > 0
+        ? callback("pageSettings", () => pageSettingsControls({ key: "file", setup: this.pageLayout, root: true }))
+        : null,
     };
     return overlayFrame(
       { style: { ...fitContainerStyle } },
@@ -355,7 +396,7 @@ export class TabulaApp extends Component {
     if (mode.name === "json") {
       return div(
         { key: "json", style: { padding: "16px" } },
-        jsonEditor({ json: dehydrateFile(documents, this.print), apply: callback("apply", (json) => this.apply(json)) }),
+        jsonEditor({ json: dehydrateFile(documents, this.print, this.pageLayout), apply: callback("apply", (json) => this.apply(json)) }),
       );
     }
     if (mode.name === "tree") {
@@ -442,7 +483,10 @@ export class TabulaApp extends Component {
     const onRemove = removable ? callback("remove" + key, () => this.remove(document)) : null;
     const type = document.documentType && documentType(this.services, document.documentType.name);
     if (!type) return this.noPlugin(key, documentName(document), onRemove);
-    return type.editor({ key, model: document.model, zoom: this.zoom, onRemove, target });
+    // On paper, its papers as the file's laid out - another layout, another
+    // editor.
+    const pages = target === "paper" ? this.pagesOf(document) : null;
+    return type.editor({ key: key + (pages ? "-" + pages.causality.id : ""), model: document.model, zoom: this.zoom, onRemove, target, paperSequence: pages });
   }
 
   // A document among pages of their own in another (see InsertView.js): its

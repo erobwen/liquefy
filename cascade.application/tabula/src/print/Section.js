@@ -33,8 +33,17 @@ export class Section extends Box {
     return null;
   }
 
+  // Override, optionally: the page number its first paper has - the page
+  // numbers started anew there (see PaperSequence.js's numberOf()) - or
+  // null (the default): as they fall.
+  numberingStart() {
+    return null;
+  }
+
   render(sequence, context) {
     const format = frozen(this.pageFormat());
+    const start = this.numberingStart();
+    if (start !== null && sequence.pages.length === 0) sequence.numberFrom = start;
     const page = sequence.pages.length;
     const side = this.firstPageSide() || (page === 0 && sequence.firstSide) || "recto";
     // Where its sides are counted from (see formatOfPage()): its first paper

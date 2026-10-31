@@ -79,6 +79,8 @@ export class TextInput extends DOMNodeComponent {
       if (composing || event.isComposing) return;
       const primary = event.ctrlKey || event.metaKey;
       const shortcut = primary && !event.altKey && this.shortcutFor ? this.shortcutFor(event.key.toLowerCase()) : undefined;
+      // Escape: told, but not kept from whatever else it closes.
+      if (event.key === "Escape") return send({ type: "key", key: "Escape", shift: event.shiftKey, primary });
       if (!handledKeys.has(event.key) && !shortcut) return;
       event.preventDefault();
       send({ type: "key", key: shortcut || event.key, shift: event.shiftKey, primary });

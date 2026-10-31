@@ -3,6 +3,7 @@ import { pt, margins, Box } from "../../print/index.js";
 import { documentPlugin } from "../../shell/documents.js";
 import { pdfView } from "./PdfView.js";
 import { pdfDocument, knownPageSizes } from "./pdfjs.js";
+import { formatIn } from "../../model/pageLayout.js";
 
 /**
  * PDF - a PDF document, among Tabula's own: its pages shown as they are
@@ -47,7 +48,7 @@ class PdfLayout extends Box {
     const sizes = knownPageSizes(this.model);
     const formats = sizes
       ? sizes.map((size) => ({ width: pt(size.width), height: pt(size.height), margins: margins(0) }))
-      : [this.inherit("pageSettings")];
+      : [formatIn(this)];
     for (const format of formats) sequence.pages.push(Object.freeze(format));
   }
 }

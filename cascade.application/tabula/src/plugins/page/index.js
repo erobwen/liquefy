@@ -1,10 +1,10 @@
 import { mm, Section } from "../../print/index.js";
 import { documentPlugin, createDocument, HydratedDocument } from "../../shell/documents.js";
-import { pageLayoutKinds, pageLayoutFamilies, pageElements, paperFromJson, paperToJson } from "../../model/pageLayout.js";
+import { pageLayoutKinds, pageLayoutFamilies, pageElements, formatIn, paperFormat, resolvePageLayout, defaultPageSettings } from "../../model/pageLayout.js";
 import { newElement } from "../../paper/PageLayoutEditor.js";
 import { image } from "../frames/index.js";
 import { pageEditor } from "./PageEditor.js";
-import { newPage, pageFormat } from "./model.js";
+import { newPage } from "./model.js";
 
 /**
  * A page - a page layout of its own (see ../../model/pageLayout.js): one
@@ -14,13 +14,13 @@ import { newPage, pageFormat } from "./model.js";
  * page, or on a structured text's pages: the documents created from the
  * creation dots are what's at the top level; these, what's in them.
  *
- * Saved: { "type": "document", "name": "page", "properties": { "paper":
- * "A4", "elements": [{ "type": "pageElement", ... }] } } - its paper turned
- * sideways (landscape) a size of its own, { width, height }.
+ * Saved: { "type": "document", "name": "page", "properties": { "pageLayout":
+ * { "type": "pageLayout", ... } } } - what's on it its first page's, and
+ * the page settings it sets itself, if any - and `startsNumbering`.
  *
- * Among pages of their own in another document, it's on that one's paper -
- * its size, its sides (see ../../layout/DocumentLayout.js) - unless it
- * keeps its own (`ownPaper`) - and numbered as it falls there.
+ * On the paper of what it's in - the file's, a document's it's among
+ * pages of their own in - but for what its page layout sets itself (see
+ * ../../model/pageLayout.js); numbered as it falls, or from 1.
  *
  * And a shortcut, Image: a page with a picture on it, across it, ready to
  * be chosen - a page, like any other, once made.
@@ -31,8 +31,11 @@ export const page = {
   icon: "note",
   description: "A page of its own - pictures, shapes and page numbers on it, where you put them.",
   create: () => newPage(),
-  hydrate: ({ paper = "A4", elements = [], ownPaper = false }) => newPage(paperFromJson(paper), elements, !!ownPaper),
-  dehydrate: (model) => ({ paper: paperToJson(model.paper), ...(model.ownPaper ? { ownPaper: true } : {}), elements: [...model.pageLayout.first] }),
+  hydrate: ({ pageLayout = null, elements = [], startsNumbering = false }) => newPage({ pageLayout, elements, startsNumbering }),
+  dehydrate: (model) => ({
+    pageLayout: model.pageLayout,
+    ...(model.startsNumbering ? { startsNumbering: true } : {}),
+  }),
   editor: (properties) => pageEditor(properties),
   layout: ({ key, model }) => new PageOfItsOwnLayout({ key, model }),
   title: () => "Page",
@@ -47,7 +50,7 @@ export const imagePage = {
   // Made as a page: what it is from then on.
   createDocument: () => {
     const model = newPage();
-    const { paper } = model;
+    const { paper } = defaultPageSettings;
     model.pageLayout.first.push(newElement(createDocument(image), paper, { x: paper.width / 2, y: paper.height / 2 }, { width: paper.width - mm(40) }));
     return new HydratedDocument(page, model);
   },
@@ -70,7 +73,11 @@ class PageOfItsOwnLayout extends Section {
   }
 
   pageFormat() {
-    return pageFormat(this.model, this.inherit("pageSettings"));
+    return formatIn(this, this.model.pageLayout);
+  }
+
+  numberingStart() {
+    return this.model.startsNumbering ? 1 : null;
   }
 
   build() {
@@ -81,8 +88,8 @@ class PageOfItsOwnLayout extends Section {
 // Printed: its paper - as it's laid out, if it is - and what's on it,
 // numbered as it falls.
 function printedPage(model, paperSequence) {
-  const format = (paperSequence && paperSequence.pages[0]) || pageFormat(model);
-  const number = paperSequence ? { page: paperSequence.numberOf(0), pages: paperSequence.lastNumber() } : { page: 1, pages: 1 };
+  const format = (paperSequence && paperSequence.pages[0]) || paperFormat(resolvePageLayout(model.pageLayout, () => undefined));
+  const number = paperSequence ? { page: paperSequence.numberOf(0), pages: paperSequence.lastNumberOf(0) } : { page: 1, pages: 1 };
   return {
     format,
     lines: [],

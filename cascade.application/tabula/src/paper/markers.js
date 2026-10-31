@@ -1,5 +1,6 @@
 import { mm, px, contentWidth } from "../print/index.js";
 import { Sequence, Document, isSection, flowStart, flowEnd, titleLevel, hasExitTitle, exitTitle } from "../model/flows.js";
+import { dotPosition, dotCount } from "../model/sequences.js";
 
 /**
  * Where a caret can be in a laid-out Tabula document: its caret rows - every
@@ -71,6 +72,13 @@ import { Sequence, Document, isSection, flowStart, flowEnd, titleLevel, hasExitT
  * other, ending together, are all at one height, one on top of the other:
  * moving up and down goes through them one by one, in reading order.
  *
+ * And the creation dots of pages of their own (see ../model/sequences.js's
+ * dotPosition()) - where they're anchored, in reading order: after a
+ * paragraph's end, a title's text, a section's end; before a section's
+ * start. Each a row of its own, below the page they follow - { marker, dot:
+ * true, below: true } - drawn as the dot it is, not as a bar, and never
+ * what a click on a paper finds.
+ *
  * Returned as [{ page, row }], in reading order.
  *
  * Which markers there are can be chosen, by type - to try out which places a
@@ -106,7 +114,7 @@ export function caretRows(sequence, root, { types = {}, sectionEnds = "beside" }
   };
   for (const item of items) {
     if (item.block) flush();
-    else run.push(item);
+    else if (!item.dots) run.push(item);
   }
   flush();
   const rows = [];
@@ -115,11 +123,24 @@ export function caretRows(sequence, root, { types = {}, sectionEnds = "beside" }
       // An exit title is laid out, but no place for a caret.
       if (item.exit) continue;
       for (const placed of lines.get(item.block) || []) rows.push({ page: placed.page, row: placed.line });
+    } else if (item.dots) {
+      rows.push(...dotRows(item.dots, sequence));
     } else if (item.placed) {
       rows.push(item.placed);
     }
   }
   return rows;
+}
+
+// Pages of their own's creation dots, as caret rows - on the page they
+// follow, as they're laid out; none, not laid out.
+function dotRows(inner, sequence) {
+  const insert = sequence.inserts.find((each) => each.sequence === inner);
+  if (!insert) return [];
+  return Array.from({ length: dotCount(inner) }, (_, index) => ({
+    page: insert.page,
+    row: { marker: dotPosition(inner, index), kind: "dot", type: "dot", dot: true, below: true, x: 0, width: 0, y: 0, area: [] },
+  }));
 }
 
 // Every paragraph and every marker of the tree, in reading order: { block }
@@ -130,16 +151,20 @@ export function caretRows(sequence, root, { types = {}, sectionEnds = "beside" }
 // numbering its titles.
 export function readingOrder(root) {
   const items = [];
+  // Pages of their own anchored there: their creation dots.
+  const dots = (sequence) => { if (sequence) items.push({ dots: sequence, always: true }); };
   const visitParagraph = (paragraph, level, role) => {
     items.push({ marker: flowStart(paragraph), kind: "flowStart", type: role + "Start", level, flow: paragraph });
     items.push({ block: paragraph });
     if (role !== "title") items.push({ marker: flowEnd(paragraph), kind: "flowEnd", type: role + "End", level, flow: paragraph });
+    dots(paragraph.after);
   };
   // `titleAt`: the section's title level; `exit`: whether it has an exit
   // title (see ../model/flows.js).
   // `numbered`: whether its document numbers its titles - its start, then,
   // always there: a place before the number, which is no text.
   const visitSection = (section, level, titleAt, exit, numbered = false) => {
+    dots(section.before);
     items.push({ marker: flowStart(section), kind: "flowStart", type: "sectionStart", level, flow: section, always: numbered });
     visitParagraph(section.title, level + 1, "title");
     const children = section.children;
@@ -150,6 +175,7 @@ export function readingOrder(root) {
     });
     if (exit) items.push({ block: exitTitle(section), exit: true });
     items.push({ marker: flowEnd(section), kind: "flowEnd", type: "sectionEnd", level, flow: section });
+    dots(section.after);
   };
   if (root instanceof Sequence) {
     const documents = root.children;

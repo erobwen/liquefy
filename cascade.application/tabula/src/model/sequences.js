@@ -1,5 +1,5 @@
 import { observable } from "@liquefy/cascade.component";
-import { isSection, sectionsAround } from "./flows.js";
+import { isSection, sectionsAround, isFlowEdge } from "./flows.js";
 
 /**
  * Inner sequences - pages of their own, anchored in a structured text: a
@@ -7,35 +7,55 @@ import { isSection, sectionsAround } from "./flows.js";
  * in a document - a cover before its title, the copyright page after it, a
  * floor plan after a paragraph saying "the following page is the floor
  * plan", a colophon after it all. Whatever starts there starts on a page of
- * its own, and the text goes on after them as if nothing happened.
+ * its own - and the text after them, on a fresh one: a page break, with
+ * pages between.
  *
  * Anchored to a flow (see flows.js): after a paragraph (`after`) - its
- * pages after the page the paragraph ends on, the text going on filling that
- * page first - or before or after a section (`before`, `after`) - the
- * section's pages ending there, or starting after them. A document's,
- * before its title or after it all.
+ * pages after the page the paragraph ends on - or before or after a section
+ * (`before`, `after`) - the section's pages ending there, or starting
+ * after them. A document's, before its title or after it all. After a
+ * paragraph, the text can run on instead (`runOn`), filling the page the
+ * paragraph ends on first, as if nothing happened - a floor plan's pages,
+ * after the page that mentions them.
  *
  * Its `items`: documents - hydrated, of any kind - or `null`, a place for
- * one: a page to be, what it is still to be chosen (the creation dot). A new
- * one holds one such place: fresh (isFresh()) - and, fresh, it can still be
- * moved from flow to flow (see ../paper/editing.js's pageBreak()).
+ * one: a page to be, what it is still to be chosen. A new one is empty: a
+ * page break, a creation dot in it (see ../shell/InsertView.js) - and,
+ * fresh, with nothing in it (isFresh()), it can still be moved from flow to
+ * flow by Ctrl+Enter in the text (see ../paper/editing.js's pageBreak());
+ * from its creation dots, whatever is in it.
+ *
+ * Its creation dots are places for the caret too (dotPosition()): before
+ * its first item, between two, after its last - in an empty one, the one.
  *
  * How many pages each item takes - and so the side of a sheet each page
  * after them is - is worked out where they're laid out: in what they're
  * in (see ../layout/DocumentLayout.js's InsertLayout).
  *
- * Saved: { type: "sequence", name: "inner", properties: { items } }.
+ * Saved: { type: "sequence", name: "inner", properties: { items, runOn } }
+ * - `runOn` only when it's set.
  */
 export class InnerSequence {
-  constructor(items = [null]) {
+  constructor(items = [], { runOn = false } = {}) {
     this.items = observable(items);
+    this.runOn = !!runOn;
     return observable(this);
   }
 
   dehydrate() {
-    return { type: "sequence", name: "inner", properties: { items: [...this.items] } };
+    return { type: "sequence", name: "inner", properties: { items: [...this.items], ...(this.runOn ? { runOn: true } : {}) } };
   }
 }
+
+// A creation dot of an inner sequence, as a place for the caret - a marker
+// of its own (see flows.js): before item `index` - after the last, at its
+// count.
+export const dotPosition = (sequence, index) => Object.freeze({ flow: sequence, edge: "dot", index });
+export const isDot = (at) => isFlowEdge(at) && at.edge === "dot";
+
+// The places for the caret an inner sequence has: one, empty - or one
+// before each item and one after the last.
+export const dotCount = (sequence) => sequence.items.length === 0 ? 1 : sequence.items.length + 1;
 
 // Nothing chosen in it yet: places only.
 export const isFresh = (sequence) => !!sequence && sequence.items.every((item) => item === null);

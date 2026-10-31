@@ -3,6 +3,7 @@ import { div } from "@liquefy/cascade.dom";
 import { TextInput } from "../print/dom.js";
 import { samePosition, isMarker, isSection, focusedFlow } from "../model/flows.js";
 import { anchorAt } from "../model/frames.js";
+import { isDot } from "../model/sequences.js";
 import { caretRows, flowBoxes } from "./markers.js";
 import {
   caretAt, hitTest, selectionRects, lineStart, lineEnd, rowAbove, rowBelow, stepLeft, stepRight, wordLeft, wordRight, rowAt,
@@ -88,10 +89,19 @@ import { tabulaPaperView } from "./TabulaPaperView.js";
  * Ctrl/Cmd plus a key, handed to `onShortcut(name)`. And `onCaret(position)`,
  * told every time the caret moves - an edit moving it too - for showing
  * what it's in.
+ *
+ * The caret can be at a creation dot of pages of their own, too (see
+ * ../model/sequences.js's dotPosition(), markers.js) - reached as any
+ * marker is, drawn by the dot itself. There, a key goes first to
+ * `onDotKey(command, at)` - a space typed as the key " " - to open the
+ * dot's menu and go through it, say: true, taken. What's not taken moves
+ * the caret, or edits as anywhere else - Ctrl+Enter, Ctrl+Backspace - and
+ * nothing typed goes in.
  */
 export class TabulaEditor extends Component {
-  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, onMarginDoubleClick, controller, renderInsert, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
+  setProperties({ sequence, root, measurer, editing, zoom = 1, shortcuts, onShortcut, onCaret, onMarginDoubleClick, controller, renderInsert, onDotKey, showAllAreas = false, showFocusOutline = true, markerTypes, sectionEnds = "below", style }) {
     this.sequence = sequence;
+    this.onDotKey = onDotKey || null;
     this.renderInsert = renderInsert || null;
     this.controller = controller || null;
     this.onMarginDoubleClick = onMarginDoubleClick || null;
@@ -192,8 +202,9 @@ export class TabulaEditor extends Component {
       // Ctrl+Enter climbs.
       ...this.anchoredArea(),
     ];
-    // With something selected, the selection shows where the caret is.
-    const geometry = caret && focused && !selected ? caretAt(rows, caret, measurer) : null;
+    // With something selected, the selection shows where the caret is. At
+    // a creation dot, the dot does (see ../shell/CreationDot.js).
+    const geometry = caret && focused && !selected && !isDot(caret) ? caretAt(rows, caret, measurer) : null;
     const selection = selected
       ? { rects: selectionRects(rows, ...orderedRange(rows, this.anchor, caret), measurer), focused }
       : null;
@@ -345,6 +356,13 @@ export class TabulaEditor extends Component {
     if (command.type === "focus") this.focused = true;
     else if (command.type === "blur") this.focused = false;
     if (!this.caret) return;
+    // At a creation dot: whoever placed the editor first - a space typed
+    // as a key - then moving; nothing typed goes in.
+    if (isDot(this.caret)) {
+      const key = command.type === "insert" ? { type: "key", key: command.text === " " ? " " : command.text, shift: false, primary: false } : command;
+      if ((key.type === "key") && this.onDotKey && this.onDotKey(key, this.caret)) return;
+      if (command.type === "insert") return;
+    }
     if (command.type === "insert") {
       if (this.editing) this.edit((at) => this.editing.insertText(at, command.text));
     }
@@ -426,6 +444,8 @@ export class TabulaEditor extends Component {
   // (see editing.js's settle()).
   moveCaret(at, { extend = false, vertical = false, edited = false } = {}) {
     if (!vertical) this.unobservable.goalX = null;
+    // Nothing selected to or from a creation dot.
+    if (isDot(at) || isDot(this.caret)) extend = false;
     postponeInvalidations();
     if (!edited) this.settle(at);
     if (!extend) this.anchor = null;
@@ -435,6 +455,13 @@ export class TabulaEditor extends Component {
     continueInvalidations();
     this.followCaret();
     this.tellCaret();
+  }
+
+  // The caret to `at` from outside - a creation dot clicked - and the
+  // keyboard to the editor.
+  placeCaret(at) {
+    this.moveCaret(at);
+    this.unobservable.input.focus();
   }
 
   // No caret, nothing selected - as before the first click.

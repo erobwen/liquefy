@@ -1,4 +1,3 @@
-import { paperSizes, margins, mm } from "../../print/index.js";
 import { Document, Paragraph, paragraphText } from "../../model/flows.js";
 import { documentPlugin } from "../../shell/documents.js";
 import { documentFromProperties, documentProperties, structuredTextKinds, structuredTextFamilies } from "./json.js";
@@ -20,8 +19,9 @@ export const structuredText = {
   description: "Sections, titles and paragraphs, on paper.",
   // As the classic app's Clear leaves one: no title, one empty paragraph -
   // their placeholders, "Title" and "Text", showing. Its titles numbered -
-  // for now: the structure plain to see, while it's tried out.
-  create: () => new Document({ title: "", paper: paperSizes.A4, margins: margins(mm(25)), numberTitles: true }, [new Paragraph()]),
+  // for now: the structure plain to see, while it's tried out. On the
+  // file's page settings: none of its own.
+  create: () => new Document({ title: "", numberTitles: true }, [new Paragraph()]),
   hydrate: (properties) => documentFromProperties(properties),
   dehydrate: (model) => documentProperties(model),
   // On paper, edited; on the web, read only, for now.

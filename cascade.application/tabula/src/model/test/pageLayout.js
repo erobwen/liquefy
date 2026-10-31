@@ -1,8 +1,8 @@
 import assert from "assert";
-import { repeat, retractRepeater, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
+import { repeat, retractRepeater, ObservableCompoundServiceLocator, observable as observableObject } from "@liquefy/cascade.component";
 import { mm, paperSizes, margins, PaperSequence, monospaceMeasurer } from "../../print/index.js";
 import { document, paragraph, sequence } from "../flows.js";
-import { PageLayout, PageElement, pageKind, elementRect, placeElement, pageElements, isVerso } from "../pageLayout.js";
+import { PageLayout, PageElement, pageKind, elementRect, placeElement, pageElements } from "../pageLayout.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { structuredTextPlugin, structuredText } from "../../plugins/structuredText/index.js";
 import { framesPlugin, shape, pageNumber } from "../../plugins/frames/index.js";
@@ -59,7 +59,7 @@ describe("A page layout", function () {
       assert.deepEqual(pageElements(pageLayout, 0, count, a4).map(({ element }) => element), [band]);
       assert.deepEqual(pageElements(pageLayout, count - 1, count, a4).map(({ rect }) => rect.x), [a4.width - mm(30)]);
       // New margins: the text flows anew.
-      pageLayout.margins = margins(mm(10));
+      doc.pageLayout.margins = margins(mm(10));
       assert.equal(seq.linesOf(0)[1].x, mm(10));
     } finally {
       retractRepeater(root);
@@ -73,7 +73,9 @@ describe("A page layout", function () {
     const doc = document({ title: "D", paper: a4, pageLayout: new PageLayout({ margins: margins(mm(25)), first: [element] }) }, paragraph("x"));
     const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
     const layout = json.properties.pageLayout;
-    assert.deepEqual([layout.type, layout.name, layout.properties.margins], ["pageLayout", "pages", margins(mm(25))]);
+    // Its settings with it - only those it has.
+    assert.deepEqual([layout.type, layout.name, Object.keys(layout.properties)], ["pageLayout", "pages", ["paper", "margins", "first", "middle", "last"]]);
+    assert.deepEqual([layout.properties.paper, layout.properties.margins], ["A4", margins(mm(25))]);
     assert.deepEqual(layout.properties.first[0], {
       type: "pageElement", name: "element",
       properties: {
@@ -104,12 +106,11 @@ describe("A page layout", function () {
       assert.equal(seq.linesOf(0)[1].x, mm(30));
       assert.equal(seq.linesOf(1)[0].x, mm(15));
       // Everything measured from the outer side ("right"): there on both.
-      const corner = (index) => pageElements(pageLayout, index, seq.pages.length, a4)[0].rect.x;
+      const corner = (index) => pageElements(pageLayout, index, seq.pages.length, seq.pages[index])[0].rect.x;
       assert.equal(corner(1), mm(10), "on a left-hand page, the outer side is the left");
       assert.equal(corner(2), a4.width - mm(10) - mm(20));
-      assert.deepEqual([isVerso(pageLayout, 1), isVerso(pageLayout, 2)], [true, false]);
       // One-sided again: every page as the first.
-      pageLayout.duplex = false;
+      doc.pageLayout.duplex = false;
       assert.ok(seq.pages.every((format) => !format.side && format.margins.left === mm(30)));
     } finally {
       retractRepeater(root);
@@ -126,13 +127,51 @@ describe("A page layout", function () {
     assert.equal(elementRect(element, a4).x, a4.width - mm(52), "on a right-hand page: the outer side on the right");
   });
 
-  it("is saved double-sided, if it is - and only then", function () {
+  it("is saved double-sided, if it is - its page settings saying so", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
     const doc = document({ title: "D", paper: a4, pageLayout: new PageLayout({ margins: margins(mm(25)), duplex: true }) }, paragraph("x"));
     const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
     assert.equal(json.properties.pageLayout.properties.duplex, true);
     assert.equal(hydrateDocument(json, services).model.pageLayout.duplex, true);
-    doc.pageLayout.duplex = false;
-    assert.equal(dehydrateDocument(new HydratedDocument(structuredText, doc)).properties.pageLayout.properties.duplex, undefined);
+    doc.pageLayout.duplex = undefined;
+    assert.equal(JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc)))).properties.pageLayout.properties.duplex, undefined);
   });
 });
+
+describe("A page layout derived from another", function () {
+  it("inherits what it doesn't set - the file's margins - and places what's on it in relation to them", async function () {
+    const { RootLayout } = await import("../../layout/DocumentLayout.js");
+    const { rootPageLayout, measureElement } = await import("../pageLayout.js");
+    // A footer: 5 mm below the bottom margin, in the middle.
+    const footer = new PageElement({ content: createDocument(pageNumber), from: "margins", horizontal: "left", x: mm(60), vertical: "bottom", y: -mm(10), width: mm(40), height: mm(5) });
+    const doc = document({ title: "D", pageLayout: new PageLayout({ first: [footer], middle: [footer], last: [footer] }) }, paragraph("text"));
+    assert.ok(!doc.pageLayout.hasSettings(), "derived: no settings of its own");
+    const source = observableSource({ documents: [new HydratedDocument(structuredText, doc)], pageLayout: rootPageLayout({ margins: margins(mm(20)) }) });
+    const target = new PaperSequence();
+    const layout = new RootLayout({ source, measurer: monospaceMeasurer() }).establish();
+    const root = repeat(() => layout.renderOnto(target), { independent: true });
+    try {
+      const pages = target.inserts[0].items[0].pages;
+      const format = () => pages.pages[0];
+      const rect = () => pageElements(format().pageLayout, 0, 1, format())[0].rect;
+      assert.equal(format().pageLayout, doc.pageLayout, "its own content drawn");
+      assert.deepEqual([pages.linesOf(0).at(-1).x, rect().x, rect().top], [mm(20), mm(80), a4.height - mm(20) + mm(10) - mm(5)]);
+      // The file's margins changed: the text and the footer with them.
+      source.pageLayout.margins = margins(mm(30));
+      assert.deepEqual([pages.linesOf(0).at(-1).x, rect().x, rect().top], [mm(30), mm(90), a4.height - mm(30) + mm(10) - mm(5)]);
+      // Measured from the paper instead: where it is, and staying there.
+      measureElement(footer, { from: "paper" }, format());
+      const there = rect();
+      source.pageLayout.margins = margins(mm(15));
+      assert.deepEqual(rect(), there);
+    } finally {
+      retractRepeater(root);
+      layout.dispose();
+    }
+  });
+});
+
+// Where a root layout finds the file: as the app has it, observed.
+function observableSource(file) {
+  return observableObject(file);
+}

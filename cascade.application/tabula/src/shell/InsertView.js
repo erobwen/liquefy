@@ -21,9 +21,17 @@ import { paperGap, dotLineStyle } from "./spacing.js";
  * after them, an angle pointing down - each on its clamp, where the gap
  * there is (see spacing.js): its papers one gap from each other, and from
  * the papers around them - its dots its own, apart from those of what it's
- * in, at its edges.
+ * in, at its edges. Empty: a page break - a diamond in a clamp, a gap
+ * tall, for what's to come between; its last item taken out, that again.
  *
- *   insertView({ sequence, items, format, before, pad, hint, onEmpty })
+ * Its dots are places for the caret of the editor it's in (see
+ * ../model/sequences.js's dotPosition()): the one the caret is at
+ * (`caret`, its index - or null) outlined, its menu open with `menu` ({
+ * highlighted }, the item the keyboard is at). A dot clicked: the caret to
+ * it, its menu open (`onDot(index)`); the menu closed by a click outside
+ * it, `onCloseMenu()`.
+ *
+ *   insertView({ sequence, items, format, before, pad, hint, caret, menu, onDot, onCloseMenu })
  *
  * `items`: as the layout of the document they're in laid them out (see
  * ../layout/DocumentLayout.js's InsertLayout) - each { item, pages }: what's
@@ -31,19 +39,22 @@ import { paperGap, dotLineStyle } from "./spacing.js";
  * shows it (`paperSequence` - see documents.js). `format`: the paper of the
  * page they follow (or, `before` a document's title, come before) - a
  * place's. `pad`: a blank back after them, for the page after them to be a
- * right-hand one. `onEmpty()`: its last item removed - the sequence to go.
+ * right-hand one.
  * Its creation dots the size of the app's own, whatever the papers around
  * it are drawn at (`paperZoom`, inherited - see StructuredTextEditor.js).
  */
 export class InsertView extends Component {
-  setProperties({ sequence, items = [], format, before = false, pad = false, hint = "", onEmpty }) {
+  setProperties({ sequence, items = [], format, before = false, pad = false, hint = "", caret = null, menu = null, onDot, onCloseMenu }) {
+    this.caret = caret;
+    this.menu = frozen(menu);
+    this.onDot = onDot || null;
+    this.onCloseMenu = onCloseMenu || null;
     this.sequence = sequence;
     this.items = items;
     this.format = frozen(format);
     this.before = !!before;
     this.pad = !!pad;
     this.hint = hint;
-    this.onEmpty = onEmpty || (() => {});
   }
 
   initialUnobservables() {
@@ -63,21 +74,37 @@ export class InsertView extends Component {
     const { sequence, format } = this;
     const items = sequence.items;
     const types = views ? views.types() : [];
-    const remove = (index) => {
-      items.splice(index, 1);
-      if (items.length === 0) this.onEmpty();
-    };
+    const remove = (index) => { items.splice(index, 1); };
     // Something more, made at `index` - with a creation dot there.
     const insert = (index, type) => { items.splice(index, 0, views.create(type)); };
     const dot = (key, index, shape, title) => div(
       { key, style: dotLineStyle },
       div(
         { style: { ...onClampStyle, left: clampLeft({ depth, paperWidth: format.width }) } },
-        div({ style: { zoom: 1 / zoom } }, creationDot({ documentTypes: types, shape, title, onCreate: callback(key, (type) => insert(index, type)) })),
+        div({ style: { zoom: 1 / zoom } }, creationDot({
+          documentTypes: types, shape, title,
+          onCreate: callback(key, (type) => insert(index, type)),
+          // The caret's: at it, its menu open as the editor says.
+          ...(this.onDot ? {
+            focused: this.caret === index,
+            open: this.caret === index && !!this.menu,
+            highlighted: this.caret === index && this.menu ? this.menu.highlighted : null,
+            onPress: callback(key + "press", () => this.onDot(index)),
+            onClose: callback(key + "close", () => { if (this.onCloseMenu) this.onCloseMenu(); }),
+          } : {}),
+        })),
       ),
     );
     const count = this.items.length;
     const zoom = this.inherit("paperZoom") || 1;
+    // Empty: a page break - a diamond, a gap's room around it.
+    if (count === 0) {
+      return div(
+        { "data-insert": "", style: groupStyle },
+        clamp({ depth, paperWidth: format.width }),
+        div({ key: "break", style: breakStyle }, dot("only", 0, "diamond", "Create something here - a page break, so far")),
+      );
+    }
     return div(
       { "data-insert": "", style: groupStyle },
       clamp({ depth, paperWidth: format.width }),
@@ -131,6 +158,8 @@ const onClampStyle = {
   position: "absolute", top: 0, width: 0, height: 0,
   display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible",
 };
+// An empty one's room: a gap, the diamond in its middle.
+const breakStyle = { height: paperGap + "mm", alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "center" };
 const spaced = { margin: `${paperGap / 2}mm 0`, flex: "none" };
 const blankStyle = { background: "rgba(255, 255, 255, 0.55)", border: "1.5px dashed rgba(66, 133, 244, 0.3)", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" };
 const placeStyle = {

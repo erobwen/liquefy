@@ -2,8 +2,11 @@ import assert from "assert";
 import { repeat, retractRepeater, ObservableCompoundServiceLocator } from "@liquefy/cascade.component";
 import { PaperSequence, monospaceMeasurer, paperSizes, margins, mm } from "../../print/index.js";
 import { document, section, paragraph, sequence as sequenceOf, paragraphText, isSection, textPosition, flowStart } from "../../model/flows.js";
-import { InnerSequence, isFresh, anchoredSequences } from "../../model/sequences.js";
+import { InnerSequence, isFresh, anchoredSequences, dotPosition, isDot } from "../../model/sequences.js";
+import { caretRows } from "../markers.js";
+import { stepRight, stepLeft } from "../positions.js";
 import { PageLayout } from "../../model/pageLayout.js";
+import { rootPageLayout } from "../../model/pageLayout.js";
 import { tabulaEditing } from "../editing.js";
 import { SequenceLayout } from "../../layout/DocumentLayout.js";
 import { structuredTextPlugin, structuredText } from "../../plugins/structuredText/index.js";
@@ -102,18 +105,20 @@ describe("Pages of their own - inner sequences", function () {
     assert.deepEqual(laidOut(doc), ["Book One one Two two"]);
   });
 
-  it("before the title, at its start: a cover - Ctrl+Backspace there takes it away", function () {
+  it("not before the title, at its start - a cover is created before the document, in the file - but after it", function () {
     const { doc, editing } = setUp([paragraph("text")]);
     editing.pageBreak(textPosition(doc.title, 0));
-    assert.deepEqual(anchors(doc), ["Document:before"]);
-    assert.deepEqual(laidOut(doc), ["[]", "Book text"]);
+    assert.deepEqual(anchors(doc), ["Book:after"]);
     editing.unanchor(textPosition(doc.title, 0));
     assert.deepEqual(anchors(doc), []);
   });
 
-  it("are laid out after the page their paragraph ends on - the text going on there - and after a section, the rest on a fresh page", function () {
+  it("are laid out after the page their paragraph ends on - a page break, the text after them on a fresh page, unless it runs on - and after a section, the rest on a fresh page", function () {
     const { doc, editing } = setUp([paragraph("before"), paragraph("after"), section("Next", paragraph("next"))]);
     editing.pageBreak(textPosition(doc.children[0], 0));
+    assert.equal(doc.children[0].after.items.length, 0, "empty: a page break");
+    assert.deepEqual(laidOut(doc), ["Book before", "[]", "after Next next"]);
+    doc.children[0].after.runOn = true;
     assert.deepEqual(laidOut(doc), ["Book before after Next next", "[]"]);
     doc.children[0].after = null;
     doc.children[2].before = new InnerSequence();
@@ -141,19 +146,84 @@ describe("Pages of their own - inner sequences", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
     const { doc, editing } = setUp([section("One", paragraph("text"))]);
     editing.pageBreak(textPosition(doc.title, 0));
-    doc.before.items[0] = createDocument(image);
-    doc.before.items.push(null);
+    doc.title.after.items[0] = createDocument(image);
+    doc.title.after.items.push(null);
     editing.pageBreak(textPosition(doc.children[0].children[0], 4));
     doc.bookMode = true;
     const json = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
     assert.equal(json.properties.bookMode, true);
-    assert.deepEqual(json.properties.before.properties.items.map((item) => item && item.name), ["image", null]);
+    assert.deepEqual(json.properties.title.properties.after.properties.items.map((item) => item && item.name), ["image", null]);
     const back = hydrateDocument(json, services).model;
     assert.deepEqual(anchors(back), anchors(doc));
-    assert.equal(back.before.items[0].documentType, image);
+    assert.equal(back.title.after.items[0].documentType, image);
     assert.deepEqual(JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, back)))), json);
   });
 });
+
+describe("Pages of their own, at their creation dots", function () {
+  it("are made by Ctrl+Enter empty - a page break - the caret to its creation dot", function () {
+    const { doc, editing } = setUp([paragraph("text")]);
+    const at = editing.pageBreak(textPosition(doc.children[0], 2));
+    assert.ok(isDot(at));
+    assert.deepEqual([at.flow, at.index], [doc.children[0].after, 0]);
+    assert.equal(doc.children[0].after.items.length, 0);
+  });
+
+  it("climb with Ctrl+Enter there, whatever is in them - and come back in with Ctrl+Backspace, after what's last in what they were after", function () {
+    const { doc, editing, refusals } = setUp([section("Chapter", paragraph("one"), paragraph("two"))]);
+    const two = doc.children[0].children[1];
+    const at = editing.pageBreak(textPosition(two, 0));
+    at.flow.items.push(createDocument(image));
+    assert.ok(samePlace(editing.pageBreak(at), at), "the caret stays with them");
+    assert.deepEqual(anchors(doc), ["Chapter:after"]);
+    editing.pageBreak(at);
+    assert.deepEqual(anchors(doc), ["Document:after"]);
+    editing.pageBreak(at);
+    assert.equal(refusals(), 1, "the document's end: no further, for now");
+    editing.unanchor(at);
+    assert.deepEqual(anchors(doc), ["Chapter:after"]);
+    editing.unanchor(at);
+    assert.deepEqual(anchors(doc), ["two:after"]);
+    // After a paragraph, with something in them: they stay.
+    editing.unanchor(at);
+    assert.deepEqual([anchors(doc), refusals()], [["two:after"], 2]);
+  });
+
+  it("empty, are taken away by Delete there - the caret back at the end of the paragraph they were after", function () {
+    const { doc, editing, refusals } = setUp([paragraph("text")]);
+    const at = editing.pageBreak(textPosition(doc.children[0], 0));
+    const back = editing.removeBreak(at);
+    assert.deepEqual(anchors(doc), []);
+    assert.deepEqual([back.paragraph, back.offset], [doc.children[0], 4]);
+    const again = editing.pageBreak(textPosition(doc.children[0], 0));
+    again.flow.items.push(null);
+    editing.removeBreak(again);
+    assert.deepEqual([anchors(doc), refusals()], [["text:after"], 1]);
+  });
+
+  it("are where the caret goes, in reading order - after the paragraph's end, one before each item and one after the last", function () {
+    const { doc, editing } = setUp([paragraph("one"), paragraph("two")]);
+    const at = editing.pageBreak(textPosition(doc.children[0], 0));
+    const seq = new PaperSequence();
+    const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer() }).establish();
+    const root = repeat(() => layout.renderOnto(seq), { independent: true });
+    try {
+      const rows = () => caretRows(seq, sequenceOf(doc));
+      // Empty: one dot - after "one"'s end, before "two"'s start.
+      const after = stepRight(rows(), textPosition(doc.children[0], 3));
+      assert.ok(samePlace(stepRight(rows(), after), at), "from the paragraph's end, the dot");
+      assert.equal(stepRight(rows(), at).edge, "start", "and on, the next paragraph's start");
+      at.flow.items.push(null);
+      assert.ok(samePlace(stepRight(rows(), at), dotPosition(at.flow, 1)), "one item: a dot before it, one after");
+      assert.ok(samePlace(stepLeft(rows(), dotPosition(at.flow, 1)), at));
+    } finally {
+      retractRepeater(root);
+      layout.dispose();
+    }
+  });
+});
+
+const samePlace = (a, b) => a.flow === b.flow && a.edge === b.edge && a.index === b.index;
 
 describe("Pages of their own, printed on both sides", function () {
   // A document printed on both sides, laid out: each paper's side and its
@@ -193,8 +263,9 @@ describe("Pages of their own, printed on both sides", function () {
     const doc = book(...lots(60));
     const plain = sides(doc);
     assert.deepEqual(plain.slice(0, 3), ["recto@30", "verso@15", "recto@30"]);
-    // Pages of their own after the first paragraph: one page - a place.
-    doc.children[0].after = new InnerSequence();
+    // Pages of their own after the first paragraph, the text running on:
+    // one page - a place.
+    doc.children[0].after = new InnerSequence([null], { runOn: true });
     const one = sides(doc);
     assert.deepEqual(one.slice(0, 4), ["recto@30", "[1]", "recto@30", "verso@15"], "the paper after them a right-hand one - after their left-hand page");
     // Two pages: the next a left-hand one again.
@@ -204,9 +275,8 @@ describe("Pages of their own, printed on both sides", function () {
 
   it("lay out a document in them with the one they're in - on its paper, its sides going on from there - and count on past its pages", function () {
     const doc = book(...lots(60));
-    // A structured text of its own, on paper of its own - A5.
+    // A structured text of its own - no page settings of its own.
     const own = structuredText.create();
-    own.paper = paperSizes.A5;
     own.children.splice(0, 1, ...lots(30));
     doc.children[0].after = new InnerSequence([new HydratedDocument(structuredText, own)]);
     const laidOut = sides(doc, { inner: true });
@@ -222,7 +292,7 @@ describe("Pages of their own, printed on both sides", function () {
 
   it("before the title: a blank back after them, where they'd end on a right-hand page - the title's page a right-hand one", function () {
     const doc = book(paragraph("text"));
-    doc.before = new InnerSequence();
+    doc.before = new InnerSequence([null]);
     assert.deepEqual(sides(doc), ["[1+blank]", "recto@30"]);
     doc.before.items.push(null);
     assert.deepEqual(sides(doc), ["[2]", "recto@30"]);
@@ -253,8 +323,8 @@ describe("Pages of their own, printed on both sides", function () {
     const doc = book(...lots(60));
     const own = structuredText.create();
     own.children.splice(0, 1, ...lots(30));
-    doc.children[0].after = new InnerSequence([null, new HydratedDocument(structuredText, own)]);
-    doc.before = new InnerSequence();
+    doc.children[0].after = new InnerSequence([null, new HydratedDocument(structuredText, own)], { runOn: true });
+    doc.before = new InnerSequence([null]);
     const seq = new PaperSequence();
     const layout = new SequenceLayout({ sequence: sequenceOf(doc), measurer: monospaceMeasurer() }).establish();
     const root = repeat(() => layout.renderOnto(seq), { independent: true });
@@ -267,8 +337,9 @@ describe("Pages of their own, printed on both sides", function () {
       const own = after.items[1].pages;
       assert.deepEqual([own.numberOf(0), own.numberOf(own.pages.length - 1)], [5, 7]);
       // The last of them all - theirs, too: "of" counts the whole book.
-      assert.equal(seq.lastNumber(), 7 + seq.pages.length - 1);
-      assert.equal(own.lastNumber(), seq.lastNumber());
+      const last = 7 + seq.pages.length - 1;
+      assert.equal(seq.lastNumberOf(0), last);
+      assert.equal(own.lastNumberOf(0), last);
     } finally {
       retractRepeater(root);
       layout.dispose();
@@ -281,18 +352,38 @@ describe("Pages of their own, printed on both sides", function () {
   });
 });
 
-describe("A file's print settings", function () {
-  it("are its root's - printed on both sides, saved as a sequence saying so; one side, the root as it was", function () {
+describe("A file's root", function () {
+  it("holds its page settings - what it's designed for - its print settings, and what's in it", function () {
     const services = new ObservableCompoundServiceLocator(structuredTextPlugin);
-    const { doc } = setUp([paragraph("text")]);
-    const documents = [new HydratedDocument(structuredText, doc)];
-    const plain = dehydrateFile(documents, { duplex: false });
-    assert.equal(plain.type, "document");
-    const both = JSON.parse(JSON.stringify(dehydrateFile(documents, { duplex: true })));
-    assert.deepEqual([both.type, both.name, both.properties.print], ["sequence", "root", { duplex: true }]);
-    const read = hydrateFile(both, services);
-    assert.equal(read.print.duplex, true);
-    assert.equal(read.documents.length, 1);
-    assert.equal(hydrateFile(plain, services).print.duplex, false);
+    const documents = [new HydratedDocument(structuredText, structuredText.create())];
+    const pageLayout = rootPageLayout({ landscape: true, duplex: true });
+    const json = JSON.parse(JSON.stringify(dehydrateFile(documents, { duplex: true }, pageLayout)));
+    assert.deepEqual([json.type, json.name, json.properties.print], ["root", "tabula", { duplex: true }]);
+    // The base: every setting, no content.
+    assert.deepEqual(json.properties.pageLayout.properties, { paper: "A4", landscape: true, margins: margins(mm(25)), duplex: true });
+    assert.deepEqual(Object.keys(json.properties.items[0].properties.pageLayout.properties), ["first", "middle", "last"], "the document's derived: content, no settings");
+    const read = hydrateFile(json, services);
+    assert.deepEqual([read.print.duplex, read.pageLayout.landscape, read.documents.length], [true, true, 1]);
+  });
+
+  it("read from a file from before it - a document, a list, a sequence saying how it's printed - takes its page settings from its first document", function () {
+    const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
+    const letter = (title, margin) => document({ title, paper: paperSizes.letter, margins: margins(mm(margin)) }, paragraph("text"));
+    const old = [letter("One", 20), letter("Two", 30)].map((each) => JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, each)))));
+    const { documents, pageLayout, print } = hydrateFile({ type: "sequence", name: "root", properties: { print: { duplex: true }, items: old } }, services);
+    assert.deepEqual([pageLayout.paper, pageLayout.margins.top, print.duplex], [paperSizes.letter, mm(20), true]);
+    // The first, none of its own left; the second, only what's apart.
+    assert.ok(!documents[0].model.pageLayout.hasSettings());
+    assert.deepEqual([documents[1].model.pageLayout.paper, documents[1].model.pageLayout.margins.top], [undefined, mm(30)]);
+  });
+
+  it("read from a file from before it, puts a document's cover before it - at the top", function () {
+    const services = new ObservableCompoundServiceLocator(structuredTextPlugin, framesPlugin);
+    const doc = document({ title: "Book", paper }, paragraph("text"));
+    doc.before = new InnerSequence([createDocument(image), null]);
+    const old = JSON.parse(JSON.stringify(dehydrateDocument(new HydratedDocument(structuredText, doc))));
+    const { documents } = hydrateFile(old, services);
+    assert.deepEqual(documents.map((each) => each.documentType.name), ["image", "structuredText"]);
+    assert.equal(documents[1].model.before, null);
   });
 });

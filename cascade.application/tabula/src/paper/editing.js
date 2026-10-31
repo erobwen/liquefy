@@ -1,9 +1,10 @@
 import {
   Paragraph, Section, Document, isSection, isParagraph, isFlowEdge,
-  textPosition, flowStart, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
+  textPosition, flowStart, flowEnd, samePosition, paragraphText, makeSpan, hasExitTitle, titleLevel,
 } from "../model/flows.js";
 import { FrameAnchor, anchorCharacter } from "../model/frames.js";
-import { InnerSequence, isFresh, anchorLadder, anchoredSequences } from "../model/sequences.js";
+import { InnerSequence, isFresh, anchorLadder, anchoredSequences, anchorOf, dotPosition, isDot } from "../model/sequences.js";
+import { PageLayout, pageSettingKeys } from "../model/pageLayout.js";
 import { readingOrder } from "./markers.js";
 
 /**
@@ -131,11 +132,16 @@ import { readingOrder } from "./markers.js";
  * structure's to say. Ctrl+Enter (pageBreak()):
  *
  *  - In the text: pages of their own, after the paragraph the caret is in -
- *    a place for something, its kind to be chosen. Again, while nothing's
- *    chosen there yet: anchored a step further out - after the section the
- *    paragraph is in, then the one around that, up to the document's end -
- *    a ladder, as Enter's. Ctrl+Backspace, a step back in - and, anchored
- *    to the paragraph, gone (unanchor()).
+ *    empty, a page break - the caret to its creation dot (see
+ *    ../model/sequences.js's dotPosition()), for something to be created
+ *    there. Again, while nothing's in it yet: anchored a step further out -
+ *    after the section the paragraph is in, then the one around that, up
+ *    to the document's end - a ladder, as Enter's. Ctrl+Backspace, a step
+ *    back in - and, anchored to the paragraph, gone (unanchor()).
+ *  - At a creation dot: its pages, whatever's in them, a step further out
+ *    - Ctrl+Backspace, a step back in: after the last flow in what they're
+ *    anchored to; anchored to a paragraph, empty, gone. Delete or Backspace
+ *    there, an empty one gone (removeBreak()) - the caret back in the text.
  *  - At a chapter's start - a section right in the document: book mode, its
  *    chapters each starting a page of their own. In book mode already: pages
  *    of their own before the chapter. Ctrl+Backspace there: those gone, or,
@@ -175,9 +181,14 @@ export function tabulaEditing(root, { newSectionsBeside = () => true, depressedT
     insert: (position, content) => at((position) => insertContent(root, position, content, options))(position),
     pageBreak: at((position) => pageBreak(root, position, options)),
     unanchor: at((position) => unanchor(root, position, options)),
-    // The flow the caret's pages of their own - still a place, nothing in it -
-    // are anchored to, as Ctrl+Enter climbs: what to show them anchored to.
+    removeBreak: at((position) => removeBreak(root, position, options)),
+    // The flow the caret's pages of their own - still a place, nothing in it,
+    // or those of the creation dot it's at - are anchored to, as Ctrl+Enter
+    // climbs: what to show them anchored to.
     anchoredAt: (position) => anchoredAt(root, position),
+    // Where the caret goes back into the text from a creation dot - the end
+    // of what its pages are anchored to.
+    textBeside: (position) => textBeside(root, position),
     // For a section's structure, outside the text - a panel's buttons:
     canPromote: (section) => canPromote(root, section),
     canDemote: (section) => canDemote(root, section),
@@ -466,10 +477,12 @@ function removeFlow(root, flow) {
 }
 
 // Ctrl+Enter (see above): book mode, at a chapter's start - or, in it, pages
-// of their own before the chapter; pages before a document's title, at its
-// start; anywhere else, pages of their own after the paragraph - or, there
-// already, still a place, a step further out.
+// of their own before the chapter; anywhere else, pages of their own after
+// the paragraph - or, there already, still a place, a step further out. Not
+// before a document's title: what goes before a document - a cover - is
+// created before it, among the file's documents.
 function pageBreak(root, at, options) {
+  if (isDot(at)) return climb(root, at, options);
   const chapter = chapterStartingAt(root, at);
   if (chapter) {
     const { document, section } = chapter;
@@ -479,13 +492,7 @@ function pageBreak(root, at, options) {
     }
     if (section.before) return refused(at, options);
     section.before = new InnerSequence();
-    return at;
-  }
-  const titled = titleStartingAt(root, at);
-  if (titled) {
-    if (titled.before) return refused(at, options);
-    titled.before = new InnerSequence();
-    return at;
+    return dotPosition(section.before, 0);
   }
   const ladder = ladderAt(root, at);
   if (!ladder) return refused(at, options);
@@ -495,18 +502,83 @@ function pageBreak(root, at, options) {
     if (!out || out.after) return refused(at, options);
     out.after = ladder[fresh].after;
     ladder[fresh].after = null;
-    return at;
+    return dotPosition(out.after, 0);
   }
   const free = ladder.find((flow) => !flow.after);
   if (!free) return refused(at, options);
   free.after = new InnerSequence();
+  return dotPosition(free.after, 0);
+}
+
+// Where pages of their own are anchored, in `root` - { flow, side } - or
+// null.
+function anchorIn(root, sequence) {
+  for (const document of root.children) {
+    const found = anchorOf(document, sequence);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Back in the text from a creation dot: the end of what its pages are
+// anchored after - a paragraph's text, a section's end - or the start of
+// what they're before.
+function textBeside(root, at) {
+  const anchor = isDot(at) ? anchorIn(root, at.flow) : null;
+  if (!anchor) return at;
+  if (anchor.side === "before") return flowStart(anchor.flow);
+  return isSection(anchor.flow) ? flowEnd(anchor.flow) : textPosition(anchor.flow, paragraphText(anchor.flow).length);
+}
+
+// Ctrl+Enter at a creation dot: its pages anchored a step further out -
+// after the section around what they're after - the caret staying with
+// them. At the document: nowhere further, for now.
+function climb(root, at, options) {
+  const anchor = anchorIn(root, at.flow);
+  if (!anchor || anchor.side !== "after") return refused(at, options);
+  const ladder = anchorLadder(root, anchor.flow);
+  const out = ladder[ladder.indexOf(anchor.flow) + 1];
+  if (!out || out.after) return refused(at, options);
+  out.after = at.flow;
+  anchor.flow.after = null;
   return at;
+}
+
+// Ctrl+Backspace at a creation dot: its pages a step back in - after the
+// last flow in what they're after; after a paragraph, or before a flow,
+// empty, gone.
+function descend(root, at, options) {
+  const anchor = anchorIn(root, at.flow);
+  if (!anchor) return refused(at, options);
+  const { flow, side } = anchor;
+  if (side === "after" && isSection(flow)) {
+    const last = flow.children[flow.children.length - 1];
+    if (!last || last.after) return refused(at, options);
+    last.after = at.flow;
+    flow.after = null;
+    return at;
+  }
+  return removeBreak(root, at, options);
+}
+
+// Delete or Backspace at a creation dot: its pages, empty - a page break -
+// gone, the caret back in the text beside where they were. With something
+// in them, refused.
+function removeBreak(root, at, options) {
+  if (!isDot(at)) return at;
+  const anchor = anchorIn(root, at.flow);
+  if (!anchor || at.flow.items.length > 0) return refused(at, options);
+  const back = textBeside(root, at);
+  anchor.flow[anchor.side] = null;
+  return back;
 }
 
 // Ctrl+Backspace (see above): Ctrl+Enter undone - pages still a place a step
 // back in, or gone; at a chapter's start, those before it gone, or book
-// mode; at a title's start, those before it.
+// mode; at a title's start, those before it - from a file made when they
+// could be put there.
 function unanchor(root, at, options) {
+  if (isDot(at)) return descend(root, at, options);
   const chapter = chapterStartingAt(root, at);
   if (chapter) {
     const { document, section } = chapter;
@@ -543,6 +615,10 @@ function ladderAt(root, at) {
 }
 
 function anchoredAt(root, at) {
+  if (isDot(at)) {
+    const anchor = anchorIn(root, at.flow);
+    return anchor ? anchor.flow : null;
+  }
   const ladder = at ? ladderAt(root, at) : null;
   return ladder ? ladder.find((flow) => isFresh(flow.after)) || null : null;
 }
@@ -1139,7 +1215,8 @@ function flowBefore(list, index) {
 }
 
 // A new, empty flow of `flow`'s kind - a section at `titleOffset`, holding
-// `children`; a document on the same paper. A new section holds an empty
+// `children`; a document on the same paper - its own page settings, if
+// it has any, the same. A new section holds an empty
 // paragraph if nothing else: a title and a text, both to write.
 function flowLike(flow, titleOffset, children = []) {
   if (isSection(flow)) return newSection(titleOffset, children, flow instanceof Document ? flow : null);
@@ -1148,7 +1225,11 @@ function flowLike(flow, titleOffset, children = []) {
 
 function newSection(titleOffset = 0, children = [], document = null) {
   const content = children.length > 0 ? children : [placeholder()];
-  if (document) return new Document({ title: "", paper: document.paper, margins: document.pageLayout.margins, titleOffset }, content);
+  if (document) {
+    const own = document.pageLayout;
+    const pageLayout = new PageLayout(Object.fromEntries(pageSettingKeys.map((key) => [key, own[key]])));
+    return new Document({ title: "", pageLayout, titleOffset }, content);
+  }
   return new Section("", content, titleOffset);
 }
 

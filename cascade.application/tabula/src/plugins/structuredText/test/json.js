@@ -25,7 +25,7 @@ describe("Structured text, saved and loaded", function () {
     const json = saved(testDocument());
     assert.deepStrictEqual([json.type, json.name], ["document", "structuredText"]);
     const { properties } = json;
-    assert.strictEqual(properties.paper, "A4");
+    assert.strictEqual(properties.pageLayout.properties.paper, "A4");
     assert.deepStrictEqual(properties.title, { type: "flow", name: "paragraph", properties: { spans: ["Tabula"] } });
     assert.deepStrictEqual([properties.pageLayout.type, properties.pageLayout.name], ["pageLayout", "pages"]);
     const [first] = properties.children;
@@ -68,7 +68,8 @@ describe("Structured text, saved and loaded", function () {
     // What it's made of wrong - a paper there's no size of - isn't unknown:
     // it fails.
     services.locators = [structuredTextPlugin];
-    assert.throws(() => hydrateDocument({ ...json, properties: { ...json.properties, paper: "B9" } }, services), /Unknown paper/);
+    const layout = json.properties.pageLayout;
+    assert.throws(() => hydrateDocument({ ...json, properties: { ...json.properties, pageLayout: { ...layout, properties: { ...layout.properties, paper: "B9" } } } }, services), /Unknown paper/);
   });
 
   it("is the root of a file on its own, or in a list - a sequence - and a list of one is the one again", function () {

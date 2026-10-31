@@ -2,7 +2,7 @@ import { Component, callback, frozen } from "@liquefy/cascade.component";
 import { div, span, text } from "@liquefy/cascade.dom";
 import { cssMm, paperStyle, runStyle, paperShadow } from "../print/dom.js";
 import { mm } from "../print/index.js";
-import { pageKinds, elementRect, placeElement, PageElement, isVerso } from "../model/pageLayout.js";
+import { pageKinds, elementRect, placeElement, PageElement } from "../model/pageLayout.js";
 import { formatOfPage } from "../print/index.js";
 import { gutterShade } from "./TabulaPaperView.js";
 import { frameKind } from "../model/frames.js";
@@ -17,10 +17,16 @@ import { pageElementView } from "./PageElementView.js";
  * document laid out, read only): what the layout does to the text, seen
  * together - nothing to select, nothing to edit.
  *
- *   pageLayoutEditor({ document, sequence, zoom, selected, onSelect, onWrite, takeDragged })
+ *   pageLayoutEditor({ document, paperFormat, sequence, zoom, selected, onSelect, onWrite, takeDragged, setMargins })
+ *
+ * `document`: what has the page layout - its `pageLayout`. `paperFormat`:
+ * the paper it's laid out on, as its page settings make it (see
+ * ../model/pageLayout.js) - its first page's.
  *
  *  - The margins, a dashed blue line each, all the way across: dragged,
- *    the margin follows - the same on every page, the text flowing anew.
+ *    the margin follows (`setMargins(margins)`) - the same on every page,
+ *    the text flowing anew. Margins it doesn't set itself - the file's, say
+ *    - shown, but not dragged: no `setMargins`.
  *  - The elements: pressed, selected (`onSelect({ element, kind })`, or
  *    null, pressed beside them) - dragged, moved; by their corner handle,
  *    resized - measured, as they go, from the edges nearest them
@@ -34,7 +40,7 @@ import { pageElementView } from "./PageElementView.js";
  *    (`onWrite()`).
  *  - Delete or Backspace: the element selected taken out.
  *
- * Printed on both sides (the page layout's `duplex`), each paper is the
+ * Printed on both sides (the paper's `duplex`), each paper is the
  * side its page is - the first a right-hand page, the middle ones shown as
  * the second, a left-hand one, the last as it falls - mirrored as it's
  * printed: its inner margin, and everything measured from the inner side,
@@ -44,6 +50,10 @@ import { pageElementView } from "./PageElementView.js";
  * ../plugins/structuredText/StructuredTextEditor.js - a modal over the
  * paper view).
  *
+ * What's dropped measured from the paper's edges - or, `elementsFrom`
+ * "margins", from the margins (see ../model/pageLayout.js): a structured
+ * text's headers and footers, going where its margins go.
+ *
  * A page layout of its own - a page, no text (see ../plugins/page): only
  * the papers it has (`kinds` - its first, say), no `sequence`, no margins
  * (`margins` false), nothing to go back to (no `onWrite`) - its paper
@@ -51,7 +61,9 @@ import { pageElementView } from "./PageElementView.js";
  * document), and its number (`page`, { page, pages }), drawn as it is.
  */
 export class PageLayoutEditor extends Component {
-  setProperties({ document, sequence = null, zoom = 1, selected = null, onSelect, onWrite = null, takeDragged, kinds = null, margins = true, paperFormat = null, page = null, style = null }) {
+  setProperties({ document, sequence = null, zoom = 1, selected = null, onSelect, onWrite = null, takeDragged, kinds = null, margins = true, paperFormat, setMargins = null, page = null, style = null, elementsFrom = "paper" }) {
+    this.elementsFrom = elementsFrom;
+    this.setMargins = setMargins;
     this.document = document;
     this.sequence = sequence;
     this.kinds = kinds;
@@ -90,14 +102,10 @@ export class PageLayoutEditor extends Component {
     super.onDispose();
   }
 
-  // The paper: the document's, its margins the page layout's - printed on
-  // both sides, page `index` (from 0) as that side of a sheet has it (see
-  // ../print/Section.js's formatOfPage()).
+  // The paper - printed on both sides, page `index` (from 0) as that side
+  // of a sheet has it (see ../print/Section.js's formatOfPage()).
   format(index = 0) {
-    if (this.paperFormat) return this.paperFormat;
-    const { paper, pageLayout } = this.document;
-    const sides = pageLayout.duplex ? { duplex: true, side: "recto" } : {};
-    return formatOfPage({ width: paper.width, height: paper.height, margins: pageLayout.margins, ...sides }, index, 0);
+    return formatOfPage(this.paperFormat, index, 0);
   }
 
   // Which page each paper stands for, as a side: the first; the middle, the
@@ -143,7 +151,7 @@ export class PageLayoutEditor extends Component {
           kind: name,
           editor: this,
           format: this.format(this.pageIndex(name)),
-          verso: isVerso(this.document.pageLayout, this.pageIndex(name)),
+          verso: this.format(this.pageIndex(name)).side === "verso",
           textPage: this.textPage(name),
           pages: Math.max(count, 1),
           selected: this.selected && this.selected.kind === name ? this.selected.element : null,
@@ -217,11 +225,10 @@ export class PageLayoutEditor extends Component {
   // at least 20 mm each way. On a left-hand page, the one on the left is the
   // outer margin - the page layout's right one - and the other way round.
   pressMargin(event, side, verso = false) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || !this.setMargins) return;
     event.preventDefault();
     event.stopPropagation();
     const paper = event.currentTarget.closest("[data-layout-page]");
-    const layout = this.document.pageLayout;
     const { width, height } = this.format();
     this.follow(event, paper, (point) => {
       // As this paper shows them.
@@ -235,7 +242,8 @@ export class PageLayoutEditor extends Component {
       }[side];
       const rounded = Math.max(0, Math.round(value / 500) * 500);
       const which = verso && side === "left" ? "right" : verso && side === "right" ? "left" : side;
-      if (rounded !== layout.margins[which]) layout.margins = Object.freeze({ ...layout.margins, [which]: rounded });
+      const current = this.paperFormat.margins;
+      if (rounded !== current[which]) this.setMargins(Object.freeze({ ...current, [which]: rounded }));
     });
   }
 
@@ -246,7 +254,7 @@ export class PageLayoutEditor extends Component {
     const content = this.takeDragged();
     if (!content) return;
     const paper = event.currentTarget;
-    const element = newElement(content, this.format(), this.pointOn(paper, event), { verso });
+    const element = newElement(content, this.format(), this.pointOn(paper, event), { verso, from: this.elementsFrom });
     this.document.pageLayout[kind].push(element);
     this.onSelect({ element, kind });
   }
@@ -267,12 +275,13 @@ export const pageLayoutEditor = (...parameters) => new PageLayoutEditor(...param
 // `{ width, height }` - 50 mm wide, as tall as its kind's proportions make
 // it - on the paper, all of it, however near an edge it's put - measured
 // from the edges nearest it (on a left-hand page, `verso`, as it's shown
-// there, mirrored). Moved, it can go over the edge: a bleed.
-export function newElement(content, paper, center, { width = mm(50), verso = false } = {}) {
+// there, mirrored), or from the margins (`from` "margins" - see
+// ../model/pageLayout.js). Moved, it can go over the edge: a bleed.
+export function newElement(content, paper, center, { width = mm(50), verso = false, from = "paper" } = {}) {
   const kind = frameKind({ content });
   const ratio = (kind && kind.aspectRatio && kind.aspectRatio(content.model)) || 4 / 3;
   const height = Math.round(width / ratio);
-  const element = new PageElement({ content, width, height });
+  const element = new PageElement({ content, width, height, from });
   const within = (value, room) => Math.max(0, Math.min(room, value));
   placeElement(element, { x: within(center.x - width / 2, paper.width - width), top: within(center.y - height / 2, paper.height - height), width, height }, paper, verso);
   return element;
@@ -316,7 +325,7 @@ class LayoutPaper extends Component {
         selected: element === selected,
         onPress: callback("press" + element.causality.id, (event) => editor.pressElement(event, element, kind, verso)),
       })),
-      !editor.showMargins ? null : ["top", "right", "bottom", "left"].map((side) => marginLine(side, format, callback("margin" + side, (event) => editor.pressMargin(event, side, verso)))),
+      !editor.showMargins ? null : ["top", "right", "bottom", "left"].map((side) => marginLine(side, format, callback("margin" + side, (event) => editor.pressMargin(event, side, verso)), !!editor.setMargins)),
       selected ? referenceLines(elementRect(selected, format, verso), selected, format, verso) : null,
       gutterShade(format.side),
     );
@@ -336,7 +345,7 @@ class LayoutPaper extends Component {
 
 // A margin: a dashed line across the paper, where the text area ends - with
 // room either side of it to take hold of.
-function marginLine(side, format, onPress) {
+function marginLine(side, format, onPress, movable = true) {
   const across = side === "top" || side === "bottom";
   const at = { top: format.margins.top, bottom: format.height - format.margins.bottom, left: format.margins.left, right: format.width - format.margins.right }[side];
   const grip = 6;
@@ -344,11 +353,11 @@ function marginLine(side, format, onPress) {
     {
       key: "margin" + side,
       "data-margin": side,
-      title: side[0].toUpperCase() + side.slice(1) + " margin: " + (format.margins[side] / 1000) + " mm - drag it",
+      title: side[0].toUpperCase() + side.slice(1) + " margin: " + (format.margins[side] / 1000) + " mm" + (movable ? " - drag it" : " - the file's: add page settings to change it here"),
       onmousedown: onPress,
       style: across
-        ? { position: "absolute", left: 0, right: 0, top: `calc(${cssMm(at)} - ${grip}px)`, height: grip * 2 + "px", cursor: "row-resize" }
-        : { position: "absolute", top: 0, bottom: 0, left: `calc(${cssMm(at)} - ${grip}px)`, width: grip * 2 + "px", cursor: "col-resize" },
+        ? { position: "absolute", left: 0, right: 0, top: `calc(${cssMm(at)} - ${grip}px)`, height: grip * 2 + "px", cursor: movable ? "row-resize" : "default" }
+        : { position: "absolute", top: 0, bottom: 0, left: `calc(${cssMm(at)} - ${grip}px)`, width: grip * 2 + "px", cursor: movable ? "col-resize" : "default" },
     },
     div({ style: across
       ? { position: "absolute", left: 0, right: 0, top: grip + "px", borderTop: "1px dashed rgba(66, 133, 244, 0.7)" }
@@ -363,8 +372,13 @@ function referenceLines(rect, element, format, verso = false) {
   const middleY = rect.top + rect.height / 2;
   const middleX = rect.x + rect.width / 2;
   const onLeft = (element.horizontal === "left") !== verso;
-  const across = onLeft ? { from: 0, to: rect.x } : { from: rect.x + rect.width, to: format.width };
-  const down = element.vertical === "top" ? { from: 0, to: rect.top } : { from: rect.top + rect.height, to: format.height };
+  // Its edge - or its margin, measured from the margins: as this paper has
+  // them, mirrored or not.
+  const m = element.from === "margins" ? format.margins : { top: 0, right: 0, bottom: 0, left: 0 };
+  const line = { left: m.left, right: format.width - m.right, top: m.top, bottom: format.height - m.bottom };
+  const span = (a, b) => ({ from: Math.min(a, b), to: Math.max(a, b) });
+  const across = onLeft ? span(line.left, rect.x) : span(rect.x + rect.width, line.right);
+  const down = element.vertical === "top" ? span(line.top, rect.top) : span(rect.top + rect.height, line.bottom);
   return [
     div({ key: "across", "data-reference": "horizontal", style: { ...referenceStyle, left: cssMm(across.from), width: cssMm(across.to - across.from), top: cssMm(middleY), height: 0, borderTop: "1.5px solid #4285f4" } },
       distance(element.x, { left: "50%", top: "2px", transform: "translateX(-50%)" })),

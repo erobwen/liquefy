@@ -97,7 +97,8 @@ export function hitTest(rows, page, x, y, measurer) {
   let distance = Infinity;
   for (let order = 0; order < rows.length; order++) {
     const { page: rowPage, row } = rows[order];
-    if (rowPage !== page || isBesideRow(row)) continue;
+    // Never a creation dot (see markers.js): those are clicked themselves.
+    if (rowPage !== page || isBesideRow(row) || row.dot) continue;
     const away = isBelowRow(row) ? Math.abs(y - row.y) : Math.max(0, row.top - y, y - (row.top + row.height));
     // On a line, that line - a bar below as near never takes it; of bars
     // one on top of the other, the first - the innermost.

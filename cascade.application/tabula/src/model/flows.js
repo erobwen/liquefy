@@ -117,25 +117,29 @@ export class Section extends Flow {
 }
 
 // A document - the root of a tree of flows - holds what goes for all of it:
-// its paper, whether its titles are numbered (`numberTitles`, see
-// titleNumber()), and whether its paragraphs are indented rather than
-// spaced apart (`indentParagraphs`, see ../layout) - and its page layout
-// (see pageLayout.js): given, or made of `margins`, nothing on its pages -
-// and whether it's a book (`bookMode`): its chapters, the sections right in
-// it, each starting a page of its own (a right-hand one, printed on both
-// sides) - its title, and what's before its first chapter, its title page.
-// Not, as every document starts out: its chapters running on. Among pages
-// of their own in another document, on that one's paper - unless it keeps
-// its own (`ownPaper`, see ../layout/DocumentLayout.js).
+// whether its titles are numbered (`numberTitles`, see titleNumber()), and
+// whether its paragraphs are indented rather than spaced apart
+// (`indentParagraphs`, see ../layout) - and whether it's a book
+// (`bookMode`): its chapters, the sections right in it, each starting a
+// page of its own (a right-hand one, printed on both sides) - its title,
+// and what's before its first chapter, its title page. Not, as every
+// document starts out: its chapters running on.
+//
+// Its page layout (see pageLayout.js): derived from what it's in - the
+// file's - its content its own (nothing on its pages, at first), and its
+// paper as what it's in has it, but for what it sets itself - `paper` and
+// `margins`, if given. Whether it starts the page numbers anew
+// (`startsNumbering`): from 1 on its first page.
 export class Document extends Section {
-  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, bookMode = false, ownPaper = false }, children = []) {
+  constructor({ title, paper, margins, pageLayout, titleOffset = 0, numberTitles = false, indentParagraphs = false, bookMode = false, startsNumbering = false }, children = []) {
     super(title, children, titleOffset);
-    this.paper = paper;
-    this.pageLayout = pageLayout || new PageLayout({ margins });
+    this.pageLayout = (pageLayout || new PageLayout()).ensureContent();
+    if (paper) this.pageLayout.paper = paper;
+    if (margins) this.pageLayout.margins = margins;
     this.numberTitles = !!numberTitles;
     this.indentParagraphs = !!indentParagraphs;
     this.bookMode = !!bookMode;
-    this.ownPaper = !!ownPaper;
+    this.startsNumbering = !!startsNumbering;
   }
 }
 
@@ -158,9 +162,10 @@ export const isFlowEdge = (at) => !!at && "flow" in at;
 export const isMarker = (at) => isFlowEdge(at);
 
 // The same place - in the text wherever a line break puts it, or the same
-// flow's same edge.
+// flow's same edge (and the same creation dot, see sequences.js's
+// dotPosition()).
 export function samePosition(a, b) {
-  if (isFlowEdge(a) || isFlowEdge(b)) return isFlowEdge(a) && isFlowEdge(b) && a.flow === b.flow && a.edge === b.edge;
+  if (isFlowEdge(a) || isFlowEdge(b)) return isFlowEdge(a) && isFlowEdge(b) && a.flow === b.flow && a.edge === b.edge && a.index === b.index;
   return a.paragraph === b.paragraph && a.offset === b.offset;
 }
 

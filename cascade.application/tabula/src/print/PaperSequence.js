@@ -34,12 +34,18 @@ import { observable } from "@liquefy/cascade.component";
  *    where those leave off - after a right-hand page there, a left-hand one.
  *  - `firstNumber`: its first paper's page number - 1, unless whoever made
  *    it says: pages of their own, numbered on from the papers before them.
- *    Each paper's number - numberOf(index) - counts on from there, past
- *    pages of their own before it (`inserts`, their `pages`, and a blank
- *    back, `pad`); what a page layout draws on a paper - a page number -
- *    is drawn with it.
+ *    Or `numberFrom`, written as it's rendered - temporal, as the rest:
+ *    what's rendered first on it starting the page numbers anew (see
+ *    Section.js's numberingStart()). Each paper's number - numberOf(index)
+ *    - counts on from there, and on past pages of their own before it, from
+ *    the number after them (each insert's `nextNumber`): page numbers run
+ *    through all of it, in reading order, started anew wherever something
+ *    starts them. What a page layout draws on a paper - a page number - is
+ *    drawn with it - and, "of 7", the last page number before they're
+ *    started anew again (lastNumberOf()).
  *  - `outer`: the paper sequence it's laid out among the papers of, if it
- *    is - whose last page number is the last there is (lastNumber()).
+ *    is - the outermost all of it is in, the one its page numbers are
+ *    counted through.
  */
 export class PaperSequence {
   constructor() {
@@ -48,6 +54,7 @@ export class PaperSequence {
     this.next = null;
     this.firstSide = null;
     this.firstNumber = 1;
+    this.numberFrom = null;
     this.outer = null;
     // No timeless side (see cascade.component's fromTarget()): nothing about
     // a paper sequence is the same throughout a pass.
@@ -55,27 +62,66 @@ export class PaperSequence {
     return observable(this);
   }
 
-  // The page number of paper `index` - past pages of their own before it.
-  numberOf(index) {
-    return this.firstNumber + index + this.insertedPages((insert) => insert.page < index || (insert.page === index && insert.before));
+  // Its first paper's page number.
+  startNumber() {
+    return this.numberFrom !== null ? this.numberFrom : this.firstNumber;
   }
 
-  // The number of the last page - pages of their own after the last paper
-  // too; among another's papers, the last of all of them.
-  lastNumber() {
-    if (this.outer) return this.outer.lastNumber();
-    return this.firstNumber - 1 + this.pages.length + this.insertedPages(() => true);
+  // The page number of paper `index` - counted on from the last pages of
+  // their own before it, or from its first. `index` past its last paper:
+  // the number after all of it - what comes after it numbered on from.
+  numberOf(index) {
+    let number = this.startNumber();
+    let from = 0;
+    for (const insert of this.inserts) {
+      const before = insert.before ? insert.page : insert.page + 1;
+      if (before <= index) {
+        number = insert.nextNumber;
+        from = before;
+      }
+    }
+    return number + index - from;
   }
 
   // The page number pages of their own placed now start at - before paper
   // `page`, or after it, after those already there.
   insertNumber(page, before) {
-    if (before) return this.numberOf(page);
-    return this.numberOf(page) + 1 + this.insertedPages((insert) => insert.page === page && !insert.before);
+    return this.numberOf(before ? page : page + 1);
   }
 
-  insertedPages(which) {
-    return this.inserts.filter(which).reduce((sum, insert) => sum + (insert.pages || 0) + (insert.pad ? 1 : 0), 0);
+  // The number after all of it.
+  nextNumber() {
+    return this.numberOf(this.pages.length);
+  }
+
+  // The last page number before they're started anew - from paper `index`
+  // on, through everything after it in the outermost paper sequence it's
+  // in (`outer`): "of 7".
+  lastNumberOf(index) {
+    let outermost = this;
+    while (outermost.outer) outermost = outermost.outer;
+    let found = false;
+    let last = null;
+    for (const page of outermost.allPages()) {
+      if (page.restart && found) break;
+      if (page.restart) continue;
+      if (page.sequence === this && page.index === index) found = true;
+      last = page.number;
+    }
+    return found ? last : this.numberOf(index);
+  }
+
+  // Every page, in reading order - its own papers and all pages of their
+  // own among them, each { sequence, index, number } (a place, a blank back:
+  // no sequence) - and, where page numbers start anew, { restart: true }.
+  *allPages() {
+    if (this.numberFrom !== null) yield { restart: true };
+    const last = Math.max(this.pages.length - 1, ...this.inserts.map((insert) => insert.page));
+    for (let page = 0; page <= last; page++) {
+      for (const insert of this.inserts) if (insert.page === page && insert.before) yield* insertPages(insert);
+      if (page < this.pages.length) yield { sequence: this, index: page, number: this.numberOf(page) };
+      for (const insert of this.inserts) if (insert.page === page && !insert.before) yield* insertPages(insert);
+    }
   }
 
   // The lines placed on page `index` - an array of its own for every page,
@@ -93,4 +139,13 @@ export class PaperSequence {
     }
     return lines;
   }
+}
+
+// Pages of their own, page by page (see PaperSequence's allPages()).
+function* insertPages(insert) {
+  for (const item of insert.items || []) {
+    if (item.pages) yield* item.pages.allPages();
+    else for (let count = 0; count < item.count; count++) yield { sequence: null, number: item.number + count };
+  }
+  if (insert.pad) yield { sequence: null, number: insert.nextNumber - 1 };
 }

@@ -1,13 +1,13 @@
 import { Component, callback, frozen } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
-import { button, checkbox, row } from "@liquefy/cascade.ui";
-import { paperSizes } from "../../print/index.js";
+import { checkbox } from "@liquefy/cascade.ui";
 import { pageLayoutEditor, newElement } from "../../paper/PageLayoutEditor.js";
 import { elementEntry } from "../../paper/pageElementMenu.js";
 import { removeButton } from "../../shell/removeButton.js";
-import { takeFocus, releaseFocus, menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
+import { takeFocus, releaseFocus, menuNote as note } from "../../shell/contextMenus.js";
+import { ownPageSettings } from "../../shell/pageSettingsMenu.js";
 import { surfaceInset, surfacePadding } from "../../shell/spacing.js";
-import { pageFormat } from "./model.js";
+import { formatIn } from "../../model/pageLayout.js";
 
 /**
  * PageEditor - a page of its own (see index.js), edited as a structured
@@ -17,10 +17,11 @@ import { pageFormat } from "./model.js";
  * the creation menu put on it (`insertPlace()` "page"), in its middle, or
  * dragged onto it, where it's dropped.
  *
- * Its menu: its paper - A4 or Letter, upright or on its side; among pages
- * of their own in another document (`paperSequence`, where it's laid out -
- * see ../../shell/documents.js), that one's, and nothing to choose - and,
- * for the element selected, its own (see ../../paper/pageElementMenu.js).
+ * Laid out with the rest of the file (`paperSequence`, where it's laid out
+ * - see ../../shell/documents.js): on the paper its page settings make,
+ * numbered as it falls. Its menu: its page settings, the file's or its
+ * own - and, for the element selected, its own (see
+ * ../../paper/pageElementMenu.js).
  */
 export class PageEditor extends Component {
   setProperties({ model, zoom = 1, onRemove, paperSequence }) {
@@ -31,19 +32,25 @@ export class PageEditor extends Component {
   }
 
   initialState() {
-    return { selectedElement: null };
+    // pageSettingsShown: its page settings' controls shown, none of its
+    // own yet (see ../../shell/pageSettingsMenu.js).
+    return { selectedElement: null, pageSettingsShown: false };
   }
 
-  // Its paper: as it's laid out, among pages of their own - its own, on its
-  // own.
+  // Its paper: as it's laid out - or, not laid out, as its page settings
+  // make it (see ../../model/pageLayout.js).
   format() {
-    return (this.paperSequence && this.paperSequence.pages[0]) || pageFormat(this.model);
+    return (this.paperSequence && this.paperSequence.pages[0]) || formatIn(this, this.model.pageLayout);
+  }
+
+  pageFormat() {
+    return this.format();
   }
 
   // Its page number - as it falls, among pages of their own.
   pageNumber() {
     const pages = this.paperSequence;
-    return pages ? { page: pages.numberOf(0), pages: pages.lastNumber() } : { page: 1, pages: 1 };
+    return pages ? { page: pages.numberOf(0), pages: pages.lastNumberOf(0) } : { page: 1, pages: 1 };
   }
 
   selectElement(selection) {
@@ -76,41 +83,25 @@ export class PageEditor extends Component {
     return path;
   }
 
+  // Its page settings - the file's, or its own too (see
+  // ../../shell/pageSettingsMenu.js) - and its page numbers.
   menu() {
     const { model } = this;
-    // Among pages of their own in another document: on its paper - or its
-    // own, as chosen.
-    const own = this.paperSequence
-      ? [checkbox({ key: "ownPaper", label: "Its own paper", checked: model.ownPaper, onChange: callback("ownPaper", (checked) => { model.ownPaper = checked; }) })]
-      : [];
-    if (this.paperSequence && !model.ownPaper) {
-      return [heading("Paper"), ...own, note("On the paper of the document it's in - its size, its sides."), placing()];
-    }
-    const { width, height } = model.paper;
-    const landscape = width > height;
-    const short = Math.min(width, height);
-    const long = Math.max(width, height);
-    const setPaper = (paper, sideways) => {
-      const across = Math.min(paper.width, paper.height);
-      const down = Math.max(paper.width, paper.height);
-      model.paper = Object.freeze(sideways ? { width: down, height: across } : { width: across, height: down });
-    };
-    const isSize = (size) => short === Math.min(size.width, size.height) && long === Math.max(size.width, size.height);
-    const choice = (key, label, chosen, choose) => button({ key, variant: chosen ? "filled" : undefined }, label, callback(key, choose));
     return [
-      heading("Paper"),
-      ...own,
-      row(
-        { key: "size", style: { gap: "6px" } },
-        choice("A4", "A4", isSize(paperSizes.A4), () => setPaper(paperSizes.A4, landscape)),
-        choice("letter", "Letter", isSize(paperSizes.letter), () => setPaper(paperSizes.letter, landscape)),
-      ),
-      row(
-        { key: "orientation", style: { gap: "6px" } },
-        choice("portrait", "Portrait", !landscape, () => setPaper(model.paper, false)),
-        choice("landscape", "Landscape", landscape, () => setPaper(model.paper, true)),
-      ),
+      ...ownPageSettings({
+        key: "pageSettings",
+        layout: model.pageLayout,
+        shown: this.pageSettingsShown,
+        show: (shown) => { this.pageSettingsShown = shown; },
+        inherited: (key) => this.inherit(key),
+      }),
       note("What's on it stays as far from the edges nearest it as it is."),
+      checkbox({
+        key: "startsNumbering",
+        label: "Start new page numbering",
+        checked: model.startsNumbering,
+        onChange: callback("startsNumbering", (checked) => { model.startsNumbering = checked; }),
+      }),
       placing(),
     ];
   }

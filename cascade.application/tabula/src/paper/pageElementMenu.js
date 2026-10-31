@@ -1,7 +1,7 @@
 import { callback, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text, input } from "@liquefy/cascade.dom";
 import { button, row } from "@liquefy/cascade.ui";
-import { elementRect, pageKinds } from "../model/pageLayout.js";
+import { measureElement, pageKinds } from "../model/pageLayout.js";
 import { menuHeading as heading, menuNote as note } from "../shell/contextMenus.js";
 
 /**
@@ -10,7 +10,7 @@ import { menuHeading as heading, menuNote as note } from "../shell/contextMenus.
  * PageLayoutEditor.js): a structured text's, laying out its pages, or a
  * page's of its own (see ../plugins/page).
  *
- * `editor`: what shows it - its `model`, { paper, pageLayout }, and
+ * `editor`: what shows it - its `model` (its `pageLayout`), its paper (`pageFormat()`), and
  * `selectElement(selection)`. `where`: what it's on, said - its page
  * of the page layout, if not given.
  */
@@ -22,19 +22,12 @@ export const sideName = (side, duplex) => ({ left: duplex ? "Inner" : "Left", ri
 export function elementEntry(editor, { element, kind }, where = null) {
   const type = element.content && element.content.documentType;
   const frame = type ? type.frame : null;
-  const paper = editor.model.paper;
+  const paper = editor.pageFormat();
   const page = pageKinds.find((each) => each.name === kind);
-  const duplex = editor.model.pageLayout.duplex;
-  // Measured from another edge, it stays where it is.
-  const measureFrom = (horizontal, vertical) => {
-    const rect = elementRect(element, paper);
-    inOneGo(() => {
-      element.horizontal = horizontal;
-      element.x = horizontal === "left" ? rect.x : paper.width - rect.x - rect.width;
-      element.vertical = vertical;
-      element.y = vertical === "top" ? rect.top : paper.height - rect.top - rect.height;
-    });
-  };
+  const duplex = !!paper.duplex;
+  // Measured from another edge - or from the margins - it stays where it is.
+  const measureFrom = (measuring) => inOneGo(() => measureElement(element, measuring, paper));
+  const edges = element.from === "margins" ? " margin" : " edge";
   const size = (label, key) => row(
     { key, style: { alignItems: "center", gap: "6px" } },
     div({ style: { flex: "1" } }, text(label)),
@@ -63,9 +56,12 @@ export function elementEntry(editor, { element, kind }, where = null) {
       size("Width", "width"),
       size("Height", "height"),
       heading("Measured from"),
-      choice("horizontal", [{ value: "left", label: sideName("left", duplex) + " edge" }, { value: "right", label: sideName("right", duplex) + " edge" }], element.horizontal, (value) => measureFrom(value, element.vertical)),
-      choice("vertical", [{ value: "top", label: "Top edge" }, { value: "bottom", label: "Bottom edge" }], element.vertical, (value) => measureFrom(element.horizontal, value)),
-      note("Where it stays, on paper of another size - the nearest edges, as it's placed."),
+      choice("from", [{ value: "paper", label: "The paper's edges" }, { value: "margins", label: "The margins" }], element.from, (value) => measureFrom({ from: value })),
+      choice("horizontal", [{ value: "left", label: sideName("left", duplex) + edges }, { value: "right", label: sideName("right", duplex) + edges }], element.horizontal, (value) => measureFrom({ horizontal: value })),
+      choice("vertical", [{ value: "top", label: "Top" + edges }, { value: "bottom", label: "Bottom" + edges }], element.vertical, (value) => measureFrom({ vertical: value })),
+      note(element.from === "margins"
+        ? "Where it stays, with other margins - the margins nearest it, as it's placed: in the margin, outside it, less than nothing."
+        : "Where it stays, on paper of another size - the nearest edges, as it's placed."),
       frame && frame.controls ? [heading(type.label), ...frame.controls(element.content.model)] : null,
       button({ key: "remove" }, "Remove", callback("remove", () => {
         const list = editor.model.pageLayout[kind];

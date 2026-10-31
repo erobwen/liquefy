@@ -113,7 +113,7 @@ export class TabulaPaperView extends Component {
           frame: this.frame,
           // Which page of its document's page layout it is - and its number,
           // as the paper sequence counts (see ../print/PaperSequence.js).
-          page: { ...pages[index], number: sequence.numberOf(index), last: sequence.lastNumber() },
+          page: { ...pages[index], number: sequence.numberOf(index), last: sequence.lastNumberOf(index) },
         }),
         this.inserts(index, false),
       ]),

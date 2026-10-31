@@ -1,10 +1,12 @@
 import { callback } from "@liquefy/cascade.component";
-import { div, text, input } from "@liquefy/cascade.dom";
+import { div, text } from "@liquefy/cascade.dom";
 import { button, checkbox, iconButton, row } from "@liquefy/cascade.ui";
-import { paperSizes, margins, mm, inch } from "../../print/index.js";
+import { mm } from "../../print/index.js";
 import { Paragraph, Document, isSection, paragraphText, titleLevel, focusedFlow } from "../../model/flows.js";
 import { anchorAt, frameKind, placements } from "../../model/frames.js";
-import { elementEntry, sideName, inOneGo } from "../../paper/pageElementMenu.js";
+import { isDot, anchorOf } from "../../model/sequences.js";
+import { elementEntry, inOneGo } from "../../paper/pageElementMenu.js";
+import { ownPageSettings } from "../../shell/pageSettingsMenu.js";
 import { titlePlaceholder } from "../../layout/DocumentLayout.js";
 import { menuHeading as heading, menuNote as note } from "../../shell/contextMenus.js";
 
@@ -21,7 +23,10 @@ import { menuHeading as heading, menuNote as note } from "../../shell/contextMen
  *  - the flow the caret is in - a section: where it is in the structure,
  *    how its title looks; a paragraph: making it a title, moving it out;
  *  - the frame the caret is at, if it's at one (see ../../model/frames.js):
- *    where it goes, how wide it is, and what its kind offers.
+ *    where it goes, how wide it is, and what its kind offers;
+ *  - at a creation dot, the pages of their own it's in (see
+ *    ../../model/sequences.js): whether the text runs on past them, and
+ *    what the keys do there.
  *
  * Laying out the pages, no caret: the document, and the page element
  * selected, if one is - its size, the edges it's measured from, what its
@@ -45,6 +50,10 @@ export function contextPath(editor) {
     if (editor.selectedElement) path.push(elementEntry(editor, editor.selectedElement));
     return path;
   }
+  if (isDot(editor.caret)) {
+    path.push(sequenceEntry(editor, editor.caret.flow));
+    return path;
+  }
   if (!focus) return path;
   // On the way down: the sections the caret is in - for when the whole
   // path is shown. The document is the first of them, already there.
@@ -59,6 +68,36 @@ export function contextPath(editor) {
   const anchor = anchorAt(editor.caret);
   if (anchor) path.push(frameEntry(editor, anchor));
   return path;
+}
+
+// Pages of their own, the caret at one of their creation dots: empty, a
+// page break; the text after them on a fresh page - or, after a paragraph,
+// running on.
+function sequenceEntry(editor, sequence) {
+  const anchor = anchorOf(editor.model, sequence);
+  const count = sequence.items.length;
+  const afterParagraph = anchor && anchor.side === "after" && !isSection(anchor.flow);
+  return {
+    key: "sequence",
+    icon: count === 0 ? "insert_page_break" : "auto_stories",
+    title: count === 0 ? "Page break" : "Pages of their own",
+    details: () => [note(count === 0
+      ? "Nothing here yet - Enter, Tab or Space to create something. Ctrl+Enter anchors it a step further out, Ctrl+Backspace a step back in; Delete takes it away."
+      : count + (count === 1 ? " thing" : " things") + " here, on pages of their own. Ctrl+Enter anchors them a step further out, Ctrl+Backspace a step back in.")],
+    build: () => [
+      afterParagraph
+        ? checkbox({
+          key: "runOn",
+          label: "Let the text run on",
+          checked: sequence.runOn,
+          onChange: callback("runOn", (checked) => { sequence.runOn = checked; }),
+        })
+        : null,
+      note(afterParagraph && sequence.runOn
+        ? "The text goes on filling the page the paragraph ends on - these pages after that page."
+        : "The text after them starts on a fresh page."),
+    ],
+  };
 }
 
 function flowEntry(editor, flow, around) {
@@ -126,103 +165,54 @@ const placementNotes = {
   right: "At the right, its top at the line it's in - the text flowing around it on the left.",
 };
 
-// --- The page layout -----------------------------------------------------------
-
-// The margins, each in millimetres from its own edge - typed, or dragged on
-// the papers.
-function marginControls(document) {
-  const layout = document.pageLayout;
-  return [
-    heading("Margins"),
-    div(
-      { key: "margins", style: { display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: "6px 8px", alignItems: "center", fontSize: "14px" } },
-      ["top", "bottom", "left", "right"].map((side) => [
-        div({ key: "label" + side }, text(sideName(side, layout.duplex))),
-        input({
-          key: "margin" + side,
-          type: "number", min: 0, step: 1,
-          value: String(layout.margins[side] / 1000),
-          onchange: callback("margin" + side, (event) => {
-            const value = Number(event.target.value);
-            if (Number.isFinite(value) && value >= 0) layout.margins = Object.freeze({ ...layout.margins, [side]: Math.round(value * 1000) });
-          }),
-          style: { width: "100%", boxSizing: "border-box", font: "inherit", padding: "2px 4px" },
-        }),
-      ]),
-    ),
-    note(layout.duplex
-      ? "In millimetres, each from its own edge - inner by the binding, outer away from it, mirrored on facing pages. Or drag the dashed lines."
-      : "In millimetres, each from its own edge - the same on every page. Or drag the dashed lines."),
-  ];
-}
-
-// Printed on both sides, left and right are inner and outer.
-
 // --- The document ----------------------------------------------------------
 
-// The document's margins on each paper: 25 mm on A4, an inch on Letter.
-const paperMargins = { A4: margins(mm(25)), letter: margins(inch(1)) };
-
+// The document: its page settings - the file's, or its own too (see
+// ../../shell/pageSettingsMenu.js); its page layout - what's drawn on its
+// pages, laid out in the page layout mode; its page numbers, as they fall
+// or started anew; and what goes for all of it.
 function documentMenu(editor) {
   const document = editor.model;
   const pages = editor.pageCount();
-  // Among pages of their own in another document: on that one's page
-  // settings (see ../../layout/DocumentLayout.js) - unless it keeps its own.
-  const embedded = !!editor.paperSequence;
-  const paperOfItsOwn = !embedded || document.ownPaper;
   return [
-    ...(!embedded ? [] : [
-      heading("Paper"),
-      checkbox({
-        key: "ownPaper",
-        label: "Its own paper",
-        checked: document.ownPaper,
-        onChange: callback("ownPaper", (checked) => { document.ownPaper = checked; }),
-      }),
-      paperOfItsOwn ? null : note("On the paper of the document it's in - its size, its margins, its sides - " + pages + (pages === 1 ? " page." : " pages.")),
-    ]),
-    ...(paperOfItsOwn ? pageSettings(editor, document, pages, !embedded) : []),
-    heading("Whole document"),
-    ...wholeDocument(editor, document),
-  ];
-}
-
-// Its own page settings: its paper, its sides, its page layout.
-function pageSettings(editor, document, pages, titled = true) {
-  return [
+    ...ownPageSettings({
+      key: "pageSettings",
+      layout: document.pageLayout,
+      shown: editor.pageSettingsShown,
+      show: (shown) => { editor.pageSettingsShown = shown; },
+      inherited: (key) => editor.inherit(key),
+    }),
+    heading("Page layout"),
     row(
-      { key: "mode", style: { gap: "4px" } },
+      { key: "mode", style: { gap: "4px", alignItems: "center" } },
       [{ value: "write", label: "Write" }, { value: "page", label: "Page layout" }].map(({ value, label }) => button(
         { key: "mode" + value, variant: editor.mode === value ? "filled" : undefined },
         label,
         callback("mode" + value, () => editor.setMode(value)),
       )),
-    ),
-    editor.mode === "page"
-      ? note("The first page, every page between, the last: what's drawn on them, and the margins - the text showing through. Double click inside the margins to write again.")
-      : null,
-    titled ? heading("Paper") : null,
-    row(
-      { style: { gap: "6px", alignItems: "center" } },
-      button({ variant: sameSize(document.paper, paperSizes.A4) ? "filled" : undefined }, "A4", callback("A4", () => setPaper(document, "A4"))),
-      button({ variant: sameSize(document.paper, paperSizes.letter) ? "filled" : undefined }, "Letter", callback("letter", () => setPaper(document, "letter"))),
       div({ style: { opacity: 0.7, fontSize: "13px", marginLeft: "4px" } }, text(pages + (pages === 1 ? " page" : " pages"))),
     ),
-    row(
-      { key: "sides", style: { gap: "6px", alignItems: "center" } },
-      button({ key: "single", variant: document.pageLayout.duplex ? undefined : "filled" }, "Single-sided", callback("single", () => { document.pageLayout.duplex = false; })),
-      button({ key: "double", variant: document.pageLayout.duplex ? "filled" : undefined }, "Double-sided", callback("double", () => { document.pageLayout.duplex = true; })),
-    ),
-    note(document.pageLayout.duplex
-      ? "Printed on both sides, like a book: the pages face each other, mirrored - the shade is where they're bound."
-      : "Printed on one side, like a letter."),
-    ...(editor.mode === "page" ? marginControls(document) : []),
+    editor.mode === "page"
+      ? note("The first page, every page between, the last: what's drawn on them - the text showing through. Double click inside the margins to write again.")
+      : null,
+    checkbox({
+      key: "startsNumbering",
+      label: "Start new page numbering",
+      checked: document.startsNumbering,
+      onChange: callback("startsNumbering", (checked) => { document.startsNumbering = checked; }),
+    }),
+    note(document.startsNumbering
+      ? "Its first page is page 1 - whatever comes before it."
+      : "Its pages numbered on from what comes before it - from the start of the file."),
+    heading("Whole document"),
+    ...wholeDocument(editor, document),
   ];
 }
 
 // What goes for the whole document: its titles numbered, a book, its
 // paragraphs indented.
 function wholeDocument(editor, document) {
+  const duplex = editor.pageFormat().duplex;
   return [
     checkbox({
       key: "numberTitles",
@@ -234,7 +224,7 @@ function wholeDocument(editor, document) {
     // A book: its chapters each on a page of its own.
     checkbox({
       key: "bookMode",
-      label: document.pageLayout.duplex ? "A book: chapters start on a right-hand page" : "A book: chapters start on a new page",
+      label: duplex ? "A book: chapters start on a right-hand page" : "A book: chapters start on a new page",
       checked: document.bookMode,
       onChange: callback("bookMode", (checked) => { document.bookMode = checked; }),
     }),
@@ -259,16 +249,6 @@ function wholeDocument(editor, document) {
 function openSettings(editor) {
   const open = editor.inherit("openSettings");
   if (open) open("structuredText");
-}
-
-const sameSize = (paper, size) => paper.width === size.width && paper.height === size.height;
-
-// Paper and margins together - one change to the layout, not two.
-function setPaper(document, name) {
-  inOneGo(() => {
-    document.paper = paperSizes[name];
-    document.pageLayout.margins = paperMargins[name];
-  });
 }
 
 // Everything gone but the document itself: no title, one empty paragraph -

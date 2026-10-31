@@ -66,12 +66,11 @@ async function printItems({ items, format, pad }) {
 // Numbered as the paper sequence numbers them.
 function laidOutPapers(sequence) {
   const papers = papersOf(sequence);
-  const last = withoutRecording(() => sequence.lastNumber());
   return papers.map((paper, index) => ({
     ...paper,
     frames: [
       ...pageElements(paper.format.pageLayout, index, papers.length, paper.format).map(({ element, rect }) => ({
-        ...rect, under: true, node: elementNode(element, { page: withoutRecording(() => sequence.numberOf(index)), pages: last }),
+        ...rect, under: true, node: elementNode(element, withoutRecording(() => ({ page: sequence.numberOf(index), pages: sequence.lastNumberOf(index) }))),
       })),
       ...paper.lines.flatMap((line) => line.frames || []).map((frame) => ({ ...frame, node: frameNode(frame.source) })),
     ],

@@ -1,7 +1,7 @@
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, span, text, button as htmlButton, flipAnimationContainer } from "@liquefy/cascade.dom";
 import { card, checkbox, iconButton, fitContainerStyle, drawers, drawerPanel, drawerBarSize } from "@liquefy/cascade.ui";
-import { contextAccordion, menuNote } from "./contextMenus.js";
+import { contextAccordion, menuNote, menuHeading } from "./contextMenus.js";
 import { icon } from "./appStyle.js";
 import { scrollColumn, gutterWidth, gutterEasing } from "./ScrollColumn.js";
 
@@ -17,6 +17,9 @@ import { scrollColumn, gutterWidth, gutterEasing } from "./ScrollColumn.js";
  *    table - each as an action.
  *  - `modes`, `mode`, `onMode(name)`: what the documents are shown on -
  *    the view, at the top of the context accordion (viewEntry()).
+ *  - `pageSettings()`: the file's page settings, its controls - an entry
+ *    of their own under the view's, on paper (pageSettingsEntry()); null,
+ *    none.
  *  - `content`: the documents, as the mode shows them.
  *  - `menus`: the context menus of whatever has the focus (see
  *    contextMenus.js) - the whole path, from the root down to the focused
@@ -46,6 +49,22 @@ import { scrollColumn, gutterWidth, gutterEasing } from "./ScrollColumn.js";
  *    context accordion in a column on the right - the content between them.
  */
 
+// The file's page settings - what all of it is designed for, by default -
+// an entry of their own, under the view's.
+function pageSettingsEntry({ pageSettings }) {
+  return {
+    key: "filePageSettings",
+    icon: "crop_portrait",
+    title: "Page settings",
+    details: () => [menuNote("What the whole file is designed for: its paper, its margins, one side or both. Anything in it can have page settings of its own.")],
+    build: () => pageSettings(),
+  };
+}
+
+// The view and, if there are any, the file's page settings - then the path
+// of what has the focus.
+const entries = (layout) => [viewEntry(layout), ...(layout.pageSettings ? [pageSettingsEntry(layout)] : []), ...layout.menus.path()];
+
 // The view - what the documents are shown on - as the accordion's first
 // entry: the root of everything in it, the whole of what's shown its
 // subject.
@@ -71,6 +90,7 @@ function viewEntry({ modes, mode, onMode, print, onPrint }) {
         )),
       ),
       // The printer's: the whole file printed on both sides of the paper.
+      print ? menuHeading("Printing") : null,
       print
         ? checkbox({
           key: "duplex",
@@ -90,8 +110,8 @@ const modeStyle = {
 };
 
 export class PaperLayout extends Component {
-  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom, print, onPrint }) {
-    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, zoom, onZoom, print, onPrint });
+  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, zoom, onZoom, print, onPrint, pageSettings = null }) {
+    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, zoom, onZoom, print, onPrint, pageSettings });
   }
 
   initialState() {
@@ -186,7 +206,7 @@ export class PaperLayout extends Component {
               },
               div(
                 { key: "content", "data-menu-content": "", style: { display: "flex", flexDirection: "column", gap: "8px" } },
-                contextAccordion({ menus: this.menus, entries: [viewEntry(this), ...this.menus.path()] }),
+                contextAccordion({ menus: this.menus, entries: entries(this) }),
               ),
             ),
             // Between them, the room left: the zoom at the bottom.
@@ -227,8 +247,8 @@ export class PaperLayout extends Component {
 }
 
 export class AppLayout extends Component {
-  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, print, onPrint }) {
-    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, print, onPrint });
+  setProperties({ actions, creations, modes, mode, onMode, content, menus, fileName, message, print, onPrint, pageSettings = null }) {
+    Object.assign(this, { actions, creations: creations || [], modes, mode, onMode, content, menus, fileName, message, print, onPrint, pageSettings });
   }
 
   initialState() {
@@ -249,7 +269,7 @@ export class AppLayout extends Component {
         ),
         flipAnimationContainer(
           { style: appMenusStyle },
-          contextAccordion({ menus: this.menus, entries: [viewEntry(this), ...this.menus.path()], flat: true }),
+          contextAccordion({ menus: this.menus, entries: entries(this), flat: true }),
         ),
         drawers(
           { modal: false },

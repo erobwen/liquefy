@@ -81,11 +81,13 @@ describe("Tabula's document flows", function () {
     assert.doesNotThrow(() => section("Good", paragraph("a"), paragraph("b"), section("c"), section("d")));
   });
 
-  it("makes a document: the outermost section, with its paper", function () {
+  it("makes a document: the outermost section, with its paper - its own page layout's", function () {
     const d = document({ title: "The book", paper, margins }, paragraph("intro"));
     assert.ok(d instanceof Document && d instanceof Section);
     assert.equal(paragraphText(d.title), "The book");
-    assert.equal(d.paper, paper);
+    assert.equal(d.pageLayout.paper, paper);
+    assert.equal(d.pageLayout.landscape, undefined, "the rest as what it's in has them");
+    assert.ok(d.pageLayout.hasContent(), "what's drawn on its pages its own - nothing yet");
     assert.throws(() => section("Bad", d), /A document can't be inside a section/);
   });
 

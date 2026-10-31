@@ -12,9 +12,10 @@ import { removeButton } from "../../shell/removeButton.js";
 import { takeFocus, releaseFocus } from "../../shell/contextMenus.js";
 import { structuredTextSettings } from "./settings.js";
 import { insertView } from "../../shell/InsertView.js";
-import { anchorOf, hintFor, anchoredSequences } from "../../model/sequences.js";
+import { anchorOf, hintFor, anchoredSequences, dotPosition, isDot } from "../../model/sequences.js";
 import { clamp } from "../../shell/clamp.js";
 import { surfaceInset } from "../../shell/spacing.js";
+import { pageLayoutProvider, formatIn } from "../../model/pageLayout.js";
 import { contextPath } from "./menus.js";
 
 
@@ -69,8 +70,12 @@ export class StructuredTextEditor extends Component {
     // have been, so each one flashes anew (see refused()). mode: "write" or
     // "page" (see above). selectedElement: in the page layout, the element
     // selected - { element, kind }, kind the page it's on (see
-    // ../../model/pageLayout.js).
-    return { caret: null, flash: null, mode: "write", selectedElement: null };
+    // ../../model/pageLayout.js). pageSettingsShown: its page settings'
+    // controls shown, none of its own yet (see
+    // ../../shell/pageSettingsMenu.js).
+    // dotMenu: the creation menu of the dot the caret is at, open - {
+    // highlighted }, the item the keyboard is at - or null.
+    return { caret: null, flash: null, mode: "write", selectedElement: null, pageSettingsShown: false, dotMenu: null };
   }
 
   initialUnobservables() {
@@ -115,13 +120,22 @@ export class StructuredTextEditor extends Component {
   // One level deeper, for pages of their own in it (see
   // ../../shell/clamp.js).
   // And what its papers are drawn at, all told - its zoom, in whatever
-  // zoom it's drawn at itself.
+  // zoom it's drawn at itself. And its page settings - those it has of its
+  // own - and its page layout, to what's in it, as its layout provides them
+  // to theirs (see ../../layout/DocumentLayout.js).
   provide() {
     const editor = this;
-    return {
-      get groupDepth() { return editor.unobservable.depth + 1; },
-      get paperZoom() { return editor.zoom * editor.unobservable.paperZoom; },
-    };
+    const model = this.model;
+    const provided = pageLayoutProvider(() => model.pageLayout);
+    Object.defineProperty(provided, "groupDepth", { enumerable: true, get: () => editor.unobservable.depth + 1 });
+    Object.defineProperty(provided, "paperZoom", { enumerable: true, get: () => editor.zoom * editor.unobservable.paperZoom });
+    return provided;
+  }
+
+  // Its paper, as its page settings make it - those of what it's in, but for
+  // its own (see ../../model/pageLayout.js): its first page's.
+  pageFormat() {
+    return formatIn(this, this.model.pageLayout);
   }
 
   // See ../../shell/contextMenus.js.
@@ -143,8 +157,9 @@ export class StructuredTextEditor extends Component {
   insert(content) {
     if (this.mode === "page") {
       const kind = this.selectedElement ? this.selectedElement.kind : "first";
-      const { paper } = this.model;
-      const element = newElement(content, paper, { x: paper.width / 2, y: paper.height / 2 }, { verso: kind === "middle" && this.model.pageLayout.duplex });
+      const paper = this.pageFormat();
+      // Measured from its margins, wherever they come from.
+      const element = newElement(content, paper, { x: paper.width / 2, y: paper.height / 2 }, { verso: kind === "middle" && !!paper.duplex, from: "margins" });
       this.model.pageLayout[kind].push(element);
       this.selectElement({ element, kind });
       return true;
@@ -157,21 +172,70 @@ export class StructuredTextEditor extends Component {
   // what's in them, as the app shows documents - what's still a place
   // saying what it usually is, where it's anchored. The last item taken out,
   // gone from where it's anchored.
+  // Their creation dots places for the caret: the one it's at, and its
+  // menu, shown there - one clicked, the caret to it, its menu open.
   insertView(insert) {
-    const anchor = anchorOf(this.model, insert.sequence);
+    const { sequence } = insert;
+    const anchor = anchorOf(this.model, sequence);
+    const caret = isDot(this.caret) && this.caret.flow === sequence ? this.caret.index : null;
+    const id = sequence.causality.id;
     return insertView({
-      key: "insert" + insert.sequence.causality.id,
-      sequence: insert.sequence,
+      key: "insert" + id,
+      sequence,
       format: insert.format,
       items: insert.items,
       before: insert.before,
       pad: insert.pad,
       hint: anchor ? hintFor(this.model, anchor.flow, anchor.side) : "",
-      onEmpty: callback("empty" + insert.sequence.causality.id, () => {
-        const place = anchorOf(this.model, insert.sequence);
-        if (place) place.flow[place.side] = null;
+      caret,
+      menu: caret !== null ? this.dotMenu : null,
+      onDot: callback("dot" + id, (index) => {
+        const { controller } = this.unobservable;
+        if (controller.editor) controller.editor.placeCaret(dotPosition(sequence, index));
+        this.dotMenu = frozen({ highlighted: 0 });
       }),
+      onCloseMenu: callback("closeMenu" + id, () => { this.dotMenu = null; }),
     });
+  }
+
+  // A key at a creation dot (see ../../paper/TabulaEditor.js's onDotKey):
+  // Enter, Tab or Space, its creation menu open - the arrows, and Tab, going
+  // through it, Enter or Space creating what's at, there, the caret to the
+  // dot after it; Escape closing it. Closed: Escape, back to the text;
+  // Delete or Backspace, an empty one - a page break - gone. True, taken.
+  dotKey({ key, shift, primary }, at) {
+    const views = this.inherit("documentViews");
+    const types = views ? views.types() : [];
+    const { controller, editing } = this.unobservable;
+    const editor = controller.editor;
+    const menu = this.dotMenu;
+    if (menu) {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, Tab: shift ? -1 : 1 }[key];
+      if (step && types.length > 0) {
+        this.dotMenu = frozen({ highlighted: (menu.highlighted + step + types.length) % types.length });
+      } else if ((key === "Enter" || key === " ") && types[menu.highlighted]) {
+        const sequence = at.flow;
+        sequence.items.splice(at.index, 0, views.create(types[menu.highlighted]));
+        this.dotMenu = null;
+        if (editor) editor.placeCaret(dotPosition(sequence, at.index + 1));
+      } else if (key === "Escape") {
+        this.dotMenu = null;
+      }
+      return true;
+    }
+    if ((key === "Enter" && !primary) || key === "Tab" || key === " ") {
+      this.dotMenu = frozen({ highlighted: 0 });
+      return true;
+    }
+    if (key === "Escape") {
+      if (editor) editor.placeCaret(editing.textBeside(at));
+      return true;
+    }
+    if ((key === "Delete" || key === "Backspace") && !primary) {
+      if (editor) editor.edit((position) => editing.removeBreak(position));
+      return true;
+    }
+    return false;
   }
 
   // Writing, or laying out the pages: the caret, or the selected element,
@@ -192,6 +256,8 @@ export class StructuredTextEditor extends Component {
   // The caret placed, or moved: this editor has the focus.
   caretMoved(at) {
     this.caret = at;
+    // A dot's menu goes with the caret.
+    this.dotMenu = null;
     if (at) takeFocus(this);
   }
 
@@ -244,9 +310,9 @@ export class StructuredTextEditor extends Component {
         showFocusOutline: settings.showFocusOutline, showAllAreas: settings.showAllAreas,
         ...sectionEnds(settings),
         onCaret: callback("caret", (at) => this.caretMoved(at)),
-        // Its page layout - where it has one of its own.
-        onMarginDoubleClick: callback("pages", () => { if (!this.paperSequence || this.model.ownPaper) this.setMode("page"); }),
+        onMarginDoubleClick: callback("pages", () => this.setMode("page")),
         renderInsert: callback("insert", (insert) => this.insertView(insert)),
+        onDotKey: callback("dotKey", (command, at) => this.dotKey(command, at)),
       }),
       this.mode === "page"
         ? overlay(
@@ -256,6 +322,12 @@ export class StructuredTextEditor extends Component {
             pageLayoutEditor({
               key: "pages",
               document: this.model, sequence, zoom: this.zoom,
+              paperFormat: this.pageFormat(),
+              elementsFrom: "margins",
+              // Its margins moved there only if they're its own.
+              setMargins: typeof(this.model.pageLayout.margins) !== "undefined"
+                ? callback("setMargins", (margins) => { this.model.pageLayout.margins = margins; })
+                : null,
               selected: this.selectedElement,
               onSelect: callback("selectElement", (selection) => this.selectElement(selection)),
               onWrite: callback("write", () => this.setMode("write")),
@@ -267,7 +339,7 @@ export class StructuredTextEditor extends Component {
           ),
         )
         : null,
-      clamped ? clamp({ depth, paperWidth: this.model.paper.width, inset: surfaceInset.vertical * 1000, zoom: this.zoom }) : null,
+      clamped ? clamp({ depth, paperWidth: this.pageFormat().width, inset: surfaceInset.vertical * 1000, zoom: this.zoom }) : null,
       this.onRemove ? removeButton(this.onRemove, corner) : null,
       // A new one every time - keyed by the count - so it flashes again.
       this.flash && this.flash.shown

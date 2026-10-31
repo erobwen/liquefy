@@ -1,5 +1,6 @@
 import { frozen, withoutRecording, accessInitialValues } from "@liquefy/cascade.component";
 import { Box, Section, Paragraph, PaperSequence, contentWidth, monospaceMeasurer, mm } from "../print/index.js";
+import { pageLayoutProvider, formatIn } from "../model/pageLayout.js";
 import { Document, isSection, titleLevel, hasExitTitle, exitTitle, paragraphText } from "../model/flows.js";
 import { frameSize } from "../model/frames.js";
 import { typography as defaultTypography, titleStyle } from "./typography.js";
@@ -30,10 +31,11 @@ export const exitTitlePrefix = "❧ → ";
  *    everything in it.
  *  - DocumentLayout: a document's paper (a cascade.print Section: each
  *    document starts on a paper of its own), and the document itself, as a
- *    section at the root. Its page settings - its paper, its page layout -
- *    provided to what's in it (`pageSettings`): a document among pages
- *    of their own in it laid out on them, not its own - the outermost
- *    document's, all through.
+ *    section at the root - on the page layout of what it's in (the file's,
+ *    see ../model/pageLayout.js), but for the parts its own has - and that,
+ *    provided to what's in it in turn, as cascade's render context does:
+ *    pages of their own in it on its paper.
+ *    Starting the page numbers anew, if it does (`startsNumbering`).
  *  - SectionLayout: a section - its title, then its children, in order, and
  *    its exit title, if it has one (see ../model/flows.js) - and, anchored
  *    to them, pages of their own: inner sequences (InsertLayout) - each
@@ -106,22 +108,20 @@ export class DocumentLayout extends Section {
   }
 
   provide() {
-    const layout = this;
-    return { get pageSettings() { return layout.pageFormat(); } };
+    const { document } = this;
+    return pageLayoutProvider(() => document.pageLayout);
+  }
+
+  numberingStart() {
+    return this.document.startsNumbering ? 1 : null;
   }
 
   // Its paper - and its page layout, for what shows the paper to draw on it
   // what's drawn on its pages (see ../model/pageLayout.js) - printed on both
   // sides, or one: its first page the front of a sheet, a right-hand page,
-  // the next its back (see ../print/Section.js's formatOfPage()). In
-  // another document - among pages of their own there - that one's, unless
-  // it keeps its own (`ownPaper`).
+  // the next its back (see ../print/Section.js's formatOfPage()).
   pageFormat() {
-    const inherited = this.inherit("pageSettings");
-    if (inherited && !this.document.ownPaper) return inherited;
-    const { paper, pageLayout } = this.document;
-    const sides = pageLayout.duplex ? { duplex: true, side: "recto" } : {};
-    return frozen({ width: paper.width, height: paper.height, margins: pageLayout.margins, pageLayout, ...sides });
+    return formatIn(this, this.document.pageLayout);
   }
 
   build() {
@@ -166,7 +166,7 @@ export class SectionLayout extends Box {
     const book = section instanceof Document && section.bookMode;
     // Pages of their own anchored to a flow (see ../model/sequences.js).
     const sequence = (flow, side) => flow[side]
-      ? [new InsertLayout({ key: side + flow.causality.id, sequence: flow[side], breakAfter: side === "before" || isSection(flow) || flow instanceof Document, before: side === "before" && flow instanceof Document })]
+      ? [new InsertLayout({ key: side + flow.causality.id, sequence: flow[side], breakAfter: side === "before" || isSection(flow) || flow instanceof Document || !flow[side].runOn, before: side === "before" && flow instanceof Document })]
       : [];
     const boxes = [
       ...(section instanceof Document ? sequence(section, "before") : []),
@@ -213,8 +213,9 @@ export class SectionLayout extends Box {
 // fall among the papers, written down for what shows them (see
 // ../print/PaperSequence.js's `inserts`) - after the paper the text has
 // got to, or, before a document's title, before its first. What comes
-// after them, after a section (`breakAfter`), starts a fresh paper; after
-// a paragraph, the text goes on filling the paper it's on.
+// after them starts a fresh paper (`breakAfter`) - a page break, pages
+// between - but, after a paragraph, with the text set to run on, goes on
+// filling the paper it's on. Empty: a page break, no pages.
 //
 // Each document in them laid out as its kind lays it out (its type's
 // `layout({ key, model })` - see ../shell/documents.js; a page it fills, for
@@ -230,13 +231,9 @@ export class SectionLayout extends Box {
 // left-hand one, as it falls. Before a document's title, its first paper a
 // right-hand one, printed on both sides: a blank back after them (`pad`)
 // where they'd end on a right-hand page.
-export class InsertLayout extends Box {
-  setProperties({ sequence, breakAfter = false, before = false }) {
-    this.sequence = sequence;
-    this.breakAfter = !!breakAfter;
-    this.before = !!before;
-  }
-
+// What lays documents out one after another, each onto a paper sequence
+// of its own - kept for it, as long as it's there (see layOutItems()).
+class ItemsLayout extends Box {
   initialUnobservables() {
     // Each document's paper sequence, and its key, by the document.
     return { targets: new WeakMap(), keys: new WeakMap() };
@@ -253,6 +250,72 @@ export class InsertLayout extends Box {
     const { keys } = this.unobservable;
     if (!keys.has(item)) keys.set(item, "item" + (++lastItemKey));
     return keys.get(item);
+  }
+}
+
+/**
+ * RootLayout - a whole file laid out: its documents, one after another,
+ * each as its kind lays it out (see ../shell/documents.js), on the file's
+ * page layout (`pageLayout`, the base - see ../model/pageLayout.js) -
+ * provided to all of them, each deriving its own from it, for itself and
+ * what's in it -
+ * its sides and its page numbers running through all of them, from the
+ * first page of the file: the first a right-hand page, numbered 1. A kind
+ * laid out on no paper - a spreadsheet, say - takes no pages.
+ *
+ * Rendered onto a paper sequence of its own, with no papers: what's in it
+ * is written down there as pages of their own before its first (see
+ * ../print/PaperSequence.js's `inserts`) - its `items`, each document's
+ * paper sequence (`pages`), for what shows it, and prints it.
+ *
+ * `source`: where the file is - its `documents` and its `pageLayout`,
+ * read as they are (the app, say - see ../shell/TabulaApp.js).
+ */
+export class RootLayout extends ItemsLayout {
+  setProperties({ source, measurer, typography }) {
+    this.source = source;
+    this.measurer = measurer || null;
+    this.typography = typography || defaultTypography;
+  }
+
+  provide() {
+    const layout = this;
+    const provided = pageLayoutProvider(() => layout.source.pageLayout);
+    Object.defineProperty(provided, "textMeasurer", { enumerable: true, get: () => layout.measurer || fallbackMeasurer });
+    Object.defineProperty(provided, "typography", { enumerable: true, get: () => layout.typography });
+    return provided;
+  }
+
+  build() {
+    return this.source.documents.map((item) => {
+      const type = item.documentType;
+      return type && type.layout ? type.layout({ key: this.keyOf(item), model: item.model }) : null;
+    });
+  }
+
+  render(sequence, context) {
+    const built = this.buildOneStep();
+    const duplex = !!this.source.pageLayout.duplex;
+    const { items, total, number } = layOutItems(this, this.source.documents, built instanceof Array ? built : [built], {
+      side: duplex ? "recto" : null, number: 1, outer: sequence, context, unlaid: 0,
+    });
+    sequence.inserts.push(frozen({ page: 0, before: true, sequence: null, format: null, items, pages: total, pad: false, nextNumber: number }));
+  }
+}
+
+// The paper sequence a document is laid out on, in a file laid out by a
+// RootLayout onto `sequence` - or null, if it's not laid out.
+export function laidOutPages(sequence, document) {
+  const [root] = sequence.inserts;
+  const found = root ? root.items.find((each) => each.item === document) : null;
+  return found ? found.pages : null;
+}
+
+export class InsertLayout extends ItemsLayout {
+  setProperties({ sequence, breakAfter = false, before = false }) {
+    this.sequence = sequence;
+    this.breakAfter = !!breakAfter;
+    this.before = !!before;
   }
 
   build() {
@@ -271,30 +334,15 @@ export class InsertLayout extends Box {
     // The side each starts on: after a right-hand page, a left-hand one;
     // before a document's title, a right-hand one - and on, past the pages
     // before it.
-    let side = !format.duplex ? null : this.before ? "recto" : flip(format.side || "recto");
-    let number = sequence.insertNumber(next.page, this.before);
+    const side = !format.duplex ? null : this.before ? "recto" : flip(format.side || "recto");
     const built = this.buildOneStep();
-    const layouts = built instanceof Array ? built : [built];
-    const items = this.sequence.items.map((item, index) => {
-      const own = side;
-      let pages = null;
-      let count = 1;
-      if (item !== null && layouts[index]) {
-        pages = this.targetOf(item);
-        if (withoutRecording(() => pages.firstSide) !== own) accessInitialValues(() => { pages.firstSide = own; });
-        const first = number;
-        if (withoutRecording(() => pages.firstNumber) !== first) accessInitialValues(() => { pages.firstNumber = first; });
-        if (withoutRecording(() => pages.outer) !== sequence) accessInitialValues(() => { pages.outer = sequence; });
-        layouts[index].renderOnto(pages, context);
-        count = Math.max(1, pages.pages.length);
-      }
-      if (side && count % 2 === 1) side = flip(side);
-      number += count;
-      return { item, pages, side: own, count };
+    const laidOut = layOutItems(this, this.sequence.items, built instanceof Array ? built : [built], {
+      side, number: sequence.insertNumber(next.page, this.before), outer: sequence, context,
     });
-    const total = items.reduce((sum, each) => sum + each.count, 0);
+    const { items, total } = laidOut;
     const pad = this.before && !!format.duplex && total % 2 === 1;
-    sequence.inserts.push(frozen({ page: next.page, before: this.before, sequence: this.sequence, format, items, pages: total, pad }));
+    const nextNumber = laidOut.number + (pad ? 1 : 0);
+    sequence.inserts.push(frozen({ page: next.page, before: this.before, sequence: this.sequence, format, items, pages: total, pad, nextNumber }));
     if (this.before) return;
     // The side of a sheet counted from a page further back - as far as
     // their pages.
@@ -304,11 +352,44 @@ export class InsertLayout extends Box {
 
 let lastItemKey = 0;
 
+// Documents laid out one after another, each onto its own paper sequence
+// (`owner.targetOf(item)`) by its layout (`layouts`, by index - none: a
+// place, a page; or, a kind laid out on no paper, `unlaid` pages, at the
+// top level none) - each starting on the side, and with the page number,
+// the one before leaves (`side`, `number`), its page numbers counted
+// through `outer`: [{ item, pages, side, number, count }], the side and
+// the number after them all, and how many pages they take.
+export function layOutItems(owner, documents, layouts, { side, number, outer, context, unlaid = 1 }) {
+  const flip = (each) => each === "recto" ? "verso" : "recto";
+  let total = 0;
+  const items = documents.map((item, index) => {
+    const own = side;
+    const first = number;
+    let pages = null;
+    let count = item === null ? 1 : unlaid;
+    if (item !== null && layouts[index]) {
+      pages = owner.targetOf(item);
+      if (withoutRecording(() => pages.firstSide) !== own) accessInitialValues(() => { pages.firstSide = own; });
+      if (withoutRecording(() => pages.firstNumber) !== first) accessInitialValues(() => { pages.firstNumber = first; });
+      if (withoutRecording(() => pages.outer) !== outer) accessInitialValues(() => { pages.outer = outer; });
+      layouts[index].renderOnto(pages, context);
+      count = pages.pages.length;
+      number = pages.nextNumber();
+    } else {
+      number += count;
+    }
+    if (side && count % 2 === 1) side = flip(side);
+    total += count;
+    return { item, pages, side: own, number: pages ? pages.startNumber() : first, count };
+  });
+  return { items, side, number, total };
+}
+
 // A document of a kind that's only a frame - a picture - among pages of
 // their own: a page it fills, on the page settings of what it's in.
 class PageOfItsOwnLayout extends Section {
   pageFormat() {
-    return this.inherit("pageSettings");
+    return formatIn(this);
   }
 
   build() {

@@ -1,6 +1,6 @@
 import { Flow, Document, Section, Paragraph } from "../../model/flows.js";
 import { FrameAnchor } from "../../model/frames.js";
-import { PageLayout, pageLayoutKinds, pageLayoutFamilies, paperFromJson, paperToJson } from "../../model/pageLayout.js";
+import { PageLayout, pageLayoutKinds, pageLayoutFamilies, paperFromJson } from "../../model/pageLayout.js";
 import { InnerSequence } from "../../model/sequences.js";
 
 /**
@@ -10,14 +10,14 @@ import { InnerSequence } from "../../model/sequences.js";
  *
  *   {
  *     "title": { "type": "flow", "name": "paragraph", "properties": { "spans": ["Tabula"] } },
- *     "paper": "A4",                       // a size's name, or { "width", "height" }
  *     "pageLayout": { "type": "pageLayout", "name": "pages", "properties": {
- *       "margins": { "top": 25000, ... },  // in micrometers, as cascade.print has them
- *       "first": [...], "middle": [...], "last": [...]   // page elements
+ *       "first": [...], "middle": [...], "last": [...],   // page elements
+ *       "margins": { "top": 25000, ... }   // settings: only those it sets itself
  *     } },
  *     "numberTitles": true,
  *     "indentParagraphs": false,
  *     "bookMode": true,                    // only when it's on
+ *     "startsNumbering": true,             // only when it does
  *     "before": { "type": "sequence", ... }, "after": ...,   // pages of their own, if any
  *     "children": [
  *       { "type": "flow", "name": "paragraph", "properties": { "spans": ["Plain, ", { "text": "bold", "bold": true }] } },
@@ -65,7 +65,7 @@ export const structuredTextKinds = {
     section: ({ title, titleOffset = 0, children = [], before, after }) => anchored(new Section(title, children, titleOffset), { before, after }),
   },
   sequence: {
-    inner: ({ items = [] }) => new InnerSequence(items),
+    inner: ({ items = [], runOn = false }) => new InnerSequence(items, { runOn }),
   },
   frame: {
     anchor: ({ placement, width, content }) => new FrameAnchor({ placement, width, content }),
@@ -76,17 +76,17 @@ export const structuredTextKinds = {
 // A structured text's properties, hydrated - its title, its children, its
 // page layout objects already - made into the Document.
 export function documentFromProperties(properties) {
-  const paper = paperFromJson(properties.paper);
   const document = new Document(
     {
       title: properties.title || new Paragraph(),
-      paper,
-      pageLayout: properties.pageLayout || new PageLayout({ margins: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 }) }),
+      // A file's from before the file had page settings: its paper its own.
+      paper: typeof(properties.paper) === "undefined" ? undefined : paperFromJson(properties.paper),
+      pageLayout: properties.pageLayout || new PageLayout(),
       titleOffset: properties.titleOffset || 0,
       numberTitles: !!properties.numberTitles,
       indentParagraphs: !!properties.indentParagraphs,
       bookMode: !!properties.bookMode,
-      ownPaper: !!properties.ownPaper,
+      startsNumbering: !!properties.startsNumbering,
     },
     properties.children || [],
   );
@@ -98,13 +98,12 @@ export function documentFromProperties(properties) {
 export function documentProperties(document) {
   return {
     title: document.title,
-    paper: paperToJson(document.paper),
     pageLayout: document.pageLayout,
     numberTitles: document.numberTitles,
     indentParagraphs: document.indentParagraphs,
     ...(document.titleOffset ? { titleOffset: document.titleOffset } : {}),
     ...(document.bookMode ? { bookMode: true } : {}),
-    ...(document.ownPaper ? { ownPaper: true } : {}),
+    ...(document.startsNumbering ? { startsNumbering: true } : {}),
     ...(document.before ? { before: document.before } : {}),
     ...(document.after ? { after: document.after } : {}),
     children: [...document.children],

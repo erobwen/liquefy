@@ -1,5 +1,6 @@
 import { CompoundServiceLocator } from "@liquefy/cascade.component";
 import { hydrate, dehydrate, Unhydrated } from "./hydration.js";
+import { pageLayoutKinds, pageLayoutFamilies, pageSettingKeys, rootPageLayout } from "../model/pageLayout.js";
 
 /**
  * Documents and the plugins that know them - Tabula's core, the way
@@ -152,9 +153,16 @@ export function documentPlugin({ name, label, description, documentTypes, kinds 
 }
 
 // Tabula's own, in front of the plugins: what every document is - kept, if
-// no plugin in use knows it.
+// no plugin in use knows it - and page layouts, the file's, anything's (see
+// ../model/pageLayout.js).
 const tabulaLocator = {
-  locate: (query) => query.type === "family" && query.name === "document" ? { baseClass: HydratedDocument, keepUnknown: true } : undefined,
+  locate: (query) => {
+    if (query.type === "family" && query.name === "document") return { baseClass: HydratedDocument, keepUnknown: true };
+    if (query.type === "family" && pageLayoutFamilies[query.name]) return pageLayoutFamilies[query.name];
+    const make = pageLayoutKinds[query.type] && pageLayoutKinds[query.type][query.name];
+    if (make) return make(query.properties || {});
+    return undefined;
+  },
 };
 const withTabula = (services) => new CompoundServiceLocator(tabulaLocator, services);
 
@@ -206,22 +214,92 @@ export function hydrateRoot(json, services) {
   return [hydrateDocument(json, services)];
 }
 
-// A whole file - what hydrateRoot() reads, or, with how it's printed set
-// (`print`: { duplex } - the printer's, the paper's both sides, or one),
-// a sequence saying so: { type: "sequence", name: "root", properties: {
-// print, items } }. Hydrated: { documents, print }.
+/**
+ * A whole file: its root - what it's designed for, and what's in it:
+ *
+ *   { "type": "root", "name": "tabula", "properties": {
+ *     "pageLayout": { "type": "pageLayout", "name": "pages", "properties": { "paper": "A4", ... } },
+ *     "print": { "duplex": true },     // the printer's: both sides of the paper, or one
+ *     "items": [ ...documents ]
+ *   } }
+ *
+ * `pageLayout`: what all of it is designed for - the base page layout (see
+ * ../model/pageLayout.js): every setting, no content - each document's
+ * derived from it. `print`: how it's printed - the printer's
+ * settings, not the design: a printer that can't print as it's designed
+ * does its best by it.
+ *
+ * Hydrated: { documents, print, pageLayout }. A file from before there was a
+ * root - a document, a list of them (see hydrateRoot()), a sequence saying
+ * how it's printed - read as it was: the page settings of the first
+ * document with any the file's (see liftPageSettings()), and the pages a
+ * document had before its title - a cover - before it in the file.
+ */
 export function hydrateFile(json, services) {
-  if (json && typeof(json) === "object" && !(json instanceof Array) && json.type === "sequence" && json.name === "root") {
+  const isObject = json && typeof(json) === "object" && !(json instanceof Array);
+  const printOf = (properties) => Object.freeze({ duplex: !!(properties.print && properties.print.duplex) });
+  if (isObject && json.type === "root") {
     const properties = json.properties || {};
-    return { documents: hydrateRoot(properties.items || [], services), print: Object.freeze({ duplex: !!(properties.print && properties.print.duplex) }) };
+    const base = properties.pageLayout ? hydrate(properties.pageLayout, withTabula(services)) : null;
+    return {
+      documents: hydrateRoot(properties.items || [], services),
+      print: printOf(properties),
+      pageLayout: rootPageLayout(base ? definedSettings(base) : {}),
+    };
   }
-  return { documents: hydrateRoot(json, services), print: Object.freeze({ duplex: false }) };
+  const old = isObject && json.type === "sequence" && json.name === "root";
+  const documents = coversBefore(hydrateRoot(old ? (json.properties || {}).items || [] : json, services));
+  return { documents, print: old ? printOf(json.properties || {}) : Object.freeze({ duplex: false }), pageLayout: liftPageSettings(documents) };
 }
 
-export function dehydrateFile(documents, print = {}) {
-  if (!print.duplex) return dehydrateRoot(documents);
-  return { type: "sequence", name: "root", properties: { print: { duplex: true }, items: documents.map((each) => dehydrateDocument(each)) } };
+export function dehydrateFile(documents, print = {}, pageLayout = rootPageLayout()) {
+  return {
+    type: "root",
+    name: "tabula",
+    properties: {
+      pageLayout: dehydrate(pageLayout),
+      print: { duplex: !!print.duplex },
+      items: documents.map((each) => dehydrateDocument(each)),
+    },
+  };
 }
+
+// The settings a page setup has - those it sets.
+function definedSettings(setup) {
+  return Object.fromEntries(pageSettingKeys.filter((key) => typeof(setup[key]) !== "undefined").map((key) => [key, setup[key]]));
+}
+
+// The file's page settings, for a file from before it had any: the first
+// document's own (its `model.pageLayout`'s), the rest as nothing says otherwise -
+// and every document's own settings that are the same as those taken out:
+// only what's its own, apart from the file's, left.
+function liftPageSettings(documents) {
+  const layoutOf = (each) => each.model && each.model.pageLayout && typeof(each.model.pageLayout.hasSettings) === "function" ? each.model.pageLayout : null;
+  const first = documents.find((each) => layoutOf(each) && layoutOf(each).hasSettings());
+  const root = rootPageLayout(first ? definedSettings(layoutOf(first)) : {});
+  for (const each of documents) {
+    const own = layoutOf(each);
+    if (!own) continue;
+    for (const key of pageSettingKeys) {
+      if (typeof(own[key]) !== "undefined" && sameSetting(own[key], root[key])) own[key] = undefined;
+    }
+  }
+  return root;
+}
+
+const sameSetting = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// A document's pages before its title - a cover, from before there was a
+// root to put one before it on - before it, in the file.
+function coversBefore(documents) {
+  return documents.flatMap((each) => {
+    const before = each.model && each.model.before;
+    if (!before || !before.items) return [each];
+    each.model.before = null;
+    return [...before.items.filter((item) => item !== null), each];
+  });
+}
+
 
 export function dehydrateRoot(documents) {
   if (documents.length === 0) return null;

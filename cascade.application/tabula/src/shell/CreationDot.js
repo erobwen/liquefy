@@ -31,19 +31,60 @@ import { settingsFor, appSettingsDefaults } from "./settings.js";
  * Overlay.js), over everything, where the dot is on the screen - its
  * circle moved in from the window's edges as far as it takes to be all
  * there, the items still flying out from the dot itself.
+ *
+ * A place for a caret, too - an editor's (see InsertView.js): with the
+ * caret at it (`focused`), outlined in black. Its menu then whoever has
+ * the caret's to open and close - `open`, given - and to go through with
+ * the keyboard: the item `highlighted` (its index) ringed. Clicked, it
+ * asks for the caret (`onPress()`); the menu closed by a click outside it,
+ * `onClose()`.
  */
 export class CreationDot extends Component {
-  setProperties({ documentTypes, onCreate, label, title, shape }) {
+  setProperties({ documentTypes, onCreate, label, title, shape, focused = false, open, highlighted = null, onPress, onClose }) {
     this.documentTypes = documentTypes || [];
     this.onCreate = onCreate;
     this.label = label || null;
     this.title = title || "Create something";
     this.shape = shape || "dot";
+    this.focused = !!focused;
+    // Open as told - or, told nothing, as clicked.
+    this.controlled = typeof(open) === "boolean";
+    this.openGiven = !!open;
+    this.highlighted = highlighted;
+    this.onPress = onPress || null;
+    this.onClose = onClose || null;
+  }
+
+  isOpen() {
+    return this.controlled ? this.openGiven : this.open;
+  }
+
+  // Where it is on the screen - opened from outside, by the keyboard, not
+  // where it was clicked: where its button is.
+  whereItIs() {
+    if (typeof(document) === "undefined") return null;
+    const button = document.querySelector("[data-creation-dot=\"" + this.unobservable.id + "\"]");
+    if (!button) return null;
+    const rect = button.getBoundingClientRect();
+    return { x: (rect.left + rect.right) / 2, y: (rect.top + rect.bottom) / 2 };
+  }
+
+  close() {
+    if (this.controlled) {
+      if (this.onClose) this.onClose();
+    } else {
+      this.open = false;
+    }
   }
 
   initialState() {
     // center: where the dot was on the screen, when it was clicked.
     return { open: false, center: null };
+  }
+
+  initialUnobservables() {
+    // Its button - where the menu opens, opened from outside.
+    return { id: "creation-dot-" + (++lastDot) };
   }
 
   onEstablish() {
@@ -52,17 +93,25 @@ export class CreationDot extends Component {
   }
 
   build() {
-    const { open, label } = this;
+    const { label } = this;
+    const open = this.isOpen();
     const color = settingsFor("tabula", appSettingsDefaults).creationColor;
     return div(
       { style: { position: "relative", width: 0, height: 0 } },
+      // The caret at it: its shape, larger, in black, behind it - an outline.
+      this.focused
+        ? div({ key: "focus", "data-caret": "", style: { ...buttonStyle, ...shapes[this.shape], ...outlined(shapes[this.shape]), background: "black", cursor: "default", pointerEvents: "none" } })
+        : null,
       htmlButton(
         {
+          key: "dot",
+          "data-creation-dot": this.unobservable.id,
           title: this.title,
           onclick: callback("open", (event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             this.center = frozen({ x: (rect.left + rect.right) / 2, y: (rect.top + rect.bottom) / 2 });
-            this.open = true;
+            if (this.onPress) this.onPress();
+            if (!this.controlled) this.open = true;
           }),
           style: {
             ...buttonStyle,
@@ -82,7 +131,9 @@ export class CreationDot extends Component {
   // Over everything: a layer catching the clicks outside the items - and
   // the items, around where the dot is.
   menu() {
-    const { documentTypes, center: dot } = this;
+    const { documentTypes } = this;
+    // Opened from outside: where it is now - wherever it was clicked.
+    const dot = this.controlled ? this.whereItIs() || this.center : this.center;
     if (!dot) return div();
     const color = settingsFor("tabula", appSettingsDefaults).creationColor;
     // Far enough out for the items not to touch, however many there are.
@@ -91,7 +142,7 @@ export class CreationDot extends Component {
     return div(
       {
         style: { position: "fixed", inset: 0, pointerEvents: "auto" },
-        onmousedown: callback("close", () => { this.open = false; }),
+        onmousedown: callback("close", () => this.close()),
       },
       documentTypes.length === 0
         ? div({ style: { ...labelStyle, position: "fixed", left: center.x + "px", top: center.y + 22 + "px", opacity: 0.8 } },
@@ -108,11 +159,12 @@ export class CreationDot extends Component {
             title: type.description || type.label,
             onmousedown: callback("keep" + type.name, (event) => event.stopPropagation()),
             onclick: callback("create" + type.name, () => {
-              this.open = false;
+              this.close();
               this.onCreate(type);
             }),
             style: {
               ...itemStyle,
+              ...(index === this.highlighted ? highlightStyle(color) : {}),
               left: center.x - itemSize / 2 + "px",
               top: center.y - itemSize / 2 + "px",
               // Out from the dot, one after the other (see addKeyframes()).
@@ -131,6 +183,18 @@ export class CreationDot extends Component {
     );
   }
 }
+
+let lastDot = 0;
+
+// A shape, outlined: 3 px larger all round, behind it.
+const outlined = (shape) => ({
+  width: "calc(" + shape.width + " + 6px)",
+  height: "calc(" + shape.height + " + 6px)",
+  transform: "translate(-50%, -50%)",
+});
+
+// The item the keyboard is at, in the menu: ringed in the dot's colour.
+const highlightStyle = (color) => ({ boxShadow: "0 0 0 3px " + color + ", 0 4px 14px rgba(0, 0, 0, 0.18)" });
 
 // The circle's centre: the dot, moved in from the window's edges by as
 // much as it takes for `reach` around it to be in the window - in the

@@ -144,6 +144,7 @@ export class GettingStartedPage extends Component {
         " on.",
       ),
       nextPage({ path: "convenient-usage", label: "Ready for more? On to Everyday Usage →" }),
+      nextPage({ path: "manual", label: "Or everything in detail: the Reference Manual →" }),
     );
   }
 }

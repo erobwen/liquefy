@@ -1,6 +1,7 @@
 // For more info: https://vitejs.dev/config/
 import { defineConfig } from 'vite'
 import { cascadePrerender } from '@liquefy/cascade.prerender'
+import { llmsTxt } from './llms.js'
 
 export default defineConfig({
   server: {
@@ -17,8 +18,12 @@ export default defineConfig({
   // menu's links (see cascade.prerender) - so the demo's pages can be read
   // without running it. SITE_ORIGIN, where it will be (see
   // scripts/build-site.mjs), makes their addresses absolute and adds a
-  // sitemap. CASCADE_PRERENDER=false builds without.
+  // sitemap. CASCADE_PRERENDER=false builds without. The manual is a route
+  // to start from too: its group in the menu is closed, with no links in
+  // it - but its contents link to every chapter.
+  // llms.txt and llms-full.txt: the documentation, for an AI (see llms.js).
   plugins: [
-    cascadePrerender({ site: process.env.SITE_ORIGIN || undefined })
+    cascadePrerender({ site: process.env.SITE_ORIGIN || undefined, routes: ["", "manual"] }),
+    llmsTxt({ site: process.env.SITE_ORIGIN || "" })
   ]
 })

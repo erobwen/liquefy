@@ -109,6 +109,7 @@ export class IntroductionPage extends Component {
         ", which temporal signals are especially engineered for.",
       ),
       nextPage({ path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
+      nextPage({ path: "manual", label: "Looking for the details? Read the Reference Manual →" }),
 
       h2("Standout feature"),
       p("Name another reactive front end framework where animating an entire form can be reduced to a one-liner. This becomes possible because of sub-frame render precision and temporal reactivity that can do complex FLIP-animation setup in the middle of a render cycle."),
@@ -209,6 +210,10 @@ export class IntroductionPage extends Component {
       ),
       p("So for these reasons, there can be times when it is suitable to use a .css file for styling. You can also adopt the hybrid approach of using .css styling for default static styles, and use inline reactive styling for everything dynamic."),
       p("There could be room for future development when it comes to this. For example, reactive .css stylesheets could be a thing. Maybe there is some clever solution to server-side rendering of programmatically laid out content."),
+
+      h2("Documentation"),
+      p("The guide - Getting Started, Everyday Usage and Advanced Usage - shows Cascade by example. The Reference Manual covers everything in detail: concepts, components, identity and keys, context, services, reactivity, the DOM and UI widgets, pitfalls, and the full API."),
+      nextPage({ path: "manual", label: "Read the Reference Manual →" }),
 
       h2("Repository"),
       a(text("https://github.com/erobwen/liquefy"), { href: "https://github.com/erobwen/liquefy" }),

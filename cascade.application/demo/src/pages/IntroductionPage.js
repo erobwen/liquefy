@@ -70,7 +70,7 @@ export class IntroductionPage extends Component {
         emphasis("there is usually only one signal per object and per property."),
       ),
       p("This means that with signals you are forced to build an explicit dependency graph, storing intermediary values as their own signals."),
-      p("But this is not how rendering and document transformation is normally done! When rendering, and when transforming documents, there is a sequence of operations that transform the same object."),
+      p("But this is not how rendering and document transformation are normally done! When rendering, and when transforming documents, there is a sequence of operations that transform the same object."),
       p(
         emphasis("Temporal signals"),
         " allow us to build a pipeline of readers and writers of data that manipulate the same data objects. " +
@@ -111,7 +111,7 @@ export class IntroductionPage extends Component {
       nextPage({ path: "getting-started", label: "Do you want to learn more? Get started with Cascade →" }),
 
       h2("Standout feature"),
-      p("Name another reactive front end framework where animating an entire form can be reduced down to a one-liner. This becomes possible because of sub-frame render precision and temporal reactivity that can do complex FLIP-animation setup in the middle of a render cycle."),
+      p("Name another reactive front end framework where animating an entire form can be reduced to a one-liner. This becomes possible because of sub-frame render precision and temporal reactivity that can do complex FLIP-animation setup in the middle of a render cycle."),
       img({
         src: onelinerAnimation,
         alt: "The Booking Form page's source: the whole form is animated by wrapping it in flipAnimationContainer().",
@@ -122,13 +122,13 @@ export class IntroductionPage extends Component {
       ul(
         li(emphasis("Sub-frame render precision"), " Since all components render in a well-defined order in real time with access to the real DOM, it enables advanced animation setup or layout measuring within the same frame."),
         li(emphasis("JS Proxies"), " for fully transparent data dependency tracking - no dependencies to declare."),
-        li(emphasis("Temporal signals"), " (see above): Allows for implicit dependency tracking between multiple ordered readers and writers of the same render target."),
+        li(emphasis("Temporal signals"), " (see above): allow for implicit dependency tracking between multiple ordered readers and writers of the same render target."),
         li(emphasis("Minimal DOM updates"), " for fine-grained, targeted change response: a rebuild touches only the nodes that actually changed."),
         li(emphasis("Stable identity across rebuilds"), " - keyed components are matched to the ones they replace, so their local state and DOM elements are kept. For simpler static structures, the system also uses pattern matching to reuse already established components."),
         li(emphasis("Component lifecycle control"), " - a component that stops being rendered (a page switched away from, a breakpoint) keeps its state and DOM elements, and comes back as it was."),
         li(emphasis("Programmatic responsive layout"), " driven by real DOM measurement rather than CSS media queries - see the menu breakpoint, and the Measured Layout page."),
         li(emphasis("Service locators throughout"), " - every element and widget is asked for, not constructed, so themes can replace whole components at runtime, and any part of the app can have services of its own (see the Themes page)."),
-        li(emphasis("Component inheritance"), " - Conveniently inherit properties from structural parents."),
+        li(emphasis("Component inheritance"), " - conveniently inherit properties from structural parents."),
         li(emphasis("Hydration"), " - a UI can be written as a document: plain data, a tree of service queries, turned into components by the same service locators (see the UI as Data page)."),
         li(emphasis("DOM transition animations"), " - elements moving within or between parents, resizing, appearing and leaving all animate, with no changes to the components animated (see the Animation Basics page)."),
         li(emphasis("Portals"), " - a component can put content somewhere else in the tree, as this demo's pages do with their buttons in the top bar."),
@@ -146,56 +146,69 @@ export class IntroductionPage extends Component {
           style: { display: "block", width: "100%" },
         }),
       ),
-      p("Components can override either build() or render(). 'Build components' just build children and let them do all work. 'Render components' however interact directly with the render target and give direct render instructions. Both see the render context - what the components around them provide - which holds only timeless values: build components see the final value of every property."),
+      p("Components can override either build() or render(). 'Build components' just build children and let them do all the work. 'Render components', however, interact directly with the render target and give direct render instructions. Both see the render context - what the components around them provide - which holds only timeless values: build components see the final value of every property."),
       
       h2("Conventions, or the lack thereof"),
       p("Cascade offers opportunities and features, with as few requirements as possible. There are multiple ways to do the same thing in this framework, and everyone can find a style of development that fits them. For example:"),
       ul(
-        li("The service locator is totally optional. If someone wants to build an app without it that works fine as well. Components then just construct their children directly. "),
+        li("The service locator is totally optional. If someone wants to build an app without it, that works fine as well. Components then just construct their children directly. "),
         li("When it comes to creating components, you can either:",
           ul(
             li("Call the component constructor directly"), 
-            li("Call one of many convenience functions that indirectly gets the component from the service locator OR in some cases constructs them directly"),
+            li("Call one of many convenience functions that indirectly get the component from the service locator OR in some cases construct it directly"),
             li("Write JSX inside your component, which compiles to a compound request object - a document of service queries - that hydrate() hands to the service locator")
           )
         ),
         li("Building children in the build function is a convenience and allows for the use of keys to maintain a stable object identity, but a parent can also construct a child during its initialization and dispose of it when the parent itself is disposed. Components can also be constructed entirely outside of the framework."), 
-        li("Most components delegate their rendering to a sequence of children, but other components could implement the render function directly and take charge of DOM manipulation directly."),
+        li("Most components delegate their rendering to a sequence of children, but other components could implement the render function directly and take charge of DOM manipulation themselves."),
         li("As a rule of thumb, app components build, and library components render. Because if there is a need to take control and render something, it could probably be built into a reusable component. But someone might build a render-oriented application by only implementing the render function for all components, and that could have its merits too."),
         li("Today there is cascade.DOM that allows for rendering an application on a DOM, but another implementation of the render target could have the same app operate on top of totally different infrastructure. (Think React Native, or server-side rendering as in Next.js.)"),
       ),
 
       h2("Are you a React developer?"),
-      p("React and Cascade are very different, there is some React DNA in Cascade - the author of Cascade was a huge fan of React from its very start."),
+      p("React and Cascade are very different, but there is some React DNA in Cascade - the author of Cascade was a huge fan of React from the very start."),
       p(emphasis("Similarities")),
       ul(
-        li("Similar to React, Cascade has render functions where you can use keys to maintain a stable identity for children during rebuilds. But for Cascade, keys need to be unique per build, not just amongst siblings. This enables child components to move to new locations, which can be important for automated flip animations. Similar to React, Cascade also use pattern matching to allow for a stable identity for static child components."),
-        li("Cascade supports JSX syntax, for those who prefer it over plain Javascript."),
+        li("The build functions of Cascade components correspond to the function that defines a React component. You can use keys to allow child components to maintain their identity and state."),
+        li("Cascade supports JSX syntax, for those who prefer it over plain JavaScript."),
       ),
-      p(emphasis("Differences")),
+      p(emphasis("Advantages of Cascade")),
       ul(
-        li("React has a black box render cycle, where you can only interact with the DOM between renders. Cascade lets your own code go in and analyze and modify the DOM during the render. So many things that would take several frames in React can be done in a single frame."),
-        li("Cascade has a state management system of its own, based on JS Proxies, whereas React is usually paired up with an external system for its application state."),
-        li(
-          "Object orientation vs. pure functional programming. ", emphasis("\"React went down a path I could not follow.\""), " React started ",
-          "out object oriented, with lifecycle functions, and later shifted towards functional programming. The reason ",
-          "is probably Redux: a state management system based on functional programming, using immutable objects and ",
-          "root identity to detect changes. Cascade, however, can stay object oriented, since its JS Proxies detect ",
-          "changes in any object.",
+        li("Keys in Cascade are not confined to just a sequence. If you move a keyed component to another part of the structure, it will move to that place in the structure. On top of keys, Cascade also uses pattern matching, so you do not have to key static components that remain in place."),
+        li("With Cascade it is easy to keep components alive off-screen. You can take control and create and dispose of components by hand, to allow for lightning-fast page swaps, or have components move to different parts of the user interface while maintaining state."),
+        li("Sub-frame precision: React has a black box render cycle, whereas Cascade lets your own code go in and analyze and modify the DOM during the render. This enables many advanced features:",
+          ul(
+            li("FLIP animation containers that animate entire UIs"),
+            li("Overflow containers that lay out components until they are full, and can move components that don't fit elsewhere"),
+            li("Measurement containers that measure real DOM element sizes and report them back to the application"),
+          )
         ),
+        li("Cascade has a state management system of its own, based on JS Proxies, whereas React is usually paired up with an external system for its application state."),
       ),
+      p(emphasis("Functional Programming versus Object Orientation")),
+      p(
+        "React started out object oriented, with lifecycle functions, and later shifted towards functional programming. The reason ",
+        "is probably Redux: a state management system based on functional programming, using immutable objects and ",
+        "root identity to detect changes. Cascade, however, chose the path of using JS Proxies to detect change, similar to MobX and Vue, and is therefore object oriented in nature. ",
+        "There is no denying that there is a certain elegance to some aspects of functional React, and therefore Cascade also supports simple view components that are defined by a single function. ",
+        "But the declarative nature of functional programming is also its weakness, since sub-frame precision requires exactly that: imperative modification of the DOM during render. ",
+        "Also, for state management, object orientation is a proven and well-thought-out methodology, and it is questionable whether the state reducer pattern really leads to readable code - ",
+        "especially when you consider that libraries such as Immutable.js, seamless-immutable and Immer have been written to hide the timeless nature of functional programming."
+      ),
+
+      p(emphasis("Summary")),
       p("Cascade is what you would get if you took all the capabilities of React and MobX, added temporal signals, and mixed it all together. It can do everything those systems can do - but with temporal signals and sub-frame precision, it takes it to the next level."),
       
       h2("Can I use CSS?"),
-      p("Of course you can. Cascade was built trying to answer the simple question: Can everything be reactive and programmatic? And to make styling fully dynamic and programmtic it is natural to do it inline. Also, the ideomatic way of working with Cascade is to create reusalbe and configureable components instead of CSS classes. But there is nothing preventing you from using CSS just as before!"),
-      p("There are in fact reasons to why you still might want to do some styling in .css files:"),
+      p("Of course you can. Cascade was built to answer a simple question: can everything be reactive and programmatic? And to make styling fully dynamic and programmatic, it is natural to do it inline. Also, the idiomatic way of working with Cascade is to create reusable and configurable components instead of CSS classes. But there is nothing preventing you from using CSS just as before!"),
+      p("There are in fact reasons why you still might want to do some styling in .css files:"),
       ul(
-        li("Moseover-effects cannot be easily expressed in inline styling. It is possible to build a component that tracks mouse movements and re-styles, but it could be less convenient."),
-        li("Programmatic responsive layout does not work well with server side rendering and hydration. So if you are building a web-store based on server side rendering, you might want to use programmatic responsive layout with care. The result could otherwise be quite visible hydration."),
+        li("Mouseover effects cannot easily be expressed with inline styling. It is possible to build a component that tracks mouse movements and restyles, but it could be less convenient."),
+        li("Programmatic responsive layout does not work well with server-side rendering and hydration. So if you are building a web store based on server-side rendering, you might want to use programmatic responsive layout with care. Otherwise, the hydration could be quite visible."),
         li(".css files set up correctly could potentially have performance benefits.")
       ),
       p("So for these reasons, there can be times when it is suitable to use a .css file for styling. You can also adopt the hybrid approach of using .css styling for default static styles, and use inline reactive styling for everything dynamic."),
-      p("There could be room for future development when it comes to this. For example, reactive .css stylesheets could be a thing. Maybe there is some clever solution to server side rendering of programmaticly laid out content."),
+      p("There could be room for future development when it comes to this. For example, reactive .css stylesheets could be a thing. Maybe there is some clever solution to server-side rendering of programmatically laid out content."),
 
       h2("Repository"),
       a(text("https://github.com/erobwen/liquefy"), { href: "https://github.com/erobwen/liquefy" }),

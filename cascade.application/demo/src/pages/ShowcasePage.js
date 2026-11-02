@@ -392,7 +392,7 @@ class StateManagement extends Section {
         div(
           { style: { textAlign: "center", maxWidth: "820px", margin: "0 auto " + Math.round(48 * scale) + "px" } },
           this.eyebrow("Integrated state management", 0, true),
-          this.title([text("Just change "), shine("your objects.", true)], 100),
+          this.title([text("Just change your objects. "), shine("Everything will update.", true)], 100),
           this.lead([text("Plain JavaScript objects, made observable. Change them however you like - assign, push, splice, reverse - and exactly the parts of the page that read them update. No store, no actions, no selectors, no dependency lists.")], 200),
           this.lead([
             text("Try it below: run a line of code, use the player itself, or edit the model under it. Or open your browser's console and type "),
@@ -531,6 +531,8 @@ class Features extends Section {
         style: {
           padding: "28px", borderRadius: "20px", color: themeColor.text, background: themeColor.surface, border: "1px solid " + themeColor.border,
           boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.5)",
+          // Its slot is the grid's cell, stretched to the row - the card fills it.
+          height: "100%", boxSizing: "border-box",
         },
       },
       div(
@@ -589,6 +591,7 @@ class ForReactDevelopers extends Section {
         style: {
           padding: "32px", borderRadius: "20px", color: themeColor.text, background: themeColor.surface, boxShadow: "0 24px 48px -28px rgba(0, 0, 0, 0.5)",
           border: "1px solid " + themeColor.border, borderTop: "4px solid " + (accent ? themeColor.accent : themeColor.borderStrong),
+          height: "100%", boxSizing: "border-box",
         },
       },
       h3({ style: { margin: "0 0 16px 0", fontSize: "22px" } }, text(heading)),

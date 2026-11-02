@@ -342,10 +342,10 @@ class MenuList extends Component {
       else runs.push({ group, pages: [page] });
     }
     // A group gets a header above its pages, and a gap after them, before
-    // the next page on its own (see index.js - `group`). Its pages are in a
-    // box of their own, there even while the group is collapsed: opening
-    // it, the box grows from nothing, and its pages are revealed as it does
-    // (see below).
+    // the next page on its own (see index.js - `group`). Its pages are
+    // items of the menu like any other - opened, they fade in where they
+    // lie, and closed, fade out where they were, as what's after them
+    // makes room or closes the gap (see below).
     const items = [];
     runs.forEach(({ group, pages }, index) => {
       if (group === null) {
@@ -354,10 +354,7 @@ class MenuList extends Component {
         return;
       }
       items.push(this.groupHeader(group));
-      items.push(div(
-        { key: "pages" + group, style: { overflow: "hidden" } },
-        frame.groupIsOpen(group) ? pages.map((page) => this.pageLink(page, false, true)) : [],
-      ));
+      if (frame.groupIsOpen(group)) items.push(...pages.map((page) => this.pageLink(page, false, true)));
     });
     // Scrolling, when it's taller than the window - with an indicator of
     // where it is, rather than a scroll bar (see indicatedScroll()).
@@ -366,10 +363,11 @@ class MenuList extends Component {
       child: div(
         { style: { boxSizing: "border-box", padding: "16px" } },
         logo(frame),
-        // Animated: a group opening grows to make room for its pages, which
-        // stay within it as it does - `confine` - and closing, shrinks it
-        // away, the rest of the menu closing the gap.
-        flipAnimationContainer({ confine: true }, ...items),
+        // Animated: a group opening, the rest of the menu makes room for
+        // its pages, and closing, closes the gap after them. The menu's
+        // height changes at once, as laid out - so the scroll indicator
+        // (see indicatedScroll()) follows it, measuring that.
+        flipAnimationContainer(...items),
       ),
     });
   }

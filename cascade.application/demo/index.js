@@ -22,6 +22,7 @@ import { FocusStorePage } from "./src/pages/FocusStorePage.js";
 import { WordProcessorPage } from "./src/pages/WordProcessorPage.js";
 import { ReactiveFormPage } from "./src/pages/ReactiveFormPage.js";
 import { ToolbarEllipsisPage } from "./src/pages/ToolbarEllipsisPage.js";
+import { FormFieldPage } from "./src/pages/FormFieldPage.js";
 import { ExamplesPage } from "./src/pages/ExamplesPage.js";
 import { rootServiceLocator } from "./src/services.js";
 import { setUpVersionNotice } from "./src/versionNotice.js";
@@ -91,6 +92,7 @@ const examples = [
   { key: "toolbar-ellipsis", section: "Layout and UI patterns", title: "Overflowing Toolbar", icon: "more_horiz", description: "A Cascade example: a toolbar that moves what doesn't fit into an overflow menu.", component: new ToolbarEllipsisPage().establish() },
   { key: "hybrid-modal-dialog", section: "Layout and UI patterns", title: "Linkable Dialog", icon: "open_in_browser", description: "A Cascade example: a modal dialog with an address of its own.", component: new HybridModalDialog().establish() },
   { key: "drawer", section: "Layout and UI patterns", title: "Drawer", icon: "side_navigation", description: "A Cascade example: a drawer sliding in from any edge - modal or not, with a header or a panel of its own.", component: new DrawerPage().establish() },
+  { key: "form-field", section: "Layout and UI patterns", title: "Field States", icon: "edit_square", description: "A Cascade example: form fields with a state vocabulary - invalid, valid, unsaved, updating, locked - kept as observable data next to the value.", component: new FormFieldPage().establish() },
   { key: "jsx", section: "Other ways to write a UI", title: "JSX", icon: "code", description: "A Cascade example: components written in JSX.", component: new JsxPage().establish() },
   { key: "hydration", section: "Other ways to write a UI", title: "UI as Data", icon: "data_object", description: "A Cascade example: a page written as a document - plain data - and hydrated into components.", component: new HydrationPage().establish() },
   { key: "recursive-demo", section: "Classics", title: "Recursive Tree", icon: "account_tree", description: "A Cascade example: a recursive component tree, rebuilt only where it changes.", component: new RecursiveDemo().establish() },

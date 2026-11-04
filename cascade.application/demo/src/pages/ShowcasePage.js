@@ -13,6 +13,7 @@ import focusStoreSource from "./FocusStorePage.js?raw";
 import playlistSource from "../components/playlistDemo.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import keyConcepts from "../../../../cascade/images/key-concepts.svg";
+import splashScreen from "../../../../cascade/images/cascade-splash-screen.png";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
@@ -630,16 +631,23 @@ class ForReactDevelopers extends Section {
 }
 
 // The last screen: the way on. Light, after the dark one before it - the
-// accent glowing up from its bottom edge.
+// accent glowing up from its bottom edge. The logotype's splash screen
+// flies in over it, its colors its own - not the theme's.
 class Finale extends Section {
   build() {
-    const { height } = this.room;
-    return new Stage(this.shown, { animate: !calm }).build(
+    const { height, scale } = this.room;
+    const stage = new Stage(this.shown, { animate: !calm });
+    const splash = stage.fly("below", this.picture(
+      "finaleSplash", splashScreen, "The Cascade logotype in neon, over a glowing grid.", "1671 / 941",
+      { maxWidth: "960px", margin: "0 auto " + Math.round(64 * scale) + "px", boxShadow: "0 40px 80px -30px rgba(0, 0, 0, 0.6)" },
+    ));
+    return stage.build(
       {
         minHeight: Math.round(height * 0.8) + "px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center",
         background: `radial-gradient(circle at 50% 130%, ${themeColor.accentSoft} 0%, transparent 65%), ${themeColor.accentFaint}`,
       },
       this.inner(
+        splash,
         this.title([text("Ready to "), shine("cascade?")], 0, { fontSize: Math.round(72 * this.room.scale) + "px" }),
         this.lead([text("Start with the basics, or jump straight into the examples.")], 120),
         div(

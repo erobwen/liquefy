@@ -7,6 +7,7 @@ import { Stage } from "../components/revealStage.js";
 import { AnimatedLogotype } from "../components/animatedLogotype.js";
 import { FocusStore } from "./FocusStorePage.js";
 import { PlaylistDemo, demoCaption } from "../components/playlistDemo.js";
+import { MiniatureWordProcessor } from "../components/miniatureWordProcessor.js";
 import { animationControlsHere } from "../components/animationControls.js";
 import source from "./ShowcasePage.js?raw";
 import focusStoreSource from "./FocusStorePage.js?raw";
@@ -23,6 +24,7 @@ const information = {
     "What flies in is FlipAnimationContainer's ordinary animation. Until its section has been seen, a piece waits in a wing just outside the section's edge, clipped away. Seen, it's built in its slot instead - it moved to another parent, so the container makes it travel there.",
     "A section keeps the room it will need before it's revealed: each render, its pieces are put in their slots and the section is measured, then put back in their wings - within the render, before anything is drawn, the toolbar ellipsis' technique (see ../components/revealStage.js).",
     "The playlist is plain objects made observable (deeplyObservable()) - on window, too, for the console. Each of the player's components reads what it shows and nothing else, so a change rebuilds only those that read it: they outline themselves in yellow as they do (see ../components/playlistDemo.js).",
+    "The word processor is the Word Processor page's, in miniature: its document laid out onto a paper sequence - a render target with no DOM in it - by a root of its own, and shown and edited by cascade.print's paperEditor() (see ../components/miniatureWordProcessor.js).",
     "Text, and the letters of the logotype, move with plain CSS transitions: in their place from the start, only invisible - so a prerendered page has every word in it.",
     "Sizes and columns follow the room the page has, measured - no media queries. Asked for less motion (prefers-reduced-motion), it's all simply there.",
     "Full screen: the app's frame shows it as an overlay, above its menu and top bar. A first visit to the app starts here.",
@@ -161,6 +163,7 @@ export class ShowcasePage extends Component {
       revealing(new Features({ room })),
       revealing(new KeyConcepts({ room })),
       revealing(new ForReactDevelopers({ room })),
+      revealing(new BeyondTheFrontEnd({ room })),
       revealing(new Finale({ room })),
     );
   }
@@ -630,37 +633,87 @@ class ForReactDevelopers extends Section {
   }
 }
 
-// The last screen: the way on. Light, after the dark one before it - the
-// accent glowing up from its bottom edge. The logotype's splash screen
-// flies in over it, its colors its own - not the theme's.
+// Cascade beyond the DOM: temporal signals are a reactive system of their
+// own, and the DOM is only one render target. Shown: a word processor,
+// laid out onto papers - live, to type on.
+class BeyondTheFrontEnd extends Section {
+  build() {
+    const { scale, narrow } = this.room;
+    // The word processor is one piece to the stage: its papers change as
+    // it's typed on - nothing the stage should animate.
+    const stage = new Stage(this.shown, { animate: !calm, isUnit: isMiniatureWordProcessor });
+    // Not flown in: it would be drawn squeezed into the wing's width on the
+    // way - it rises into view, as text does.
+    const processor = new MiniatureWordProcessor({
+      key: "beyondProcessor",
+      zoom: narrow ? 0.8 : 1,
+      height: narrow ? 520 : 600,
+      style: rise(this.shown, 200, "right"),
+    });
+    return stage.build(
+      { background: lightBackground },
+      this.inner(this.columns(
+        "1fr 1fr",
+        div(
+          this.eyebrow("Beyond the DOM"),
+          this.title([text("Not just a "), shine("front end framework.")], 100),
+          this.lead([text("At its heart, Cascade is a reactive system - temporal signals - and the DOM is only one of the targets it renders onto. Give it another, and the same components, repeaters and minimal updates work there too.")], 200),
+          this.lead([text("Like a word processor: a document laid out onto papers, line by line - no DOM involved, every length in micrometers. Type, and only the paragraph you type in is broken into lines again; the ones after it are moved, until one lands where it was.")], 300),
+          this.lead([text("Made for WYSIWYG word processors and other document editors - which is what temporal signals were engineered for.")], 400, { fontSize: Math.round(17 * Math.max(scale, 0.9)) + "px" }),
+          div(
+            { style: { display: "flex", flexWrap: "wrap", gap: "14px", marginTop: "28px", ...rise(this.shown, 500) } },
+            new Cta({ key: "beyondWordProcessor", path: "word-processor", label: "Open the Word Processor", primary: true }),
+          ),
+        ),
+        processor,
+      )),
+    );
+  }
+}
+
+// Made once - see isLiveStore.
+const isMiniatureWordProcessor = (component) => component instanceof MiniatureWordProcessor;
+
+// The last screen: the way on. Dark, after the light one before it - as
+// dark as the logotype's splash screen, which flies in over it: its colors
+// its own, not the theme's, its edges fading into the dark - no frame.
 class Finale extends Section {
   build() {
     const { height, scale } = this.room;
     const stage = new Stage(this.shown, { animate: !calm });
     const splash = stage.fly("below", this.picture(
       "finaleSplash", splashScreen, "The Cascade logotype in neon, over a glowing grid.", "1671 / 941",
-      { maxWidth: "960px", margin: "0 auto " + Math.round(64 * scale) + "px", boxShadow: "0 40px 80px -30px rgba(0, 0, 0, 0.6)" },
+      {
+        maxWidth: "1040px", margin: "0 auto " + Math.round(40 * scale) + "px", borderRadius: 0, background: "none", boxShadow: "none",
+        maskImage: splashFade, WebkitMaskImage: splashFade,
+      },
     ));
     return stage.build(
       {
         minHeight: Math.round(height * 0.8) + "px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center",
-        background: `radial-gradient(circle at 50% 130%, ${themeColor.accentSoft} 0%, transparent 65%), ${themeColor.accentFaint}`,
+        color: "white", background: splashBlack,
       },
       this.inner(
         splash,
-        this.title([text("Ready to "), shine("cascade?")], 0, { fontSize: Math.round(72 * this.room.scale) + "px" }),
+        this.title([text("Ready to "), shine("cascade?", true)], 0, { fontSize: Math.round(72 * this.room.scale) + "px" }),
         this.lead([text("Start with the basics, or jump straight into the examples.")], 120),
         div(
           { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "14px", marginTop: "36px", ...rise(this.shown, 240) } },
           new Cta({ key: "finaleStart", path: "getting-started", label: "Get started", primary: true }),
-          new Cta({ key: "finaleExamples", path: "examples", label: "Browse the examples" }),
-          new Cta({ key: "finaleRepository", href: "https://github.com/erobwen/liquefy", label: "GitHub" }),
+          new Cta({ key: "finaleExamples", path: "examples", label: "Browse the examples", onDark: true }),
+          new Cta({ key: "finaleRepository", href: "https://github.com/erobwen/liquefy", label: "GitHub", onDark: true }),
         ),
-        p({ style: { marginTop: "48px", color: themeColor.textSoft, fontSize: "14px", ...rise(this.shown, 360) } }, text("This demo is a work in progress.")),
+        p({ style: { marginTop: "48px", color: "rgba(255, 255, 255, 0.55)", fontSize: "14px", ...rise(this.shown, 360) } }, text("This demo is a work in progress.")),
       ),
     );
   }
 }
+
+// The splash screen's own black - the finale is drawn on it - and its
+// edges faded into it: an ellipse, opaque well out towards the logotype's
+// ends.
+const splashBlack = "#05040b";
+const splashFade = "radial-gradient(ellipse 50% 50% at 50% 50%, black 72%, transparent 100%)";
 
 /**
  * A call to action: a real link - to another page of the app (`path`),

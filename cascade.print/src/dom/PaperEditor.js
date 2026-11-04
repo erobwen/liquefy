@@ -310,7 +310,7 @@ export class PaperEditor extends Component {
     if (!mark) return;
     const rect = mark.getBoundingClientRect();
     this.unobservable.input.moveTo(rect.left, rect.top);
-    if (mark.scrollIntoView) mark.scrollIntoView({ block: "nearest", inline: "nearest" });
+    scrollIntoView(mark);
   }
 
   // The highlight the caret end of the selection is in: the last one if the
@@ -319,6 +319,36 @@ export class PaperEditor extends Component {
     const [start] = this.editing.orderedRange(this.anchor, this.caret);
     return start === this.anchor ? marks[marks.length - 1] : marks[0];
   }
+}
+
+// An element scrolled into view - the nearest way, as scrollIntoView()'s
+// "nearest" - by what scrolls around it, and nothing else: scrollIntoView()
+// itself scrolls a box that only clips (overflow: hidden - rounded corners,
+// say) as well, moving what's in it out of place for good.
+function scrollIntoView(element) {
+  const scrolls = (value) => value === "auto" || value === "scroll";
+  const document = element.ownerDocument;
+  const window = document.defaultView;
+  for (let box = element.parentElement; box; box = box.parentElement) {
+    const isRoot = box === document.scrollingElement;
+    const style = window.getComputedStyle(box);
+    const vertical = isRoot || scrolls(style.overflowY);
+    const horizontal = isRoot || scrolls(style.overflowX);
+    if (!vertical && !horizontal) continue;
+    const rect = element.getBoundingClientRect();
+    const view = isRoot
+      ? { top: 0, left: 0, bottom: window.innerHeight, right: window.innerWidth }
+      : box.getBoundingClientRect();
+    if (vertical) box.scrollTop += nearest(rect.top, rect.bottom, view.top, view.bottom);
+    if (horizontal) box.scrollLeft += nearest(rect.left, rect.right, view.left, view.right);
+  }
+}
+
+// How far to scroll for a span to be within a view: the least, either way.
+function nearest(start, end, viewStart, viewEnd) {
+  if (start < viewStart) return start - viewStart;
+  if (end > viewEnd) return Math.min(end - viewEnd, start - viewStart);
+  return 0;
 }
 
 export function paperEditor(...parameters) {

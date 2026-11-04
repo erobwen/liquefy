@@ -2,11 +2,12 @@ import { observable } from "@liquefy/cascade.component";
 import { paperSizes, margins, mm, pt } from "@liquefy/cascade.print";
 
 // The word processor's styles - Word's model: paragraph styles, based on
-// one another, and character styles for spans within a paragraph.
+// one another, and character styles for spans within a paragraph. A new
+// stylesheet for each document: made observable, it's that document's own.
 const serif = "Georgia, 'Times New Roman', serif";
 const sans = "'Helvetica Neue', Arial, sans-serif";
 
-const styles = {
+const stylesheet = () => ({
   paragraph: {
     Normal: { font: { family: serif, size: 11 }, lineSpacing: 1.15, spaceAfter: pt(6) },
     Title: { basedOn: "Normal", font: { family: sans, size: 26, weight: 700 }, align: "center", spaceAfter: pt(4) },
@@ -21,7 +22,7 @@ const styles = {
     Emphasis: { font: { italic: true } },
     Code: { font: { family: "'Courier New', monospace", size: 10 } },
   },
-};
+});
 
 // A paragraph: its style, then its spans - a string for plain text, or
 // [style, text] for a span in a character style.
@@ -34,7 +35,7 @@ function paragraph(style, ...spans) {
 
 export function sampleDocument() {
   return observable({
-    styles: observable(styles),
+    styles: observable(stylesheet()),
     sections: observable([observable({
       paper: paperSizes.A4,
       margins: margins(mm(25)),
@@ -101,6 +102,43 @@ export function sampleDocument() {
         paragraph("Body",
           "Until then, this is a fine place to try things. Open the code button above to see how the page is put together, ",
           "or read cascade.print's own README for the model, the two steps, and the measurers."),
+      ]),
+    })]),
+  });
+}
+
+// A6 - small enough to show whole beside a few lines of text.
+const A6 = Object.freeze({ width: mm(105), height: mm(148) });
+
+// A document of a single small paper, nearly full - typing on it soon
+// flows onto a second. The same styles, the title and subtitle smaller to
+// suit the paper (see the Showcase's MiniatureWordProcessor).
+export function miniatureDocument() {
+  const styles = stylesheet();
+  return observable({
+    styles: observable({
+      paragraph: {
+        ...styles.paragraph,
+        Title: { ...styles.paragraph.Title, font: { ...styles.paragraph.Title.font, size: 18 } },
+        Subtitle: { ...styles.paragraph.Subtitle, font: { ...styles.paragraph.Subtitle.font, size: 11 }, spaceAfter: pt(14) },
+      },
+      character: styles.character,
+    }),
+    sections: observable([observable({
+      paper: A6,
+      margins: margins(mm(12)),
+      paragraphs: observable([
+        paragraph("Title", "A tiny word processor"),
+        paragraph("Subtitle", "Laid out by cascade.print"),
+        paragraph("Normal",
+          "Click anywhere and type. This text is a model - paragraphs and spans with styles - ",
+          "laid out onto ", ["Strong", "papers"], ", line by line, by Cascade itself."),
+        paragraph("Body",
+          "There is no DOM in the layout. The browser is only asked how wide a piece of text is; ",
+          "which word goes on which line, and which line on which paper, is decided by ", ["Emphasis", "temporal signals"], "."),
+        paragraph("Quote",
+          "Typing breaks only this paragraph into lines again. The ones after it are only moved - and only until one lands where it was."),
+        paragraph("Normal", "Keep typing, and the text flows onto a new paper."),
       ]),
     })]),
   });

@@ -106,12 +106,19 @@ export class TextInput extends DOMNodeComponent {
     return !!node && node.ownerDocument.activeElement === node;
   }
 
-  // To where the caret is on screen (a client rect's left and top).
+  // To where the caret is on screen (a client rect's left and top). Fixed
+  // is to the screen only when no box around it has a transform, filter or
+  // the like - which makes that box what it's fixed to: so where it went is
+  // measured, and it's moved by what it missed. Off in a box that clips,
+  // typing would scroll that box to it.
   moveTo(left, top) {
     const node = this.unobservable.node;
     if (!node) return;
     node.style.left = left + "px";
     node.style.top = top + "px";
+    const placed = node.getBoundingClientRect();
+    node.style.left = (2 * left - placed.left) + "px";
+    node.style.top = (2 * top - placed.top) + "px";
   }
 }
 

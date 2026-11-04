@@ -351,6 +351,7 @@ class TemporalSignals extends Section {
       { key: "temporalCode", style: { borderRadius: "20px", overflow: "hidden", background: themeColor.surface, border: "1px solid " + themeColor.border, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.35)" } },
       new HighlightedCode({ source: temporalSignalsExample, style: { padding: "24px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" } }),
     ));
+    const precision = this.precision(stage);
     return stage.build(
       { background: themeColor.page },
       this.inner(
@@ -365,8 +366,53 @@ class TemporalSignals extends Section {
           board,
         ),
         div({ style: { marginTop: Math.round(64 * this.room.scale) + "px" } }, code),
+        div({ style: { marginTop: Math.round(48 * this.room.scale) + "px" } }, precision),
       ),
     );
+  }
+
+  // What temporal signals make possible: sub-frame precision - the render
+  // in a well-defined order, so a component reads the real DOM the ones
+  // before it just wrote, and acts on it, all within one frame.
+  precision(stage) {
+    const { scale, narrow } = this.room;
+    const step = (symbol, label, detail) => div(
+      { style: { flex: "1 1 0", minWidth: narrow ? "100%" : "0", boxSizing: "border-box", padding: "18px 20px", borderRadius: "16px", background: themeColor.surface, border: "1px solid " + themeColor.border } },
+      div(
+        { style: { width: "40px", height: "40px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px", color: "white", background: `linear-gradient(135deg, ${themeColor.accent}, ${themeColor.accentDark})` } },
+        icon({ name: symbol, style: { fontSize: "22px" } }),
+      ),
+      div({ style: { fontWeight: 700, fontSize: "17px", marginBottom: "4px" } }, text(label)),
+      div({ style: { lineHeight: 1.5, filter: "opacity(0.8)" } }, text(detail)),
+    );
+    // One after the other - one under the other, when narrow.
+    const then = () => narrow ? null : icon({ name: "arrow_forward", style: { fontSize: "24px", color: themeColor.accent, alignSelf: "center", flex: "none" } });
+    return stage.fly("below", div(
+      {
+        key: "temporalPrecision",
+        style: {
+          padding: Math.round(36 * scale) + "px", borderRadius: "20px",
+          background: `linear-gradient(135deg, ${themeColor.accentFaint}, ${themeColor.page})`,
+          border: "1px solid " + themeColor.accentSoft, boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.35)",
+        },
+      },
+      div(
+        { style: { display: "grid", gridTemplateColumns: narrow ? "1fr" : "1fr 1.6fr", gap: Math.round(40 * scale) + "px", alignItems: "center" } },
+        div(
+          div({ style: { fontSize: "13px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: themeColor.accentDark, marginBottom: "10px" } }, text("Made possible by temporal signals")),
+          h3({ style: { fontSize: Math.round(34 * scale) + "px", lineHeight: 1.1, letterSpacing: "-0.02em", fontWeight: 800, margin: "0 0 14px 0" } }, text("Sub-frame "), shine("precision")),
+          p({ style: { margin: 0, lineHeight: 1.6, fontSize: "17px", filter: "opacity(0.85)" } }, text("The render is a pipeline in a well-defined order - so a component can read the real DOM the ones before it just wrote, and act on it. In the middle of a render, before anything is drawn.")),
+        ),
+        div(
+          { style: { display: "flex", flexWrap: narrow ? "wrap" : "nowrap", gap: "12px" } },
+          step("draw", "Render", "A parent renders its own element onto the real DOM."),
+          then(),
+          step("straighten", "Measure", "It reads its real size - laid out by the browser, right then."),
+          then(),
+          step("dashboard", "Lay out and animate", "Its children are built for that size, and animations set up - all in the same frame."),
+        ),
+      ),
+    ));
   }
 }
 

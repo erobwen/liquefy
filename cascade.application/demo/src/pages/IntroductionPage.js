@@ -104,6 +104,12 @@ export class IntroductionPage extends Component {
       }),
       p("In Cascade this mechanism is used to define a reactive order of rendering, so that a parent can render before its children, measure its bounds, and pass the bounds on to its children for programmatic reactive layout. So temporal signals are used in Cascade to build a reactive front end framework with unprecedented precision."),
       p(
+        "This is what we call ",
+        emphasis("sub-frame precision"),
+        ": the render is a pipeline in a well-defined order, so a component can read the real DOM that the components before it just wrote - its size, its position - and act on it, in the middle of the render, before anything is drawn. " +
+        "Measuring, laying out and setting up animations all happen within the same frame - which is what makes the one-line animation below possible.",
+      ),
+      p(
         "But the real use case where temporal signals shine is when building ",
         emphasis("WYSIWYG word processors and other document editors"),
         ", which temporal signals are especially engineered for.",

@@ -8,6 +8,7 @@ import { AnimatedLogotype } from "../components/animatedLogotype.js";
 import { FocusStore } from "./FocusStorePage.js";
 import { PlaylistDemo, demoCaption } from "../components/playlistDemo.js";
 import { MiniatureWordProcessor } from "../components/miniatureWordProcessor.js";
+import { InlineSvg } from "../components/inlineSvg.js";
 import { animationControlsHere } from "../components/animationControls.js";
 import source from "./ShowcasePage.js?raw";
 import focusStoreSource from "./FocusStorePage.js?raw";
@@ -15,6 +16,7 @@ import playlistSource from "../components/playlistDemo.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import keyConcepts from "../../../../cascade/images/key-concepts.svg";
 import splashScreen from "../../../../cascade/images/cascade-splash-screen.png";
+import offscreenPages from "../../../../cascade/images/offscreen-pages.svg?raw";
 
 // What this page's information button shows (see ../components/pageActions.js).
 const information = {
@@ -661,6 +663,7 @@ class ForReactDevelopers extends Section {
       "State management built in, on JS Proxies.",
       "Object oriented: changes are detected in any object, no immutability required.",
     ], true));
+    const offscreen = stage.fly("below", this.offscreen());
     return stage.build(
       { color: "white", background: `radial-gradient(circle at 85% 0%, ${themeColor.accentDark} 0%, transparent 55%), ${themeColor.chromeDark}` },
       this.inner(
@@ -670,10 +673,49 @@ class ForReactDevelopers extends Section {
           this.title([text("All of React and MobX. "), shine("Then some.", true)], 100),
         ),
         this.columns("1fr 1fr", similar, different),
+        div({ style: { marginTop: Math.round(40 * scale) + "px" } }, offscreen),
         p(
           { style: { textAlign: "center", fontSize: Math.round(24 * Math.max(scale, 0.8)) + "px", fontWeight: 600, lineHeight: 1.45, maxWidth: "820px", margin: Math.round(64 * scale) + "px auto 0", ...rise(this.shown, 300) } },
           text("Take every capability of React and MobX, add temporal signals and sub-frame precision, and mix it all together. That's Cascade."),
         ),
+      ),
+    );
+  }
+
+  // Off-screen components: whole pages kept alive, ready to swap in - on
+  // glass, on the dark, with a drawing of the stack in the theme's colors
+  // (inline, so it can read them - see InlineSvg).
+  offscreen() {
+    const { scale, narrow } = this.room;
+    const point = (words) => div(
+      { style: { display: "flex", gap: "12px", alignItems: "flex-start", margin: "0 0 12px 0", lineHeight: 1.55 } },
+      icon({ name: "bolt", style: { fontSize: "20px", color: themeColor.accentLight, flex: "none", marginTop: "2px" } }),
+      span(text(words)),
+    );
+    return div(
+      {
+        key: "offscreen",
+        style: {
+          padding: Math.round(36 * scale) + "px", borderRadius: "20px", color: "white",
+          background: "rgba(255, 255, 255, 0.06)", border: "1px solid rgba(255, 255, 255, 0.18)", borderTop: "4px solid " + themeColor.accent,
+          boxShadow: "0 30px 60px -30px rgba(0, 0, 0, 0.7)", backdropFilter: "blur(12px)",
+        },
+      },
+      div(
+        { style: { display: "grid", gridTemplateColumns: narrow ? "1fr" : "1fr 1.1fr", gap: Math.round(40 * scale) + "px", alignItems: "center" } },
+        div(
+          div({ style: { fontSize: "13px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: themeColor.accentLight, marginBottom: "10px" } }, text("Off-screen components")),
+          h3({ style: { fontSize: Math.round(34 * scale) + "px", lineHeight: 1.1, letterSpacing: "-0.02em", fontWeight: 800, margin: "0 0 16px 0" } }, text("Whole pages, "), shine("alive off‑screen.", true)),
+          p({ style: { margin: "0 0 20px 0", lineHeight: 1.6, fontSize: "17px", filter: "opacity(0.85)" } }, text("Where React by default unmounts what it no longer renders, Cascade keeps it. A page you switch away from keeps its state and its DOM elements - built and ready, so switching back is a swap, not a rebuild.")),
+          point("Instant page swaps: the pages are already built, waiting off-screen."),
+          point("Move a component anywhere in the interface - its state and its elements go with it."),
+          point("Create and dispose of components by hand, whenever you want to decide how long they live."),
+        ),
+        new InlineSvg({
+          source: offscreenPages,
+          title: "A stack of whole pages: the one in front on screen, the ones behind it off screen, alive - and arrows swapping them, both ways, instantly.",
+          style: { maxWidth: "560px", margin: "0 auto" },
+        }),
       ),
     );
   }

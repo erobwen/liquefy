@@ -1,7 +1,5 @@
 // Builds the site for GitHub Pages into ./site: a landing page at its root
-// (landing/), the Cascade demo under cascade/, the Flow demo under flow/ -
-// and Tabula, the word processor, under tabula/: not linked from anywhere,
-// found only by its address.
+// (landing/), the Cascade demo under cascade/ and the Flow demo under flow/.
 //
 //   npm run build:site                       (served from /liquefy/)
 //   SITE_BASE=/ npm run build:site           (served from the domain's root)
@@ -14,11 +12,10 @@
 // does. SITE_ORIGIN is where the site will be, for the addresses in those
 // pages and their sitemap.xml: GitHub Pages' unless served from elsewhere.
 //
-// For every address that has no file - any of the Flow demo's or Tabula's
-// pages, say - Pages serves 404.html instead, so that is a page that loads
-// the right demo's index.html in place, keeping the address - and the demo
-// shows the page the address names. Any other address gets the landing
-// page.
+// For every address that has no file - any of the Flow demo's pages, say -
+// Pages serves 404.html instead, so that is a page that loads the right
+// demo's index.html in place, keeping the address - and the demo shows the
+// page the address names. Any other address gets the landing page.
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -32,7 +29,6 @@ const origin = process.env.SITE_ORIGIN || (process.env.SITE_BASE ? "" : "https:/
 const demos = [
   { name: "Cascade", dir: "cascade.application/demo", path: "cascade/" },
   { name: "Flow", dir: "flow.application/demo", path: "flow/" },
-  { name: "Tabula", dir: "cascade.application/tabula", path: "tabula/" },
 ];
 
 rmSync(site, { recursive: true, force: true });

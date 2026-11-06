@@ -14,7 +14,6 @@
     "cascade.ui.material",
     "cascade.prerender",
     "cascade.application/demo",
-    "cascade.application/tabula",
     "causality",
     "flow.core",
     "flow.DOM",
@@ -31,7 +30,6 @@
     "build": "npm run build -w @liquefy/causality -w @liquefy/cascade.reactive",
     "demo": "npm start -w @liquefy/cascade-demo",
     "build:demo": "npm run build -w @liquefy/cascade-demo",
-    "tabula": "npm start -w @liquefy/tabula",
     "flow:demo": "npm start -w @liquefy/flow-demo",
     "build:site": "node scripts/build-site.mjs",
     "release:check": "node scripts/publish-new-versions.mjs --dry-run"

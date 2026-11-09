@@ -492,6 +492,10 @@ Below a cut that is still being marked, objects still look stable. If such an ob
 
 **Reclamation never relies on a stable flag.** It relies only on "every referrer is a member of this cohort", and a stale-stable referrer blocks that. Within one cohort, the ladder finishes marking before any check (§10). So a cohort never rescues itself through its own not-yet-marked part, and that is what would create tree cycles.
 
+**Only marked objects are rescued.** *(Found by the fuzzer in the prototype.)* Rescue also happens in the barrier and in expansion, not only in checks, and there the argument above does not hold. If `p → t` is cut, `t`'s tree child `x` stays stale-stable until `t` is marked. If `x → t` is then added, a rescue would hang `t` under its own descendant `x`. The tree gets the cycle `t → x → t`, marking of `t` is skipped because `t` looks stable again, and the cycle is never collected. So an unstable object is rescued only once it has **no tree children left**, which means it has been marked. An unmarked object is skipped by the barrier and by expansion. Nothing is lost: it is still on its cohort's check list, checks run only after marking is complete, and the check finds the same referrer. If that referrer was a descendant, marking has made it unstable by then.
+
+Detaching the pending children eagerly at rescue time does *not* work instead: two garbage objects that reference each other can then rescue each other in turn forever.
+
 ---
 
 # 8. Region-level operations
@@ -694,6 +698,10 @@ This answers "what does the main loop look like with a hierarchy of regions". Th
 
 When a rescue makes an earlier check result outdated (another member counted on the rescued object being unstable), nothing is lost. The rescued object is now in the expand list, and its expansion will rescue those members too. This is why expansion comes first.
 
+**An expand item is an obligation of its cohort.** *(Found by the fuzzer in the prototype.)* Members of cohort C may have been checked while object `o` was still a member, counting `o` as a referrer inside C. When `o` is rescued, its expand item goes to C. But before that item runs, another cut can make `o` unstable again, in cohort C′. If `o` is then rescued once more, its expansion is queued in C′, out of C's sight, and C could reclaim a member that the now-stable `o` references. So when C's expand item finds its object unstable in another cohort, **C and C′ merge**. The eventual expansion then happens in the merged cohort, and the reclaim condition of §10.3 holds again.
+
+Worklist items can also be stale in a harmless way: their object may have been rescued, cut again, and reclaimed by another cohort since they were queued. Items for objects that no longer exist are skipped.
+
 **Finding a replacement parent while marking.** In the basic algorithm, marking descends through the whole detached subtree before any check runs. A subtree that is still reachable through some other path is therefore marked completely, then expanded completely. A queue stored as a linked list (§12.5) shows how bad that is: every dequeue would cost the length of the queue.
 
 So before making a tree child `c` unstable, marking looks for a referrer `s′` of `c`, other than the object being marked, that passes the verified walk (§9.5). If it finds one, it re-parents `c` under `s′` and stops descending there. This is the replacement-edge search used by dynamic-reachability trees (Even–Shiloach and its successors).
@@ -712,14 +720,16 @@ Invariant C′ (marking before checking) is unchanged. Replacement parents are a
 A cohort is reclaimed when its expand, mark and check lists are all empty. At that point:
 
 - every member has been checked, and all its referrers were members of the same cohort (after merges);
-- the barrier rescues on any new reference from a stable object, so no stable referrer can have appeared since;
-- every rescue produces expand work, which would make the list non-empty.
+- the barrier rescues on any new reference from a stable object, so no stable referrer can have appeared since. An unmarked target is the exception (§7.3), but an unmarked member means the mark list is not empty yet;
+- every rescue produces expand work, which would make the list non-empty, and an expand item whose object became unstable elsewhere merges that cohort in (§10.2).
 
 So the cohort is closed under "is referenced by", and no member is reachable. The cohort enters `reclaiming`, and deletion then proceeds incrementally. No object in a reclaiming cohort can be referenced again, because nothing reachable points to it.
 
 ---
 
 # 11. Safety and liveness
+
+The invariants of the implemented collector are stated precisely in `invariants.md`, together with who maintains each one and how the fuzzer checks it. This section gives the design-level view.
 
 **Invariant A′ (certificate):** every object whose state is STABLE, and that is not below a deferred cut or a cut still being marked, has a tree path to ROOT.
 
@@ -736,7 +746,7 @@ This is what makes checks complete: every referrer of an object lies in its own 
 
 **Invariant C′ (marking before checking):** a cohort never checks while its own mark list is non-empty.
 
-**Invariant D′ (rescue only from STABLE):** an unstable object only becomes stable through an edge from a STABLE object. A *stale*-stable source is allowed, because its pending marking will take the rescued object along (§7.3).
+**Invariant D′ (rescue only from STABLE, only when marked):** an unstable object only becomes stable through an edge from a STABLE object, and only once it has no tree children left (§7.3). A *stale*-stable source is allowed, because its pending marking will take the rescued object along. The "marked" condition guarantees that the rescued object is not an ancestor of that source.
 
 **Invariant E′ (closed reclamation):** a cohort is reclaimed only in the situation of §10.3.
 
@@ -920,6 +930,8 @@ Between transactions it runs random amounts of collector work. It then checks:
   - after structure tasks have run to completion, every region is a branch of between `CAP/4` and `CAP` members, except where §6.5 left one alone.
 
 ## 16.3 Steps
+
+Steps 1 and 2 are implemented in `frozen/src`, with the fuzzer in `frozen/src/fuzz` and a seed sweep in `frozen/tools/sweep.js`. The fuzzer found two flaws in the design, now fixed in §7.3 and §10.2.
 
 1. **Store interface, object model and oracle.** An in-memory ordered KV with transactions, object records, a ROOT, and the full-trace oracle. `edgesOfRegion(R)` uses implementation A (§5.5), reading object records. No GC.
 2. **Basic collector (whitepaper §9) with cohorts.** A single region, object items only. Establishes the ladder, merging and the reclaim condition.

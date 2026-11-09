@@ -39,6 +39,7 @@ const OPERATIONS = [
   "weak",
   "replace",
   "cut", "paste",
+  "hold", "release",
   "skip", "skip",
 ];
 
@@ -61,6 +62,22 @@ export function randomTransaction(db, rng, clipboard = []) {
         const [field, value] = rng.pick(fields);
         tx.delete(source, field);
         clipboard.push(value);
+        break;
+      }
+      case "hold": {
+        // Like cut, but the application asks the database to keep the object for a while.
+        const fields = Object.entries(tx.get(source)).filter(([, value]) => isRef(value));
+        if (fields.length === 0) break;
+        const [field, value] = rng.pick(fields);
+        tx.delete(source, field);
+        tx.hold(value.$ref, rng.next() < 0.5 ? { transactions: 1 + rng.int(20) } : { milliseconds: rng.int(5000) });
+        clipboard.push(value);
+        break;
+      }
+      case "release": {
+        if (clipboard.length === 0) break;
+        const value = rng.pick(clipboard);
+        if (tx.exists(value.$ref)) tx.release(value.$ref);
         break;
       }
       case "paste": {
@@ -136,7 +153,10 @@ export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery
   const rng = random(seed);
   // Vary the collector options per seed, including small budgets, so that walks and searches
   // that give up are exercised too.
+  // A fake wall clock that advances by a random amount per transaction, for time-based holds.
+  let time = 0;
   const options = {
+    now: () => time,
     deferral: rng.int(4),
     walkBudget: rng.pick([2, 4, 64]),
     candidates: rng.pick([1, 2, 8]),
@@ -161,6 +181,7 @@ export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery
   };
 
   for (let i = 0; i < transactions; i++) {
+    time += rng.int(1000);
     randomTransaction(db, rng, clipboard);
     db.collector.run(rng.int(maxSteps + 1));
     if (i % integrityEvery === 0) assertIntegrity(`transaction ${i}`);

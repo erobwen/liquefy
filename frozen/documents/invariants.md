@@ -114,11 +114,23 @@ These say what a cohort still owes before it may be reclaimed. They are what mak
 
 These come with quick swap, deferred cuts and replacement parents (design §9.2, §9.3, §9.5, §10.2).
 
-**F1. Deferred cuts are recorded.** A non-ROOT stable object has a null tree parent if and only if it is **deferred**: its metadata has `deferred` set to a deadline, and the key `d/<deadline>/<id>` exists. A deferred object is stale-stable: it still counts as stable everywhere, but its certificate is pending.
-*Maintained by:* the barrier defers a cut it cannot quick-swap; the collector resolves a due deferral by a quick swap or by starting a cohort, and a later added edge may cancel it. Each of these updates the metadata and the `d/` key in the same transaction. *Verified:* oracle.
+**F1. Deferred cuts are recorded.** A non-ROOT stable object has a null tree parent if and only if it is **deferred**: its metadata has `deferred = { kind, at }`, and exactly one deadline key exists for it:
+- `d/<at>/<id>` for `kind: "tx"`, a deadline on the logical clock (the number of application transactions);
+- `h/<at>/<id>` for `kind: "ms"`, a deadline in wall-clock milliseconds.
 
-**F2. Deferrals are resolved.** Every deferral is resolved by the collector once the logical clock (the number of application transactions) reaches its deadline, unless it is cancelled first.
-*Maintained by:* the scheduler runs due deferrals before cohort steps. *Verified:* the fuzzer requires no `d/` keys when idle.
+A deferred object is stale-stable: it still counts as stable everywhere, but its certificate is pending.
+*Maintained by:* the barrier defers a cut it cannot quick-swap; the collector resolves a due deferral by a quick swap or by starting a cohort; a later added edge may cancel it; `release` moves its deadline to now. Each of these updates the metadata and the deadline key in the same transaction. *Verified:* oracle.
+
+**F2. Deferrals are resolved.** Every deferral is resolved by the collector once its clock reaches its deadline, unless it is cancelled first.
+*Maintained by:* the scheduler runs due deferrals before cohort steps. *Verified:* the fuzzer requires no deadline keys when idle.
+
+**H1. A hold is a deferral with a chosen lifetime.** `tx.hold(id, { transactions } | { milliseconds })` applies to the cut of `id` in the same transaction: if that cut is deferred, its deadline is the hold's instead of the default. A hold therefore ends in exactly one of the ways a deferral ends:
+- **reattached:** an added edge from a verified referrer cancels it (W1), without marking anything;
+- **expired:** at its deadline it is resolved like any deferral, and collected if nothing references it;
+- **released:** `tx.release(id)` moves its deadline to the current transaction, so it is due at once.
+
+A forgotten hold therefore delays collection until it expires; it never leaks. A hold has no effect when the transaction does not actually detach the object: when the object's tree edge is not cut (it is still referenced through its tree parent), or when the cut is resolved at once by a quick swap. Which reference is the tree edge is GC-internal, so the application is never asked to know it. (An earlier version refused such holds; the fuzzer showed that an application cannot avoid that error without reading GC metadata.)
+*Maintained by:* `ObjectTransaction.hold` and `release`, applied by the barrier. *Verified:* unit tests, and the fuzzer's hold and release operations.
 
 **W1. Proven re-parenting.** Quick swap, cancelling a deferral and the replacement-parent search re-parent an object `c` without marking anything. Each does so only under a referrer `s` for which the verified walk succeeds: following tree parents from `s` reaches `ROOT` or a deferred object, within a step budget, through stable objects only, without meeting `c` and without revisiting an object.
 *Why this is enough:* the walk excludes `s` being a tree descendant of `c`, which is the only way re-parenting could create a cycle (T4). If the walk ends at a deferred object, `c` joins that pending cut's subtree and is resolved with it.

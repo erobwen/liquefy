@@ -53,7 +53,11 @@ export class Collector {
 
   /** True when there is no active cohort and no pending deferral. */
   isIdle() {
-    return this.store.range("c/").every(([, cohort]) => cohort.mergedInto) && this.store.keys("d/").length === 0;
+    return (
+      this.store.range("c/").every(([, cohort]) => cohort.mergedInto) &&
+      this.store.keys("d/").length === 0 &&
+      this.store.keys("h/").length === 0
+    );
   }
 
   /**

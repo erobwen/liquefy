@@ -60,10 +60,10 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     } else if (meta.cohort === null && id !== ROOT && !meta.deferred) {
       problems.push(`T3: ${id} is stable, not deferred, but has no tree parent`);
     }
-    // F1: deferred ⇔ stable with a null tree parent and a d/ key.
+    // F1: deferred ⇔ stable with a null tree parent and a deadline key.
     if (meta.deferred) {
       if (meta.cohort !== null || meta.treeParent !== null) problems.push(`F1: deferred ${id} is unstable or has a tree parent`);
-      if (!store.has(keys.deferralKey(meta.deferred, id))) problems.push(`F1: deferred ${id} has no d/ key`);
+      if (!store.has(keys.deferralKey(meta.deferred, id))) problems.push(`F1: deferred ${id} has no deadline key`);
     }
     if (meta.cohort !== null) {
       const root = findCohort(meta.cohort);
@@ -77,11 +77,11 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (!meta || meta.treeParent !== parent) problems.push(`stale t/ key ${edge}`);
   }
 
-  // F1: every d/ key belongs to a deferred object with that deadline.
-  for (const key of store.keys("d/")) {
-    const [, deadline, id] = key.split("/");
+  // F1: every deadline key (d/ or h/) belongs to a deferred object with that deadline.
+  for (const key of [...store.keys("d/"), ...store.keys("h/")]) {
+    const [, , id] = key.split("/");
     const meta = store.get(keys.metaKey(id));
-    if (!meta || Number(meta.deferred) !== Number(deadline)) problems.push(`F1: stale deferral key ${key}`);
+    if (!meta?.deferred || keys.deferralKey(meta.deferred, id) !== key) problems.push(`F1: stale deferral key ${key}`);
   }
 
   // W2: an object with more than one strong referrer has the shared bit.

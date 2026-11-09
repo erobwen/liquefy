@@ -18,9 +18,12 @@ import { GcState, STABLE } from "./GcState.js";
  * @param created  Set of ids created in this transaction
  * @param added    Array of { source, target }: strong edges whose count went from 0 to > 0
  * @param removed  Array of { source, target }: strong edges whose count went to 0
+ * @param holds    Map from id to hold lifetime ({ transactions } or { milliseconds }), for
+ *                 objects whose cut in this transaction should be held (invariant H1)
+ * @param releases Set of ids whose hold should expire now
  * @param options  collector options (GcState.defaultOptions)
  */
-export function applyBarrier(tx, { created, added, removed }, options = {}) {
+export function applyBarrier(tx, { created, added, removed, holds = new Map(), releases = new Set() }, options = {}) {
   const gc = new GcState(tx, options);
   gc.tick();
 
@@ -82,12 +85,17 @@ export function applyBarrier(tx, { created, added, removed }, options = {}) {
     if (!placed.has(id)) tx.delete(`o/${id}`);
   }
 
-  // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it.
+  // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it, for the
+  // default delay or for the lifetime of a hold.
+  // A hold on an object whose tree edge is not cut here has no effect: the object is still
+  // attached, and which of its references is the tree edge is not the application's concern.
   for (const { source, target } of removed) {
     const meta = gc.meta(target);
     if (!meta || meta.treeParent !== source) continue;
-    if (!gc.quickSwap(target)) gc.defer(target);
+    if (!gc.quickSwap(target)) gc.defer(target, gc.deferralFor(holds.get(target)));
   }
+
+  for (const id of releases) gc.expireNow(id);
 
   return { dropped: [...created].filter((id) => !placed.has(id)) };
 }

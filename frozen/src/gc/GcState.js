@@ -10,7 +10,8 @@
  *   t/<parent>/<child>      spanning-tree child edges
  *   c/<cohort>              cohort record: worklists, merge links
  *   C/<cohort>/<obj>        cohort membership, under the cohort id the object joined
- *   d/<deadline>/<obj>      deferred cuts, ordered by deadline
+ *   d/<deadline>/<obj>      deferred cuts with a deadline on the logical clock
+ *   h/<deadline>/<obj>      deferred cuts with a wall-clock deadline (holds)
  *   meta/nextId             id counter
  *   meta/clock              logical clock: the number of application transactions
  *
@@ -34,7 +35,8 @@ const treePrefix = (parent) => `t/${parent}/`;
 const cohortKey = (id) => `c/${id}`;
 const memberKey = (cohort, id) => `C/${cohort}/${id}`;
 const memberPrefix = (cohort) => `C/${cohort}/`;
-const deferralKey = (deadline, id) => `d/${String(deadline).padStart(12, "0")}/${id}`;
+/** The deadline key of a deferral `{ kind, at }`: d/ for the logical clock, h/ for wall-clock. */
+const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${String(deferred.at).padStart(16, "0")}/${id}`;
 
 export const keys = { objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey };
 
@@ -45,6 +47,8 @@ export const defaultOptions = {
   walkBudget: 64,
   /** Maximum referrers tried by quick swap and the replacement-parent search. */
   candidates: 8,
+  /** Wall-clock time source for holds with a duration in milliseconds. */
+  now: () => Date.now(),
 };
 
 export class GcState {
@@ -204,13 +208,22 @@ export class GcState {
     return Boolean(this.meta(id)?.deferred);
   }
 
+  /**
+   * The deferral for a cut: the default delay on the logical clock, or the lifetime of a hold
+   * (invariant H1): `{ transactions }` or `{ milliseconds }`.
+   */
+  deferralFor(hold) {
+    if (hold?.milliseconds !== undefined) return { kind: "ms", at: this.options.now() + hold.milliseconds };
+    return { kind: "tx", at: this.clock() + (hold?.transactions ?? this.options.deferral) };
+  }
+
   /** Records a cut without marking anything yet (§9.3, invariant F1). */
-  defer(id) {
+  defer(id, deferred = this.deferralFor()) {
     const meta = this.meta(id);
     if (meta.treeParent !== null) this.tx.delete(treeKey(meta.treeParent, id));
-    const deadline = this.clock() + this.options.deferral;
-    this.updateMeta(id, { treeParent: null, deferred: deadline });
-    this.tx.put(deferralKey(deadline, id), true);
+    this.clearDeferral(id);
+    this.updateMeta(id, { treeParent: null, deferred });
+    this.tx.put(deferralKey(deferred, id), true);
   }
 
   clearDeferral(id) {
@@ -220,16 +233,24 @@ export class GcState {
     this.updateMeta(id, { deferred: null });
   }
 
-  /** The earliest deferral whose deadline has passed (or any, if `flush`), as an id. */
+  /** Makes a deferral due at once (a released hold). No effect if the object is not deferred. */
+  expireNow(id) {
+    if (this.isDeferred(id)) this.defer(id, { kind: "tx", at: this.clock() });
+  }
+
+  /** A deferral whose deadline has passed (or any, if `flush`), as an id, or null. */
   dueDeferral(flush = false) {
-    const first = this.tx.keys("d/")[0];
-    if (first === undefined) return null;
-    const [, deadline, id] = first.split("/");
-    return flush || Number(deadline) <= this.clock() ? id : null;
+    const due = (prefix, now) => {
+      const first = this.tx.keys(prefix)[0];
+      if (first === undefined) return null;
+      const [, deadline, id] = first.split("/");
+      return flush || Number(deadline) <= now ? id : null;
+    };
+    return due("d/", this.clock()) ?? due("h/", this.options.now());
   }
 
   hasDeferrals() {
-    return this.tx.keys("d/").length > 0;
+    return this.tx.keys("d/").length > 0 || this.tx.keys("h/").length > 0;
   }
 
   // ---- Verified walk and re-parenting ----

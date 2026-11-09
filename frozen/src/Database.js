@@ -63,6 +63,8 @@ export class ObjectTransaction {
     this.gc = new GcState(storeTransaction, options);
     this.created = new Set();
     this.referencesBefore = new Map(); // id → strong references at first modification
+    this.holds = new Map(); // id → hold lifetime
+    this.releases = new Set();
     this.finished = false;
   }
 
@@ -93,6 +95,29 @@ export class ObjectTransaction {
     const record = this.touch(id);
     delete record[field];
     this.tx.put(keys.objectKey(id), record);
+  }
+
+  /**
+   * Holds an object that this transaction disconnects, so that it is not collected while the
+   * application keeps it for later: `{ transactions: n }` or `{ milliseconds: n }`.
+   *
+   * The hold ends when the object is linked in again (automatically, without marking anything),
+   * when it expires (then it is collected if nothing references it), or with release(id).
+   * If this transaction does not actually detach the object, because it is still referenced
+   * through its tree parent or another verified referrer, the hold has no effect
+   * (invariants.md, H1).
+   */
+  hold(id, lifetime) {
+    if (!lifetime || (lifetime.transactions === undefined) === (lifetime.milliseconds === undefined)) {
+      throw new Error("hold needs exactly one of { transactions } or { milliseconds }");
+    }
+    this.get(id);
+    this.holds.set(id, lifetime);
+  }
+
+  /** Ends the hold on an object now: it is collected soon unless it has been linked in again. */
+  release(id) {
+    this.releases.add(id);
   }
 
   /** Replaces all fields of an object. */
@@ -133,7 +158,11 @@ export class ObjectTransaction {
       }
     }
 
-    applyBarrier(this.tx, { created: this.created, added, removed }, this.options);
+    applyBarrier(
+      this.tx,
+      { created: this.created, added, removed, holds: this.holds, releases: this.releases },
+      this.options,
+    );
   }
 }
 

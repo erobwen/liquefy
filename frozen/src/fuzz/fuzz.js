@@ -38,16 +38,48 @@ const OPERATIONS = [
   "list",
   "weak",
   "replace",
+  "cut", "paste",
+  "skip", "skip",
 ];
 
-/** One random transaction. Only touches objects reachable from ROOT. */
-export function randomTransaction(db, rng) {
+/**
+ * One random transaction. Touches objects reachable from ROOT, as an application would, plus
+ * the `clipboard`: references cut in an earlier transaction and held by the application, to be
+ * pasted later. A held object may have been reclaimed meanwhile, in which case the paste is
+ * dropped; while it exists, relinking it must be safe in any GC state.
+ */
+export function randomTransaction(db, rng, clipboard = []) {
   const reachable = [...reachableFromRoot(db.store)].sort();
   const operation = rng.pick(OPERATIONS);
 
   db.transaction((tx) => {
     const source = rng.pick(reachable);
     switch (operation) {
+      case "cut": {
+        const fields = Object.entries(tx.get(source)).filter(([, value]) => isRef(value));
+        if (fields.length === 0) break;
+        const [field, value] = rng.pick(fields);
+        tx.delete(source, field);
+        clipboard.push(value);
+        break;
+      }
+      case "paste": {
+        const index = rng.int(clipboard.length);
+        if (clipboard.length === 0) break;
+        const [value] = clipboard.splice(index, 1);
+        if (tx.exists(value.$ref)) tx.set(source, rng.pick(FIELDS), value);
+        break;
+      }
+      case "skip": {
+        // source.f → x, x.g → y becomes source.f → y: a dequeue.
+        const fields = Object.entries(tx.get(source)).filter(([, value]) => isRef(value));
+        if (fields.length === 0) break;
+        const [field, value] = rng.pick(fields);
+        const next = Object.values(tx.get(value.$ref)).filter(isRef);
+        if (next.length === 0) break;
+        tx.set(source, field, rng.pick(next));
+        break;
+      }
       case "create": {
         const fields = {};
         for (let i = rng.int(3); i > 0; i--) fields[rng.pick(FIELDS)] = ref(rng.pick(reachable));
@@ -102,9 +134,18 @@ export function randomTransaction(db, rng) {
  */
 export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery = 1 } = {}) {
   const rng = random(seed);
+  // Vary the collector options per seed, including small budgets, so that walks and searches
+  // that give up are exercised too.
+  const options = {
+    deferral: rng.int(4),
+    walkBudget: rng.pick([2, 4, 64]),
+    candidates: rng.pick([1, 2, 8]),
+  };
+  const clipboard = [];
   let reclaimed = 0;
   let db;
   db = new Database({
+    options,
     onReclaim: (ids) => {
       const reachable = reachableFromRoot(db.store);
       for (const id of ids) {
@@ -120,7 +161,7 @@ export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery
   };
 
   for (let i = 0; i < transactions; i++) {
-    randomTransaction(db, rng);
+    randomTransaction(db, rng, clipboard);
     db.collector.run(rng.int(maxSteps + 1));
     if (i % integrityEvery === 0) assertIntegrity(`transaction ${i}`);
   }

@@ -67,14 +67,15 @@ Each invariant names who maintains it and how it is verified. "Oracle" means `ch
 **T2. Tree edges are real edges.** If `g/c.treeParent = p`, then `s → c` is a strong edge for `s = p`.
 *Maintained by:* the barrier cuts the tree edge in the same transaction in which the edge's count drops to zero. *Verified:* oracle.
 
-**T3. Exactly the stable objects have tree parents.** A non-ROOT object has a tree parent if and only if it is stable. ROOT is stable and has no tree parent.
-*Maintained by:* `makeUnstable` clears the parent, `rescue` and `attachNew` set it. *Verified:* oracle.
+**T3. Exactly the stable, non-deferred objects have tree parents.** A non-ROOT object has a tree parent if and only if it is stable and not deferred (F1). ROOT is stable and has no tree parent.
+*Maintained by:* `makeUnstable` and `defer` clear the parent; `rescue`, `attachNew` and `reparent` set it. *Verified:* oracle.
 
-**T4. The tree is acyclic, and every tree path ends well.** Following tree parents from any object terminates, at `ROOT` or at an **unmarked unstable** object.
+**T4. The tree is acyclic, and every tree path ends well.** Following tree parents from any object terminates, at `ROOT`, at an **unmarked unstable** object, or at a **deferred** object.
 - Ending at ROOT means the object is certified reachable.
 - Ending at an unmarked unstable object `u` means the object is **stale-stable**: it is below a cut whose marking has not reached it yet. Marking `u` (M1) will reach it.
+- Ending at a deferred object `d` also means stale-stable: when `d`'s deferral is resolved (F2), it is either re-parented, or made unstable and marked.
 
-*Maintained by:* the only operation that creates a tree edge to an existing object is `rescue`, and it requires the object to be marked (D1). A marked object has no tree children, so it cannot be an ancestor of its new parent.
+*Maintained by:* the operations that create a tree edge to an existing object are `rescue`, which requires the object to be marked (D1), so that it has no tree children and cannot be an ancestor of its new parent; and `reparent`, which requires a verified walk (W1).
 *Verified:* oracle (acyclicity and termination at every commit; termination at ROOT when idle).
 
 ## 3.3 Cohorts and membership
@@ -109,7 +110,24 @@ These say what a cohort still owes before it may be reclaimed. They are what mak
 **D1. Rescue only marked objects, only from stable objects.** An unstable object becomes stable only through `rescue(o, s)`, and only if `s` is stable and `o` has no tree children. An unmarked object that gets a stable referrer is left alone: by K1 and M1 it will be checked after marking, and the check finds the same referrer.
 *Maintained by:* `canRescue` guards the barrier and expansion; `rescue` throws otherwise. *Verified:* `rescue` throws; T4 in the oracle.
 
-## 3.5 Safety and completeness
+## 3.5 Avoiding needless marking
+
+These come with quick swap, deferred cuts and replacement parents (design §9.2, §9.3, §9.5, §10.2).
+
+**F1. Deferred cuts are recorded.** A non-ROOT stable object has a null tree parent if and only if it is **deferred**: its metadata has `deferred` set to a deadline, and the key `d/<deadline>/<id>` exists. A deferred object is stale-stable: it still counts as stable everywhere, but its certificate is pending.
+*Maintained by:* the barrier defers a cut it cannot quick-swap; the collector resolves a due deferral by a quick swap or by starting a cohort, and a later added edge may cancel it. Each of these updates the metadata and the `d/` key in the same transaction. *Verified:* oracle.
+
+**F2. Deferrals are resolved.** Every deferral is resolved by the collector once the logical clock (the number of application transactions) reaches its deadline, unless it is cancelled first.
+*Maintained by:* the scheduler runs due deferrals before cohort steps. *Verified:* the fuzzer requires no `d/` keys when idle.
+
+**W1. Proven re-parenting.** Quick swap, cancelling a deferral and the replacement-parent search re-parent an object `c` without marking anything. Each does so only under a referrer `s` for which the verified walk succeeds: following tree parents from `s` reaches `ROOT` or a deferred object, within a step budget, through stable objects only, without meeting `c` and without revisiting an object.
+*Why this is enough:* the walk excludes `s` being a tree descendant of `c`, which is the only way re-parenting could create a cycle (T4). If the walk ends at a deferred object, `c` joins that pending cut's subtree and is resolved with it.
+*Maintained by:* `GcState.verifiedWalk`, used by all three. *Verified:* T4 in the oracle.
+
+**W2. The shared bit is a superset.** An object with more than one strong referrer has `shared` set in its metadata. The bit is sticky; it may be set on an object that has only one referrer now.
+*Maintained by:* the barrier sets it whenever an edge is added to an object that already had metadata. *Verified:* oracle. It is only a filter: quick swap and the replacement-parent search skip objects without it, because such an object has no other referrer to swap to.
+
+## 3.6 Safety and completeness
 
 **S1. Reclaim only closed cohorts.** A root cohort is reclaimed only when its expand, mark and check lists are all empty. Then:
 - every member is marked (M1) and checked (K1);
@@ -121,7 +139,7 @@ So **no member is referenced by any object outside the cohort**, and no member i
 
 *Maintained by:* the ladder order (`Collector.ladder`). *Verified:* the fuzzer computes reachability from ROOT at every reclaim and fails if any reclaimed object is reachable.
 
-**S2. Completeness when idle.** When no active cohort exists, the stored objects are exactly the reachable ones, and every object reaches ROOT through tree parents.
+**S2. Completeness when idle.** When no active cohort and no deferral exists, the stored objects are exactly the reachable ones, and every object reaches ROOT through tree parents.
 *Verified:* the fuzzer, at the end of every run.
 
 **L1. Liveness.** A cohort that no transaction touches finishes in a finite number of steps: each object is marked at most once per cut, every rescue removes a member, and merges only reduce the number of cohorts. A cohort can be held back indefinitely only by transactions that keep cutting and rescuing its members.
@@ -135,8 +153,6 @@ These come with later steps of the prototype plan (design §16.3). They are list
 
 | Mechanism (design section) | Invariant |
 |---|---|
-| Quick swap, deferral cancel, replacement parent (§9.2, §9.3, §10.2) | **A″ Proven re-parenting.** These re-parent an object `c` without marking only under a referrer whose tree-parent chain was walked (§9.5) and ends at ROOT or at a deferred cut, through stable objects only, without passing `c`. |
-| Deferred cuts (§9.3) | **T4 extended:** a tree path may also end at a stable object with a null tree parent that has a `d/` key. Such objects count as unmarked for D1. |
 | Regions (§6) | **Membership:** every object is in exactly one level-0 region; `g/` region field and `m/` keys agree. **Intactness counters** equal a recount. |
 | Entry flags (§6.6) | **Coverage:** every strong edge between different clusters is covered by a flag at each level where the clusters differ. Flags may be stale; coverage is never missing. A flag is deleted only after a complete scan of its source. |
 | Multi-step scans (§10.1) | **Scan lock:** no structure task moves objects into or out of a cluster with `scanning > 0`. |

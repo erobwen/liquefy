@@ -1,10 +1,11 @@
 /**
- * The write barrier (documents/persistent-garbage-collection.md §9), basic version: no quick swap,
- * no deferred cuts, no regions. It runs at commit, inside the same store transaction as the
- * mutations, on the net edge diff of the transaction:
+ * The write barrier (documents/persistent-garbage-collection.md §9), single-region version. It
+ * runs at commit, inside the same store transaction as the mutations, on the net edge diff of
+ * the transaction:
  *
- *   1. added edges, so that a move (remove A → B, add C → B) can rescue before it detaches;
- *   2. removed edges;
+ *   1. added edges, so that a move (remove A → B, add C → B) can rescue or swap before it
+ *      detaches anything;
+ *   2. removed edges: a removed tree edge is resolved by a quick swap, or deferred.
  *
  * New objects are placed while added edges are processed. A new object that no placed object
  * references by the end of the commit is never persisted.
@@ -17,9 +18,11 @@ import { GcState, STABLE } from "./GcState.js";
  * @param created  Set of ids created in this transaction
  * @param added    Array of { source, target }: strong edges whose count went from 0 to > 0
  * @param removed  Array of { source, target }: strong edges whose count went to 0
+ * @param options  collector options (GcState.defaultOptions)
  */
-export function applyBarrier(tx, { created, added, removed }) {
-  const gc = new GcState(tx);
+export function applyBarrier(tx, { created, added, removed }, options = {}) {
+  const gc = new GcState(tx, options);
+  gc.tick();
 
   const addedBySource = new Map();
   for (const edge of added) {
@@ -44,6 +47,9 @@ export function applyBarrier(tx, { created, added, removed }) {
       return;
     }
 
+    // The target already had a referrer (invariant W2).
+    gc.markShared(target);
+
     const targetState = gc.state(target);
     if (targetState !== STABLE && gc.isReclaiming(targetState)) {
       throw new Error(`Object ${target} is being reclaimed and cannot be referenced`);
@@ -53,6 +59,9 @@ export function applyBarrier(tx, { created, added, removed }) {
       if (gc.canRescue(target)) gc.rescue(target, source);
     } else if (sourceState !== STABLE && targetState !== STABLE && sourceState !== targetState) {
       gc.merge(sourceState, targetState);
+    } else if (sourceState === STABLE && gc.isDeferred(target) && gc.verifiedWalk(source, target)) {
+      // A relink of a deferred cut cancels it (§9.3); nothing was marked.
+      gc.reparent(target, source);
     }
   };
 
@@ -73,10 +82,11 @@ export function applyBarrier(tx, { created, added, removed }) {
     if (!placed.has(id)) tx.delete(`o/${id}`);
   }
 
-  // Removed edges: a removed tree edge is a cut.
+  // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it.
   for (const { source, target } of removed) {
     const meta = gc.meta(target);
-    if (meta && meta.treeParent === source) gc.cut(target);
+    if (!meta || meta.treeParent !== source) continue;
+    if (!gc.quickSwap(target)) gc.defer(target);
   }
 
   return { dropped: [...created].filter((id) => !placed.has(id)) };

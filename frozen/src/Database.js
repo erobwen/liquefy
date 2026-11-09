@@ -24,20 +24,21 @@ import { GcState, ROOT, keys } from "./gc/GcState.js";
 import { strongReferences } from "./model.js";
 
 export class Database {
-  constructor({ store = new MemoryStore(), onReclaim } = {}) {
+  constructor({ store = new MemoryStore(), onReclaim, options = {} } = {}) {
+    this.options = options;
     this.store = store;
     store.transaction((tx) => {
       if (tx.has(keys.objectKey(ROOT))) return;
       tx.put(keys.objectKey(ROOT), {});
-      tx.put(keys.metaKey(ROOT), { treeParent: null, cohort: null });
+      tx.put(keys.metaKey(ROOT), { treeParent: null, cohort: null, shared: false, deferred: null });
     });
-    this.collector = new Collector(store, { onReclaim });
+    this.collector = new Collector(store, { onReclaim, options });
   }
 
   /** Runs `fn(tx)` as one atomic transaction, including the write barrier. */
   transaction(fn) {
     return this.store.transaction((storeTransaction) => {
-      const tx = new ObjectTransaction(storeTransaction);
+      const tx = new ObjectTransaction(storeTransaction, this.options);
       const result = fn(tx);
       tx.finish();
       return result;
@@ -56,9 +57,10 @@ export class Database {
 }
 
 export class ObjectTransaction {
-  constructor(storeTransaction) {
+  constructor(storeTransaction, options = {}) {
     this.tx = storeTransaction;
-    this.gc = new GcState(storeTransaction);
+    this.options = options;
+    this.gc = new GcState(storeTransaction, options);
     this.created = new Set();
     this.referencesBefore = new Map(); // id → strong references at first modification
     this.finished = false;
@@ -131,7 +133,7 @@ export class ObjectTransaction {
       }
     }
 
-    applyBarrier(this.tx, { created: this.created, added, removed });
+    applyBarrier(this.tx, { created: this.created, added, removed }, this.options);
   }
 }
 

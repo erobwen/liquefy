@@ -931,7 +931,7 @@ Between transactions it runs random amounts of collector work. It then checks:
 
 ## 16.3 Steps
 
-Steps 1 and 2 are implemented in `frozen/src`, with the fuzzer in `frozen/src/fuzz` and a seed sweep in `frozen/tools/sweep.js`. The fuzzer found two flaws in the design, now fixed in §7.3 and §10.2.
+Steps 1 to 3 are implemented in `frozen/src`, with the fuzzer in `frozen/src/fuzz`, a seed sweep in `frozen/tools/sweep.js`, and `frozen/tools/coverage.js` to check that the fuzzer exercises every mechanism. The fuzzer found two flaws in the design, now fixed in §7.3 and §10.2. The invariants are in `invariants.md`. In step 3, deferral deadlines are counted on a logical clock of application transactions.
 
 1. **Store interface, object model and oracle.** An in-memory ordered KV with transactions, object records, a ROOT, and the full-trace oracle. `edgesOfRegion(R)` uses implementation A (§5.5), reading object records. No GC.
 2. **Basic collector (whitepaper §9) with cohorts.** A single region, object items only. Establishes the ladder, merging and the reclaim condition.

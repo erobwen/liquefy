@@ -1,23 +1,28 @@
 /**
  * The collector's persistent state, and the operations on it that the write barrier and the
- * collector share. Every method works inside one store transaction.
+ * collector share. Every method works inside one store transaction. The invariants these
+ * operations maintain are stated in documents/invariants.md.
  *
  * Keys (documents/persistent-garbage-collection.md §4.2):
  *
- *   o/<obj>             the object record (application data)
- *   g/<obj>             { treeParent, cohort }: the object's GC metadata
- *   t/<parent>/<child>  spanning-tree child edges
- *   c/<cohort>          cohort record: worklists, merge links
- *   C/<cohort>/<obj>    cohort membership, under the cohort id the object joined
- *   meta/nextId         id counter
+ *   o/<obj>                 the object record (application data)
+ *   g/<obj>                 { treeParent, cohort, shared, deferred }: the object's GC metadata
+ *   t/<parent>/<child>      spanning-tree child edges
+ *   c/<cohort>              cohort record: worklists, merge links
+ *   C/<cohort>/<obj>        cohort membership, under the cohort id the object joined
+ *   d/<deadline>/<obj>      deferred cuts, ordered by deadline
+ *   meta/nextId             id counter
+ *   meta/clock              logical clock: the number of application transactions
  *
  * State of an object (§7.1):
- *   - STABLE: no cohort. It has a tree parent, or is ROOT. It may be stale-stable, that is,
- *     below a cut whose marking has not reached it yet (§7.3).
+ *   - STABLE: no cohort. It has a tree parent, is ROOT, or is deferred. It may be stale-stable,
+ *     that is, below a cut whose marking or deferral is still pending (§7.3).
  *   - unstable in cohort C: it has no tree parent and, once marked, no tree children.
  *
  * Cohorts merge by union-find: a merged cohort record points at the cohort it was merged into.
  */
+
+import { strongReferences } from "../model.js";
 
 export const ROOT = "root";
 export const STABLE = "STABLE";
@@ -29,20 +34,39 @@ const treePrefix = (parent) => `t/${parent}/`;
 const cohortKey = (id) => `c/${id}`;
 const memberKey = (cohort, id) => `C/${cohort}/${id}`;
 const memberPrefix = (cohort) => `C/${cohort}/`;
+const deferralKey = (deadline, id) => `d/${String(deadline).padStart(12, "0")}/${id}`;
 
-export const keys = { objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix };
+export const keys = { objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey };
+
+export const defaultOptions = {
+  /** Application transactions a cut is deferred before marking starts (§9.3). */
+  deferral: 2,
+  /** Maximum steps of a verified walk (§9.5). */
+  walkBudget: 64,
+  /** Maximum referrers tried by quick swap and the replacement-parent search. */
+  candidates: 8,
+};
 
 export class GcState {
-  constructor(transaction) {
+  constructor(transaction, options = {}) {
     this.tx = transaction;
+    this.options = { ...defaultOptions, ...options };
   }
 
-  // ---- Ids ----
+  // ---- Ids and clock ----
 
   nextId(prefix) {
     const next = this.tx.get("meta/nextId") ?? 1;
     this.tx.put("meta/nextId", next + 1);
     return `${prefix}${next.toString(36)}`;
+  }
+
+  clock() {
+    return this.tx.get("meta/clock") ?? 0;
+  }
+
+  tick() {
+    this.tx.put("meta/clock", this.clock() + 1);
   }
 
   // ---- Objects ----
@@ -55,8 +79,9 @@ export class GcState {
     return this.tx.get(metaKey(id));
   }
 
-  setMeta(id, meta) {
-    this.tx.put(metaKey(id), meta);
+  /** Updates some metadata fields, keeping the others (such as the shared bit). */
+  updateMeta(id, patch) {
+    this.tx.put(metaKey(id), { ...(this.meta(id) ?? {}), ...patch });
   }
 
   /** STABLE, or the id of the (root) cohort the object is unstable in. */
@@ -69,6 +94,29 @@ export class GcState {
 
   treeChildren(parent) {
     return this.tx.keys(treePrefix(parent)).map((key) => key.slice(treePrefix(parent).length));
+  }
+
+  markShared(id) {
+    const meta = this.meta(id);
+    if (meta && !meta.shared) this.updateMeta(id, { shared: true });
+  }
+
+  /**
+   * The strong referrers of each of the given objects, as a Map from id to source ids.
+   *
+   * This is where edgesOfRegion (§5.5) is used. With a single region, it is every edge in the
+   * store, read from the object records (implementation A): O(database) per call. Regions
+   * replace it with the object's own region plus its flagged source regions.
+   */
+  referrersOf(ids) {
+    const referrers = new Map([...ids].map((id) => [id, []]));
+    for (const [key, record] of this.tx.range("o/")) {
+      const source = key.slice(2);
+      for (const target of strongReferences(record).keys()) {
+        if (referrers.has(target)) referrers.get(target).push(source);
+      }
+    }
+    return referrers;
   }
 
   // ---- Cohorts ----
@@ -142,7 +190,7 @@ export class GcState {
     return [rootId, ...this.cohort(rootId).absorbed];
   }
 
-  /** Ids of active, unmerged cohorts, in id order. */
+  /** Active, unmerged cohorts, in id order. */
   activeCohorts() {
     return this.tx
       .range("c/")
@@ -150,43 +198,127 @@ export class GcState {
       .filter((cohort) => !cohort.mergedInto);
   }
 
+  // ---- Deferred cuts ----
+
+  isDeferred(id) {
+    return Boolean(this.meta(id)?.deferred);
+  }
+
+  /** Records a cut without marking anything yet (§9.3, invariant F1). */
+  defer(id) {
+    const meta = this.meta(id);
+    if (meta.treeParent !== null) this.tx.delete(treeKey(meta.treeParent, id));
+    const deadline = this.clock() + this.options.deferral;
+    this.updateMeta(id, { treeParent: null, deferred: deadline });
+    this.tx.put(deferralKey(deadline, id), true);
+  }
+
+  clearDeferral(id) {
+    const meta = this.meta(id);
+    if (!meta.deferred) return;
+    this.tx.delete(deferralKey(meta.deferred, id));
+    this.updateMeta(id, { deferred: null });
+  }
+
+  /** The earliest deferral whose deadline has passed (or any, if `flush`), as an id. */
+  dueDeferral(flush = false) {
+    const first = this.tx.keys("d/")[0];
+    if (first === undefined) return null;
+    const [, deadline, id] = first.split("/");
+    return flush || Number(deadline) <= this.clock() ? id : null;
+  }
+
+  hasDeferrals() {
+    return this.tx.keys("d/").length > 0;
+  }
+
+  // ---- Verified walk and re-parenting ----
+
+  /**
+   * The verified walk (§9.5, invariant W1): may `object` be hung under `parent` without marking?
+   *
+   * Follows tree parents from `parent`. Succeeds at ROOT or at a deferred object. Fails on
+   * meeting `object` (that would make a cycle), on any unstable object, on revisiting an object,
+   * or when the step budget runs out.
+   */
+  verifiedWalk(parent, object) {
+    const seen = new Set();
+    let current = parent;
+    for (let steps = 0; steps < this.options.walkBudget; steps++) {
+      if (current === object || seen.has(current)) return false;
+      seen.add(current);
+      if (current === ROOT) return true;
+      const meta = this.meta(current);
+      if (!meta || meta.cohort !== null) return false;
+      if (meta.treeParent === null) return Boolean(meta.deferred);
+      current = meta.treeParent;
+    }
+    return false;
+  }
+
+  /** Hangs a stable object under a new parent; clears a deferral. Caller has done the walk. */
+  reparent(id, parent) {
+    const meta = this.meta(id);
+    if (meta.cohort !== null) throw new Error(`Re-parenting unstable object ${id}`);
+    if (meta.treeParent !== null) this.tx.delete(treeKey(meta.treeParent, id));
+    this.clearDeferral(id);
+    this.updateMeta(id, { treeParent: parent });
+    this.tx.put(treeKey(parent, id), true);
+  }
+
+  /**
+   * A referrer of `id` that passes the verified walk, or null. Tries at most `candidates`
+   * referrers. `referrers` may be passed in when the caller has already looked them up.
+   */
+  findVerifiedReferrer(id, referrers = this.referrersOf([id]).get(id)) {
+    let tried = 0;
+    for (const source of referrers) {
+      if (tried++ >= this.options.candidates) break;
+      if (source !== id && this.verifiedWalk(source, id)) return source;
+    }
+    return null;
+  }
+
+  /** Quick swap (§9.2): re-parent a shared object under another verified referrer. */
+  quickSwap(id) {
+    if (!this.meta(id).shared) return false;
+    const parent = this.findVerifiedReferrer(id);
+    if (parent === null) return false;
+    this.reparent(id, parent);
+    return true;
+  }
+
   // ---- Transitions ----
 
   /** A new object attached below a stable parent. */
   attachNew(id, parent) {
-    this.setMeta(id, { treeParent: parent, cohort: null });
+    this.updateMeta(id, { treeParent: parent, cohort: null, shared: false, deferred: null });
     this.tx.put(treeKey(parent, id), true);
   }
 
   /** A new object that is only referenced from members of a cohort joins that cohort. */
   joinCohort(id, cohortId) {
     const root = this.findCohort(cohortId);
-    this.setMeta(id, { treeParent: null, cohort: root });
+    this.updateMeta(id, { treeParent: null, cohort: root, shared: false, deferred: null });
     this.tx.put(memberKey(root, id), true);
     this.push(root, "check", id);
   }
 
   /**
-   * Makes a stable object unstable in a cohort: it loses its tree parent and is queued for
-   * marking (its tree children) and checking (its referrers).
+   * Makes a stable object unstable in a cohort: it loses its tree parent (or its deferral) and
+   * is queued for marking (its tree children) and checking (its referrers).
    */
   makeUnstable(id, cohortId) {
     const root = this.findCohort(cohortId);
     const meta = this.meta(id);
     if (meta.treeParent !== null) this.tx.delete(treeKey(meta.treeParent, id));
-    this.setMeta(id, { treeParent: null, cohort: root });
+    this.clearDeferral(id);
+    this.updateMeta(id, { treeParent: null, cohort: root });
     this.tx.put(memberKey(root, id), true);
     const cohort = this.cohort(root);
     cohort.mark.push(id);
     cohort.check.push(id);
     this.saveCohort(cohort);
-  }
-
-  /** The tree edge parent → child was removed: start a new cohort with the child (§9.2). */
-  cut(child) {
-    const cohortId = this.newCohort();
-    this.makeUnstable(child, cohortId);
-    return cohortId;
   }
 
   /** The mark step of one object: its tree children become unstable in its cohort. */
@@ -222,7 +354,7 @@ export class GcState {
     if (!this.canRescue(id)) throw new Error(`Rescue of unmarked object ${id}`);
     const root = this.findCohort(meta.cohort);
     this.tx.delete(memberKey(meta.cohort, id));
-    this.setMeta(id, { treeParent: parent, cohort: null });
+    this.updateMeta(id, { treeParent: parent, cohort: null });
     this.tx.put(treeKey(parent, id), true);
     this.push(root, "expand", id);
   }

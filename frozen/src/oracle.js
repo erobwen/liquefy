@@ -57,8 +57,13 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
       const parentRecord = store.get(keys.objectKey(meta.treeParent));
       if (!parentRecord) problems.push(`${id}: tree parent ${meta.treeParent} does not exist`);
       else if (!strongReferences(parentRecord).has(id)) problems.push(`${id}: tree parent ${meta.treeParent} does not reference it`);
-    } else if (meta.cohort === null && id !== ROOT) {
-      problems.push(`${id} is stable but has no tree parent`);
+    } else if (meta.cohort === null && id !== ROOT && !meta.deferred) {
+      problems.push(`T3: ${id} is stable, not deferred, but has no tree parent`);
+    }
+    // F1: deferred ⇔ stable with a null tree parent and a d/ key.
+    if (meta.deferred) {
+      if (meta.cohort !== null || meta.treeParent !== null) problems.push(`F1: deferred ${id} is unstable or has a tree parent`);
+      if (!store.has(keys.deferralKey(meta.deferred, id))) problems.push(`F1: deferred ${id} has no d/ key`);
     }
     if (meta.cohort !== null) {
       const root = findCohort(meta.cohort);
@@ -70,6 +75,24 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     const [parent, child] = edge.split("/");
     const meta = store.get(keys.metaKey(child));
     if (!meta || meta.treeParent !== parent) problems.push(`stale t/ key ${edge}`);
+  }
+
+  // F1: every d/ key belongs to a deferred object with that deadline.
+  for (const key of store.keys("d/")) {
+    const [, deadline, id] = key.split("/");
+    const meta = store.get(keys.metaKey(id));
+    if (!meta || Number(meta.deferred) !== Number(deadline)) problems.push(`F1: stale deferral key ${key}`);
+  }
+
+  // W2: an object with more than one strong referrer has the shared bit.
+  const referrerCount = new Map();
+  for (const id of objectIds) {
+    for (const target of strongReferences(store.get(keys.objectKey(id)) ?? {}).keys()) {
+      referrerCount.set(target, (referrerCount.get(target) ?? 0) + 1);
+    }
+  }
+  for (const [id, count] of referrerCount) {
+    if (count > 1 && !store.get(keys.metaKey(id))?.shared) problems.push(`W2: ${id} has ${count} referrers but no shared bit`);
   }
 
   // Membership keys belong to unstable objects.
@@ -89,8 +112,8 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (root && !root.mark.includes(id)) problems.push(`M1: unmarked ${id} is not on the mark list of ${root.id}`);
   }
 
-  // Invariant T4: following tree parents from any object terminates, at ROOT or at an unmarked
-  // unstable object. When idle (quiescent), it must end at ROOT.
+  // Invariant T4: following tree parents from any object terminates, at ROOT, at an unmarked
+  // unstable object, or at a deferred object. When idle (quiescent), it must end at ROOT.
   for (const id of objectIds) {
     const seen = new Set();
     let current = id;
@@ -108,7 +131,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
       }
       if (quiescent) {
         problems.push(`T4: ${id} does not reach ROOT through tree parents (stops at ${current})`);
-      } else if (meta.cohort === null) {
+      } else if (meta.cohort === null && !meta.deferred) {
         problems.push(`T4: ${id} has a tree path ending at stable ${current}, which has no tree parent`);
       } else if (current !== id && !hasTreeChildren.has(current)) {
         problems.push(`T4: ${id} has a tree path ending at marked ${current}`);

@@ -1,18 +1,21 @@
 /**
- * The incremental collector (documents/persistent-garbage-collection.md §10), basic version:
- * one region, object items only.
+ * The incremental collector (documents/persistent-garbage-collection.md §10), single-region
+ * version: object items only.
  *
- * A scheduler picks an active cohort round-robin, and runs one step of its ladder in its own
- * store transaction:
+ * Each call to step() runs one unit of work in its own store transaction:
+ *
+ *   0. a due deferred cut: retry quick swap, otherwise start a cohort with it (§9.3)
+ *
+ * or, for an active cohort picked round-robin, one step of its ladder:
  *
  *   1. expand  a rescued object: rescue the unstable objects it references
- *   2. mark    an unstable object: make its tree children unstable in the same cohort
+ *   2. mark    an unstable object: its tree children become unstable in the same cohort,
+ *              except shared children that find a verified replacement parent (§10.2)
  *   3. check   all unchecked members at once: look for a stable referrer of each
  *   4. reclaim when all lists are empty, the cohort is closed under "is referenced by"
  *
- * Checks find referrers with edgesOfRegion. With a single region, that is every edge in the
- * store, read from the object records (implementation A of §5.5). It is O(database) per check
- * batch, which is what regions are for in later steps.
+ * Referrers are found with GcState.referrersOf, which with a single region scans every record
+ * (O(database) per call). Regions are what make it local.
  */
 
 import { GcState, STABLE, keys } from "./GcState.js";
@@ -24,37 +27,67 @@ export class Collector {
    * @param onReclaim  optional hook, called inside the reclaim step with the ids about to be
    *                   deleted, before anything is written. Tests use it to check safety
    *                   against the committed state.
+   * @param options    collector options (GcState.defaultOptions)
    */
-  constructor(store, { onReclaim } = {}) {
+  constructor(store, { onReclaim, options = {} } = {}) {
     this.store = store;
     this.onReclaim = onReclaim;
+    this.options = options;
     this.lastCohort = null;
-    this.stats = { steps: 0, expand: 0, mark: 0, check: 0, reclaim: 0, reclaimed: 0 };
+    this.stats = {
+      steps: 0,
+      expand: 0,
+      mark: 0,
+      check: 0,
+      reclaim: 0,
+      reclaimed: 0,
+      deferralsResolved: 0,
+      deferralsSwapped: 0,
+      replacementParents: 0,
+    };
   }
 
-  /** True when there is no active cohort. */
+  gc(tx) {
+    return new GcState(tx, this.options);
+  }
+
+  /** True when there is no active cohort and no pending deferral. */
   isIdle() {
-    return this.store.range("c/").every(([, cohort]) => cohort.mergedInto);
+    return this.store.range("c/").every(([, cohort]) => cohort.mergedInto) && this.store.keys("d/").length === 0;
   }
 
-  /** Runs up to `maxSteps` steps. Returns the number of steps run. */
-  run(maxSteps = Infinity) {
+  /**
+   * Runs up to `maxSteps` steps. Returns the number of steps run.
+   * With `flush`, deferrals are resolved even before their deadline.
+   */
+  run(maxSteps = Infinity, { flush = false } = {}) {
     let steps = 0;
-    while (steps < maxSteps && this.step()) steps++;
+    while (steps < maxSteps && this.step({ flush })) steps++;
     return steps;
   }
 
-  /** Runs until idle. Throws if that takes more than `limit` steps. */
+  /**
+   * Runs until idle, resolving deferrals regardless of their deadline. Throws if that takes
+   * more than `limit` steps.
+   */
   runUntilIdle(limit = 1_000_000) {
-    const steps = this.run(limit);
+    const steps = this.run(limit, { flush: true });
     if (!this.isIdle()) throw new Error(`Collector not idle after ${limit} steps`);
     return steps;
   }
 
-  /** Runs one step of one cohort. Returns false if there was nothing to do. */
-  step() {
+  /** Runs one unit of work. Returns false if there was nothing to do. */
+  step({ flush = false } = {}) {
     return this.store.transaction((tx) => {
-      const gc = new GcState(tx);
+      const gc = this.gc(tx);
+
+      const deferred = gc.dueDeferral(flush);
+      if (deferred !== null) {
+        this.stats.steps++;
+        this.resolveDeferral(gc, deferred);
+        return true;
+      }
+
       const cohorts = gc.activeCohorts();
       if (cohorts.length === 0) return false;
       const next = cohorts.find((cohort) => this.lastCohort === null || cohort.id > this.lastCohort) ?? cohorts[0];
@@ -63,6 +96,16 @@ export class Collector {
       this.ladder(gc, next.id);
       return true;
     });
+  }
+
+  /** A deferred cut is due: retry quick swap, otherwise it becomes the start of a new cohort. */
+  resolveDeferral(gc, id) {
+    this.stats.deferralsResolved++;
+    if (gc.quickSwap(id)) {
+      this.stats.deferralsSwapped++;
+      return;
+    }
+    gc.makeUnstable(id, gc.newCohort());
   }
 
   ladder(gc, cohortId) {
@@ -112,11 +155,34 @@ export class Collector {
     }
   }
 
-  /** An unstable object's tree children become unstable in the same cohort. */
+  /**
+   * An unstable object's tree children become unstable in the same cohort.
+   *
+   * A shared child first looks for a replacement parent: another referrer that passes the
+   * verified walk (§10.2, invariant W1). If it finds one, it is re-parented there and marking
+   * does not descend into it. This keeps a cut from marking a structure that is still reachable
+   * some other way, such as the rest of a queue after a dequeue.
+   */
   mark(gc, id, cohortId) {
     if (!gc.meta(id)) return; // reclaimed by another cohort since it was queued
     if (gc.state(id) !== cohortId) return; // rescued since it was queued (only possible once marked)
-    gc.markChildren(id, cohortId);
+
+    const children = gc.treeChildren(id);
+    const shared = children.filter((child) => gc.meta(child).shared);
+    const referrers = shared.length > 0 ? gc.referrersOf(shared) : new Map();
+
+    for (const child of children) {
+      if (referrers.has(child)) {
+        const candidates = referrers.get(child).filter((source) => source !== id);
+        const parent = gc.findVerifiedReferrer(child, candidates);
+        if (parent !== null) {
+          gc.reparent(child, parent);
+          this.stats.replacementParents++;
+          continue;
+        }
+      }
+      gc.makeUnstable(child, cohortId);
+    }
   }
 
   /**
@@ -129,11 +195,7 @@ export class Collector {
     const members = new Set(batch.filter((id) => gc.meta(id) && gc.state(id) === gc.findCohort(cohortId)));
     if (members.size === 0) return;
 
-    const referrers = new Map([...members].map((id) => [id, []]));
-    for (const { source, target } of this.edgesOfRegion(gc)) {
-      if (referrers.has(target)) referrers.get(target).push(source);
-    }
-
+    const referrers = gc.referrersOf(members);
     for (const member of members) {
       for (const source of referrers.get(member)) {
         const current = gc.findCohort(cohortId);
@@ -146,16 +208,6 @@ export class Collector {
         if (sourceState !== current) gc.merge(current, sourceState);
       }
     }
-  }
-
-  /** All strong edges in the (single) region, read from the object records. */
-  edgesOfRegion(gc) {
-    const edges = [];
-    for (const [key, record] of gc.tx.range("o/")) {
-      const source = key.slice(2);
-      for (const target of strongReferences(record).keys()) edges.push({ source, target });
-    }
-    return edges;
   }
 
   /** Deletes every member of a closed cohort, and the cohort itself. */

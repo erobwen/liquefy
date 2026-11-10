@@ -25,16 +25,20 @@ Every **frame** is one committed store transaction: a user transaction, or one c
 (a due deferral, a structure task, or an expand, mark, check or reclaim step of a cohort).
 
 - **Objects** are nodes inside their **region** (the boxes). Their look shows their GC state:
-  stable, deferred (dashed amber), held for a time (dashed purple), unstable (ring in the
-  cohort's color), marked (filled with it), and reclaimed this step (faded). Shared objects are
-  squares.
+  stable, deferred (dashed amber), held for a time (dashed purple), unstable (a ring), marked
+  (filled), and reclaimed this step (faded). Shared objects are squares. Each cohort has an
+  outline around its members ("Cohort outlines"), drawn across region boxes with the
+  [bubblesets](https://github.com/upsetjs/cytoscape.js-bubblesets) plugin. All cohorts share one
+  color until "Cohort colors" is turned on, which gives each cohort its own.
 - **Edges**: the spanning tree is bold, other strong references thin, weak references dotted,
   and entry flags between regions dashed orange.
 - **This step's work**: the step's subject is yellow, records it read are blue, objects it wrote
   green. A region with a pending structure task has a dashed orange border.
-- The **side panel** says what the step did and why, lists every change, the cohorts with their
-  expand, mark and check lists, the deferred cuts, and the selected object's record and
-  referrers. Click a node or any id to select it.
+- The **side panel** has three tabs. **Step** says what the step did and why, lists every
+  change, and shows the selected object's record and referrers. **Cohorts** lists the cohorts
+  with their expand, mark and check lists, the deferred cuts and the pending structure tasks.
+  **Legend** has an entry for every look the graph can give an element. Click a node or any id
+  to select it.
 
 ## How it works
 

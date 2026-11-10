@@ -122,7 +122,7 @@ A deferred object is stale-stable: it still counts as stable everywhere, but its
 *Maintained by:* the barrier defers a cut it cannot quick-swap; the collector resolves a due deferral by a quick swap or by starting a cohort; a later added edge may cancel it; `release` moves its deadline to now. Each of these updates the metadata and the deadline key in the same transaction. *Verified:* oracle.
 
 **F2. Deferrals are resolved.** Every deferral is resolved by the collector once its clock reaches its deadline, unless it is cancelled first.
-*Maintained by:* the scheduler runs due deferrals before cohort steps. *Verified:* the fuzzer requires no deadline keys when idle.
+*Maintained by:* the scheduler runs due deferrals before every step except those of ready cohorts, which are bounded (§10.1 of the design). With `deferCuts: false` no deferral is ever created. *Verified:* the fuzzer requires no deadline keys when idle, and a quarter of its seeds run without deferral.
 
 **H1. A hold is a deferral with a chosen lifetime.** `tx.hold(id, { transactions } | { milliseconds })` applies to the cut of `id` in the same transaction: if that cut is deferred, its deadline is the hold's instead of the default. A hold therefore ends in exactly one of the ways a deferral ends:
 - **reattached:** an added edge from a verified referrer cancels it (W1), without marking anything;

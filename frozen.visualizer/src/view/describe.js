@@ -127,8 +127,11 @@ function summarize(frame, state, previous) {
       return `Expand ${frame.ids[0]} (${frame.cohort}): it is stable again, so the unstable objects it references are rescued.`;
     case "mark":
       return `Mark ${frame.ids[0]} (${frame.cohort}): its tree children become unstable, unless a shared child finds a replacement parent.`;
-    case "check":
-      return `Check ${frame.ids.length} object${frame.ids.length === 1 ? "" : "s"} of ${frame.cohort}: look for a stable referrer of each, in its region and the regions flagged on it.`;
+    case "check": {
+      const what = `Check ${frame.ids.length} object${frame.ids.length === 1 ? "" : "s"} of ${frame.cohort}: look for a stable referrer of each, in its region and the regions flagged on it.`;
+      if (!frame.reclaimed) return what;
+      return `${what} None found and nothing left to do, so the cohort is closed under "is referenced by": its ${deleted} object${deleted === 1 ? " is" : "s are"} reclaimed in the same step.`;
+    }
     case "reclaim":
       return `Reclaim ${frame.cohort}: closed under "is referenced by", so its ${deleted} object${deleted === 1 ? " is" : "s are"} garbage.`;
     default:

@@ -2,7 +2,9 @@
  * Scripted scenarios to step through. Each runs the real database and collector in a
  * Recorder, with captions that say what to look for.
  *
- * A scenario is { key, title, description, options, parameters?, run(session, parameters) }.
+ * A scenario is { key, title, description, options, deferCuts, parameters?, run(session, parameters) }.
+ * `deferCuts` is whether deferred cuts and holds are on by default: only in the scenarios that
+ * are about them. Captions follow the setting in use (session.deferCuts).
  */
 
 import { ROOT, ref } from "@liquefy/frozen";
@@ -28,7 +30,7 @@ export const scenarios = [
   {
     key: "delete-document",
     title: "Deleting a document",
-    description: "A document is cut from ROOT. Its deferral resolves into a cohort, marking walks down the spanning tree, one batched check finds no outside referrers, and the cohort is reclaimed.",
+    description: "A document is cut from ROOT and becomes a cohort. Marking walks down the spanning tree, one batched check finds no outside referrers, and the cohort is reclaimed in that same step.",
     options: { deferral: 0 },
     run(session) {
       let font;
@@ -42,7 +44,9 @@ export const scenarios = [
         tx.set(ROOT, "doc", ref(createDocument(tx, "Doc", 3, 3, font)));
       });
       session.collect();
-      session.explain("The tree edge ROOT → document is cut. Quick swap finds no other referrer, so the document is deferred.");
+      session.explain(session.deferCuts
+        ? "The tree edge ROOT → document is cut. Quick swap finds no other referrer, so the document is deferred."
+        : "The tree edge ROOT → document is cut. Quick swap finds no other referrer, so the document starts a cohort at once.");
       session.transaction("Delete the document", (tx) => tx.delete(ROOT, "doc"));
       session.collect();
     },
@@ -53,6 +57,7 @@ export const scenarios = [
     title: "Moving objects",
     description: "Three ways an object can lose its tree parent: moved within one transaction (quick swap), cut and pasted in a later transaction (the deferral is cancelled), and cut for good (the deferral resolves into a cohort).",
     options: { deferral: 2 },
+    deferCuts: true,
     run(session) {
       let a, b, para;
       session.transaction("Create two chapters", (tx) => {
@@ -67,9 +72,13 @@ export const scenarios = [
         tx.delete(a, "para");
         tx.set(b, "para", ref(para));
       });
-      session.explain("Cut: no other referrer, so the paragraph is deferred for two transactions (the dashed outline).");
+      session.explain(session.deferCuts
+        ? "Cut: no other referrer, so the paragraph is deferred for two transactions (the dashed outline)."
+        : "Cut: no other referrer. Deferred cuts are off, so the paragraph starts a cohort at once.");
       session.transaction("Cut the paragraph", (tx) => tx.delete(b, "para"));
-      session.explain("Pasted while still deferred: the verified walk from the new referrer reaches ROOT, so the deferral is cancelled.");
+      session.explain(session.deferCuts
+        ? "Pasted while still deferred: the verified walk from the new referrer reaches ROOT, so the deferral is cancelled."
+        : "Pasted: the paragraph is unstable but has no tree children, so the barrier rescues it at once. Its cohort is left with nothing in it.");
       session.transaction("Paste it into chapter A", (tx) => tx.set(a, "para", ref(para)));
       session.explain("Cut again, and this time never pasted.");
       session.transaction("Cut it for good", (tx) => tx.delete(a, "para"));
@@ -92,7 +101,7 @@ export const scenarios = [
       });
       session.collect();
       const first = session.db.get(queue).first.$ref;
-      session.explain("The queue now points at item 2, which keeps its tree parent (item 1). Item 1 lost its only referrer: it is deferred.");
+      session.explain(`The queue now points at item 2, which keeps its tree parent (item 1). Item 1 lost its only referrer: ${session.deferCuts ? "it is deferred" : "it starts a cohort"}.`);
       session.transaction("Dequeue the first item", (tx) => tx.set(queue, "first", tx.get(first).next));
       session.explain("Marking item 1 would make item 2 unstable. Item 2 is shared, so marking first looks for another verified referrer, finds the queue, and re-parents item 2 there.");
       session.stepUntil((step) => step.kind === "mark" && step.ids[0] === first);
@@ -149,6 +158,7 @@ export const scenarios = [
     title: "Holds",
     description: "Cutting a large structure with a hold keeps it deferred for a chosen number of transactions, so pasting it back later costs no marking. A release ends a hold early.",
     options: { deferral: 0 },
+    deferCuts: true,
     run(session) {
       let doc, other;
       session.transaction("Create two documents", (tx) => {
@@ -157,6 +167,15 @@ export const scenarios = [
         tx.set(ROOT, "kept", ref(doc));
         tx.set(ROOT, "dropped", ref(other));
       });
+      if (!session.deferCuts) {
+        session.explain("Deferred cuts and holds are off: the hold is ignored, and the cut starts a cohort at once. 'Kept' is collected, and there is nothing left to paste back.");
+        session.transaction("Cut 'Kept' with a hold", (tx) => {
+          tx.delete(ROOT, "kept");
+          tx.hold(doc, { transactions: 5 });
+        });
+        session.collect();
+        return;
+      }
       session.explain("Cut with a hold for 5 transactions: it stays deferred, and the collector leaves it alone.");
       session.transaction("Cut 'Kept' with a hold", (tx) => {
         tx.delete(ROOT, "kept");
@@ -211,6 +230,7 @@ export const scenarios = [
     title: "Random (a fuzz seed)",
     description: "Random transactions from the fuzzer, with a few collector steps after each. The collector options vary with the seed, as in the fuzz tests.",
     parameters: { seed: 1, transactions: 40 },
+    deferCuts: true,
     run(session, { seed = 1, transactions = 40 } = {}) {
       const rng = random(seed);
       const clipboard = [];
@@ -240,13 +260,17 @@ function randomOptions(seed, clock) {
   };
 }
 
-/** Records a scenario. Returns { scenario, parameters, options, timeline }. */
-export function recordScenario(key, parameters = {}) {
+/**
+ * Records a scenario. Returns { scenario, parameters, options, timeline }.
+ * `deferCuts` overrides the scenario's default for deferred cuts and holds.
+ */
+export function recordScenario(key, parameters = {}, { deferCuts } = {}) {
   const scenario = scenarios.find((s) => s.key === key);
   if (!scenario) throw new Error(`No scenario ${key}`);
   const merged = { ...scenario.parameters, ...parameters };
   const clock = { time: 0 };
   const options = scenario.key === "random" ? randomOptions(merged.seed, clock) : { ...scenario.options };
+  options.deferCuts = deferCuts ?? scenario.deferCuts ?? false;
   const session = new Recorder({ options, title: `${scenario.title}: the empty database` });
   Object.defineProperty(session, "time", { get: () => clock.time, set: (value) => { clock.time = value; } });
   scenario.run(session, merged);

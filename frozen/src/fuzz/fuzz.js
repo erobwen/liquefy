@@ -163,6 +163,8 @@ export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery
     // Small caps force frequent splits and merges.
     regionCap: rng.pick([3, 5, 8, 16, 100]),
   };
+  // A quarter of the seeds run without deferred cuts and holds.
+  options.deferCuts = rng.next() >= 0.25;
   const clipboard = [];
   let reclaimed = 0;
   let db;

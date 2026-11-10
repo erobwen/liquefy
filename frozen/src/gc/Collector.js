@@ -85,11 +85,34 @@ export class Collector {
     return steps;
   }
 
-  /** Runs one unit of work. Returns false if there was nothing to do. */
+  /**
+   * Runs one unit of work. Returns false if there was nothing to do.
+   *
+   * The order finishes what can be finished first, so that cohorts live as short as possible
+   * (fewer merges, fewer rescues of objects in long-waiting cohorts, space freed sooner):
+   *
+   *   1. a ready cohort - nothing left to expand or mark - is checked, and reclaimed in the
+   *      same step if the check rescued nothing
+   *   2. a due deferral
+   *   3. structure tasks and the other cohorts' ladders, alternately (cohorts round-robin)
+   *
+   * Ready cohorts only come from work done in 2 and 3, so they cannot starve the rest; and
+   * alternating keeps structure tasks (pure housekeeping) from delaying marking, and the
+   * reverse.
+   */
   step({ flush = false } = {}) {
+    const previous = this.lastStep?.kind ?? null;
     this.lastStep = null;
     return this.store.transaction((tx) => {
       const gc = this.gc(tx);
+      const cohorts = gc.activeCohorts();
+
+      const ready = cohorts.find((cohort) => cohort.expand.length === 0 && cohort.mark.length === 0);
+      if (ready) {
+        this.stats.steps++;
+        this.finish(gc, ready);
+        return true;
+      }
 
       const deferred = gc.dueDeferral(flush);
       if (deferred !== null) {
@@ -100,7 +123,7 @@ export class Collector {
       }
 
       const structure = gc.tx.keys("s/")[0];
-      if (structure !== undefined) {
+      if (structure !== undefined && (cohorts.length === 0 || previous !== "structure")) {
         this.stats.steps++;
         const outcome = runStructureTask(gc, structure.slice(2));
         this.stats.structure[outcome] = (this.stats.structure[outcome] ?? 0) + 1;
@@ -108,7 +131,6 @@ export class Collector {
         return true;
       }
 
-      const cohorts = gc.activeCohorts();
       if (cohorts.length === 0) return false;
       const next = cohorts.find((cohort) => this.lastCohort === null || cohort.id > this.lastCohort) ?? cohorts[0];
       this.lastCohort = next.id;
@@ -116,6 +138,29 @@ export class Collector {
       this.ladder(gc, next.id);
       return true;
     });
+  }
+
+  /**
+   * A ready cohort: check what is left to check, and if that rescued nothing (no expand items,
+   * nothing to mark), the cohort is closed under "is referenced by": reclaim it in the same
+   * transaction. The check has just read what the reclaim relies on.
+   */
+  finish(gc, cohort) {
+    if (cohort.check.length > 0) {
+      const batch = cohort.check;
+      cohort.check = [];
+      gc.saveCohort(cohort);
+      this.stats.check++;
+      this.lastStep = { kind: "check", cohort: cohort.id, ids: batch, reclaimed: false };
+      this.check(gc, batch, cohort.id);
+      const root = gc.cohort(gc.findCohort(cohort.id));
+      if (root.expand.length > 0 || root.mark.length > 0 || root.check.length > 0) return;
+      this.lastStep.reclaimed = true;
+    } else {
+      this.lastStep = { kind: "reclaim", cohort: cohort.id, ids: [] };
+    }
+    this.stats.reclaim++;
+    this.reclaim(gc, cohort.id);
   }
 
   /** A deferred cut is due: retry quick swap, otherwise it becomes the start of a new cohort. */

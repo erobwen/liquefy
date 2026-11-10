@@ -5,7 +5,7 @@
 
 import { Component, callback } from "@liquefy/cascade.component";
 import { div, span, h1, h3, p, ul, li, pre, select, option, input, label, text } from "@liquefy/cascade.dom";
-import { row, column, filler, button, iconButton, checkbox } from "@liquefy/cascade.ui";
+import { row, column, filler, button, iconButton, checkbox, tabBar } from "@liquefy/cascade.ui";
 import { GraphView } from "./GraphView.js";
 import { colors, cohortColor, stepKinds } from "./colors.js";
 import { scenarios } from "../recording/scenarios.js";
@@ -48,49 +48,83 @@ function section(title, ...children) {
   );
 }
 
-function badge(kind) {
+function badge(frame) {
+  const kind = frame.kind === "check" && frame.reclaimed ? "checkReclaim" : frame.kind;
   const { title, color } = stepKinds[kind] ?? { title: kind, color: colors.muted };
   return span({ style: { background: color, color: "#ffffff", borderRadius: "4px", padding: "2px 8px", fontSize: "12px", fontWeight: 600 } }, text(title));
 }
 
 const muted = (content) => span({ style: { color: colors.muted, fontSize: "12px" } }, text(content));
 
-function swatch(style) {
-  return span({ style: { display: "inline-block", width: "14px", height: "14px", borderRadius: "50%", boxSizing: "border-box", verticalAlign: "middle", marginRight: "5px", ...style } });
+// The legend. Every look GraphView's stylesheet can give an element has an entry here, drawn
+// with the same colors, borders and shapes - keep the two in step.
+
+const stableNode = { background: colors.stable, border: `1.5px solid ${colors.stableBorder}` };
+
+/** A small node as the graph draws it. */
+function swatch(style, { square = false } = {}) {
+  return span({
+    style: {
+      display: "inline-block", width: "14px", height: "14px", borderRadius: square ? "3px" : "50%", boxSizing: "border-box",
+      verticalAlign: "middle", margin: "0 7px 0 3px", flex: "none", ...style,
+    },
+  });
 }
 
-function legendItem(swatchStyle, title) {
-  return div({ style: { whiteSpace: "nowrap" } }, swatch(swatchStyle), text(title));
+function legendItem(sample, title) {
+  return div({ style: { whiteSpace: "nowrap", display: "flex", alignItems: "center" } }, sample, text(title));
 }
 
-function edgeSample(style, title) {
-  return div({ style: { whiteSpace: "nowrap" } }, span({ style: { display: "inline-block", width: "22px", verticalAlign: "middle", marginRight: "5px", ...style } }), text(title));
-}
+const nodeItem = (style, title, options) => legendItem(swatch(style, options), title);
 
-function legend() {
+/** A ring around a node: the graph's underlay. */
+const haloItem = (color, title) => nodeItem({ ...stableNode, boxShadow: `0 0 0 4px ${color}` }, title);
+
+const edgeItem = (style, title) => legendItem(span({ style: { display: "inline-block", width: "22px", margin: "0 6px 0 0", flex: "none", ...style } }), title);
+
+const regionItem = (style, title) => legendItem(span({ style: { display: "inline-block", width: "22px", height: "13px", borderRadius: "3px", boxSizing: "border-box", margin: "0 6px 0 0", flex: "none", background: colors.region, ...style } }), title);
+
+const legendHeading = (title) => div({ style: { gridColumn: "1 / -1", fontWeight: 600, color: colors.muted, marginTop: "4px" } }, text(title));
+
+function legend(view, cohortColors) {
+  const unstable = cohortColors ? colors.muted : colors.unstable;
+  const cohortNote = cohortColors ? " (cohort's color)" : "";
   return div(
     {
       style: {
-        position: "absolute", left: "10px", bottom: "10px", padding: "8px 10px", background: "rgba(255,255,255,0.92)",
-        border: `1px solid ${colors.line}`, borderRadius: "6px", fontSize: "11px", color: colors.text,
-        display: "grid", gridTemplateColumns: "auto auto auto", columnGap: "14px", rowGap: "3px", pointerEvents: "none",
+        fontSize: "11px", color: colors.text,
+        display: "grid", gridTemplateColumns: "repeat(2, auto)", justifyContent: "start", columnGap: "14px", rowGap: "4px",
       },
     },
-    legendItem({ background: colors.stable, border: `1.5px solid ${colors.stableBorder}` }, "stable"),
-    legendItem({ background: "#fff", border: `2.5px dashed ${colors.deferred}` }, "deferred"),
-    legendItem({ background: "#fff", border: `2.5px dashed ${colors.held}` }, "held (time)"),
-    legendItem({ background: "#fff", border: `4px solid ${colors.muted}` }, "unstable"),
-    legendItem({ background: colors.muted }, "marked"),
-    legendItem({ background: "#fff", border: `2px dotted ${colors.reclaimed}`, opacity: 0.6 }, "reclaimed"),
-    legendItem({ background: colors.stable, borderRadius: "3px", border: `1.5px solid ${colors.stableBorder}` }, "shared"),
-    legendItem({ background: colors.subject }, "this step's subject"),
-    legendItem({ background: colors.read }, "record read"),
-    edgeSample({ borderTop: `3px solid ${colors.tree}` }, "tree edge"),
-    edgeSample({ borderTop: `1px solid ${colors.edge}` }, "reference"),
-    edgeSample({ borderTop: `2px dotted ${colors.weak}` }, "weak"),
-    edgeSample({ borderTop: `2px dashed ${colors.flag}` }, "entry flag"),
-    legendItem({ background: colors.written }, "written"),
-    legendItem({ background: "#fff", borderRadius: "3px", border: `2px dashed ${colors.structure}` }, "structure task"),
+    legendHeading("Objects"),
+    nodeItem({ background: colors.root, transform: "rotate(45deg) scale(0.85)" }, "ROOT", { square: true }),
+    nodeItem(stableNode, "stable"),
+    nodeItem({ background: "#fff", border: `2.5px dashed ${colors.deferred}` }, "deferred cut"),
+    nodeItem({ background: "#fff", border: `2.5px dashed ${colors.held}` }, "held (time)"),
+    nodeItem({ background: "#fff", border: `4px solid ${unstable}` }, `unstable${cohortNote}`),
+    nodeItem({ background: unstable }, `marked${cohortNote}`),
+    nodeItem({ background: "#fff", border: `2px dotted ${colors.reclaimed}`, opacity: 0.35 }, "reclaimed now"),
+    nodeItem(stableNode, "square: shared", { square: true }),
+    regionItem({ background: "transparent", border: `1.5px solid ${unstable}`, borderRadius: "8px" }, `cohort outline${cohortNote}`),
+    ...(cohortColors && view.cohorts.length > 0
+      ? [legendHeading("Cohorts"), ...view.cohorts.map((cohort) => nodeItem({ background: cohortColor(cohort.id) }, cohort.id))]
+      : []),
+    legendHeading("This step"),
+    haloItem(colors.subject, "subject"),
+    haloItem(colors.read, "record read"),
+    haloItem(colors.written, "written"),
+    nodeItem({ ...stableNode, outline: `3px solid ${colors.selected}`, outlineOffset: "2px" }, "selected"),
+    legendHeading("Regions (id · members)"),
+    regionItem({ border: `1px solid ${colors.regionBorder}` }, "region"),
+    regionItem({ border: `2px dashed ${colors.structure}` }, "structure task pending"),
+    regionItem({ border: `1px solid ${colors.regionBorder}`, boxShadow: `0 0 0 4px ${colors.subject}` }, "restructured now"),
+    regionItem({ border: `1px dotted ${colors.regionBorder}`, opacity: 0.5 }, "deleted, still shown"),
+    legendHeading("Edges"),
+    edgeItem({ borderTop: `3px solid ${colors.tree}` }, "spanning tree"),
+    edgeItem({ borderTop: `1px solid ${colors.edge}` }, "reference"),
+    edgeItem({ borderTop: `2px dotted ${colors.weak}` }, "weak reference"),
+    edgeItem({ borderTop: `2px dashed ${colors.flag}` }, "entry flag (regions)"),
+    edgeItem({ borderTop: `2px solid ${colors.selected}` }, "selected's edges (others fade)"),
   );
 }
 
@@ -150,10 +184,11 @@ export class VisualizerApp extends Component {
                 onSelect: callback("select", select$),
                 showFlags: model.showFlags,
                 showWeak: model.showWeak,
+                cohortColors: model.cohortColors,
+                cohortOutlines: model.cohortOutlines,
                 fitRequest: model.fitRequest,
               })
             : div({ style: { padding: "20px", color: colors.reclaimed } }, pre(text(model.error ?? "Nothing loaded"))),
-          legend(),
         ),
         div({ style: { width: "360px", overflowY: "auto", background: colors.surface } }, ...(view ? this.panels(recording, view) : [])),
       ),
@@ -184,6 +219,11 @@ export class VisualizerApp extends Component {
               button(text("Record"), callback("record", () => load("random"))),
             )
           : null,
+        checkbox({
+          label: "Deferred cuts and holds",
+          checked: model.deferCuts,
+          onChange: callback("deferCuts", (checked) => load(model.scenarioKey, { deferCuts: checked })),
+        }),
         filler(),
         muted(options),
       ),
@@ -191,14 +231,38 @@ export class VisualizerApp extends Component {
     );
   }
 
+  /** The sidebar: tabs, so that what grows and shrinks (cohorts) doesn't move the rest. */
   panels(recording, view) {
+    const pending = view.deferrals.length + view.structureTasks.length;
+    const tabs = [
+      { key: "step", title: "Step" },
+      { key: "cohorts", title: `Cohorts (${view.cohorts.length})${pending ? ` · ${pending} pending` : ""}` },
+      { key: "legend", title: "Legend" },
+    ];
+    const content = {
+      step: () => this.stepPanels(recording, view),
+      cohorts: () => this.cohortPanels(view),
+      legend: () => [section("Legend", legend(view, model.cohortColors))],
+    }[model.sidebarTab]();
+    return [
+      tabBar({
+        tabs,
+        selected: model.sidebarTab,
+        onSelect: callback("tab", (key) => { model.sidebarTab = key; }),
+        style: { position: "sticky", top: 0, zIndex: 1, background: colors.surface, borderBottom: `1px solid ${colors.line}` },
+      }),
+      ...content,
+    ];
+  }
+
+  stepPanels(recording, view) {
     const frame = recording.timeline.frame(model.frame);
     const changes = view.changes;
     const objects = view.objects.filter((o) => o.display !== "reclaimed");
     return [
       section(
         "This step",
-        row({ style: { alignItems: "center", gap: "8px", marginBottom: "6px" } }, badge(frame.kind), muted(`frame ${model.frame + 1} of ${recording.timeline.length} · clock ${view.clock}`)),
+        row({ style: { alignItems: "center", gap: "8px", marginBottom: "6px" } }, badge(frame), muted(`frame ${model.frame + 1} of ${recording.timeline.length} · clock ${view.clock}`)),
         p({ style: { margin: "4px 0", fontWeight: 600, lineHeight: 1.35 } }, text(view.summary)),
         view.caption ? p({ style: { margin: "6px 0", padding: "6px 8px", background: "#fff8db", borderLeft: `3px solid ${colors.subject}`, lineHeight: 1.35 } }, text(view.caption)) : null,
         changes.length > 0
@@ -210,13 +274,6 @@ export class VisualizerApp extends Component {
           : muted("No object changed."),
         frame.reads.length > 0 ? div({ style: { marginTop: "6px" } }, muted(`Records read (${frame.reads.length}): `), ...frame.reads.map((id) => chip(id))) : null,
       ),
-      view.cohorts.length > 0
-        ? section("Cohorts", ...view.cohorts.map((cohort) => this.cohort(cohort)))
-        : null,
-      view.deferrals.length > 0
-        ? section("Deferred cuts", ...view.deferrals.map((d) => div(chip(d.id, { color: d.kind === "ms" ? colors.held : colors.deferred }), muted(`until ${d.deadline}`))))
-        : null,
-      view.structureTasks.length > 0 ? section("Structure tasks", muted(`Regions to re-check: ${view.structureTasks.join(", ")}`)) : null,
       model.selected ? this.selection(view) : null,
       section(
         "Database",
@@ -225,11 +282,21 @@ export class VisualizerApp extends Component {
     ];
   }
 
+  cohortPanels(view) {
+    return [
+      section("Cohorts", ...(view.cohorts.length > 0 ? view.cohorts.map((cohort) => this.cohort(cohort)) : [muted("None: nothing is being collected.")])),
+      section("Deferred cuts", ...(view.deferrals.length > 0
+        ? view.deferrals.map((d) => div(chip(d.id, { color: d.kind === "ms" ? colors.held : colors.deferred }), muted(`until ${d.deadline}`)))
+        : [muted("None.")])),
+      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Regions to re-check: ${view.structureTasks.join(", ")}` : "None.")),
+    ];
+  }
+
   cohort(cohort) {
     const list = (name, ids) => div({ style: { margin: "2px 0" } }, muted(`${name} (${ids.length}): `), ...ids.map((id) => chip(id)));
     return div(
       { style: { marginBottom: "8px" } },
-      div(swatch({ background: cohortColor(cohort.id) }), span({ style: { fontWeight: 600 } }, text(cohort.id)),
+      div(swatch({ background: model.cohortColors ? cohortColor(cohort.id) : colors.unstable }), span({ style: { fontWeight: 600 } }, text(cohort.id)),
         muted(` · ${cohort.state} · ${cohort.members.length} members${cohort.absorbed.length ? ` · absorbed ${cohort.absorbed.join(", ")}` : ""}`)),
       list("expand", cohort.expand),
       list("mark", cohort.mark),
@@ -289,6 +356,8 @@ export class VisualizerApp extends Component {
         ),
       ),
       checkbox({ label: "Flags", checked: model.showFlags, onChange: callback("flags", (checked) => { model.showFlags = checked; }) }),
+      checkbox({ label: "Cohort outlines", checked: model.cohortOutlines, onChange: callback("cohortOutlines", (checked) => { model.cohortOutlines = checked; }) }),
+      checkbox({ label: "Cohort colors", checked: model.cohortColors, onChange: callback("cohortColors", (checked) => { model.cohortColors = checked; }) }),
       checkbox({ label: "Weak", checked: model.showWeak, onChange: callback("weak", (checked) => { model.showWeak = checked; }) }),
       control("fit_screen", "Fit the graph", callback("fit", () => { model.fitRequest++; })),
     );

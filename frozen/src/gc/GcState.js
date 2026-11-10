@@ -55,6 +55,11 @@ export const keys = {
 };
 
 export const defaultOptions = {
+  /**
+   * Whether cuts that find no quick swap are deferred (§9.3) and holds honored. Off, such a cut
+   * starts a cohort at once: the core algorithm without the deferral add-on.
+   */
+  deferCuts: true,
   /** Application transactions a cut is deferred before marking starts (§9.3). */
   deferral: 2,
   /** Maximum steps of a verified walk (§9.5). */

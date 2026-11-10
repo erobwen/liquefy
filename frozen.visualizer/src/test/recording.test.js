@@ -46,15 +46,15 @@ describe("Recorder and Timeline", () => {
     const kinds = recorder.frames.map((frame) => frame.kind);
     assert.deepEqual(kinds.slice(0, 3), ["start", "transaction", "transaction"]);
     assert.equal(kinds.length, 3 + steps);
-    assert.deepEqual(kinds.slice(3).filter((kind) => kind !== "structure"), ["deferral", "mark", "check", "reclaim"]);
+    assert.deepEqual(kinds.slice(3).filter((kind) => kind !== "structure"), ["deferral", "mark", "check"]);
     assert.ok(recorder.frames.find((frame) => frame.kind === "check").reads.length > 0, "the check read records");
   });
 });
 
 describe("Scenarios", () => {
-  for (const scenario of scenarios) {
-    it(`${scenario.key}: ends consistent and fully collected`, () => {
-      const { timeline } = recordScenario(scenario.key);
+  for (const scenario of scenarios) for (const deferCuts of [true, false]) {
+    it(`${scenario.key}, deferred cuts ${deferCuts ? "on" : "off"}: ends consistent and fully collected`, () => {
+      const { timeline } = recordScenario(scenario.key, {}, { deferCuts });
       for (let i = 0; i < timeline.length; i++) {
         const view = describeFrame(timeline.stateAt(i), timeline.stateAt(i - 1), timeline.frame(i));
         assert.ok(view.summary, `frame ${i} has a summary`);
@@ -106,7 +106,7 @@ describe("Scenarios", () => {
     const { timeline } = recordScenario("holds");
     const changes = allChanges(timeline);
     assert.ok(changes.some((c) => /deferred until/.test(c)));
-    assert.ok(timeline.frames.some((f) => f.kind === "reclaim"), "the released one is collected");
+    assert.ok(timeline.frames.some((f) => f.kind === "check" && f.reclaimed), "the released one is collected");
   });
 
   it("random: records any seed", () => {

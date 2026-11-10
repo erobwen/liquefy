@@ -12,6 +12,7 @@ export const colors = {
   deferred: "#d98b00",
   held: "#7b4bc4",
   reclaimed: "#c0392b",
+  unstable: "#d6336c", // every cohort, unless cohort colors are on
   region: "#f7f9fc",
   regionBorder: "#b8c4d2",
   structure: "#e07a1f",
@@ -43,5 +44,6 @@ export const stepKinds = {
   expand: { title: "Expand", color: "#17a398" },
   mark: { title: "Mark", color: "#d6336c" },
   check: { title: "Check", color: "#2e86ab" },
+  checkReclaim: { title: "Check and reclaim", color: colors.reclaimed },
   reclaim: { title: "Reclaim", color: colors.reclaimed },
 };

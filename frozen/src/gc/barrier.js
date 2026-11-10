@@ -98,13 +98,16 @@ export function applyBarrier(tx, { created, added, removed, holds = new Map(), r
   }
 
   // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it, for the
-  // default delay or for the lifetime of a hold.
+  // default delay or for the lifetime of a hold. With deferCuts off, holds are ignored and the
+  // cut starts a cohort at once.
   // A hold on an object whose tree edge is not cut here has no effect: the object is still
   // attached, and which of its references is the tree edge is not the application's concern.
   for (const { source, target } of removed) {
     const meta = gc.meta(target);
     if (!meta || meta.treeParent !== source) continue;
-    if (!gc.quickSwap(target)) gc.defer(target, gc.deferralFor(holds.get(target)));
+    if (gc.quickSwap(target)) continue;
+    if (gc.options.deferCuts) gc.defer(target, gc.deferralFor(holds.get(target)));
+    else gc.makeUnstable(target, gc.newCohort());
   }
 
   for (const id of releases) gc.expireNow(id);

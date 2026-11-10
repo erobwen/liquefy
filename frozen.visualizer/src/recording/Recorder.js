@@ -35,6 +35,11 @@ export class Recorder {
     this.endFrame({ kind: "start", label: title || "The empty database: ROOT in region r0" });
   }
 
+  /** Whether cuts are deferred and holds honored (the deferCuts option). */
+  get deferCuts() {
+    return this.db.options.deferCuts !== false;
+  }
+
   /** Starts collecting a frame's reads and writes. */
   beginFrame() {
     this.reads = new Set();

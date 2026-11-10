@@ -18,7 +18,9 @@
     "@liquefy/cascade.ui": "^2.0.0",
     "@liquefy/frozen": "*",
     "cytoscape": "^3.34.4",
-    "cytoscape-fcose": "^2.2.0"
+    "cytoscape-bubblesets": "^4.1.0",
+    "cytoscape-fcose": "^2.2.0",
+    "cytoscape-layers": "^3.1.0"
   },
   "devDependencies": {
     "mocha": "^10.8.2",

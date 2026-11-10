@@ -7,7 +7,7 @@
  */
 
 import { observable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
-import { recordScenario } from "./recording/scenarios.js";
+import { recordScenario, scenarios } from "./recording/scenarios.js";
 import { describe } from "./view/describe.js";
 
 export const model = observable({
@@ -22,6 +22,10 @@ export const model = observable({
   selected: null,
   showFlags: true,
   showWeak: true,
+  cohortColors: false, // one color for all cohorts, or a color each
+  cohortOutlines: true, // an outline around each cohort's members
+  sidebarTab: "step", // "step", "cohorts" or "legend"
+  deferCuts: false, // deferred cuts and holds; reset to the scenario's default when one is chosen
   fitRequest: 0,
 });
 
@@ -38,17 +42,19 @@ export function change(action) {
 let recordings = 0;
 
 /** Records the chosen scenario and shows its first frame. */
-export function load(scenarioKey = model.scenarioKey) {
+export function load(scenarioKey = model.scenarioKey, { deferCuts } = {}) {
   let recording = null;
   let error = null;
+  if (deferCuts === undefined) deferCuts = scenarios.find((s) => s.key === scenarioKey)?.deferCuts ?? false;
   try {
     const parameters = scenarioKey === "random" ? { seed: Number(model.seed) || 1, transactions: Number(model.transactions) || 40 } : {};
-    recording = { ...recordScenario(scenarioKey, parameters), id: ++recordings };
+    recording = { ...recordScenario(scenarioKey, parameters, { deferCuts }), id: ++recordings };
   } catch (caught) {
     error = String(caught?.stack ?? caught);
   }
   change(() => {
     model.scenarioKey = scenarioKey;
+    model.deferCuts = deferCuts;
     model.recording = recording;
     model.error = error;
     model.frame = 0;

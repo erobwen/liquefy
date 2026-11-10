@@ -11,6 +11,8 @@
 
 import cytoscape from "cytoscape";
 import fcose from "cytoscape-fcose";
+import { BubbleSetsPlugin } from "cytoscape-bubblesets";
+import { layers } from "cytoscape-layers";
 import { DOMNodeComponent } from "@liquefy/cascade.dom";
 import { cohortColor, colors } from "./colors.js";
 
@@ -47,7 +49,8 @@ const style = [
   { selector: "node.read", style: { "underlay-color": colors.read, "underlay-opacity": 0.55, "underlay-padding": 5, "underlay-shape": "ellipse" } },
   { selector: "node.written", style: { "underlay-color": colors.written, "underlay-opacity": 0.6, "underlay-padding": 5, "underlay-shape": "ellipse" } },
   { selector: "node.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.9, "underlay-padding": 8, "underlay-shape": "ellipse" } },
-  { selector: "node.selected", style: { "border-color": colors.selected, "border-width": 4, "border-style": "solid", "font-weight": "bold" } },
+  // An outline, so that the selected object's own border (its GC state) stays visible.
+  { selector: "node.selected", style: { "outline-color": colors.selected, "outline-width": 3, "outline-offset": 2, "outline-opacity": 1, "font-weight": "bold" } },
   {
     selector: "node.region",
     style: {
@@ -87,7 +90,7 @@ const style = [
 ];
 
 /** The Cytoscape elements for a view, as a Map from id to { group, data, classes }. */
-function elementsOf(view, { selected, showFlags, showWeak }) {
+function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
   const elements = new Map();
   const { highlight } = view;
   for (const region of view.regions) {
@@ -115,7 +118,7 @@ function elementsOf(view, { selected, showFlags, showWeak }) {
         id: object.id,
         parent: object.region ? `R:${object.region}` : undefined,
         label,
-        color: object.cohort ? cohortColor(object.cohort) : colors.stable,
+        color: object.cohort ? (cohortColors ? cohortColor(object.cohort) : colors.unstable) : colors.stable,
         treeParent: object.treeParent,
       },
       classes: classes.join(" "),
@@ -136,7 +139,9 @@ function elementsOf(view, { selected, showFlags, showWeak }) {
 }
 
 export class GraphView extends DOMNodeComponent {
-  setProperties({ view, recordingId, selected = null, onSelect = null, showFlags = true, showWeak = true, fitRequest = 0 }) {
+  setProperties({ view, recordingId, selected = null, onSelect = null, showFlags = true, showWeak = true, cohortColors = false, cohortOutlines = true, fitRequest = 0 }) {
+    this.cohortColors = cohortColors;
+    this.cohortOutlines = cohortOutlines;
     this.view = view;
     this.recordingId = recordingId;
     this.selected = selected;
@@ -156,6 +161,11 @@ export class GraphView extends DOMNodeComponent {
       u.cy.on("tap", (event) => {
         if (event.target === u.cy) u.onSelect?.(null);
       });
+      // Cohort outlines, drawn just above the nodes: below them, the opaque region boxes
+      // would hide them.
+      u.outlines = new Map(); // cohort id → { path, signature }
+      u.bubbles = new BubbleSetsPlugin(u.cy, { layer: layers(u.cy).nodeLayer.insertAfter("svg") });
+      u.bubbles.layer.node.style.pointerEvents = "none";
       u.resizeObserver = new ResizeObserver(() => u.cy.resize());
       u.resizeObserver.observe(u.node);
     }
@@ -172,11 +182,14 @@ export class GraphView extends DOMNodeComponent {
     const { cy } = u;
     const fresh = u.recordingId !== this.recordingId;
     u.recordingId = this.recordingId;
-    const wanted = elementsOf(this.view, { selected: this.selected, showFlags: this.showFlags, showWeak: this.showWeak });
+    const wanted = elementsOf(this.view, { selected: this.selected, showFlags: this.showFlags, showWeak: this.showWeak, cohortColors: this.cohortColors });
     let structureChanged = fresh;
 
     cy.batch(() => {
-      if (fresh) cy.elements().remove();
+      if (fresh) {
+        this.removeOutlines(u, () => true);
+        cy.elements().remove();
+      }
       // Remove what is gone (edges first, so that removing a region does not take its members).
       cy.edges().forEach((edge) => {
         if (!wanted.has(edge.id())) {
@@ -214,6 +227,7 @@ export class GraphView extends DOMNodeComponent {
       }
     });
 
+    this.updateOutlines(u);
     if (structureChanged) this.layout(u, fresh);
   }
 
@@ -221,6 +235,42 @@ export class GraphView extends DOMNodeComponent {
    * Lays out the graph at the next animation frame: the first time, the element is not in the
    * page yet, and while playing fast, several updates in one frame need only one layout.
    */
+  /**
+   * One outline per cohort around its members (a bubble set: it routes around other objects,
+   * and follows the nodes as they move). An outline is redrawn when its members or color change.
+   */
+  updateOutlines(u) {
+    const wanted = new Map();
+    if (this.cohortOutlines) {
+      for (const cohort of this.view.cohorts) {
+        if (cohort.members.length === 0) continue;
+        const color = this.cohortColors ? cohortColor(cohort.id) : colors.unstable;
+        wanted.set(cohort.id, { members: cohort.members, color, signature: `${color}|${cohort.members.join(",")}` });
+      }
+    }
+    this.removeOutlines(u, (id, outline) => wanted.get(id)?.signature !== outline.signature);
+    const objects = u.cy.nodes(".object");
+    for (const [id, outline] of wanted) {
+      if (u.outlines.has(id)) continue;
+      const members = objects.filter((node) => outline.members.includes(node.id()));
+      if (members.empty()) continue;
+      const path = u.bubbles.addPath(members, null, objects.difference(members), {
+        virtualEdges: true,
+        nonMemberInfluenceFactor: -2.5, // push harder away from objects outside the cohort
+        style: { fill: outline.color, fillOpacity: "0.1", stroke: outline.color, strokeWidth: "1.5", strokeOpacity: "0.9" },
+      });
+      u.outlines.set(id, { path, signature: outline.signature });
+    }
+  }
+
+  removeOutlines(u, test) {
+    for (const [id, outline] of u.outlines) {
+      if (!test(id, outline)) continue;
+      u.bubbles.removePath(outline.path);
+      u.outlines.delete(id);
+    }
+  }
+
   layout(u, fresh) {
     u.freshLayout = u.freshLayout || fresh;
     if (u.layoutFrame) return;
@@ -268,6 +318,7 @@ export class GraphView extends DOMNodeComponent {
     u.layout?.stop();
     if (u.layoutFrame) cancelAnimationFrame(u.layoutFrame);
     u.resizeObserver?.disconnect();
+    u.bubbles?.destroy();
     u.cy?.destroy();
     super.onDispose();
   }

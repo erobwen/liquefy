@@ -665,7 +665,7 @@ The top level is a scheduler over cohorts, plus a queue of **structure tasks**: 
 ```js
 function collect(budget) {
     while (budget > 0) {
-        const work = scheduler.next();        // a cohort (round-robin, oldest first) or a structure task
+        const work = scheduler.next();        // see "Scheduling" below
         if (!work) return;                    // nothing unstable, nothing to restructure
         budget -= transaction(() =>
             work.isCohort ? step(work) : runStructureTask(work));
@@ -679,6 +679,16 @@ function step(c) {
     return reclaim(c);                           // 4. delete: c is closed
 }
 ```
+
+**Scheduling: finish first.** `scheduler.next()` picks, in this order:
+
+1. A **ready cohort**: one with nothing left to expand or mark. Its check runs, and if the check rescued nothing, the cohort is closed and is reclaimed **in the same transaction**. The check has just read what the reclaim relies on.
+2. A **due deferral**.
+3. Otherwise, **structure tasks and the other cohorts' ladders alternate**, with cohorts round-robin.
+
+Order never affects correctness, only how long cohorts live. Short-lived cohorts matter: a cohort that waits is more likely to merge with another, its objects are more likely to be re-linked and rescued after work was spent on them, and its space is freed later. Ready cohorts only arise from work done in 2 and 3, so serving them first cannot starve anything, and alternating keeps housekeeping from delaying marking. (The prototype first ran deferrals, then all structure tasks, then cohorts; in a measurement over 42 recordings, ready cohorts were passed over about 4,000 times, mostly for structure tasks.)
+
+**Deferral is optional.** Deferred cuts (§9.3) and holds are an add-on to the core algorithm. With them turned off (`deferCuts: false`), a cut that finds no quick swap starts a cohort in the cutting transaction, and holds are ignored.
 
 This answers "what does the main loop look like with a hierarchy of regions". The ladder is unchanged. Three things are new:
 

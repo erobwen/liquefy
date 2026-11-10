@@ -20,6 +20,7 @@
 
 import { GcState, STABLE, keys } from "./GcState.js";
 import { strongReferences } from "../model.js";
+import { runStructureTask } from "./regions.js";
 
 export class Collector {
   /**
@@ -44,6 +45,7 @@ export class Collector {
       deferralsResolved: 0,
       deferralsSwapped: 0,
       replacementParents: 0,
+      structure: {},
     };
   }
 
@@ -56,7 +58,8 @@ export class Collector {
     return (
       this.store.range("c/").every(([, cohort]) => cohort.mergedInto) &&
       this.store.keys("d/").length === 0 &&
-      this.store.keys("h/").length === 0
+      this.store.keys("h/").length === 0 &&
+      this.store.keys("s/").length === 0
     );
   }
 
@@ -89,6 +92,14 @@ export class Collector {
       if (deferred !== null) {
         this.stats.steps++;
         this.resolveDeferral(gc, deferred);
+        return true;
+      }
+
+      const structure = gc.tx.keys("s/")[0];
+      if (structure !== undefined) {
+        this.stats.steps++;
+        const outcome = runStructureTask(gc, structure.slice(2));
+        this.stats.structure[outcome] = (this.stats.structure[outcome] ?? 0) + 1;
         return true;
       }
 
@@ -234,6 +245,9 @@ export class Collector {
     this.onReclaim?.(doomed.map(({ id }) => id));
 
     for (const { id, key } of doomed) {
+      const region = gc.regionOf(id);
+      gc.tx.delete(keys.regionMemberKey(region, id));
+      gc.scheduleStructure(region);
       gc.tx.delete(keys.objectKey(id));
       gc.tx.delete(keys.metaKey(id));
       gc.tx.delete(key);

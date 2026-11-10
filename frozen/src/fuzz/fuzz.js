@@ -160,6 +160,8 @@ export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery
     deferral: rng.int(4),
     walkBudget: rng.pick([2, 4, 64]),
     candidates: rng.pick([1, 2, 8]),
+    // Small caps force frequent splits and merges.
+    regionCap: rng.pick([3, 5, 8, 16, 100]),
   };
   const clipboard = [];
   let reclaimed = 0;

@@ -41,7 +41,7 @@ describe("Basic collector", () => {
       tx.set(ROOT, "node", ref(node));
     });
     assert.equal(db.objectIds().length, 3);
-    assert.ok(db.collector.isIdle(), "nothing to collect");
+    assert.equal(db.store.keys("c/").length + db.store.keys("d/").length, 0, "nothing to collect");
     assert.deepEqual(checkIntegrity(db.store, { quiescent: true }), []);
   });
 

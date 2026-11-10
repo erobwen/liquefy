@@ -3,7 +3,7 @@
  * Not part of the collector (documents/persistent-garbage-collection.md §16.1).
  */
 
-import { ROOT, STABLE, keys } from "./gc/GcState.js";
+import { ROOT, ROOT_REGION, STABLE, keys } from "./gc/GcState.js";
 import { strongReferences } from "./model.js";
 
 export function reachableFromRoot(store) {
@@ -82,6 +82,40 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     const [, , id] = key.split("/");
     const meta = store.get(keys.metaKey(id));
     if (!meta?.deferred || keys.deferralKey(meta.deferred, id) !== key) problems.push(`F1: stale deferral key ${key}`);
+  }
+
+  // G1: every object is in exactly one region, with a membership key and a region record.
+  const regionMembers = new Map();
+  for (const key of store.keys("m/")) {
+    const [, region, id] = key.split("/");
+    if (store.get(keys.metaKey(id))?.region !== region) problems.push(`G1: stale membership key ${key}`);
+    if (!regionMembers.has(region)) regionMembers.set(region, 0);
+    regionMembers.set(region, regionMembers.get(region) + 1);
+  }
+  for (const id of objectIds) {
+    const region = store.get(keys.metaKey(id))?.region;
+    if (!region) problems.push(`G1: ${id} has no region`);
+    else if (!store.has(keys.regionMemberKey(region, id))) problems.push(`G1: ${id} has no membership key in ${region}`);
+    else if (!store.has(keys.regionKey(region))) problems.push(`G1: ${id} is in missing region ${region}`);
+  }
+
+  // G3: an empty region (other than the root region) has a pending structure task.
+  for (const key of store.keys("r/")) {
+    const region = key.slice(2);
+    if (region !== ROOT_REGION && !regionMembers.has(region) && !store.has(keys.structureKey(region))) {
+      problems.push(`G3: empty region ${region} has no structure task`);
+    }
+  }
+
+  // G2: every cross-region strong edge is covered by an entry flag.
+  for (const source of objectIds) {
+    const sourceRegion = store.get(keys.metaKey(source))?.region;
+    for (const target of strongReferences(store.get(keys.objectKey(source)) ?? {}).keys()) {
+      const targetRegion = store.get(keys.metaKey(target))?.region;
+      if (sourceRegion && targetRegion && sourceRegion !== targetRegion && !store.has(keys.flagKey(targetRegion, sourceRegion))) {
+        problems.push(`G2: edge ${source} → ${target} from ${sourceRegion} into ${targetRegion} has no flag`);
+      }
+    }
   }
 
   // W2: an object with more than one strong referrer has the shared bit.

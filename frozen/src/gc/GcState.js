@@ -6,12 +6,16 @@
  * Keys (documents/persistent-garbage-collection.md §4.2):
  *
  *   o/<obj>                 the object record (application data)
- *   g/<obj>                 { treeParent, cohort, shared, deferred }: the object's GC metadata
+ *   g/<obj>                 { region, treeParent, cohort, shared, deferred }: GC metadata
  *   t/<parent>/<child>      spanning-tree child edges
  *   c/<cohort>              cohort record: worklists, merge links
  *   C/<cohort>/<obj>        cohort membership, under the cohort id the object joined
  *   d/<deadline>/<obj>      deferred cuts with a deadline on the logical clock
  *   h/<deadline>/<obj>      deferred cuts with a wall-clock deadline (holds)
+ *   r/<region>              region record
+ *   m/<region>/<obj>        region membership
+ *   e/<target>/<source>     entry flag: something in region source may reference into target
+ *   s/<region>              pending structure task: re-evaluate the region's weight
  *   meta/nextId             id counter
  *   meta/clock              logical clock: the number of application transactions
  *
@@ -26,6 +30,7 @@
 import { strongReferences } from "../model.js";
 
 export const ROOT = "root";
+export const ROOT_REGION = "r0";
 export const STABLE = "STABLE";
 
 const objectKey = (id) => `o/${id}`;
@@ -36,9 +41,18 @@ const cohortKey = (id) => `c/${id}`;
 const memberKey = (cohort, id) => `C/${cohort}/${id}`;
 const memberPrefix = (cohort) => `C/${cohort}/`;
 /** The deadline key of a deferral `{ kind, at }`: d/ for the logical clock, h/ for wall-clock. */
+const regionKey = (region) => `r/${region}`;
+const regionMemberKey = (region, id) => `m/${region}/${id}`;
+const regionMemberPrefix = (region) => `m/${region}/`;
+const flagKey = (target, source) => `e/${target}/${source}`;
+const flagPrefix = (target) => `e/${target}/`;
+const structureKey = (region) => `s/${region}`;
 const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${String(deferred.at).padStart(16, "0")}/${id}`;
 
-export const keys = { objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey };
+export const keys = {
+  objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
+  regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
+};
 
 export const defaultOptions = {
   /** Application transactions a cut is deferred before marking starts (§9.3). */
@@ -49,6 +63,8 @@ export const defaultOptions = {
   candidates: 8,
   /** Wall-clock time source for holds with a duration in milliseconds. */
   now: () => Date.now(),
+  /** Region weight (members + outgoing edges) above which a region splits (§6.4). */
+  regionCap: 100,
 };
 
 export class GcState {
@@ -108,19 +124,119 @@ export class GcState {
   /**
    * The strong referrers of each of the given objects, as a Map from id to source ids.
    *
-   * This is where edgesOfRegion (§5.5) is used. With a single region, it is every edge in the
-   * store, read from the object records (implementation A): O(database) per call. Regions
-   * replace it with the object's own region plus its flagged source regions.
+   * Region-local (design §5): for a target in region T, the referrers can only be in T itself
+   * or in a region flagged on T (invariant G2). Those regions are read with edgesOfRegion and
+   * filtered. A flagged source that turns out to have no edge into T at all, or that no longer
+   * exists, has its flag deleted: the scan was complete, in this transaction.
    */
   referrersOf(ids) {
-    const referrers = new Map([...ids].map((id) => [id, []]));
-    for (const [key, record] of this.tx.range("o/")) {
-      const source = key.slice(2);
-      for (const target of strongReferences(record).keys()) {
-        if (referrers.has(target)) referrers.get(target).push(source);
+    const referrers = new Map();
+    const targetsByRegion = new Map();
+    for (const id of ids) {
+      const meta = this.meta(id);
+      if (!meta) continue;
+      referrers.set(id, []);
+      if (!targetsByRegion.has(meta.region)) targetsByRegion.set(meta.region, new Set());
+      targetsByRegion.get(meta.region).add(id);
+    }
+
+    const edgeCache = new Map();
+    const edgesOf = (region) => {
+      if (!edgeCache.has(region)) edgeCache.set(region, this.edgesOfRegion(region));
+      return edgeCache.get(region);
+    };
+
+    for (const [target, targetIds] of targetsByRegion) {
+      const targetMembers = new Set(this.regionMembers(target));
+      for (const source of [target, ...this.flagSources(target)]) {
+        if (source !== target && !this.regionExists(source)) {
+          this.tx.delete(flagKey(target, source));
+          continue;
+        }
+        let referencesTarget = false;
+        for (const edge of edgesOf(source)) {
+          if (!targetMembers.has(edge.target)) continue;
+          referencesTarget = true;
+          if (targetIds.has(edge.target)) referrers.get(edge.target).push(edge.source);
+        }
+        if (source !== target && !referencesTarget) this.tx.delete(flagKey(target, source));
       }
     }
     return referrers;
+  }
+
+  /**
+   * All strong edges whose source is in the region (design §5.5, implementation A: read from
+   * the members' records).
+   */
+  edgesOfRegion(region) {
+    const edges = [];
+    for (const source of this.regionMembers(region)) {
+      for (const target of strongReferences(this.record(source)).keys()) edges.push({ source, target });
+    }
+    return edges;
+  }
+
+  // ---- Regions ----
+
+  regionOf(id) {
+    return this.meta(id).region;
+  }
+
+  regionExists(region) {
+    return this.tx.has(regionKey(region));
+  }
+
+  regionMembers(region) {
+    const prefix = regionMemberPrefix(region);
+    return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
+  }
+
+  newRegion() {
+    const region = this.nextId("r");
+    this.tx.put(regionKey(region), { id: region });
+    return region;
+  }
+
+  /** Puts an object in a region, on placement or on a move. Schedules both regions. */
+  setRegion(id, region) {
+    const previous = this.meta(id)?.region;
+    if (previous === region) return;
+    if (previous) {
+      this.tx.delete(regionMemberKey(previous, id));
+      this.scheduleStructure(previous);
+    }
+    this.updateMeta(id, { region });
+    this.tx.put(regionMemberKey(region, id), true);
+    this.scheduleStructure(region);
+  }
+
+  flagSources(target) {
+    const prefix = flagPrefix(target);
+    return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
+  }
+
+  /** Makes sure the flag "source may reference into target" exists (invariant G2). */
+  ensureFlag(target, source) {
+    if (target !== source && !this.tx.has(flagKey(target, source))) this.tx.put(flagKey(target, source), true);
+  }
+
+  /** Covers the edge source → target with a flag, if it crosses regions (invariant G2). */
+  coverEdge(source, target) {
+    const sourceMeta = this.meta(source);
+    const targetMeta = this.meta(target);
+    if (sourceMeta && targetMeta) this.ensureFlag(targetMeta.region, sourceMeta.region);
+  }
+
+  scheduleStructure(region) {
+    this.tx.put(structureKey(region), true);
+  }
+
+  /** The weight of a region: members plus their outgoing strong edges (design §6.1). */
+  regionWeight(region) {
+    let weight = 0;
+    for (const id of this.regionMembers(region)) weight += 1 + strongReferences(this.record(id)).size;
+    return weight;
   }
 
   // ---- Cohorts ----
@@ -311,16 +427,21 @@ export class GcState {
 
   // ---- Transitions ----
 
-  /** A new object attached below a stable parent. */
+  /** A new object attached below a stable parent, in the parent's region (§6.3). */
   attachNew(id, parent) {
     this.updateMeta(id, { treeParent: parent, cohort: null, shared: false, deferred: null });
+    this.setRegion(id, this.regionOf(parent));
     this.tx.put(treeKey(parent, id), true);
   }
 
-  /** A new object that is only referenced from members of a cohort joins that cohort. */
-  joinCohort(id, cohortId) {
+  /**
+   * A new object that is only referenced from members of a cohort joins that cohort, in the
+   * region of the member that references it.
+   */
+  joinCohort(id, cohortId, source) {
     const root = this.findCohort(cohortId);
     this.updateMeta(id, { treeParent: null, cohort: root, shared: false, deferred: null });
+    this.setRegion(id, this.regionOf(source));
     this.tx.put(memberKey(root, id), true);
     this.push(root, "check", id);
   }

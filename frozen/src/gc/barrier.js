@@ -44,7 +44,7 @@ export function applyBarrier(tx, { created, added, removed, holds = new Map(), r
 
     if (created.has(target) && !placed.has(target)) {
       if (sourceState === STABLE) gc.attachNew(target, source);
-      else gc.joinCohort(target, sourceState);
+      else gc.joinCohort(target, sourceState, source);
       placed.add(target);
       placementQueue.push(target);
       return;
@@ -83,6 +83,18 @@ export function applyBarrier(tx, { created, added, removed, holds = new Map(), r
   // New objects nothing references are never written.
   for (const id of created) {
     if (!placed.has(id)) tx.delete(`o/${id}`);
+  }
+
+  // Cover every added cross-region edge with an entry flag (invariant G2), before removals:
+  // quick swap must be able to find a referrer added in this same transaction. Every source
+  // whose edges changed gets its region's weight re-evaluated (invariant G3).
+  for (const { source, target } of added) {
+    if (!gc.meta(source)) continue; // a dropped new object
+    gc.coverEdge(source, target);
+    gc.scheduleStructure(gc.regionOf(source));
+  }
+  for (const { source } of removed) {
+    if (gc.meta(source)) gc.scheduleStructure(gc.regionOf(source));
   }
 
   // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it, for the

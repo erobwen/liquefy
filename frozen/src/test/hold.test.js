@@ -99,8 +99,7 @@ describe("hold", () => {
       tx.delete(ROOT, "second"); // a non-tree edge
       tx.hold(archive, { transactions: 5 });
     });
-    assert.equal(db.store.keys("d/").length, 0);
-    assert.ok(db.collector.isIdle());
+    assert.equal(db.store.keys("d/").length + db.store.keys("c/").length, 0);
   });
 
   it("refuses a malformed lifetime", () => {
@@ -115,8 +114,7 @@ describe("hold", () => {
     const archive = withArchive(db);
     db.transaction((tx) => tx.set(tx.get(ROOT).folder.$ref, "alsoArchive", ref(archive)));
     db.transaction(holdCut(archive, { transactions: 1000 }));
-    assert.equal(db.store.keys("d/").length, 0, "quick swap found the folder; nothing deferred");
-    assert.ok(db.collector.isIdle());
+    assert.equal(db.store.keys("d/").length + db.store.keys("c/").length, 0, "quick swap found the folder; nothing deferred");
   });
 
   it("releasing an object that is not held is harmless", () => {

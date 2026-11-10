@@ -139,7 +139,24 @@ A forgotten hold therefore delays collection until it expires; it never leaks. A
 **W2. The shared bit is a superset.** An object with more than one strong referrer has `shared` set in its metadata. The bit is sticky; it may be set on an object that has only one referrer now.
 *Maintained by:* the barrier sets it whenever an edge is added to an object that already had metadata. *Verified:* oracle. It is only a filter: quick swap and the replacement-parent search skip objects without it, because such an object has no other referrer to swap to.
 
-## 3.6 Safety and completeness
+## 3.6 Level-0 regions
+
+These come with regions (design §6, without suspension or re-homing yet). A **region** groups objects; its **weight** is its number of members plus their outgoing strong edges (counted per distinct target).
+
+**G1. Membership.** Every object belongs to exactly one region: `g/<id>.region = R` if and only if the key `m/<R>/<id>` exists, and then the region record `r/<R>` exists. ROOT is in the root region `r0`, which is never deleted.
+*Maintained by:* placement in the barrier (a new object joins the region of the object that placed it), splits and merges (which move members), reclaim (which deletes membership keys). *Verified:* oracle.
+
+**G2. Entry flag coverage.** For every strong edge `a → b` with `region(a) ≠ region(b)`, the flag `e/<region(b)>/<region(a)>` exists. A flag means "something in that source region *may* reference into this region": flags may be stale, but coverage is never missing.
+*Maintained by:* the barrier ensures a flag for every added cross-region edge, before it processes removals, so that quick swap can find referrers added in the same transaction. A split or merge that moves objects from region R to R′ copies R's flags to R′ (target side), and adds flags for the moved objects' outgoing edges and for edges that the move turns cross-region (source side). Flags are deleted only (a) after a complete scan of their source region in the same transaction found no edge into the target region, or (b) when their source region no longer exists. *Verified:* oracle.
+*Why it matters:* referrer lookup (checks, quick swap, replacement parents) reads only the target's own region and its flagged source regions. G2 makes that lookup complete.
+
+**G3. Pending structure work.** A region whose membership or edges changed since its weight was last evaluated has a structure task key `s/<R>`. In particular, an empty non-root region always has one, and is deleted when the task runs.
+*Maintained by:* the barrier and reclaim schedule the regions they touch; the collector runs structure tasks, which split a region heavier than `CAP`, merge one lighter than `CAP/4` into the region its anchors hang from, and delete an empty one. *Verified:* oracle (empty regions); the fuzzer requires no structure keys when idle.
+
+**G4. Structure tasks only move membership.** Splits, merges and region deletion change `g/<id>.region`, membership keys, flags and region records, and nothing else: no tree parent, no cohort, no deferral, no record. So they cannot make anything look reachable or unreachable.
+*Maintained by:* the code of `split` and `merge`. *Verified:* the oracle's tree and cohort checks run after every structure task.
+
+## 3.7 Safety and completeness
 
 **S1. Reclaim only closed cohorts.** A root cohort is reclaimed only when its expand, mark and check lists are all empty. Then:
 - every member is marked (M1) and checked (K1);
@@ -165,8 +182,8 @@ These come with later steps of the prototype plan (design §16.3). They are list
 
 | Mechanism (design section) | Invariant |
 |---|---|
-| Regions (§6) | **Membership:** every object is in exactly one level-0 region; `g/` region field and `m/` keys agree. **Intactness counters** equal a recount. |
-| Entry flags (§6.6) | **Coverage:** every strong edge between different clusters is covered by a flag at each level where the clusters differ. Flags may be stale; coverage is never missing. A flag is deleted only after a complete scan of its source. |
+| Re-homing and intactness (§6.7, §6.8) | **Intactness counters** equal a recount. A region whose member got a tree parent outside it and outside its parent region has a pending re-home. |
+| Meta-regions and coarsening (§6.6, §6.9) | **Coverage at every level:** every strong edge between different clusters is covered by a flag at each level where the clusters differ. Every flag whose source is a meta-region has its `E/` mirror. |
 | Multi-step scans (§10.1) | **Scan lock:** no structure task moves objects into or out of a cluster with `scanning > 0`. |
 | Suspension (§8) | **Suspension:** a suspended region's implicit members have the same tree edges as when it was suspended; any change materializes it first. |
 | Structure tasks (§6.4–6.7) | **Membership only:** splits, merges, re-homes and coarsening never change a tree parent or a cohort. |

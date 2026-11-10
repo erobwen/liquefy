@@ -57,7 +57,8 @@ describe("Quick swap, deferred cuts and replacement parents", () => {
     });
     db.transaction((tx) => tx.delete(ROOT, "archive")); // cut, the application holds the id
     assert.equal(deferrals(db), 1);
-    assert.equal(db.collector.run(10), 0, "nothing is due yet");
+    db.collector.run(10);
+    assert.equal(deferrals(db) + cohorts(db), 1, "nothing is due yet: still deferred, no cohort");
     db.transaction((tx) => tx.set(tx.get(ROOT).folder.$ref, "moved", ref(subtree))); // paste
     assert.equal(deferrals(db), 0, "the relink cancelled the deferral");
     settle(db);

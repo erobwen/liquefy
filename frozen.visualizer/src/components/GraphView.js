@@ -1,0 +1,296 @@
+/**
+ * The object graph, drawn with Cytoscape.js.
+ *
+ * A DOMNodeComponent (cascade manual 11.24): it creates its own element and Cytoscape instance
+ * once, and on every change of its properties brings the graph up to date by diffing: elements
+ * that are gone are removed, new ones added next to their tree parent, and the rest get new
+ * data and classes. The layout (fcose, which understands regions as compound nodes) runs only
+ * when the graph's structure changed, starting from the current positions, so that stepping
+ * through a timeline moves as little as possible.
+ */
+
+import cytoscape from "cytoscape";
+import fcose from "cytoscape-fcose";
+import { DOMNodeComponent } from "@liquefy/cascade.dom";
+import { cohortColor, colors } from "./colors.js";
+
+cytoscape.use(fcose);
+
+const MAX_LABEL = 16;
+
+const shorten = (text) => (text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL - 1)}…` : text);
+
+const style = [
+  {
+    selector: "node.object",
+    style: {
+      width: 22,
+      height: 22,
+      label: "data(label)",
+      "font-size": 8,
+      "text-wrap": "wrap",
+      "text-valign": "bottom",
+      "text-margin-y": 3,
+      color: colors.text,
+      "background-color": colors.stable,
+      "border-width": 1.5,
+      "border-color": colors.stableBorder,
+    },
+  },
+  { selector: "node.root", style: { "background-color": colors.root, "border-color": colors.root, shape: "diamond", width: 28, height: 28 } },
+  { selector: "node.deferred", style: { "background-color": "#ffffff", "border-color": colors.deferred, "border-style": "dashed", "border-width": 2.5 } },
+  { selector: "node.held", style: { "background-color": "#ffffff", "border-color": colors.held, "border-style": "dashed", "border-width": 2.5 } },
+  { selector: "node.unstable", style: { "background-color": "#ffffff", "border-color": "data(color)", "border-width": 4 } },
+  { selector: "node.marked", style: { "background-color": "data(color)", "border-color": "data(color)", "border-width": 2 } },
+  { selector: "node.reclaimed", style: { opacity: 0.35, "background-color": "#ffffff", "border-color": colors.reclaimed, "border-style": "dotted", "border-width": 2 } },
+  { selector: "node.shared", style: { shape: "round-rectangle" } },
+  { selector: "node.read", style: { "underlay-color": colors.read, "underlay-opacity": 0.55, "underlay-padding": 5, "underlay-shape": "ellipse" } },
+  { selector: "node.written", style: { "underlay-color": colors.written, "underlay-opacity": 0.6, "underlay-padding": 5, "underlay-shape": "ellipse" } },
+  { selector: "node.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.9, "underlay-padding": 8, "underlay-shape": "ellipse" } },
+  { selector: "node.selected", style: { "border-color": colors.selected, "border-width": 4, "border-style": "solid", "font-weight": "bold" } },
+  {
+    selector: "node.region",
+    style: {
+      label: "data(label)",
+      "font-size": 10,
+      "text-valign": "top",
+      "text-halign": "center",
+      "text-margin-y": -2,
+      color: colors.muted,
+      "background-color": colors.region,
+      "background-opacity": 1,
+      "border-color": colors.regionBorder,
+      "border-width": 1,
+      shape: "round-rectangle",
+      padding: 12,
+    },
+  },
+  { selector: "node.region.pending", style: { "border-color": colors.structure, "border-style": "dashed", "border-width": 2 } },
+  { selector: "node.region.ghost", style: { "border-style": "dotted", "background-opacity": 0.3 } },
+  { selector: "node.region.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.6, "underlay-padding": 6 } },
+  {
+    selector: "edge",
+    style: {
+      width: 1,
+      "line-color": colors.edge,
+      "target-arrow-color": colors.edge,
+      "target-arrow-shape": "triangle",
+      "arrow-scale": 0.7,
+      "curve-style": "bezier",
+    },
+  },
+  { selector: "edge.tree", style: { width: 2.5, "line-color": colors.tree, "target-arrow-color": colors.tree } },
+  { selector: "edge.weak", style: { "line-style": "dotted", "line-color": colors.weak, "target-arrow-color": colors.weak } },
+  { selector: "edge.flag", style: { width: 1.5, "line-style": "dashed", "line-color": colors.flag, "target-arrow-color": colors.flag, opacity: 0.8 } },
+  { selector: "edge.dimmed", style: { opacity: 0.25 } },
+  { selector: "edge.selected", style: { "line-color": colors.selected, "target-arrow-color": colors.selected, opacity: 1, label: "data(label)", "font-size": 8, "text-background-color": "#ffffff", "text-background-opacity": 0.8 } },
+];
+
+/** The Cytoscape elements for a view, as a Map from id to { group, data, classes }. */
+function elementsOf(view, { selected, showFlags, showWeak }) {
+  const elements = new Map();
+  const { highlight } = view;
+  for (const region of view.regions) {
+    const classes = ["region"];
+    if (region.pending) classes.push("pending");
+    if (region.ghost) classes.push("ghost");
+    if (highlight.region === region.id) classes.push("subject");
+    elements.set(`R:${region.id}`, {
+      group: "nodes",
+      data: { id: `R:${region.id}`, label: `${region.id} · ${region.members}` },
+      classes: classes.join(" "),
+    });
+  }
+  for (const object of view.objects) {
+    const classes = ["object", object.display];
+    if (object.shared) classes.push("shared");
+    if (highlight.subject.has(object.id)) classes.push("subject");
+    else if (highlight.written.has(object.id)) classes.push("written");
+    else if (highlight.read.has(object.id)) classes.push("read");
+    if (selected === object.id) classes.push("selected");
+    const label = object.caption ? `${object.id}\n${shorten(object.caption)}` : object.id;
+    elements.set(object.id, {
+      group: "nodes",
+      data: {
+        id: object.id,
+        parent: object.region ? `R:${object.region}` : undefined,
+        label,
+        color: object.cohort ? cohortColor(object.cohort) : colors.stable,
+        treeParent: object.treeParent,
+      },
+      classes: classes.join(" "),
+    });
+  }
+  for (const edge of view.edges) {
+    if (edge.kind === "weak" && !showWeak) continue;
+    const classes = [edge.kind];
+    if (selected !== null) classes.push(edge.source === selected || edge.target === selected ? "selected" : "dimmed");
+    elements.set(edge.id, { group: "edges", data: { id: edge.id, source: edge.source, target: edge.target, label: edge.label }, classes: classes.join(" ") });
+  }
+  if (showFlags) {
+    for (const flag of view.flags) {
+      elements.set(flag.id, { group: "edges", data: { id: flag.id, source: `R:${flag.source}`, target: `R:${flag.target}` }, classes: "flag" });
+    }
+  }
+  return elements;
+}
+
+export class GraphView extends DOMNodeComponent {
+  setProperties({ view, recordingId, selected = null, onSelect = null, showFlags = true, showWeak = true, fitRequest = 0 }) {
+    this.view = view;
+    this.recordingId = recordingId;
+    this.selected = selected;
+    this.onSelect = onSelect;
+    this.showFlags = showFlags;
+    this.showWeak = showWeak;
+    this.fitRequest = fitRequest;
+  }
+
+  ensureNode() {
+    const u = this.unobservable;
+    if (!u.node) {
+      u.node = document.createElement("div");
+      Object.assign(u.node.style, { width: "100%", height: "100%", position: "absolute", inset: "0" });
+      u.cy = cytoscape({ container: u.node, style, layout: { name: "preset" }, minZoom: 0.1, maxZoom: 1.6, wheelSensitivity: 0.3 });
+      u.cy.on("tap", "node.object", (event) => u.onSelect?.(event.target.id()));
+      u.cy.on("tap", (event) => {
+        if (event.target === u.cy) u.onSelect?.(null);
+      });
+      u.resizeObserver = new ResizeObserver(() => u.cy.resize());
+      u.resizeObserver.observe(u.node);
+    }
+    u.onSelect = this.onSelect;
+    if (this.view) this.update(u);
+    if (u.fitRequest !== this.fitRequest) {
+      u.fitRequest = this.fitRequest;
+      u.cy.animate({ fit: { padding: 30 } }, { duration: 250 });
+    }
+    return u.node;
+  }
+
+  update(u) {
+    const { cy } = u;
+    const fresh = u.recordingId !== this.recordingId;
+    u.recordingId = this.recordingId;
+    const wanted = elementsOf(this.view, { selected: this.selected, showFlags: this.showFlags, showWeak: this.showWeak });
+    let structureChanged = fresh;
+
+    cy.batch(() => {
+      if (fresh) cy.elements().remove();
+      // Remove what is gone (edges first, so that removing a region does not take its members).
+      cy.edges().forEach((edge) => {
+        if (!wanted.has(edge.id())) {
+          edge.remove();
+          structureChanged = true;
+        }
+      });
+      cy.nodes().forEach((node) => {
+        if (!wanted.has(node.id())) {
+          node.children().move({ parent: null });
+          node.remove();
+          structureChanged = true;
+        }
+      });
+
+      // Regions first, then objects, then edges: parents and endpoints must exist.
+      const order = [...wanted.values()].sort((a, b) => rank(a) - rank(b));
+      for (const element of order) {
+        const existing = cy.getElementById(element.data.id);
+        if (existing.nonempty()) {
+          if (element.group === "nodes" && (existing.data("parent") ?? undefined) !== element.data.parent) {
+            existing.move({ parent: element.data.parent ?? null });
+            structureChanged = true;
+          }
+          const { parent, ...data } = element.data;
+          existing.data(data);
+          existing.classes(element.classes);
+          continue;
+        }
+        const added = cy.add({ group: element.group, data: element.data, classes: element.classes });
+        if (element.group === "nodes" && !element.data.id.startsWith("R:")) {
+          added.position(startingPosition(cy, element.data));
+        }
+        structureChanged = true;
+      }
+    });
+
+    if (structureChanged) this.layout(u, fresh);
+  }
+
+  /**
+   * Lays out the graph at the next animation frame: the first time, the element is not in the
+   * page yet, and while playing fast, several updates in one frame need only one layout.
+   */
+  layout(u, fresh) {
+    u.freshLayout = u.freshLayout || fresh;
+    if (u.layoutFrame) return;
+    u.layoutFrame = requestAnimationFrame(() => {
+      u.layoutFrame = null;
+      const fresh = u.freshLayout;
+      u.freshLayout = false;
+      if (u.cy.destroyed()) return;
+      u.cy.resize();
+      this.runLayout(u, fresh);
+    });
+  }
+
+  runLayout(u, fresh) {
+    u.layout?.stop();
+    u.layout = u.cy.layout({
+      name: "fcose",
+      quality: fresh ? "proof" : "default",
+      randomize: fresh,
+      animate: !fresh,
+      animationDuration: 250,
+      fit: fresh,
+      padding: 30,
+      nodeDimensionsIncludeLabels: true,
+      idealEdgeLength: 45,
+      nodeRepulsion: 6000,
+      nestingFactor: 0.15,
+      gravity: 0.3,
+      tile: true,
+    });
+    // Whatever moved out of view is brought back: the graph is fitted when it no longer fits.
+    u.layout.one("layoutstop", () => {
+      if (u.cy.destroyed() || u.cy.elements().empty()) return;
+      const box = u.cy.elements().boundingBox();
+      const extent = u.cy.extent();
+      if (box.x1 < extent.x1 || box.x2 > extent.x2 || box.y1 < extent.y1 || box.y2 > extent.y2) {
+        u.cy.animate({ fit: { padding: 30 } }, { duration: 200 });
+      }
+    });
+    u.layout.run();
+  }
+
+  onDispose() {
+    const u = this.unobservable;
+    u.layout?.stop();
+    if (u.layoutFrame) cancelAnimationFrame(u.layoutFrame);
+    u.resizeObserver?.disconnect();
+    u.cy?.destroy();
+    super.onDispose();
+  }
+}
+
+function rank(element) {
+  if (element.group === "edges") return 2;
+  return element.data.id.startsWith("R:") ? 0 : 1;
+}
+
+/** A new node starts next to its tree parent, or in its region, so the layout moves it little. */
+function startingPosition(cy, data) {
+  const jitter = () => (Math.random() - 0.5) * 40;
+  const parent = data.treeParent ? cy.getElementById(data.treeParent) : null;
+  if (parent && parent.nonempty() && parent.id() !== data.id) {
+    const { x, y } = parent.position();
+    return { x: x + jitter(), y: y + 40 + jitter() };
+  }
+  const region = data.parent ? cy.getElementById(data.parent) : null;
+  if (region && region.nonempty() && region.children().length > 1) {
+    const box = region.boundingBox();
+    return { x: (box.x1 + box.x2) / 2 + jitter(), y: (box.y1 + box.y2) / 2 + jitter() };
+  }
+  const extent = cy.extent();
+  return { x: (extent.x1 + extent.x2) / 2 + jitter(), y: (extent.y1 + extent.y2) / 2 + jitter() };
+}

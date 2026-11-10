@@ -35,6 +35,8 @@ export class Collector {
     this.onReclaim = onReclaim;
     this.options = options;
     this.lastCohort = null;
+    /** What the last step did, for tools such as the visualizer: { kind, ... }, or null. */
+    this.lastStep = null;
     this.stats = {
       steps: 0,
       expand: 0,
@@ -85,13 +87,15 @@ export class Collector {
 
   /** Runs one unit of work. Returns false if there was nothing to do. */
   step({ flush = false } = {}) {
+    this.lastStep = null;
     return this.store.transaction((tx) => {
       const gc = this.gc(tx);
 
       const deferred = gc.dueDeferral(flush);
       if (deferred !== null) {
         this.stats.steps++;
-        this.resolveDeferral(gc, deferred);
+        const swapped = this.resolveDeferral(gc, deferred);
+        this.lastStep = { kind: "deferral", id: deferred, outcome: swapped ? "swapped" : "cohort" };
         return true;
       }
 
@@ -100,6 +104,7 @@ export class Collector {
         this.stats.steps++;
         const outcome = runStructureTask(gc, structure.slice(2));
         this.stats.structure[outcome] = (this.stats.structure[outcome] ?? 0) + 1;
+        this.lastStep = { kind: "structure", region: structure.slice(2), outcome };
         return true;
       }
 
@@ -118,9 +123,10 @@ export class Collector {
     this.stats.deferralsResolved++;
     if (gc.quickSwap(id)) {
       this.stats.deferralsSwapped++;
-      return;
+      return true;
     }
     gc.makeUnstable(id, gc.newCohort());
+    return false;
   }
 
   ladder(gc, cohortId) {
@@ -129,20 +135,24 @@ export class Collector {
       const id = cohort.expand.shift();
       gc.saveCohort(cohort);
       this.stats.expand++;
+      this.lastStep = { kind: "expand", cohort: cohortId, ids: [id] };
       this.expand(gc, id, cohortId);
     } else if (cohort.mark.length > 0) {
       const id = cohort.mark.shift();
       gc.saveCohort(cohort);
       this.stats.mark++;
+      this.lastStep = { kind: "mark", cohort: cohortId, ids: [id] };
       this.mark(gc, id, cohortId);
     } else if (cohort.check.length > 0) {
       const batch = cohort.check;
       cohort.check = [];
       gc.saveCohort(cohort);
       this.stats.check++;
+      this.lastStep = { kind: "check", cohort: cohortId, ids: batch };
       this.check(gc, batch, cohortId);
     } else {
       this.stats.reclaim++;
+      this.lastStep = { kind: "reclaim", cohort: cohortId, ids: [] };
       this.reclaim(gc, cohortId);
     }
   }

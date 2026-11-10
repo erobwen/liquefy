@@ -23,7 +23,9 @@
     "flow.ui/material",
     "flow.ui/modern",
     "flow.application/demo",
-    "flow.application/hello-world"
+    "flow.application/hello-world",
+    "frozen",
+    "frozen.visualizer"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
@@ -32,7 +34,8 @@
     "build:demo": "npm run build -w @liquefy/cascade-demo",
     "flow:demo": "npm start -w @liquefy/flow-demo",
     "build:site": "node scripts/build-site.mjs",
-    "release:check": "node scripts/publish-new-versions.mjs --dry-run"
+    "release:check": "node scripts/publish-new-versions.mjs --dry-run",
+    "frozen:visualizer": "npm start -w @liquefy/frozen.visualizer"
   },
   "repository": {
     "type": "git",

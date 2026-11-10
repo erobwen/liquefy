@@ -33,14 +33,34 @@ export class MemoryStore {
     this.sortedKeys = [];
     this.values = new Map();
     this.inTransaction = false;
+    this.observers = [];
+  }
+
+  /**
+   * Adds an observer, for tools such as the visualizer: `read(key)` is called for every
+   * committed key read (through get, has, range or keys), and `commit(writes)` after every
+   * commit with its writes as [key, value] pairs, value undefined for a delete. Observers must
+   * not change the values they are given. Returns a function that removes the observer.
+   */
+  observe(observer) {
+    this.observers.push(observer);
+    return () => {
+      this.observers = this.observers.filter((other) => other !== observer);
+    };
+  }
+
+  notifyRead(key) {
+    for (const observer of this.observers) observer.read?.(key);
   }
 
   /** Reads committed state. */
   get(key) {
+    if (this.observers.length > 0) this.notifyRead(key);
     return clone(this.values.get(key));
   }
 
   has(key) {
+    if (this.observers.length > 0) this.notifyRead(key);
     return this.values.has(key);
   }
 
@@ -50,6 +70,7 @@ export class MemoryStore {
     for (let i = lowerBound(this.sortedKeys, prefix); i < this.sortedKeys.length; i++) {
       const key = this.sortedKeys[i];
       if (!key.startsWith(prefix)) break;
+      if (this.observers.length > 0) this.notifyRead(key);
       result.push([key, clone(this.values.get(key))]);
     }
     return result;
@@ -61,6 +82,7 @@ export class MemoryStore {
     for (let i = lowerBound(this.sortedKeys, prefix); i < this.sortedKeys.length; i++) {
       const key = this.sortedKeys[i];
       if (!key.startsWith(prefix)) break;
+      if (this.observers.length > 0) this.notifyRead(key);
       result.push(key);
     }
     return result;
@@ -151,6 +173,10 @@ export class Transaction {
     for (const [key, value] of this.writes) {
       if (value === DELETED) this.store.deleteCommitted(key);
       else this.store.putCommitted(key, value);
+    }
+    if (this.store.observers.length > 0) {
+      const writes = [...this.writes].map(([key, value]) => [key, value === DELETED ? undefined : value]);
+      for (const observer of this.store.observers) observer.commit?.(writes);
     }
   }
 }

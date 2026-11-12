@@ -41,6 +41,7 @@ For a store that can only write *one record* atomically, the principle can still
 - **Implicit member:** an implicitly unstable object. **Anchor** of a suspended cluster: an explicitly unstable object inside it with tree children.
 - **Tree edge** `p → c`: `g/c.treeParent = p`.
 - **Marked:** an explicitly unstable object with no tree children. **Unmarked:** an explicitly unstable object that still has tree children. A suspended cluster whose exits have been cut counts as marked as a whole (§3.8).
+- **Cohort:** a set of unstable objects that are suspected garbage and whose fate is decided together. One cut that could not be resolved on the spot starts one cohort, with the cut object as its first member. Marking adds the tree descendants of its members; a member that turns out to have a stable referrer is rescued and leaves; two cohorts merge when a member of one is referenced from a member of the other, since then neither can be judged alone. When nothing is left to expand, mark or check, no remaining member is referenced from outside the cohort (S1), and the remaining members are deleted in one step.
 - **Root cohort:** a cohort record with `mergedInto = null`. Only root cohorts have worklists.
 - **Checked:** an unstable object whose check ran while it was a member of its current cohort, and found every referrer to be a member of the same cohort at that moment.
 
@@ -226,6 +227,40 @@ These come with suspension (design §8): marking, checking, resuming and reclaim
 The check of a suspended cluster at level k starts from the sources flagged on it at level k (G2), and skips wholesale a source that is inside a cluster suspended in the same cohort. It does not scan a flagged meta-region whole, which can be far bigger than the cluster (the top-level cluster holding the parent of a deleted branch): it narrows each pair (target, source) one level down, to the target members' flags that name clusters inside the source, and scans level-0 source regions only. By G2, a pair with nothing below it has no edge, and its flag is deleted.
 
 *Maintained by:* `GcState.rescue`, the barrier, `Collector.checkRegion`. *Verified:* oracle (U2 and M3 after every step); safety at every reclaim.
+
+## 3.9 Corollaries
+
+These follow from the invariants above. They are not checked one by one; the oracle checks what they rest on. They hold at every commit boundary.
+
+**1. A tree path to ROOT proves reachability.** If following tree parents from an object ends at ROOT, the object is reachable.
+*From:* T2 (every tree edge is a strong edge).
+
+**2. Stable does not mean reachable.** A stable object is either on a tree path to ROOT, or **stale-stable**: its tree path ends at a deferred object or at an unstable object that is not yet marked. A stale-stable object may be reachable or not; nothing has looked yet. There can be a strong reference from ROOT to an object whose tree path does not reach ROOT: the reference is simply not the tree edge.
+*From:* T3, T4.
+
+**3. Garbage is always accounted for.** Every unreachable object is unstable, or stale-stable below a deferred object or an unmarked unstable object. So no garbage exists without pending work that will reach it: a due deferral (F2), a mark item (M1), or the cohort it is in. This includes cycles, since a cycle cannot hold itself up in the tree.
+*From:* corollary 1 (an unreachable object's tree path cannot end at ROOT) and T4 (acyclic, and it must end somewhere).
+
+**4. Unstable does not mean garbage.** A reachable object may be unstable for a while. But a cohort with a reachable member always has work pending (an expand, mark or check item), so it is not reclaimed.
+*From:* S1, read backwards.
+
+**5. A reference to a stale-stable object is never lost.** If a stable object gets a reference to a stale-stable object `t`, the barrier does nothing. When marking reaches `t`, either the replacement-parent search re-parents it under a verified referrer (W1), or `t` becomes unstable with its check pending, and the check finds the referrer.
+*From:* M1, M2, K1, W2 (the new reference sets the shared bit, so the search runs).
+
+**6. Objects created under a stale-stable object are safe.** A new object placed below a stale-stable parent is on a tree path that ends where its parent's does. If the parent turns out to be garbage, marking reaches the new object through that tree edge; if it is rescued or re-parented, the new object is certified with it.
+*From:* T4, M1.
+
+**7. A cut is cheap for the application.** A transaction that removes a tree edge writes the metadata of the cut object only, plus the counters and tree-edge counts of its clusters: O(levels), whatever the size of the subtree below. Deciding what is still reachable is left to the collector.
+*From:* F1, A1, A2 (and with `deferCuts: false`, `makeUnstable`, which also touches only that object).
+
+**8. A suspended cluster is cut off from the tree.** No tree edge enters a suspended cluster from outside, and once it is marked none leaves it. So the tree inside it can be kept or deleted as a unit without touching anything outside.
+*From:* U2 (implicit members hang from inside, explicit ones have no tree parent), U3.
+
+**9. When idle, the tree is a spanning tree.** With no active cohort and no deferral, every stored object is reachable and reaches ROOT through tree parents, and nothing unreachable is stored.
+*From:* S2, with T3 and T4.
+
+**10. The order of collector steps does not matter for correctness.** Which cohort runs next, how many steps run between transactions, and when structure and re-home tasks run change only when garbage is reclaimed and how much work it takes. Nothing reachable is ever reclaimed under any order, and reclaiming a cohort leaves no dangling strong reference.
+*From:* the transaction principle (§1), S1, G4, R2.
 
 ---
 

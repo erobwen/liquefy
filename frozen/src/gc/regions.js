@@ -358,15 +358,23 @@ function centroidGroup(members, parentOf, weightOf) {
   const total = roots.reduce((sum, id) => sum + subtree.get(id), 0);
 
   // Walk down from a virtual root to the centroid: the node whose child subtrees are all ≤ half.
+  // On the way, a subtree of at most two thirds of the weight is taken whole: a balanced split
+  // with a single root.
   let kids = roots;
+  let whole = null;
   for (;;) {
     const heavy = kids.find((id) => subtree.get(id) > total / 2);
     if (heavy === undefined) break;
+    if (subtree.get(heavy) <= (2 * total) / 3) {
+      whole = heavy;
+      break;
+    }
     kids = children.get(heavy);
   }
 
-  // A group of the centroid's child subtrees, between a third and two thirds of the weight.
-  const sorted = [...kids].sort((a, b) => subtree.get(b) - subtree.get(a));
+  // Otherwise a group of the centroid's child subtrees, between a third and two thirds of the
+  // weight: the largest one alone if it is big enough, else several siblings.
+  const sorted = whole !== null ? [whole] : [...kids].sort((a, b) => subtree.get(b) - subtree.get(a));
   const group = [];
   let groupWeight = 0;
   for (const id of sorted) {

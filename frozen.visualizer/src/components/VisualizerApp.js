@@ -263,7 +263,7 @@ export class VisualizerApp extends Component {
 
   /** The sidebar: tabs, so that what grows and shrinks (cohorts) doesn't move the rest. */
   panels(recording, view) {
-    const pending = view.deferrals.length + view.structureTasks.length;
+    const pending = view.deferrals.length + view.structureTasks.length + view.rehomeTasks.length;
     const tabs = [
       { key: "step", title: "Step" },
       { key: "cohorts", title: `Cohorts (${view.cohorts.length})${pending ? ` · ${pending} pending` : ""}` },
@@ -318,7 +318,7 @@ export class VisualizerApp extends Component {
       section("Deferred cuts", ...(view.deferrals.length > 0
         ? view.deferrals.map((d) => div(chip(d.id, { color: d.kind === "ms" ? colors.held : colors.deferred }), muted(`until ${d.deadline}`)))
         : [muted("None.")])),
-      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Clusters to re-check: ${view.structureTasks.join(", ")}` : "None.")),
+      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Clusters to re-check: ${view.structureTasks.join(", ")}` : "None."), view.rehomeTasks.length > 0 ? div(muted(`To re-home (when nothing else is pending): ${view.rehomeTasks.join(", ")}`)) : null),
     ];
   }
 

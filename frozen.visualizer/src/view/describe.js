@@ -145,6 +145,9 @@ const STRUCTURE_OUTCOMES = {
   merged: "light, so it merged into the cluster it hangs from",
   "level added": "the top level has more clusters than the cluster cap, so a meta-region one level up now holds them all",
   "level removed": "the top level is a single meta-region, so it was dissolved and its members are the top level",
+  "re-homed": "re-homed: the part of it that hangs from another cluster moved there, so that each cluster stays one branch of the spanning tree",
+  "at home": "checked where it hangs from: all of it hangs from one place (or what does not cannot move now)",
+  "re-home skipped": "re-home skipped: it is inside a suspended or expanding cluster",
   suspended: "skipped: it is inside a suspended cluster",
   expanding: "skipped: it is inside a resumed cluster whose expansion is pending",
   deleted: "empty, so it was deleted",
@@ -354,6 +357,7 @@ export function describe(state, previous = new Map(), frame = null) {
     cohorts: activeCohorts,
     deferrals,
     structureTasks: entries(state, "s/").map(([id]) => id),
+    rehomeTasks: entries(state, "x/").map(([id]) => id),
     clock: state.get("meta/clock") ?? 0,
     highlight: {
       subject,

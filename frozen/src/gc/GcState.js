@@ -22,6 +22,7 @@
  *                           level where the two differ (every level up to where they meet)
  *   P/<to>/<from>           mirror of T/<from>/<to>: where cluster to hangs from
  *   s/<cluster>             pending structure task: re-evaluate the cluster
+ *   x/<cluster>             pending re-home task: does all of it hang from one place? (§6.7)
  *   meta/nextId             id counter
  *   meta/clock              logical clock: the number of application transactions
  *
@@ -69,6 +70,7 @@ const structureKey = (region) => `s/${region}`;
 const suspendedKey = (cohort, region) => `S/${cohort}/${region}`;
 const suspendedPrefix = (cohort) => `S/${cohort}/`;
 const topKey = (cluster) => `R/${cluster}`;
+const rehomeKey = (cluster) => `x/${cluster}`;
 const mirrorKey = (source, target) => `E/${source}/${target}`;
 const mirrorPrefix = (source) => `E/${source}/`;
 const treeOutKey = (from, to) => `T/${from}/${to}`;
@@ -80,7 +82,7 @@ const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${S
 export const keys = {
   objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
-  suspendedKey, suspendedPrefix, topKey, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
+  suspendedKey, suspendedPrefix, topKey, rehomeKey, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
   treeInKey, treeInPrefix,
 };
 
@@ -120,6 +122,11 @@ export const defaultOptions = {
    * is added (§6.9).
    */
   clusterCap: 32,
+  /**
+   * Whether parts of a cluster that have come to hang from another cluster are moved there, by
+   * low-priority structure tasks (§6.7). Off, clusters stop being branches as data is moved.
+   */
+  rehome: true,
 };
 
 /** Adds to a count in a { key: n } map, deleting it at zero. */
@@ -180,6 +187,10 @@ export class GcState {
     if (regionChanged || (before.treeParent ?? null) !== (after.treeParent ?? null)) {
       if (before.region && before.treeParent) this.countTreeEdge(this.regionOf(before.treeParent), before.region, -1);
       if (after.region && after.treeParent) this.countTreeEdge(this.regionOf(after.treeParent), after.region, 1);
+    }
+    // A new tree parent in another region: the region may no longer be one branch (§6.7).
+    if (after.treeParent && before.region && after.region && (before.treeParent ?? null) !== after.treeParent && this.regionOf(after.treeParent) !== after.region) {
+      this.scheduleRehome(after.region);
     }
     if (regionChanged && before.region) {
       // The object's tree children now hang from another region.
@@ -474,6 +485,11 @@ export class GcState {
 
   scheduleStructure(region) {
     this.tx.put(structureKey(region), true);
+  }
+
+  /** Schedules a check of whether the cluster still hangs from one place (regions.js). */
+  scheduleRehome(cluster) {
+    if (this.options.rehome) this.tx.put(rehomeKey(cluster), true);
   }
 
   /** Schedules a cluster and every cluster inside it (not their objects). */

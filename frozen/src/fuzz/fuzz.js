@@ -160,6 +160,8 @@ export function seedOptions(rng, now) {
   };
   // A quarter of the seeds run without deferred cuts and holds.
   options.deferCuts = rng.next() >= 0.25;
+  // And a quarter without re-homing.
+  options.rehome = rng.next() >= 0.25;
   return options;
 }
 

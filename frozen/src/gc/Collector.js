@@ -20,7 +20,7 @@
 
 import { GcState, STABLE, keys, isRegionItem, regionOfItem } from "./GcState.js";
 import { strongReferences } from "../model.js";
-import { runStructureTask } from "./regions.js";
+import { runStructureTask, runRehomeTask } from "./regions.js";
 
 export class Collector {
   /**
@@ -64,7 +64,8 @@ export class Collector {
       this.store.range("c/").every(([, cohort]) => cohort.mergedInto) &&
       this.store.keys("d/").length === 0 &&
       this.store.keys("h/").length === 0 &&
-      this.store.keys("s/").length === 0
+      this.store.keys("s/").length === 0 &&
+      this.store.keys("x/").length === 0
     );
   }
 
@@ -125,10 +126,11 @@ export class Collector {
         return true;
       }
 
-      const structure = gc.tx.keys("s/")[0];
+      // Re-home tasks wait until no other structure task is pending: they are the lazy ones.
+      const structure = gc.tx.keys("s/")[0] ?? gc.tx.keys("x/")[0];
       if (structure !== undefined && (cohorts.length === 0 || previous !== "structure")) {
         this.stats.steps++;
-        const outcome = runStructureTask(gc, structure.slice(2));
+        const outcome = (structure.startsWith("s/") ? runStructureTask : runRehomeTask)(gc, structure.slice(2));
         this.stats.structure[outcome] = (this.stats.structure[outcome] ?? 0) + 1;
         this.lastStep = { kind: "structure", region: structure.slice(2), outcome };
         return true;

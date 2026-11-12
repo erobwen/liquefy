@@ -1,5 +1,5 @@
 /**
- * The write barrier (documents/persistent-garbage-collection.md §9), single-region version. It
+ * The write barrier (documents/persistent-garbage-collection.md §9). It
  * runs at commit, inside the same store transaction as the mutations, on the net edge diff of
  * the transaction:
  *
@@ -86,15 +86,15 @@ export function applyBarrier(tx, { created, added, removed, holds = new Map(), r
   }
 
   // Cover every added cross-region edge with an entry flag (invariant G2), before removals:
-  // quick swap must be able to find a referrer added in this same transaction. Every source
-  // whose edges changed gets its region's weight re-evaluated (invariant G3).
+  // quick swap must be able to find a referrer added in this same transaction. Every edge
+  // added or removed changes the weight of its source's region (invariant A3).
   for (const { source, target } of added) {
     if (!gc.meta(source)) continue; // a dropped new object
     gc.coverEdge(source, target);
-    gc.scheduleStructure(gc.regionOf(source));
+    gc.addWeight(gc.regionOf(source), 1);
   }
   for (const { source } of removed) {
-    if (gc.meta(source)) gc.scheduleStructure(gc.regionOf(source));
+    if (gc.meta(source)) gc.addWeight(gc.regionOf(source), -1);
   }
 
   // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it, for the

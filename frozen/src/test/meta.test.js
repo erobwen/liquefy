@@ -92,7 +92,7 @@ describe("Meta-regions", () => {
     // The integrity check in settle verifies the hierarchy, counters, tree counts and flags.
   });
 
-  it("suspends a deleted document as whole meta-regions, in fewer steps than region by region", () => {
+  it("suspends a deleted document as whole meta-regions, detaching fewer objects than region by region", () => {
     const run = (clusterCap) => {
       const db = setup({ clusterCap });
       const ids = library(db);
@@ -100,13 +100,13 @@ describe("Meta-regions", () => {
       deleteFirst(db, ids);
       settle(db);
       for (const id of [ids.documents[0], ...ids.paragraphs.slice(0, 48)]) assert.ok(!db.get(id));
-      return { steps: cohortSteps(db.collector.stats) - cohortSteps(before), meta: db.collector.stats.suspendedMeta - before.suspendedMeta };
+      return { steps: db.collector.stats.detached - before.detached, meta: db.collector.stats.suspendedMeta - before.suspendedMeta };
     };
     const flat = run(1000);
     const nested = run(3);
     assert.equal(flat.meta, 0);
     assert.ok(nested.meta > 0, "a meta-region was suspended");
-    assert.ok(nested.steps * 2 <= flat.steps, `${nested.steps} steps with meta-regions, ${flat.steps} without`);
+    assert.ok(nested.steps * 2 <= flat.steps, `${nested.steps} objects detached with meta-regions, ${flat.steps} without`);
   });
 
   it("resumes a suspended meta-region when its sole anchor is linked again", () => {

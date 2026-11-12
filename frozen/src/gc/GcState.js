@@ -8,7 +8,8 @@
  *   o/<obj>                 the object record (application data)
  *   g/<obj>                 { region, treeParent, cohort, shared, deferred }: GC metadata
  *   t/<parent>/<child>      spanning-tree child edges
- *   c/<cohort>              cohort record: worklists, merge links
+ *   c/<cohort>              cohort record: state, merge links, the sizes of its worklists
+ *   w/<cohort>/<list>/<item> a worklist item of a root cohort; list is expand, mark or check
  *   C/<cohort>/<obj>        cohort membership, under the cohort id the object joined
  *   d/<deadline>/<obj>      deferred cuts with a deadline on the logical clock
  *   h/<deadline>/<obj>      deferred cuts with a wall-clock deadline (holds)
@@ -29,10 +30,11 @@
  * Clusters (§6.9): level-0 clusters are regions of objects; a level-k cluster (a meta-region)
  * holds level k-1 clusters. Every level-0 region has a chain of containers of the same length,
  * ending at a top-level cluster. A cluster record is
- *   { id, level, container, objects, deferred, explicit: { cohortId: n }, suspended,
+ *   { id, level, container, objects, deferred, explicit: { cohortId: n }, weight, suspended,
  *     materializedIn, expanding }
  * where objects, deferred and explicit count the objects anywhere inside it (aggregated
  * counters, §6.8): all objects, deferred ones, and explicitly unstable ones per cohort id.
+ * A level-0 region also keeps its weight: its objects plus their outgoing strong edges (§6.1).
  *
  * State of an object (§7.1):
  *   - STABLE: no cohort. It has a tree parent, is ROOT, or is deferred. It may be stale-stable,
@@ -60,6 +62,8 @@ const treePrefix = (parent) => `t/${parent}/`;
 const cohortKey = (id) => `c/${id}`;
 const memberKey = (cohort, id) => `C/${cohort}/${id}`;
 const memberPrefix = (cohort) => `C/${cohort}/`;
+const workKey = (cohort, list, item) => `w/${cohort}/${list}/${item}`;
+const workPrefix = (cohort, list) => `w/${cohort}/${list}/`;
 /** The deadline key of a deferral `{ kind, at }`: d/ for the logical clock, h/ for wall-clock. */
 const regionKey = (region) => `r/${region}`;
 const regionMemberKey = (region, id) => `m/${region}/${id}`;
@@ -82,13 +86,13 @@ const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${S
 export const keys = {
   objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
-  suspendedKey, suspendedPrefix, topKey, rehomeKey, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
+  suspendedKey, suspendedPrefix, topKey, rehomeKey, workKey, workPrefix, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
   treeInKey, treeInPrefix,
 };
 
 /** A new, empty cluster record. */
 export function clusterRecord(id, level, container) {
-  return { id, level, container, objects: 0, deferred: 0, explicit: {}, suspended: null };
+  return { id, level, container, objects: 0, deferred: 0, explicit: {}, weight: 0, suspended: null };
 }
 
 /**
@@ -127,6 +131,11 @@ export const defaultOptions = {
    * low-priority structure tasks (§6.7). Off, clusters stop being branches as data is moved.
    */
   rehome: true,
+  /**
+   * How much one collector step may take on: the number of items in a check batch, and of
+   * objects deleted by one reclaim step. It bounds the size of a step's store transaction.
+   */
+  stepBudget: 200,
 };
 
 /** Adds to a count in a { key: n } map, deleting it at zero. */
@@ -246,9 +255,9 @@ export class GcState {
     }
     this.tx.delete(regionMemberKey(meta.region, id));
     if (meta.cohort !== null) this.tx.delete(memberKey(meta.cohort, id));
+    this.addWeight(meta.region, -1 - strongReferences(this.record(id)).size);
     this.tx.delete(objectKey(id));
     this.tx.delete(metaKey(id));
-    this.scheduleStructure(meta.region);
   }
 
   /**
@@ -351,17 +360,32 @@ export class GcState {
     return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
   }
 
-  /** Puts an object in a region, on placement or on a move. Schedules both regions. */
-  setRegion(id, region) {
+  /**
+   * Puts an object in a region, on placement or on a move. `weight` is the object's own: one
+   * plus its outgoing strong edges (a new object is placed before its edges are counted).
+   */
+  setRegion(id, region, weight = 1) {
     const previous = this.meta(id)?.region;
     if (previous === region) return;
     if (previous) {
       this.tx.delete(regionMemberKey(previous, id));
-      this.scheduleStructure(previous);
+      this.addWeight(previous, -weight);
     }
     this.updateMeta(id, { region });
     this.tx.put(regionMemberKey(region, id), true);
-    this.scheduleStructure(region);
+    this.addWeight(region, weight);
+  }
+
+  /**
+   * Changes a region's weight (invariant A3), and schedules a structure task only when it may
+   * have something to do: the region is over the cap, or has shrunk below a quarter of it.
+   */
+  addWeight(region, delta) {
+    const record = this.cluster(region);
+    record.weight += delta;
+    this.putCluster(record);
+    const cap = this.options.regionCap;
+    if (record.weight > cap || (delta < 0 && record.weight < cap / 4)) this.scheduleStructure(region);
   }
 
   // ---- Clusters: regions at every level (§6.9) ----
@@ -498,13 +522,6 @@ export class GcState {
     if (this.cluster(cluster).level > 0) for (const member of this.regionMembers(cluster)) this.scheduleInside(member);
   }
 
-  /** The weight of a region: members plus their outgoing strong edges (design §6.1). */
-  regionWeight(region) {
-    let weight = 0;
-    for (const id of this.regionMembers(region)) weight += 1 + strongReferences(this.record(id)).size;
-    return weight;
-  }
-
   // ---- Cohorts ----
 
   cohort(id) {
@@ -526,6 +543,17 @@ export class GcState {
     return this.cohort(this.findCohort(cohortId)).state === "reclaiming";
   }
 
+  /**
+   * Whether an object is dead: a member of a cohort that is being reclaimed (§10.3). It is
+   * proven unreachable and is deleted within a few steps; until then it is treated as gone.
+   */
+  isDead(id) {
+    const meta = this.meta(id);
+    if (!meta) return false;
+    const state = this.state(id);
+    return state !== STABLE && this.isReclaiming(state);
+  }
+
   newCohort() {
     const id = this.nextId("k");
     this.saveCohort({
@@ -533,18 +561,48 @@ export class GcState {
       state: "active",
       mergedInto: null,
       absorbed: [],
-      expand: [],
-      mark: [],
-      check: [],
+      pending: { expand: 0, mark: 0, check: 0 },
     });
     return id;
   }
 
-  /** Appends `item` to one of the cohort's worklists: "expand", "mark" or "check". */
+  // Worklists are sets of keys, w/<root cohort>/<list>/<item>, so that adding or removing an
+  // item costs the same whatever the size of the list. The cohort record holds their sizes.
+  // Items come out in key order.
+
+  /** Adds `item` to one of the cohort's worklists: "expand", "mark" or "check". */
   push(cohortId, list, item) {
-    const cohort = this.cohort(this.findCohort(cohortId));
-    cohort[list].push(item);
+    const root = this.findCohort(cohortId);
+    if (this.tx.has(workKey(root, list, item))) return;
+    this.tx.put(workKey(root, list, item), true);
+    const cohort = this.cohort(root);
+    cohort.pending[list]++;
     this.saveCohort(cohort);
+  }
+
+  /** Removes an item from a root cohort's worklist, if it is there. */
+  unqueue(root, list, item) {
+    if (!this.tx.has(workKey(root, list, item))) return;
+    this.tx.delete(workKey(root, list, item));
+    const cohort = this.cohort(root);
+    cohort.pending[list]--;
+    this.saveCohort(cohort);
+  }
+
+  /** The items of a root cohort's worklist. */
+  queued(root, list) {
+    const prefix = workPrefix(root, list);
+    return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
+  }
+
+  /** Removes and returns up to `limit` items of a root cohort's worklist. */
+  take(root, list, limit = 1) {
+    const items = this.queued(root, list).slice(0, limit);
+    for (const item of items) this.tx.delete(workKey(root, list, item));
+    const cohort = this.cohort(root);
+    cohort.pending[list] -= items.length;
+    this.saveCohort(cohort);
+    return items;
   }
 
   /** Merges two cohorts whose fates depend on each other (§7.2). Returns the surviving id. */
@@ -557,14 +615,17 @@ export class GcState {
     if (survivor.state !== "active" || absorbed.state !== "active") {
       throw new Error("Cannot merge a cohort that is being reclaimed");
     }
-    survivor.expand.push(...absorbed.expand);
-    survivor.mark.push(...absorbed.mark);
-    survivor.check.push(...absorbed.check);
+    for (const list of ["expand", "mark", "check"]) {
+      for (const item of this.queued(rootB, list)) {
+        this.tx.delete(workKey(rootB, list, item));
+        if (this.tx.has(workKey(rootA, list, item))) continue;
+        this.tx.put(workKey(rootA, list, item), true);
+        survivor.pending[list]++;
+      }
+      absorbed.pending[list] = 0;
+    }
     survivor.absorbed.push(absorbed.id, ...absorbed.absorbed);
     absorbed.mergedInto = survivor.id;
-    absorbed.expand = [];
-    absorbed.mark = [];
-    absorbed.check = [];
     absorbed.absorbed = [];
     this.saveCohort(survivor);
     this.saveCohort(absorbed);
@@ -714,7 +775,9 @@ export class GcState {
 
   /**
    * Makes a stable object unstable in a cohort: it loses its tree parent (or its deferral) and
-   * is queued for marking (its tree children) and checking (its referrers).
+   * is queued for checking (its referrers) and, if it has tree children, for marking. An object
+   * without tree children is marked already (invariant M1), and it never gets any: only a
+   * stable object is given tree children.
    */
   makeUnstable(id, cohortId) {
     const root = this.findCohort(cohortId);
@@ -723,15 +786,8 @@ export class GcState {
     this.clearDeferral(id);
     this.updateMeta(id, { treeParent: null, cohort: root });
     this.tx.put(memberKey(root, id), true);
-    const cohort = this.cohort(root);
-    cohort.mark.push(id);
-    cohort.check.push(id);
-    this.saveCohort(cohort);
-  }
-
-  /** The mark step of one object: its tree children become unstable in its cohort. */
-  markChildren(id, cohortId) {
-    for (const child of this.treeChildren(id)) this.makeUnstable(child, cohortId);
+    if (this.treeChildren(id).length > 0) this.push(root, "mark", id);
+    this.push(root, "check", id);
   }
 
   /**
@@ -864,11 +920,9 @@ export class GcState {
       if (isRegionItem(item)) return this.regionExists(regionOfItem(item)) && this.isInside(regionOfItem(item), cluster);
       return Boolean(this.meta(item)) && this.isInside(this.regionOf(item), cluster);
     };
-    const cohort = this.cohort(root);
-    cohort.mark = cohort.mark.filter((item) => !inside(item));
-    cohort.mark.push(regionItem(cluster));
-    cohort.check = cohort.check.filter((item) => !(isRegionItem(item) && inside(item)));
-    this.saveCohort(cohort);
+    for (const item of this.queued(root, "mark")) if (inside(item)) this.unqueue(root, "mark", item);
+    for (const item of this.queued(root, "check")) if (isRegionItem(item) && inside(item)) this.unqueue(root, "check", item);
+    this.push(root, "mark", regionItem(cluster));
   }
 
   /** Ends a suspension, keeping the cluster's internal tree. Returns the root cohort. */
@@ -922,15 +976,14 @@ export class GcState {
     // it again, or marking an anchor would suspend it, the check would materialize it, and so on
     // forever.
     this.patchCluster(cluster, { materializedIn: root });
-    const cohort = this.cohort(root);
     for (const id of objects) {
       const meta = this.meta(id);
       if (meta.cohort === null || this.findCohort(meta.cohort) !== root) continue;
       if (this.treeChildren(id).length === 0) continue;
       // Unmarked again, so its check must be pending again too: the barrier and expansion skip
       // rescuing an unmarked object and rely on its check to find the referrer (§7.3).
-      if (!cohort.mark.includes(id)) cohort.mark.push(id);
-      if (!cohort.check.includes(id)) cohort.check.push(id);
+      this.push(root, "mark", id);
+      this.push(root, "check", id);
     }
     // The implicit objects turn stale-stable without being expanded. Whatever of this cohort
     // they reference may already have been checked counting on them being unstable, so it is
@@ -941,24 +994,26 @@ export class GcState {
         const meta = this.meta(target);
         if (!meta) continue;
         if (meta.cohort !== null) {
-          if (this.findCohort(meta.cohort) === root && !cohort.check.includes(target)) cohort.check.push(target);
+          if (this.findCohort(meta.cohort) === root) this.push(root, "check", target);
           continue;
         }
         const suspended = this.suspensionOf(meta.region);
-        const item = suspended && regionItem(suspended.cluster);
-        if (suspended && suspended.marked && this.findCohort(suspended.cohort) === root && !cohort.check.includes(item)) {
-          cohort.check.push(item);
+        if (suspended && suspended.marked && this.findCohort(suspended.cohort) === root) {
+          this.push(root, "check", regionItem(suspended.cluster));
         }
       }
     }
-    this.saveCohort(cohort);
   }
 
   /**
    * Deletes a cluster suspended in a reclaimed cohort, whole (§8.3): every object in it, every
    * cluster inside it, and their keys. Its counters are taken off its containers at once.
    * Nothing outside it is read: no tree edge crosses its boundary (U3, and nothing enters it).
-   * Returns the number of objects deleted.
+   * Returns the ids of the objects deleted.
+   *
+   * Reclaim also uses it on one region at a time inside a bigger suspended cluster. Tree-edge
+   * counts between that region and the rest of the suspended cluster are then left stale; they
+   * go when the rest is deleted, and nothing reads them meanwhile.
    */
   deleteClusterWhole(cluster) {
     const record = this.cluster(cluster);
@@ -970,7 +1025,7 @@ export class GcState {
       this.putCluster(above);
       id = above.container;
     }
-    let deleted = 0;
+    const deleted = [];
     const visit = (id) => {
       const level = this.cluster(id).level;
       for (const member of this.regionMembers(id)) {
@@ -980,7 +1035,7 @@ export class GcState {
           if (meta.cohort !== null) this.tx.delete(memberKey(meta.cohort, member));
           this.tx.delete(objectKey(member));
           this.tx.delete(metaKey(member));
-          deleted++;
+          deleted.push(member);
         } else {
           visit(member);
         }

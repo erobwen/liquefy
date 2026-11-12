@@ -1,6 +1,5 @@
 /**
- * The incremental collector (documents/persistent-garbage-collection.md §10), single-region
- * version: object items only.
+ * The incremental collector (documents/persistent-garbage-collection.md §10).
  *
  * Each call to step() runs one unit of work in its own store transaction:
  *
@@ -11,7 +10,7 @@
  *   1. expand  a rescued object: rescue the unstable objects it references
  *   2. mark    an unstable object: its tree children become unstable in the same cohort,
  *              except shared children that find a verified replacement parent (§10.2)
- *   3. check   all unchecked members at once: look for a stable referrer of each
+ *   3. check   a batch of unchecked members: look for a stable referrer of each
  *   4. reclaim when all lists are empty, the cohort is closed under "is referenced by"
  *
  * Referrers are found with GcState.referrersOf, which with a single region scans every record
@@ -47,6 +46,8 @@ export class Collector {
       deferralsResolved: 0,
       deferralsSwapped: 0,
       replacementParents: 0,
+      /** Objects made explicitly unstable by marking: what suspension saves. */
+      detached: 0,
       suspended: 0,
       suspendedMeta: 0,
       regionsReclaimed: 0,
@@ -111,7 +112,7 @@ export class Collector {
       const gc = this.gc(tx);
       const cohorts = gc.activeCohorts();
 
-      const ready = cohorts.find((cohort) => cohort.expand.length === 0 && cohort.mark.length === 0);
+      const ready = cohorts.find((cohort) => cohort.pending.expand === 0 && cohort.pending.mark === 0);
       if (ready) {
         this.stats.steps++;
         this.finish(gc, ready);
@@ -151,15 +152,13 @@ export class Collector {
    * transaction. The check has just read what the reclaim relies on.
    */
   finish(gc, cohort) {
-    if (cohort.check.length > 0) {
-      const batch = cohort.check;
-      cohort.check = [];
-      gc.saveCohort(cohort);
+    if (cohort.pending.check > 0) {
+      const batch = gc.take(cohort.id, "check", gc.options.stepBudget);
       this.stats.check++;
       this.lastStep = { ...checkStep(cohort.id, batch), reclaimed: false };
       this.check(gc, batch, cohort.id);
-      const root = gc.cohort(gc.findCohort(cohort.id));
-      if (root.expand.length > 0 || root.mark.length > 0 || root.check.length > 0) return;
+      const { pending } = gc.cohort(gc.findCohort(cohort.id));
+      if (pending.expand > 0 || pending.mark > 0 || pending.check > 0) return;
       this.lastStep.reclaimed = true;
     } else {
       this.lastStep = { kind: "reclaim", cohort: cohort.id, ids: [] };
@@ -181,26 +180,22 @@ export class Collector {
 
   ladder(gc, cohortId) {
     const cohort = gc.cohort(cohortId);
-    if (cohort.expand.length > 0) {
-      const id = cohort.expand.shift();
-      gc.saveCohort(cohort);
+    if (cohort.pending.expand > 0) {
+      const [id] = gc.take(cohortId, "expand");
       this.stats.expand++;
       this.lastStep = isRegionItem(id)
         ? { kind: "expand", cohort: cohortId, ids: [], region: regionOfItem(id) }
         : { kind: "expand", cohort: cohortId, ids: [id] };
       this.expand(gc, id, cohortId);
-    } else if (cohort.mark.length > 0) {
-      const id = cohort.mark.shift();
-      gc.saveCohort(cohort);
+    } else if (cohort.pending.mark > 0) {
+      const [id] = gc.take(cohortId, "mark");
       this.stats.mark++;
       this.lastStep = isRegionItem(id)
         ? { kind: "mark", cohort: cohortId, ids: [], region: regionOfItem(id) }
         : { kind: "mark", cohort: cohortId, ids: [id] };
       this.mark(gc, id, cohortId);
-    } else if (cohort.check.length > 0) {
-      const batch = cohort.check;
-      cohort.check = [];
-      gc.saveCohort(cohort);
+    } else if (cohort.pending.check > 0) {
+      const batch = gc.take(cohortId, "check", gc.options.stepBudget);
       this.stats.check++;
       this.lastStep = checkStep(cohortId, batch);
       this.check(gc, batch, cohortId);
@@ -233,7 +228,7 @@ export class Collector {
     if (!gc.meta(id)) return; // reclaimed since; its own cohort's checks covered its referrers
     const state = gc.state(id);
     if (state !== STABLE) {
-      gc.merge(cohortId, state);
+      if (!gc.isReclaiming(state)) gc.merge(cohortId, state); // being reclaimed: as good as gone
       return;
     }
     const record = gc.record(id);
@@ -278,7 +273,11 @@ export class Collector {
       }
     }
 
-    this.detach(gc, gc.treeChildren(id).map((child) => [id, child]), cohortId);
+    // At most a step's budget of children at a time: an object with more comes back.
+    const children = gc.treeChildren(id);
+    const budget = gc.options.stepBudget;
+    this.detach(gc, children.slice(0, budget).map((child) => [id, child]), cohortId);
+    if (children.length > budget) gc.push(gc.findCohort(cohortId), "mark", id);
   }
 
   /**
@@ -303,6 +302,7 @@ export class Collector {
         }
       }
       gc.makeUnstable(child, cohortId);
+      this.stats.detached++;
     }
   }
 
@@ -389,7 +389,7 @@ export class Collector {
               gc.materialize(cluster);
               return STOP;
             }
-            if (sourceState !== current) gc.merge(current, sourceState);
+            if (sourceState !== current && !gc.isReclaiming(sourceState)) gc.merge(current, sourceState); // a referrer being reclaimed is dead
           }
         }
       } else {
@@ -440,59 +440,91 @@ export class Collector {
           if (gc.canRescue(member)) gc.rescue(member, source);
           break;
         }
-        if (sourceState !== current) gc.merge(current, sourceState);
+        if (sourceState !== current && !gc.isReclaiming(sourceState)) gc.merge(current, sourceState); // a referrer being reclaimed is dead
       }
     }
   }
 
-  /** Deletes every member of a closed cohort, and the cohort itself. */
+  /**
+   * Deletes the members of a closed cohort, a step's budget at a time (§10.3). The first call
+   * puts the cohort in the state "reclaiming": from then on its members are dead. Nothing
+   * reachable references them, the application is told they do not exist, and other cohorts'
+   * checks ignore them as referrers. A small cohort is deleted in that same step.
+   *
+   * Clusters suspended in the cohort go first, one level-0 region at a time, each deleted whole
+   * (§8.3): they hold only implicit objects and explicit members of this cohort. Then the
+   * explicit members outside them, by their membership keys. Then the cohort records.
+   */
   reclaim(gc, cohortId) {
     const root = gc.findCohort(cohortId);
     const cohort = gc.cohort(root);
-    cohort.state = "reclaiming";
-    gc.saveCohort(cohort);
-
-    // Suspended clusters, whole (§8.3): they hold only implicit objects and explicit members
-    // of this cohort. Then the explicit members outside them, by their membership keys.
-    const clusters = [];
-    for (const familyId of gc.cohortFamily(root)) {
-      for (const cluster of gc.suspendedRegions(familyId)) clusters.push({ cluster, key: keys.suspendedKey(familyId, cluster) });
+    if (cohort.state !== "reclaiming") {
+      cohort.state = "reclaiming";
+      gc.saveCohort(cohort);
     }
-    const clusterIds = new Set(clusters.map(({ cluster }) => cluster));
-    const inSuspended = (region) => gc.chain(region).some((id) => clusterIds.has(id));
+    const budget = gc.options.stepBudget;
+    const family = gc.cohortFamily(root);
     const doomed = [];
-    for (const { cluster } of clusters) {
-      for (const id of gc.objectsIn(cluster)) {
-        if (gc.state(id) !== root) throw new Error(`Suspended cluster ${cluster} holds ${id}, not in ${root}`);
-        for (const child of gc.treeChildren(id)) {
-          if (!gc.isInside(gc.regionOf(child), cluster)) throw new Error(`Reclaiming ${cluster}, which has the tree exit ${id} → ${child}`);
+    const finished = [];
+    let more = false;
+
+    clusters: for (const familyId of family) {
+      for (const cluster of gc.suspendedRegions(familyId)) {
+        for (;;) {
+          if (doomed.length >= budget) {
+            more = true;
+            break clusters;
+          }
+          // The next level-0 region inside the cluster.
+          // (Or an empty meta-region inside it, left by a structure task that was waiting.)
+          let region = cluster;
+          while (gc.cluster(region).level > 0 && gc.regionMembers(region).length > 0) region = gc.regionMembers(region)[0];
+          for (const id of gc.cluster(region).level > 0 ? [] : gc.regionMembers(region)) {
+            if (gc.state(id) !== root) throw new Error(`Suspended cluster ${cluster} holds ${id}, not in ${root}`);
+            for (const child of gc.treeChildren(id)) {
+              if (!gc.isInside(gc.regionOf(child), cluster)) throw new Error(`Reclaiming ${cluster}, which has the tree exit ${id} → ${child}`);
+            }
+          }
+          // Delete it, and every cluster around it that this leaves empty.
+          let emptied = region;
+          for (;;) {
+            const { container } = gc.cluster(emptied);
+            doomed.push(...gc.deleteClusterWhole(emptied));
+            if (emptied === cluster || gc.regionMembers(container).length > 0) break;
+            emptied = container;
+          }
+          if (emptied === cluster) {
+            gc.tx.delete(keys.suspendedKey(familyId, cluster));
+            finished.push(cluster);
+            break;
+          }
         }
-        doomed.push(id);
       }
     }
-    const single = [];
-    for (const familyId of gc.cohortFamily(root)) {
-      for (const key of gc.tx.keys(keys.memberPrefix(familyId))) {
-        const id = key.slice(keys.memberPrefix(familyId).length);
-        if (gc.state(id) !== root) throw new Error(`Member key of ${id} in ${familyId} is stale`);
-        if (inSuspended(gc.regionOf(id))) continue;
-        if (gc.treeChildren(id).length > 0) throw new Error(`Reclaiming ${id}, which has tree children`);
-        single.push(id);
+
+    if (!more) {
+      members: for (const familyId of family) {
+        for (const key of gc.tx.keys(keys.memberPrefix(familyId))) {
+          if (doomed.length >= budget) {
+            more = true;
+            break members;
+          }
+          const id = key.slice(keys.memberPrefix(familyId).length);
+          if (gc.state(id) !== root) throw new Error(`Member key of ${id} in ${familyId} is stale`);
+          gc.deleteObject(id); // throws if it has tree children
+          doomed.push(id);
+        }
       }
     }
-    doomed.push(...single);
 
     this.onReclaim?.(doomed);
-
-    for (const id of single) gc.deleteObject(id);
-    for (const { cluster, key } of clusters) {
-      gc.tx.delete(key);
-      gc.deleteClusterWhole(cluster);
-    }
-    for (const familyId of gc.cohortFamily(root)) gc.tx.delete(keys.cohortKey(familyId));
+    if (!more) for (const familyId of family) gc.tx.delete(keys.cohortKey(familyId));
     this.stats.reclaimed += doomed.length;
-    this.stats.regionsReclaimed += clusters.length;
-    if (this.lastStep) this.lastStep.regions = clusters.map(({ cluster }) => cluster);
+    this.stats.regionsReclaimed += finished.length;
+    if (this.lastStep) {
+      this.lastStep.regions = finished;
+      if (more) this.lastStep.more = true;
+    }
   }
 }
 

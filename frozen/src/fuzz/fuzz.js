@@ -162,6 +162,8 @@ export function seedOptions(rng, now) {
   options.deferCuts = rng.next() >= 0.25;
   // And a quarter without re-homing.
   options.rehome = rng.next() >= 0.25;
+  // Small budgets split checks and reclaims over many steps.
+  options.stepBudget = rng.pick([1, 3, 20, 200]);
   return options;
 }
 

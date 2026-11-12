@@ -16,7 +16,7 @@ function setup(options = {}) {
 }
 
 const cohortRecords = (db) => db.store.range("c/").map(([, cohort]) => cohort).filter((cohort) => !cohort.mergedInto);
-const isReady = (cohort) => cohort.expand.length === 0 && cohort.mark.length === 0;
+const isReady = (cohort) => cohort.pending.expand === 0 && cohort.pending.mark === 0;
 
 /** ROOT.field → a tree of `width`^`depth` objects. */
 function tree(db, field, width, depth) {
@@ -64,9 +64,8 @@ describe("Step order", () => {
     });
     db.collector.runUntilIdle();
     db.transaction((tx) => tx.delete(ROOT, "leaf"));
+    // A leaf has nothing to mark: its cohort is ready at once.
     do db.collector.step(); while (db.collector.lastStep.kind === "structure");
-    assert.equal(db.collector.lastStep.kind, "mark");
-    db.collector.step();
     assert.deepEqual(db.collector.lastStep, { kind: "check", cohort: db.collector.lastStep.cohort, ids: [leaf], regions: [], reclaimed: true });
     assert.ok(!db.get(leaf), "reclaimed");
     assert.equal(cohortRecords(db).length, 0);

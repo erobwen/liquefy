@@ -51,7 +51,7 @@ export function runStructureTask(gc, cluster) {
     }
   }
   if (record.level === 0) {
-    const weight = gc.regionWeight(cluster);
+    const { weight } = record;
     const cap = gc.options.regionCap;
     if (weight > cap) return splitRegion(gc, cluster) ? "split" : "unsplittable";
     if (weight < cap / 4 && cluster !== ROOT_REGION) return mergeRegion(gc, cluster, weight) ? "merged" : "kept";
@@ -161,7 +161,7 @@ function mergeRegion(gc, region, weight) {
     .find((candidate) => candidate !== region && gc.regionExists(candidate));
   if (parentRegion === undefined || gc.cluster(parentRegion).container !== container) return false;
   if (!canReceive(gc, parentRegion)) return false; // objects moved in would become unstable
-  if (weight + gc.regionWeight(parentRegion) > (2 * gc.options.regionCap) / 3) return false;
+  if (weight + gc.cluster(parentRegion).weight > (2 * gc.options.regionCap) / 3) return false;
 
   moveObjects(gc, loaded, new Set(loaded.members), parentRegion, region);
   deleteCluster(gc, region);
@@ -182,7 +182,7 @@ function mergeRegion(gc, region, weight) {
 function moveObjects(gc, loaded, moved, to, from) {
   copyFlags(gc, from, to, false);
 
-  for (const id of moved) gc.setRegion(id, to);
+  for (const id of moved) gc.setRegion(id, to, loaded.weight.get(id));
 
   for (const id of loaded.members) {
     for (const target of loaded.targets.get(id)) gc.coverEdge(id, target);
@@ -258,7 +258,7 @@ function moveClusters(gc, moved, from, to) {
  * Keeps flag coverage (invariant G2) when members move from `from` to `to`, by copying
  * instead of recomputing (§6.6). At their level, and at every level above where their
  * containers still differ (a move across meta-regions):
- *   - target side: `to` gets copies of the flags on `from`;
+ *   - target side: `to` gets copies of the flags on `from`, and a flag naming `from`;
  *   - source side (cluster moves; object moves cover their edges one by one instead): every
  *     flag naming `from`, found through its E/ mirrors, gets a copy naming `to`, and since
  *     edges between the two may now cross, each gets a flag naming the other.
@@ -266,10 +266,13 @@ function moveClusters(gc, moved, from, to) {
 function copyFlags(gc, from, to, sourceSide) {
   while (from !== to && from !== null && to !== null) {
     for (const source of gc.flagSources(from)) if (source !== to) gc.ensureFlag(to, source);
+    // What stays in `from` may reference what moved: that edge crosses now. (Found by the
+    // fuzzer, for a re-home across meta-regions: the referrer was in another region of the
+    // old meta-region, so nothing at level 0 changed for it.)
+    gc.ensureFlag(to, from);
     if (sourceSide) {
       for (const target of gc.mirrorTargets(from)) if (target !== to) gc.ensureFlag(target, to);
       gc.ensureFlag(from, to);
-      gc.ensureFlag(to, from);
     }
     from = gc.cluster(from).container;
     to = gc.cluster(to).container;
@@ -387,7 +390,7 @@ function rehomeObjects(gc, region, source) {
   const cap = gc.options.regionCap;
   const sourceContainer = gc.cluster(source).container;
   let to = null;
-  if (weight + gc.regionWeight(source) <= cap) to = source;
+  if (weight + gc.cluster(source).weight <= cap) to = source;
   else {
     // A sibling: a region in the same container that hangs only from `source`, with room
     // (judged by its object count, to avoid reading it).

@@ -46,7 +46,7 @@ describe("Recorder and Timeline", () => {
     const kinds = recorder.frames.map((frame) => frame.kind);
     assert.deepEqual(kinds.slice(0, 3), ["start", "transaction", "transaction"]);
     assert.equal(kinds.length, 3 + steps);
-    assert.deepEqual(kinds.slice(3).filter((kind) => kind !== "structure"), ["deferral", "mark", "check"]);
+    assert.deepEqual(kinds.slice(3).filter((kind) => kind !== "structure"), ["deferral", "check"]); // a leaf has nothing to mark
     assert.ok(recorder.frames.find((frame) => frame.kind === "check").reads.length > 0, "the check read records");
   });
 });

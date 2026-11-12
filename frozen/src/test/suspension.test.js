@@ -57,21 +57,21 @@ function untilSuspendedAndMarked(db) {
 }
 
 describe("Suspension", () => {
-  it("marks and reclaims whole regions, in fewer steps than object by object", () => {
+  it("marks and reclaims whole regions, making far fewer objects unstable one by one", () => {
     const markSteps = (suspension) => {
       const db = setup({ suspension, regionCap: 30 });
       document(db, 4, 12);
       assert.ok(db.store.keys("r/").length > 2, "the document spans several regions");
       db.transaction((tx) => tx.delete(ROOT, "doc"));
-      const before = db.collector.stats.mark;
+      const before = db.collector.stats.detached;
       settle(db);
       assert.deepEqual(db.objectIds(), [ROOT]);
       if (suspension) assert.ok(db.collector.stats.suspended > 0 && db.collector.stats.regionsReclaimed > 0);
-      return db.collector.stats.mark - before;
+      return db.collector.stats.detached - before;
     };
     const withSuspension = markSteps(true);
     const without = markSteps(false);
-    assert.ok(withSuspension * 2 < without, `${withSuspension} mark steps with suspension, ${without} without`);
+    assert.ok(withSuspension * 2 < without, `${withSuspension} objects detached with suspension, ${without} without`);
   });
 
   it("resumes a region whose sole anchor is linked again, keeping its internal tree", () => {

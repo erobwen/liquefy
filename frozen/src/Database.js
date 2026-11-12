@@ -31,7 +31,7 @@ export class Database {
       if (tx.has(keys.objectKey(ROOT))) return;
       tx.put(keys.objectKey(ROOT), {});
       tx.put(keys.metaKey(ROOT), { region: ROOT_REGION, treeParent: null, cohort: null, shared: false, deferred: null });
-      tx.put(keys.regionKey(ROOT_REGION), { ...clusterRecord(ROOT_REGION, 0, null), objects: 1 });
+      tx.put(keys.regionKey(ROOT_REGION), { ...clusterRecord(ROOT_REGION, 0, null), objects: 1, weight: 1 });
       tx.put(keys.topKey(ROOT_REGION), true);
       tx.put(keys.regionMemberKey(ROOT_REGION, ROOT), true);
     });
@@ -84,8 +84,9 @@ export class ObjectTransaction {
     return record;
   }
 
+  /** Whether the object exists. One that is being reclaimed counts as gone already. */
   exists(id) {
-    return this.tx.has(keys.objectKey(id));
+    return this.tx.has(keys.objectKey(id)) && !this.gc.isDead(id);
   }
 
   set(id, field, value) {

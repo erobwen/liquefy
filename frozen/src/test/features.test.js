@@ -119,7 +119,7 @@ describe("Quick swap, deferred cuts and replacement parents", () => {
     settle(db);
     assert.deepEqual(reclaimed, [t]);
     assert.equal(db.store.get(`g/${x}`).treeParent, ROOT);
-    assert.equal(db.collector.stats.mark, 1, "x and its grandchild were never marked");
+    assert.equal(db.collector.stats.detached, 0, "x and its grandchild were never made unstable");
   });
 
   it("gives up a walk that exceeds its budget, and still collects correctly", () => {

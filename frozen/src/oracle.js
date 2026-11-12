@@ -30,13 +30,43 @@ export function reachableFromRoot(store) {
 export function checkIntegrity(store, { quiescent = false } = {}) {
   const problems = [];
   const objectIds = new Set(store.keys("o/").map((key) => key.slice(2)));
-  const cohorts = new Map(store.range("c/").map(([, cohort]) => [cohort.id, cohort]));
+  // Cohort records, with their worklists read from the w/ keys.
+  const cohorts = new Map(store.range("c/").map(([, cohort]) => [cohort.id, { ...cohort, expand: [], mark: [], check: [] }]));
+  for (const key of store.keys("w/")) {
+    const [, cohortId, list, item] = key.split("/");
+    const cohort = cohorts.get(cohortId);
+    if (!cohort || cohort.mergedInto) problems.push(`C2: worklist key ${key} of a cohort that is missing or merged`);
+    else cohort[list].push(item);
+  }
+  for (const cohort of cohorts.values()) {
+    for (const list of ["expand", "mark", "check"]) {
+      if (cohort.pending[list] !== cohort[list].length) problems.push(`C2: cohort ${cohort.id} says ${cohort.pending[list]} ${list} items, has ${cohort[list].length}`);
+    }
+  }
   const findCohort = (id) => {
     let cohort = cohorts.get(id);
     if (!cohort) return null;
     while (cohort.mergedInto) cohort = cohorts.get(cohort.mergedInto);
     return cohort.id;
   };
+
+  // Dead objects: members of a cohort that is being reclaimed, over several steps (§10.3).
+  // They are proven unreachable and on their way out; the tree, flags and counts around them
+  // are no longer kept up, so the checks below pass over them.
+  const reclaiming = new Set([...cohorts.values()].filter((cohort) => !cohort.mergedInto && cohort.state === "reclaiming").map((cohort) => cohort.id));
+  const clusterRecords = new Map(store.range("r/").map(([key, record]) => [key.slice(2), record]));
+  const doomedCluster = (cluster) => {
+    for (let id = cluster, depth = 0; id && clusterRecords.has(id) && depth < 100; id = clusterRecords.get(id).container, depth++) {
+      const suspended = clusterRecords.get(id).suspended;
+      if (suspended && reclaiming.has(findCohort(suspended.cohort))) return true;
+    }
+    return false;
+  };
+  const dead = new Set();
+  for (const id of objectIds) {
+    const meta = store.get(keys.metaKey(id));
+    if (meta && (meta.cohort !== null ? reclaiming.has(findCohort(meta.cohort)) : doomedCluster(meta.region))) dead.add(id);
+  }
 
   // Every object has metadata, and every metadata entry has an object.
   for (const id of objectIds) {
@@ -50,7 +80,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   const treeEdges = new Set(store.keys("t/").map((key) => key.slice(2)));
   for (const id of objectIds) {
     const meta = store.get(keys.metaKey(id));
-    if (!meta) continue;
+    if (!meta || dead.has(id)) continue;
     if (meta.treeParent !== null) {
       if (meta.cohort !== null) problems.push(`${id} is unstable but has tree parent ${meta.treeParent}`);
       if (!treeEdges.has(`${meta.treeParent}/${id}`)) problems.push(`${id}: no t/ key for tree parent ${meta.treeParent}`);
@@ -160,10 +190,21 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     }
   }
 
+  // A3: a level-0 region's weight is its objects plus their outgoing strong edges.
+  const weights = new Map();
+  for (const id of objectIds) {
+    const region = store.get(keys.metaKey(id))?.region;
+    weights.set(region, (weights.get(region) ?? 0) + 1 + strongReferences(store.get(keys.objectKey(id))).size);
+  }
+  for (const [id, record] of clusters) {
+    if (record.level === 0 && record.weight !== (weights.get(id) ?? 0)) problems.push(`A3: weight of ${id} is ${record.weight}, recount ${weights.get(id) ?? 0}`);
+  }
+
   // A2: T/ and P/ keys count the tree edges between clusters at every level where they differ.
   const treeCounts = new Map();
   for (const edge of store.keys("t/")) {
     const [, parent, child] = edge.split("/");
+    if (!objectIds.has(parent) || dead.has(parent) || dead.has(child)) continue;
     const from = chainOf(store.get(keys.metaKey(parent))?.region);
     const to = chainOf(store.get(keys.metaKey(child))?.region);
     for (let level = 0; level < Math.min(from.length, to.length) && from[level] !== to[level]; level++) {
@@ -173,6 +214,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   }
   for (const [key, count] of store.range("T/")) {
     const [, from, to] = key.split("/");
+    if (doomedCluster(from) || doomedCluster(to)) continue;
     if (treeCounts.get(`${from}/${to}`) !== count) problems.push(`A2: ${key} is ${count}, recount ${treeCounts.get(`${from}/${to}`) ?? 0}`);
     if (store.get(keys.treeInKey(to, from)) !== count) problems.push(`A2: ${key} has no matching P/ key`);
   }
@@ -182,6 +224,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   }
   for (const key of store.keys("P/")) {
     const [, to, from] = key.split("/");
+    if (doomedCluster(from) || doomedCluster(to)) continue;
     if (!store.has(keys.treeOutKey(from, to))) problems.push(`A2: stale ${key}`);
   }
 
@@ -189,6 +232,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   // ends differ: the target's cluster at that level has a flag naming the source's cluster at
   // that level, or one of its containers.
   for (const source of objectIds) {
+    if (dead.has(source)) continue;
     const from = chainOf(store.get(keys.metaKey(source))?.region);
     for (const target of strongReferences(store.get(keys.objectKey(source)) ?? {}).keys()) {
       const to = chainOf(store.get(keys.metaKey(target))?.region);
@@ -218,7 +262,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     }
   }
   for (const [id, count] of referrerCount) {
-    if (count > 1 && !store.get(keys.metaKey(id))?.shared) problems.push(`W2: ${id} has ${count} referrers but no shared bit`);
+    if (count > 1 && objectIds.has(id) && !dead.has(id) && !store.get(keys.metaKey(id))?.shared) problems.push(`W2: ${id} has ${count} referrers but no shared bit`);
   }
 
   // Membership keys belong to unstable objects.
@@ -252,7 +296,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   for (const id of objectIds) {
     const meta = store.get(keys.metaKey(id));
     const region = meta && coveringSuspension(meta.region);
-    if (region === undefined) continue;
+    if (region === undefined || dead.has(id)) continue;
     const root = suspendedIn.get(region);
     if (meta.cohort !== null) {
       if (findCohort(meta.cohort) !== root) problems.push(`U2: ${id} in cluster ${region}, suspended in ${root}, is in cohort ${meta.cohort}`);
@@ -264,7 +308,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     const [parent, child] = edge.split("/");
     const parentRegion = store.get(keys.metaKey(parent))?.region;
     const region = parentRegion && coveringSuspension(parentRegion);
-    if (region !== undefined && clusters.get(region).suspended.marked && !inCluster(child, region)) {
+    if (region !== undefined && !doomedCluster(region) && clusters.get(region).suspended.marked && !inCluster(child, region)) {
       problems.push(`U3: marked suspended ${region} has the tree exit ${edge}`);
     }
   }
@@ -296,6 +340,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   // Invariant T4: following tree parents from any object terminates, at ROOT, at an unmarked
   // unstable object, or at a deferred object. When idle (quiescent), it must end at ROOT.
   for (const id of objectIds) {
+    if (dead.has(id)) continue;
     const seen = new Set();
     let current = id;
     while (current !== ROOT) {

@@ -98,13 +98,13 @@ describe("Re-homing", () => {
         tx.set(lib, "docs", tx.get(lib).docs.slice(6));
       });
       settle(db);
-      return { mixed, steps: cohortSteps(db.collector.stats) - cohortSteps(before) };
+      return { mixed, steps: db.collector.stats.detached - before.detached };
     };
     const without = run(false);
     const withRehome = run(true);
     assert.ok(without.mixed > 5, `${without.mixed} regions hang from several others without re-homing`);
     assert.equal(withRehome.mixed, 0, "none with re-homing");
-    assert.ok(withRehome.steps * 2 <= without.steps, `${withRehome.steps} steps with re-homing, ${without.steps} without`);
+    assert.ok(withRehome.steps * 2 <= without.steps, `${withRehome.steps} objects detached with re-homing, ${without.steps} without`);
   });
 
   it("drops the task when the object is moved back first", () => {

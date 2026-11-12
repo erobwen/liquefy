@@ -192,14 +192,14 @@ function summarize(frame, state, previous) {
       return `${what} None found and nothing left to do, so the cohort is closed under "is referenced by": ${reclaimedText(deleted, frame)} in the same step.`;
     }
     case "reclaim":
-      return `Reclaim ${frame.cohort}: closed under "is referenced by", so ${reclaimedText(deleted, frame)}.`;
+      return `Reclaim ${frame.cohort}: closed under "is referenced by", so ${reclaimedText(deleted, frame)}.${frame.more ? " More of it is left for the next step: a step deletes at most its budget." : ""}`;
     default:
       return frame.label ?? frame.kind;
   }
 }
 
 function reclaimedText(deleted, frame) {
-  const objects = `its ${deleted} object${deleted === 1 ? " is" : "s are"} reclaimed`;
+  const objects = `${frame.more ? "" : "its "}${deleted} object${deleted === 1 ? " is" : "s are"} reclaimed`;
   const regions = frame.regions?.length ? `, with cluster${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")} deleted whole` : "";
   return objects + regions;
 }
@@ -331,9 +331,9 @@ export function describe(state, previous = new Map(), frame = null) {
     .map((cohort) => ({
       id: cohort.id,
       state: cohort.state,
-      expand: cohort.expand,
-      mark: cohort.mark,
-      check: cohort.check,
+      expand: entries(state, `w/${cohort.id}/expand/`).map(([item]) => item),
+      mark: entries(state, `w/${cohort.id}/mark/`).map(([item]) => item),
+      check: entries(state, `w/${cohort.id}/check/`).map(([item]) => item),
       absorbed: cohort.absorbed,
       members: [...objects.values()].filter((object) => object.cohort === cohort.id).map((object) => object.id),
       regions: [...suspended].filter(([, s]) => s.cohort === cohort.id).map(([id]) => id),

@@ -8,7 +8,9 @@ npm run frozen:visualizer        # from the repository root, then open http://lo
 npm test -w @liquefy/frozen.visualizer
 ```
 
-Pick a scenario, then step or play through it. A scenario's key in the address opens it directly
+Pick a scenario, then step or play through it. "Region cap" and "Cluster cap" in the header
+override the scenario's size limits: small values (a region cap of 10, a cluster cap of 3) build
+several levels of meta-regions from a few dozen objects. A scenario's key in the address opens it directly
 (`http://localhost:5181/#rescue`).
 
 | Key | Action |
@@ -29,7 +31,10 @@ Every **frame** is one committed store transaction: a user transaction, or one c
   (filled), unstable with its region (pale fill), and reclaimed this step (faded). Shared
   objects are squares. A **suspended region** is a tinted box with a colored border: all its
   members are unstable as a unit, and keep their internal tree (the "Suspension" scenario shows
-  suspend, resume, materialize and whole-region reclaim). Each cohort has an
+  suspend, resume, materialize and whole-region reclaim). **Meta-regions** are boxes around
+  region boxes, labeled with their level, and deeper in color the higher the level; a whole
+  meta-region can be suspended, marked, checked and reclaimed as one (the "Meta-regions"
+  scenario). Each cohort has an
   outline around its members ("Cohort outlines"), drawn across region boxes with the
   [bubblesets](https://github.com/upsetjs/cytoscape.js-bubblesets) plugin. All cohorts share one
   color until "Cohort colors" is turned on, which gives each cohort its own.

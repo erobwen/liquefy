@@ -273,6 +273,41 @@ export const scenarios = [
   },
 
   {
+    key: "meta-regions",
+    title: "Meta-regions: deleting a document",
+    description: "With small caps (12 per region, 3 clusters per meta-region), a library of four documents builds several levels of meta-regions: boxes around region boxes. Deleting one document suspends whole meta-regions at once, decided from their counters, so the document is marked, checked and reclaimed in a handful of steps instead of region by region.",
+    options: { deferral: 0, regionCap: 12, clusterCap: 3 },
+    run(session) {
+      session.transaction("Create a library of four documents", (tx) => {
+        const documents = [];
+        for (let d = 1; d <= 4; d++) {
+          const sections = [];
+          for (let s = 1; s <= 3; s++) {
+            const paragraphs = [];
+            for (let p = 1; p <= 4; p++) paragraphs.push(ref(tx.create({ text: `${d}.${s}.${p}` })));
+            sections.push(ref(tx.create({ title: `§${d}.${s}`, paragraphs })));
+          }
+          documents.push(ref(tx.create({ title: `Doc ${d}`, sections })));
+        }
+        tx.set(ROOT, "library", ref(tx.create({ name: "Library", documents })));
+      });
+      session.explain("Structure tasks split the library into regions. When the top level has more clusters than the cluster cap, a meta-region one level up takes them all, and splits like a region does: into branches of the tree of regions. Levels grow as in a B-tree.");
+      session.collect();
+      session.explain("The first document is removed from the library. Its cut starts a cohort.");
+      session.transaction("Delete Doc 1", (tx) => {
+        const library = tx.get(ROOT).library.$ref;
+        const documents = tx.get(library).documents;
+        documents.shift();
+        tx.set(library, "documents", documents);
+      });
+      session.explain("Marking pops the document. The highest cluster around it whose counters show that everything in it is condemned (no tree edge enters it, nothing deferred, no other cohort) is suspended whole.");
+      session.stepUntil((step) => step.kind === "mark" && step.suspended && (session.store.get(`r/${step.suspended}`)?.level ?? 0) > 0);
+      session.explain("Marking the meta-region's item cuts the tree edges that leave it, found by descending only along its tree-edge counts. Its check looks only at sources flagged on it at its own level, and narrows them level by level. Then the cohort is reclaimed: the meta-region is deleted whole, with every region in it.");
+      session.collect();
+    },
+  },
+
+  {
     key: "random",
     title: "Random (a fuzz seed)",
     description: "Random transactions from the fuzzer, with a few collector steps after each. The collector options vary with the seed, as in the fuzz tests.",
@@ -304,19 +339,22 @@ function randomOptions(seed, clock) {
     walkBudget: rng.pick([2, 4, 64]),
     candidates: rng.pick([1, 2, 8]),
     regionCap: rng.pick([5, 8, 16, 100]),
+    clusterCap: rng.pick([3, 4, 32]),
   };
 }
 
 /**
  * Records a scenario. Returns { scenario, parameters, options, timeline }.
- * `deferCuts` overrides the scenario's default for deferred cuts and holds.
+ * `deferCuts` overrides the scenario's default for deferred cuts and holds; `overrides` sets
+ * collector options such as regionCap and clusterCap.
  */
-export function recordScenario(key, parameters = {}, { deferCuts } = {}) {
+export function recordScenario(key, parameters = {}, { deferCuts, overrides = {} } = {}) {
   const scenario = scenarios.find((s) => s.key === key);
   if (!scenario) throw new Error(`No scenario ${key}`);
   const merged = { ...scenario.parameters, ...parameters };
   const clock = { time: 0 };
   const options = scenario.key === "random" ? randomOptions(merged.seed, clock) : { ...scenario.options };
+  Object.assign(options, overrides);
   options.deferCuts = deferCuts ?? scenario.deferCuts ?? false;
   const session = new Recorder({ options, title: `${scenario.title}: the empty database` });
   Object.defineProperty(session, "time", { get: () => clock.time, set: (value) => { clock.time = value; } });

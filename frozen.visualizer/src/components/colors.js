@@ -15,6 +15,9 @@ export const colors = {
   unstable: "#d6336c", // every cohort, unless cohort colors are on
   region: "#f7f9fc",
   regionBorder: "#b8c4d2",
+  metaBorder: "#7d8ea3",
+  /** Meta-region fills by level (1, 2, 3, 4+): deeper the higher. */
+  metaLevels: ["#e3eaf3", "#d5e0ed", "#c7d5e6", "#b9cadf"],
   structure: "#e07a1f",
   edge: "#9aa7b4",
   tree: "#2f3d4c",

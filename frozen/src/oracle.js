@@ -84,38 +84,130 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (!meta?.deferred || keys.deferralKey(meta.deferred, id) !== key) problems.push(`F1: stale deferral key ${key}`);
   }
 
-  // G1: every object is in exactly one region, with a membership key and a region record.
+  // Clusters (§6.9). H1: every cluster has a level; a cluster with a container is a member of
+  // it, one level down; one without is at the top level (R/ key), and all top-level clusters
+  // are at the same level, so every level-0 region has a chain of containers of the same length.
+  const clusters = new Map(store.range("r/").map(([key, record]) => [key.slice(2), record]));
+  const chainOf = (cluster) => {
+    const chain = [];
+    for (let id = cluster; id !== null && id !== undefined && clusters.has(id) && chain.length <= clusters.size; id = clusters.get(id).container) chain.push(id);
+    return chain;
+  };
+  const topLevels = new Set();
+  for (const [id, record] of clusters) {
+    if (typeof record.level !== "number") problems.push(`H1: cluster ${id} has no level`);
+    if (record.container === null) {
+      topLevels.add(record.level);
+      if (!store.has(keys.topKey(id))) problems.push(`H1: top-level cluster ${id} has no R/ key`);
+    } else {
+      const container = clusters.get(record.container);
+      if (!container) problems.push(`H1: cluster ${id} is in missing cluster ${record.container}`);
+      else if (container.level !== record.level + 1) problems.push(`H1: cluster ${id} at level ${record.level} is in ${record.container} at level ${container.level}`);
+      if (!store.has(keys.regionMemberKey(record.container, id))) problems.push(`H1: cluster ${id} has no membership key in ${record.container}`);
+    }
+  }
+  if (topLevels.size > 1) problems.push(`H1: top-level clusters at levels ${[...topLevels].join(", ")}`);
+  for (const key of store.keys("R/")) {
+    if (clusters.get(key.slice(2))?.container !== null) problems.push(`H1: stale top-level key ${key}`);
+  }
+
+  // G1: every object is in exactly one level-0 region, with a membership key and a region record.
   const regionMembers = new Map();
   for (const key of store.keys("m/")) {
-    const [, region, id] = key.split("/");
-    if (store.get(keys.metaKey(id))?.region !== region) problems.push(`G1: stale membership key ${key}`);
-    if (!regionMembers.has(region)) regionMembers.set(region, 0);
-    regionMembers.set(region, regionMembers.get(region) + 1);
+    const [, cluster, id] = key.split("/");
+    const level = clusters.get(cluster)?.level;
+    if (level === undefined) problems.push(`G1: membership key ${key} of a missing cluster`);
+    else if (level === 0 ? store.get(keys.metaKey(id))?.region !== cluster : clusters.get(id)?.container !== cluster) {
+      problems.push(`G1: stale membership key ${key}`);
+    }
+    if (!regionMembers.has(cluster)) regionMembers.set(cluster, 0);
+    regionMembers.set(cluster, regionMembers.get(cluster) + 1);
   }
   for (const id of objectIds) {
     const region = store.get(keys.metaKey(id))?.region;
     if (!region) problems.push(`G1: ${id} has no region`);
     else if (!store.has(keys.regionMemberKey(region, id))) problems.push(`G1: ${id} has no membership key in ${region}`);
-    else if (!store.has(keys.regionKey(region))) problems.push(`G1: ${id} is in missing region ${region}`);
+    else if (!clusters.has(region)) problems.push(`G1: ${id} is in missing region ${region}`);
+    else if (clusters.get(region).level !== 0) problems.push(`G1: ${id} is in meta-region ${region}`);
   }
 
-  // G3: an empty region (other than the root region) has a pending structure task.
-  for (const key of store.keys("r/")) {
-    const region = key.slice(2);
-    if (region !== ROOT_REGION && !regionMembers.has(region) && !store.has(keys.structureKey(region))) {
-      problems.push(`G3: empty region ${region} has no structure task`);
+  // G3: an empty cluster (other than the root region) has a pending structure task, unless it
+  // is inside a suspended or expanding cluster: ending that schedules everything inside it.
+  for (const cluster of clusters.keys()) {
+    const waiting = chainOf(cluster).some((id) => clusters.get(id).suspended || clusters.get(id).expanding);
+    if (cluster !== ROOT_REGION && !waiting && !regionMembers.has(cluster) && !store.has(keys.structureKey(cluster))) {
+      problems.push(`G3: empty cluster ${cluster} has no structure task`);
     }
   }
 
-  // G2: every cross-region strong edge is covered by an entry flag.
+  // A1: the aggregated counters of every cluster equal a recount over the objects in it.
+  const recount = new Map([...clusters.keys()].map((id) => [id, { objects: 0, deferred: 0, explicit: {} }]));
+  for (const id of objectIds) {
+    const meta = store.get(keys.metaKey(id));
+    if (!meta) continue;
+    for (const cluster of chainOf(meta.region)) {
+      const counts = recount.get(cluster);
+      counts.objects++;
+      if (meta.deferred) counts.deferred++;
+      if (meta.cohort) counts.explicit[meta.cohort] = (counts.explicit[meta.cohort] ?? 0) + 1;
+    }
+  }
+  for (const [id, counts] of recount) {
+    const record = clusters.get(id);
+    const explicit = (map) => JSON.stringify(Object.entries(map ?? {}).sort());
+    if (record.objects !== counts.objects || record.deferred !== counts.deferred || explicit(record.explicit) !== explicit(counts.explicit)) {
+      problems.push(`A1: counters of ${id} are ${JSON.stringify([record.objects, record.deferred, record.explicit])}, recount ${JSON.stringify([counts.objects, counts.deferred, counts.explicit])}`);
+    }
+  }
+
+  // A2: T/ and P/ keys count the tree edges between clusters at every level where they differ.
+  const treeCounts = new Map();
+  for (const edge of store.keys("t/")) {
+    const [, parent, child] = edge.split("/");
+    const from = chainOf(store.get(keys.metaKey(parent))?.region);
+    const to = chainOf(store.get(keys.metaKey(child))?.region);
+    for (let level = 0; level < Math.min(from.length, to.length) && from[level] !== to[level]; level++) {
+      const key = `${from[level]}/${to[level]}`;
+      treeCounts.set(key, (treeCounts.get(key) ?? 0) + 1);
+    }
+  }
+  for (const [key, count] of store.range("T/")) {
+    const [, from, to] = key.split("/");
+    if (treeCounts.get(`${from}/${to}`) !== count) problems.push(`A2: ${key} is ${count}, recount ${treeCounts.get(`${from}/${to}`) ?? 0}`);
+    if (store.get(keys.treeInKey(to, from)) !== count) problems.push(`A2: ${key} has no matching P/ key`);
+  }
+  for (const [key, count] of treeCounts) {
+    const [from, to] = key.split("/");
+    if (!store.has(keys.treeOutKey(from, to))) problems.push(`A2: no T/${key} for ${count} tree edges`);
+  }
+  for (const key of store.keys("P/")) {
+    const [, to, from] = key.split("/");
+    if (!store.has(keys.treeOutKey(from, to))) problems.push(`A2: stale ${key}`);
+  }
+
+  // G2: every strong edge is covered by an entry flag at every level where the clusters of its
+  // ends differ: the target's cluster at that level has a flag naming the source's cluster at
+  // that level, or one of its containers.
   for (const source of objectIds) {
-    const sourceRegion = store.get(keys.metaKey(source))?.region;
+    const from = chainOf(store.get(keys.metaKey(source))?.region);
     for (const target of strongReferences(store.get(keys.objectKey(source)) ?? {}).keys()) {
-      const targetRegion = store.get(keys.metaKey(target))?.region;
-      if (sourceRegion && targetRegion && sourceRegion !== targetRegion && !store.has(keys.flagKey(targetRegion, sourceRegion))) {
-        problems.push(`G2: edge ${source} → ${target} from ${sourceRegion} into ${targetRegion} has no flag`);
+      const to = chainOf(store.get(keys.metaKey(target))?.region);
+      for (let level = 0; level < Math.min(from.length, to.length) && from[level] !== to[level]; level++) {
+        if (!from.slice(level).some((cluster) => store.has(keys.flagKey(to[level], cluster)))) {
+          problems.push(`G2: edge ${source} → ${target} from ${from[level]} into ${to[level]} (level ${level}) has no flag`);
+        }
       }
     }
+  }
+
+  // G5: a flag whose source is a meta-region has its E/ mirror, and every mirror its flag.
+  for (const key of store.keys("e/")) {
+    const [, target, source] = key.split("/");
+    if (clusters.get(source)?.level > 0 && !store.has(keys.mirrorKey(source, target))) problems.push(`G5: flag ${key} has no mirror`);
+  }
+  for (const key of store.keys("E/")) {
+    const [, source, target] = key.split("/");
+    if (!store.has(keys.flagKey(target, source))) problems.push(`G5: stale mirror ${key}`);
   }
 
   // W2: an object with more than one strong referrer has the shared bit.
@@ -136,48 +228,47 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (!meta || meta.cohort !== cohortId) problems.push(`stale membership key ${key}`);
   }
 
-  // Suspension (§8, invariants U1–U3).
-  const suspendedIn = new Map(); // region → root cohort
-  for (const [key, record] of store.range("r/")) {
+  // Suspension (§8, invariants U1–U3, U5), at every level.
+  const suspendedIn = new Map(); // cluster → root cohort
+  for (const [region, record] of clusters) {
     if (!record.suspended) continue;
-    const region = key.slice(2);
     const root = findCohort(record.suspended.cohort);
     if (root === null) {
-      problems.push(`U1: region ${region} is suspended in missing cohort ${record.suspended.cohort}`);
+      problems.push(`U1: cluster ${region} is suspended in missing cohort ${record.suspended.cohort}`);
       continue;
     }
     suspendedIn.set(region, root);
-    if (!store.has(keys.suspendedKey(record.suspended.cohort, region))) problems.push(`U1: suspended region ${region} has no S/ key`);
+    if (!store.has(keys.suspendedKey(record.suspended.cohort, region))) problems.push(`U1: suspended cluster ${region} has no S/ key`);
+    if (chainOf(store.get(keys.metaKey(ROOT))?.region).includes(region)) problems.push(`U1: cluster ${region}, which holds ROOT, is suspended`);
+    if (chainOf(region).slice(1).some((id) => suspendedIn.has(id) || clusters.get(id).suspended)) problems.push(`U5: suspended cluster ${region} is inside another`);
   }
+  // The suspended cluster covering a region, or undefined.
+  const coveringSuspension = (region) => chainOf(region).find((id) => suspendedIn.has(id));
   for (const key of store.keys("S/")) {
     const [, cohortId, region] = key.split("/");
     if (store.get(keys.regionKey(region))?.suspended?.cohort !== cohortId) problems.push(`U1: stale suspension key ${key}`);
   }
-  const membersOf = new Map();
-  for (const key of store.keys("m/")) {
-    const [, region, id] = key.split("/");
-    if (!membersOf.has(region)) membersOf.set(region, []);
-    membersOf.get(region).push(id);
-  }
-  for (const [region, root] of suspendedIn) {
-    const marked = store.get(keys.regionKey(region)).suspended.marked;
-    const members = new Set(membersOf.get(region) ?? []);
-    for (const id of members) {
-      const meta = store.get(keys.metaKey(id));
-      if (meta.cohort !== null) {
-        if (findCohort(meta.cohort) !== root) problems.push(`U2: ${id} in region ${region}, suspended in ${root}, is in cohort ${meta.cohort}`);
-      } else if (meta.deferred || meta.treeParent === null || !members.has(meta.treeParent)) {
-        problems.push(`U2: implicit member ${id} of suspended ${region} does not hang from inside it`);
-      }
-      if (marked) {
-        for (const edge of treeEdges) {
-          const [parent, child] = edge.split("/");
-          if (parent === id && !members.has(child)) problems.push(`U3: marked suspended ${region} has the tree exit ${edge}`);
-        }
-      }
+  const inCluster = (id, cluster) => chainOf(store.get(keys.metaKey(id))?.region).includes(cluster);
+  for (const id of objectIds) {
+    const meta = store.get(keys.metaKey(id));
+    const region = meta && coveringSuspension(meta.region);
+    if (region === undefined) continue;
+    const root = suspendedIn.get(region);
+    if (meta.cohort !== null) {
+      if (findCohort(meta.cohort) !== root) problems.push(`U2: ${id} in cluster ${region}, suspended in ${root}, is in cohort ${meta.cohort}`);
+    } else if (meta.deferred || meta.treeParent === null || !inCluster(meta.treeParent, region)) {
+      problems.push(`U2: implicit member ${id} of suspended ${region} does not hang from inside it`);
     }
   }
-  if (quiescent && suspendedIn.size > 0) problems.push(`${suspendedIn.size} regions are still suspended`);
+  for (const edge of treeEdges) {
+    const [parent, child] = edge.split("/");
+    const parentRegion = store.get(keys.metaKey(parent))?.region;
+    const region = parentRegion && coveringSuspension(parentRegion);
+    if (region !== undefined && clusters.get(region).suspended.marked && !inCluster(child, region)) {
+      problems.push(`U3: marked suspended ${region} has the tree exit ${edge}`);
+    }
+  }
+  if (quiescent && suspendedIn.size > 0) problems.push(`${suspendedIn.size} clusters are still suspended`);
 
   // Invariant M1: every unmarked unstable object (one that still has tree children) is on its
   // root cohort's mark list, unless it is an anchor of a region suspended in that cohort: the
@@ -187,7 +278,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     const meta = store.get(keys.metaKey(id));
     if (!meta || meta.cohort === null) continue;
     const root = cohorts.get(findCohort(meta.cohort));
-    if (root && suspendedIn.get(meta.region) === root.id) continue;
+    if (root && suspendedIn.get(coveringSuspension(meta.region)) === root.id) continue;
     if (root && !root.mark.includes(id)) problems.push(`M1: unmarked ${id} is not on the mark list of ${root.id}`);
   }
 
@@ -198,7 +289,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     const meta = store.get(keys.metaKey(id));
     if (!meta || meta.cohort === null) continue;
     const root = cohorts.get(findCohort(meta.cohort));
-    if (root && suspendedIn.get(meta.region) === root.id) continue;
+    if (root && suspendedIn.get(coveringSuspension(meta.region)) === root.id) continue;
     if (root && !root.check.includes(id)) problems.push(`M2: unmarked ${id} is not on the check list of ${root.id}`);
   }
 
@@ -237,14 +328,14 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     const meta = store.get(keys.metaKey(id));
     if (!meta) return null;
     if (meta.cohort !== null) return findCohort(meta.cohort);
-    return suspendedIn.get(meta.region) ?? STABLE;
+    return suspendedIn.get(coveringSuspension(meta.region)) ?? STABLE;
   };
   const expanding = new Set();
   for (const cohort of cohorts.values()) for (const item of cohort.expand) expanding.add(item);
   for (const source of objectIds) {
     if (stateOf(source) !== STABLE) continue;
     const sourceRegion = store.get(keys.metaKey(source))?.region;
-    if (expanding.has(source) || expanding.has(`@${sourceRegion}`)) continue;
+    if (expanding.has(source) || chainOf(sourceRegion).some((id) => expanding.has(`@${id}`))) continue;
     for (const target of strongReferences(store.get(keys.objectKey(source)) ?? {}).keys()) {
       const targetState = stateOf(target);
       if (targetState === null || targetState === STABLE) continue;
@@ -252,7 +343,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
       const meta = store.get(keys.metaKey(target));
       const pending = meta.cohort !== null
         ? cohort.check.includes(target)
-        : cohort.check.includes(`@${meta.region}`) || cohort.mark.includes(`@${meta.region}`);
+        : cohort.check.includes(`@${coveringSuspension(meta.region)}`) || cohort.mark.includes(`@${coveringSuspension(meta.region)}`);
       if (!pending) problems.push(`M3: stable ${source} references ${target}, unstable in ${targetState}, with no check or expansion pending`);
     }
   }

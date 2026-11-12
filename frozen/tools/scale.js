@@ -30,8 +30,8 @@ function buildDocument(tx, font) {
   return tx.create({ title: "doc", paragraphs });
 }
 
-function measure(documents, deletions) {
-  const db = new Database({ options: { deferral: 0, regionCap: 100 } });
+function build(documents, clusterCap = 32) {
+  const db = new Database({ options: { deferral: 0, regionCap: 100, clusterCap } });
   let font;
   db.transaction((tx) => {
     font = tx.create({ name: "Default font" });
@@ -48,8 +48,20 @@ function measure(documents, deletions) {
     });
   }
   db.collector.runUntilIdle(); // settle the splits from loading
+  return { db, library };
+}
+
+/** Counts of clusters per level: "regions/level-1/level-2...". */
+function levels(db) {
+  const counts = [];
+  for (const [, record] of db.store.range("r/")) counts[record.level] = (counts[record.level] ?? 0) + 1;
+  return counts.join("/");
+}
+
+function measure(documents, deletions) {
+  const { db, library } = build(documents);
   const objects = db.objectIds().length;
-  const regions = db.store.keys("r/").length;
+  const regions = levels(db);
 
   recordsRead = 0;
   const stepsBefore = db.collector.stats.steps;
@@ -76,5 +88,32 @@ function measure(documents, deletions) {
   };
 }
 
+/** Deletes one chunk of 20 documents (about 1000 objects) in one transaction. */
+function measureChunk(documents, clusterCap) {
+  const { db, library } = build(documents, clusterCap);
+  const objects = db.objectIds().length;
+  const regions = levels(db);
+  recordsRead = 0;
+  const before = { ...db.collector.stats };
+  db.transaction((tx) => tx.delete(library, "chunk0"));
+  db.collector.runUntilIdle();
+  const stats = db.collector.stats;
+  const cohortSteps = (s) => s.expand + s.mark + s.check + s.reclaim;
+  if (db.objectIds().length !== reachableFromRoot(db.store).size) throw new Error("incomplete collection");
+  return {
+    clusterCap,
+    documents,
+    objects,
+    "clusters per level": regions,
+    reclaimed: stats.reclaimed - before.reclaimed,
+    "cohort steps": cohortSteps(stats) - cohortSteps(before),
+    suspended: stats.suspended - before.suspended,
+    "of them meta": stats.suspendedMeta - before.suspendedMeta,
+    recordsRead,
+  };
+}
+
 console.log("Deleting 10 documents (about 50 objects each) from databases of growing size:");
 console.table([100, 400, 1600].map((n) => measure(n, 10)));
+console.log("Deleting a chunk of 20 documents (about 1000 objects) at once, without and with meta-regions:");
+console.table([100, 400].flatMap((n) => [measureChunk(n, 100000), measureChunk(n, 32), measureChunk(n, 4)]));

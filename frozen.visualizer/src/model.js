@@ -26,6 +26,10 @@ export const model = observable({
   cohortOutlines: true, // an outline around each cohort's members
   sidebarTab: "step", // "step", "cohorts" or "legend"
   deferCuts: false, // deferred cuts and holds; reset to the scenario's default when one is chosen
+  // Size caps that override the scenario's, as typed ("" for the scenario's own): small ones
+  // build meta-regions from a few regions.
+  regionCap: "",
+  clusterCap: "",
   fitRequest: 0,
 });
 
@@ -46,9 +50,14 @@ export function load(scenarioKey = model.scenarioKey, { deferCuts } = {}) {
   let recording = null;
   let error = null;
   if (deferCuts === undefined) deferCuts = scenarios.find((s) => s.key === scenarioKey)?.deferCuts ?? false;
+  const overrides = {};
+  for (const name of ["regionCap", "clusterCap"]) {
+    const value = Number(model[name]);
+    if (model[name] !== "" && Number.isFinite(value) && value >= 2) overrides[name] = value;
+  }
   try {
     const parameters = scenarioKey === "random" ? { seed: Number(model.seed) || 1, transactions: Number(model.transactions) || 40 } : {};
-    recording = { ...recordScenario(scenarioKey, parameters, { deferCuts }), id: ++recordings };
+    recording = { ...recordScenario(scenarioKey, parameters, { deferCuts, overrides }), id: ++recordings };
   } catch (caught) {
     error = String(caught?.stack ?? caught);
   }

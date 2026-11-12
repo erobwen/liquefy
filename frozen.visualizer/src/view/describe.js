@@ -50,7 +50,7 @@ function cohortsOf(state) {
   return { cohorts, rootOf };
 }
 
-/** Suspended regions: region id → { cohort (root), marked }. */
+/** Suspended clusters (regions or meta-regions): id → { cohort (root), marked }. */
 function suspensionsOf(state, rootOf) {
   const suspended = new Map();
   for (const [id, record] of entries(state, "r/")) {
@@ -60,22 +60,41 @@ function suspensionsOf(state, rootOf) {
 }
 
 /**
+ * The suspended cluster covering a region: the region itself or a meta-region above it, or
+ * null (design §7.1: an object is implicitly unstable if any cluster in its chain is suspended).
+ */
+function coveringOf(state, suspended) {
+  return (region) => {
+    for (let id = region; id; id = state.get(`r/${id}`)?.container ?? null) if (suspended.has(id)) return id;
+    return null;
+  };
+}
+
+/** "region" for a level-0 cluster, "meta-region" above. */
+function kindOf(state, id) {
+  return (state.get(`r/${id}`)?.level ?? 0) > 0 ? "meta-region" : "region";
+}
+
+/**
  * The objects of a store state, with their GC metadata and a display state:
  *   root, stable, deferred, held;
  *   unstable  explicitly unstable, not yet marked: it still has tree children;
  *   marked    explicitly unstable, marked: no tree children;
- *   suspended implicitly unstable: its region is suspended in a cohort (design §8.1).
+ *   suspended implicitly unstable: its region, or a meta-region above it, is suspended in a
+ *             cohort (design §8.1).
  */
 function objectsOf(state) {
   const { rootOf } = cohortsOf(state);
   const suspended = suspensionsOf(state, rootOf);
+  const covering = coveringOf(state, suspended);
   const parents = new Set();
   for (const key of state.keys()) if (key.startsWith("t/")) parents.add(key.split("/")[1]);
   const objects = new Map();
   for (const [id, fields] of entries(state, "o/")) {
     const meta = state.get(`g/${id}`) ?? {};
-    const implicit = !meta.cohort && suspended.has(meta.region);
-    const cohort = meta.cohort ? rootOf(meta.cohort) : implicit ? suspended.get(meta.region).cohort : null;
+    const cover = meta.cohort ? null : covering(meta.region);
+    const implicit = cover !== null;
+    const cohort = meta.cohort ? rootOf(meta.cohort) : implicit ? suspended.get(cover).cohort : null;
     let display = "stable";
     if (id === ROOT) display = "root";
     else if (implicit) display = "suspended";
@@ -122,8 +141,12 @@ function edgesOf(objects) {
 }
 
 const STRUCTURE_OUTCOMES = {
-  split: "split: a group of subtrees moved to a new region",
-  merged: "light, so it merged into the region it hangs from",
+  split: "split: a group of subtrees (or of member clusters) moved to a new cluster in the same container",
+  merged: "light, so it merged into the cluster it hangs from",
+  "level added": "the top level has more clusters than the cluster cap, so a meta-region one level up now holds them all",
+  "level removed": "the top level is a single meta-region, so it was dissolved and its members are the top level",
+  suspended: "skipped: it is inside a suspended cluster",
+  expanding: "skipped: it is inside a resumed cluster whose expansion is pending",
   deleted: "empty, so it was deleted",
   kept: "within bounds, kept as it is",
   unsplittable: "over the cap, but no group of subtrees has between a third and two thirds of its weight",
@@ -143,19 +166,25 @@ function summarize(frame, state, previous) {
       return `The deferral of ${frame.id} is due. No verified referrer, so it starts cohort ${cohort ?? "?"}.`;
     }
     case "structure":
-      return `Structure task of region ${frame.region}: ${STRUCTURE_OUTCOMES[frame.outcome] ?? frame.outcome}.`;
+      return `Structure task of ${kindOf(state.has(`r/${frame.region}`) ? state : previous, frame.region)} ${frame.region}: ${STRUCTURE_OUTCOMES[frame.outcome] ?? frame.outcome}.`;
     case "expand":
-      if (frame.region) return `Expand region ${frame.region} (${frame.cohort}): it was resumed, so every member follows its references and rescues the unstable objects it finds.`;
+      if (frame.region) return `Expand ${kindOf(state, frame.region)} ${frame.region} (${frame.cohort}): it was resumed, so every object in it follows its references and rescues the unstable objects it finds.`;
       return `Expand ${frame.ids[0]} (${frame.cohort}): it is stable again, so the unstable objects it references are rescued.`;
     case "mark":
-      if (frame.region) return `Mark region ${frame.region} (${frame.cohort}): the tree edges that leave it are cut, as marking its members one by one would have done. The edges inside it stay.`;
-      if (frame.suspended) return `Mark ${frame.ids[0]} (${frame.cohort}): everything in its region ${frame.suspended} is condemned to this cohort, so the whole region is suspended at once instead of marked object by object.`;
+      if (frame.region) {
+        const meta = kindOf(state, frame.region) === "meta-region";
+        return `Mark ${kindOf(state, frame.region)} ${frame.region} (${frame.cohort}): the tree edges that leave it are cut, as marking its objects one by one would have done. The edges inside it stay.${meta ? " They are found from its tree-edge counts, descending only into members with edges that leave it." : ""}`;
+      }
+      if (frame.suspended) {
+        if (kindOf(state, frame.suspended) === "meta-region") return `Mark ${frame.ids[0]} (${frame.cohort}): everything in the meta-region ${frame.suspended} around it is condemned to this cohort (its counters say so: no tree edge enters it, nothing in it is deferred or in another cohort), so the whole meta-region is suspended at once, with every region in it.`;
+        return `Mark ${frame.ids[0]} (${frame.cohort}): everything in its region ${frame.suspended} is condemned to this cohort, so the whole region is suspended at once instead of marked object by object.`;
+      }
       return `Mark ${frame.ids[0]} (${frame.cohort}): its tree children become unstable, unless a shared child finds a replacement parent.`;
     case "check": {
       const items = [];
       if (frame.ids.length) items.push(`${frame.ids.length} object${frame.ids.length === 1 ? "" : "s"}`);
-      if (frame.regions?.length) items.push(`suspended region${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")}`);
-      const what = `Check ${items.join(" and ")} of ${frame.cohort}: look for a stable referrer of each, in its region and the regions flagged on it.`;
+      if (frame.regions?.length) items.push(`suspended cluster${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")}`);
+      const what = `Check ${items.join(" and ")} of ${frame.cohort}: look for a stable referrer of each, in its region and the regions flagged on it (for a suspended cluster: only from outside it, through the flags at its own level).`;
       if (!frame.reclaimed) return what;
       return `${what} None found and nothing left to do, so the cohort is closed under "is referenced by": ${reclaimedText(deleted, frame)} in the same step.`;
     }
@@ -168,7 +197,7 @@ function summarize(frame, state, previous) {
 
 function reclaimedText(deleted, frame) {
   const objects = `its ${deleted} object${deleted === 1 ? " is" : "s are"} reclaimed`;
-  const regions = frame.regions?.length ? `, with region${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")} deleted whole` : "";
+  const regions = frame.regions?.length ? `, with cluster${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")} deleted whole` : "";
   return objects + regions;
 }
 
@@ -207,23 +236,31 @@ function changesBetween(previousObjects, objects, previous, state) {
     const region = after(key, "r/");
     const was = previous.get(key)?.suspended ?? null;
     const is = record.suspended ?? null;
-    const members = [...objects.values()].filter((o) => o.region === region).length;
-    if (!was && is) changes.push(`region ${region} suspended in ${is.cohort}: its ${members} members are unstable as a unit`);
-    if (was && is && !was.marked && is.marked) changes.push(`region ${region}: tree edges leaving it cut`);
-    if (was && !is) {
-      // A resume marks the region as expanding (GcState.resume); a materialize does not.
-      changes.push(record.expanding
-        ? `region ${region} resumed: its anchor is rescued, and its internal tree is valid again`
-        : `region ${region} materialized: its members are marked object by object from now on`);
+    const kind = kindOf(state, region);
+    const members = record.objects ?? [...objects.values()].filter((o) => o.region === region).length;
+    if (!was && is) changes.push(`${kind} ${region} suspended in ${is.cohort}: its ${members} objects are unstable as a unit`);
+    if (was && is && !was.marked && is.marked) changes.push(`${kind} ${region}: tree edges leaving it cut`);
+    if (was && !is && !record.suspended) {
+      // A resume marks the cluster as expanding (GcState.resume); a materialize sets
+      // materializedIn; a cluster suspended around this one takes its suspension over.
+      if (record.expanding) changes.push(`${kind} ${region} resumed: its anchor is rescued, and its internal tree is valid again`);
+      else if (record.materializedIn && record.materializedIn !== previous.get(key)?.materializedIn) changes.push(`${kind} ${region} materialized: its objects are marked object by object from now on`);
+      else changes.push(`${kind} ${region}: its suspension is now part of the cluster suspended around it`);
     }
+    const container = record.container ?? null;
+    const wasContainer = previous.get(key)?.container ?? null;
+    if (previous.has(key) && container !== wasContainer) changes.push(`${kind} ${region} moved ${wasContainer ? `from ${wasContainer} ` : ""}${container ? `into ${container}` : "to the top level"}`);
   }
   for (const id of previousObjects.keys()) if (!objects.has(id)) changes.push(`${id} reclaimed`);
   for (const key of state.keys()) {
-    if (key.startsWith("r/") && !previous.has(key)) changes.push(`region ${after(key, "r/")} created`);
+    if (key.startsWith("r/") && !previous.has(key)) {
+      const record = state.get(key);
+      changes.push(record.level > 0 ? `meta-region ${after(key, "r/")} created at level ${record.level}` : `region ${after(key, "r/")} created`);
+    }
     if (key.startsWith("e/") && !previous.has(key)) changes.push(`flag ${flagText(key)} added`);
   }
   for (const key of previous.keys()) {
-    if (key.startsWith("r/") && !state.has(key)) changes.push(`region ${after(key, "r/")} deleted`);
+    if (key.startsWith("r/") && !state.has(key)) changes.push(`${kindOf(previous, after(key, "r/"))} ${after(key, "r/")} deleted`);
     if (key.startsWith("e/") && !state.has(key)) changes.push(`flag ${flagText(key)} removed`);
   }
   return changes;
@@ -256,19 +293,34 @@ export function describe(state, previous = new Map(), frame = null) {
   for (const id of reclaimed) shown.set(id, { ...previousObjects.get(id), display: "reclaimed" });
 
   const suspended = suspensionsOf(state, rootOf);
+  // Clusters at every level: regions (level 0) hold objects, meta-regions hold clusters.
   const regions = new Map();
-  for (const [id] of entries(state, "r/")) {
-    regions.set(id, { id, members: 0, pending: state.has(`s/${id}`), ghost: false, suspended: suspended.get(id) ?? null });
+  for (const [id, record] of entries(state, "r/")) {
+    regions.set(id, {
+      id,
+      level: record.level ?? 0,
+      container: record.container ?? null,
+      members: 0,
+      objects: record.objects ?? 0,
+      pending: state.has(`s/${id}`),
+      ghost: false,
+      suspended: suspended.get(id) ?? null,
+    });
   }
   for (const object of shown.values()) {
     if (!object.region) continue;
-    if (!regions.has(object.region)) regions.set(object.region, { id: object.region, members: 0, pending: false, ghost: true, suspended: null });
+    if (!regions.has(object.region)) {
+      regions.set(object.region, { id: object.region, level: 0, container: null, members: 0, objects: 0, pending: false, ghost: true, suspended: null });
+    }
     if (object.display !== "reclaimed") regions.get(object.region).members++;
+  }
+  for (const region of regions.values()) {
+    if (region.level > 0) region.members = [...regions.values()].filter((other) => other.container === region.id).length;
   }
 
   const flags = entries(state, "e/").map(([key]) => {
     const [target, source] = key.split("/");
-    return { id: `flag:${source}>${target}`, source, target };
+    return { id: `flag:${source}>${target}`, source, target, level: state.get(`r/${target}`)?.level ?? 0 };
   }).filter((flag) => regions.has(flag.source) && regions.has(flag.target));
 
   const activeCohorts = [...cohorts.values()]

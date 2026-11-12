@@ -26,7 +26,10 @@ const seeds = Number(process.argv[2] ?? 100);
 const totals = {};
 for (let seed = 1; seed <= seeds; seed++) {
   const { stats } = runSeed(seed, { transactions: 300, maxSteps: 2 });
-  for (const [key, value] of Object.entries(stats)) if (typeof value === "number") totals[key] = (totals[key] ?? 0) + value;
+  for (const [key, value] of Object.entries(stats)) {
+    if (typeof value === "number") totals[key] = (totals[key] ?? 0) + value;
+    else for (const [outcome, n] of Object.entries(value)) totals[`structure:${outcome}`] = (totals[`structure:${outcome}`] ?? 0) + n;
+  }
 }
 console.log("collector stats:", totals);
 console.log("GcState calls:", counts);

@@ -12,22 +12,36 @@
  *   C/<cohort>/<obj>        cohort membership, under the cohort id the object joined
  *   d/<deadline>/<obj>      deferred cuts with a deadline on the logical clock
  *   h/<deadline>/<obj>      deferred cuts with a wall-clock deadline (holds)
- *   r/<region>              region record: { id, suspended: { cohort, marked } | null }
- *   S/<cohort>/<region>     a region suspended in a cohort, under the cohort id it joined
- *   m/<region>/<obj>        region membership
- *   e/<target>/<source>     entry flag: something in region source may reference into target
- *   s/<region>              pending structure task: re-evaluate the region's weight
+ *   r/<cluster>             cluster record, at every level (below)
+ *   R/<cluster>             the clusters of the top level, which have no container
+ *   S/<cohort>/<cluster>    a cluster suspended in a cohort, under the cohort id it joined
+ *   m/<cluster>/<member>    membership: objects in a level-0 region, clusters in a meta-region
+ *   e/<target>/<source>     entry flag: something in cluster source may reference into target
+ *   E/<source>/<target>     mirror of an entry flag whose source is a meta-region (§6.6)
+ *   T/<from>/<to>           number of tree edges from cluster from into cluster to, at the
+ *                           level where the two differ (every level up to where they meet)
+ *   P/<to>/<from>           mirror of T/<from>/<to>: where cluster to hangs from
+ *   s/<cluster>             pending structure task: re-evaluate the cluster
  *   meta/nextId             id counter
  *   meta/clock              logical clock: the number of application transactions
+ *
+ * Clusters (§6.9): level-0 clusters are regions of objects; a level-k cluster (a meta-region)
+ * holds level k-1 clusters. Every level-0 region has a chain of containers of the same length,
+ * ending at a top-level cluster. A cluster record is
+ *   { id, level, container, objects, deferred, explicit: { cohortId: n }, suspended,
+ *     materializedIn, expanding }
+ * where objects, deferred and explicit count the objects anywhere inside it (aggregated
+ * counters, §6.8): all objects, deferred ones, and explicitly unstable ones per cohort id.
  *
  * State of an object (§7.1):
  *   - STABLE: no cohort. It has a tree parent, is ROOT, or is deferred. It may be stale-stable,
  *     that is, below a cut whose marking or deferral is still pending (§7.3).
  *   - unstable in cohort C, explicitly: its cohort field is set. It has no tree parent and,
- *     once marked, no tree children (unless its region is suspended, below).
- *   - unstable in cohort C, implicitly: no cohort field, but its region is suspended in C
- *     (§8.1). It keeps its tree parent, which is in the same region: a suspended region keeps
- *     its internal tree, hanging from explicit members of C (its anchors).
+ *     once marked, no tree children (unless it is in a suspended cluster, below).
+ *   - unstable in cohort C, implicitly: no cohort field, but a cluster containing it (its region
+ *     or a meta-region above it) is suspended in C (§8.1). It keeps its tree parent, which is
+ *     inside that cluster: a suspended cluster keeps its internal tree, hanging from explicit
+ *     members of C (its anchors).
  *
  * Cohorts merge by union-find: a merged cohort record points at the cohort it was merged into.
  */
@@ -54,13 +68,26 @@ const flagPrefix = (target) => `e/${target}/`;
 const structureKey = (region) => `s/${region}`;
 const suspendedKey = (cohort, region) => `S/${cohort}/${region}`;
 const suspendedPrefix = (cohort) => `S/${cohort}/`;
+const topKey = (cluster) => `R/${cluster}`;
+const mirrorKey = (source, target) => `E/${source}/${target}`;
+const mirrorPrefix = (source) => `E/${source}/`;
+const treeOutKey = (from, to) => `T/${from}/${to}`;
+const treeOutPrefix = (from) => `T/${from}/`;
+const treeInKey = (to, from) => `P/${to}/${from}`;
+const treeInPrefix = (to) => `P/${to}/`;
 const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${String(deferred.at).padStart(16, "0")}/${id}`;
 
 export const keys = {
   objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
-  suspendedKey, suspendedPrefix,
+  suspendedKey, suspendedPrefix, topKey, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
+  treeInKey, treeInPrefix,
 };
+
+/** A new, empty cluster record. */
+export function clusterRecord(id, level, container) {
+  return { id, level, container, objects: 0, deferred: 0, explicit: {}, suspended: null };
+}
 
 /**
  * Worklist items are object ids, or region items for suspended regions (§7.2): "@<region>".
@@ -88,7 +115,20 @@ export const defaultOptions = {
   now: () => Date.now(),
   /** Region weight (members + outgoing edges) above which a region splits (§6.4). */
   regionCap: 100,
+  /**
+   * Members above which a meta-region splits, and top-level clusters above which a new level
+   * is added (§6.9).
+   */
+  clusterCap: 32,
 };
+
+/** Adds to a count in a { key: n } map, deleting it at zero. */
+export function addCount(counts, key, delta) {
+  const value = (counts[key] ?? 0) + delta;
+  if (value < 0) throw new Error(`Negative count for ${key}`);
+  if (value === 0) delete counts[key];
+  else counts[key] = value;
+}
 
 export class GcState {
   constructor(transaction, options = {}) {
@@ -122,27 +162,100 @@ export class GcState {
     return this.tx.get(metaKey(id));
   }
 
-  /** Updates some metadata fields, keeping the others (such as the shared bit). */
+  /**
+   * Updates some metadata fields, keeping the others (such as the shared bit). This is the one
+   * place where an object's region, tree parent, cohort or deferral changes, so it also keeps
+   * the aggregated counters of its clusters and the T/ and P/ tree-edge counts up to date
+   * (invariants A1, A2): O(levels) writes.
+   */
   updateMeta(id, patch) {
-    this.tx.put(metaKey(id), { ...(this.meta(id) ?? {}), ...patch });
+    const before = this.meta(id) ?? {};
+    const after = { ...before, ...patch };
+    this.tx.put(metaKey(id), after);
+    const regionChanged = before.region !== after.region;
+    if (regionChanged || Boolean(before.deferred) !== Boolean(after.deferred) || (before.cohort ?? null) !== (after.cohort ?? null)) {
+      if (before.region) this.contribute(before.region, before, -1);
+      if (after.region) this.contribute(after.region, after, 1);
+    }
+    if (regionChanged || (before.treeParent ?? null) !== (after.treeParent ?? null)) {
+      if (before.region && before.treeParent) this.countTreeEdge(this.regionOf(before.treeParent), before.region, -1);
+      if (after.region && after.treeParent) this.countTreeEdge(this.regionOf(after.treeParent), after.region, 1);
+    }
+    if (regionChanged && before.region) {
+      // The object's tree children now hang from another region.
+      for (const child of this.treeChildren(id)) {
+        const childRegion = this.regionOf(child);
+        this.countTreeEdge(before.region, childRegion, -1);
+        this.countTreeEdge(after.region, childRegion, 1);
+      }
+    }
+  }
+
+  /** Adds (sign 1) or removes (sign -1) an object's share of its clusters' counters. */
+  contribute(region, meta, sign) {
+    for (const id of this.chain(region)) {
+      const record = this.cluster(id);
+      record.objects += sign;
+      if (meta.deferred) record.deferred += sign;
+      if (meta.cohort) addCount(record.explicit, meta.cohort, sign);
+      this.putCluster(record);
+    }
+  }
+
+  /**
+   * Counts a tree edge from an object in region `from` to one in region `to` (sign 1), or stops
+   * counting it (sign -1), at every level where their clusters differ.
+   */
+  countTreeEdge(from, to, sign) {
+    while (from !== to) {
+      if (from === null || to === null) throw new Error("Clusters at different depths");
+      this.bump(treeOutKey(from, to), sign);
+      this.bump(treeInKey(to, from), sign);
+      from = this.cluster(from).container;
+      to = this.cluster(to).container;
+    }
+  }
+
+  /** Adds to a count key, deleting it at zero. */
+  bump(key, delta) {
+    const value = (this.tx.get(key) ?? 0) + delta;
+    if (value < 0) throw new Error(`Negative count ${key}`);
+    if (value === 0) this.tx.delete(key);
+    else this.tx.put(key, value);
+  }
+
+  /** Deletes an object's records: the reclaim of one object outside a suspended cluster. */
+  deleteObject(id) {
+    const meta = this.meta(id);
+    if (this.treeChildren(id).length > 0) throw new Error(`Deleting ${id}, which has tree children`);
+    this.contribute(meta.region, meta, -1);
+    if (meta.treeParent !== null) {
+      this.countTreeEdge(this.regionOf(meta.treeParent), meta.region, -1);
+      this.tx.delete(treeKey(meta.treeParent, id));
+    }
+    this.tx.delete(regionMemberKey(meta.region, id));
+    if (meta.cohort !== null) this.tx.delete(memberKey(meta.cohort, id));
+    this.tx.delete(objectKey(id));
+    this.tx.delete(metaKey(id));
+    this.scheduleStructure(meta.region);
   }
 
   /**
    * STABLE, or the id of the (root) cohort the object is unstable in: explicitly (its cohort
-   * field), or implicitly (its region is suspended).
+   * field), or implicitly (a cluster containing it is suspended).
    */
   state(id) {
     const meta = this.meta(id);
     if (!meta) throw new Error(`No GC metadata for object ${id}`);
     if (meta.cohort !== null) return this.findCohort(meta.cohort);
-    const suspended = this.suspension(meta.region);
+    const suspended = this.suspensionOf(meta.region);
     return suspended ? this.findCohort(suspended.cohort) : STABLE;
   }
 
-  /** Unstable only because its region is suspended. */
+  /** Unstable only because a cluster containing it is suspended. */
   isImplicit(id) {
     const meta = this.meta(id);
-    return meta.cohort === null && this.suspension(meta.region) !== null;
+    return meta.cohort === null && this.suspensionOf(meta.region) !== null;
   }
 
   treeChildren(parent) {
@@ -183,16 +296,18 @@ export class GcState {
       const targetMembers = new Set(this.regionMembers(target));
       for (const source of [target, ...this.flagSources(target)]) {
         if (source !== target && !this.regionExists(source)) {
-          this.tx.delete(flagKey(target, source));
+          this.deleteFlag(target, source);
           continue;
         }
         let referencesTarget = false;
-        for (const edge of edgesOf(source)) {
-          if (!targetMembers.has(edge.target)) continue;
-          referencesTarget = true;
-          if (targetIds.has(edge.target)) referrers.get(edge.target).push(edge.source);
+        for (const region of this.levelZeroRegions(source)) {
+          for (const edge of edgesOf(region)) {
+            if (!targetMembers.has(edge.target)) continue;
+            referencesTarget = true;
+            if (targetIds.has(edge.target)) referrers.get(edge.target).push(edge.source);
+          }
         }
-        if (source !== target && !referencesTarget) this.tx.delete(flagKey(target, source));
+        if (source !== target && !referencesTarget) this.deleteFlag(target, source);
       }
     }
     return referrers;
@@ -225,12 +340,6 @@ export class GcState {
     return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
   }
 
-  newRegion() {
-    const region = this.nextId("r");
-    this.tx.put(regionKey(region), { id: region });
-    return region;
-  }
-
   /** Puts an object in a region, on placement or on a move. Schedules both regions. */
   setRegion(id, region) {
     const previous = this.meta(id)?.region;
@@ -244,25 +353,133 @@ export class GcState {
     this.scheduleStructure(region);
   }
 
+  // ---- Clusters: regions at every level (§6.9) ----
+
+  cluster(id) {
+    return this.tx.get(regionKey(id));
+  }
+
+  putCluster(record) {
+    this.tx.put(regionKey(record.id), record);
+  }
+
+  patchCluster(id, patch) {
+    this.putCluster({ ...this.cluster(id), ...patch });
+  }
+
+  /** A new, empty cluster in `container` (null: at the top level). */
+  newCluster(level, container) {
+    const id = this.nextId("r");
+    this.putCluster(clusterRecord(id, level, container));
+    if (container === null) this.tx.put(topKey(id), true);
+    else {
+      this.tx.put(regionMemberKey(container, id), true);
+      this.scheduleStructure(container);
+    }
+    this.scheduleStructure(id);
+    return id;
+  }
+
+  /** The cluster and its containers, bottom up. */
+  chain(cluster) {
+    const chain = [];
+    for (let id = cluster; id !== null; id = this.cluster(id).container) chain.push(id);
+    return chain;
+  }
+
+  /** Whether `cluster` is `container` or inside it. */
+  isInside(cluster, container) {
+    for (let id = cluster; id !== null; id = this.cluster(id).container) if (id === container) return true;
+    return false;
+  }
+
+  topClusters() {
+    return this.tx.keys("R/").map((key) => key.slice(2));
+  }
+
+  /** The level-0 regions inside a cluster. */
+  levelZeroRegions(cluster) {
+    if (this.cluster(cluster).level === 0) return [cluster];
+    return this.regionMembers(cluster).flatMap((member) => this.levelZeroRegions(member));
+  }
+
+  /** The objects inside a cluster, at any depth. */
+  objectsIn(cluster) {
+    return this.levelZeroRegions(cluster).flatMap((region) => this.regionMembers(region));
+  }
+
+  /** [cluster, count] of the tree edges from this cluster into others at its level. */
+  treeExits(cluster) {
+    return this.tx.range(treeOutPrefix(cluster)).map(([key, count]) => [key.slice(treeOutPrefix(cluster).length), count]);
+  }
+
+  /** [cluster, count] of the tree edges into this cluster from others at its level. */
+  treeEntries(cluster) {
+    return this.tx.range(treeInPrefix(cluster)).map(([key, count]) => [key.slice(treeInPrefix(cluster).length), count]);
+  }
+
   flagSources(target) {
     const prefix = flagPrefix(target);
     return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
   }
 
-  /** Makes sure the flag "source may reference into target" exists (invariant G2). */
-  ensureFlag(target, source) {
-    if (target !== source && !this.tx.has(flagKey(target, source))) this.tx.put(flagKey(target, source), true);
+  /** The targets of the flags that name a meta-region as their source, from the mirrors. */
+  mirrorTargets(source) {
+    const prefix = mirrorPrefix(source);
+    return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
   }
 
-  /** Covers the edge source → target with a flag, if it crosses regions (invariant G2). */
+  /**
+   * Makes sure the flag "source may reference into target" exists (invariant G2), with its
+   * mirror if the source is a meta-region (invariant G5).
+   */
+  ensureFlag(target, source) {
+    if (target === source || this.tx.has(flagKey(target, source))) return;
+    const record = this.cluster(source);
+    if (!record) return; // a stale flag being copied: its source is gone
+    this.tx.put(flagKey(target, source), true);
+    if (record.level > 0) this.tx.put(mirrorKey(source, target), true);
+  }
+
+  deleteFlag(target, source) {
+    this.tx.delete(flagKey(target, source));
+    this.tx.delete(mirrorKey(source, target));
+  }
+
+  /**
+   * Deletes the flags on a cluster, and the flags that name it where mirrors list them. Flags
+   * naming a level-0 region have no mirror and are left stale (lookups delete them, G2).
+   */
+  dropFlags(cluster) {
+    for (const source of this.flagSources(cluster)) this.deleteFlag(cluster, source);
+    for (const target of this.mirrorTargets(cluster)) this.deleteFlag(target, cluster);
+  }
+
+  /**
+   * Covers the edge source → target with flags, at every level where their clusters differ
+   * (invariant G2): the target's cluster at that level needs a flag naming the source's cluster
+   * at that level, or one of its containers. O(levels) lookups, usually no write (§6.6).
+   */
   coverEdge(source, target) {
     const sourceMeta = this.meta(source);
     const targetMeta = this.meta(target);
-    if (sourceMeta && targetMeta) this.ensureFlag(targetMeta.region, sourceMeta.region);
+    if (!sourceMeta || !targetMeta) return;
+    const sources = this.chain(sourceMeta.region);
+    let to = targetMeta.region;
+    for (let level = 0; to !== null && sources[level] !== to; level++) {
+      if (!sources.slice(level).some((from) => this.tx.has(flagKey(to, from)))) this.ensureFlag(to, sources[level]);
+      to = this.cluster(to).container;
+    }
   }
 
   scheduleStructure(region) {
     this.tx.put(structureKey(region), true);
+  }
+
+  /** Schedules a cluster and every cluster inside it (not their objects). */
+  scheduleInside(cluster) {
+    this.scheduleStructure(cluster);
+    if (this.cluster(cluster).level > 0) for (const member of this.regionMembers(cluster)) this.scheduleInside(member);
   }
 
   /** The weight of a region: members plus their outgoing strong edges (design §6.1). */
@@ -419,7 +636,7 @@ export class GcState {
       seen.add(current);
       if (current === ROOT) return true;
       const meta = this.meta(current);
-      if (!meta || meta.cohort !== null || this.suspension(meta.region) !== null) return false;
+      if (!meta || meta.cohort !== null || this.suspensionOf(meta.region) !== null) return false;
       if (meta.treeParent === null) return Boolean(meta.deferred);
       current = meta.treeParent;
     }
@@ -516,12 +733,12 @@ export class GcState {
    */
   canRescue(id) {
     const meta = this.meta(id);
-    const suspended = this.suspension(meta.region);
-    // An implicit member: "rescuing" it materializes its region (see rescue).
+    const suspended = this.suspensionOf(meta.region);
+    // An implicit member: "rescuing" it materializes its cluster (see rescue).
     if (meta.cohort === null) return suspended !== null;
-    // An anchor of a suspended region whose exits have been cut (markRegion): its tree
-    // children are all implicit members of the region, none of them stable, so none of them can
-    // be the would-be parent.
+    // An anchor of a suspended cluster whose exits have been cut (markRegion): its tree
+    // children are all implicit members of the cluster, none of them stable, so none of them
+    // can be the would-be parent.
     if (suspended !== null && suspended.marked) return true;
     return this.treeChildren(id).length === 0;
   }
@@ -533,21 +750,21 @@ export class GcState {
    */
   rescue(id, parent) {
     const meta = this.meta(id);
-    const suspended = this.suspension(meta.region);
+    const suspended = this.suspensionOf(meta.region);
     if (meta.cohort === null) {
       if (suspended === null) throw new Error(`Rescue of stable object ${id}`);
-      // An implicit member: its region is materialized, which makes it stale-stable under its
+      // An implicit member: its cluster is materialized, which makes it stale-stable under its
       // anchor. It is shared (its tree parent and `parent` both reference it, invariant W2), so
       // when marking reaches it, the replacement-parent search finds `parent` again (§8.2).
-      this.materialize(meta.region);
+      this.materialize(suspended.cluster);
       return;
     }
     if (!this.canRescue(id)) throw new Error(`Rescue of unmarked object ${id}`);
     if (suspended !== null) {
-      // The region's anchor gets a parent. If it is the only one, the whole region comes back
+      // The cluster's anchor gets a parent. If it is the only one, the whole cluster comes back
       // with its internal tree (resume); otherwise the rest must be marked object by object.
-      if (this.isSoleAnchor(id, meta.region)) this.resume(meta.region);
-      else this.materialize(meta.region);
+      if (this.isSoleAnchor(id, suspended.cluster)) this.resume(suspended.cluster);
+      else this.materialize(suspended.cluster);
     }
     const root = this.findCohort(meta.cohort);
     this.tx.delete(memberKey(meta.cohort, id));
@@ -556,111 +773,141 @@ export class GcState {
     this.push(root, "expand", id);
   }
 
-  // ---- Suspension (design §8) ----
+  // ---- Suspension (design §8), at every level ----
 
-  /** The region's suspension, { cohort, marked }, or null. */
-  suspension(region) {
-    return this.tx.get(regionKey(region))?.suspended ?? null;
+  /** The cluster's own suspension, { cohort, marked }, or null. */
+  suspension(cluster) {
+    return this.cluster(cluster)?.suspended ?? null;
   }
 
-  setSuspension(region, suspended) {
-    this.tx.put(regionKey(region), { ...this.tx.get(regionKey(region)), suspended });
+  /**
+   * The suspension that covers a region: { cluster, cohort, marked } of the cluster in its
+   * chain that is suspended (there is at most one, invariant U5), or null.
+   */
+  suspensionOf(region) {
+    for (let id = region; id !== null; ) {
+      const record = this.cluster(id);
+      if (record.suspended) return { cluster: id, ...record.suspended };
+      id = record.container;
+    }
+    return null;
   }
 
-  /** Regions suspended in a cohort, under that cohort id (not its root). */
+  setSuspension(cluster, suspended) {
+    this.patchCluster(cluster, { suspended });
+  }
+
+  /** Clusters suspended in a cohort, under that cohort id (not its root). */
   suspendedRegions(cohortId) {
     return this.tx.keys(suspendedPrefix(cohortId)).map((key) => key.slice(suspendedPrefix(cohortId).length));
   }
 
   /**
-   * Whether a region may be suspended in a cohort now (§8.1): everything in it is already
-   * condemned to be marked by that cohort. Every member is either an explicit member of the
-   * cohort, or a stable member whose tree parent is inside the region, so that its tree path
-   * ends at an explicit member. Nothing is deferred, nothing belongs to another cohort, and no
-   * member hangs from outside (that would be a stable anchor: the region is still attached).
-   *
-   * The design keeps counters for this (stableAnchors, pendingMark, §6.8); the prototype reads
-   * the region instead, which costs one region (at most the region cap).
-   * Returns the anchors (explicit members with tree children), or null.
+   * Whether a cluster may be suspended in a cohort now (§8.1): everything in it is already
+   * condemned to be marked by that cohort. Read from its aggregated counters (§6.8), O(1):
+   *   - no tree edge enters it from outside (no P/ key): every stable object in it hangs from
+   *     inside it, so its tree path ends at an explicit member;
+   *   - nothing in it is deferred;
+   *   - every explicitly unstable object in it is in this cohort;
+   *   - something in it is not explicit yet, so that suspending saves work.
+   * The cluster holding ROOT never qualifies, and neither does a cluster this cohort has
+   * materialized before (which would otherwise suspend and materialize it forever).
    */
-  suspendable(region, root) {
-    if (region === ROOT_REGION || this.suspension(region) !== null) return null;
-    const materializedIn = this.tx.get(regionKey(region))?.materializedIn;
-    if (materializedIn && this.cohort(materializedIn) && this.findCohort(materializedIn) === root) return null;
-    const anchors = [];
-    let implicit = 0;
-    for (const id of this.regionMembers(region)) {
-      const meta = this.meta(id);
-      if (meta.deferred) return null;
-      if (meta.cohort !== null) {
-        if (this.findCohort(meta.cohort) !== root) return null;
-        if (this.treeChildren(id).length > 0) anchors.push(id);
-        continue;
-      }
-      if (meta.treeParent === null || this.regionOf(meta.treeParent) !== region) return null;
-      implicit++;
+  suspendable(cluster, root) {
+    const record = this.cluster(cluster);
+    if (record.suspended || record.expanding || record.deferred > 0) return false;
+    if (record.materializedIn && this.cohort(record.materializedIn) && this.findCohort(record.materializedIn) === root) return false;
+    let explicit = 0;
+    for (const [cohortId, count] of Object.entries(record.explicit)) {
+      if (this.findCohort(cohortId) !== root) return false;
+      explicit += count;
     }
-    return implicit > 0 ? anchors : null;
+    if (record.objects <= explicit) return false;
+    if (this.tx.keys(treeInPrefix(cluster)).length > 0) return false;
+    return !this.isInside(this.regionOf(ROOT), cluster);
   }
 
   /**
-   * Suspends a region in a cohort (§8.1): all its stable members become implicitly unstable at
-   * once. Its anchors leave the mark list; the region item takes their place, and marking it
-   * cuts the tree edges that leave the region (Collector.markRegion).
+   * Suspends a cluster in a cohort (§8.1): all its stable objects become implicitly unstable at
+   * once. Clusters inside it that were suspended in the same cohort are now covered by it
+   * (invariant U5). Mark items inside it (its anchors, inner cluster items) leave the mark
+   * list, and inner cluster items the check list; the cluster's item takes their place, and
+   * marking it cuts the tree edges that leave the cluster (Collector.markRegion).
    */
-  suspend(region, root, anchors) {
-    this.setSuspension(region, { cohort: root, marked: false });
-    this.tx.put(suspendedKey(root, region), true);
+  suspend(cluster, root) {
+    for (const familyId of this.cohortFamily(root)) {
+      for (const inner of this.suspendedRegions(familyId)) {
+        if (inner === cluster || !this.isInside(inner, cluster)) continue;
+        this.setSuspension(inner, null);
+        this.tx.delete(suspendedKey(familyId, inner));
+      }
+    }
+    this.setSuspension(cluster, { cohort: root, marked: false });
+    this.tx.put(suspendedKey(root, cluster), true);
+    const inside = (item) => {
+      if (isRegionItem(item)) return this.regionExists(regionOfItem(item)) && this.isInside(regionOfItem(item), cluster);
+      return Boolean(this.meta(item)) && this.isInside(this.regionOf(item), cluster);
+    };
     const cohort = this.cohort(root);
-    cohort.mark = cohort.mark.filter((item) => !anchors.includes(item));
-    cohort.mark.push(regionItem(region));
+    cohort.mark = cohort.mark.filter((item) => !inside(item));
+    cohort.mark.push(regionItem(cluster));
+    cohort.check = cohort.check.filter((item) => !(isRegionItem(item) && inside(item)));
     this.saveCohort(cohort);
   }
 
-  /** Ends a suspension, keeping the region's internal tree. Returns the root cohort. */
-  unsuspend(region) {
-    const suspended = this.suspension(region);
-    this.setSuspension(region, null);
-    this.tx.delete(suspendedKey(suspended.cohort, region));
-    this.scheduleStructure(region); // structure tasks skip suspended regions
+  /** Ends a suspension, keeping the cluster's internal tree. Returns the root cohort. */
+  unsuspend(cluster) {
+    const suspended = this.suspension(cluster);
+    this.setSuspension(cluster, null);
+    this.tx.delete(suspendedKey(suspended.cohort, cluster));
+    this.scheduleInside(cluster); // structure tasks skip suspended clusters and what is inside them
     return this.findCohort(suspended.cohort);
   }
 
-  /** Whether `id` is the only explicit member of its region with tree children. */
-  isSoleAnchor(id, region) {
-    return this.regionMembers(region).every(
-      (member) => member === id || this.meta(member).cohort === null || this.treeChildren(member).length === 0,
-    );
+  /** Whether `id` is the only explicit member of the cluster with tree children. */
+  isSoleAnchor(id, cluster) {
+    const counts = Object.values(this.cluster(cluster).explicit);
+    if (counts.reduce((sum, count) => sum + count, 0) === 1) return true; // only `id` itself
+    for (const familyId of this.cohortFamily(this.findCohort(this.meta(id).cohort))) {
+      for (const key of this.tx.keys(memberPrefix(familyId))) {
+        const member = key.slice(memberPrefix(familyId).length);
+        if (member === id || this.treeChildren(member).length === 0) continue;
+        if (this.isInside(this.regionOf(member), cluster)) return false;
+      }
+    }
+    return true;
   }
 
   /**
-   * Resume (§8.2): the region's sole anchor is being rescued, so its whole internal tree is
-   * certified again. Every member is stable again; the region is queued for expansion, so that
-   * what its members reference is rescued too.
+   * Resume (§8.2): the cluster's sole anchor is being rescued, so its whole internal tree is
+   * certified again. Every object in it is stable again; the cluster is queued for expansion,
+   * so that what its objects reference is rescued too.
    */
-  resume(region) {
-    const root = this.unsuspend(region);
-    // Until the region item has expanded every member, structure tasks must not move members
+  resume(cluster) {
+    const root = this.unsuspend(cluster);
+    // Until the cluster item has expanded every object, structure tasks must not move objects
     // out of it: they would never be expanded (Collector.expand clears this).
-    this.tx.put(regionKey(region), { ...this.tx.get(regionKey(region)), expanding: true });
-    this.push(root, "expand", regionItem(region));
+    this.patchCluster(cluster, { expanding: true });
+    this.push(root, "expand", regionItem(cluster));
   }
 
   /**
-   * Materialize (§8.2): the region is partly rescued, or changes. The suspension ends; implicit
-   * members become stale-stable under their anchors, and the anchors that are still unstable go
+   * Materialize (§8.2): the cluster is partly rescued, or changes. The suspension ends; implicit
+   * objects become stale-stable under their anchors, and the anchors that are still unstable go
    * back on the mark list, so that marking proceeds object by object, with replacement parents.
+   * Reads the whole cluster.
    */
-  materialize(region) {
-    if (this.suspension(region) === null) return;
-    const implicit = this.regionMembers(region).filter((id) => this.meta(id).cohort === null);
-    const root = this.unsuspend(region);
-    // The cohort found a reason to look at this region object by object: it must not suspend
+  materialize(cluster) {
+    if (this.suspension(cluster) === null) return;
+    const objects = this.objectsIn(cluster);
+    const implicit = objects.filter((id) => this.meta(id).cohort === null);
+    const root = this.unsuspend(cluster);
+    // The cohort found a reason to look at this cluster object by object: it must not suspend
     // it again, or marking an anchor would suspend it, the check would materialize it, and so on
     // forever.
-    this.tx.put(regionKey(region), { ...this.tx.get(regionKey(region)), materializedIn: root });
+    this.patchCluster(cluster, { materializedIn: root });
     const cohort = this.cohort(root);
-    for (const id of this.regionMembers(region)) {
+    for (const id of objects) {
       const meta = this.meta(id);
       if (meta.cohort === null || this.findCohort(meta.cohort) !== root) continue;
       if (this.treeChildren(id).length === 0) continue;
@@ -669,9 +916,9 @@ export class GcState {
       if (!cohort.mark.includes(id)) cohort.mark.push(id);
       if (!cohort.check.includes(id)) cohort.check.push(id);
     }
-    // The implicit members turn stale-stable without being expanded. Whatever of this cohort
+    // The implicit objects turn stale-stable without being expanded. Whatever of this cohort
     // they reference may already have been checked counting on them being unstable, so it is
-    // checked again (invariant M3). If such a member stays garbage, marking makes it unstable
+    // checked again (invariant M3). If such an object stays garbage, marking makes it unstable
     // again before that check; if it is rescued or re-parented, the check finds it.
     for (const id of implicit) {
       for (const target of strongReferences(this.record(id)).keys()) {
@@ -681,8 +928,8 @@ export class GcState {
           if (this.findCohort(meta.cohort) === root && !cohort.check.includes(target)) cohort.check.push(target);
           continue;
         }
-        const suspended = meta.region !== region ? this.suspension(meta.region) : null;
-        const item = regionItem(meta.region);
+        const suspended = this.suspensionOf(meta.region);
+        const item = suspended && regionItem(suspended.cluster);
         if (suspended && suspended.marked && this.findCohort(suspended.cohort) === root && !cohort.check.includes(item)) {
           cohort.check.push(item);
         }
@@ -690,4 +937,60 @@ export class GcState {
     }
     this.saveCohort(cohort);
   }
+
+  /**
+   * Deletes a cluster suspended in a reclaimed cohort, whole (§8.3): every object in it, every
+   * cluster inside it, and their keys. Its counters are taken off its containers at once.
+   * Nothing outside it is read: no tree edge crosses its boundary (U3, and nothing enters it).
+   * Returns the number of objects deleted.
+   */
+  deleteClusterWhole(cluster) {
+    const record = this.cluster(cluster);
+    for (let id = record.container; id !== null; ) {
+      const above = this.cluster(id);
+      above.objects -= record.objects;
+      above.deferred -= record.deferred;
+      for (const [cohortId, count] of Object.entries(record.explicit)) addCount(above.explicit, cohortId, -count);
+      this.putCluster(above);
+      id = above.container;
+    }
+    let deleted = 0;
+    const visit = (id) => {
+      const level = this.cluster(id).level;
+      for (const member of this.regionMembers(id)) {
+        if (level === 0) {
+          const meta = this.meta(member);
+          if (meta.treeParent !== null) this.tx.delete(treeKey(meta.treeParent, member));
+          if (meta.cohort !== null) this.tx.delete(memberKey(meta.cohort, member));
+          this.tx.delete(objectKey(member));
+          this.tx.delete(metaKey(member));
+          deleted++;
+        } else {
+          visit(member);
+        }
+        this.tx.delete(regionMemberKey(id, member));
+      }
+      this.dropFlags(id);
+      for (const key of this.tx.keys(treeOutPrefix(id))) this.tx.delete(key);
+      for (const key of this.tx.keys(treeInPrefix(id))) this.tx.delete(key);
+      this.tx.delete(structureKey(id));
+      this.tx.delete(regionKey(id));
+    };
+    visit(cluster);
+    this.detachCluster(cluster, record.container);
+    return deleted;
+  }
+
+  /** Removes a deleted cluster from its container (or from the top level). */
+  detachCluster(cluster, container) {
+    if (container === null) {
+      this.tx.delete(topKey(cluster));
+      // Fewer top-level clusters: a single one left may be dissolved (regions.js).
+      for (const top of this.topClusters()) this.scheduleStructure(top);
+    } else {
+      this.tx.delete(regionMemberKey(container, cluster));
+      this.scheduleStructure(container);
+    }
+  }
+
 }

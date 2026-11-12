@@ -70,10 +70,12 @@ const style = [
       padding: 12,
     },
   },
+  // Meta-regions: a box around the region boxes it holds, lighter the higher the level.
+  { selector: "node.region.meta", style: { "background-color": "data(fill)", "background-opacity": 0.5, "border-color": colors.metaBorder, "border-width": 1.5, "border-style": "solid", padding: 10, "font-size": 11, "font-weight": "bold" } },
   { selector: "node.region.pending", style: { "border-color": colors.structure, "border-style": "dashed", "border-width": 2 } },
   { selector: "node.region.suspended", style: { "background-color": "data(color)", "background-opacity": 0.1, "border-color": "data(color)", "border-style": "solid", "border-width": 3, color: "data(color)" } },
   { selector: "node.region.ghost", style: { "border-style": "dotted", "background-opacity": 0.3 } },
-  { selector: "node.region.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.6, "underlay-padding": 6 } },
+  { selector: "node.region.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.6, "underlay-padding": 6, "underlay-shape": "round-rectangle" } },
   {
     selector: "edge",
     style: {
@@ -88,6 +90,7 @@ const style = [
   { selector: "edge.tree", style: { width: 2.5, "line-color": colors.tree, "target-arrow-color": colors.tree } },
   { selector: "edge.weak", style: { "line-style": "dotted", "line-color": colors.weak, "target-arrow-color": colors.weak } },
   { selector: "edge.flag", style: { width: 1.5, "line-style": "dashed", "line-color": colors.flag, "target-arrow-color": colors.flag, opacity: 0.8 } },
+  { selector: "edge.flag.meta", style: { width: 1, "line-style": "dashed", opacity: 0.45 } },
   { selector: "edge.dimmed", style: { opacity: 0.25 } },
   { selector: "edge.selected", style: { "line-color": colors.selected, "target-arrow-color": colors.selected, opacity: 1, label: "data(label)", "font-size": 8, "text-background-color": "#ffffff", "text-background-opacity": 0.8 } },
 ];
@@ -101,8 +104,9 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
     if (region.pending) classes.push("pending");
     if (region.ghost) classes.push("ghost");
     if (highlight.region === region.id) classes.push("subject");
-    let label = `${region.id} · ${region.members}`;
+    let label = region.level > 0 ? `${region.id} · level ${region.level} · ${region.members} clusters, ${region.objects} objects` : `${region.id} · ${region.members}`;
     let color = colors.regionBorder;
+    if (region.level > 0) classes.push("meta");
     if (region.suspended) {
       classes.push("suspended");
       label += ` · suspended in ${region.suspended.cohort}${region.suspended.marked ? ", exits cut" : ""}`;
@@ -110,7 +114,14 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
     }
     elements.set(`R:${region.id}`, {
       group: "nodes",
-      data: { id: `R:${region.id}`, label, color },
+      data: {
+        id: `R:${region.id}`,
+        parent: region.container ? `R:${region.container}` : undefined,
+        level: region.level,
+        label,
+        color,
+        fill: colors.metaLevels[Math.min(region.level, colors.metaLevels.length) - 1] ?? colors.region,
+      },
       classes: classes.join(" "),
     });
   }
@@ -142,7 +153,7 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
   }
   if (showFlags) {
     for (const flag of view.flags) {
-      elements.set(flag.id, { group: "edges", data: { id: flag.id, source: `R:${flag.source}`, target: `R:${flag.target}` }, classes: "flag" });
+      elements.set(flag.id, { group: "edges", data: { id: flag.id, source: `R:${flag.source}`, target: `R:${flag.target}` }, classes: flag.level > 0 ? "flag meta" : "flag" });
     }
   }
   return elements;
@@ -215,7 +226,8 @@ export class GraphView extends DOMNodeComponent {
         }
       });
 
-      // Regions first, then objects, then edges: parents and endpoints must exist.
+      // Clusters first, from the top level down, then objects, then edges: parents and
+      // endpoints must exist.
       const order = [...wanted.values()].sort((a, b) => rank(a) - rank(b));
       for (const element of order) {
         const existing = cy.getElementById(element.data.id);
@@ -335,8 +347,8 @@ export class GraphView extends DOMNodeComponent {
 }
 
 function rank(element) {
-  if (element.group === "edges") return 2;
-  return element.data.id.startsWith("R:") ? 0 : 1;
+  if (element.group === "edges") return 1000;
+  return element.data.id.startsWith("R:") ? -element.data.level : 100;
 }
 
 /** A new node starts next to its tree parent, or in its region, so the layout moves it little. */

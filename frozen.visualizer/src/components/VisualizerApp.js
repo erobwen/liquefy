@@ -40,7 +40,7 @@ function chip(id, { color = null } = {}) {
   );
 }
 
-/** A worklist item that stands for a whole suspended region. */
+/** A worklist item that stands for a whole suspended region or meta-region. */
 function regionChip(region) {
   return span(
     {
@@ -48,9 +48,9 @@ function regionChip(region) {
         display: "inline-block", padding: "0 6px", margin: "1px 3px 1px 0", borderRadius: "3px",
         fontFamily: "ui-monospace, monospace", fontSize: "11px", border: `1.5px solid ${colors.unstable}`, color: colors.text,
       },
-      title: `The whole suspended region ${region}`,
+      title: `The whole suspended cluster ${region}`,
     },
-    text(`region ${region}`),
+    text(`cluster ${region}`),
   );
 }
 
@@ -129,11 +129,12 @@ function legend(view, cohortColors) {
     haloItem(colors.read, "record read"),
     haloItem(colors.written, "written"),
     nodeItem({ ...stableNode, outline: `3px solid ${colors.selected}`, outlineOffset: "2px" }, "selected"),
-    legendHeading("Regions (id · members)"),
+    legendHeading("Regions (id · objects)"),
     regionItem({ border: `1px solid ${colors.regionBorder}` }, "region"),
+    regionItem({ background: colors.metaLevels[0], border: `1.5px solid ${colors.metaBorder}` }, "meta-region (id · level · clusters, objects): holds region boxes, and is itself in a meta-region one level up; deeper fill for higher levels"),
     regionItem({ border: `2px dashed ${colors.structure}` }, "structure task pending"),
-    regionItem({ background: `${unstable}1a`, border: `3px solid ${unstable}` }, `suspended: unstable as a unit${cohortNote}`),
-    regionItem({ border: `1px solid ${colors.regionBorder}`, boxShadow: `0 0 0 4px ${colors.subject}` }, "this step's region"),
+    regionItem({ background: `${unstable}1a`, border: `3px solid ${unstable}` }, `suspended: everything in it is unstable as a unit${cohortNote}`),
+    regionItem({ border: `1px solid ${colors.regionBorder}`, boxShadow: `0 0 0 4px ${colors.subject}` }, "this step's region or meta-region"),
     regionItem({ border: `1px dotted ${colors.regionBorder}`, opacity: 0.5 }, "deleted, still shown"),
     legendHeading("Edges"),
     edgeItem({ borderTop: `3px solid ${colors.tree}` }, "spanning tree"),
@@ -235,6 +236,19 @@ export class VisualizerApp extends Component {
               button(text("Record"), callback("record", () => load("random"))),
             )
           : null,
+        row(
+          { style: { alignItems: "center", gap: "8px" } },
+          label(
+            { title: "Region weight (objects plus outgoing edges) above which a region splits. Empty: the scenario's." },
+            text("Region cap "),
+            input({ type: "number", min: "2", value: model.regionCap, placeholder: String(recording?.options.regionCap ?? ""), style: { width: "54px" }, onchange: callback("regionCap", (event) => { model.regionCap = event.target.value; load(model.scenarioKey, { deferCuts: model.deferCuts }); }) }),
+          ),
+          label(
+            { title: "Members above which a meta-region splits, and top-level clusters above which a level is added. Empty: the scenario's." },
+            text("Cluster cap "),
+            input({ type: "number", min: "2", value: model.clusterCap, placeholder: String(recording?.options.clusterCap ?? 32), style: { width: "54px" }, onchange: callback("clusterCap", (event) => { model.clusterCap = event.target.value; load(model.scenarioKey, { deferCuts: model.deferCuts }); }) }),
+          ),
+        ),
         checkbox({
           label: "Deferred cuts and holds",
           checked: model.deferCuts,
@@ -293,7 +307,7 @@ export class VisualizerApp extends Component {
       model.selected ? this.selection(view) : null,
       section(
         "Database",
-        muted(`${objects.length} objects · ${view.regions.filter((r) => !r.ghost).length} regions · ${view.flags.length} entry flags · ${view.edges.length} edges`),
+        muted(`${objects.length} objects · ${view.regions.filter((r) => !r.ghost && r.level === 0).length} regions · ${view.regions.filter((r) => r.level > 0).length} meta-regions · ${view.flags.length} entry flags · ${view.edges.length} edges`),
       ),
     ];
   }
@@ -304,7 +318,7 @@ export class VisualizerApp extends Component {
       section("Deferred cuts", ...(view.deferrals.length > 0
         ? view.deferrals.map((d) => div(chip(d.id, { color: d.kind === "ms" ? colors.held : colors.deferred }), muted(`until ${d.deadline}`)))
         : [muted("None.")])),
-      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Regions to re-check: ${view.structureTasks.join(", ")}` : "None.")),
+      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Clusters to re-check: ${view.structureTasks.join(", ")}` : "None.")),
     ];
   }
 

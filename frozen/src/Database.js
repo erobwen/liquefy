@@ -20,7 +20,7 @@
 import { MemoryStore } from "./store/MemoryStore.js";
 import { applyBarrier } from "./gc/barrier.js";
 import { Collector } from "./gc/Collector.js";
-import { GcState, ROOT, ROOT_REGION, keys } from "./gc/GcState.js";
+import { GcState, ROOT, ROOT_REGION, keys, clusterRecord } from "./gc/GcState.js";
 import { strongReferences } from "./model.js";
 
 export class Database {
@@ -31,7 +31,8 @@ export class Database {
       if (tx.has(keys.objectKey(ROOT))) return;
       tx.put(keys.objectKey(ROOT), {});
       tx.put(keys.metaKey(ROOT), { region: ROOT_REGION, treeParent: null, cohort: null, shared: false, deferred: null });
-      tx.put(keys.regionKey(ROOT_REGION), { id: ROOT_REGION });
+      tx.put(keys.regionKey(ROOT_REGION), { ...clusterRecord(ROOT_REGION, 0, null), objects: 1 });
+      tx.put(keys.topKey(ROOT_REGION), true);
       tx.put(keys.regionMemberKey(ROOT_REGION, ROOT), true);
     });
     this.collector = new Collector(store, { onReclaim, options });

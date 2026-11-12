@@ -7,21 +7,14 @@
  */
 import { writeFileSync } from "node:fs";
 import { Database } from "../src/Database.js";
-import { random, randomTransaction } from "../src/fuzz/fuzz.js";
+import { random, randomTransaction, seedOptions } from "../src/fuzz/fuzz.js";
 import { reachableFromRoot, checkIntegrity } from "../src/oracle.js";
 
 const seed = Number(process.argv[2] ?? 13);
 const watch = process.argv[3];
 const rng = random(seed);
 let time = 0;
-const options = {
-  now: () => time,
-  deferral: rng.int(4),
-  walkBudget: rng.pick([2, 4, 64]),
-  candidates: rng.pick([1, 2, 8]),
-  regionCap: rng.pick([3, 5, 8, 16, 100]),
-};
-options.deferCuts = rng.next() >= 0.25;
+const options = seedOptions(rng, () => time);
 console.log(options);
 const log = [];
 let db;

@@ -143,6 +143,27 @@ export function randomTransaction(db, rng, clipboard = []) {
 }
 
 /**
+ * The collector options of a seed, drawn from its generator. They vary per seed, including
+ * small budgets, so that walks and searches that give up are exercised too. `now` is a fake
+ * wall clock that the caller advances, for time-based holds.
+ */
+export function seedOptions(rng, now) {
+  const options = {
+    now,
+    deferral: rng.int(4),
+    walkBudget: rng.pick([2, 4, 64]),
+    candidates: rng.pick([1, 2, 8]),
+    // Small caps force frequent splits and merges.
+    regionCap: rng.pick([3, 5, 8, 16, 100]),
+    // Small cluster caps build several levels of meta-regions.
+    clusterCap: rng.pick([2, 3, 4, 8, 32]),
+  };
+  // A quarter of the seeds run without deferred cuts and holds.
+  options.deferCuts = rng.next() >= 0.25;
+  return options;
+}
+
+/**
  * Runs one seed. Throws on the first violation.
  *
  * @param maxSteps        collector steps after each transaction are random in 0..maxSteps;
@@ -151,20 +172,8 @@ export function randomTransaction(db, rng, clipboard = []) {
  */
 export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery = 1 } = {}) {
   const rng = random(seed);
-  // Vary the collector options per seed, including small budgets, so that walks and searches
-  // that give up are exercised too.
-  // A fake wall clock that advances by a random amount per transaction, for time-based holds.
   let time = 0;
-  const options = {
-    now: () => time,
-    deferral: rng.int(4),
-    walkBudget: rng.pick([2, 4, 64]),
-    candidates: rng.pick([1, 2, 8]),
-    // Small caps force frequent splits and merges.
-    regionCap: rng.pick([3, 5, 8, 16, 100]),
-  };
-  // A quarter of the seeds run without deferred cuts and holds.
-  options.deferCuts = rng.next() >= 0.25;
+  const options = seedOptions(rng, () => time);
   const clipboard = [];
   let reclaimed = 0;
   let db;

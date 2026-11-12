@@ -18,7 +18,6 @@
  */
 
 import { GcState, STABLE, keys, isRegionItem, regionOfItem } from "./GcState.js";
-import { strongReferences } from "../model.js";
 import { runStructureTask, runRehomeTask } from "./regions.js";
 
 export class Collector {
@@ -231,8 +230,7 @@ export class Collector {
       if (!gc.isReclaiming(state)) gc.merge(cohortId, state); // being reclaimed: as good as gone
       return;
     }
-    const record = gc.record(id);
-    for (const target of strongReferences(record).keys()) {
+    for (const target of gc.outgoing(id)) {
       // An unmarked target is left to its pending check (GcState.canRescue).
       if (gc.state(target) !== STABLE && gc.canRescue(target)) gc.rescue(target, id);
     }

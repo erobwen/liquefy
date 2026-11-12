@@ -33,6 +33,8 @@ export class Database {
       tx.put(keys.metaKey(ROOT), { region: ROOT_REGION, treeParent: null, cohort: null, shared: false, deferred: null });
       tx.put(keys.regionKey(ROOT_REGION), { ...clusterRecord(ROOT_REGION, 0, null), objects: 1, weight: 1 });
       tx.put(keys.topKey(ROOT_REGION), true);
+      // Says that this store has the edge index, for tools that check it (the oracle).
+      if (new GcState(tx, options).options.edgeIndex) tx.put("meta/edgeIndex", true);
       tx.put(keys.regionMemberKey(ROOT_REGION, ROOT), true);
     });
     this.collector = new Collector(store, { onReclaim, options });
@@ -145,6 +147,7 @@ export class ObjectTransaction {
 
     const added = [];
     const removed = [];
+    const counts = [];
 
     for (const id of [...this.created, ...this.referencesBefore.keys()]) {
       const record = this.get(id);
@@ -154,17 +157,21 @@ export class ObjectTransaction {
       for (const target of after.keys()) {
         if (!this.exists(target)) throw new Error(`Object ${id} references missing object ${target}`);
       }
-      for (const target of after.keys()) {
+      for (const [target, count] of after) {
         if (!before.has(target)) added.push({ source: id, target });
+        if (before.get(target) !== count) counts.push({ source: id, target, count });
       }
       for (const target of before.keys()) {
-        if (!after.has(target)) removed.push({ source: id, target });
+        if (!after.has(target)) {
+          removed.push({ source: id, target });
+          counts.push({ source: id, target, count: 0 });
+        }
       }
     }
 
     applyBarrier(
       this.tx,
-      { created: this.created, added, removed, holds: this.holds, releases: this.releases },
+      { created: this.created, added, removed, counts, holds: this.holds, releases: this.releases },
       this.options,
     );
   }

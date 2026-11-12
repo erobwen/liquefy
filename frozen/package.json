@@ -9,5 +9,8 @@
   "main": "./src/index.js",
   "scripts": {
     "test": "mocha ./src/test"
+  },
+  "dependencies": {
+    "lmdb": "^3.5.9"
   }
 }

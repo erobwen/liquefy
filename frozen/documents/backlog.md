@@ -9,10 +9,14 @@ What is left to do on the store, the collector and the visualizer, from a review
 - **Item 3, region weight.** Kept as a counter (invariant A3). An edit that leaves its region within bounds now costs the collector no step and no record read.
 - The stale comments and the unused `markChildren`.
 
+- **The edge index** (step 7, invariant Y1), on by default: the collector reads edge keys, never object records. `tools/edgeindex.js` measures it against reading records.
+- **The LMDB backend** (step 8): `src/store/LmdbStore.js`. `tools/lmdb.js` shows the cost of a change flat from 5,000 to 80,000 objects.
+
 ## Suggested order for the rest
 
-1. The edge index and the LMDB backend (steps 7 and 8 of the plan, §16.3), which address item 4.
+1. Item 4, popular regions: the edge index made each scanned region cheaper to read, but a check still reads every region flagged on a popular one. That needs flag coarsening with the refining protocol, or pinning.
 2. The rest of item 2.
+3. The application interface: volatile roots, chunked collections.
 
 ## Measured problems
 
@@ -27,7 +31,7 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 **3. Ordinary edits pay for a region read.** Adding one paragraph to a document caused about 5 structure tasks and 150 object-record reads by the collector. Every edge change schedules a structure task, which re-reads the whole region to recompute its weight (`regionWeight`). A weight counter in the region record would remove most of it. (The test documents were right at the region cap, so splits inflate the number.)
 
-**4. Popular regions are expensive to check.** Checking one object in a region that many regions reference reads all of them: 20,000 records for the chunk object that shared region `r0` with the font every document references. Remedies in the design, none built: the `y/` edge index (§5.5, step 7), flag coarsening (§6.6), pinning popular objects (§14).
+**4. Popular regions are expensive to check.** Checking one object in a region that many regions reference reads all of them: 20,000 records for the chunk object that shared region `r0` with the font every document references. The edge index (now built) turns those into reads of small edge keys, but there are as many. Remedies in the design that reduce the number, neither built: flag coarsening (§6.6), which bounds the flags but makes each coarser; pinning popular objects in small regions of their own (§14).
 
 **5. Stale entry flags from splits.** A split copies every flag of the old region to the new one (§6.6), true or not. In the "Meta-regions" visualizer scenario, after loading, 12 of 28 level-0 flags are stale, all of them naming the root's region. A stale flag costs one scan of its source region the first time something in the target is checked, and is then deleted. A low-priority scrub could remove them earlier (open question 3 of the design); with the `y/` edge index a split could copy only the true ones.
 
@@ -41,7 +45,9 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 ## Store and database
 
-- **`MemoryStore` is slow by construction:** it clones every value on read, inserts keys into a sorted array, and a transaction's `range` rescans all of its own writes. Large loads are slow because of this. It matters little once there is an LMDB backend (step 8).
+- **`MemoryStore` is slow by construction:** it clones every value on read, inserts keys into a sorted array, and a transaction's `range` rescans all of its own writes. Large loads are slow because of this; `LmdbStore` loads 80,000 objects in about 40 seconds. Use LMDB for anything big.
+- **`LmdbStore` is measured without disk flushes** (`noSync`). Durable commits will cost more per transaction; collector steps could share a flush, since losing the last few only repeats work.
+- **A delete reads about 1,200 keys for 50 objects** on LMDB, and a small edit about 100. Where they go has not been profiled; the scheduler's reads per step are a likely part.
 - **Big collections.** An array of thousands of references is one record, rewritten and re-diffed on every append, and an object heavier than the region cap cannot be split ("unsplittable"). The design chunks large collections (§5.4); not built.
 - **Holding objects across transactions.** Only holds exist. The volatile root table (§9.4) is not built; it belongs with the application interface.
 

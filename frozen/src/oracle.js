@@ -190,6 +190,21 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     }
   }
 
+  // Y1: with the edge index, y/<region>/<source>/<target> = n exactly when the source's record
+  // references the target strongly n times, under the source's region.
+  if (store.get("meta/edgeIndex")) {
+    const expected = new Map();
+    for (const id of objectIds) {
+      const region = store.get(keys.metaKey(id))?.region;
+      for (const [target, count] of strongReferences(store.get(keys.objectKey(id)))) expected.set(keys.edgeKey(region, id, target), count);
+    }
+    for (const [key, count] of store.range("y/")) {
+      if (expected.get(key) !== count) problems.push(`Y1: ${key} is ${count}, the record says ${expected.get(key) ?? 0}`);
+      expected.delete(key);
+    }
+    for (const [key, count] of expected) problems.push(`Y1: no ${key} for ${count} references`);
+  } else if (store.keys("y/").length > 0) problems.push("Y1: edge keys in a store without the edge index");
+
   // A3: a level-0 region's weight is its objects plus their outgoing strong edges.
   const weights = new Map();
   for (const id of objectIds) {

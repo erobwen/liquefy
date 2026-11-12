@@ -22,7 +22,7 @@ Consequences:
 - **No GC state lives outside the store.** Worklists, cohorts and the id counter are keys. In-memory state, such as the scheduler's round-robin cursor, is only an optimization: losing it changes the order of work, never its correctness.
 - **A transaction that throws writes nothing.** The barrier may refuse a transaction (for example, a strong reference to a missing object); then the application's writes are discarded too.
 
-The store's own guarantee (`MemoryStore`, later LMDB or SQLite): a transaction's writes are applied all together or not at all; reads inside a transaction see its own writes; there is a single writer, so transactions do not interleave.
+The store's own guarantee (`MemoryStore`, or `LmdbStore` on LMDB; both pass the same tests): a transaction's writes are applied all together or not at all; reads inside a transaction see its own writes; there is a single writer, so transactions do not interleave.
 
 For a store that can only write *one record* atomically, the principle can still be kept with a redo log, as the earlier `eternity` prototype did: write the transaction's buffered writes as one record, apply them, then delete the record, and replay it on startup if present. Every write is a put or a delete, so replay is idempotent. (Not implemented; not needed for LMDB or SQLite.)
 
@@ -179,6 +179,10 @@ These come with regions (design §6 and §6.9). A **region** (level-0 cluster) g
 *Maintained by:* the barrier (one per edge added or removed), `setRegion` (placement and moves), `deleteObject`. *Verified:* oracle.
 *Why it matters:* a structure task is scheduled only when the weight says there may be something to do (G3), and it need not read the region to learn its weight.
 
+**Y1. The edge index follows the records.** In a store with the edge index (the `edgeIndex` option, on by default; the store says so in `meta/edgeIndex`), the key `y/<region(a)>/<a>/<b>` exists with value n if and only if the record of `a` references `b` strongly n times. Weak references are not in it. A store without the index has no `y/` keys.
+*Maintained by:* the barrier (`indexEdge`, for every reference count the transaction changed), `setRegion` (an object's edge keys move with it, since they are clustered by its region), `deleteObject` and `deleteClusterWhole`. *Verified:* oracle; the fuzzer runs half its seeds with the index and half without.
+*Why it matters:* with the index, everything the collector needs from the edges is one range read per region (`edgesOfRegion`, `outgoing`), and it never reads an object record (design §5.5, implementation B). Without it, it reads the records of a region's members (A). The collector logic is the same for both.
+
 **A2. Tree-edge counts.** `T/<X>/<Y>` counts the tree edges from objects inside X to objects inside Y, for every pair of different clusters at the same level that some tree edge connects (at every level up to where the two ends' chains meet), and `P/<Y>/<X>` mirrors it.
 *Maintained by:* `updateMeta` (a tree parent or region change), meta-region moves (from the member's own counts one level down). *Verified:* oracle.
 *Why it matters:* a cluster with no `P/` key hangs from nothing outside it, which is half of being suspendable (U2), and a suspended cluster's exits are found by descending only into members with `T/` keys leaving it (U3).
@@ -282,7 +286,6 @@ These come with later steps of the prototype plan (design §16.3). They are list
 | Intactness (§6.8) | **Intactness** (`foreignParented`, `pendingMark`, `stableAnchors`) equals a recount. Walks that jump across intact clusters (§9.5) need these. (Suspension uses the simpler counters of A1 and A2, and re-homing reads the `P/` keys.) |
 | Flag coarsening and refining (§6.6) | **Bounded flags:** a cluster has at most about `K` flags. **Refining:** while a coarse flag is being refined by a multi-step scan, the barrier also writes the fine flag for every edge it covers. (Today flags are unbounded and every scan runs in one transaction.) |
 | Multi-step scans (§10.1) | **Scan lock:** no structure task moves objects into or out of a cluster with `scanning > 0`. |
-| `y/` edge index (§5.5) | **Index:** `y/<region(a)>/<a>/<b>` exists with count n if and only if `a`'s record references `b` strongly n times. |
 
 ---
 

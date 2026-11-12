@@ -18,12 +18,14 @@ import { GcState, STABLE } from "./GcState.js";
  * @param created  Set of ids created in this transaction
  * @param added    Array of { source, target }: strong edges whose count went from 0 to > 0
  * @param removed  Array of { source, target }: strong edges whose count went to 0
+ * @param counts   Array of { source, target, count }: every strong edge whose count changed,
+ *                 with its new count, for the edge index
  * @param holds    Map from id to hold lifetime ({ transactions } or { milliseconds }), for
  *                 objects whose cut in this transaction should be held (invariant H1)
  * @param releases Set of ids whose hold should expire now
  * @param options  collector options (GcState.defaultOptions)
  */
-export function applyBarrier(tx, { created, added, removed, holds = new Map(), releases = new Set() }, options = {}) {
+export function applyBarrier(tx, { created, added, removed, counts = [], holds = new Map(), releases = new Set() }, options = {}) {
   const gc = new GcState(tx, options);
   gc.tick();
 
@@ -95,6 +97,10 @@ export function applyBarrier(tx, { created, added, removed, holds = new Map(), r
   }
   for (const { source } of removed) {
     if (gc.meta(source)) gc.addWeight(gc.regionOf(source), -1);
+  }
+  // The edge index follows the records (invariant Y1). A dropped new object has no region.
+  for (const { source, target, count } of counts) {
+    if (gc.meta(source)) gc.indexEdge(source, target, count);
   }
 
   // Removed edges: a removed tree edge is a cut. Try a quick swap; otherwise defer it, for the

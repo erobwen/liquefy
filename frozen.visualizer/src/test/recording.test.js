@@ -40,14 +40,14 @@ describe("Recorder and Timeline", () => {
 
   it("records one frame per transaction and per collector step, with what each step was", () => {
     const recorder = new Recorder({ options: { deferral: 0 } });
-    recorder.transaction("create", (tx) => tx.set("root", "a", { $ref: tx.create({}) }));
+    recorder.transaction("create", (tx) => tx.set("root", "a", { $ref: tx.create({ child: { $ref: tx.create({}) } }) }));
     recorder.transaction("cut", (tx) => tx.delete("root", "a"));
     const steps = recorder.collect();
     const kinds = recorder.frames.map((frame) => frame.kind);
     assert.deepEqual(kinds.slice(0, 3), ["start", "transaction", "transaction"]);
     assert.equal(kinds.length, 3 + steps);
-    assert.deepEqual(kinds.slice(3).filter((kind) => kind !== "structure"), ["deferral", "check"]); // a leaf has nothing to mark
-    assert.ok(recorder.frames.find((frame) => frame.kind === "check").reads.length > 0, "the check read records");
+    assert.deepEqual(kinds.slice(3).filter((kind) => kind !== "structure"), ["deferral", "mark", "check"]);
+    assert.ok(recorder.frames.find((frame) => frame.kind === "check").reads.length > 0, "the check looked at objects");
   });
 });
 

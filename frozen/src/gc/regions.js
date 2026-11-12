@@ -17,7 +17,6 @@
  */
 
 import { ROOT, ROOT_REGION, keys, addCount } from "./GcState.js";
-import { strongReferences } from "../model.js";
 
 /** Re-evaluates a cluster whose membership or edges changed (invariant G3). */
 export function runStructureTask(gc, cluster) {
@@ -122,7 +121,7 @@ function loadRegion(gc, region) {
   const weight = new Map();
   const parent = new Map();
   for (const id of members) {
-    const outgoing = [...strongReferences(gc.record(id)).keys()];
+    const outgoing = gc.outgoing(id);
     targets.set(id, outgoing);
     weight.set(id, 1 + outgoing.length);
     const treeParent = gc.meta(id).treeParent;

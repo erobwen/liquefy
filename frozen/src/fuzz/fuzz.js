@@ -164,6 +164,8 @@ export function seedOptions(rng, now) {
   options.rehome = rng.next() >= 0.25;
   // Small budgets split checks and reclaims over many steps.
   options.stepBudget = rng.pick([1, 3, 20, 200]);
+  // Half with the edge index (§5.5 B), half reading edges from the records (A).
+  options.edgeIndex = rng.next() < 0.5;
   return options;
 }
 
@@ -173,8 +175,9 @@ export function seedOptions(rng, now) {
  * @param maxSteps        collector steps after each transaction are random in 0..maxSteps;
  *                        fewer steps keep more cohorts alive at the same time
  * @param integrityEvery  run the (expensive) integrity check every n transactions
+ * @param store           the store to run on (default: a new MemoryStore)
  */
-export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery = 1 } = {}) {
+export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery = 1, store } = {}) {
   const rng = random(seed);
   let time = 0;
   const options = seedOptions(rng, () => time);
@@ -182,6 +185,7 @@ export function runSeed(seed, { transactions = 300, maxSteps = 4, integrityEvery
   let reclaimed = 0;
   let db;
   db = new Database({
+    store,
     options,
     onReclaim: (ids) => {
       const reachable = reachableFromRoot(db.store);

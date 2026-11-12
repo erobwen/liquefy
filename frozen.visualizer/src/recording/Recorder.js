@@ -15,6 +15,19 @@
 import { Database, MemoryStore } from "@liquefy/frozen";
 import { Timeline } from "./Timeline.js";
 
+/**
+ * The objects a frame looked at: those whose record it read, or, with the edge index, whose
+ * outgoing edge keys (y/<region>/<object>/<target>) it read.
+ */
+function readObjects(keys) {
+  const ids = new Set();
+  for (const key of keys) {
+    if (key.startsWith("o/")) ids.add(key.slice(2));
+    else if (key.startsWith("y/")) ids.add(key.split("/")[2]);
+  }
+  return [...ids];
+}
+
 export class Recorder {
   constructor({ options = {}, title = "" } = {}) {
     this.store = new MemoryStore();
@@ -54,7 +67,7 @@ export class Recorder {
         ...step,
         caption: this.caption,
         writes,
-        reads: [...this.reads].filter((key) => key.startsWith("o/")).map((key) => key.slice(2)),
+        reads: readObjects(this.reads),
       });
       this.caption = null;
     }

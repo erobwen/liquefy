@@ -126,7 +126,7 @@ function legend(view, cohortColors) {
       : []),
     legendHeading("This step"),
     haloItem(colors.subject, "subject"),
-    haloItem(colors.read, "record read"),
+    haloItem(colors.read, "looked at: its record or its edges were read"),
     haloItem(colors.written, "written"),
     nodeItem({ ...stableNode, outline: `3px solid ${colors.selected}`, outlineOffset: "2px" }, "selected"),
     legendHeading("Regions (id · objects)"),
@@ -302,7 +302,7 @@ export class VisualizerApp extends Component {
               changes.length > MAX_CHANGES ? li(text(`and ${changes.length - MAX_CHANGES} more`)) : null,
             )
           : muted("No object changed."),
-        frame.reads.length > 0 ? div({ style: { marginTop: "6px" } }, muted(`Records read (${frame.reads.length}): `), ...frame.reads.map((id) => chip(id))) : null,
+        frame.reads.length > 0 ? div({ style: { marginTop: "6px" } }, muted(`Objects looked at (${frame.reads.length}): `), ...frame.reads.map((id) => chip(id))) : null,
       ),
       model.selected ? this.selection(view) : null,
       section(

@@ -22,6 +22,8 @@
  *   T/<from>/<to>           number of tree edges from cluster from into cluster to, at the
  *                           level where the two differ (every level up to where they meet)
  *   P/<to>/<from>           mirror of T/<from>/<to>: where cluster to hangs from
+ *   y/<region>/<src>/<tgt>  with the edgeIndex option: how many times src, in that level-0
+ *                           region, references tgt strongly (§5.5, implementation B)
  *   s/<cluster>             pending structure task: re-evaluate the cluster
  *   x/<cluster>             pending re-home task: does all of it hang from one place? (§6.7)
  *   meta/nextId             id counter
@@ -73,6 +75,8 @@ const flagPrefix = (target) => `e/${target}/`;
 const structureKey = (region) => `s/${region}`;
 const suspendedKey = (cohort, region) => `S/${cohort}/${region}`;
 const suspendedPrefix = (cohort) => `S/${cohort}/`;
+const edgeKey = (region, source, target) => `y/${region}/${source}/${target}`;
+const edgePrefix = (region, source) => (source === undefined ? `y/${region}/` : `y/${region}/${source}/`);
 const topKey = (cluster) => `R/${cluster}`;
 const rehomeKey = (cluster) => `x/${cluster}`;
 const mirrorKey = (source, target) => `E/${source}/${target}`;
@@ -86,7 +90,7 @@ const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${S
 export const keys = {
   objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
-  suspendedKey, suspendedPrefix, topKey, rehomeKey, workKey, workPrefix, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
+  suspendedKey, suspendedPrefix, edgeKey, edgePrefix, topKey, rehomeKey, workKey, workPrefix, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
   treeInKey, treeInPrefix,
 };
 
@@ -136,6 +140,13 @@ export const defaultOptions = {
    * objects deleted by one reclaim step. It bounds the size of a step's store transaction.
    */
   stepBudget: 200,
+  /**
+   * Whether the strong references are also kept as y/ keys, clustered by the source's region
+   * (§5.5, implementation B). With it the collector reads small edge keys in one range per
+   * region and never an object record; without it, it reads the records of a region's members.
+   * It is a property of a store: set it when the database is created, and keep it.
+   */
+  edgeIndex: true,
 };
 
 /** Adds to a count in a { key: n } map, deleting it at zero. */
@@ -255,7 +266,9 @@ export class GcState {
     }
     this.tx.delete(regionMemberKey(meta.region, id));
     if (meta.cohort !== null) this.tx.delete(memberKey(meta.cohort, id));
-    this.addWeight(meta.region, -1 - strongReferences(this.record(id)).size);
+    const outgoing = this.outgoing(id);
+    this.addWeight(meta.region, -1 - outgoing.length);
+    if (this.options.edgeIndex) for (const target of outgoing) this.tx.delete(edgeKey(meta.region, id, target));
     this.tx.delete(objectKey(id));
     this.tx.delete(metaKey(id));
   }
@@ -334,15 +347,39 @@ export class GcState {
   }
 
   /**
-   * All strong edges whose source is in the region (design §5.5, implementation A: read from
-   * the members' records).
+   * All strong edges whose source is in the region (design §5.5): one range read of the edge
+   * index (implementation B), or, without it, the records of the region's members (A).
    */
   edgesOfRegion(region) {
+    if (this.options.edgeIndex) {
+      return this.tx.keys(edgePrefix(region)).map((key) => {
+        const [, , source, target] = key.split("/");
+        return { source, target };
+      });
+    }
     const edges = [];
     for (const source of this.regionMembers(region)) {
       for (const target of strongReferences(this.record(source)).keys()) edges.push({ source, target });
     }
     return edges;
+  }
+
+  /** The objects an object references strongly: from the edge index, or from its record. */
+  outgoing(id) {
+    if (!this.options.edgeIndex) return [...strongReferences(this.record(id)).keys()];
+    const prefix = edgePrefix(this.regionOf(id), id);
+    return this.tx.keys(prefix).map((key) => key.slice(prefix.length));
+  }
+
+  /**
+   * Brings the edge index in line with a changed reference count (invariant Y1): `count`
+   * is how many times `source` now references `target` strongly.
+   */
+  indexEdge(source, target, count) {
+    if (!this.options.edgeIndex) return;
+    const key = edgeKey(this.regionOf(source), source, target);
+    if (count > 0) this.tx.put(key, count);
+    else this.tx.delete(key);
   }
 
   // ---- Regions ----
@@ -370,6 +407,13 @@ export class GcState {
     if (previous) {
       this.tx.delete(regionMemberKey(previous, id));
       this.addWeight(previous, -weight);
+      // The edge index is clustered by the source's region: the object's edge keys follow it.
+      if (this.options.edgeIndex) {
+        for (const [key, count] of this.tx.range(edgePrefix(previous, id))) {
+          this.tx.delete(key);
+          this.tx.put(edgeKey(region, id, key.slice(edgePrefix(previous, id).length)), count);
+        }
+      }
     }
     this.updateMeta(id, { region });
     this.tx.put(regionMemberKey(region, id), true);
@@ -990,7 +1034,7 @@ export class GcState {
     // checked again (invariant M3). If such an object stays garbage, marking makes it unstable
     // again before that check; if it is rescued or re-parented, the check finds it.
     for (const id of implicit) {
-      for (const target of strongReferences(this.record(id)).keys()) {
+      for (const target of this.outgoing(id)) {
         const meta = this.meta(target);
         if (!meta) continue;
         if (meta.cohort !== null) {
@@ -1042,6 +1086,7 @@ export class GcState {
         this.tx.delete(regionMemberKey(id, member));
       }
       this.dropFlags(id);
+      if (level === 0 && this.options.edgeIndex) for (const key of this.tx.keys(edgePrefix(id))) this.tx.delete(key);
       for (const key of this.tx.keys(treeOutPrefix(id))) this.tx.delete(key);
       for (const key of this.tx.keys(treeInPrefix(id))) this.tx.delete(key);
       this.tx.delete(structureKey(id));

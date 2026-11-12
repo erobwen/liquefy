@@ -136,14 +136,70 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (!meta || meta.cohort !== cohortId) problems.push(`stale membership key ${key}`);
   }
 
+  // Suspension (§8, invariants U1–U3).
+  const suspendedIn = new Map(); // region → root cohort
+  for (const [key, record] of store.range("r/")) {
+    if (!record.suspended) continue;
+    const region = key.slice(2);
+    const root = findCohort(record.suspended.cohort);
+    if (root === null) {
+      problems.push(`U1: region ${region} is suspended in missing cohort ${record.suspended.cohort}`);
+      continue;
+    }
+    suspendedIn.set(region, root);
+    if (!store.has(keys.suspendedKey(record.suspended.cohort, region))) problems.push(`U1: suspended region ${region} has no S/ key`);
+  }
+  for (const key of store.keys("S/")) {
+    const [, cohortId, region] = key.split("/");
+    if (store.get(keys.regionKey(region))?.suspended?.cohort !== cohortId) problems.push(`U1: stale suspension key ${key}`);
+  }
+  const membersOf = new Map();
+  for (const key of store.keys("m/")) {
+    const [, region, id] = key.split("/");
+    if (!membersOf.has(region)) membersOf.set(region, []);
+    membersOf.get(region).push(id);
+  }
+  for (const [region, root] of suspendedIn) {
+    const marked = store.get(keys.regionKey(region)).suspended.marked;
+    const members = new Set(membersOf.get(region) ?? []);
+    for (const id of members) {
+      const meta = store.get(keys.metaKey(id));
+      if (meta.cohort !== null) {
+        if (findCohort(meta.cohort) !== root) problems.push(`U2: ${id} in region ${region}, suspended in ${root}, is in cohort ${meta.cohort}`);
+      } else if (meta.deferred || meta.treeParent === null || !members.has(meta.treeParent)) {
+        problems.push(`U2: implicit member ${id} of suspended ${region} does not hang from inside it`);
+      }
+      if (marked) {
+        for (const edge of treeEdges) {
+          const [parent, child] = edge.split("/");
+          if (parent === id && !members.has(child)) problems.push(`U3: marked suspended ${region} has the tree exit ${edge}`);
+        }
+      }
+    }
+  }
+  if (quiescent && suspendedIn.size > 0) problems.push(`${suspendedIn.size} regions are still suspended`);
+
   // Invariant M1: every unmarked unstable object (one that still has tree children) is on its
-  // root cohort's mark list.
+  // root cohort's mark list, unless it is an anchor of a region suspended in that cohort: the
+  // region item stands for it.
   const hasTreeChildren = new Set([...treeEdges].map((edge) => edge.split("/")[0]));
   for (const id of hasTreeChildren) {
     const meta = store.get(keys.metaKey(id));
     if (!meta || meta.cohort === null) continue;
     const root = cohorts.get(findCohort(meta.cohort));
+    if (root && suspendedIn.get(meta.region) === root.id) continue;
     if (root && !root.mark.includes(id)) problems.push(`M1: unmarked ${id} is not on the mark list of ${root.id}`);
+  }
+
+  // Invariant M2: an explicitly unstable object with tree children has its check pending, unless
+  // it is an anchor of a region suspended in its cohort. Rescues skip unmarked objects and rely
+  // on that check (§7.3).
+  for (const id of hasTreeChildren) {
+    const meta = store.get(keys.metaKey(id));
+    if (!meta || meta.cohort === null) continue;
+    const root = cohorts.get(findCohort(meta.cohort));
+    if (root && suspendedIn.get(meta.region) === root.id) continue;
+    if (root && !root.check.includes(id)) problems.push(`M2: unmarked ${id} is not on the check list of ${root.id}`);
   }
 
   // Invariant T4: following tree parents from any object terminates, at ROOT, at an unmarked
@@ -171,6 +227,33 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
         problems.push(`T4: ${id} has a tree path ending at marked ${current}`);
       }
       break;
+    }
+  }
+
+  // Invariant M3: a stable object that references an unstable one has its expansion pending, or
+  // the target has its check pending (for an implicit member: its region's mark or check item).
+  // Otherwise nothing would ever find that the target is referenced from outside its cohort.
+  const stateOf = (id) => {
+    const meta = store.get(keys.metaKey(id));
+    if (!meta) return null;
+    if (meta.cohort !== null) return findCohort(meta.cohort);
+    return suspendedIn.get(meta.region) ?? STABLE;
+  };
+  const expanding = new Set();
+  for (const cohort of cohorts.values()) for (const item of cohort.expand) expanding.add(item);
+  for (const source of objectIds) {
+    if (stateOf(source) !== STABLE) continue;
+    const sourceRegion = store.get(keys.metaKey(source))?.region;
+    if (expanding.has(source) || expanding.has(`@${sourceRegion}`)) continue;
+    for (const target of strongReferences(store.get(keys.objectKey(source)) ?? {}).keys()) {
+      const targetState = stateOf(target);
+      if (targetState === null || targetState === STABLE) continue;
+      const cohort = cohorts.get(targetState);
+      const meta = store.get(keys.metaKey(target));
+      const pending = meta.cohort !== null
+        ? cohort.check.includes(target)
+        : cohort.check.includes(`@${meta.region}`) || cohort.mark.includes(`@${meta.region}`);
+      if (!pending) problems.push(`M3: stable ${source} references ${target}, unstable in ${targetState}, with no check or expansion pending`);
     }
   }
 

@@ -12,7 +12,8 @@
  *   C/<cohort>/<obj>        cohort membership, under the cohort id the object joined
  *   d/<deadline>/<obj>      deferred cuts with a deadline on the logical clock
  *   h/<deadline>/<obj>      deferred cuts with a wall-clock deadline (holds)
- *   r/<region>              region record
+ *   r/<region>              region record: { id, suspended: { cohort, marked } | null }
+ *   S/<cohort>/<region>     a region suspended in a cohort, under the cohort id it joined
  *   m/<region>/<obj>        region membership
  *   e/<target>/<source>     entry flag: something in region source may reference into target
  *   s/<region>              pending structure task: re-evaluate the region's weight
@@ -22,7 +23,11 @@
  * State of an object (§7.1):
  *   - STABLE: no cohort. It has a tree parent, is ROOT, or is deferred. It may be stale-stable,
  *     that is, below a cut whose marking or deferral is still pending (§7.3).
- *   - unstable in cohort C: it has no tree parent and, once marked, no tree children.
+ *   - unstable in cohort C, explicitly: its cohort field is set. It has no tree parent and,
+ *     once marked, no tree children (unless its region is suspended, below).
+ *   - unstable in cohort C, implicitly: no cohort field, but its region is suspended in C
+ *     (§8.1). It keeps its tree parent, which is in the same region: a suspended region keeps
+ *     its internal tree, hanging from explicit members of C (its anchors).
  *
  * Cohorts merge by union-find: a merged cohort record points at the cohort it was merged into.
  */
@@ -47,12 +52,23 @@ const regionMemberPrefix = (region) => `m/${region}/`;
 const flagKey = (target, source) => `e/${target}/${source}`;
 const flagPrefix = (target) => `e/${target}/`;
 const structureKey = (region) => `s/${region}`;
+const suspendedKey = (cohort, region) => `S/${cohort}/${region}`;
+const suspendedPrefix = (cohort) => `S/${cohort}/`;
 const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${String(deferred.at).padStart(16, "0")}/${id}`;
 
 export const keys = {
   objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
+  suspendedKey, suspendedPrefix,
 };
+
+/**
+ * Worklist items are object ids, or region items for suspended regions (§7.2): "@<region>".
+ * Object and region ids never start with "@".
+ */
+export const regionItem = (region) => "@" + region;
+export const isRegionItem = (item) => item.startsWith("@");
+export const regionOfItem = (item) => item.slice(1);
 
 export const defaultOptions = {
   /**
@@ -66,6 +82,8 @@ export const defaultOptions = {
   walkBudget: 64,
   /** Maximum referrers tried by quick swap and the replacement-parent search. */
   candidates: 8,
+  /** Whether marking suspends whole regions (§8.1). */
+  suspension: true,
   /** Wall-clock time source for holds with a duration in milliseconds. */
   now: () => Date.now(),
   /** Region weight (members + outgoing edges) above which a region splits (§6.4). */
@@ -109,12 +127,22 @@ export class GcState {
     this.tx.put(metaKey(id), { ...(this.meta(id) ?? {}), ...patch });
   }
 
-  /** STABLE, or the id of the (root) cohort the object is unstable in. */
+  /**
+   * STABLE, or the id of the (root) cohort the object is unstable in: explicitly (its cohort
+   * field), or implicitly (its region is suspended).
+   */
   state(id) {
     const meta = this.meta(id);
     if (!meta) throw new Error(`No GC metadata for object ${id}`);
-    if (meta.cohort === null) return STABLE;
-    return this.findCohort(meta.cohort);
+    if (meta.cohort !== null) return this.findCohort(meta.cohort);
+    const suspended = this.suspension(meta.region);
+    return suspended ? this.findCohort(suspended.cohort) : STABLE;
+  }
+
+  /** Unstable only because its region is suspended. */
+  isImplicit(id) {
+    const meta = this.meta(id);
+    return meta.cohort === null && this.suspension(meta.region) !== null;
   }
 
   treeChildren(parent) {
@@ -391,7 +419,7 @@ export class GcState {
       seen.add(current);
       if (current === ROOT) return true;
       const meta = this.meta(current);
-      if (!meta || meta.cohort !== null) return false;
+      if (!meta || meta.cohort !== null || this.suspension(meta.region) !== null) return false;
       if (meta.treeParent === null) return Boolean(meta.deferred);
       current = meta.treeParent;
     }
@@ -487,6 +515,14 @@ export class GcState {
    * reference each other can then rescue each other in turn forever.)
    */
   canRescue(id) {
+    const meta = this.meta(id);
+    const suspended = this.suspension(meta.region);
+    // An implicit member: "rescuing" it materializes its region (see rescue).
+    if (meta.cohort === null) return suspended !== null;
+    // An anchor of a suspended region whose exits have been cut (markRegion): its tree
+    // children are all implicit members of the region, none of them stable, so none of them can
+    // be the would-be parent.
+    if (suspended !== null && suspended.marked) return true;
     return this.treeChildren(id).length === 0;
   }
 
@@ -497,12 +533,161 @@ export class GcState {
    */
   rescue(id, parent) {
     const meta = this.meta(id);
-    if (meta.cohort === null) throw new Error(`Rescue of stable object ${id}`);
+    const suspended = this.suspension(meta.region);
+    if (meta.cohort === null) {
+      if (suspended === null) throw new Error(`Rescue of stable object ${id}`);
+      // An implicit member: its region is materialized, which makes it stale-stable under its
+      // anchor. It is shared (its tree parent and `parent` both reference it, invariant W2), so
+      // when marking reaches it, the replacement-parent search finds `parent` again (§8.2).
+      this.materialize(meta.region);
+      return;
+    }
     if (!this.canRescue(id)) throw new Error(`Rescue of unmarked object ${id}`);
+    if (suspended !== null) {
+      // The region's anchor gets a parent. If it is the only one, the whole region comes back
+      // with its internal tree (resume); otherwise the rest must be marked object by object.
+      if (this.isSoleAnchor(id, meta.region)) this.resume(meta.region);
+      else this.materialize(meta.region);
+    }
     const root = this.findCohort(meta.cohort);
     this.tx.delete(memberKey(meta.cohort, id));
     this.updateMeta(id, { treeParent: parent, cohort: null });
     this.tx.put(treeKey(parent, id), true);
     this.push(root, "expand", id);
+  }
+
+  // ---- Suspension (design §8) ----
+
+  /** The region's suspension, { cohort, marked }, or null. */
+  suspension(region) {
+    return this.tx.get(regionKey(region))?.suspended ?? null;
+  }
+
+  setSuspension(region, suspended) {
+    this.tx.put(regionKey(region), { ...this.tx.get(regionKey(region)), suspended });
+  }
+
+  /** Regions suspended in a cohort, under that cohort id (not its root). */
+  suspendedRegions(cohortId) {
+    return this.tx.keys(suspendedPrefix(cohortId)).map((key) => key.slice(suspendedPrefix(cohortId).length));
+  }
+
+  /**
+   * Whether a region may be suspended in a cohort now (§8.1): everything in it is already
+   * condemned to be marked by that cohort. Every member is either an explicit member of the
+   * cohort, or a stable member whose tree parent is inside the region, so that its tree path
+   * ends at an explicit member. Nothing is deferred, nothing belongs to another cohort, and no
+   * member hangs from outside (that would be a stable anchor: the region is still attached).
+   *
+   * The design keeps counters for this (stableAnchors, pendingMark, §6.8); the prototype reads
+   * the region instead, which costs one region (at most the region cap).
+   * Returns the anchors (explicit members with tree children), or null.
+   */
+  suspendable(region, root) {
+    if (region === ROOT_REGION || this.suspension(region) !== null) return null;
+    const materializedIn = this.tx.get(regionKey(region))?.materializedIn;
+    if (materializedIn && this.cohort(materializedIn) && this.findCohort(materializedIn) === root) return null;
+    const anchors = [];
+    let implicit = 0;
+    for (const id of this.regionMembers(region)) {
+      const meta = this.meta(id);
+      if (meta.deferred) return null;
+      if (meta.cohort !== null) {
+        if (this.findCohort(meta.cohort) !== root) return null;
+        if (this.treeChildren(id).length > 0) anchors.push(id);
+        continue;
+      }
+      if (meta.treeParent === null || this.regionOf(meta.treeParent) !== region) return null;
+      implicit++;
+    }
+    return implicit > 0 ? anchors : null;
+  }
+
+  /**
+   * Suspends a region in a cohort (§8.1): all its stable members become implicitly unstable at
+   * once. Its anchors leave the mark list; the region item takes their place, and marking it
+   * cuts the tree edges that leave the region (Collector.markRegion).
+   */
+  suspend(region, root, anchors) {
+    this.setSuspension(region, { cohort: root, marked: false });
+    this.tx.put(suspendedKey(root, region), true);
+    const cohort = this.cohort(root);
+    cohort.mark = cohort.mark.filter((item) => !anchors.includes(item));
+    cohort.mark.push(regionItem(region));
+    this.saveCohort(cohort);
+  }
+
+  /** Ends a suspension, keeping the region's internal tree. Returns the root cohort. */
+  unsuspend(region) {
+    const suspended = this.suspension(region);
+    this.setSuspension(region, null);
+    this.tx.delete(suspendedKey(suspended.cohort, region));
+    this.scheduleStructure(region); // structure tasks skip suspended regions
+    return this.findCohort(suspended.cohort);
+  }
+
+  /** Whether `id` is the only explicit member of its region with tree children. */
+  isSoleAnchor(id, region) {
+    return this.regionMembers(region).every(
+      (member) => member === id || this.meta(member).cohort === null || this.treeChildren(member).length === 0,
+    );
+  }
+
+  /**
+   * Resume (§8.2): the region's sole anchor is being rescued, so its whole internal tree is
+   * certified again. Every member is stable again; the region is queued for expansion, so that
+   * what its members reference is rescued too.
+   */
+  resume(region) {
+    const root = this.unsuspend(region);
+    // Until the region item has expanded every member, structure tasks must not move members
+    // out of it: they would never be expanded (Collector.expand clears this).
+    this.tx.put(regionKey(region), { ...this.tx.get(regionKey(region)), expanding: true });
+    this.push(root, "expand", regionItem(region));
+  }
+
+  /**
+   * Materialize (§8.2): the region is partly rescued, or changes. The suspension ends; implicit
+   * members become stale-stable under their anchors, and the anchors that are still unstable go
+   * back on the mark list, so that marking proceeds object by object, with replacement parents.
+   */
+  materialize(region) {
+    if (this.suspension(region) === null) return;
+    const implicit = this.regionMembers(region).filter((id) => this.meta(id).cohort === null);
+    const root = this.unsuspend(region);
+    // The cohort found a reason to look at this region object by object: it must not suspend
+    // it again, or marking an anchor would suspend it, the check would materialize it, and so on
+    // forever.
+    this.tx.put(regionKey(region), { ...this.tx.get(regionKey(region)), materializedIn: root });
+    const cohort = this.cohort(root);
+    for (const id of this.regionMembers(region)) {
+      const meta = this.meta(id);
+      if (meta.cohort === null || this.findCohort(meta.cohort) !== root) continue;
+      if (this.treeChildren(id).length === 0) continue;
+      // Unmarked again, so its check must be pending again too: the barrier and expansion skip
+      // rescuing an unmarked object and rely on its check to find the referrer (§7.3).
+      if (!cohort.mark.includes(id)) cohort.mark.push(id);
+      if (!cohort.check.includes(id)) cohort.check.push(id);
+    }
+    // The implicit members turn stale-stable without being expanded. Whatever of this cohort
+    // they reference may already have been checked counting on them being unstable, so it is
+    // checked again (invariant M3). If such a member stays garbage, marking makes it unstable
+    // again before that check; if it is rescued or re-parented, the check finds it.
+    for (const id of implicit) {
+      for (const target of strongReferences(this.record(id)).keys()) {
+        const meta = this.meta(target);
+        if (!meta) continue;
+        if (meta.cohort !== null) {
+          if (this.findCohort(meta.cohort) === root && !cohort.check.includes(target)) cohort.check.push(target);
+          continue;
+        }
+        const suspended = meta.region !== region ? this.suspension(meta.region) : null;
+        const item = regionItem(meta.region);
+        if (suspended && suspended.marked && this.findCohort(suspended.cohort) === root && !cohort.check.includes(item)) {
+          cohort.check.push(item);
+        }
+      }
+    }
+    this.saveCohort(cohort);
   }
 }

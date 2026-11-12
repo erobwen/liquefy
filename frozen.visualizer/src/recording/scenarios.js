@@ -226,6 +226,53 @@ export const scenarios = [
   },
 
   {
+    key: "suspension",
+    title: "Suspension: deleting a library",
+    description: "A library of documents spans several regions. When it is deleted, each region whose content is entirely condemned is suspended and marked as a unit, and reclaimed whole. Keeping one document resumes its region with its internal tree intact; quoting a paragraph from another region materializes that region.",
+    options: { deferral: 0, regionCap: 12 },
+    run(session) {
+      session.transaction("Create a library of three documents", (tx) => {
+        const documents = [];
+        for (let d = 1; d <= 3; d++) {
+          const sections = [];
+          for (let s = 1; s <= 2; s++) {
+            const paragraphs = [];
+            for (let p = 1; p <= 4; p++) paragraphs.push(ref(tx.create({ text: `${d}.${s}.${p}` })));
+            sections.push(ref(tx.create({ title: `§${d}.${s}`, paragraphs })));
+          }
+          documents.push(ref(tx.create({ title: `Doc ${d}`, sections })));
+        }
+        tx.set(ROOT, "library", ref(tx.create({ name: "Library", documents })));
+      });
+      session.explain("Structure tasks split the library into regions: a document or a section each, with its paragraphs.");
+      session.collect();
+      session.explain("The library is cut from ROOT. It starts a cohort, and marking begins at the library object.");
+      session.transaction("Delete the library", (tx) => tx.delete(ROOT, "library"));
+      session.explain("Marking reaches an object whose whole region hangs from it, and nothing else holds on to that region: the region is suspended. All its members are unstable at once, and they keep their internal tree.");
+      session.stepUntil((step) => step.kind === "mark" && step.suspended);
+
+      // Keep the first region whose exits are cut and that has a single anchor: it resumes.
+      const store = session.store;
+      const membersOf = (region) => store.keys(`m/${region}/`).map((key) => key.split("/")[2]);
+      const explicitWithChildren = (region) => membersOf(region).filter((id) => store.get(`g/${id}`).cohort !== null && store.keys(`t/${id}/`).length > 0);
+      session.explain("Marking the region item cuts only the tree edges that leave the region. Child regions hanging from it are reached this way.");
+      session.stepUntil((step) => step.kind === "mark" && step.region && explicitWithChildren(step.region).length === 1);
+      const kept = explicitWithChildren(session.db.collector.lastStep.region)[0];
+      session.explain("The region's only anchor is linked from ROOT again. Its internal tree is still valid, so the whole region resumes in this transaction, and is queued for expansion.");
+      session.transaction(`Keep ${store.get(`o/${kept}`).title ?? kept}`, (tx) => tx.set(ROOT, "kept", ref(kept)));
+
+      // Quote a paragraph from another suspended region: it materializes.
+      session.stepUntil((step) => step.kind === "mark" && step.region && membersOf(step.region).some((id) => store.get(`g/${id}`).cohort === null));
+      const region = session.db.collector.lastStep.region;
+      const quoted = membersOf(region).find((id) => store.get(`g/${id}`).cohort === null && store.get(`o/${id}`).text);
+      session.explain("A paragraph inside a suspended region gets a stable referrer. Only part of the region survives, so the region is materialized: its anchors go back to object-by-object marking, and the paragraph will find ROOT as a replacement parent.");
+      session.transaction(`Quote paragraph ${store.get(`o/${quoted}`).text}`, (tx) => tx.set(ROOT, "quote", ref(quoted)));
+      session.explain("The check finds no stable referrer of what is left. The cohort is reclaimed, and the regions still suspended in it are deleted whole.");
+      session.collect();
+    },
+  },
+
+  {
     key: "random",
     title: "Random (a fuzz seed)",
     description: "Random transactions from the fuzzer, with a few collector steps after each. The collector options vary with the seed, as in the fuzz tests.",

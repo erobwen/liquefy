@@ -50,16 +50,36 @@ function cohortsOf(state) {
   return { cohorts, rootOf };
 }
 
-/** The objects of a store state, with their GC metadata and a display state. */
+/** Suspended regions: region id → { cohort (root), marked }. */
+function suspensionsOf(state, rootOf) {
+  const suspended = new Map();
+  for (const [id, record] of entries(state, "r/")) {
+    if (record.suspended) suspended.set(id, { cohort: rootOf(record.suspended.cohort), marked: record.suspended.marked });
+  }
+  return suspended;
+}
+
+/**
+ * The objects of a store state, with their GC metadata and a display state:
+ *   root, stable, deferred, held;
+ *   unstable  explicitly unstable, not yet marked: it still has tree children;
+ *   marked    explicitly unstable, marked: no tree children;
+ *   suspended implicitly unstable: its region is suspended in a cohort (design §8.1).
+ */
 function objectsOf(state) {
-  const { cohorts, rootOf } = cohortsOf(state);
+  const { rootOf } = cohortsOf(state);
+  const suspended = suspensionsOf(state, rootOf);
+  const parents = new Set();
+  for (const key of state.keys()) if (key.startsWith("t/")) parents.add(key.split("/")[1]);
   const objects = new Map();
   for (const [id, fields] of entries(state, "o/")) {
     const meta = state.get(`g/${id}`) ?? {};
-    const cohort = meta.cohort ? rootOf(meta.cohort) : null;
+    const implicit = !meta.cohort && suspended.has(meta.region);
+    const cohort = meta.cohort ? rootOf(meta.cohort) : implicit ? suspended.get(meta.region).cohort : null;
     let display = "stable";
     if (id === ROOT) display = "root";
-    else if (cohort !== null) display = cohorts.get(cohort)?.mark.includes(id) ? "unstable" : "marked";
+    else if (implicit) display = "suspended";
+    else if (cohort !== null) display = parents.has(id) ? "unstable" : "marked";
     else if (meta.deferred) display = meta.deferred.kind === "ms" ? "held" : "deferred";
     objects.set(id, {
       id,
@@ -70,6 +90,7 @@ function objectsOf(state) {
       cohort,
       shared: !!meta.shared,
       deferred: meta.deferred ?? null,
+      implicit,
       display,
     });
   }
@@ -124,19 +145,31 @@ function summarize(frame, state, previous) {
     case "structure":
       return `Structure task of region ${frame.region}: ${STRUCTURE_OUTCOMES[frame.outcome] ?? frame.outcome}.`;
     case "expand":
+      if (frame.region) return `Expand region ${frame.region} (${frame.cohort}): it was resumed, so every member follows its references and rescues the unstable objects it finds.`;
       return `Expand ${frame.ids[0]} (${frame.cohort}): it is stable again, so the unstable objects it references are rescued.`;
     case "mark":
+      if (frame.region) return `Mark region ${frame.region} (${frame.cohort}): the tree edges that leave it are cut, as marking its members one by one would have done. The edges inside it stay.`;
+      if (frame.suspended) return `Mark ${frame.ids[0]} (${frame.cohort}): everything in its region ${frame.suspended} is condemned to this cohort, so the whole region is suspended at once instead of marked object by object.`;
       return `Mark ${frame.ids[0]} (${frame.cohort}): its tree children become unstable, unless a shared child finds a replacement parent.`;
     case "check": {
-      const what = `Check ${frame.ids.length} object${frame.ids.length === 1 ? "" : "s"} of ${frame.cohort}: look for a stable referrer of each, in its region and the regions flagged on it.`;
+      const items = [];
+      if (frame.ids.length) items.push(`${frame.ids.length} object${frame.ids.length === 1 ? "" : "s"}`);
+      if (frame.regions?.length) items.push(`suspended region${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")}`);
+      const what = `Check ${items.join(" and ")} of ${frame.cohort}: look for a stable referrer of each, in its region and the regions flagged on it.`;
       if (!frame.reclaimed) return what;
-      return `${what} None found and nothing left to do, so the cohort is closed under "is referenced by": its ${deleted} object${deleted === 1 ? " is" : "s are"} reclaimed in the same step.`;
+      return `${what} None found and nothing left to do, so the cohort is closed under "is referenced by": ${reclaimedText(deleted, frame)} in the same step.`;
     }
     case "reclaim":
-      return `Reclaim ${frame.cohort}: closed under "is referenced by", so its ${deleted} object${deleted === 1 ? " is" : "s are"} garbage.`;
+      return `Reclaim ${frame.cohort}: closed under "is referenced by", so ${reclaimedText(deleted, frame)}.`;
     default:
       return frame.label ?? frame.kind;
   }
+}
+
+function reclaimedText(deleted, frame) {
+  const objects = `its ${deleted} object${deleted === 1 ? " is" : "s are"} reclaimed`;
+  const regions = frame.regions?.length ? `, with region${frame.regions.length === 1 ? "" : "s"} ${frame.regions.join(", ")} deleted whole` : "";
+  return objects + regions;
 }
 
 /** What changed between two states, as short sentences. */
@@ -147,6 +180,12 @@ function changesBetween(previousObjects, objects, previous, state) {
     const before = previousObjects.get(id);
     if (!before) {
       changes.push(`${id} created in ${now.region}${now.treeParent ? `, tree parent ${now.treeParent}` : ""}`);
+      continue;
+    }
+    // Implicit members change with their region; that is reported per region below.
+    if (before.implicit || now.implicit) {
+      if (before.implicit && now.cohort === null && before.treeParent !== now.treeParent) changes.push(`${id} re-parented from ${before.treeParent} to ${now.treeParent}`);
+      if (before.implicit && !now.implicit && now.cohort !== null) changes.push(`${id} became unstable in ${now.cohort}`);
       continue;
     }
     if (before.cohort === null && now.cohort !== null) changes.push(`${id} became unstable in ${now.cohort}`);
@@ -163,6 +202,21 @@ function changesBetween(previousObjects, objects, previous, state) {
     }
   }
   for (const [key, count] of moves) changes.push(`${count} object${count === 1 ? "" : "s"} moved region ${key}`);
+  for (const [key, record] of state) {
+    if (!key.startsWith("r/")) continue;
+    const region = after(key, "r/");
+    const was = previous.get(key)?.suspended ?? null;
+    const is = record.suspended ?? null;
+    const members = [...objects.values()].filter((o) => o.region === region).length;
+    if (!was && is) changes.push(`region ${region} suspended in ${is.cohort}: its ${members} members are unstable as a unit`);
+    if (was && is && !was.marked && is.marked) changes.push(`region ${region}: tree edges leaving it cut`);
+    if (was && !is) {
+      // A resume marks the region as expanding (GcState.resume); a materialize does not.
+      changes.push(record.expanding
+        ? `region ${region} resumed: its anchor is rescued, and its internal tree is valid again`
+        : `region ${region} materialized: its members are marked object by object from now on`);
+    }
+  }
   for (const id of previousObjects.keys()) if (!objects.has(id)) changes.push(`${id} reclaimed`);
   for (const key of state.keys()) {
     if (key.startsWith("r/") && !previous.has(key)) changes.push(`region ${after(key, "r/")} created`);
@@ -201,11 +255,14 @@ export function describe(state, previous = new Map(), frame = null) {
   const shown = new Map(objects);
   for (const id of reclaimed) shown.set(id, { ...previousObjects.get(id), display: "reclaimed" });
 
+  const suspended = suspensionsOf(state, rootOf);
   const regions = new Map();
-  for (const [id] of entries(state, "r/")) regions.set(id, { id, members: 0, pending: state.has(`s/${id}`), ghost: false });
+  for (const [id] of entries(state, "r/")) {
+    regions.set(id, { id, members: 0, pending: state.has(`s/${id}`), ghost: false, suspended: suspended.get(id) ?? null });
+  }
   for (const object of shown.values()) {
     if (!object.region) continue;
-    if (!regions.has(object.region)) regions.set(object.region, { id: object.region, members: 0, pending: false, ghost: true });
+    if (!regions.has(object.region)) regions.set(object.region, { id: object.region, members: 0, pending: false, ghost: true, suspended: null });
     if (object.display !== "reclaimed") regions.get(object.region).members++;
   }
 
@@ -224,6 +281,7 @@ export function describe(state, previous = new Map(), frame = null) {
       check: cohort.check,
       absorbed: cohort.absorbed,
       members: [...objects.values()].filter((object) => object.cohort === cohort.id).map((object) => object.id),
+      regions: [...suspended].filter(([, s]) => s.cohort === cohort.id).map(([id]) => id),
     }));
 
   const deferrals = [...objects.values()]
@@ -249,7 +307,7 @@ export function describe(state, previous = new Map(), frame = null) {
       subject,
       read: new Set(frame?.reads ?? []),
       written,
-      region: frame?.kind === "structure" ? frame.region : null,
+      region: frame?.region ?? frame?.suspended ?? null,
     },
     summary: frame ? summarize(frame, state, previous) : "",
     caption: frame?.caption ?? null,

@@ -26,7 +26,10 @@ Every **frame** is one committed store transaction: a user transaction, or one c
 
 - **Objects** are nodes inside their **region** (the boxes). Their look shows their GC state:
   stable, deferred (dashed amber), held for a time (dashed purple), unstable (a ring), marked
-  (filled), and reclaimed this step (faded). Shared objects are squares. Each cohort has an
+  (filled), unstable with its region (pale fill), and reclaimed this step (faded). Shared
+  objects are squares. A **suspended region** is a tinted box with a colored border: all its
+  members are unstable as a unit, and keep their internal tree (the "Suspension" scenario shows
+  suspend, resume, materialize and whole-region reclaim). Each cohort has an
   outline around its members ("Cohort outlines"), drawn across region boxes with the
   [bubblesets](https://github.com/upsetjs/cytoscape.js-bubblesets) plugin. All cohorts share one
   color until "Cohort colors" is turned on, which gives each cohort its own.

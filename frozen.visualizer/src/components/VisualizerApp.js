@@ -40,6 +40,20 @@ function chip(id, { color = null } = {}) {
   );
 }
 
+/** A worklist item that stands for a whole suspended region. */
+function regionChip(region) {
+  return span(
+    {
+      style: {
+        display: "inline-block", padding: "0 6px", margin: "1px 3px 1px 0", borderRadius: "3px",
+        fontFamily: "ui-monospace, monospace", fontSize: "11px", border: `1.5px solid ${colors.unstable}`, color: colors.text,
+      },
+      title: `The whole suspended region ${region}`,
+    },
+    text(`region ${region}`),
+  );
+}
+
 function section(title, ...children) {
   return div(
     { style: { padding: "10px 14px", borderBottom: `1px solid ${colors.line}` } },
@@ -103,6 +117,7 @@ function legend(view, cohortColors) {
     nodeItem({ background: "#fff", border: `2.5px dashed ${colors.held}` }, "held (time)"),
     nodeItem({ background: "#fff", border: `4px solid ${unstable}` }, `unstable${cohortNote}`),
     nodeItem({ background: unstable }, `marked${cohortNote}`),
+    nodeItem({ background: `${unstable}4d`, border: `1.5px solid ${unstable}` }, `unstable with its region${cohortNote}`),
     nodeItem({ background: "#fff", border: `2px dotted ${colors.reclaimed}`, opacity: 0.35 }, "reclaimed now"),
     nodeItem(stableNode, "square: shared", { square: true }),
     regionItem({ background: "transparent", border: `1.5px solid ${unstable}`, borderRadius: "8px" }, `cohort outline${cohortNote}`),
@@ -117,7 +132,8 @@ function legend(view, cohortColors) {
     legendHeading("Regions (id · members)"),
     regionItem({ border: `1px solid ${colors.regionBorder}` }, "region"),
     regionItem({ border: `2px dashed ${colors.structure}` }, "structure task pending"),
-    regionItem({ border: `1px solid ${colors.regionBorder}`, boxShadow: `0 0 0 4px ${colors.subject}` }, "restructured now"),
+    regionItem({ background: `${unstable}1a`, border: `3px solid ${unstable}` }, `suspended: unstable as a unit${cohortNote}`),
+    regionItem({ border: `1px solid ${colors.regionBorder}`, boxShadow: `0 0 0 4px ${colors.subject}` }, "this step's region"),
     regionItem({ border: `1px dotted ${colors.regionBorder}`, opacity: 0.5 }, "deleted, still shown"),
     legendHeading("Edges"),
     edgeItem({ borderTop: `3px solid ${colors.tree}` }, "spanning tree"),
@@ -293,11 +309,14 @@ export class VisualizerApp extends Component {
   }
 
   cohort(cohort) {
-    const list = (name, ids) => div({ style: { margin: "2px 0" } }, muted(`${name} (${ids.length}): `), ...ids.map((id) => chip(id)));
+    // Region items ("@r5") stand for a whole suspended region.
+    const item = (id) => (id.startsWith("@") ? regionChip(id.slice(1)) : chip(id));
+    const list = (name, ids) => div({ style: { margin: "2px 0" } }, muted(`${name} (${ids.length}): `), ...ids.map(item));
+    const regions = cohort.regions.length ? ` · suspended regions ${cohort.regions.join(", ")}` : "";
     return div(
       { style: { marginBottom: "8px" } },
       div(swatch({ background: model.cohortColors ? cohortColor(cohort.id) : colors.unstable }), span({ style: { fontWeight: 600 } }, text(cohort.id)),
-        muted(` · ${cohort.state} · ${cohort.members.length} members${cohort.absorbed.length ? ` · absorbed ${cohort.absorbed.join(", ")}` : ""}`)),
+        muted(` · ${cohort.state} · ${cohort.members.length} members${regions}${cohort.absorbed.length ? ` · absorbed ${cohort.absorbed.join(", ")}` : ""}`)),
       list("expand", cohort.expand),
       list("mark", cohort.mark),
       list("check", cohort.check),

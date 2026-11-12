@@ -33,11 +33,13 @@ For a store that can only write *one record* atomically, the principle can still
 - **Object:** an id with a record `o/<id>`. `ROOT` always exists.
 - **Strong edge** `s → t`: the record of `s` contains `ref(t)` somewhere, at least once. Weak references (`weak(t)`) are not edges.
 - **Reachable:** there is a path of strong edges from `ROOT`.
-- **State** of an object, from its metadata `g/<id> = { treeParent, cohort }`:
-  - **stable** if `cohort` is null;
-  - **unstable in C** if `cohort` is set, where C is the surviving cohort found by following `mergedInto` links (union-find).
+- **State** of an object, from its metadata `g/<id> = { treeParent, cohort, region }`:
+  - **explicitly unstable in C** if `cohort` is set, where C is the surviving cohort found by following `mergedInto` links (union-find);
+  - **implicitly unstable in C** if `cohort` is null and its region is **suspended** in C (§3.8);
+  - **stable** otherwise.
+- **Implicit member:** an implicitly unstable object. **Anchor** of a suspended region: an explicitly unstable member with tree children.
 - **Tree edge** `p → c`: `g/c.treeParent = p`.
-- **Marked:** an unstable object with no tree children. **Unmarked:** an unstable object that still has tree children.
+- **Marked:** an explicitly unstable object with no tree children. **Unmarked:** an explicitly unstable object that still has tree children. A suspended region whose exits have been cut counts as marked as a whole (§3.8).
 - **Root cohort:** a cohort record with `mergedInto = null`. Only root cohorts have worklists.
 - **Checked:** an unstable object whose check ran while it was a member of its current cohort, and found every referrer to be a member of the same cohort at that moment.
 
@@ -67,7 +69,7 @@ Each invariant names who maintains it and how it is verified. "Oracle" means `ch
 **T2. Tree edges are real edges.** If `g/c.treeParent = p`, then `s → c` is a strong edge for `s = p`.
 *Maintained by:* the barrier cuts the tree edge in the same transaction in which the edge's count drops to zero. *Verified:* oracle.
 
-**T3. Exactly the stable, non-deferred objects have tree parents.** A non-ROOT object has a tree parent if and only if it is stable and not deferred (F1). ROOT is stable and has no tree parent.
+**T3. Exactly the stable, non-deferred objects and the implicit members have tree parents.** A non-ROOT object has a tree parent if and only if it is stable and not deferred (F1), or an implicit member (U2). ROOT is stable and has no tree parent.
 *Maintained by:* `makeUnstable` and `defer` clear the parent; `rescue`, `attachNew` and `reparent` set it. *Verified:* oracle.
 
 **T4. The tree is acyclic, and every tree path ends well.** Following tree parents from any object terminates, at `ROOT`, at an **unmarked unstable** object, or at a **deferred** object.
@@ -93,8 +95,14 @@ Each invariant names who maintains it and how it is verified. "Oracle" means `ch
 
 These say what a cohort still owes before it may be reclaimed. They are what makes the reclaim condition (S1) sound.
 
-**M1. Mark obligation.** Every unmarked unstable object is on its root cohort's mark list.
-*Maintained by:* `makeUnstable` pushes the object to `mark` in the same transaction; merges concatenate lists; nothing else gives an unstable object tree children. *Verified:* oracle.
+**M1. Mark obligation.** Every unmarked unstable object is on its root cohort's mark list, unless it is an anchor of a region suspended in that cohort: the region's item stands for it.
+*Maintained by:* `makeUnstable` pushes the object to `mark` in the same transaction; merges concatenate lists; `suspend` replaces the anchors by the region item; `materialize` puts them back. Nothing else gives an unstable object tree children. *Verified:* oracle.
+
+**M2. Unmarked objects have their check pending.** Every unmarked unstable object is on its root cohort's check list, with the same exception as M1. This is what lets the barrier and expansion skip rescuing an unmarked object (D1): its check will find the referrer.
+*Maintained by:* `makeUnstable` pushes to `check` together with `mark`; checks run only when nothing is left to mark; `materialize`, which makes anchors unmarked again after their check may have run, queues their check again. *Verified:* oracle. (Found by the fuzzer: without the last rule, a reachable object was reclaimed.)
+
+**M3. Stable referrers are noticed.** If a stable object `s` references an object `t` unstable in C, then `s` (or its region's item) is on an expand list, or `t` is on C's check list, or `t` is an implicit member whose region item is on C's mark or check list. Otherwise nothing would ever notice that `t` is referenced from outside its cohort.
+*Maintained by:* a stable referrer appears when an edge is added (the barrier rescues `t` if it is marked, and otherwise `t`'s check is pending by M2), when an object is rescued (it goes on the expand list), or when an implicit member turns stale-stable at `materialize` (which queues the checks of what it references). *Verified:* oracle. (Found by the fuzzer: a materialized member that later got a replacement parent became a stable referrer that nothing had queued.)
 
 **K1. Check obligation.** Every unstable object is either checked, or on its root cohort's check list.
 *Maintained by:* `makeUnstable` and `joinCohort` push to `check`; merges concatenate lists; a check batch removes items only by checking them (or by finding them rescued or reclaimed). *Verified:* indirectly, by the safety oracle.
@@ -107,8 +115,8 @@ These say what a cohort still owes before it may be reclaimed. They are what mak
 *Maintained by:* `rescue` pushes the rescued object to the expand list of the cohort it leaves. When an expand item finds its object unstable in another cohort, the two cohorts merge (`Collector.expand`). This last rule was found by the fuzzer; without it, an expansion can move out of C's sight and C reclaims a reachable object.
 *Verified:* indirectly, by the safety oracle.
 
-**D1. Rescue only marked objects, only from stable objects.** An unstable object becomes stable only through `rescue(o, s)`, and only if `s` is stable and `o` has no tree children. An unmarked object that gets a stable referrer is left alone: by K1 and M1 it will be checked after marking, and the check finds the same referrer.
-*Maintained by:* `canRescue` guards the barrier and expansion; `rescue` throws otherwise. *Verified:* `rescue` throws; T4 in the oracle.
+**D1. Rescue only marked objects, only from stable objects.** An unstable object becomes stable only through `rescue(o, s)`, and only if `s` is stable and `o` is marked: it has no tree children, or it is an anchor of a suspended region whose exits are cut (U3), so that its tree children are all implicit members and none of them is `s`. An unmarked object that gets a stable referrer is left alone: by M1 and M2 it will be checked after marking, and the check finds the same referrer. "Rescuing" an implicit member materializes its region instead (U4).
+*Maintained by:* `canRescue` guards the barrier, expansion and checks; `rescue` throws otherwise. *Verified:* `rescue` throws; T4 in the oracle.
 
 ## 3.5 Avoiding needless marking
 
@@ -141,7 +149,7 @@ A forgotten hold therefore delays collection until it expires; it never leaks. A
 
 ## 3.6 Level-0 regions
 
-These come with regions (design §6, without suspension or re-homing yet). A **region** groups objects; its **weight** is its number of members plus their outgoing strong edges (counted per distinct target).
+These come with regions (design §6, without re-homing yet). A **region** groups objects; its **weight** is its number of members plus their outgoing strong edges (counted per distinct target).
 
 **G1. Membership.** Every object belongs to exactly one region: `g/<id>.region = R` if and only if the key `m/<R>/<id>` exists, and then the region record `r/<R>` exists. ROOT is in the root region `r0`, which is never deleted.
 *Maintained by:* placement in the barrier (a new object joins the region of the object that placed it), splits and merges (which move members), reclaim (which deletes membership keys). *Verified:* oracle.
@@ -153,8 +161,8 @@ These come with regions (design §6, without suspension or re-homing yet). A **r
 **G3. Pending structure work.** A region whose membership or edges changed since its weight was last evaluated has a structure task key `s/<R>`. In particular, an empty non-root region always has one, and is deleted when the task runs.
 *Maintained by:* the barrier and reclaim schedule the regions they touch; the collector runs structure tasks, which split a region heavier than `CAP`, merge one lighter than `CAP/4` into the region its anchors hang from, and delete an empty one. *Verified:* oracle (empty regions); the fuzzer requires no structure keys when idle.
 
-**G4. Structure tasks only move membership.** Splits, merges and region deletion change `g/<id>.region`, membership keys, flags and region records, and nothing else: no tree parent, no cohort, no deferral, no record. So they cannot make anything look reachable or unreachable.
-*Maintained by:* the code of `split` and `merge`. *Verified:* the oracle's tree and cohort checks run after every structure task.
+**G4. Structure tasks only move membership.** Splits, merges and region deletion change `g/<id>.region`, membership keys, flags and region records, and nothing else: no tree parent, no cohort, no deferral, no record. So they cannot make anything look reachable or unreachable. They leave a suspended region alone (moving a member out would make it stable, merging one in would make it unstable), never merge into one, and leave alone a resumed region whose expansion is pending (a member moved out would never be expanded; found by the fuzzer).
+*Maintained by:* the code of `split` and `merge`, and `runStructureTask`'s guards. *Verified:* the oracle's tree and cohort checks run after every structure task.
 
 ## 3.7 Safety and completeness
 
@@ -162,9 +170,11 @@ These come with regions (design §6, without suspension or re-homing yet). A **r
 - every member is marked (M1) and checked (K1);
 - every member's referrers were fellow members when it was checked;
 - every fellow member that has left since was expanded or merged in (E1);
-- no stable object gained an edge to a marked member since its check, because the barrier would have rescued it (D1), and an unmarked member cannot exist (M1).
+- no stable object gained an edge to a marked member since its check, because the barrier would have rescued it (D1), and an unmarked member cannot exist (M1);
+- no stable object references a member at all (M3, with every list empty);
+- every suspended region's implicit members were checked as a unit, by its region item (U3), and any change since materialized it (U4).
 
-So **no member is referenced by any object outside the cohort**, and no member is reachable.
+So **no member is referenced by any object outside the cohort**, and no member is reachable. The cohort's explicit members and every region suspended in it are deleted together; a suspended region is deleted whole, with its record and its entry flags (design §8.3).
 
 *Maintained by:* the ladder order (`Collector.ladder`). *Verified:* the fuzzer computes reachability from ROOT at every reclaim and fails if any reclaimed object is reachable.
 
@@ -174,6 +184,25 @@ So **no member is referenced by any object outside the cohort**, and no member i
 **L1. Liveness.** A cohort that no transaction touches finishes in a finite number of steps: each object is marked at most once per cut, every rescue removes a member, and merges only reduce the number of cohorts. A cohort can be held back indefinitely only by transactions that keep cutting and rescuing its members.
 *Verified:* the fuzzer runs the collector to idle with a step limit.
 
+## 3.8 Suspension
+
+These come with suspension (design §8): marking, checking, resuming and reclaiming a whole level-0 region at once. A suspended region's record says `suspended: { cohort, marked }`, and the key `S/<cohort>/<region>` indexes it under the cohort id it was suspended in.
+
+**U1. Suspension is indexed.** A region is suspended in cohort id `k` if and only if `S/<k>/<region>` exists, and `k` resolves to an existing root cohort. The root region is never suspended.
+*Maintained by:* `suspend`, `unsuspend` (used by `resume` and `materialize`), reclaim. *Verified:* oracle.
+
+**U2. A suspended region is condemned as a whole.** Every member of a region suspended in C is either explicitly unstable in C, or an implicit member: not deferred, with its tree parent inside the region. Following tree parents from an implicit member therefore stays in the region and ends at an anchor in C.
+*Maintained by:* `suspendable` only allows a region where this holds (and that C has not materialized before, which would otherwise suspend and materialize the same region forever); afterwards nothing changes an implicit member without materializing first (U4). New objects referenced only from implicit members join C explicitly. *Verified:* oracle.
+
+**U3. A marked suspended region has no tree exits.** Once its region item has been marked (`marked: true`), no member of the region has a tree child outside it. Marking the item cut those edges exactly as marking the members one by one would have, with replacement parents for shared children; the edges inside the region stay.
+*Maintained by:* `Collector.markRegion`. *Verified:* oracle.
+
+**U4. Changes materialize.** Anything that would change an implicit member, or give the region a stable referrer, ends the suspension first:
+- **resume:** rescuing the region's only anchor makes every member stable again with its internal tree, and queues the region for expansion;
+- **materialize:** in every other case (an edge added from a stable object to an implicit member, a tree edge cut inside the region, a stable referrer found by the region's check, an anchor rescued while others remain), implicit members turn stale-stable, anchors go back to the mark and check lists (M1, M2), and what the members reference is queued for checking again (M3).
+
+*Maintained by:* `GcState.rescue`, the barrier, `Collector.checkRegion`. *Verified:* oracle (U2 and M3 after every step); safety at every reclaim.
+
 ---
 
 # 4. Invariants of planned mechanisms
@@ -182,10 +211,9 @@ These come with later steps of the prototype plan (design §16.3). They are list
 
 | Mechanism (design section) | Invariant |
 |---|---|
-| Re-homing and intactness (§6.7, §6.8) | **Intactness counters** equal a recount. A region whose member got a tree parent outside it and outside its parent region has a pending re-home. |
+| Re-homing and intactness (§6.7, §6.8) | **Intactness counters** equal a recount. A region whose member got a tree parent outside it and outside its parent region has a pending re-home. (Suspension currently reads the region instead of using counters, U2.) |
 | Meta-regions and coarsening (§6.6, §6.9) | **Coverage at every level:** every strong edge between different clusters is covered by a flag at each level where the clusters differ. Every flag whose source is a meta-region has its `E/` mirror. |
 | Multi-step scans (§10.1) | **Scan lock:** no structure task moves objects into or out of a cluster with `scanning > 0`. |
-| Suspension (§8) | **Suspension:** a suspended region's implicit members have the same tree edges as when it was suspended; any change materializes it first. |
 | Structure tasks (§6.4–6.7) | **Membership only:** splits, merges, re-homes and coarsening never change a tree parent or a cohort. |
 | `y/` edge index (§5.5) | **Index:** `y/<region(a)>/<a>/<b>` exists with count n if and only if `a`'s record references `b` strongly n times. |
 

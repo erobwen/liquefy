@@ -44,6 +44,8 @@ const style = [
   { selector: "node.held", style: { "background-color": "#ffffff", "border-color": colors.held, "border-style": "dashed", "border-width": 2.5 } },
   { selector: "node.unstable", style: { "background-color": "#ffffff", "border-color": "data(color)", "border-width": 4 } },
   { selector: "node.marked", style: { "background-color": "data(color)", "border-color": "data(color)", "border-width": 2 } },
+  // Implicitly unstable: unstable because its region is suspended, still on its internal tree.
+  { selector: "node.suspended", style: { "background-color": "data(color)", "background-opacity": 0.3, "border-color": "data(color)", "border-width": 1.5 } },
   { selector: "node.reclaimed", style: { opacity: 0.35, "background-color": "#ffffff", "border-color": colors.reclaimed, "border-style": "dotted", "border-width": 2 } },
   { selector: "node.shared", style: { shape: "round-rectangle" } },
   { selector: "node.read", style: { "underlay-color": colors.read, "underlay-opacity": 0.55, "underlay-padding": 5, "underlay-shape": "ellipse" } },
@@ -69,6 +71,7 @@ const style = [
     },
   },
   { selector: "node.region.pending", style: { "border-color": colors.structure, "border-style": "dashed", "border-width": 2 } },
+  { selector: "node.region.suspended", style: { "background-color": "data(color)", "background-opacity": 0.1, "border-color": "data(color)", "border-style": "solid", "border-width": 3, color: "data(color)" } },
   { selector: "node.region.ghost", style: { "border-style": "dotted", "background-opacity": 0.3 } },
   { selector: "node.region.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.6, "underlay-padding": 6 } },
   {
@@ -98,9 +101,16 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
     if (region.pending) classes.push("pending");
     if (region.ghost) classes.push("ghost");
     if (highlight.region === region.id) classes.push("subject");
+    let label = `${region.id} · ${region.members}`;
+    let color = colors.regionBorder;
+    if (region.suspended) {
+      classes.push("suspended");
+      label += ` · suspended in ${region.suspended.cohort}${region.suspended.marked ? ", exits cut" : ""}`;
+      color = cohortColors ? cohortColor(region.suspended.cohort) : colors.unstable;
+    }
     elements.set(`R:${region.id}`, {
       group: "nodes",
-      data: { id: `R:${region.id}`, label: `${region.id} · ${region.members}` },
+      data: { id: `R:${region.id}`, label, color },
       classes: classes.join(" "),
     });
   }

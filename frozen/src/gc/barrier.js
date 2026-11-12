@@ -105,6 +105,9 @@ export function applyBarrier(tx, { created, added, removed, holds = new Map(), r
   for (const { source, target } of removed) {
     const meta = gc.meta(target);
     if (!meta || meta.treeParent !== source) continue;
+    // A tree edge inside a suspended region: the region's tree changes, so it is materialized
+    // first, and the cut is then handled like any other (§8.2).
+    if (gc.isImplicit(target)) gc.materialize(meta.region);
     if (gc.quickSwap(target)) continue;
     if (gc.options.deferCuts) gc.defer(target, gc.deferralFor(holds.get(target)));
     else gc.makeUnstable(target, gc.newCohort());

@@ -13,6 +13,11 @@ import { strongReferences } from "../model.js";
 export function runStructureTask(gc, region) {
   gc.tx.delete(keys.structureKey(region));
   if (!gc.regionExists(region)) return "gone";
+  // A suspended region keeps its membership: moving members out of it would make them stable.
+  // It is scheduled again when its suspension ends.
+  if (gc.suspension(region) !== null) return "suspended";
+  // A resumed region whose members are still to be expanded (GcState.resume).
+  if (gc.tx.get(keys.regionKey(region)).expanding) return "expanding";
   const members = gc.regionMembers(region);
   if (members.length === 0 && region !== ROOT_REGION) {
     deleteRegion(gc, region);
@@ -25,7 +30,7 @@ export function runStructureTask(gc, region) {
   return "kept";
 }
 
-function deleteRegion(gc, region) {
+export function deleteRegion(gc, region) {
   gc.tx.delete(keys.regionKey(region));
   for (const source of gc.flagSources(region)) gc.tx.delete(keys.flagKey(region, source));
   // Flags elsewhere that name this region are now stale; referrer lookups delete them (G2).
@@ -119,6 +124,7 @@ function merge(gc, region, weight) {
     .map((parent) => gc.regionOf(parent))
     .find((candidate) => candidate !== region && gc.regionExists(candidate));
   if (parentRegion === undefined) return false;
+  if (gc.suspension(parentRegion) !== null) return false; // members moved in would become unstable
   if (weight + gc.regionWeight(parentRegion) > (2 * gc.options.regionCap) / 3) return false;
 
   moveMembers(gc, loaded, new Set(loaded.members), parentRegion, region);

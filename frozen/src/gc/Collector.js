@@ -18,9 +18,9 @@
  * (O(database) per call). Regions are what make it local.
  */
 
-import { GcState, STABLE, keys } from "./GcState.js";
+import { GcState, STABLE, ROOT_REGION, keys, isRegionItem, regionOfItem } from "./GcState.js";
 import { strongReferences } from "../model.js";
-import { runStructureTask } from "./regions.js";
+import { runStructureTask, deleteRegion } from "./regions.js";
 
 export class Collector {
   /**
@@ -47,6 +47,8 @@ export class Collector {
       deferralsResolved: 0,
       deferralsSwapped: 0,
       replacementParents: 0,
+      suspended: 0,
+      regionsReclaimed: 0,
       structure: {},
     };
   }
@@ -151,7 +153,7 @@ export class Collector {
       cohort.check = [];
       gc.saveCohort(cohort);
       this.stats.check++;
-      this.lastStep = { kind: "check", cohort: cohort.id, ids: batch, reclaimed: false };
+      this.lastStep = { ...checkStep(cohort.id, batch), reclaimed: false };
       this.check(gc, batch, cohort.id);
       const root = gc.cohort(gc.findCohort(cohort.id));
       if (root.expand.length > 0 || root.mark.length > 0 || root.check.length > 0) return;
@@ -180,20 +182,24 @@ export class Collector {
       const id = cohort.expand.shift();
       gc.saveCohort(cohort);
       this.stats.expand++;
-      this.lastStep = { kind: "expand", cohort: cohortId, ids: [id] };
+      this.lastStep = isRegionItem(id)
+        ? { kind: "expand", cohort: cohortId, ids: [], region: regionOfItem(id) }
+        : { kind: "expand", cohort: cohortId, ids: [id] };
       this.expand(gc, id, cohortId);
     } else if (cohort.mark.length > 0) {
       const id = cohort.mark.shift();
       gc.saveCohort(cohort);
       this.stats.mark++;
-      this.lastStep = { kind: "mark", cohort: cohortId, ids: [id] };
+      this.lastStep = isRegionItem(id)
+        ? { kind: "mark", cohort: cohortId, ids: [], region: regionOfItem(id) }
+        : { kind: "mark", cohort: cohortId, ids: [id] };
       this.mark(gc, id, cohortId);
     } else if (cohort.check.length > 0) {
       const batch = cohort.check;
       cohort.check = [];
       gc.saveCohort(cohort);
       this.stats.check++;
-      this.lastStep = { kind: "check", cohort: cohortId, ids: batch };
+      this.lastStep = checkStep(cohortId, batch);
       this.check(gc, batch, cohortId);
     } else {
       this.stats.reclaim++;
@@ -212,6 +218,15 @@ export class Collector {
    * they merge.
    */
   expand(gc, id, cohortId) {
+    if (isRegionItem(id)) {
+      // A resumed region (§8.2): every member that is still stable expands.
+      const region = regionOfItem(id);
+      if (!gc.regionExists(region)) return;
+      for (const member of gc.regionMembers(region)) this.expand(gc, member, cohortId);
+      gc.tx.put(keys.regionKey(region), { ...gc.tx.get(keys.regionKey(region)), expanding: false });
+      gc.scheduleStructure(region);
+      return;
+    }
     if (!gc.meta(id)) return; // reclaimed since; its own cohort's checks covered its referrers
     const state = gc.state(id);
     if (state !== STABLE) {
@@ -234,19 +249,48 @@ export class Collector {
    * some other way, such as the rest of a queue after a dequeue.
    */
   mark(gc, id, cohortId) {
+    if (isRegionItem(id)) {
+      this.markRegion(gc, regionOfItem(id), cohortId);
+      return;
+    }
     if (!gc.meta(id)) return; // reclaimed by another cohort since it was queued
-    if (gc.state(id) !== cohortId) return; // rescued since it was queued (only possible once marked)
+    if (gc.state(id) !== gc.findCohort(cohortId)) return; // rescued since it was queued (only possible once marked)
+    if (gc.isImplicit(id)) return; // its region was suspended since: the region item marks it
 
-    const children = gc.treeChildren(id);
-    const shared = children.filter((child) => gc.meta(child).shared);
+    // Suspension (§8.1): if everything in this object's region is condemned to this cohort,
+    // the whole region is marked at once instead of object by object.
+    if (gc.options.suspension) {
+      const root = gc.findCohort(cohortId);
+      const region = gc.regionOf(id);
+      const anchors = gc.suspendable(region, root);
+      if (anchors !== null) {
+        gc.suspend(region, root, anchors);
+        this.stats.suspended++;
+        if (this.lastStep) this.lastStep.suspended = region;
+        return;
+      }
+    }
+
+    this.detach(gc, gc.treeChildren(id).map((child) => [id, child]), cohortId);
+  }
+
+  /**
+   * Cuts tree edges [parent, child] whose parents are unstable in the cohort: each child
+   * becomes unstable too. A shared child first looks for a replacement parent: another
+   * referrer that passes the verified walk (§10.2, invariant W1). If it finds one, it is
+   * re-parented there and marking does not descend into it. This keeps a cut from marking a
+   * structure that is still reachable some other way, such as the rest of a queue after a
+   * dequeue.
+   */
+  detach(gc, edges, cohortId) {
+    const shared = edges.map(([, child]) => child).filter((child) => gc.meta(child).shared);
     const referrers = shared.length > 0 ? gc.referrersOf(shared) : new Map();
-
-    for (const child of children) {
+    for (const [parent, child] of edges) {
       if (referrers.has(child)) {
-        const candidates = referrers.get(child).filter((source) => source !== id);
-        const parent = gc.findVerifiedReferrer(child, candidates);
-        if (parent !== null) {
-          gc.reparent(child, parent);
+        const candidates = referrers.get(child).filter((source) => source !== parent);
+        const replacement = gc.findVerifiedReferrer(child, candidates);
+        if (replacement !== null) {
+          gc.reparent(child, replacement);
           this.stats.replacementParents++;
           continue;
         }
@@ -256,11 +300,59 @@ export class Collector {
   }
 
   /**
+   * Marks a suspended region (§8.1): the tree edges that leave it are cut, as marking its
+   * members one by one would have done; the edges inside it stay. Then the region is queued
+   * for its check. Costs one pass over the region, not one step per member.
+   */
+  markRegion(gc, region, cohortId) {
+    const suspended = gc.regionExists(region) ? gc.suspension(region) : null;
+    if (suspended === null || gc.findCohort(suspended.cohort) !== gc.findCohort(cohortId)) return; // materialized since
+    const members = new Set(gc.regionMembers(region));
+    const exits = [];
+    for (const member of members) {
+      for (const child of gc.treeChildren(member)) if (!members.has(child)) exits.push([member, child]);
+    }
+    this.detach(gc, exits, cohortId);
+    gc.setSuspension(region, { ...suspended, marked: true });
+    gc.push(gc.findCohort(cohortId), "check", "@" + region);
+  }
+
+  /**
+   * Checks a suspended region (§10.2, region item): looks for referrers of its implicit
+   * members. Referrers inside the cohort leave it suspended; one in another cohort merges the
+   * two; a stable one means the region is not entirely garbage, and it is materialized, so that
+   * marking proceeds object by object and the referrer becomes a replacement parent.
+   */
+  checkRegion(gc, region, cohortId) {
+    const suspended = gc.regionExists(region) ? gc.suspension(region) : null;
+    if (suspended === null || gc.findCohort(suspended.cohort) !== gc.findCohort(cohortId)) return;
+    const implicit = gc.regionMembers(region).filter((id) => gc.meta(id).cohort === null);
+    if (implicit.length === 0) return;
+    const referrers = gc.referrersOf(implicit);
+    for (const member of implicit) {
+      for (const source of referrers.get(member)) {
+        const current = gc.findCohort(cohortId);
+        const sourceState = gc.state(source);
+        if (sourceState === STABLE) {
+          gc.materialize(region);
+          return;
+        }
+        if (sourceState !== current) gc.merge(current, sourceState);
+      }
+    }
+  }
+
+  /**
    * Looks for a stable referrer of every member in the batch. A stable referrer rescues; a
    * referrer in another active cohort merges the two cohorts; referrers in this cohort leave the
    * member checked.
    */
   check(gc, batch, cohortId) {
+    this.checkObjects(gc, batch.filter((item) => !isRegionItem(item)), cohortId);
+    for (const item of batch.filter(isRegionItem)) this.checkRegion(gc, regionOfItem(item), cohortId);
+  }
+
+  checkObjects(gc, batch, cohortId) {
     // Items may be stale: rescued since, or rescued, cut again and reclaimed by another cohort.
     const members = new Set(batch.filter((id) => gc.meta(id) && gc.state(id) === gc.findCohort(cohortId)));
     if (members.size === 0) return;
@@ -272,7 +364,9 @@ export class Collector {
         if (gc.state(member) !== current) break; // already rescued in this batch
         const sourceState = gc.state(source);
         if (sourceState === STABLE) {
-          gc.rescue(member, source);
+          // An earlier rescue in this batch may have materialized the member's region, making
+          // it unmarked again; materialize queued its check again, which will rescue it.
+          if (gc.canRescue(member)) gc.rescue(member, source);
           break;
         }
         if (sourceState !== current) gc.merge(current, sourceState);
@@ -287,27 +381,62 @@ export class Collector {
     cohort.state = "reclaiming";
     gc.saveCohort(cohort);
 
-    const doomed = [];
+    // Explicit members, by their membership keys; and suspended regions, whole (§8.3). A
+    // suspended region holds only implicit members and explicit members of this cohort.
+    const doomed = new Map(); // id → its membership key, or null for an implicit member
     for (const familyId of gc.cohortFamily(root)) {
       for (const key of gc.tx.keys(keys.memberPrefix(familyId))) {
         const id = key.slice(keys.memberPrefix(familyId).length);
         if (gc.state(id) !== root) throw new Error(`Member key of ${id} in ${familyId} is stale`);
-        if (gc.treeChildren(id).length > 0) throw new Error(`Reclaiming ${id}, which has tree children`);
-        doomed.push({ id, key });
+        doomed.set(id, key);
+      }
+    }
+    const regions = [];
+    for (const familyId of gc.cohortFamily(root)) {
+      for (const region of gc.suspendedRegions(familyId)) {
+        regions.push({ region, key: keys.suspendedKey(familyId, region) });
+        for (const id of gc.regionMembers(region)) {
+          if (gc.state(id) !== root) throw new Error(`Suspended region ${region} holds ${id}, not in ${root}`);
+          if (!doomed.has(id)) doomed.set(id, null);
+        }
+      }
+    }
+    for (const id of doomed.keys()) {
+      for (const child of gc.treeChildren(id)) {
+        if (!doomed.has(child)) throw new Error(`Reclaiming ${id}, which has the surviving tree child ${child}`);
       }
     }
 
-    this.onReclaim?.(doomed.map(({ id }) => id));
+    this.onReclaim?.([...doomed.keys()]);
 
-    for (const { id, key } of doomed) {
-      const region = gc.regionOf(id);
-      gc.tx.delete(keys.regionMemberKey(region, id));
-      gc.scheduleStructure(region);
+    const deletedRegions = new Set(regions.map(({ region }) => region));
+    for (const [id, key] of doomed) {
+      const meta = gc.meta(id);
+      gc.tx.delete(keys.regionMemberKey(meta.region, id));
+      if (!deletedRegions.has(meta.region)) gc.scheduleStructure(meta.region);
+      if (meta.treeParent !== null) gc.tx.delete(keys.treeKey(meta.treeParent, id));
       gc.tx.delete(keys.objectKey(id));
       gc.tx.delete(keys.metaKey(id));
+      if (key !== null) gc.tx.delete(key);
+    }
+    for (const { region, key } of regions) {
       gc.tx.delete(key);
+      gc.tx.delete(keys.structureKey(region));
+      deleteRegion(gc, region);
     }
     for (const familyId of gc.cohortFamily(root)) gc.tx.delete(keys.cohortKey(familyId));
-    this.stats.reclaimed += doomed.length;
+    this.stats.reclaimed += doomed.size;
+    this.stats.regionsReclaimed += regions.length;
+    if (this.lastStep) this.lastStep.regions = regions.map(({ region }) => region);
   }
+}
+
+/** The description of a check step: its object items and its region items. */
+function checkStep(cohortId, batch) {
+  return {
+    kind: "check",
+    cohort: cohortId,
+    ids: batch.filter((item) => !isRegionItem(item)),
+    regions: batch.filter(isRegionItem).map(regionOfItem),
+  };
 }

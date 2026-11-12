@@ -67,7 +67,7 @@ describe("Step order", () => {
     do db.collector.step(); while (db.collector.lastStep.kind === "structure");
     assert.equal(db.collector.lastStep.kind, "mark");
     db.collector.step();
-    assert.deepEqual(db.collector.lastStep, { kind: "check", cohort: db.collector.lastStep.cohort, ids: [leaf], reclaimed: true });
+    assert.deepEqual(db.collector.lastStep, { kind: "check", cohort: db.collector.lastStep.cohort, ids: [leaf], regions: [], reclaimed: true });
     assert.ok(!db.get(leaf), "reclaimed");
     assert.equal(cohortRecords(db).length, 0);
   });

@@ -61,7 +61,8 @@ A `Paragraph` is laid out in two repeaters of its own (see `src/Paragraph.js`):
    reruns only when what content() read changes, or the width.
 2. **Placing the lines** - its render, onto the paper sequence, from where
    the paragraph before it left off (`PaperSequence.flow`), onto a new paper
-   when one is full.
+   when one is full. The paper sequence is a `temporal()` render target:
+   each paragraph sees it as the paragraphs before it left it.
 
 So an edit breaks one paragraph again, and the paragraphs after it are only
 placed again - and only until one ends where it did before.

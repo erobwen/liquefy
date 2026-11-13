@@ -79,10 +79,10 @@ changed.
 
 Properties are given, never assigned: they're written in `setProperties()`,
 when the creator gives them, and changed only by the creator giving them
-again. Assigning one from an event handler doesn't even take effect: the
-write lands at the baseline, *before* the creator's build wrote it, and
-readers go on seeing the creator's value. Cascade warns about it, once per
-class and property ("Property 'x' of Y was assigned"). A value the component
+again. Assigning one from an event handler takes effect only until the
+creator next builds: the rebuild gives the creator's value back, and your
+change is gone - at a moment that has nothing to do with it. Cascade warns
+about it, once per class and property ("Property 'x' of Y was assigned"). A value the component
 changes itself is state. (A root component, built by nobody, is the
 exception: there's no creator to give it anything again.)
 
@@ -121,8 +121,9 @@ Rules:
 
 Declare everything the component changes itself in `initialState()`. An
 undeclared field written from a handler is just an observable field: if the
-creator also passes a property of that name, the creator's value wins (see
-[3.2](#32-properties)), and a write to it from a repeater isn't caught.
+creator also passes a property of that name, the creator's next build
+overwrites it (see [3.2](#32-properties)), and a write to it from a repeater
+isn't caught.
 
 ## 3.4 Unobservables
 
@@ -199,15 +200,16 @@ Three ways to write a component, then:
   built.
 
 ```js
-import { Component, observable, frozen } from "@liquefy/cascade.component";
+import { Component, observable, temporal, frozen } from "@liquefy/cascade.component";
 
 // A render target of your own - no DOM at all (from the demo's Paper example):
-// a paper holding the words placed on it, in order.
+// a paper holding the words placed on it, in order. Temporal: each word sees
+// the paper as the words before it left it.
 class Paper {
   constructor(width) {
     this.width = width;
-    this.words = observable([]);
-    return observable(this);
+    this.words = temporal([]);
+    return temporal(this);
   }
 }
 
@@ -235,6 +237,12 @@ new Sentence({ words }).renderOnto(new Paper(20));
 Change the third word, and only it and the words after it lay out again; a
 word that lands where it was stops the ripple (its entry is `frozen()`, so an
 equal one is no change).
+
+A render target of your own must be `temporal()`. Made with `observable()`,
+there is just one array: each word's push reruns the words that read it
+before, which push again - it never stops (see
+[9.2](09-reactivity.md#timeless-and-temporal)). The model the sentence reads,
+`words`, is an ordinary `observable()`.
 
 `context` in `render(target, context)` is what the children are to be
 rendered with - pass it on. What the component itself inherits is read with

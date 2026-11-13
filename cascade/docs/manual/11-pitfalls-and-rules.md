@@ -4,49 +4,52 @@ Each rule: what to do, why, and a short example. The first five come from
 real debugging sessions and are the ones most likely to bite. Rules 11.18
 and on were added later, from the framework's tests, the demo and Tabula.
 
-## 11.1 Write shared state at the baseline when a repeater might be running
+## 11.1 Models are observable(); only what a pass threads through is temporal()
 
-**Rule.** Shared observable state (an app-level model, a "who has the focus"
-object) that may be written from code a rebuild can call - a `build()`, a
-`render()`, an `onDispose()` or `onEstablish()` run by a rebuild - must be
-written with `accessInitialValues(() => ...)`. Compare first with
-`withoutRecording()` so an unchanged value writes nothing.
+**Rule.** Make models, shared state (a "who has the focus" object), settings
+and everything else your app keeps with `observable()`. Use `temporal()` only
+for what a render pass writes and reads *in order* as it goes along: a render
+target of your own, the pages a document is being laid out on.
 
-**Why.** A write made from inside a repeater is *that repeater's writing, at
-its position in the tree*. Readers after that position keep seeing it. A
-later write from an event handler lands at the baseline, which is *before*
-that position - so for those readers it does not override the repeater's
-writing. Their value is stuck until the repeater reruns or is retracted.
-An `onDispose()` called because a rebuild dropped a component runs inside
-the rebuilding build repeater, so it counts. (A write from a build can also
-throw outright - see [11.18](#1118-one-property-one-writing-pipeline-dont-write-shared-state-from-build).)
+**Why.** On a temporal object, a write made from inside a repeater is *that
+repeater's writing, at its position in the tree*. Readers after that
+position keep seeing it. A later write from an event handler lands at the
+baseline, which is *before* that position - so for those readers it does not
+override the repeater's writing. Their value is stuck until the repeater
+reruns or is retracted. And code you'd never think of as a repeater runs in
+one: an `onDispose()` called because a rebuild dropped a component runs
+inside the rebuilding build. On an `observable()`, a write is a write: the
+last one wins, wherever it was made, and every reader sees it.
 
-**Real case.** In Tabula, a `contextMenus` object held the current focus
-`owner`. When the mode switched, the old editor's `onDispose()` released the
-focus (`owner = null`) - inside the rebuild. A click in the new editor then
-set `owner` from an event handler, at the baseline - and the layout, reading
-after the rebuild's position, went on seeing `null`: no menus.
+**Real case.** In Tabula, before `observable()` was timeless, a
+`contextMenus` object held the current focus `owner`. When the mode
+switched, the old editor's `onDispose()` released the focus (`owner = null`)
+- inside the rebuild. A click in the new editor then set `owner` from an
+event handler, at the baseline - and the layout, reading after the rebuild's
+position, went on seeing `null`: no menus. As an `observable()`, the click
+simply sets `owner`.
 
 ```js
-// Wrong: from onDispose() during a rebuild, this is the rebuild's writing.
-release(owner) {
-  if (this.owner === owner) this.owner = null;
-}
+// A model: timeless. Written from anywhere, read by anyone.
+const focus = observable({ owner: null });
 
-// Right: always at the baseline, and only when it changes.
-focus(owner) {
-  if (withoutRecording(() => this.owner) !== owner) accessInitialValues(() => { this.owner = owner; });
-}
-release(owner) {
-  if (withoutRecording(() => this.owner) === owner) accessInitialValues(() => { this.owner = null; });
+// A render target of your own: temporal. Each component reads what the one
+// before it left, and writes what the next one reads.
+class Paper {
+  constructor(width) {
+    this.width = width;
+    this.words = temporal([]);
+    return temporal(this);
+  }
 }
 ```
 
-`Component.setState()` does exactly this for declared state. Plain writes
-from event handlers already land at the baseline; the rule is about code
-that *might* run inside a pipeline. If the change must also be processed in
-the same wave (something earlier in the tree has already rendered), wrap it
-in `flush()` as well (see [11.21](#1121-writing-back-to-something-already-rendered-setstate-and-flush-and-make-it-converge)).
+If you do write input to a temporal object from code that may run inside a
+repeater, write it at the baseline with `accessInitialValues(() => ...)`
+(see [9.8](09-reactivity.md#98-accessinitialvalues)). If a change must be
+processed in the same wave (something earlier in the tree has already
+rendered), wrap it in `flush()` (see
+[11.21](#1121-writing-back-to-something-already-rendered-setstate-and-flush-and-make-it-converge)).
 
 ## 11.2 State is written by the user, or with setState()
 
@@ -408,20 +411,22 @@ Reserved names (`repeater`, `buildRepeater`, `renderTarget`,
 
 **Rule.** A `build()` computes what to show from what it reads; it doesn't
 write observables that anything else writes too. Write shared models from
-event handlers, or at the baseline (11.1).
+event handlers.
 
 **Why.** Each component's build repeater is a pipeline of its own, separate
-from the render pipeline and from every other build. Two pipelines may read
-each other's writings, but a property may be written by only one pipeline
-at a time level - a second one writing it throws:
+from the render pipeline and from every other build, and they run in no
+order you control. Two builds writing the same property of a model leave it
+at whichever wrote last - and change it again each time either reruns. A
+build that also reads what it writes reruns until the two agree, and never
+stops if they don't (see
+[9.2](09-reactivity.md#timeless-and-temporal)). On a temporal object it is
+caught: a property may be written by only one pipeline at a time level, and
+a second one writing it throws:
 
 ```
 Property 'count' is already written at time level 0 by repeater '...'s pipeline;
 repeater '...' belongs to a different pipeline at the same time level and cannot write it too.
 ```
-
-So two components whose builds both write `model.count`, or a build and a
-render writing the same property, crash on the second write.
 
 ```js
 // Wrong: every Row's build writes the same property.
@@ -504,8 +509,8 @@ how many of its items overflowed. Do it with `setState()` (at the baseline),
 wrapped in `flush()` so it settles within the current wave, and only when
 the value changes.
 
-**Why.** Without `setState()`, the write lands at the writer's own place in
-time, after the earlier component - which never sees it. Without `flush()`,
+**Why.** Without `setState()`, the write throws: state isn't written from
+inside a repeater (11.2), and a render is one. Without `flush()`,
 the earlier component still catches up before the outermost write returns
 (so not a frame late), but in a later wave: everything after it in the pass
 has already run with the old value, and whatever depends on it runs again
@@ -647,8 +652,8 @@ onDispose() {
   tree yet").
 - In `onShow()`/`onHide()`, wrap reads in `withoutRecording()`: they run
   inside whoever is rendering, and would become that render's dependencies.
-- Use `observable` from `@liquefy/cascade.component` for app models, so they
-  live in the components' world (see [9.1](09-reactivity.md#91-worlds)).
+- Use `observable` (and `temporal`) from `@liquefy/cascade.component` for app
+  models, so they live in the components' world (see [9.1](09-reactivity.md#91-worlds)).
   An object from another world is invisible to it: changing it rerenders
   nothing.
 - `frozen()` freezes in place: mutating frozen data later throws - also the

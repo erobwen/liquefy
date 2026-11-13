@@ -4,6 +4,7 @@ import { themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { HighlightedCode } from "../components/code.js";
 import { article, emphasis, nextPage } from "../components/layout.js";
+import { name } from "../components/examples.js";
 import source from "./IntroductionPage.js?raw";
 import temporalSignalsBoard from "../../../../cascade/images/temporal-signals.svg";
 import whatIfEverything from "../../../../cascade/images/what-if-everything.svg";
@@ -102,6 +103,11 @@ export class IntroductionPage extends Component {
         source: temporalSignalsExample,
         style: { margin: "8px 0 16px 0", border: "1px solid " + themeColor.border, borderRadius: "8px", overflow: "auto", lineHeight: "1.4" },
       }),
+      p(
+        "The heading above is made with ", name("temporal()"), ". An app's models are made with ", name("observable()"),
+        " - ordinary signals, one value per property, nearly as cheap as plain objects - and only what a pipeline ",
+        "threads through as it goes, like the render target each component places its element on, is temporal.",
+      ),
       p("In Cascade this mechanism is used to define a reactive order of rendering, so that a parent can render before its children, measure its bounds, and pass the bounds on to its children for programmatic reactive layout. So temporal signals are used in Cascade to build a reactive front end framework with unprecedented precision."),
       p(
         "This is what we call ",

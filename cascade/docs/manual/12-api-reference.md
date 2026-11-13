@@ -39,9 +39,11 @@ World members:
 | Member | Signature | Description |
 |---|---|---|
 | `name` | string | The world's name. |
-| `observable` | `observable([target], [buildId]) → proxy` | Wraps an object or array (default `{}`) in a tracked proxy; non-objects are returned as they are; throws for an observable. `buildId` gives it a rebuild identity inside a repeater (9.12). |
-| `deeplyObservable` | `deeplyObservable(object, [copy])` | Makes a tree of plain objects and arrays observable, in place or as a copy. |
-| `isObservable` | `isObservable(value) → boolean` | Whether `value` is an observable of this world. |
+| `observable` | `observable([target], [buildId]) → proxy` | Wraps an object or array (default `{}`) in a tracked, **timeless** proxy: one value per property, whoever writes it (9.2). Non-objects are returned as they are; throws for an observable. `buildId` gives it a rebuild identity inside a repeater (9.12). |
+| `temporal` | `temporal([target], [buildId]) → proxy` | The same, as a **temporal signal**: a write from a repeater is a writing at its position, seen by the readers after it and undone with it (9.2, 9.3). For render targets and what a pass threads through. |
+| `deeplyObservable` | `deeplyObservable(object, [copy])` | Makes a tree of plain objects and arrays observable (timeless), in place or as a copy. |
+| `isObservable` | `isObservable(value) → boolean` | Whether `value` is an observable of this world, timeless or temporal. |
+| `isTemporal` | `isTemporal(value) → boolean` | Whether `value` is a temporal observable of this world. |
 | `repeat` | `repeat([description], action, [nonRecordedAction], [options]) → repeater` | Runs `action(repeater)` now and whenever what it read changes; `nonRecordedAction` runs after it without recording. Options: `independent` (own pipeline, not a child of the running repeater), `time` (time level), `pulledBy` (a repeater, or function returning one, that pulls this one instead of it being scheduled), `onRetract(repeater)`, `onRefresh(repeater)`, `rebuildShapeAnalysis`, `onStartBuildUpdate`, `onEndBuildUpdate` (the last three are used by component builds). |
 | `invalidateOnChange` | `invalidateOnChange([description], doFirst, doAfterChange) → invalidator` | Runs `doFirst` recording reads; calls `doAfterChange` once, on the first change. |
 | `linkRepeater` | `linkRepeater(repeater) → repeater` | Reattaches an existing repeater as a child at the current position. |
@@ -94,7 +96,7 @@ Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `deeplyObservable`, `isObservable`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
 | `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:
@@ -168,7 +170,7 @@ Rendering and services:
 
 | Export | Signature | Description |
 |---|---|---|
-| `DOMElementTarget` | `DOMElementTarget.forElement(element)` | A render target for an element (10.2). Fields `element`, `lastChild`, `timeless`. Methods `appendElement(tag)`, `reattachElement(element)`, `observeBounds()`, `stopObservingBounds()`, `observeVisibility({ amount = 0.25, margin = "0px" })`, `resetVisibility()`, `stopObservingVisibility()`. |
+| `DOMElementTarget` | `DOMElementTarget.forElement(element)` | A render target for an element (10.2), temporal. Fields `element`, `lastChild`, `timeless`. Methods `appendElement(tag)`, `reattachElement(element)`, `observeBounds()`, `stopObservingBounds()`, `observeVisibility({ amount = 0.25, margin = "0px" })`, `resetVisibility()`, `stopObservingVisibility()`. |
 | `DOMServiceLocator` | `new DOMServiceLocator()` | Provides `htmlElement`, `textNode` and `domComponent` queries. |
 | `DOMDebugServiceLocator` | `new DOMDebugServiceLocator()` | Provides a visible placeholder for any query, warning once per name. Put it last. |
 | `defaultDOMServiceLocator` | `CompoundServiceLocator` | `DOMServiceLocator` then `DOMDebugServiceLocator`: the fallback of every factory function. |

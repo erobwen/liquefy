@@ -12,6 +12,10 @@ each reader and writer operates within its own time frame: a reader sees the
 value as of its place in the pipeline, and a change invalidates only the
 readers downstream of it.
 
+Both kinds are here: `observable()` makes ordinary, *timeless* signals - one
+value per property, for models and everything else - and `temporal()` makes
+temporal ones, for what a pipeline threads through, like a render target.
+
 ```console
 npm install @liquefy/cascade.reactive
 ```

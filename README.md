@@ -22,7 +22,9 @@ its place in the pipeline, and a change invalidates only what comes after
 it. So Cascade renders directly onto the live DOM in one pass, in tree order
 - a parent can render, measure the room it has, and hand that down to its
 children, in the same pass - while a rebuild still touches only the nodes
-that actually changed.
+that actually changed. Only what a render pass threads through - its render
+targets - is temporal; your models and components are ordinary, timeless
+observables, nearly as cheap as plain objects.
 
 - **Programmatic, reactive layout** driven by real DOM measurement, not CSS
   media queries.

@@ -49,10 +49,8 @@ const board = this.inherit("noticeBoard");
       };
     }
     ```
-  - fields of an observable object the component keeps and rewrites. Write
-    them **at the baseline, and only when they change** (see
-    [9.8](09-reactivity.md#98-accessinitialvalues)), because whatever
-    rewrites them usually runs inside a repeater:
+  - fields of an observable object the component keeps and rewrites - only
+    when they change, so an unchanged value invalidates no lookup:
     ```js
     provide() {
       const u = this.unobservable;
@@ -63,7 +61,7 @@ const board = this.inherit("noticeBoard");
       const provided = this.provide();
       const presentation = this.presentation();
       if (withoutRecording(() => provided.modalPresentation) !== presentation) {
-        accessInitialValues(() => { provided.modalPresentation = presentation; });
+        provided.modalPresentation = presentation;
       }
       // ...
     }
@@ -119,8 +117,8 @@ root.
 
 ### Reading the context directly
 
-`this.renderContext` is the context a component was given (an observable
-property, set when it enters the tree). `context.inherit(name)` is the same
+`this.renderContext` is the context a component was given (a timeless
+observable property, set when it enters the tree). `context.inherit(name)` is the same
 lookup as `this.inherit(name)`; `context.serviceLocators()` yields every
 `serviceLocator` on the way up, nearest first; `context.provided` is what its
 own provider returned. Use `inherit()` in application code - provided values
@@ -133,13 +131,14 @@ A component is rendered onto a *target* with a *context* -
 
 - **The target holds everything temporal**: where things go and what has
   been placed so far this pass (a `DOMElementTarget`'s `lastChild`, space
-  left after the siblings before). Only render repeaters read and write it,
-  in pipeline order. A component keeps its target as plain, non-reactive
+  left after the siblings before). It is a `temporal()` object. Only render
+  repeaters read and write it, in pipeline order. A component keeps its target as plain, non-reactive
   bookkeeping; a build never sees it - except values that are timeless,
   kept on `target.timeless`, which a build reads with `this.fromTarget(name)`.
   cascade.dom's measured elements keep their layout size there.
 - **The context holds only non-temporal information**: services, a location,
-  an overlay frame, portals - values with one value per render pass.
+  an overlay frame, portals - values with one value per render pass. It is a
+  timeless `observable()`, like the component itself.
 
 **Why it matters.** A component's build runs in an *independent* repeater -
 a pipeline of its own, unrelated in time to the render pipeline (see
@@ -161,8 +160,8 @@ Invariants (from cascade.component's design notes):
    re-points the links below it). It is observable, so only the lookups that
    went through it follow.
 3. Everything written to a context - the parent link, provided values, a
-   component's own context pointer - is written at the baseline
-   (`accessInitialValues()`), and only when it changes.
+   component's own context pointer - is timeless (one value, seen by every
+   reader), and written only when it changes.
 4. A component's own lookups see only the context it was given, never what it
    provides itself.
 5. `inherit()` is cached per context.

@@ -138,10 +138,8 @@ export class FormFieldPage extends Component {
  * - invalid: the server rejected the value - about the content.
  * - error: something went wrong that isn't about the content.
  *
- * Made with the model, outside any repeater. Made lazily, from inside a
- * build, the records would be that build's own writings - and gone again
- * on its next rerun (accessInitialValues() is the way around that, if a
- * record ever has to be made there).
+ * Made with the model, outside any repeater - though, being timeless
+ * observables, they would stay just the same if a build made them.
  */
 function trackProperties(object) {
   const meta = object.causality;

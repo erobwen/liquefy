@@ -18,17 +18,21 @@ about the DOM: a render target can be anything - a paper that words lay
 themselves out on, say (see [3.6](03-components.md#36-rendertarget-context)).
 
 **Temporal signals.** In most signal libraries an observable property has one
-value. In Cascade, the readers and writers of the same property are ordered
-by their position in the tree (in time, as the render pass proceeds). A
-reader sees the value as written by the last writer *before* it. A write is
-seen by the readers after it in tree order, not by those before it. When a
-write changes, only the readers after it are invalidated.
+value. Cascade has those too - `observable()` - and they are what your
+models, your components and their contexts are. But it also has *temporal*
+objects - `temporal()` - whose readers and writers are ordered by their
+position in the tree (in time, as the render pass proceeds). A reader sees
+the value as written by the last writer *before* it. A write is seen by the
+readers after it in tree order, not by those before it. When a write
+changes, only the readers after it are invalidated. Render targets are
+temporal: that is how each component finds where the one before it left
+off.
 
 ```js
 import getWorld from "@liquefy/cascade.reactive";
-const { observable, repeat } = getWorld({ name: "example" });
+const { temporal, repeat } = getWorld({ name: "example" });
 
-const layout = observable({ width: 1000 });
+const layout = temporal({ width: 1000 });
 
 repeat(() => {
   repeat(() => console.log("Header sees width", layout.width));  // before the write
@@ -46,7 +50,7 @@ console.log(layout.width); // 1000 - read from outside: after the whole pipeline
 ```
 
 (This example makes a world of its own, to show cascade.reactive alone. In an
-app, import `observable` and the rest from `@liquefy/cascade.component`, so
+app, import `observable`, `temporal` and the rest from `@liquefy/cascade.component`, so
 your models live in the same world as your components - see
 [9.1](09-reactivity.md#91-worlds).)
 
@@ -84,12 +88,19 @@ one paragraph, and only it and what comes after it run again.
   constructs it. Anything created any other way is owned by whoever created
   it, who must `establish()` and `dispose()` it (see
   [3.8](03-components.md#38-components-you-own-created-outside-build)).
-- Writes made *outside* any repeater (an event handler, a `setTimeout`) land
-  at the **baseline** (time 0, before everything). Reads from outside any
-  repeater see the latest value, after the whole pipeline.
+- Almost everything is **timeless** (`observable()`): models, components,
+  render contexts. A property has one value; whoever writes it, from
+  wherever, every reader of it sees the write. Only render targets - and
+  whatever else a render pass threads its state through, like the pages a
+  document is laid out on - are **temporal** (`temporal()`).
+- On a temporal object, a write made *outside* any repeater (an event
+  handler, a `setTimeout`) lands at the **baseline** (time 0, before
+  everything), and a read from outside sees the latest value, after the
+  whole pipeline.
 
-Keep the last point in mind: it is the source of the most important rule in
-this manual (see [11.1](11-pitfalls-and-rules.md#111-write-shared-state-at-the-baseline-when-a-repeater-might-be-running)).
+Keep the last two points in mind: they are the source of the most important
+rule in this manual - models are `observable()`, not `temporal()` (see
+[11.1](11-pitfalls-and-rules.md#111-models-are-observable-only-what-a-pass-threads-through-is-temporal)).
 
 ## What to read first
 

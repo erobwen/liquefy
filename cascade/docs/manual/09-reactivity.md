@@ -1,11 +1,12 @@
 # 9. Reactivity in depth
 
 cascade.reactive is a signal library with one twist: **temporal signals**.
-Readers and writers of the same object are ordered in time, so one object can
-be read and written along a pipeline - a renderer writing "the next line goes
-here", the next renderer reading it - and a change reruns only the readers
-after it. This chapter covers the whole public API of cascade.reactive and how
-cascade.component uses it.
+Next to ordinary, *timeless* observables - one value per property - it has
+*temporal* ones, whose readers and writers are ordered in time, so one object
+can be read and written along a pipeline - a renderer writing "the next line
+goes here", the next renderer reading it - and a change reruns only the
+readers after it. This chapter covers the whole public API of
+cascade.reactive and how cascade.component uses it.
 
 ## 9.1 Worlds
 
@@ -27,7 +28,7 @@ another world: changing it doesn't rerun the repeater. Keep everything a
 component reads in one world.
 
 What `@liquefy/cascade.component` re-exports from its world: `observable`,
-`deeplyObservable`, `isObservable`, `repeat`, `linkRepeater`, `refreshIfNeeded`,
+`temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `repeat`, `linkRepeater`, `refreshIfNeeded`,
 `retractRepeater`, `withoutRecording`, `invalidateOnChange`,
 `postponeInvalidations`, `continueInvalidations`, `flush`,
 `accessInitialValues`, `declareState`, `finalize`, `sameAsPreviousDeep`,
@@ -61,6 +62,8 @@ const store = observable({ items: [], filter: "" });
 observable([1, 2, 3]);
 observable(new MyClass());     // or `return observable(this)` from a constructor
 deeplyObservable(plainTree);   // every nested object and array, in place (or a copy: deeplyObservable(tree, true))
+
+const target = temporal({ lastChild: null }); // a temporal signal (see below)
 ```
 
 An observable is a proxy that behaves like the plain object: property reads
@@ -77,16 +80,60 @@ enumerated.
   objects as they are.
 - Each observable has a meta object on `.causality` (`obj.causality.id` is a
   unique id).
-- **Arrays are temporal too**: each reader sees the array as the writers
-  before it left it, and is rerun only when what *it* read changed - its
+- A reader of an array is rerun only when what *it* read changed - its
   length, an index, the whole contents, or an element counted from the end
   (`pop()`, `at(-1)`).
 - Writing the same value is not a change: nothing reruns. `NaN` equals
   `NaN`, and two *frozen* plain objects or arrays are compared by content
   (see [6.3](06-callbacks-and-frozen.md#63-frozen)); everything else by
   identity.
+- An object's data is kept as plain properties until a repeater reads it, so
+  creating, reading and writing observables that nothing observes costs
+  little more than plain objects.
+
+### Timeless and temporal
+
+`observable()` makes a **timeless** object: one value per property. Whoever
+writes it - an event handler, a build, a render, any repeater at any time
+level - writes that one value, and every reader of it reruns. A write from a
+repeater stays when the repeater reruns without writing it, or is retracted.
+This is what models are, and what cascade.component makes components and
+render contexts.
+
+`temporal()` makes a **temporal signal**: a write from inside a repeater is
+a *writing* of its own, at that repeater's position in the pipeline (9.3) -
+seen only by the readers after it, replaced when the repeater reruns, undone
+when it is retracted. Make temporal only what a pipeline threads its state
+through as it goes: a render target (cascade.dom's `DOMElementTarget` is one),
+the pages a document is being laid out on. Arrays included: `temporal([])`
+lets each reader see the array as the writers before it left it.
+
+```js
+const model = observable({ width: 1000 });
+const target = temporal({ width: 1000 });
+repeat(() => {
+  repeat(() => console.log("before", model.width, target.width));
+  repeat(() => { model.width = 800; target.width = 800; });
+});
+// before 1000 1000
+// before 800 1000   - the timeless write reaches a reader before it; the temporal one doesn't
+```
+
+`isTemporal(object)` tells them apart; `isObservable()` is true for both.
+Both take a build id (9.12).
+
+**Read and write in one repeater, on a timeless object, and it must
+settle.** A repeater that reads a property and writes a different value to
+it is invalidated by its own write, and runs again - until it writes the
+value it read. `if (m.width > max) m.width = max` settles on the second run;
+`m.count = m.count + 1` never does, and spins. On a temporal object the same
+line reads what came before the repeater and writes its own writing after
+it, so it runs once.
 
 ## 9.3 Reads and writes in time
+
+This section is about **temporal** objects. On a timeless one, every write
+is at the baseline and every read sees the latest, wherever it is made.
 
 Every write is a *writing* at a position; every read finds the writing that
 applies at its own position.
@@ -98,7 +145,7 @@ applies at its own position.
 - **Outside any repeater** (event handlers, timers, top-level code), a write
   lands at the **baseline** - time 0, writer `null` - feeding the pipeline as
   input; a read sees the **latest** writing - the pipeline's settled output.
-- Every observable's initial contents are baseline writings.
+- A temporal object's initial contents are baseline writings.
 - A repeater's writings belong to it. When it reruns, its previous writings
   are withdrawn at once (readers after it fall through to what is below) and
   reclaimed where the rerun writes the same property again; an unchanged
@@ -107,7 +154,7 @@ applies at its own position.
   latest writings.
 
 ```js
-const doc = observable({ line: 0 });
+const doc = temporal({ line: 0 });
 repeat(() => {
   doc.line = 1;
   repeat(() => console.log("A sees", doc.line)); // A sees 1
@@ -123,17 +170,20 @@ property, the repeater's writing still wins for everyone after it - including
 an outside read:
 
 ```js
-const m = observable({ v: "base" });
+const m = temporal({ v: "base" });
 repeat(() => { m.v = "fromRepeater"; });
 m.v = "click";   // lands at the baseline, under the repeater's writing
 m.v;             // "fromRepeater"
 ```
 
-So never let a repeater and an event handler both write the same property.
-And code that may run *inside* a repeater (a `build()`, an `onDispose()` run
-by a rebuild) but means to write input must write at the baseline
-explicitly, with `accessInitialValues()` (9.8, and
-[11.1](11-pitfalls-and-rules.md#111-write-shared-state-at-the-baseline-when-a-repeater-might-be-running)).
+On an `observable()` the same three lines leave `m.v` at `"click"`: the last
+write wins, and the repeater writes again only when something it read
+changes. That is why models are timeless
+([11.1](11-pitfalls-and-rules.md#111-models-are-observable-only-what-a-pass-threads-through-is-temporal)).
+On a temporal object, never let a repeater and an event handler both write
+the same property; and code that may run *inside* a repeater but means to
+write input to one must write at the baseline explicitly, with
+`accessInitialValues()` (9.8).
 
 **When work runs.** Everything is synchronous. A write outside any repeater
 runs every affected repeater - in pipeline order, lower time levels first -
@@ -260,23 +310,25 @@ A again) is your responsibility, like any loop. Returns `fn`'s result.
 ## 9.8 accessInitialValues()
 
 `accessInitialValues(fn)` runs `fn` as if outside any repeater: writes land
-at the baseline, reads see the latest. It changes *where* a write lands.
+at the baseline, reads see the latest. It changes *where* a write lands on a
+temporal object; a timeless one is always written at the baseline anyway.
 Returns `fn`'s result.
 
 Use it for:
 
-- writing *input* from code that might run inside a repeater - shared state
-  touched from a `build()`, `render()`, `onDispose()` (see
-  [11.1](11-pitfalls-and-rules.md#111-write-shared-state-at-the-baseline-when-a-repeater-might-be-running));
-- writing component state from inside a pipeline - `Component.setState()` is
+- writing component state from inside a pipeline - a state property refuses
+  writes from inside a repeater (9.13), and `Component.setState()` is
   `accessInitialValues()` around the writes;
-- writing anything a render context holds ([7.1](07-context.md#71-provide-and-inherit)).
+- writing *input* to a temporal object from code that might run inside a
+  repeater.
 
 Compare first, so an unchanged value writes nothing:
 
 ```js
-if (withoutRecording(() => focus.owner) !== owner) {
-  accessInitialValues(() => { focus.owner = owner; });
+// `sheet` is a temporal object a layout pipeline writes along the way; the
+// paper size is input to it, chosen by whoever renders - maybe inside a repeater.
+if (withoutRecording(() => sheet.paperSize) !== paperSize) {
+  accessInitialValues(() => { sheet.paperSize = paperSize; });
 }
 ```
 
@@ -305,6 +357,8 @@ some other reason - rarely what you want.
   unsubscribed and marked retracted; then their writings are undone and
   their `onRetract()` callbacks fire. So nothing inside the tree reruns
   against half-undone writings.
+- Only writings on temporal objects are undone: what a repeater wrote to a
+  timeless object stays.
 - Undoing writings notifies the readers **outside** the retracted tree, which
   rerun. Inside a running pipeline those notifications are queued; from
   outside any pipeline (an event handler, a `setTimeout`) they run
@@ -314,6 +368,7 @@ some other reason - rarely what you want.
   retracted independent (root) repeater, it is what brings it back.
 
 ```js
+const r = temporal({ y: "base" });
 const writer = repeat(() => { r.y = "written"; });
 retractRepeater(writer); // r.y is "base" again; its readers rerun
 writer.restart();        // r.y is "written" again
@@ -349,8 +404,8 @@ them, a repeater that keeps the value up to date is better (that is how
 
 ## 9.12 Rebuilding data structures with build ids
 
-Outside components, `observable(object, buildId)` inside a repeater gives a
-created object a build identity: on the next run, constructing the same
+Outside components, `observable(object, buildId)` (or `temporal(object,
+buildId)`) inside a repeater gives a created object a build identity: on the next run, constructing the same
 build id returns the established object, with its properties merged in.
 
 ```js
@@ -365,6 +420,8 @@ repeat(() => {
   throws), not just among siblings.
 - The same build id with an object of a different class is a replacement:
   the new object is created fresh and the established one disposed.
+- A rebuilt object keeps what it was made as - timeless or temporal - from
+  its first construction.
 - An object whose build id is not constructed again is disposed.
 - Objects with `onEstablish()`/`onDispose()` are told when they are first
   created and when a run no longer creates them. `world.establish(object)`

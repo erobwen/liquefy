@@ -75,8 +75,8 @@ string or number is the **key**, not text
 
 `DOMElementTarget.forElement(element)` wraps an element that components
 render into - the app's root (see [2](02-project-setup.md#2-setting-up-a-project))
-and every element's own children. Its `lastChild` is an observable read and
-written in tree order: each component inserts its node after what the
+and every element's own children. It is a `temporal()` object, and its
+`lastChild` is read and written in tree order: each component inserts its node after what the
 component before it placed, and re-confirms its position on every render
 (without touching the DOM when nothing moved). A target holds what is
 temporal - what has been placed so far, its measured size - never services
@@ -292,8 +292,7 @@ locator.
 ### providingElement
 
 `providingElement({ child, context, style })` - a styleable div that provides
-the fields of `context` to its child's subtree, rewritten at the baseline as
-they change, dropped fields no longer provided. Only timeless values: never a
+the fields of `context` to its child's subtree, rewritten as they change, dropped fields no longer provided. Only timeless values: never a
 measured size.
 
 ### Routing

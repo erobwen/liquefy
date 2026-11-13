@@ -112,6 +112,12 @@ function createWorld(configuration) {
   // property name inside handler.timelines.
   const enumerationTimelineKey = Symbol("timelines.enumeration");
 
+  // What an object's target holds in place of a value that has moved into
+  // a timeline - see "Lazy timelines". It keeps the key's place among the
+  // target's own keys, so the order an object's keys are enumerated in
+  // doesn't depend on which of them happen to have been observed.
+  const movedToTimeline = Symbol("movedToTimeline");
+
 
   /************************************************************************
    *
@@ -319,8 +325,8 @@ function createWorld(configuration) {
   // baseline (time 0, writer null), read sees the latest" behavior
   // external code already gets for free (see currentTime()'s own
   // comment), rather than needing any new invalidation path. A write here
-  // to a property that already has a baseline writing (every observable's
-  // construction writes one - see moveTargetDataIntoTimelines) reuses that
+  // to a property that already has a baseline writing (any property a
+  // repeater has read has one - see "Lazy timelines") reuses that
   // exact writing rather than splicing in a new one, so it goes through
   // the same unconditional, eager invalidateWritingObservers every
   // ordinary rewrite-in-place already gets - not migrateOvertakenObserversFor,
@@ -369,7 +375,7 @@ function createWorld(configuration) {
   //
   // The defaults are written at the baseline position (time 0, writer
   // null), same as an object literal's own construction data (see
-  // moveTargetDataIntoTimelines) - deliberately *not* positioned within
+  // "Lazy timelines") - deliberately *not* positioned within
   // whatever repeater happens to be constructing the object, so disposing
   // that repeater later can never unlink them.
   function declareState(object, defaults) {
@@ -1419,8 +1425,8 @@ function createWorld(configuration) {
     return timeline;
   }
 
-  // An array's other own properties (not indices or its length) - see
-  // moveTargetDataIntoTimelines(), which does the same for an object.
+  // An array's other own properties (not indices or its length) - moved
+  // right away, unlike an object's (see "Lazy timelines").
   function moveArrayPropertiesIntoTimelines(handler, target) {
     Object.keys(target).forEach(function(key) {
       if (isArrayIndex(key)) return;
@@ -1583,6 +1589,10 @@ function createWorld(configuration) {
     let timeline = handler.timelines[key];
     if (typeof(timeline) === 'undefined') {
       timeline = handler.timelines[key] = createTimeline(handler, key);
+      // An object's value stays on its target until here - see "Lazy
+      // timelines". (An array's other properties are moved when it is
+      // created - see moveArrayPropertiesIntoTimelines().)
+      if (typeof(handler.elements) === 'undefined') adoptTargetValue(handler, key, timeline.first);
     } else if (timeline.first === null) {
       reanchorEmptyTimeline(timeline);
     }
@@ -2413,25 +2423,122 @@ function createWorld(configuration) {
     return seekWriting(getOrCreateTimeline(handler, enumerationTimelineKey), time, writer);
   }
 
-  // Move an object literal's own data properties into timelines, leaving
-  // accessor properties (getters/setters) and methods (function values,
-  // e.g. onChange/onDispose/onEstablish hooks) untouched on target. Always
-  // attributed to time 0/external, regardless of whether observable() was
-  // itself called from inside a repeater - these are the object's baseline
-  // starting values, not something the calling repeater computed.
-  function moveTargetDataIntoTimelines(handler, target) {
+  /***************************************************************
+   *
+   *  Lazy timelines
+   *
+   *  Most properties of most objects are never read by a repeater, nor
+   *  written by one: an object's data stays on its target, as plain
+   *  properties, and a property only gets a timeline once it needs one -
+   *  when a repeater first reads it (a dependency needs a writing to be
+   *  recorded on) or when it is first written anywhere but the baseline
+   *  (time 0, no writer). Its value then moves into the timeline's
+   *  baseline writing, and the target keeps `movedToTimeline` in its
+   *  place. Until then it is read from, written to and deleted from the
+   *  target directly.
+   *
+   *  So, for an object's own enumerable property with a string key:
+   *   - no timeline: its value is on the target.
+   *   - a timeline: the target holds `movedToTimeline`, or a function -
+   *     accessor properties (getters/setters) and methods (function
+   *     values, e.g. onChange/onDispose/onEstablish hooks) are never
+   *     moved, and are what a read falls back to when the timeline has no
+   *     value.
+   *
+   *  A moved value is always attributed to time 0/external, regardless of
+   *  whether observable() was itself called from inside a repeater - it is
+   *  the object's baseline starting value, not something the calling
+   *  repeater computed.
+   *
+   ***************************************************************/
+
+  // The descriptor of a value that lives on the target - one that would
+  // move into a timeline, should the property get one.
+  function lazyValueDescriptor(target, key) {
+    if (typeof(key) !== 'string') return undefined;
+    const descriptor = Object.getOwnPropertyDescriptor(target, key);
+    if (typeof(descriptor) === 'undefined'
+        || !descriptor.enumerable
+        || !descriptor.writable // Also false for an accessor.
+        || typeof(descriptor.value) === 'function') {
+      return undefined;
+    }
+    return descriptor;
+  }
+
+  // Move the target's value for `key`, if it has one, into `writing` - the
+  // baseline writing of the timeline just created for it.
+  function adoptTargetValue(handler, key, writing) {
+    const descriptor = lazyValueDescriptor(handler.target, key);
+    if (typeof(descriptor) === 'undefined') return;
+    writing.value = descriptor.value;
+    writing.set = true;
+    handler.target[key] = movedToTimeline;
+  }
+
+  // Whether the target only holds the place of `key` - asked for a key
+  // that has a timeline.
+  function isMovedToTimeline(target, key) {
+    if (!Object.prototype.hasOwnProperty.call(target, key)) return false;
+    return Object.getOwnPropertyDescriptor(target, key).value === movedToTimeline;
+  }
+
+  // What a read of `key` falls back to when its timeline has no value:
+  // whatever the target itself has - a method, typically - or inherits.
+  function valueLeftOnTarget(target, key) {
+    const value = target[key];
+    if (value !== movedToTimeline) return value;
+    const prototype = Object.getPrototypeOf(target);
+    return prototype === null ? undefined : prototype[key];
+  }
+
+  function isLeftOnTarget(target, key) {
+    if (!isMovedToTimeline(target, key)) return key in target;
+    const prototype = Object.getPrototypeOf(target);
+    return prototype !== null && key in prototype;
+  }
+
+  // Whether an object has a value for `key` at `time`/`writer`, wherever
+  // it is kept.
+  function hasObjectValue(handler, key, time, writer) {
+    if (typeof(handler.timelines[key]) !== 'undefined') return hasTimelineValue(handler, key, time, writer);
+    return typeof(lazyValueDescriptor(handler.target, key)) !== 'undefined';
+  }
+
+  // The keys an object has a value for at `time`/`writer` (and those of
+  // whatever else is on its target): the target's own, in their order,
+  // then those only ever written to a timeline.
+  function objectKeys(handler, time, writer) {
+    const target = handler.target;
+    const timelines = handler.timelines;
+    const keys = [];
     Object.keys(target).forEach(function(key) {
-      const descriptor = Object.getOwnPropertyDescriptor(target, key);
-      if (typeof(descriptor.get) === 'function' || typeof(descriptor.set) === 'function') {
-        return;
+      const timeline = timelines[key];
+      if (typeof(timeline) === 'undefined'
+          || !isMovedToTimeline(target, key)
+          || seekWriting(timeline, time, writer).set) {
+        keys.push(key);
       }
-      if (typeof(descriptor.value) === 'function') {
-        return;
+    });
+    for (let key in timelines) {
+      if (seekWriting(timelines[key], time, writer).set
+          && !Object.prototype.propertyIsEnumerable.call(target, key)) {
+        keys.push(key);
       }
-      delete target[key];
-      const writing = getOrCreateTimelineWriting(handler, key, 0, null);
-      writing.value = descriptor.value;
-      writing.set = true;
+    }
+    return keys;
+  }
+
+  // Replace the values still on an object's target - silently, as
+  // writeTimelineValueSilently() does for those in timelines.
+  function translateTargetValuesSilently(handler, translate) {
+    const target = handler.target;
+    Object.keys(target).forEach(function(key) {
+      if (typeof(handler.timelines[key]) !== 'undefined') return;
+      const descriptor = lazyValueDescriptor(target, key);
+      if (typeof(descriptor) === 'undefined') return;
+      const translated = translate(descriptor.value);
+      if (translated !== descriptor.value) target[key] = translated;
     });
   }
 
@@ -2557,10 +2664,18 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
-    if (hasTimelineValue(this, key, time, writer)) {
-      return readTimelineValue(this, key, time, writer);
+    // Still on the target - see "Lazy timelines".
+    const timeline = this.timelines[key];
+    if (typeof(timeline) === 'undefined') return target[key];
+
+    const writing = seekWriting(timeline, time, writer);
+    // See hasTimelineValue() on hasNextValue.
+    if (writing.hasNextValue) {
+      if (writing.nextSet) return writing.nextValue;
+    } else if (writing.set) {
+      return writing.value;
     }
-    return target[key];
+    return valueLeftOnTarget(target, key);
   }
 
   function setHandlerObject(target, key, value) {
@@ -2617,6 +2732,32 @@ function createWorld(configuration) {
   function writeProperty(handler, key, value, isSet) {
     const time = currentTime();
     const writer = currentWriter();
+
+    // A write at the baseline to a property without a timeline - nothing
+    // has read it from a repeater, and nothing but the baseline has
+    // written it: it stays on the target (see "Lazy timelines"). Anything
+    // out of the ordinary - a function value, a key the target has as a
+    // method or inherits - gets a timeline, below.
+    if (isSet && writer === null && time === 0
+        && typeof(handler.elements) === 'undefined'
+        && typeof(handler.timelines[key]) === 'undefined'
+        && typeof(key) === 'string' && typeof(value) !== 'function') {
+      const target = handler.target;
+      const descriptor = lazyValueDescriptor(target, key);
+      if (typeof(descriptor) !== 'undefined') {
+        const previousValue = descriptor.value;
+        if (sameAsPrevious(previousValue, value)) return true;
+        target[key] = value;
+        emitSetEvent(handler, key, value, previousValue);
+        return true;
+      } else if (!(key in target)) {
+        target[key] = value;
+        invalidateEnumerateObservers(handler, key, time, writer);
+        emitSetEvent(handler, key, value, undefined);
+        return true;
+      }
+    }
+
     const timeline = getOrCreateTimeline(handler, key);
     const context = state.context;
 
@@ -2787,14 +2928,17 @@ function createWorld(configuration) {
     // From inside a repeater: a writing of its own, at its own position -
     // never an unset of whatever earlier writing it would read.
     if (writer !== null) {
-      if (!hasTimelineValue(this, key, time, writer)) return true;
+      if (!hasObjectValue(this, key, time, writer)) return true;
       return writeProperty(this, key, undefined, false);
     }
 
     const timelineHasValue = hasTimelineValue(this, key, time, writer);
 
-    if (!timelineHasValue && !(key in target)) {
-      return true;
+    if (!timelineHasValue) {
+      // Nothing to delete - or only the place of a value that moved to
+      // the timeline (see "Lazy timelines"), which has none here.
+      if (!(key in target)) return true;
+      if (typeof(this.timelines[key]) !== 'undefined' && isMovedToTimeline(target, key)) return true;
     }
 
     let previousValue;
@@ -2830,11 +2974,7 @@ function createWorld(configuration) {
     const writer = currentWriter();
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer);
 
-    let keys = Object.keys(target);
-    timelineDataKeys(this, time, writer).forEach(function(timelineKey) {
-      if (keys.indexOf(timelineKey) === -1) keys.push(timelineKey);
-    });
-    return keys;
+    return objectKeys(this, time, writer);
   }
 
   function hasHandlerObject(target, key) {
@@ -2851,8 +2991,9 @@ function createWorld(configuration) {
     const time = currentReadTime();
     const writer = currentWriter();
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer)
+    if (typeof(this.timelines[key]) === 'undefined') return key in target;
     if (hasTimelineValue(this, key, time, writer)) return true;
-    return key in target;
+    return isLeftOnTarget(target, key);
   }
 
   function definePropertyHandlerObject(target, key, descriptor) {
@@ -2866,11 +3007,10 @@ function createWorld(configuration) {
       return;
     }
 
-    // A data property's value lives in its timeline, like any other
-    // written value - what reads see (its writable/enumerable/configurable
-    // flags aren't kept). A function value, like a method in an object
-    // literal (see moveTargetDataIntoTimelines()), and a getter or setter,
-    // stay on the target.
+    // A data property's value is written like any other value - what
+    // reads see (its writable/enumerable/configurable flags aren't kept).
+    // A function value, like a method in an object literal (see "Lazy
+    // timelines"), and a getter or setter, are defined on the target.
     if ("value" in descriptor && typeof(descriptor.value) !== "function") {
       return writeProperty(this, key, descriptor.value, true);
     }
@@ -2893,7 +3033,8 @@ function createWorld(configuration) {
     const writer = currentWriter();
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer)
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
-    if (typeof(descriptor) !== 'undefined') return descriptor;
+    // Unless the target only holds the key's place - see "Lazy timelines".
+    if (typeof(descriptor) !== 'undefined' && descriptor.value !== movedToTimeline) return descriptor;
     if (hasTimelineValue(this, key, time, writer)) {
       return {
         value: readTimelineValue(this, key, time, writer),
@@ -3007,9 +3148,8 @@ function createWorld(configuration) {
     if (target instanceof Array) {
       handler.elements = createElementsTimeline(handler, target);
       moveArrayPropertiesIntoTimelines(handler, target);
-    } else {
-      moveTargetDataIntoTimelines(handler, target);
     }
+    // An object's data stays on its target for now - see "Lazy timelines".
 
     if (state.inRepeater !== null) {
       const repeater = state.inRepeater;
@@ -4590,9 +4730,10 @@ function createWorld(configuration) {
           const target = holder[objectMetaProperty].target;
           const handler = holder[objectMetaProperty].handler;
           if (target instanceof Array) translateArrayElementsSilently(handler, translateReference);
-          // Through the timeline read/write interface - plain data
-          // properties live in handler.timelines, not on target (an
-          // array's other properties too).
+          else translateTargetValuesSilently(handler, translateReference);
+          // Through the timeline read/write interface, for the plain
+          // data properties that live in handler.timelines (an array's
+          // other properties too).
           const time = currentTime();
           const writer = currentWriter();
           timelineDataKeys(handler, time, writer).forEach(function(key) {

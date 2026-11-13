@@ -17,8 +17,8 @@
  * (O(database) per call). Regions are what make it local.
  */
 
-import { GcState, STABLE, keys, isRegionItem, regionOfItem } from "./GcState.js";
-import { runStructureTask, runRehomeTask } from "./regions.js";
+import { GcState, STABLE, keys, isRegionItem, isSettleItem, regionOfItem } from "./GcState.js";
+import { runStructureTask, runRehomeTask, runScrubTask } from "./regions.js";
 
 export class Collector {
   /**
@@ -65,7 +65,8 @@ export class Collector {
       this.store.keys("d/").length === 0 &&
       this.store.keys("h/").length === 0 &&
       this.store.keys("s/").length === 0 &&
-      this.store.keys("x/").length === 0
+      this.store.keys("x/").length === 0 &&
+      this.store.keys("z/").length === 0
     );
   }
 
@@ -126,11 +127,13 @@ export class Collector {
         return true;
       }
 
-      // Re-home tasks wait until no other structure task is pending: they are the lazy ones.
-      const structure = gc.tx.keys("s/")[0] ?? gc.tx.keys("x/")[0];
+      // Re-home tasks, and then flag scrubs, wait until no other structure task is pending:
+      // they are the lazy ones.
+      const structure = gc.tx.keys("s/")[0] ?? gc.tx.keys("x/")[0] ?? gc.tx.keys("z/")[0];
       if (structure !== undefined && (cohorts.length === 0 || previous !== "structure")) {
         this.stats.steps++;
-        const outcome = (structure.startsWith("s/") ? runStructureTask : runRehomeTask)(gc, structure.slice(2));
+        const run = { s: runStructureTask, x: runRehomeTask, z: runScrubTask }[structure[0]];
+        const outcome = run(gc, structure.slice(2));
         this.stats.structure[outcome] = (this.stats.structure[outcome] ?? 0) + 1;
         this.lastStep = { kind: "structure", region: structure.slice(2), outcome };
         return true;
@@ -189,6 +192,12 @@ export class Collector {
     } else if (cohort.pending.mark > 0) {
       const [id] = gc.take(cohortId, "mark");
       this.stats.mark++;
+      if (isSettleItem(id)) {
+        // The next region of a materialized cluster (GcState.settle).
+        this.lastStep = { kind: "mark", cohort: cohortId, ids: [], settle: id.slice(1) };
+        if (gc.regionExists(id.slice(1))) gc.settle(id.slice(1));
+        return;
+      }
       this.lastStep = isRegionItem(id)
         ? { kind: "mark", cohort: cohortId, ids: [], region: regionOfItem(id) }
         : { kind: "mark", cohort: cohortId, ids: [id] };
@@ -216,11 +225,22 @@ export class Collector {
    */
   expand(gc, id, cohortId) {
     if (isRegionItem(id)) {
-      // A resumed cluster (§8.2): every object in it that is still stable expands.
+      // A resumed cluster (§8.2): every object in it that is still stable expands, one
+      // level-0 region a step, in the order of their ids. Structure tasks leave an expanding
+      // cluster alone, so the regions in it stay the same meanwhile.
       const cluster = regionOfItem(id);
       if (!gc.regionExists(cluster)) return;
-      for (const member of gc.objectsIn(cluster)) this.expand(gc, member, cohortId);
-      gc.patchCluster(cluster, { expanding: false });
+      const done = gc.cluster(cluster).expanded ?? null;
+      const regions = gc.levelZeroRegions(cluster).sort();
+      const next = regions.find((region) => done === null || region > done);
+      if (next !== undefined) for (const member of gc.regionMembers(next)) this.expand(gc, member, cohortId);
+      if (next !== undefined && regions[regions.length - 1] !== next) {
+        gc.patchCluster(cluster, { expanded: next });
+        gc.push(gc.findCohort(cohortId), "expand", id);
+        if (this.lastStep) this.lastStep.more = true;
+        return;
+      }
+      gc.patchCluster(cluster, { expanding: false, expanded: null });
       gc.scheduleInside(cluster);
       return;
     }

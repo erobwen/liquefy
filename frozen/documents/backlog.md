@@ -12,11 +12,14 @@ What is left to do on the store, the collector and the visualizer, from a review
 - **The edge index** (step 7, invariant Y1), on by default: the collector reads edge keys, never object records. `tools/edgeindex.js` measures it against reading records.
 - **The LMDB backend** (step 8): `src/store/LmdbStore.js`. `tools/lmdb.js` shows the cost of a change flat from 5,000 to 80,000 objects.
 
+- **Item 4, popular regions: pinning** (invariant P1), with a scrub of the flags left behind (G7). Flag coarsening would not have helped: it bounds the flags stored, not the regions a check reads.
+- **The rest of item 2:** expanding a resumed cluster and settling a materialized one take one region a step (U6).
+- **Profile of key reads** on LMDB: they follow the size of what is deleted (edge keys, membership and metadata of the dead objects, several passes); nothing stood out as waste. A transaction re-reads cluster records often (no caching within a transaction).
+
 ## Suggested order for the rest
 
-1. Item 4, popular regions: the edge index made each scanned region cheaper to read, but a check still reads every region flagged on a popular one. That needs flag coarsening with the refining protocol, or pinning.
-2. The rest of item 2.
-3. The application interface: volatile roots, chunked collections.
+1. The application interface: volatile roots, chunked collections.
+2. Flag coarsening, only if the number of flags stored on a pinned region becomes a problem.
 
 ## Measured problems
 
@@ -31,9 +34,9 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 **3. Ordinary edits pay for a region read.** Adding one paragraph to a document caused about 5 structure tasks and 150 object-record reads by the collector. Every edge change schedules a structure task, which re-reads the whole region to recompute its weight (`regionWeight`). A weight counter in the region record would remove most of it. (The test documents were right at the region cap, so splits inflate the number.)
 
-**4. Popular regions are expensive to check.** Checking one object in a region that many regions reference reads all of them: 20,000 records for the chunk object that shared region `r0` with the font every document references. The edge index (now built) turns those into reads of small edge keys, but there are as many. Remedies in the design that reduce the number, neither built: flag coarsening (§6.6), which bounds the flags but makes each coarser; pinning popular objects in small regions of their own (§14).
+**4. Popular regions are expensive to check.** Checking one object in a region that many regions reference reads all of them: 20,000 records for the chunk object that shared region `r0` with the font every document references. The edge index turns those into reads of small edge keys, but there are as many. Fixed by pinning (above). What is left: the pinned object's own region still has one flag per referring region, and a check of the pinned object itself still reads them all; that happens only when the popular object is cut.
 
-**5. Stale entry flags from splits.** A split copies every flag of the old region to the new one (§6.6), true or not. In the "Meta-regions" visualizer scenario, after loading, 12 of 28 level-0 flags are stale, all of them naming the root's region. A stale flag costs one scan of its source region the first time something in the target is checked, and is then deleted. A low-priority scrub could remove them earlier (open question 3 of the design); with the `y/` edge index a split could copy only the true ones.
+**5. Stale entry flags from splits** (partly done: copied flags are now marked, and scrubbed after a pin; after an ordinary split they are still left to the checks, since a scrub reads a region per flag and most are never checked). A split copies every flag of the old region to the new one (§6.6), true or not. In the "Meta-regions" visualizer scenario, after loading, 12 of 28 level-0 flags are stale, all of them naming the root's region. A stale flag costs one scan of its source region the first time something in the target is checked, and is then deleted. A low-priority scrub could remove them earlier (open question 3 of the design); with the `y/` edge index a split could copy only the true ones.
 
 ## Collector, smaller
 
@@ -61,6 +64,6 @@ What is left to do on the store, the collector and the visualizer, from a review
 ## Visualizer
 
 - **Clusters cannot be inspected.** Only objects are clickable. Clicking a region or meta-region should show its record: counters, tree-edge counts, flags, suspension.
-- **Flags clutter the view** once there are meta-regions. Show them for the selected cluster only, or per level, and mark stale ones.
+- **Flags clutter the view** once there are meta-regions. Show them for the selected cluster only, or per level. (Copied, unverified flags are now drawn dotted and fainter.)
 - **Timeline:** ticks for application transactions on the slider.
 - **Recording blocks the page:** a long random recording is computed on the main thread before anything is shown.

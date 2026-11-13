@@ -164,7 +164,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   // G3: an empty cluster (other than the root region) has a pending structure task, unless it
   // is inside a suspended or expanding cluster: ending that schedules everything inside it.
   for (const cluster of clusters.keys()) {
-    const waiting = chainOf(cluster).some((id) => clusters.get(id).suspended || clusters.get(id).expanding);
+    const waiting = chainOf(cluster).some((id) => clusters.get(id).suspended || clusters.get(id).expanding || clusters.get(id).settling);
     if (cluster !== ROOT_REGION && !waiting && !regionMembers.has(cluster) && !store.has(keys.structureKey(cluster))) {
       problems.push(`G3: empty cluster ${cluster} has no structure task`);
     }
@@ -259,6 +259,17 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     }
   }
 
+  // A4: every cluster's record counts the flags on it.
+  const flagCounts = new Map();
+  for (const key of store.keys("e/")) {
+    const target = key.split("/")[1];
+    flagCounts.set(target, (flagCounts.get(target) ?? 0) + 1);
+    if (!clusters.has(target)) problems.push(`A4: flag ${key} on a missing cluster`);
+  }
+  for (const [id, record] of clusters) {
+    if (record.flags !== (flagCounts.get(id) ?? 0)) problems.push(`A4: ${id} says ${record.flags} flags, has ${flagCounts.get(id) ?? 0}`);
+  }
+
   // G5: a flag whose source is a meta-region has its E/ mirror, and every mirror its flag.
   for (const key of store.keys("e/")) {
     const [, target, source] = key.split("/");
@@ -327,6 +338,16 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
       problems.push(`U3: marked suspended ${region} has the tree exit ${edge}`);
     }
   }
+  // U6: a materialized cluster that is still settling has its settle item on the mark list of
+  // the cohort that materialized it. Until then its anchors need not be on the lists yet, and
+  // its stale-stable objects need not have had their references re-checked (M1, M2, M3 below).
+  const settling = (region) => chainOf(region).some((id) => clusters.get(id).settling);
+  for (const [id, record] of clusters) {
+    if (!record.settling) continue;
+    const root = cohorts.get(findCohort(record.settling));
+    if (!root || !root.mark.includes(`~${id}`)) problems.push(`U6: settling cluster ${id} has no settle item in ${record.settling}`);
+  }
+
   if (quiescent && suspendedIn.size > 0) problems.push(`${suspendedIn.size} clusters are still suspended`);
 
   // Invariant M1: every unmarked unstable object (one that still has tree children) is on its
@@ -338,6 +359,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (!meta || meta.cohort === null) continue;
     const root = cohorts.get(findCohort(meta.cohort));
     if (root && suspendedIn.get(coveringSuspension(meta.region)) === root.id) continue;
+    if (settling(meta.region)) continue;
     if (root && !root.mark.includes(id)) problems.push(`M1: unmarked ${id} is not on the mark list of ${root.id}`);
   }
 
@@ -349,6 +371,7 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (!meta || meta.cohort === null) continue;
     const root = cohorts.get(findCohort(meta.cohort));
     if (root && suspendedIn.get(coveringSuspension(meta.region)) === root.id) continue;
+    if (settling(meta.region)) continue;
     if (root && !root.check.includes(id)) problems.push(`M2: unmarked ${id} is not on the check list of ${root.id}`);
   }
 
@@ -396,11 +419,13 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
     if (stateOf(source) !== STABLE) continue;
     const sourceRegion = store.get(keys.metaKey(source))?.region;
     if (expanding.has(source) || chainOf(sourceRegion).some((id) => expanding.has(`@${id}`))) continue;
+    if (settling(sourceRegion)) continue;
     for (const target of strongReferences(store.get(keys.objectKey(source)) ?? {}).keys()) {
       const targetState = stateOf(target);
       if (targetState === null || targetState === STABLE) continue;
       const cohort = cohorts.get(targetState);
       const meta = store.get(keys.metaKey(target));
+      if (settling(meta.region)) continue;
       const pending = meta.cohort !== null
         ? cohort.check.includes(target)
         : cohort.check.includes(`@${coveringSuspension(meta.region)}`) || cohort.mark.includes(`@${coveringSuspension(meta.region)}`);

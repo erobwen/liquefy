@@ -29,6 +29,8 @@ export function runStructureTask(gc, cluster) {
     if (record.suspended) return "suspended";
     // A resumed cluster whose objects are still to be expanded (GcState.resume).
     if (record.expanding) return "expanding";
+    // A materialized cluster whose regions are still to be settled (GcState.settle).
+    if (record.settling) return "settling";
   }
   const record = gc.cluster(cluster);
   const members = gc.regionMembers(cluster);
@@ -50,10 +52,11 @@ export function runStructureTask(gc, cluster) {
     }
   }
   if (record.level === 0) {
+    if (record.flags > gc.options.flagCap && pin(gc, cluster)) return "pinned";
     const { weight } = record;
     const cap = gc.options.regionCap;
     if (weight > cap) return splitRegion(gc, cluster) ? "split" : "unsplittable";
-    if (weight < cap / 4 && cluster !== ROOT_REGION) return mergeRegion(gc, cluster, weight) ? "merged" : "kept";
+    if (weight < cap / 4 && cluster !== ROOT_REGION && !record.pinned) return mergeRegion(gc, cluster, weight) ? "merged" : "kept";
     return "kept";
   }
   const cap = gc.options.clusterCap;
@@ -105,10 +108,13 @@ function removeLevel(gc, top) {
   gc.tx.delete(keys.topKey(top));
 }
 
-/** Whether a cluster may receive members now (§10.1: not while suspended or expanding). */
+/**
+ * Whether a cluster may receive members now (§10.1: not while suspended or expanding). A pinned
+ * region never does: it is kept to its one popular object.
+ */
 function canReceive(gc, cluster) {
   const record = gc.cluster(cluster);
-  return !record.suspended && !record.expanding;
+  return !record.suspended && !record.expanding && !record.settling && !record.pinned;
 }
 
 // ---- Level 0 ----
@@ -188,6 +194,82 @@ function moveObjects(gc, loaded, moved, to, from) {
   }
 }
 
+/**
+ * Pinning (§14). A region with more flags than flagCap is referenced from many regions, usually
+ * because of one object in it: a font, a style, a user. Every check of anything else in the
+ * region then scans all those referrers. So the object that drew the most source regions
+ * (`attracts` in its metadata, counted when a flag is first written for an edge to it), if it
+ * drew at least half the cap, moves with its internal subtree to a region of its own, marked
+ * `pinned`: nothing merges into it and it merges into nothing. New referrers then flag that
+ * region only.
+ *
+ * Both regions keep all the flags, and it is not known which are still true of which. They are
+ * marked as copies and scrubbed (runScrubTask).
+ */
+function pin(gc, region) {
+  const loaded = loadRegion(gc, region);
+  let popular = null;
+  let most = gc.options.flagCap / 2;
+  for (const id of loaded.members) {
+    const attracts = gc.meta(id).attracts ?? 0;
+    if (attracts >= most) {
+      popular = id;
+      most = attracts + 1;
+    }
+  }
+  if (popular === null) return false;
+  const children = new Map(loaded.members.map((id) => [id, []]));
+  for (const id of loaded.members) if (loaded.parent.get(id) !== null) children.get(loaded.parent.get(id)).push(id);
+  const moved = new Set();
+  const collect = [popular];
+  while (collect.length > 0) {
+    const id = collect.pop();
+    moved.add(id);
+    collect.push(...children.get(id));
+  }
+  if (moved.size === loaded.members.length) return false; // it has the region to itself already
+
+  const to = gc.newCluster(0, gc.cluster(region).container);
+  gc.patchCluster(to, { pinned: true });
+  moveObjects(gc, loaded, moved, to, region);
+  for (const source of gc.flagSources(region)) gc.tx.put(keys.flagKey(region, source), "copy");
+  gc.scheduleScrub(region);
+  gc.scheduleScrub(to);
+  return true;
+}
+
+/**
+ * Verifies one copied flag on a region: scans its source region for an edge into the region,
+ * and keeps the flag as true or deletes it. Flags may be stale and are cleaned up by the checks
+ * that meet them (invariant G2); this does it ahead of time, one source region a step, where
+ * many are known to be stale: after a pin.
+ */
+export function runScrubTask(gc, region) {
+  gc.tx.delete(keys.scrubKey(region));
+  if (!gc.regionExists(region)) return "gone";
+  const prefix = keys.flagPrefix(region);
+  let members = null;
+  for (const [key, value] of gc.tx.range(prefix)) {
+    if (value !== "copy") continue;
+    const source = key.slice(prefix.length);
+    if (!gc.regionExists(source)) {
+      gc.deleteFlag(region, source);
+      continue;
+    }
+    if (gc.cluster(source).level > 0) {
+      gc.tx.put(key, true); // a meta-region is too big to scan here: the flag stays
+      continue;
+    }
+    members ??= new Set(gc.regionMembers(region));
+    const real = gc.edgesOfRegion(source).some((edge) => members.has(edge.target));
+    if (real) gc.tx.put(key, true);
+    else gc.deleteFlag(region, source);
+    gc.scheduleScrub(region);
+    return real ? "flag verified" : "flag removed";
+  }
+  return "flags verified";
+}
+
 // ---- Level k ≥ 1 ----
 
 /**
@@ -264,14 +346,14 @@ function moveClusters(gc, moved, from, to) {
  */
 function copyFlags(gc, from, to, sourceSide) {
   while (from !== to && from !== null && to !== null) {
-    for (const source of gc.flagSources(from)) if (source !== to) gc.ensureFlag(to, source);
+    for (const source of gc.flagSources(from)) if (source !== to) gc.ensureFlag(to, source, true);
     // What stays in `from` may reference what moved: that edge crosses now. (Found by the
     // fuzzer, for a re-home across meta-regions: the referrer was in another region of the
     // old meta-region, so nothing at level 0 changed for it.)
-    gc.ensureFlag(to, from);
+    gc.ensureFlag(to, from, true);
     if (sourceSide) {
-      for (const target of gc.mirrorTargets(from)) if (target !== to) gc.ensureFlag(target, to);
-      gc.ensureFlag(from, to);
+      for (const target of gc.mirrorTargets(from)) if (target !== to) gc.ensureFlag(target, to, true);
+      gc.ensureFlag(from, to, true);
     }
     from = gc.cluster(from).container;
     to = gc.cluster(to).container;
@@ -318,7 +400,7 @@ function moveCluster(gc, id, from, to) {
 function blocked(gc, cluster) {
   return gc.chain(cluster).some((id) => {
     const record = gc.cluster(id);
-    return record.suspended || record.expanding;
+    return record.suspended || record.expanding || record.settling;
   });
 }
 
@@ -389,13 +471,13 @@ function rehomeObjects(gc, region, source) {
   const cap = gc.options.regionCap;
   const sourceContainer = gc.cluster(source).container;
   let to = null;
-  if (weight + gc.cluster(source).weight <= cap) to = source;
+  if (!gc.cluster(source).pinned && weight + gc.cluster(source).weight <= cap) to = source;
   else {
     // A sibling: a region in the same container that hangs only from `source`, with room
     // (judged by its object count, to avoid reading it).
     for (const [candidate] of gc.treeExits(source).slice(0, 8)) {
       const record = gc.cluster(candidate);
-      if (candidate === region || record.container !== sourceContainer || record.suspended || record.expanding) continue;
+      if (candidate === region || record.container !== sourceContainer || !canReceive(gc, candidate)) continue;
       if (gc.treeEntries(candidate).length !== 1 || record.objects + moved.size > cap / 3) continue;
       to = candidate;
       break;

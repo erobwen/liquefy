@@ -90,6 +90,7 @@ const style = [
   { selector: "edge.tree", style: { width: 2.5, "line-color": colors.tree, "target-arrow-color": colors.tree } },
   { selector: "edge.weak", style: { "line-style": "dotted", "line-color": colors.weak, "target-arrow-color": colors.weak } },
   { selector: "edge.flag", style: { width: 1.5, "line-style": "dashed", "line-color": colors.flag, "target-arrow-color": colors.flag, opacity: 0.8 } },
+  { selector: "edge.flag.copied", style: { "line-style": "dotted", opacity: 0.45 } },
   { selector: "edge.flag.meta", style: { width: 1, "line-style": "dashed", opacity: 0.45 } },
   { selector: "edge.dimmed", style: { opacity: 0.25 } },
   { selector: "edge.selected", style: { "line-color": colors.selected, "target-arrow-color": colors.selected, opacity: 1, label: "data(label)", "font-size": 8, "text-background-color": "#ffffff", "text-background-opacity": 0.8 } },
@@ -153,7 +154,7 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
   }
   if (showFlags) {
     for (const flag of view.flags) {
-      elements.set(flag.id, { group: "edges", data: { id: flag.id, source: `R:${flag.source}`, target: `R:${flag.target}` }, classes: flag.level > 0 ? "flag meta" : "flag" });
+      elements.set(flag.id, { group: "edges", data: { id: flag.id, source: `R:${flag.source}`, target: `R:${flag.target}` }, classes: `flag${flag.level > 0 ? " meta" : ""}${flag.copied ? " copied" : ""}` });
     }
   }
   return elements;

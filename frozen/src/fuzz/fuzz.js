@@ -166,6 +166,8 @@ export function seedOptions(rng, now) {
   options.stepBudget = rng.pick([1, 3, 20, 200]);
   // Half with the edge index (§5.5 B), half reading edges from the records (A).
   options.edgeIndex = rng.next() < 0.5;
+  // A low flag cap pins objects that a few regions reference.
+  options.flagCap = rng.pick([2, 4, 32]);
   return options;
 }
 

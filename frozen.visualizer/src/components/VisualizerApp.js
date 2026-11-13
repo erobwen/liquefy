@@ -318,13 +318,13 @@ export class VisualizerApp extends Component {
       section("Deferred cuts", ...(view.deferrals.length > 0
         ? view.deferrals.map((d) => div(chip(d.id, { color: d.kind === "ms" ? colors.held : colors.deferred }), muted(`until ${d.deadline}`)))
         : [muted("None.")])),
-      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Clusters to re-check: ${view.structureTasks.join(", ")}` : "None."), view.rehomeTasks.length > 0 ? div(muted(`To re-home (when nothing else is pending): ${view.rehomeTasks.join(", ")}`)) : null),
+      section("Structure tasks", muted(view.structureTasks.length > 0 ? `Clusters to re-check: ${view.structureTasks.join(", ")}` : "None."), view.rehomeTasks.length > 0 ? div(muted(`To re-home or scrub (when nothing else is pending): ${view.rehomeTasks.join(", ")}`)) : null),
     ];
   }
 
   cohort(cohort) {
     // Region items ("@r5") stand for a whole suspended region.
-    const item = (id) => (id.startsWith("@") ? regionChip(id.slice(1)) : chip(id));
+    const item = (id) => (id.startsWith("@") || id.startsWith("~") ? regionChip(id.slice(1)) : chip(id));
     const list = (name, ids) => div({ style: { margin: "2px 0" } }, muted(`${name} (${ids.length}): `), ...ids.map(item));
     const regions = cohort.regions.length ? ` · suspended regions ${cohort.regions.join(", ")}` : "";
     return div(

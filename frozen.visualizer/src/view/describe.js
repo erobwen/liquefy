@@ -148,6 +148,11 @@ const STRUCTURE_OUTCOMES = {
   "re-homed": "re-homed: the part of it that hangs from another cluster moved there, so that each cluster stays one branch of the spanning tree",
   "at home": "checked where it hangs from: all of it hangs from one place (or what does not cannot move now)",
   "re-home skipped": "re-home skipped: it is inside a suspended or expanding cluster",
+  pinned: "it has more entry flags than the flag cap, so the object that drew most of them moved, with its subtree, to a region of its own; its former neighbours no longer share its referrers",
+  "flag verified": "scrub: one copied entry flag checked against its source region; the source does reference into the region, so the flag stays",
+  "flag removed": "scrub: one copied entry flag checked against its source region; nothing there references into the region, so the flag is removed",
+  "flags verified": "scrub: no copied flags left to verify",
+  settling: "skipped: it is inside a materialized cluster that is still settling",
   suspended: "skipped: it is inside a suspended cluster",
   expanding: "skipped: it is inside a resumed cluster whose expansion is pending",
   deleted: "empty, so it was deleted",
@@ -171,9 +176,10 @@ function summarize(frame, state, previous) {
     case "structure":
       return `Structure task of ${kindOf(state.has(`r/${frame.region}`) ? state : previous, frame.region)} ${frame.region}: ${STRUCTURE_OUTCOMES[frame.outcome] ?? frame.outcome}.`;
     case "expand":
-      if (frame.region) return `Expand ${kindOf(state, frame.region)} ${frame.region} (${frame.cohort}): it was resumed, so every object in it follows its references and rescues the unstable objects it finds.`;
+      if (frame.region) return `Expand ${kindOf(state, frame.region)} ${frame.region} (${frame.cohort}): it was resumed, so every object in it follows its references and rescues the unstable objects it finds${frame.more ? ", one region a step: more are left" : ""}.`;
       return `Expand ${frame.ids[0]} (${frame.cohort}): it is stable again, so the unstable objects it references are rescued.`;
     case "mark":
+      if (frame.settle) return `Settle ${kindOf(state, frame.settle)} ${frame.settle} (${frame.cohort}): it was materialized, and its regions are gone through one a step. The next region's anchors go back on the mark list, and what its other objects reference is queued for a check.`;
       if (frame.region) {
         const meta = kindOf(state, frame.region) === "meta-region";
         return `Mark ${kindOf(state, frame.region)} ${frame.region} (${frame.cohort}): the tree edges that leave it are cut, as marking its objects one by one would have done. The edges inside it stay.${meta ? " They are found from its tree-edge counts, descending only into members with edges that leave it." : ""}`;
@@ -321,9 +327,9 @@ export function describe(state, previous = new Map(), frame = null) {
     if (region.level > 0) region.members = [...regions.values()].filter((other) => other.container === region.id).length;
   }
 
-  const flags = entries(state, "e/").map(([key]) => {
+  const flags = entries(state, "e/").map(([key, value]) => {
     const [target, source] = key.split("/");
-    return { id: `flag:${source}>${target}`, source, target, level: state.get(`r/${target}`)?.level ?? 0 };
+    return { id: `flag:${source}>${target}`, source, target, copied: value === "copy", level: state.get(`r/${target}`)?.level ?? 0 };
   }).filter((flag) => regions.has(flag.source) && regions.has(flag.target));
 
   const activeCohorts = [...cohorts.values()]
@@ -357,7 +363,7 @@ export function describe(state, previous = new Map(), frame = null) {
     cohorts: activeCohorts,
     deferrals,
     structureTasks: entries(state, "s/").map(([id]) => id),
-    rehomeTasks: entries(state, "x/").map(([id]) => id),
+    rehomeTasks: [...entries(state, "x/"), ...entries(state, "z/")].map(([id]) => id),
     clock: state.get("meta/clock") ?? 0,
     highlight: {
       subject,

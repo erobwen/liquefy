@@ -17,7 +17,10 @@
  *   R/<cluster>             the clusters of the top level, which have no container
  *   S/<cohort>/<cluster>    a cluster suspended in a cohort, under the cohort id it joined
  *   m/<cluster>/<member>    membership: objects in a level-0 region, clusters in a meta-region
- *   e/<target>/<source>     entry flag: something in cluster source may reference into target
+ *   e/<target>/<source>     entry flag: something in cluster source may reference into target.
+ *                           Its value is true, or "copy" for a flag that was copied when
+ *                           objects moved and has not been verified since
+ *   z/<region>              pending scrub: verify the copied flags on the region, one a step
  *   E/<source>/<target>     mirror of an entry flag whose source is a meta-region (§6.6)
  *   T/<from>/<to>           number of tree edges from cluster from into cluster to, at the
  *                           level where the two differ (every level up to where they meet)
@@ -32,11 +35,13 @@
  * Clusters (§6.9): level-0 clusters are regions of objects; a level-k cluster (a meta-region)
  * holds level k-1 clusters. Every level-0 region has a chain of containers of the same length,
  * ending at a top-level cluster. A cluster record is
- *   { id, level, container, objects, deferred, explicit: { cohortId: n }, weight, suspended,
- *     materializedIn, expanding }
+ *   { id, level, container, objects, deferred, explicit: { cohortId: n }, weight, flags,
+ *     suspended, materializedIn, expanding, pinned }
  * where objects, deferred and explicit count the objects anywhere inside it (aggregated
  * counters, §6.8): all objects, deferred ones, and explicitly unstable ones per cohort id.
  * A level-0 region also keeps its weight: its objects plus their outgoing strong edges (§6.1).
+ * `flags` is the number of entry flags on the cluster. `pinned` marks a region made for one
+ * heavily referenced object (§14).
  *
  * State of an object (§7.1):
  *   - STABLE: no cohort. It has a tree parent, is ROOT, or is deferred. It may be stale-stable,
@@ -79,6 +84,7 @@ const edgeKey = (region, source, target) => `y/${region}/${source}/${target}`;
 const edgePrefix = (region, source) => (source === undefined ? `y/${region}/` : `y/${region}/${source}/`);
 const topKey = (cluster) => `R/${cluster}`;
 const rehomeKey = (cluster) => `x/${cluster}`;
+const scrubKey = (region) => `z/${region}`;
 const mirrorKey = (source, target) => `E/${source}/${target}`;
 const mirrorPrefix = (source) => `E/${source}/`;
 const treeOutKey = (from, to) => `T/${from}/${to}`;
@@ -90,20 +96,23 @@ const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${S
 export const keys = {
   objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
-  suspendedKey, suspendedPrefix, edgeKey, edgePrefix, topKey, rehomeKey, workKey, workPrefix, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
+  suspendedKey, suspendedPrefix, edgeKey, edgePrefix, topKey, rehomeKey, scrubKey, workKey, workPrefix, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
   treeInKey, treeInPrefix,
 };
 
 /** A new, empty cluster record. */
 export function clusterRecord(id, level, container) {
-  return { id, level, container, objects: 0, deferred: 0, explicit: {}, weight: 0, suspended: null };
+  return { id, level, container, objects: 0, deferred: 0, explicit: {}, weight: 0, flags: 0, suspended: null };
 }
 
 /**
  * Worklist items are object ids, or region items for suspended regions (§7.2): "@<region>".
- * Object and region ids never start with "@".
+ * Object and region ids never start with "@" or "~".
  */
 export const regionItem = (region) => "@" + region;
+/** A mark item that stands for the rest of a materialized cluster's settling: "~<cluster>". */
+export const settleItem = (cluster) => "~" + cluster;
+export const isSettleItem = (item) => item.startsWith("~");
 export const isRegionItem = (item) => item.startsWith("@");
 export const regionOfItem = (item) => item.slice(1);
 
@@ -147,6 +156,12 @@ export const defaultOptions = {
    * It is a property of a store: set it when the database is created, and keep it.
    */
   edgeIndex: true,
+  /**
+   * Entry flags on a region above which its most referenced object is pinned: moved, with its
+   * subtree, to a region of its own (§14). Checks of its former neighbours then no longer scan
+   * its many referrers.
+   */
+  flagCap: 32,
 };
 
 /** Adds to a count in a { key: n } map, deleting it at zero. */
@@ -512,17 +527,32 @@ export class GcState {
    * Makes sure the flag "source may reference into target" exists (invariant G2), with its
    * mirror if the source is a meta-region (invariant G5).
    */
-  ensureFlag(target, source) {
-    if (target === source || this.tx.has(flagKey(target, source))) return;
+  ensureFlag(target, source, copied = false) {
+    if (target === source || this.tx.has(flagKey(target, source))) return false;
     const record = this.cluster(source);
-    if (!record) return; // a stale flag being copied: its source is gone
-    this.tx.put(flagKey(target, source), true);
+    if (!record) return false; // a stale flag being copied: its source is gone
+    // A flag written for an edge is true. One copied when objects move (invariant G2) may be
+    // stale from the start: it is marked, so that a scrub can verify it (regions.js).
+    this.tx.put(flagKey(target, source), copied ? "copy" : true);
     if (record.level > 0) this.tx.put(mirrorKey(source, target), true);
+    const targetRecord = this.cluster(target);
+    targetRecord.flags++;
+    this.putCluster(targetRecord);
+    // Too many flags on a region: one of its objects may be worth pinning (regions.js).
+    if (targetRecord.level === 0 && targetRecord.flags > this.options.flagCap) this.scheduleStructure(target);
+    return true;
   }
 
   deleteFlag(target, source) {
+    if (!this.tx.has(flagKey(target, source))) return;
     this.tx.delete(flagKey(target, source));
     this.tx.delete(mirrorKey(source, target));
+    const record = this.cluster(target);
+    if (record) this.putCluster({ ...record, flags: record.flags - 1 });
+  }
+
+  scheduleScrub(region) {
+    this.tx.put(scrubKey(region), true);
   }
 
   /**
@@ -546,7 +576,11 @@ export class GcState {
     const sources = this.chain(sourceMeta.region);
     let to = targetMeta.region;
     for (let level = 0; to !== null && sources[level] !== to; level++) {
-      if (!sources.slice(level).some((from) => this.tx.has(flagKey(to, from)))) this.ensureFlag(to, sources[level]);
+      if (!sources.slice(level).some((from) => this.tx.has(flagKey(to, from))) && this.ensureFlag(to, sources[level]) && level === 0) {
+        // The target drew a new source region to its region. Counted only then, so that a
+        // popular object costs one write per referring region, not per reference.
+        this.tx.put(metaKey(target), { ...this.meta(target), attracts: (targetMeta.attracts ?? 0) + 1 });
+      }
       to = this.cluster(to).container;
     }
   }
@@ -931,7 +965,7 @@ export class GcState {
    */
   suspendable(cluster, root) {
     const record = this.cluster(cluster);
-    if (record.suspended || record.expanding || record.deferred > 0) return false;
+    if (record.suspended || record.expanding || record.settling || record.deferred > 0) return false;
     if (record.materializedIn && this.cohort(record.materializedIn) && this.findCohort(record.materializedIn) === root) return false;
     let explicit = 0;
     for (const [cohortId, count] of Object.entries(record.explicit)) {
@@ -1001,51 +1035,82 @@ export class GcState {
     const root = this.unsuspend(cluster);
     // Until the cluster item has expanded every object, structure tasks must not move objects
     // out of it: they would never be expanded (Collector.expand clears this).
-    this.patchCluster(cluster, { expanding: true });
+    this.patchCluster(cluster, { expanding: true, expanded: null });
     this.push(root, "expand", regionItem(cluster));
   }
 
   /**
-   * Materialize (§8.2): the cluster is partly rescued, or changes. The suspension ends; implicit
-   * objects become stale-stable under their anchors, and the anchors that are still unstable go
-   * back on the mark list, so that marking proceeds object by object, with replacement parents.
-   * Reads the whole cluster.
+   * Materialize (§8.2): the cluster is partly rescued, or changes. The suspension ends, which
+   * at once makes its implicit objects stale-stable under their anchors. What then has to
+   * follow is done a level-0 region at a time (settle), so that a big cluster does not make one
+   * big step: the first region now, the rest by a settle item on the cohort's mark list.
    */
   materialize(cluster) {
     if (this.suspension(cluster) === null) return;
-    const objects = this.objectsIn(cluster);
-    const implicit = objects.filter((id) => this.meta(id).cohort === null);
     const root = this.unsuspend(cluster);
     // The cohort found a reason to look at this cluster object by object: it must not suspend
     // it again, or marking an anchor would suspend it, the check would materialize it, and so on
     // forever.
-    this.patchCluster(cluster, { materializedIn: root });
-    for (const id of objects) {
-      const meta = this.meta(id);
-      if (meta.cohort === null || this.findCohort(meta.cohort) !== root) continue;
-      if (this.treeChildren(id).length === 0) continue;
-      // Unmarked again, so its check must be pending again too: the barrier and expansion skip
-      // rescuing an unmarked object and rely on its check to find the referrer (§7.3).
-      this.push(root, "mark", id);
-      this.push(root, "check", id);
+    this.patchCluster(cluster, { materializedIn: root, settling: root, settled: null });
+    this.settle(cluster);
+  }
+
+  /**
+   * Settles the next level-0 region of a materialized cluster (invariant U6), in the order of
+   * their ids:
+   *   - its anchors that are still unstable go back on the mark list, so that marking proceeds
+   *     object by object, with replacement parents. They are unmarked again, so their check
+   *     must be pending again too: the barrier and expansion skip rescuing an unmarked object
+   *     and rely on its check to find the referrer (§7.3);
+   *   - its formerly implicit objects turned stale-stable without being expanded. Whatever of
+   *     this cohort they reference may already have been checked counting on them being
+   *     unstable, so it is checked again (invariant M3). If such an object stays garbage,
+   *     marking makes it unstable again before that check; if it is rescued or re-parented, the
+   *     check finds it.
+   * Until the last region is done, the cluster is `settling`: structure tasks leave it alone
+   * (an object moved out would be missed), and the settle item keeps the cohort open.
+   */
+  settle(cluster) {
+    const record = this.cluster(cluster);
+    if (!record?.settling) return;
+    const root = this.findCohort(record.settling);
+    // Suspended again from above meanwhile: that suspension covers everything in it.
+    const covered = this.suspensionOf(cluster) !== null;
+    const regions = covered ? [] : this.levelZeroRegions(cluster).sort();
+    const next = regions.find((region) => record.settled === null || region > record.settled);
+    if (next === undefined) {
+      this.patchCluster(cluster, { settling: null, settled: null });
+      this.scheduleInside(cluster); // structure tasks skipped it meanwhile
+      return;
     }
-    // The implicit objects turn stale-stable without being expanded. Whatever of this cohort
-    // they reference may already have been checked counting on them being unstable, so it is
-    // checked again (invariant M3). If such an object stays garbage, marking makes it unstable
-    // again before that check; if it is rescued or re-parented, the check finds it.
-    for (const id of implicit) {
+    for (const id of this.regionMembers(next)) {
+      const meta = this.meta(id);
+      if (meta.cohort !== null) {
+        if (this.findCohort(meta.cohort) === root && this.treeChildren(id).length > 0) {
+          this.push(root, "mark", id);
+          this.push(root, "check", id);
+        }
+        continue;
+      }
       for (const target of this.outgoing(id)) {
-        const meta = this.meta(target);
-        if (!meta) continue;
-        if (meta.cohort !== null) {
-          if (this.findCohort(meta.cohort) === root) this.push(root, "check", target);
+        const targetMeta = this.meta(target);
+        if (!targetMeta) continue;
+        if (targetMeta.cohort !== null) {
+          if (this.findCohort(targetMeta.cohort) === root) this.push(root, "check", target);
           continue;
         }
-        const suspended = this.suspensionOf(meta.region);
+        const suspended = this.suspensionOf(targetMeta.region);
         if (suspended && suspended.marked && this.findCohort(suspended.cohort) === root) {
           this.push(root, "check", regionItem(suspended.cluster));
         }
       }
+    }
+    if (regions[regions.length - 1] === next) {
+      this.patchCluster(cluster, { settling: null, settled: null });
+      this.scheduleInside(cluster);
+    } else {
+      this.patchCluster(cluster, { settled: next });
+      this.push(root, "mark", settleItem(cluster));
     }
   }
 

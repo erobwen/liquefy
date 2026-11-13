@@ -134,7 +134,11 @@ function elementsOf(view, { selected, showFlags, metaFlags, showWeak, cohortColo
   for (const object of view.objects) {
     const classes = ["object", object.display];
     if (object.shared) classes.push("shared");
-    if (highlight.subject.has(object.id)) classes.push("subject");
+    // An object deleted by this step has its own look; the step's rings would only say again
+    // that it was written (deleted).
+    if (object.display === "reclaimed") {
+      // no ring
+    } else if (highlight.subject.has(object.id)) classes.push("subject");
     else if (highlight.written.has(object.id)) classes.push("written");
     else if (highlight.read.has(object.id)) classes.push("read");
     if (selected === object.id) classes.push("selected");

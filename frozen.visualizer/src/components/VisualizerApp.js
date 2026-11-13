@@ -114,7 +114,7 @@ function swatch(style, { square = false } = {}) {
 }
 
 function legendItem(sample, title) {
-  return div({ style: { whiteSpace: "nowrap", display: "flex", alignItems: "center" } }, sample, text(title));
+  return div({ style: { display: "flex", alignItems: "center", lineHeight: 1.3 } }, sample, text(title));
 }
 
 const nodeItem = (style, title, options) => legendItem(swatch(style, options), title);
@@ -135,7 +135,7 @@ function legend(view, cohortColors) {
     {
       style: {
         fontSize: "11px", color: colors.text,
-        display: "grid", gridTemplateColumns: "repeat(2, auto)", justifyContent: "start", columnGap: "14px", rowGap: "4px",
+        display: "grid", gridTemplateColumns: "1fr", rowGap: "5px", // one column: entries wrap inside the panel
       },
     },
     legendHeading("Objects"),
@@ -153,9 +153,9 @@ function legend(view, cohortColors) {
       ? [legendHeading("Cohorts"), ...view.cohorts.map((cohort) => nodeItem({ background: cohortColor(cohort.id) }, cohort.id))]
       : []),
     legendHeading("This step"),
-    haloItem(colors.subject, "subject"),
+    haloItem(colors.subject, "subject: what this step worked on"),
     haloItem(colors.read, "looked at: its record or its edges were read"),
-    haloItem(colors.written, "written"),
+    haloItem(colors.written, "changed by this step: its record or GC metadata was written"),
     nodeItem({ ...stableNode, outline: `3px solid ${colors.selected}`, outlineOffset: "2px" }, "selected"),
     legendHeading("Regions (id · objects)"),
     regionItem({ border: `1px solid ${colors.regionBorder}` }, "region"),

@@ -3473,7 +3473,13 @@ function createWorld(configuration) {
       sources : [],
       nextToNotify: null,
       invalidateAction: doAfterChange,
+      isRemoved: false,
+      // For good - whether disposed by hand or by its one invalidation
+      // (see invalidateObserver()): a record() made later (a late async
+      // continuation, say) runs its action without recording, instead of
+      // subscribing a disposed invalidator again.
       dispose : function() {
+        this.isRemoved = true;
         removeAllSources(this);
       },
       record : function( action ){

@@ -9,12 +9,12 @@ import assert from "assert";
 describe("structural writer order", function () {
   it("holds across a reconciliation-breaking modal/docked transition", function () {
     const {
-      observable, repeat, linkRepeater, postponeInvalidations, continueInvalidations,
+      temporal, repeat, linkRepeater, postponeInvalidations, continueInvalidations,
     } = getWorld({ name: "structural-verifier-reconciliation-" + Math.random() });
 
-    const windowSize = observable({ width: 500, height: 800 });
-    const mainFrameContext = observable({ usableWidth: null, usableHeight: null });
-    const menuFrameContext = observable({ usableWidth: null, usableHeight: null });
+    const windowSize = temporal({ width: 500, height: 800 });
+    const mainFrameContext = temporal({ usableWidth: null, usableHeight: null });
+    const menuFrameContext = temporal({ usableWidth: null, usableHeight: null });
 
     let hamburgerRepeater = null;
     let menuRepeater = null;
@@ -80,11 +80,11 @@ describe("structural writer order", function () {
   });
 
   it("holds across many pressure-release blasts", function () {
-    const { observable, repeat, linkRepeater } = getWorld({
+    const { temporal, repeat, linkRepeater } = getWorld({
       name: "structural-verifier-pressure-" + Math.random(),
     });
 
-    const target = observable({ value: 0 });
+    const target = temporal({ value: 0 });
     const middles = [];
     let afterRepeater = null;
     let pendingCount = 0;

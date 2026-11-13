@@ -13,9 +13,9 @@ import onelinerAnimation from "../../../../cascade/images/oneliner-animation.png
 // Temporal signals in their smallest form - its printouts as they really
 // are (run it with @liquefy/cascade.reactive).
 const temporalSignalsExample = `import getWorld from "@liquefy/cascade.reactive";
-const { observable, repeat } = getWorld({ timeLevels: 3 });
+const { temporal, repeat } = getWorld({ timeLevels: 3 });
 
-const heading = observable({ text: "hello world", size: 16 });
+const heading = temporal({ text: "hello world", size: 16 });
 
 // Time 0: capitalizes the text - writing the very property it reads.
 repeat(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });

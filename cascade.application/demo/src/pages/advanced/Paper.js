@@ -1,4 +1,4 @@
-import { Component, observable, frozen } from "@liquefy/cascade.component";
+import { Component, observable, temporal, frozen } from "@liquefy/cascade.component";
 
 // A render target of your own - no DOM anywhere: a paper, holding the words
 // laid out on it, in order. A temporal array: each word sees it as the
@@ -6,8 +6,8 @@ import { Component, observable, frozen } from "@liquefy/cascade.component";
 class Paper {
   constructor(width) {
     this.width = width;
-    this.words = observable([]);
-    return observable(this);
+    this.words = temporal([]);
+    return temporal(this);
   }
 }
 

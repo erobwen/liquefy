@@ -21,13 +21,13 @@ import assert from "assert";
 // overtaking a farther one), this one exercises the reuse guard
 // specifically: here, the reader depends *directly* on the very writing
 // that gets reused across reruns, not on some unrelated farther one.
-const { observable, repeat } = getWorld({ name: "writing-reuse-guard", timeLevels: 2 });
+const { temporal, repeat } = getWorld({ name: "writing-reuse-guard", timeLevels: 2 });
 
 describe("writing reuse guard (a reused writing with live observers is retired, not mutated in place)", function () {
 
   it("a direct dependent of a reused writing is not invalidated if the change gets reverted before it's reached", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "original" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "original" });
     let cRunCount = 0;
     let cSeenValue = null;
 
@@ -54,8 +54,8 @@ describe("writing reuse guard (a reused writing with live observers is retired, 
   });
 
   it("a genuine, lasting change to a reused writing still reaches its direct dependent", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "original" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "original" });
     let cRunCount = 0;
     let cSeenValue = null;
 

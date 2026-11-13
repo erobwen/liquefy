@@ -7,13 +7,13 @@ import assert from "assert";
 // deliberately at initial time (accessInitialValues()), and never reset by
 // a rebuild. See cascade.component/README.md, "Component state and
 // properties", for the design this implements.
-const { observable, repeat, declareState, accessInitialValues, retractRepeater, postponeInvalidations, continueInvalidations } =
+const { temporal, repeat, declareState, accessInitialValues, retractRepeater, postponeInvalidations, continueInvalidations } =
   getWorld({ name: "state-properties", timeLevels: 3 });
 
 describe("state properties (declareState)", function () {
 
   it("defaults are readable, and a write from outside any repeater (event-handler style) is allowed and invalidates readers", function () {
-    const model = observable({ label: "x" });
+    const model = temporal({ label: "x" });
     declareState(model, { count: 0 });
 
     let seen;
@@ -25,9 +25,9 @@ describe("state properties (declareState)", function () {
   });
 
   it("a write from inside a repeater, via accessInitialValues(), is allowed - the sanctioned way to write state from a pipeline", function () {
-    const model = observable({});
+    const model = temporal({});
     declareState(model, { openId: null });
-    const trigger = observable({ fire: false });
+    const trigger = temporal({ fire: false });
 
     let seen;
     repeat(() => {
@@ -43,14 +43,14 @@ describe("state properties (declareState)", function () {
   });
 
   it("a rebuild copies properties onto the established object but leaves state alone", function () {
-    const source = observable({ label: "a" });
+    const source = temporal({ label: "a" });
     class Item {
       constructor(label) { this.label = label; }
     }
 
     let item;
     repeat(() => {
-      item = observable(new Item(source.label), "item"); // key -> reconciled on rerun
+      item = temporal(new Item(source.label), "item"); // key -> reconciled on rerun
       declareState(item, { count: 0 });
     });
     const established = item;
@@ -74,7 +74,7 @@ describe("state properties - the write guard", function () {
   const throwing = getWorld({ name: "state-properties-throw", timeLevels: 3 });
 
   it("a plain write from inside a repeater throws", function () {
-    const model = throwing.observable({});
+    const model = throwing.temporal({});
     throwing.declareState(model, { count: 0 });
     assert.throws(
       () => { throwing.repeat(() => { model.count = 5; }); },
@@ -86,7 +86,7 @@ describe("state properties - the write guard", function () {
 describe("retractRepeater()", function () {
 
   it("a repeater retracted before its already-queued rerun is processed never runs it; retracting twice is a no-op", function () {
-    const model = observable({ v: 1 });
+    const model = temporal({ v: 1 });
     let childRuns = 0;
     let child;
     repeat(() => {

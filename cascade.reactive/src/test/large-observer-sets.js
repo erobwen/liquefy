@@ -5,7 +5,7 @@ import assert from "assert";
 // after the first). Emptying a chunk in the middle unlinks it - every
 // observer in the chunks after it is still notified.
 describe("large observer sets", function () {
-  const { observable, invalidateOnChange } = getWorld({ name: "largeObserverSets" });
+  const { temporal, invalidateOnChange } = getWorld({ name: "largeObserverSets" });
 
   function observe(object, count) {
     let fired = 0;
@@ -17,7 +17,7 @@ describe("large observer sets", function () {
   }
 
   it("emptying a chunk in the middle leaves the chunks after it notified", function () {
-    const object = observable({ a: 1 });
+    const object = temporal({ a: 1 });
     const { invalidators, fired } = observe(object, 1500);
     for (let i = 500; i < 1000; i++) invalidators[i].dispose(); // all of the first chained chunk
     object.a = 2;
@@ -25,7 +25,7 @@ describe("large observer sets", function () {
   });
 
   it("emptying the first and the last chunk too", function () {
-    const object = observable({ a: 1 });
+    const object = temporal({ a: 1 });
     const { invalidators, fired } = observe(object, 2000);
     for (let i = 500; i < 1000; i++) invalidators[i].dispose();
     for (let i = 1500; i < 2000; i++) invalidators[i].dispose();
@@ -35,7 +35,7 @@ describe("large observer sets", function () {
 
   it("the last observer gone - wherever it was - is reported once everything is empty", function () {
     let removed = 0;
-    const object = observable({ a: 1 });
+    const object = temporal({ a: 1 });
     object.onRemovedLastObserver = () => { removed++; };
     const { invalidators } = observe(object, 1200);
     for (let i = 500; i < 1200; i++) invalidators[i].dispose();
@@ -51,9 +51,9 @@ describe("large observer sets", function () {
   // zero with a reader still in it: unlinked, and that reader never heard
   // of a change again.
   it("a reader taken out twice - moved, then disposed - doesn't count down a chunk still holding others", function () {
-    const { observable, repeat, linkRepeater } = getWorld({ name: "largeObserverSetsRelocated", warnOnNestedRepeater: false });
-    const object = observable({ v: 1 });
-    const control = observable({ on: false, tick: 0 });
+    const { temporal, repeat, linkRepeater } = getWorld({ name: "largeObserverSetsRelocated", warnOnNestedRepeater: false });
+    const object = temporal({ v: 1 });
+    const control = temporal({ on: false, tick: 0 });
     const readers = [];
     let late = null;
     let after = null;

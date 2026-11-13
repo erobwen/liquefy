@@ -1,4 +1,4 @@
-import { observable, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { observable, temporal, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 
 /**
  * DOMElementTarget wraps one real DOM element that components render children
@@ -32,7 +32,7 @@ export class DOMElementTarget {
     // What's timeless about this target - see observeBounds(). None, unless
     // its element is measured.
     this.timeless = null;
-    return observable(this);
+    return temporal(this);
   }
 
   /**

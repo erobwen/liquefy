@@ -8,7 +8,7 @@ import assert from "assert";
 // relabeled at random, and after every step checked against a plain,
 // from-scratch walk: the array's latest elements, what every node saw, and
 // that no node's writings pile up across reruns.
-const { observable, repeat, linkRepeater } = getWorld({ name: "temporal-arrays-fuzz" });
+const { temporal, repeat, linkRepeater } = getWorld({ name: "temporal-arrays-fuzz" });
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -118,10 +118,10 @@ describe("temporal arrays fuzz (random trees pushing onto one array, checked aga
     for (let seed = 0; seed < SEEDS; seed++) {
       const random = mulberry32(seed * 7919 + 3);
       nextNodeId = 0;
-      const placed = observable([]);
+      const placed = temporal([]);
       const root = buildRandomTree(random, 3, 3);
       const all = collectAllNodes(root, []);
-      const labels = observable({});
+      const labels = temporal({});
       all.forEach((node) => { labels[node.id] = "a"; });
       const setAside = new Map();
 

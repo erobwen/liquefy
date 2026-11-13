@@ -39,7 +39,7 @@ const information = {
 const shownKey = "cascade.showcaseShown";
 
 // Temporal signals in their smallest form - as on the Introduction page.
-const temporalSignalsExample = `const heading = observable({ text: "hello world", size: 16 });
+const temporalSignalsExample = `const heading = temporal({ text: "hello world", size: 16 });
 
 // Time 0: capitalizes the text - writing the very property it reads.
 repeat(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });

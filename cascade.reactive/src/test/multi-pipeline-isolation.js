@@ -10,15 +10,15 @@ import assert from "assert";
 // duplicate, or otherwise perturb a completely independent pipeline's
 // ordinary invalidation, and both must be fully settled by the time the
 // triggering write returns.
-const { observable, repeat } = getWorld({ name: "multi-pipeline-isolation", timeLevels: 2 });
+const { temporal, repeat } = getWorld({ name: "multi-pipeline-isolation", timeLevels: 2 });
 
 describe("multiple independent pipelines (each owns its own chainHead, scheduled through the same shared workQueue)", function () {
 
   it("one pipeline's internal revert-and-park doesn't affect an unrelated pipeline's ordinary invalidation", function () {
     // Pipeline 1 - the same A/B/C revert shape as flagged-repeaters.js,
     // to make sure it's actually exercising parking/flagging here too.
-    const model1 = observable({ trigger: false });
-    const shared1 = observable({ p: "original" });
+    const model1 = temporal({ trigger: false });
+    const shared1 = temporal({ p: "original" });
     let cRunCount = 0;
 
     repeat(() => { // pipeline 1's root
@@ -35,7 +35,7 @@ describe("multiple independent pipelines (each owns its own chainHead, scheduled
 
     // Pipeline 2 - entirely unrelated, plain observable, no relation to
     // pipeline 1's chainHead, model, or shared state at all.
-    const model2 = observable({ value: 1 });
+    const model2 = temporal({ value: 1 });
     let pipeline2RunCount = 0;
     let pipeline2SeenValue = null;
     repeat(() => {

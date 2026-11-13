@@ -16,7 +16,7 @@ import assert from "assert";
 // (spaceLeft) and DOMElementTarget's own lastChild: every node reads the shared
 // target's current value, then writes its own updated value before its
 // own children run.
-const { observable, repeat, linkRepeater } = getWorld({
+const { temporal, repeat, linkRepeater } = getWorld({
   name: "retouch-subtree-writings",
   timeLevels: 6,
 });
@@ -52,7 +52,7 @@ describe("a new predecessor appearing in front of an untouched sibling", functio
     // reorder - it's deepWrite's write (3), buried one level inside it,
     // that leftBehind actually needs to see once movedBranch moves in
     // front of it.
-    const target = observable({ spaceLeft: 1000 });
+    const target = temporal({ spaceLeft: 1000 });
     const leftBehind = new Node(0);
     const deepWrite = new Node(3);
     const movedBranch = new Node(0);
@@ -88,7 +88,7 @@ describe("a new predecessor appearing in front of an untouched sibling", functio
     // has to relay through in turn (see retouchSubtreeWritings' own
     // comment on why touching only the subtree's last writing isn't
     // enough - reorder-fuzz.js is what actually caught this).
-    const target = observable({ spaceLeft: 1000 });
+    const target = temporal({ spaceLeft: 1000 });
     const leftBehind = new Node(0);
     const deepWrite = new Node(5);
     const passThrough3 = new Node(0);

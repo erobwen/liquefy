@@ -1,12 +1,12 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable } = getWorld();
+const { temporal } = getWorld();
 
 describe("Proxy object traps", function () {
-  const box = observable();
+  const box = temporal();
 
   it('rebuildTwin',  function () {
-    box.causality.rebuildTwin = observable({ name: "rebuildTwin"});
+    box.causality.rebuildTwin = temporal({ name: "rebuildTwin"});
     box.other = null;
     box.causality.rebuildTwin = null;
   });
@@ -34,10 +34,10 @@ describe("Proxy object traps", function () {
 });
 
 describe("Array object traps", function () {
-  const stack = observable([]);
+  const stack = temporal([]);
 
   it('rebuildTwin',  function () {
-    stack.causality.rebuildTwin = observable(['aa','bb']);
+    stack.causality.rebuildTwin = temporal(['aa','bb']);
     stack[2] = false;
     stack.causality.rebuildTwin = null;
   });

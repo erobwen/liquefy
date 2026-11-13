@@ -6,14 +6,14 @@ import assert from "assert";
 // written before it, not after - and a reader reruns only when what *it*
 // read changed: the whole array, its length, one index, or one element
 // counted from the end (pop(), at(-1)).
-const { observable, repeat, invalidateOnChange } = getWorld({ name: "temporal-arrays" });
+const { temporal, repeat, invalidateOnChange } = getWorld({ name: "temporal-arrays" });
 
 describe("temporal arrays", function () {
 
   describe("positioned reads", function () {
     it("a reader sees what was pushed before it, not after - and an external read sees the latest", function () {
-      const array = observable([]);
-      const model = observable({ value: "x" });
+      const array = temporal([]);
+      const model = temporal({ value: "x" });
       let before = null;
       let after = null;
       let beforeRuns = 0;
@@ -35,7 +35,7 @@ describe("temporal arrays", function () {
 
   describe("readers rerun only when what they read changed", function () {
     it("a popper reruns only when the last element changes", function () {
-      const array = observable([1, 2, 3]);
+      const array = temporal([1, 2, 3]);
       let popped = null;
       let runs = 0;
       repeat(() => { runs++; popped = array.pop(); });
@@ -53,7 +53,7 @@ describe("temporal arrays", function () {
     });
 
     it("at(-1) reads the last element only", function () {
-      const array = observable(["a", "b"]);
+      const array = temporal(["a", "b"]);
       let last = null;
       let runs = 0;
       repeat(() => { runs++; last = array.at(-1); });
@@ -66,7 +66,7 @@ describe("temporal arrays", function () {
     });
 
     it("a shifter reruns only when the first element changes", function () {
-      const array = observable([1, 2, 3]);
+      const array = temporal([1, 2, 3]);
       let shifted = null;
       let runs = 0;
       repeat(() => { runs++; shifted = array.shift(); });
@@ -82,7 +82,7 @@ describe("temporal arrays", function () {
     });
 
     it("a reader of one index reruns only when that index changes", function () {
-      const array = observable(["a", "b", "c"]);
+      const array = temporal(["a", "b", "c"]);
       let seen = null;
       let runs = 0;
       repeat(() => { runs++; seen = array[1]; });
@@ -98,7 +98,7 @@ describe("temporal arrays", function () {
     });
 
     it("a reader of the length reruns only when the length changes", function () {
-      const array = observable([1, 2]);
+      const array = temporal([1, 2]);
       let length = null;
       let runs = 0;
       repeat(() => { runs++; length = array.length; });
@@ -111,7 +111,7 @@ describe("temporal arrays", function () {
     });
 
     it("an enumerator reruns on any change to the elements", function () {
-      const array = observable([1, 2]);
+      const array = temporal([1, 2]);
       let sum = null;
       let runs = 0;
       repeat(() => { runs++; sum = array.reduce((a, b) => a + b, 0); });
@@ -123,7 +123,7 @@ describe("temporal arrays", function () {
     });
 
     it("splice reads what it removes", function () {
-      const array = observable(["a", "b", "c"]);
+      const array = temporal(["a", "b", "c"]);
       let removed = null;
       let runs = 0;
       repeat(() => { runs++; removed = array.splice(1, 1); });
@@ -139,7 +139,7 @@ describe("temporal arrays", function () {
     });
 
     it("an invalidator reads like any other reader", function () {
-      const array = observable(["a", "b"]);
+      const array = temporal(["a", "b"]);
       let invalidated = 0;
       invalidateOnChange(() => array[1], () => { invalidated++; });
       array[0] = "z";
@@ -151,8 +151,8 @@ describe("temporal arrays", function () {
 
   describe("writes are relative to what's before them", function () {
     it("pushers don't depend on each other - a changed push is replayed under the next", function () {
-      const array = observable([]);
-      const model = observable({ a: "a", b: "b" });
+      const array = temporal([]);
+      const model = temporal({ a: "a", b: "b" });
       let aRuns = 0;
       let bRuns = 0;
       repeat(() => {
@@ -167,7 +167,7 @@ describe("temporal arrays", function () {
     });
 
     it("a sort is replayed on a changed predecessor, without its writer running again", function () {
-      const array = observable([3, 1, 2]);
+      const array = temporal([3, 1, 2]);
       let runs = 0;
       repeat(() => { runs++; array.sort(); });
       assert.deepEqual([...array], [1, 2, 3]);
@@ -177,8 +177,8 @@ describe("temporal arrays", function () {
     });
 
     it("a partial reading what it wrote itself doesn't rerun for its own writes", function () {
-      const array = observable([]);
-      const model = observable({ first: "a" });
+      const array = temporal([]);
+      const model = temporal({ first: "a" });
       let runs = 0;
       let length = null;
       repeat(() => {
@@ -195,8 +195,8 @@ describe("temporal arrays", function () {
 
   describe("flagged readers check their own read once the wavefront reaches them", function () {
     it("a change undone before the wavefront reaches a reader doesn't rerun it", function () {
-      const array = observable([]);
-      const model = observable({ value: 1 });
+      const array = temporal([]);
+      const model = temporal({ value: 1 });
       let bRuns = 0;
       let cRuns = 0;
       let cSeen = null;
@@ -214,8 +214,8 @@ describe("temporal arrays", function () {
     });
 
     it("a rerun that writes the same elements again doesn't rerun the readers after it", function () {
-      const array = observable([]);
-      const model = observable({ items: ["a", "b"], tick: 0 });
+      const array = temporal([]);
+      const model = temporal({ items: ["a", "b"], tick: 0 });
       let readerRuns = 0;
       repeat(() => {
         repeat(() => { model.tick; model.items.forEach((item) => array.push(item)); });
@@ -229,8 +229,8 @@ describe("temporal arrays", function () {
     });
 
     it("a writer that stops writing is retracted - readers after it see what's before it", function () {
-      const array = observable(["base"]);
-      const model = observable({ show: true });
+      const array = temporal(["base"]);
+      const model = temporal({ show: true });
       let seen = null;
       let readerRuns = 0;
       repeat(() => {
@@ -247,8 +247,8 @@ describe("temporal arrays", function () {
     });
 
     it("words laying themselves out, each reading only where the one before it ended", function () {
-      const placed = observable([]);
-      const texts = observable(["one", "two", "three", "four"]);
+      const placed = temporal([]);
+      const texts = temporal(["one", "two", "three", "four"]);
       const runs = {};
       repeat(() => {
         for (let index = 0; index < 4; index++) {
@@ -274,7 +274,7 @@ describe("temporal arrays", function () {
 
   describe("properties of arrays are ordinary properties", function () {
     it("a property reader doesn't rerun for the elements, nor an element reader for a property", function () {
-      const array = observable([1, 2]);
+      const array = temporal([1, 2]);
       array.label = "x";
       let labelRuns = 0;
       let elementRuns = 0;
@@ -291,9 +291,9 @@ describe("temporal arrays", function () {
 
   describe("rebuilding", function () {
     it("an established array takes a rebuild's elements - readers rerun only for what they read", function () {
-      const source = observable({ items: [1, 2, 3] });
+      const source = temporal({ items: [1, 2, 3] });
       let built = null;
-      repeat(() => { built = observable(source.items.slice(), "list"); });
+      repeat(() => { built = temporal(source.items.slice(), "list"); });
       const established = built;
       let first = null;
       let firstRuns = 0;
@@ -312,7 +312,7 @@ describe("temporal arrays", function () {
 
   describe("it's still an array", function () {
     it("behaves like one, and its target mirrors the latest elements", function () {
-      const array = observable([3, 1, 2]);
+      const array = temporal([3, 1, 2]);
       repeat(() => { array.sort(); });
       assert(Array.isArray(array));
       assert.equal(JSON.stringify(array), "[1,2,3]");

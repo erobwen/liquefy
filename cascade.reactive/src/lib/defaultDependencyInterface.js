@@ -202,7 +202,10 @@ export function defaultDependencyInterfaceCreator(causality) {
 
       // Only the root has the handler, description and key.
       const root = observerSet.isRoot ? observerSet : observerSet.parent;
-      if (noMoreObservers && typeof(root.handler.proxy.onRemovedLastObserver) === "function") {
+      // Asked without recording: the read would otherwise be a dependency
+      // of whoever happens to be running - and give every object a
+      // timeline for this name.
+      if (noMoreObservers && typeof(causality.withoutRecording(() => root.handler.proxy.onRemovedLastObserver)) === "function") {
         root.handler.proxy.onRemovedLastObserver(root.description, root.key)
       }
     }

@@ -1,17 +1,17 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable, repeat } = getWorld({name: "Value types", useNonObservablesAsValues: true});
+const { temporal, repeat } = getWorld({name: "Value types", useNonObservablesAsValues: true});
 
 describe("Value types", function(){
 
   it('testing', function () {
     // Setup
-    const other = observable({})
-    const another = observable({})
+    const other = temporal({})
+    const another = temporal({})
 
     // Main object
     // Note: Here it is assumed that observable will not recusivley create observables out of the whole structure. 
-    const foo = observable({
+    const foo = temporal({
       value: 1, 
       reference: other, 
       reactiveValue: {bar: 32, fum: 42}

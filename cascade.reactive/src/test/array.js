@@ -1,13 +1,13 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable } = getWorld()
+const { temporal } = getWorld()
 
 //const log = console.log.bind(console);
 
 // Tests based on mobx test/array.js
 describe("arrays", function () {
   it('should behave like arrays', function () {
-    var a = observable([]);
+    var a = temporal([]);
 
     assert.equal(a.length, 0);
     assert.deepEqual(Object.keys(a), []);
@@ -79,7 +79,7 @@ describe("arrays", function () {
   });
 
   it('should differ undefined from nonexisting', function () {
-    var a = observable([]);
+    var a = temporal([]);
     var sum = function () {
       return -1 + a.reduce(function (a, b) {
         return a + b;
@@ -101,14 +101,14 @@ describe("arrays", function () {
   });
 
   it('should sort', function () {
-    var a = observable([3, 1, 2]);
+    var a = temporal([3, 1, 2]);
 
     assert.deepEqual(a.sort(), [1, 2, 3]);
     assert.deepEqual([...a], [1, 2, 3]);
   });
 
   it('should find and remove', function () {
-    var a   = observable([10, 20, 20]);
+    var a   = temporal([10, 20, 20]);
     var idx = -1;
 
     function predicate(item, index) {
@@ -142,8 +142,8 @@ describe("arrays", function () {
   });
 
   it('should concat', function () {
-    var a1 = observable([1, 2]);
-    var a2 = observable([3, 4]);
+    var a1 = temporal([1, 2]);
+    var a2 = temporal([3, 4]);
     assert.deepEqual(a1.concat(a2), [1, 2, 3, 4])
   });
 });

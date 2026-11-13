@@ -30,7 +30,7 @@ import assert from "assert";
 // its case 1 needs a third rebuild) - here b.claim is nonzero, so a
 // version of cascade.js without this fix gives a final answer that is
 // simply wrong, not just less efficient.
-const { observable, repeat, linkRepeater } = getWorld({ name: "migrate-overtaken-observers", timeLevels: 5 });
+const { temporal, repeat, linkRepeater } = getWorld({ name: "migrate-overtaken-observers", timeLevels: 5 });
 
 describe("migrateOvertakenObserversFor (a farther-writing dependency catches up once a closer writing shows up)", function () {
 
@@ -45,7 +45,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     }
     constructor(claim) {
       this.claim = claim;
-      return observable(this);
+      return temporal(this);
     }
     renderOnto(target) {
       const u = this.unobservable;
@@ -69,7 +69,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
       return this.causality.unobservable;
     }
     constructor(a, b) {
-      const wrapped = observable(this);
+      const wrapped = temporal(this);
       wrapped.unobservable.a = a;
       wrapped.unobservable.b = b;
       return wrapped;
@@ -92,7 +92,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
   }
 
   it("a nonzero downstream claim exposes the gap - without the fix the final value would be silently wrong", function () {
-    const target = observable({ spaceLeft: 100 });
+    const target = temporal({ spaceLeft: 100 });
     const a = new Leaf(20);
     const b = new Leaf(7); // nonzero - the actual bug-revealing ingredient
     const panel = new Panel(a, b);
@@ -136,7 +136,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     // "between" write settled on, so that second comparison resolves as
     // "no real change" and panel's flag clears without ever promoting to
     // a third rebuild.
-    const target = observable({ spaceLeft: 100 });
+    const target = temporal({ spaceLeft: 100 });
     const a = new Leaf(20);
     const b = new Leaf(0);
     const panel = new Panel(a, b);

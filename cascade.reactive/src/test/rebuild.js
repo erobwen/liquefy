@@ -9,8 +9,8 @@ const instance = getWorld({
     events.push(event);
   }
 });
-const {observable, withoutSideEffects, withoutRecording, repeat, finalize } = instance;
-const c = observable; 
+const {temporal, withoutSideEffects, withoutRecording, repeat, finalize } = instance;
+const c = temporal; 
 
 const log = console.log;
 const logg = (string) => {
@@ -82,7 +82,7 @@ describe("Re Build", function(){
   function buildTree(source) {
     let result;
     source.forEach((value, index) => {
-      const node = observable(new Node(value), "node_" + value);
+      const node = temporal(new Node(value), "node_" + value);
       if (index === 0) {
         result = node; 
       } else {
@@ -94,9 +94,9 @@ describe("Re Build", function(){
 
 
   it("Test rebuild", function(){
-    const source = observable([3]);
+    const source = temporal([3]);
     let updateBuildEvents = [];
-    let tree = observable({root: null}); 
+    let tree = temporal({root: null}); 
 
     repeat(
       () => {
@@ -123,14 +123,14 @@ describe("Re Build", function(){
 
   
   it("Test finalize", function(){
-    const trigger = observable({count:1});
+    const trigger = temporal({count:1});
     let constructed;
     let decorationFromFinalized;
 
     repeat(
       () => {
         const justRead = trigger.count;  
-        constructed = observable({propertyA: "bar"}, "key1"); // Note: decoration cannot be set to null here as it will overwrite the established objects value. It has to be undefined. 
+        constructed = temporal({propertyA: "bar"}, "key1"); // Note: decoration cannot be set to null here as it will overwrite the established objects value. It has to be undefined. 
 
         finalize(constructed);
 

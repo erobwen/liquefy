@@ -1,7 +1,7 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-const { observable, repeat, linkRepeater } = getWorld({ name: "dirty-queue-dedup", timeLevels: 5 });
+const { temporal, repeat, linkRepeater } = getWorld({ name: "dirty-queue-dedup", timeLevels: 5 });
 
 // A repeater reading the same external property twice, with a child
 // repeater created in between the two reads, ends up with TWO separate
@@ -25,7 +25,7 @@ const { observable, repeat, linkRepeater } = getWorld({ name: "dirty-queue-dedup
 // refreshed it a second, spurious time.
 describe("dirty-repeater queue: same repeater invalidated via two partials", function () {
   it("a single write that invalidates two of a repeater's own partials reruns it exactly once", function () {
-    const target = observable({ a: 1 });
+    const target = temporal({ a: 1 });
     let parentRuns = 0;
     let childRepeater = null;
 

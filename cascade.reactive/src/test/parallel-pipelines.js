@@ -22,8 +22,8 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
   }
 
   it("a reader sees a parallel pipeline's latest writing, whichever pipeline was created first", function () {
-    const { observable, repeat } = world();
-    const model = observable({ value: 0 });
+    const { temporal, repeat } = world();
+    const model = temporal({ value: 0 });
 
     // Reader first (the lower chain id), writer second.
     let seenByEarlierReader;
@@ -43,9 +43,9 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
   });
 
   it("a parallel reader reruns when the writer pipeline's latest writing changes", function () {
-    const { observable, repeat } = world();
-    const input = observable({ n: 1 });
-    const output = observable({ doubled: null });
+    const { temporal, repeat } = world();
+    const input = temporal({ n: 1 });
+    const output = temporal({ doubled: null });
 
     let readerRuns = 0;
     let seen;
@@ -66,9 +66,9 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
   });
 
   it("when the writer pipeline stops writing a property, a parallel reader falls back to whatever is below it", function () {
-    const { observable, repeat } = world();
-    const model = observable({ value: "baseline" });
-    const control = observable({ writes: true });
+    const { temporal, repeat } = world();
+    const model = temporal({ value: "baseline" });
+    const control = temporal({ writes: true });
 
     let seen;
     repeat(() => { seen = model.value; });
@@ -82,8 +82,8 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
   });
 
   it("a second pipeline writing the same property at the same time level throws", function () {
-    const { observable, repeat } = world();
-    const model = observable({ value: 0 });
+    const { temporal, repeat } = world();
+    const model = temporal({ value: 0 });
 
     repeat("owner", () => { model.value = 1; });
     assert.throws(
@@ -93,9 +93,9 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
   });
 
   it("the claim lasts only while the owner's writing is live - once retracted, another pipeline may take the property over", function () {
-    const { observable, repeat } = world();
-    const model = observable({ value: 0 });
-    const control = observable({ ownerWrites: true });
+    const { temporal, repeat } = world();
+    const model = temporal({ value: 0 });
+    const control = temporal({ ownerWrites: true });
 
     repeat("owner", () => {
       if (control.ownerWrites) model.value = 1;
@@ -109,8 +109,8 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
   });
 
   it("pipelines at different time levels may write the same property, and external/initial-time writes claim nothing", function () {
-    const { observable, repeat, accessInitialValues } = world();
-    const model = observable({ value: 0 });
+    const { temporal, repeat, accessInitialValues } = world();
+    const model = temporal({ value: 0 });
 
     repeat(() => { model.value = 1; }, { time: 0 });
     assert.doesNotThrow(() => repeat(() => { model.value = model.value + 10; }, { time: 1 }));
@@ -128,9 +128,9 @@ describe("parallel pipelines (same time level, different root repeaters)", funct
     // docs/plan-flagged-scheduling.md). Before the parallel-pipeline rule,
     // render read `currentBuild` as undefined: the build pipeline's chain was
     // created later, so its writing sorted after render's read.
-    const { observable, repeat, accessInitialValues } = world();
-    const component = observable({ currentBuild: undefined });
-    const context = observable({ locator: null });
+    const { temporal, repeat, accessInitialValues } = world();
+    const component = temporal({ currentBuild: undefined });
+    const context = temporal({ locator: null });
     let buildRepeater = null;
     let seenByRender;
     let seenByBuild;

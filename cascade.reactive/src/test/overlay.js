@@ -7,13 +7,13 @@ describe("Overlays", function(){
   it('testing', function () {
     // Simple object
     // console.log(" Simple object ===========================")
-    let x = causality.observable({name: "original"});
+    let x = causality.temporal({name: "original"});
     x.foo = 1;
     assert.equal(x.foo, 1);
 
     // Create rebuildTwin
     // console.log(" Create rebuildTwin ===========================")
-    let xOverlay = causality.observable({ name: "rebuildTwin"});
+    let xOverlay = causality.temporal({ name: "rebuildTwin"});
     x.causality.rebuildTwin = xOverlay;
     // console.log(x.causality.handler);
     // console.log(x.causality.handler.causality);

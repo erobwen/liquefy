@@ -1,4 +1,4 @@
-import { observable } from "../Cascade.js";
+import { temporal } from "../Cascade.js";
 import { Component } from "../Component.js";
 import assert from "assert";
 
@@ -50,7 +50,7 @@ describe("build()-based composition with key reconciliation", function () {
   }
 
   it("reconciles a fresh build() against the previous one via key: the same underlying child instance persists", function () {
-    const target = observable({ remainingHeight: 400 });
+    const target = temporal({ remainingHeight: 400 });
     const mainFrame = new MainFrame("main", 50, true);
 
     mainFrame.renderOnto(target);
@@ -76,7 +76,7 @@ describe("build()-based composition with key reconciliation", function () {
   });
 
   it("a child no longer returned by build() is disposed", function () {
-    const target = observable({ remainingHeight: 400 });
+    const target = temporal({ remainingHeight: 400 });
     const mainFrame = new MainFrame("main", 50, true);
     mainFrame.renderOnto(target);
     const [, contentArea] = mainFrame.currentBuild;
@@ -130,7 +130,7 @@ describe("build()-based composition surviving retraction (buildOneStep() itself,
   }
 
   it("after the render repeater's retraction, the build result handed back is still valid - not undefined from an unlinked writing", function () {
-    const target = observable({});
+    const target = temporal({});
     const parent = new Parent("parent", true);
     parent.renderOnto(target);
 

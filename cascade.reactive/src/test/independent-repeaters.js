@@ -54,9 +54,9 @@ describe("independent repeaters ({independent: true})", function () {
   });
 
   it("survives its creator's reruns, and keeps reacting to its own dependencies", function () {
-    const { observable, repeat } = world();
-    const creatorInput = observable({ tick: 0 });
-    const ownInput = observable({ n: 1 });
+    const { temporal, repeat } = world();
+    const creatorInput = temporal({ tick: 0 });
+    const ownInput = temporal({ n: 1 });
     let independent;
     let independentSaw = [];
 
@@ -76,10 +76,10 @@ describe("independent repeaters ({independent: true})", function () {
   });
 
   it("each sees the other's latest writings - creator writes its input, reads its output", function () {
-    const { observable, repeat } = world();
-    const model = observable({ request: 1 });
-    const context = observable({ input: null });
-    const component = observable({ output: null });
+    const { temporal, repeat } = world();
+    const model = temporal({ request: 1 });
+    const context = temporal({ input: null });
+    const component = temporal({ output: null });
     let independent;
     const creatorSaw = [];
 
@@ -98,10 +98,10 @@ describe("independent repeaters ({independent: true})", function () {
   });
 
   it("refreshIfNeeded() pulls a pending result mid-run instead of reading a retracted one", function () {
-    const { observable, repeat, postponeInvalidations, continueInvalidations, refreshIfNeeded } = world();
-    const trigger = observable({ tick: 0 });
-    const input = observable({ n: 1 });
-    const component = observable({ output: null });
+    const { temporal, repeat, postponeInvalidations, continueInvalidations, refreshIfNeeded } = world();
+    const trigger = temporal({ tick: 0 });
+    const input = temporal({ n: 1 });
+    const component = temporal({ output: null });
     let independent;
     let independentRuns = 0;
     const creatorSaw = [];
@@ -141,10 +141,10 @@ describe("independent repeaters ({independent: true})", function () {
     // The creator's rewrite of an already-existing writing only notifies
     // readers when its partial closes - refreshIfNeeded() is a hand-over
     // point that settles it first, the same as a child boundary would.
-    const { observable, repeat, refreshIfNeeded } = world();
-    const model = observable({ request: 1 });
-    const context = observable({ input: null });
-    const component = observable({ output: null });
+    const { temporal, repeat, refreshIfNeeded } = world();
+    const model = temporal({ request: 1 });
+    const context = temporal({ input: null });
+    const component = temporal({ output: null });
     let independent;
     const creatorSaw = [];
 
@@ -162,9 +162,9 @@ describe("independent repeaters ({independent: true})", function () {
   });
 
   it("{pulledBy}: its pending work invalidates the puller, which pulls it - it never runs on its own", function () {
-    const { observable, repeat, refreshIfNeeded } = world();
-    const input = observable({ n: 1 });
-    const component = observable({ output: null });
+    const { temporal, repeat, refreshIfNeeded } = world();
+    const input = temporal({ n: 1 });
+    const component = temporal({ output: null });
     const order = [];
     let pulled;
     const puller = repeat(() => {
@@ -180,9 +180,9 @@ describe("independent repeaters ({independent: true})", function () {
   });
 
   it("{pulledBy}: with its puller retracted, it stays pending - not run, state kept - until pulled again", function () {
-    const { observable, repeat, retractRepeater, refreshIfNeeded } = world();
-    const input = observable({ n: 1 });
-    const component = observable({ output: null });
+    const { temporal, repeat, retractRepeater, refreshIfNeeded } = world();
+    const input = temporal({ n: 1 });
+    const component = temporal({ output: null });
     let runs = 0;
     let pulled;
     const puller = repeat(() => {
@@ -201,9 +201,9 @@ describe("independent repeaters ({independent: true})", function () {
   });
 
   it("retractRepeater() stops it - its writings retracted - and restart() brings it back", function () {
-    const { observable, repeat, retractRepeater } = world();
-    const input = observable({ n: 1 });
-    const component = observable({ output: "none" });
+    const { temporal, repeat, retractRepeater } = world();
+    const input = temporal({ n: 1 });
+    const component = temporal({ output: "none" });
     let runs = 0;
     const independent = repeat(() => {
       runs++;

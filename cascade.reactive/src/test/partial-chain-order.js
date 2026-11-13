@@ -9,11 +9,11 @@ import assert from "assert";
 // that forces, not just that nothing throws.
 describe("partial chain order (pressure release)", function () {
   it("keeps tree-order comparisons correct across many insertions that force pressure-release blasts", function () {
-    const { observable, repeat, linkRepeater } = getWorld({
+    const { temporal, repeat, linkRepeater } = getWorld({
       name: "partial-chain-order",
     });
 
-    const target = observable({ value: 0 });
+    const target = temporal({ value: 0 });
     const seenValues = [];
     const middles = [];
     let afterRepeater = null;

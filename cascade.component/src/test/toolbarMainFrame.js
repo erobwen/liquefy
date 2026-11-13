@@ -1,4 +1,4 @@
-import { observable } from "../Cascade.js";
+import { temporal } from "../Cascade.js";
 import { Component } from "../Component.js";
 import assert from "assert";
 
@@ -45,7 +45,7 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
   }
 
   it("passes remaining space top-down: the content area sees space left after the toolbar claims its share", function () {
-    const target = observable({ remainingHeight: 400 });
+    const target = temporal({ remainingHeight: 400 });
     const toolbar = new Toolbar(50);
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
@@ -59,7 +59,7 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
   });
 
   it("changing the toolbar's own height reruns only the toolbar and the content area, not the main frame", function () {
-    const target = observable({ remainingHeight: 400 });
+    const target = temporal({ remainingHeight: 400 });
     const toolbar = new Toolbar(50);
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);
@@ -74,7 +74,7 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
   });
 
   it("main frame rebuilding for an unrelated reason relinks toolbar and content area without rerunning them", function () {
-    const target = observable({ remainingHeight: 400 });
+    const target = temporal({ remainingHeight: 400 });
     const toolbar = new Toolbar(50);
     const contentArea = new ContentArea();
     const mainFrame = new MainFrame(toolbar, contentArea);

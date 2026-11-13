@@ -12,8 +12,10 @@ export const world = getWorld({
  */
 export const {
   observable,
+  temporal,
   deeplyObservable,
   isObservable,
+  isTemporal,
   repeat,
   linkRepeater,
   finalize,

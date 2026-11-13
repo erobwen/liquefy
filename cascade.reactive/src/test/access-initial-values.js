@@ -16,13 +16,13 @@ import assert from "assert";
 // ordinarily never do (see flush.js's module comment on why). Composed
 // with flush() where the correction also needs to settle within the same
 // wave, rather than waiting for the next one.
-const { observable, repeat, flush, accessInitialValues } = getWorld({ name: "access-initial-values", timeLevels: 3 });
+const { temporal, repeat, flush, accessInitialValues } = getWorld({ name: "access-initial-values", timeLevels: 3 });
 
 describe("accessInitialValues() (write as though genuinely outside any repeater)", function () {
 
   it("a later sibling corrects an earlier one's already-read scalar state, within the same pipeline, in the same wave", function () {
-    const modalState = observable({ openModalId: null });
-    const trigger = observable({ open: false });
+    const modalState = temporal({ openModalId: null });
+    const trigger = temporal({ open: false });
     let frameRunCount = 0;
     let frameSeenId = null;
 
@@ -51,8 +51,8 @@ describe("accessInitialValues() (write as though genuinely outside any repeater)
   });
 
   it("a later-level pipeline corrects an earlier-level model's plain property and sees it settle within the same synchronous write", function () {
-    const model = observable({ selection: "initial" });
-    const view = observable({ shown: null });
+    const model = temporal({ selection: "initial" });
+    const view = temporal({ shown: null });
 
     let modelRunCount = 0;
     repeat(() => { // "model" pipeline

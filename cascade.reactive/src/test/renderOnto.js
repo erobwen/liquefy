@@ -44,7 +44,7 @@ import assert from "assert";
 //     a data-correctness gap, not just a missed optimization - it's the
 //     concrete reason partials have to exist, not just linkRepeater.
 
-const { observable, repeat, linkRepeater } = getWorld({ name: "renderOnto", timeLevels: 5 });
+const { temporal, repeat, linkRepeater } = getWorld({ name: "renderOnto", timeLevels: 5 });
 
 describe("renderOnto", function () {
 
@@ -60,7 +60,7 @@ describe("renderOnto", function () {
 
     constructor(claim) {
       this.claim = claim; // how much of target.spaceLeft this leaf consumes - the one real reactive input
-      return observable(this);
+      return temporal(this);
     }
 
     renderOnto(target) {
@@ -86,7 +86,7 @@ describe("renderOnto", function () {
     }
 
     constructor(a, b) {
-      const wrapped = observable(this);
+      const wrapped = temporal(this);
       wrapped.unobservable.a = a;
       wrapped.unobservable.b = b;
       return wrapped;
@@ -110,7 +110,7 @@ describe("renderOnto", function () {
   }
 
   it('initial render: each leaf sees the space left after everything before it, padding included', function () {
-    const target = observable({ spaceLeft: 100 });
+    const target = temporal({ spaceLeft: 100 });
     const a = new Leaf(20);
     const b = new Leaf(0);
     const panel = new Panel(a, b);
@@ -125,7 +125,7 @@ describe("renderOnto", function () {
   });
 
   it("case 1: a leaf's own input changes -> only its own partial and the specific downstream reader redo", function () {
-    const target = observable({ spaceLeft: 100 });
+    const target = temporal({ spaceLeft: 100 });
     const a = new Leaf(20);
     const b = new Leaf(0);
     const panel = new Panel(a, b);
@@ -166,7 +166,7 @@ describe("renderOnto", function () {
   });
 
   it('case 2: parent rebuilds for an unrelated reason -> unaffected children are relinked, not rerun', function () {
-    const target = observable({ spaceLeft: 100 });
+    const target = temporal({ spaceLeft: 100 });
     const a = new Leaf(20);
     const b = new Leaf(0);
     const panel = new Panel(a, b);
@@ -191,8 +191,8 @@ describe("renderOnto", function () {
     // retracted, same as any repeater's writings would be, but it's not
     // gone forever - it stays re-linkable if a later rebuild renders it
     // again. Distinct from "disposed", which means never running again.
-    const target = observable({ spaceLeft: 100 });
-    const external = observable({ marker: null }); // touched only by b, read by something entirely outside this parent/child tree
+    const target = temporal({ spaceLeft: 100 });
+    const external = temporal({ marker: null }); // touched only by b, read by something entirely outside this parent/child tree
     let retractedCount = 0;
 
     class TaggingLeaf extends Leaf {

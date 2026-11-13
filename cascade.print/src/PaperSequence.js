@@ -1,4 +1,4 @@
-import { observable } from "@liquefy/cascade.component";
+import { temporal } from "@liquefy/cascade.component";
 
 /**
  * PaperSequence - the render target of a printed document: a sequence of
@@ -24,12 +24,12 @@ import { observable } from "@liquefy/cascade.component";
  */
 export class PaperSequence {
   constructor() {
-    this.pages = observable([]);
+    this.pages = temporal([]);
     this.flow = null;
     // No timeless side (see cascade.component's fromTarget()): nothing about
     // a paper sequence is the same throughout a pass.
     this.timeless = null;
-    return observable(this);
+    return temporal(this);
   }
 
   // The lines placed on page `index` - an array of its own for every page,
@@ -42,7 +42,7 @@ export class PaperSequence {
     if (!meta.pageLines) meta.pageLines = [];
     let lines = meta.pageLines[index];
     if (!lines) {
-      lines = observable([]);
+      lines = temporal([]);
       meta.pageLines[index] = lines;
     }
     return lines;

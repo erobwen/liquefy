@@ -1,7 +1,7 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-const { observable, repeat } = getWorld({ name: "pipeline-observeable", timeLevels: 5 });
+const { temporal, repeat } = getWorld({ name: "pipeline-observeable", timeLevels: 5 });
 
 describe("Pipeline observeable", function(){
   it('Main principle', function () {
@@ -10,7 +10,7 @@ describe("Pipeline observeable", function(){
       reverseLog.unshift(string);
     }
 
-    let model = observable({a: 42, b: 314})
+    let model = temporal({a: 42, b: 314})
 
     let stage1 = repeat(() => {
       log("running stage1")

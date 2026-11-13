@@ -1,6 +1,6 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable } = getWorld({name: "array-splices", sendEventsToObjects: true});
+const { temporal } = getWorld({name: "array-splices", sendEventsToObjects: true});
 
 //const log = console.log.bind(console);
 // trace.nestedRepeater = false;
@@ -14,7 +14,7 @@ describe("array-splices", function(){
 		result = event;
   };
   // arrayRenderContext.onChange();
-	var observedArray = observable(arrayRenderContext);
+	var observedArray = temporal(arrayRenderContext);
 
 	it('should report changes', function(){
 		observedArray[1] = 'z';

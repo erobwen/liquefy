@@ -16,7 +16,7 @@ import assert from "assert";
 // plugins" escape hatch (see its own doc comment in cascade.js) - used
 // here only to observe object identity directly, which the ordinary
 // observable() API has no reason to expose.
-const { observable, repeat, invalidateOnChange, getOrCreateTimelineWriting } =
+const { temporal, repeat, invalidateOnChange, getOrCreateTimelineWriting } =
   getWorld({ name: "writing-reuse-optimization", timeLevels: 2 });
 
 function currentWriting(obj, key) {
@@ -30,8 +30,8 @@ function currentWriting(obj, key) {
 describe("writing reuse optimization (only retire when an observer actually needs it)", function () {
 
   it("a writing with no observers at all is reused in place across reruns", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "a" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "a" });
 
     repeat(() => {
       shared.p = model.trigger ? "b" : "a";
@@ -45,8 +45,8 @@ describe("writing reuse optimization (only retire when an observer actually need
   });
 
   it("a writing whose only observer is an invalidator (eager-eligible, not tree-ordered) is still reused in place", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "a" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "a" });
     let invalidatedCount = 0;
 
     repeat(() => {
@@ -64,8 +64,8 @@ describe("writing reuse optimization (only retire when an observer actually need
   });
 
   it("a writing with a same-chain tree observer is retired (a fresh object takes its place), not reused", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "a" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "a" });
     let cSeenValue = null;
 
     repeat(() => { // root

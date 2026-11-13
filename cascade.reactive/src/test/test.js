@@ -1,12 +1,12 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable, invalidateOnChange, repeat } = getWorld();
+const { temporal, invalidateOnChange, repeat } = getWorld();
 
 describe("invalidateOnChange", function () {
 
   let cnt = 0;
-  const x = observable({propA: 11});
-  const y = observable({propB: 11, propC: 100});
+  const x = temporal({propA: 11});
+  const y = temporal({propB: 11, propC: 100});
   let z;
   invalidateOnChange(function () {
     z = x.propA + y.propB;
@@ -36,8 +36,8 @@ describe("invalidateOnChange", function () {
 describe("repeat", function () {
 
   let cnt = 0;
-  const x = observable({propA: 11});
-  const y = observable({propB: 11, propC: 100});
+  const x = temporal({propA: 11});
+  const y = temporal({propB: 11, propC: 100});
   let z;
 
   repeat(function () {
@@ -70,7 +70,7 @@ describe("heap structure", function () {
   function buildHeap(value) {
     var childrenStartValue = value - 5;
     var childrenCount      = 0;
-    var children           = observable([]);
+    var children           = temporal([]);
     while (childrenCount <= 3) {
       var childValue = childrenStartValue--;
       if (childValue > 0) {
@@ -78,7 +78,7 @@ describe("heap structure", function () {
       }
       childrenCount++;
     }
-    return observable({
+    return temporal({
       value: value,
       children: children
     });

@@ -1,7 +1,7 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-const { observable, invalidateOnChange } = getWorld();
+const { temporal, invalidateOnChange } = getWorld();
 // const log = console.log;
 
 describe("Cached", function(){
@@ -26,7 +26,7 @@ describe("Cached", function(){
       }
     }
 
-    const summarizer = observable(new Summarizer());
+    const summarizer = temporal(new Summarizer());
 
     // Fill cache
     let sum = summarizer.sum();

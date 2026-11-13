@@ -19,13 +19,13 @@ import assert from "assert";
 // within this same wave rather than the next. The two are independent:
 // accessInitialValues() changes *where* the write lands, flush() *when* what
 // it invalidates is processed.
-const { observable, repeat, flush, accessInitialValues } = getWorld({ name: "flush", timeLevels: 3 });
+const { temporal, repeat, flush, accessInitialValues } = getWorld({ name: "flush", timeLevels: 3 });
 
 describe("flush() (retreat the wave instead of parking, while flushing)", function () {
 
   it("a later repeater's flush() reaches back into an earlier sibling within the same pipeline, reprocessed within the same wave", function () {
-    const model = observable({ trigger: false });
-    const portalSlots = observable([]);
+    const model = temporal({ trigger: false });
+    const portalSlots = temporal([]);
     let slotRunCount = 0;
     let slotSeenLength = null;
 
@@ -53,8 +53,8 @@ describe("flush() (retreat the wave instead of parking, while flushing)", functi
   });
 
   it("a later-level pipeline's flush() corrects an earlier-level one and sees the correction settle within the same synchronous write", function () {
-    const model = observable({ selections: observable(["initial"]) });
-    const view = observable({ shown: null });
+    const model = temporal({ selections: temporal(["initial"]) });
+    const view = temporal({ shown: null });
 
     let modelRunCount = 0;
     repeat(() => { // "model" pipeline

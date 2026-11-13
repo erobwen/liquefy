@@ -5,10 +5,10 @@ import assert from "assert";
 // computed from changes - then just cleared, recomputed only if asked for
 // again (Flow's cache - see lib/caching.js).
 describe("caching()", function () {
-  const { observable, repeat, caching } = getWorld({ name: "caching" });
+  const { temporal, repeat, caching } = getWorld({ name: "caching" });
 
   it("computes once per argument list, clears on a change, and computes again only when asked", function () {
-    const data = observable({ factor: 2 });
+    const data = temporal({ factor: 2 });
     let computations = 0;
     const times = caching((value) => { computations++; return value * data.factor; });
 
@@ -24,7 +24,7 @@ describe("caching()", function () {
   });
 
   it("whoever read a cached value follows it", function () {
-    const data = observable({ factor: 2 });
+    const data = temporal({ factor: 2 });
     const times = caching((value) => value * data.factor);
     const seen = [];
     repeat(() => { seen.push(times(5)); });
@@ -33,8 +33,8 @@ describe("caching()", function () {
   });
 
   it("tells observables apart by identity, caches undefined, and takes null arguments", function () {
-    const a = observable({ name: "a" });
-    const b = observable({ name: "b" });
+    const a = temporal({ name: "a" });
+    const b = temporal({ name: "b" });
     let computations = 0;
     const nameOf = caching((object) => { computations++; return object ? object.name : undefined; });
     assert.equal(nameOf(a), "a");
@@ -45,7 +45,7 @@ describe("caching()", function () {
   });
 
   it("an invalidated entry leaves nothing behind watching", function () {
-    const data = observable({ factor: 2 });
+    const data = temporal({ factor: 2 });
     let computations = 0;
     const times = caching((value) => { computations++; return value * data.factor; });
     times(1);

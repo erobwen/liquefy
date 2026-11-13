@@ -1,12 +1,12 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable, repeat, withoutRecording } = getWorld();
+const { temporal, repeat, withoutRecording } = getWorld();
        // enterIndependentContext,leaveIndependentContext
 
 describe("Without recording", function(){
 
   it("Non recording", function(){
-    const x = observable({ important: true, irellevant: true});
+    const x = temporal({ important: true, irellevant: true});
     let result = false;
     let repeatCount = 0;
     repeat(()=>{
@@ -37,7 +37,7 @@ describe("Without recording", function(){
 
 
   it("Recording", function(){
-    const x = observable({ important: true, irellevant: true});
+    const x = temporal({ important: true, irellevant: true});
     let result = false;
     let repeatCount = 0;
     repeat(()=>{

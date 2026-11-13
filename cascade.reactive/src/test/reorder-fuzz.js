@@ -19,7 +19,7 @@ import assert from "assert";
 // neighbors, anywhere in the tree, must end up seeing exactly what a
 // fresh, from-scratch evaluation of the *current* structure would produce
 // - never a stale value left over from its old position.
-const { observable, repeat, linkRepeater } = getWorld({
+const { temporal, repeat, linkRepeater } = getWorld({
   name: "reorder-fuzz",
   timeLevels: 6,
 });
@@ -137,7 +137,7 @@ describe("reordering fuzz (random tree shapes, checked against a from-scratch or
     for (let seed = 0; seed < SEEDS; seed++) {
       const random = mulberry32(seed * 7919 + 1);
       nextNodeId = 0;
-      const target = observable({ spaceLeft: ROOT_BUDGET });
+      const target = temporal({ spaceLeft: ROOT_BUDGET });
       const root = buildRandomTree(random, MAX_DEPTH, MAX_CHILDREN);
 
       root.renderOnto(target);
@@ -164,7 +164,7 @@ describe("reordering fuzz (random tree shapes, checked against a from-scratch or
     for (let seed = 0; seed < SEEDS; seed++) {
       const random = mulberry32(seed * 104729 + 17);
       nextNodeId = 0;
-      const target = observable({ spaceLeft: ROOT_BUDGET });
+      const target = temporal({ spaceLeft: ROOT_BUDGET });
       const root = buildRandomTree(random, MAX_DEPTH, MAX_CHILDREN);
       // Children set aside per parent - reused later, matching the
       // "shared child reused across branches" shape (see

@@ -7,7 +7,7 @@ import assert from "assert";
 // everything that runs afterwards, not just what threw.
 describe("exception safety", function () {
   const world = getWorld({ name: "exceptionSafety" });
-  const { observable, repeat, withoutRecording, flush, accessInitialValues, transaction, withoutReactions, state } = world;
+  const { temporal, repeat, withoutRecording, flush, accessInitialValues, transaction, withoutReactions, state } = world;
   const boom = () => { throw new Error("boom"); };
 
   const snapshot = () => ({
@@ -28,7 +28,7 @@ describe("exception safety", function () {
   });
 
   it("the same inside a repeater: its context comes back", function () {
-    const data = observable({ value: 1 });
+    const data = temporal({ value: 1 });
     let contextAfter = null;
     let contextInside = null;
     repeat(() => {
@@ -42,7 +42,7 @@ describe("exception safety", function () {
   });
 
   it("a write inside withoutReactions postpones nothing: later writes still reach their readers", function () {
-    const data = observable({ value: 1 });
+    const data = temporal({ value: 1 });
     const seen = [];
     repeat(() => { seen.push(data.value); });
     withoutReactions(() => { data.value = 2; });
@@ -52,7 +52,7 @@ describe("exception safety", function () {
   });
 
   it("a repeater that throws when rerun: the error reaches the writer - and every other repeater goes on being refreshed", function () {
-    const data = observable({ broken: false, other: 1 });
+    const data = temporal({ broken: false, other: 1 });
     const seen = [];
     repeat(() => { if (data.broken) boom(); });
     repeat(() => { seen.push(data.other); });

@@ -14,13 +14,13 @@ import assert from "assert";
 // key add/remove are invalidated (see invalidateDownstreamEnumerationObservers
 // in cascade.js) - the same forward-only rule a plain property write
 // already gets.
-const { observable, repeat } = getWorld({ name: "enumeration-timeline", timeLevels: 1 });
+const { temporal, repeat } = getWorld({ name: "enumeration-timeline", timeLevels: 1 });
 
 describe("enumeration dependency (position-aware: a key add/remove only invalidates readers positioned after it)", function () {
 
   it("a reader positioned before a key addition is left alone; one positioned after it reruns", function () {
-    const model = observable({});
-    const trigger = observable({ addKey: false });
+    const model = temporal({});
+    const trigger = temporal({ addKey: false });
     let earlyRunCount = 0;
     let lateRunCount = 0;
     let lateKeysSeen = null;
@@ -58,8 +58,8 @@ describe("enumeration dependency (position-aware: a key add/remove only invalida
   // more when it was told of the key itself.
   for (const [change, how] of [["added", (model) => { model.added = 1; }], ["removed", (model) => { delete model.existing; }]]) {
     it("a key " + change + " from outside tells all its enumerating readers before any of them reruns", function () {
-      const model = observable({ existing: 1 });
-      const shared = observable({ count: 0 });
+      const model = temporal({ existing: 1 });
+      const shared = temporal({ count: 0 });
       let secondRuns = 0;
       repeat(() => { shared.count = Object.keys(model).length; });
       repeat(() => {

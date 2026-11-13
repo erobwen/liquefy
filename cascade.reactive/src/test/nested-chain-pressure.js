@@ -20,19 +20,19 @@ import assert from "assert";
 // swapping places after an unrelated rerun, four or more levels deep.
 describe("partial chain pressure release inside deep nesting", function () {
   function build(options) {
-    const { observable, repeat, linkRepeater } = getWorld({
+    const { temporal, repeat, linkRepeater } = getWorld({
       name: "nested-chain-pressure-" + Math.random(),
       ...options,
     });
     // One shared "target" per level, like DOMElementTarget.lastChild: each leaf
     // reads what its predecessor sibling wrote, then writes its own mark.
     const levels = [];
-    const shape = observable({ maxDepth: 1 }); // like RecursiveDemo's own `levels` state
+    const shape = temporal({ maxDepth: 1 }); // like RecursiveDemo's own `levels` state
     const seen = {}; // `${depth}:${leaf}` -> what that leaf saw when it last ran
 
     function level(depth) {
       if (levels[depth]) { linkRepeater(levels[depth].repeater); return; }
-      const target = observable({ last: null });
+      const target = temporal({ last: null });
       const leaves = [];
       const repeater = repeat(() => {
         // three leaf children (like text/input/text), each its own repeater

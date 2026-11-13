@@ -2,7 +2,7 @@ import { getWorld } from "../cascade.js";
 import assert from "assert";
 
 const {
-  observable, repeat, linkRepeater, postponeInvalidations, continueInvalidations,
+  temporal, repeat, linkRepeater, postponeInvalidations, continueInvalidations,
 } = getWorld({ name: "reconciliation-position-staleness", timeLevels: 5 });
 
 // Found via cascade.application/demo's real menu/work-area responsive
@@ -29,9 +29,9 @@ const {
 // happened to run.
 describe("reconciliation position staleness (relinked child after a parent's reconciliation breaks)", function () {
   it("a shared child positioned after a freshly-diverged sibling still sees that sibling's fresh write", function () {
-    const windowSize = observable({ width: 500, height: 800 });
-    const mainFrameContext = observable({ usableWidth: null, usableHeight: null });
-    const menuFrameContext = observable({ usableWidth: null, usableHeight: null });
+    const windowSize = temporal({ width: 500, height: 800 });
+    const mainFrameContext = temporal({ usableWidth: null, usableHeight: null });
+    const menuFrameContext = temporal({ usableWidth: null, usableHeight: null });
 
     let hamburgerRepeater = null;
     let menuRepeater = null;

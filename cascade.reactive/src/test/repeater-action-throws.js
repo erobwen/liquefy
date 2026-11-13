@@ -22,7 +22,7 @@ import assert from "assert";
 // nothing else in the process is dragged down with it.
 describe("a repeaterAction that throws does not corrupt state.context for anything else", function () {
   it("an unrelated, later repeater still reads/writes correctly after an earlier one's action threw", function () {
-    const { observable, repeat } = getWorld({ name: "repeater-action-throws-" + Math.random() });
+    const { temporal, repeat } = getWorld({ name: "repeater-action-throws-" + Math.random() });
 
     assert.throws(() => {
       repeat(() => {
@@ -39,7 +39,7 @@ describe("a repeaterAction that throws does not corrupt state.context for anythi
     // throwing test) needed a *later sibling* reading what an *earlier*
     // one wrote, exactly like DOMElementTarget's own lastChild, so exercise that
     // shape directly.
-    const target = observable({ last: null });
+    const target = temporal({ last: null });
     let secondSaw;
     repeat(() => {
       repeat(() => { target.last = "first"; });
@@ -50,7 +50,7 @@ describe("a repeaterAction that throws does not corrupt state.context for anythi
   });
 
   it("a throw nested several repeaters deep still fully unwinds state.context", function () {
-    const { observable, repeat } = getWorld({ name: "repeater-action-throws-nested-" + Math.random() });
+    const { temporal, repeat } = getWorld({ name: "repeater-action-throws-nested-" + Math.random() });
 
     assert.throws(() => {
       repeat(() => {
@@ -62,7 +62,7 @@ describe("a repeaterAction that throws does not corrupt state.context for anythi
       });
     }, /deep boom/);
 
-    const target = observable({ last: null });
+    const target = temporal({ last: null });
     let secondSaw;
     repeat(() => {
       repeat(() => { target.last = "first"; });
@@ -72,7 +72,7 @@ describe("a repeaterAction that throws does not corrupt state.context for anythi
   });
 
   it("restarting a repeater whose action throws leaves later, unrelated repeaters unaffected", function () {
-    const { observable, repeat } = getWorld({ name: "repeater-action-throws-restart-" + Math.random() });
+    const { temporal, repeat } = getWorld({ name: "repeater-action-throws-restart-" + Math.random() });
 
     let shouldThrow = false;
     const flaky = repeat(() => {
@@ -82,7 +82,7 @@ describe("a repeaterAction that throws does not corrupt state.context for anythi
     shouldThrow = true;
     assert.throws(() => flaky.restart(), /restart boom/);
 
-    const target = observable({ last: null });
+    const target = temporal({ last: null });
     let secondSaw;
     repeat(() => {
       repeat(() => { target.last = "first"; });

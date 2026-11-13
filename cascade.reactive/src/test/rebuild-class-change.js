@@ -10,7 +10,7 @@ import assert from "assert";
 // object disposed.
 describe("rebuild: same build id, different class", function () {
   it("constructs a fresh object of the new class, and disposes the one it replaces", function () {
-    const { observable, repeat } = getWorld({ name: "rebuild-class-change-" + Math.random() });
+    const { temporal, repeat } = getWorld({ name: "rebuild-class-change-" + Math.random() });
 
     const disposed = [];
     class Plain {
@@ -24,11 +24,11 @@ describe("rebuild: same build id, different class", function () {
       onDispose() { disposed.push("fancy:" + this.label); }
     }
 
-    const choice = observable({ fancy: false, label: "one" });
+    const choice = temporal({ fancy: false, label: "one" });
     let built = [];
     repeat(() => {
       const Kind = choice.fancy ? Fancy : Plain;
-      built.push(observable(new Kind(choice.label), "save"));
+      built.push(temporal(new Kind(choice.label), "save"));
     });
     const first = built[0];
 

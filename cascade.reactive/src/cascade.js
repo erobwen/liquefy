@@ -131,8 +131,10 @@ function createWorld(configuration) {
     
     // Main API
     observable,
+    temporal,
     deeplyObservable,
     isObservable,
+    isTemporal,
     invalidateOnChange,
     repeat,
     linkRepeater,
@@ -832,8 +834,8 @@ function createWorld(configuration) {
   // what it did itself).
   function observeArray(handler, kind, index) {
     const timeline = handler.elements;
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(handler);
+    const writer = writerOf(handler);
     const writing = seekWriting(timeline, time, writer);
     if (state.inActiveRecording) {
       let recordOn = writing;
@@ -854,7 +856,7 @@ function createWorld(configuration) {
   // is not what an external *read* sees (the latest), but the baseline.
   // Live - see moveArrayCursor().
   function contentAtWritePosition(handler) {
-    return moveArrayCursor(handler.elements, seekWriting(handler.elements, currentTime(), currentWriter()));
+    return moveArrayCursor(handler.elements, seekWriting(handler.elements, writeTimeOf(handler), writerOf(handler)));
   }
 
   // The writing a write to the elements lands on: the current partial's
@@ -865,12 +867,12 @@ function createWorld(configuration) {
   // repeater), else a new one.
   function arrayWritingForWrite(handler) {
     const timeline = handler.elements;
-    const context = state.context;
+    const context = writingContextOf(handler);
     let writing = context && context.writings ? context.writings.get(timeline) : undefined;
     if (typeof(writing) !== "undefined") return writing;
 
-    const time = currentTime();
-    const writer = currentWriter();
+    const time = writeTimeOf(handler);
+    const writer = writerOf(handler);
     const repeater = writer !== null ? writer.repeater : null;
     const staleQueue = repeater !== null && repeater.staleWritings !== null
       ? repeater.staleWritings.get(timeline)
@@ -1223,8 +1225,8 @@ function createWorld(configuration) {
     if (staticArrayOverrides[key]) return staticArrayOverrides[key].bind(this);
     if (key in Array.prototype || Object.prototype.hasOwnProperty.call(target, key)) return target[key];
 
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(this);
+    const writer = writerOf(this);
     if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time, writer);
     return readTimelineValue(this, key, time, writer);
   }
@@ -1248,7 +1250,7 @@ function createWorld(configuration) {
       // repeater, a write is always written - it's relative to whatever
       // comes before it, which may yet change.)
       const visible = contentAtWritePosition(this);
-      if (currentWriter() === null && visible.length === length) return true;
+      if (writerOf(this) === null && visible.length === length) return true;
       const previousLength = visible.length;
       mutateArray(this, { kind: "length", value: length });
       emitSetEvent(this, key, length, previousLength);
@@ -1259,7 +1261,7 @@ function createWorld(configuration) {
       const index = Number(key);
       const visible = contentAtWritePosition(this);
       const previousValue = visible[index];
-      if (currentWriter() === null && index in visible && sameAsPrevious(previousValue, value)) return true;
+      if (writerOf(this) === null && index in visible && sameAsPrevious(previousValue, value)) return true;
       mutateArray(this, { kind: "set", index, value });
       emitSpliceReplaceEvent(this, index, value, previousValue);
       return true;
@@ -1293,7 +1295,7 @@ function createWorld(configuration) {
     if (isArrayIndex(key)) {
       const index = Number(key);
       const visible = contentAtWritePosition(this);
-      if (currentWriter() === null && !(index in visible)) return true;
+      if (writerOf(this) === null && !(index in visible)) return true;
       const previousValue = visible[index];
       mutateArray(this, { kind: "delete", index });
       emitDeleteEvent(this, key, previousValue);
@@ -1314,8 +1316,8 @@ function createWorld(configuration) {
     }
 
     const content = observeArray(this, "whole");
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(this);
+    const writer = writerOf(this);
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer);
     const keys = Object.keys(content);
     keys.push("length");
@@ -1445,7 +1447,7 @@ function createWorld(configuration) {
   // repeater's own writing (made absolute).
   function translateArrayElementsSilently(handler, translate) {
     const timeline = handler.elements;
-    const writing = seekWriting(timeline, currentTime(), currentWriter());
+    const writing = seekWriting(timeline, writeTimeOf(handler), writerOf(handler));
     const content = moveArrayCursor(timeline, writing);
     let changed = false;
     const translated = content.slice();
@@ -2628,6 +2630,27 @@ function createWorld(configuration) {
   }
 
 
+  // Where an access to this object happens - see "Timeless and temporal
+  // objects". For a timeless one: always from outside, whoever does it - a
+  // write at the baseline, a read of what is there, and no repeater
+  // keeping a writing of its own (so nothing of it is retracted with one).
+  function writeTimeOf(handler) {
+    return handler.timeless ? 0 : currentTime();
+  }
+
+  function readTimeOf(handler) {
+    return handler.timeless ? Infinity : currentReadTime();
+  }
+
+  function writerOf(handler) {
+    return handler.timeless ? null : currentWriter();
+  }
+
+  function writingContextOf(handler) {
+    return handler.timeless ? null : state.context;
+  }
+
+
   /***************************************************************
    *
    *  Object Handlers
@@ -2650,8 +2673,8 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(this);
+    const writer = writerOf(this);
     if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time, writer);
 
     let scan = target;
@@ -2730,8 +2753,8 @@ function createWorld(configuration) {
   // way, so a delete from inside a repeater is seen only by what comes
   // after it, and undone when it reruns or is retracted, just like a set.
   function writeProperty(handler, key, value, isSet) {
-    const time = currentTime();
-    const writer = currentWriter();
+    const time = writeTimeOf(handler);
+    const writer = writerOf(handler);
 
     // A write at the baseline to a property without a timeline - nothing
     // has read it from a repeater, and nothing but the baseline has
@@ -2759,7 +2782,7 @@ function createWorld(configuration) {
     }
 
     const timeline = getOrCreateTimeline(handler, key);
-    const context = state.context;
+    const context = writingContextOf(handler);
 
     // Did this exact partial already write this exact timeline earlier in
     // this same run (a plain repeated write, no child boundary in
@@ -2922,8 +2945,8 @@ function createWorld(configuration) {
       return;
     }
 
-    const time = currentTime();
-    const writer = currentWriter();
+    const time = writeTimeOf(this);
+    const writer = writerOf(this);
 
     // From inside a repeater: a writing of its own, at its own position -
     // never an unset of whatever earlier writing it would read.
@@ -2970,8 +2993,8 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(this);
+    const writer = writerOf(this);
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer);
 
     return objectKeys(this, time, writer);
@@ -2988,8 +3011,8 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(this);
+    const writer = writerOf(this);
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer)
     if (typeof(this.timelines[key]) === 'undefined') return key in target;
     if (hasTimelineValue(this, key, time, writer)) return true;
@@ -3014,7 +3037,7 @@ function createWorld(configuration) {
     if ("value" in descriptor && typeof(descriptor.value) !== "function") {
       return writeProperty(this, key, descriptor.value, true);
     }
-    invalidateEnumerateObservers(this, key, currentTime(), currentWriter());
+    invalidateEnumerateObservers(this, key, writeTimeOf(this), writerOf(this));
     return Reflect.defineProperty(target, key, descriptor);
   }
 
@@ -3029,8 +3052,8 @@ function createWorld(configuration) {
       return cannotReadPropertyValue;
     }
 
-    const time = currentReadTime();
-    const writer = currentWriter();
+    const time = readTimeOf(this);
+    const writer = writerOf(this);
     if (state.inActiveRecording) recordDependencyOnEnumeration(state.context, this, time, writer)
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     // Unless the target only holds the key's place - see "Lazy timelines".
@@ -3058,7 +3081,44 @@ function createWorld(configuration) {
   }
 
 
-  function observable(target, buildId) { // created target
+  /***************************************************************
+   *
+   *  Timeless and temporal objects
+   *
+   *  observable() creates a timeless object: it has one value per
+   *  property, whoever writes it and whenever - a write from inside a
+   *  repeater is seen by every reader, before it or after, and stays
+   *  when the repeater reruns or is retracted. What an application's
+   *  models, a component and its context are: read and written across
+   *  pipelines, never along one.
+   *
+   *  temporal() creates a temporal signal: a write from inside a repeater
+   *  is a writing of its own at that repeater's position, seen only by
+   *  what comes after it, replaced when the repeater reruns and gone when
+   *  it is retracted. What a pipeline threads its state through as it
+   *  goes along - a render target, a sequence of pages being laid out.
+   *
+   *  A timeless object is a temporal one accessed from outside any
+   *  repeater, always (see writeTimeOf() and the like): it never has
+   *  more than a baseline writing per property - and, its data being kept
+   *  on its target until a repeater reads it (see "Lazy timelines"), often
+   *  not even that.
+   *
+   ***************************************************************/
+
+  function observable(target, buildId) {
+    return createObservable(target, buildId, true);
+  }
+
+  function temporal(target, buildId) {
+    return createObservable(target, buildId, false);
+  }
+
+  function isTemporal(entity) {
+    return isObservable(entity) && !entity[objectMetaProperty].handler.timeless;
+  }
+
+  function createObservable(target, buildId, timeless) { // created target
     if (typeof(target) === 'undefined') {
       target = {};
     }
@@ -3131,6 +3191,7 @@ function createWorld(configuration) {
 
     handler.target = target;
     handler.proxy = proxy;
+    handler.timeless = timeless;
 
     handler.meta = {
       world: world,
@@ -4734,8 +4795,8 @@ function createWorld(configuration) {
           // Through the timeline read/write interface, for the plain
           // data properties that live in handler.timelines (an array's
           // other properties too).
-          const time = currentTime();
-          const writer = currentWriter();
+          const time = writeTimeOf(handler);
+          const writer = writerOf(handler);
           timelineDataKeys(handler, time, writer).forEach(function(key) {
             const value = readTimelineValue(handler, key, time, writer);
             const translated = translateReference(value);

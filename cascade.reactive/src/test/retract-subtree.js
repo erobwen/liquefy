@@ -18,9 +18,9 @@ describe("retracting a tree of repeaters", function () {
   }
 
   it("runs nothing in it again - a reader after a retracted writer isn't rerun against what's undone", function () {
-    const { observable, repeat, retractRepeater } = world();
+    const { temporal, repeat, retractRepeater } = world();
     // A render target of sorts: where the next thing goes.
-    const target = observable({ next: null });
+    const target = temporal({ next: null });
     const placed = [];
     const root = repeat(() => {
       // A section starting its paper...
@@ -42,8 +42,8 @@ describe("retracting a tree of repeaters", function () {
   });
 
   it("still tells readers outside the tree - their input is gone, so they rerun", function () {
-    const { observable, repeat, retractRepeater } = world();
-    const target = observable({ next: null });
+    const { temporal, repeat, retractRepeater } = world();
+    const target = temporal({ next: null });
     const root = repeat(() => {
       repeat(() => {
         target.next = { y: 10 };
@@ -60,9 +60,9 @@ describe("retracting a tree of repeaters", function () {
   });
 
   it("can be relinked and run again after - as a retracted child always could", function () {
-    const { observable, repeat } = world();
-    const model = observable({ shown: true, y: 10 });
-    const target = observable({ next: null });
+    const { temporal, repeat } = world();
+    const model = temporal({ shown: true, y: 10 });
+    const target = temporal({ next: null });
     const placed = [];
     repeat(() => {
       if (!model.shown) return;

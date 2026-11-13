@@ -18,13 +18,13 @@ import assert from "assert";
 // was discovered, even though B was always going to cancel it out first -
 // "invalidation traveling faster than the computation front". Both tests
 // share the same shape; only whether B's revert exists differs.
-const { observable, repeat } = getWorld({ name: "flagged-repeaters", timeLevels: 2 });
+const { temporal, repeat } = getWorld({ name: "flagged-repeaters", timeLevels: 2 });
 
 describe("flagged repeaters (deferred recheck instead of an immediate invalidation)", function () {
 
   it("a later, closer write that gets reverted before the reader is reached never causes that reader to rerun", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "original" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "original" });
     let cRunCount = 0;
     let cSeenValue = null;
 
@@ -57,8 +57,8 @@ describe("flagged repeaters (deferred recheck instead of an immediate invalidati
   });
 
   it("a genuine, lasting change (nothing reverts it) still reaches a flagged reader", function () {
-    const model = observable({ trigger: false });
-    const shared = observable({ p: "original" });
+    const model = temporal({ trigger: false });
+    const shared = temporal({ p: "original" });
     let cRunCount = 0;
     let cSeenValue = null;
 

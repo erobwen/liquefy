@@ -1,6 +1,6 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable, repeat } = getWorld();
+const { temporal, repeat } = getWorld();
 
 describe("Observe", function(){
 

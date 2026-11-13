@@ -12,9 +12,9 @@ import assert from "assert";
 // run whose partial is already disposed.
 describe("a repeater retracted while it runs", function () {
   it("leaves nothing behind - neither what it did before, nor what it did after - and doesn't run again", function () {
-    const { observable, repeat, retractRepeater } = getWorld({ name: "retracted-while-running-" + Math.random() });
-    const model = observable({ before: 1, after: 1 });
-    const output = observable({ value: "none" });
+    const { temporal, repeat, retractRepeater } = getWorld({ name: "retracted-while-running-" + Math.random() });
+    const model = temporal({ before: 1, after: 1 });
+    const output = temporal({ value: "none" });
     let runs = 0;
     let childRuns = 0;
     let self = null;

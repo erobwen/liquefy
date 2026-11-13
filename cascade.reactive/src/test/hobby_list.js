@@ -1,11 +1,11 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable, repeat } = getWorld({name: "hobby"});
+const { temporal, repeat } = getWorld({name: "hobby"});
 
 describe("object tree modifications", function(){
 
 	let cnt = 0;
-	const state = observable({});
+	const state = temporal({});
 	let out = {};
 	
 	repeat(function(){
@@ -24,13 +24,13 @@ describe("object tree modifications", function(){
 	});
 
 	it("Setting a", function(){
-		state.a = observable({name:"Apa"});
+		state.a = temporal({name:"Apa"});
 		assert.equal(cnt,2);
 		assert.equal(out.a, undefined);
 	});
 
 	it("Setting a.hobby", function(){
-		state.a.hobby = observable([]);
+		state.a.hobby = temporal([]);
 		assert.equal(cnt,3);
 		//log(state['a'].hobby);
 		//log(state['a'].hobby.length);

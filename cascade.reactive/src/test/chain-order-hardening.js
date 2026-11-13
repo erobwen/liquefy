@@ -55,8 +55,8 @@ describe("partial chain order - insert/remove position and timing coverage", fun
   });
 
   it("insert-middle: children created one at a time inside a parent, interleaved with the parent's own writes, land strictly between their neighbors", function () {
-    const { observable, repeat, linkRepeater } = getWorld({ name: "chain-hardening-insert-middle-" + Math.random() });
-    const target = observable({ value: 0 });
+    const { temporal, repeat, linkRepeater } = getWorld({ name: "chain-hardening-insert-middle-" + Math.random() });
+    const target = temporal({ value: 0 });
     const children = [];
     let pendingCount = 1;
 
@@ -233,8 +233,8 @@ describe("partial chain order - insert/remove position and timing coverage", fun
     // after being moved, the repositioned node's order number must sit
     // strictly after whatever was current at the moment of the move, and
     // strictly before whatever gets created next.
-    const { observable, repeat, linkRepeater } = getWorld({ name: "chain-hardening-move-" + Math.random() });
-    const target = observable({ usableWidth: null });
+    const { temporal, repeat, linkRepeater } = getWorld({ name: "chain-hardening-move-" + Math.random() });
+    const target = temporal({ usableWidth: null });
     let hamburger, menu, workArea;
     let isModal = true;
 

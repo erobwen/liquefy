@@ -20,10 +20,10 @@ npm install @liquefy/cascade.reactive
 
 ```js
 import getWorld from "@liquefy/cascade.reactive";
-const { observable, repeat } = getWorld({ name: "example" });
+const { temporal, repeat } = getWorld({ name: "example" });
 
 // The same object, read and written along a pipeline of repeaters.
-const layout = observable({ width: 1000 });
+const layout = temporal({ width: 1000 });
 
 repeat(() => {
   repeat(() => console.log("Header sees width", layout.width));  // before the write
@@ -107,6 +107,20 @@ In every other aspect, a causality object behaves just as an ordinary Javascript
 If you find it too cumbersome to write "observable" upon every object creation, you can create an alias "o":
 
     o({a: 1, b: 2});
+
+## temporal
+
+observable() creates a *timeless* object: it has one value per property, whoever writes it and whenever. A write from inside a repeater reaches every reader of the property, wherever that reader is in the pipeline, and stays when the repeater reruns or is retracted. This is what an application's models are - and Cascade's components and render contexts - and it is the cheap kind: its data is kept as plain properties until a repeater reads them.
+
+temporal() creates a *temporal signal* - the kind in the example at the top:
+
+    temporal({ width: 1000 });
+    temporal([]);
+    temporal(new MyRenderTarget());
+
+A write to it from inside a repeater is a writing of its own, at that repeater's position in the pipeline: seen only by the readers after it, replaced when the repeater reruns, and gone when it is retracted. Use it for what a pipeline threads its state through as it goes along - a render target, the pages of a document being laid out. isTemporal(object) tells the two apart; isObservable(object) is true for both.
+
+A repeater that reads a property of a timeless object and then writes another value to it reruns - until it writes the same value again. So `model.count = model.count + 1` in a repeater never settles on a timeless object; on a temporal one it reads what came before it and writes its own.
 
 To access the inner workings of a causality object, you can access it by the causality property. For example write object.causality.id to get a system wide unique id for that particular object. 
 

@@ -5,13 +5,13 @@ import assert from "assert";
 // property needs a timeline: when a repeater first reads it, or when it is
 // first written anywhere but the baseline. Nothing an application sees
 // depends on which of the two a property currently is.
-const { observable, repeat, withoutRecording } = getWorld({ name: "lazy-timelines", timeLevels: 3 });
+const { temporal, repeat, withoutRecording } = getWorld({ name: "lazy-timelines", timeLevels: 3 });
 
 const timelineKeys = (object) => Object.keys(object.causality.handler.timelines);
 
 describe("lazy timelines", function () {
   it("creating, reading and writing from outside any repeater creates no timeline", function () {
-    const model = observable({ a: 1, b: "two" });
+    const model = temporal({ a: 1, b: "two" });
     assert.equal(model.a, 1);
     model.a = 2;
     model.c = 3;
@@ -24,7 +24,7 @@ describe("lazy timelines", function () {
   });
 
   it("an unrecorded read from inside a repeater creates no timeline", function () {
-    const model = observable({ a: 1 });
+    const model = temporal({ a: 1 });
     let seen;
     repeat(() => { seen = withoutRecording(() => model.a); });
     assert.equal(seen, 1);
@@ -32,7 +32,7 @@ describe("lazy timelines", function () {
   });
 
   it("only the property a repeater reads gets a timeline - and reacts as ever", function () {
-    const model = observable({ a: 1, b: 2, c: 3 });
+    const model = temporal({ a: 1, b: 2, c: 3 });
     const seen = [];
     repeat(() => { seen.push(model.b); });
     assert.deepEqual(timelineKeys(model), ["b"]);
@@ -46,7 +46,7 @@ describe("lazy timelines", function () {
   });
 
   it("a write before the first read is what that read sees", function () {
-    const model = observable({ a: 1 });
+    const model = temporal({ a: 1 });
     model.a = 2;
     const seen = [];
     repeat(() => { seen.push(model.a); });
@@ -55,7 +55,7 @@ describe("lazy timelines", function () {
   });
 
   it("the order of the keys doesn't depend on which were read by a repeater", function () {
-    const model = observable({ a: 1, b: 2, c: 3, d: 4 });
+    const model = temporal({ a: 1, b: 2, c: 3, d: 4 });
     repeat(() => model.c);
     repeat(() => model.a);
     model.e = 5;
@@ -65,7 +65,7 @@ describe("lazy timelines", function () {
   });
 
   it("a write from a repeater to an unread property is seen after it, not before", function () {
-    const model = observable({ w: 5 });
+    const model = temporal({ w: 5 });
     let before, after;
     repeat(() => {
       repeat(() => { before = withoutRecording(() => model.w); });
@@ -78,8 +78,8 @@ describe("lazy timelines", function () {
   });
 
   it("a write at a later time leaves the baseline for those before it - and is retracted with its repeater", function () {
-    const model = observable({ w: 5 });
-    const control = observable({ write: true });
+    const model = temporal({ w: 5 });
+    const control = temporal({ write: true });
     const seen = [];
     repeat(() => { seen.push("early " + model.w); }, { time: 0 });
     repeat(() => { if (control.write) model.w = 6; }, { time: 1 });
@@ -92,8 +92,8 @@ describe("lazy timelines", function () {
   });
 
   it("a delete from a repeater of an unread property is seen after it - and is undone with it", function () {
-    const model = observable({ a: 1, w: 5 });
-    const control = observable({ remove: true });
+    const model = temporal({ a: 1, w: 5 });
+    const control = temporal({ remove: true });
     const seen = [];
     repeat(() => { if (control.remove) delete model.w; }, { time: 0 });
     repeat(() => { seen.push(Object.keys(model).join()); }, { time: 1 });
@@ -108,7 +108,7 @@ describe("lazy timelines", function () {
   });
 
   it("a deleted property that was read by a repeater is gone, whatever is asked", function () {
-    const model = observable({ a: 1, b: 2 });
+    const model = temporal({ a: 1, b: 2 });
     const seen = [];
     repeat(() => { seen.push(model.a); });
     delete model.a;
@@ -126,7 +126,7 @@ describe("lazy timelines", function () {
   });
 
   it("a new key written from outside reruns whoever enumerated the keys", function () {
-    const model = observable({ a: 1 });
+    const model = temporal({ a: 1 });
     const seen = [];
     repeat(() => { seen.push(Object.keys(model).join()); });
     model.b = 2;
@@ -141,7 +141,7 @@ describe("lazy timelines", function () {
       constructor() { this.size = 1; }
     }
     Thing.prototype.size = "inherited";
-    const thing = observable(new Thing());
+    const thing = temporal(new Thing());
     repeat(() => thing.size);
     delete thing.size;
     assert.equal(thing.size, "inherited");
@@ -151,7 +151,7 @@ describe("lazy timelines", function () {
 
   it("methods and accessors stay what they were", function () {
     const calls = [];
-    const model = observable({
+    const model = temporal({
       count: 1,
       get double() { return this.count * 2; },
       increase() { this.count++; },
@@ -166,7 +166,7 @@ describe("lazy timelines", function () {
 
   it("a change event carries the previous value, read by a repeater or not", function () {
     const events = [];
-    const model = observable({
+    const model = temporal({
       a: 1,
       b: 1,
       onChange(event) {

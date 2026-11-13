@@ -15,10 +15,10 @@ describe("invalidated while running", function () {
   }
 
   it("a read of its previous run, not reached yet, rewritten by a repeater it pulls: no crash, and no rerun for it", function () {
-    const { observable, repeat, refreshIfNeeded } = world();
-    const input = observable({ n: 1 });
-    const shared = observable({ value: 0 });
-    const out = observable({ read: null });
+    const { temporal, repeat, refreshIfNeeded } = world();
+    const input = temporal({ n: 1 });
+    const shared = temporal({ value: 0 });
+    const out = temporal({ read: null });
     let reader;
     let writer;
     const seen = [];
@@ -44,10 +44,10 @@ describe("invalidated while running", function () {
   });
 
   it("a read it has already made this run, changed later in the run by a repeater it pulls: rerun right after, not left stale", function () {
-    const { observable, repeat, refreshIfNeeded } = world();
-    const input = observable({ n: 1 });
-    const shared = observable({ value: 0 });
-    const out = observable({ read: null });
+    const { temporal, repeat, refreshIfNeeded } = world();
+    const input = temporal({ n: 1 });
+    const shared = temporal({ value: 0 });
+    const out = temporal({ read: null });
     let reader;
     let writer;
     const seen = [];
@@ -68,9 +68,9 @@ describe("invalidated while running", function () {
   });
 
   it("the same, at initial time (accessInitialValues(), as setState() writes)", function () {
-    const { observable, repeat, refreshIfNeeded, accessInitialValues } = world();
-    const input = observable({ n: 1 });
-    const shared = observable({ value: 0 });
+    const { temporal, repeat, refreshIfNeeded, accessInitialValues } = world();
+    const input = temporal({ n: 1 });
+    const shared = temporal({ value: 0 });
     const seen = [];
     let writer;
     let puller = null;

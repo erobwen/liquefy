@@ -1,6 +1,6 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { observable, repeat } = getWorld();
+const { temporal, repeat } = getWorld();
 
 describe("Classes", function () {
 
@@ -8,7 +8,7 @@ describe("Classes", function () {
 	  constructor( myid ){
 		  this.propA = myid;
       this.propB = 0;
-      return observable( this );
+      return temporal( this );
     }
 
     dostuff()

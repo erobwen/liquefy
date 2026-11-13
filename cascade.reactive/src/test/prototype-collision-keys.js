@@ -15,12 +15,12 @@ import assert from "assert";
 // function standing in for a real timeline, crashing reading `.time` off
 // it. Fixed by using Object.create(null) for the timelines map instead
 // of `{}` (see observable()'s own handler construction).
-const { observable, repeat } = getWorld({ name: "prototype-collision-keys", timeLevels: 3 });
+const { temporal, repeat } = getWorld({ name: "prototype-collision-keys", timeLevels: 3 });
 
 describe("reading a property whose name collides with Object.prototype", function () {
 
   it("a plain property named 'toString' reads/writes normally, even before this object ever had a real toString() method", function () {
-    const target = observable({});
+    const target = temporal({});
     target.toString = "not a function, just a string value";
     assert.equal(target.toString, "not a function, just a string value");
   });
@@ -29,7 +29,7 @@ describe("reading a property whose name collides with Object.prototype", functio
     class Named {
       constructor(name) {
         this.name = name;
-        return observable(this);
+        return temporal(this);
       }
       toString() {
         return "Named(" + this.name + ")";
@@ -47,7 +47,7 @@ describe("reading a property whose name collides with Object.prototype", functio
   });
 
   it("other Object.prototype-colliding names ('valueOf', 'hasOwnProperty', 'constructor') read as undefined when never written, not as the inherited built-in", function () {
-    const target = observable({});
+    const target = temporal({});
     // None of these were ever written as an *observable* property, so a
     // read must fall through to the plain, unobserved `target[key]` -
     // which for a bare {} means the same inherited built-ins JS always

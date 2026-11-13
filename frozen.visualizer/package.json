@@ -12,10 +12,10 @@
     "test": "mocha ./src/test"
   },
   "dependencies": {
-    "@liquefy/cascade.component": "^2.0.0",
-    "@liquefy/cascade.dom": "^2.0.0",
-    "@liquefy/cascade.reactive": "^2.0.0",
-    "@liquefy/cascade.ui": "^2.0.0",
+    "@liquefy/cascade.component": "^3.0.0",
+    "@liquefy/cascade.dom": "^3.0.0",
+    "@liquefy/cascade.reactive": "^3.0.0",
+    "@liquefy/cascade.ui": "^3.0.0",
     "@liquefy/frozen": "*",
     "cytoscape": "^3.34.4",
     "cytoscape-bubblesets": "^4.1.0",

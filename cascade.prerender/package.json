@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.prerender",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Cascade prerendered: every address of a built app rendered in a real browser and written down as a page of its own - for search engines, link previews and AI - with head tags, structured data and a sitemap. A Vite plugin and a CLI.",
   "keywords": [
     "prerender",
@@ -48,8 +48,8 @@
     "playwright": "^1.48.0"
   },
   "peerDependencies": {
-    "@liquefy/cascade.component": "^2.0.0",
-    "@liquefy/cascade.dom": "^2.1.0"
+    "@liquefy/cascade.component": "^3.0.0",
+    "@liquefy/cascade.dom": "^3.0.0"
   },
   "peerDependenciesMeta": {
     "@liquefy/cascade.component": {

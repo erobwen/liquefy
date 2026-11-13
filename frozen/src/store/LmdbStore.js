@@ -69,6 +69,15 @@ export class LmdbStore {
     return result;
   }
 
+  /** The first key starting with `prefix`, or undefined. */
+  first(prefix) {
+    for (const key of this.db.getKeys({ start: prefix, end: prefix + END, limit: 1 })) {
+      if (this.observers.length > 0) this.notifyRead(key);
+      return key;
+    }
+    return undefined;
+  }
+
   /** Keys starting with `prefix`, in order. */
   keys(prefix) {
     const result = [];
@@ -127,6 +136,10 @@ class Transaction {
   delete(key) {
     this.store.db.removeSync(key);
     this.store.writes?.set(key, undefined);
+  }
+
+  first(prefix) {
+    return this.store.first(prefix);
   }
 
   range(prefix) {

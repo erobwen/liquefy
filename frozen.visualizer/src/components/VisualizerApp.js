@@ -46,12 +46,40 @@ function regionChip(region) {
     {
       style: {
         display: "inline-block", padding: "0 6px", margin: "1px 3px 1px 0", borderRadius: "3px",
-        fontFamily: "ui-monospace, monospace", fontSize: "11px", border: `1.5px solid ${colors.unstable}`, color: colors.text,
+        fontFamily: "ui-monospace, monospace", fontSize: "11px", border: `1.5px solid ${colors.unstable}`, color: colors.text, cursor: "pointer",
       },
       title: `The whole suspended cluster ${region}`,
+      onclick: () => select$(`R:${region}`),
     },
     text(`cluster ${region}`),
   );
+}
+
+/** A cluster id that selects the cluster when clicked. */
+function clusterChip(id, note = "") {
+  const active = model.selected === `R:${id}`;
+  return span(
+    {
+      style: {
+        display: "inline-block", padding: "0 6px", margin: "1px 3px 1px 0", borderRadius: "3px", cursor: "pointer",
+        fontFamily: "ui-monospace, monospace", fontSize: "11px", border: `1px solid ${colors.metaBorder}`,
+        background: active ? colors.selected : colors.region, color: active ? "#ffffff" : colors.text,
+      },
+      onclick: () => select$(active ? null : `R:${id}`),
+    },
+    text(note ? `${id} ${note}` : id),
+  );
+}
+
+/** The frames of a recording that are application transactions (computed once). */
+function transactionFrames(recording) {
+  if (!recording.transactionFrames) {
+    recording.transactionFrames = [];
+    for (let i = 0; i < recording.timeline.length; i++) {
+      if (recording.timeline.frame(i).kind === "transaction") recording.transactionFrames.push(i);
+    }
+  }
+  return recording.transactionFrames;
 }
 
 function section(title, ...children) {
@@ -135,12 +163,14 @@ function legend(view, cohortColors) {
     regionItem({ border: `2px dashed ${colors.structure}` }, "structure task pending"),
     regionItem({ background: `${unstable}1a`, border: `3px solid ${unstable}` }, `suspended: everything in it is unstable as a unit${cohortNote}`),
     regionItem({ border: `1px solid ${colors.regionBorder}`, boxShadow: `0 0 0 4px ${colors.subject}` }, "this step's region or meta-region"),
+    regionItem({ border: `1px solid ${colors.regionBorder}`, outline: `3px solid ${colors.selected}`, outlineOffset: "1px" }, "selected (click a box): its record is in the Step tab, and only its flags are drawn"),
     regionItem({ border: `1px dotted ${colors.regionBorder}`, opacity: 0.5 }, "deleted, still shown"),
     legendHeading("Edges"),
     edgeItem({ borderTop: `3px solid ${colors.tree}` }, "spanning tree"),
     edgeItem({ borderTop: `1px solid ${colors.edge}` }, "reference"),
     edgeItem({ borderTop: `2px dotted ${colors.weak}` }, "weak reference"),
     edgeItem({ borderTop: `2px dashed ${colors.flag}` }, "entry flag (regions)"),
+    edgeItem({ borderTop: `2px dotted ${colors.flag}`, opacity: 0.6 }, "entry flag copied in a move, not verified since: it may be stale"),
     edgeItem({ borderTop: `2px solid ${colors.selected}` }, "selected's edges (others fade)"),
   );
 }
@@ -200,6 +230,7 @@ export class VisualizerApp extends Component {
                 selected: model.selected,
                 onSelect: callback("select", select$),
                 showFlags: model.showFlags,
+                metaFlags: model.metaFlags,
                 showWeak: model.showWeak,
                 cohortColors: model.cohortColors,
                 cohortOutlines: model.cohortOutlines,
@@ -337,20 +368,58 @@ export class VisualizerApp extends Component {
     );
   }
 
+  /** The panel of a selected region or meta-region: its record, and how it hangs in the tree. */
+  clusterSelection(view) {
+    const id = model.selected.slice(2);
+    const cluster = view.regions.find((region) => region.id === id);
+    if (!cluster || !cluster.record) return section("Selected", muted(`Cluster ${id} does not exist at this frame.`));
+    const { record } = cluster;
+    const explicit = Object.entries(record.explicit ?? {});
+    const states = [
+      cluster.suspended ? `suspended in ${cluster.suspended.cohort}` : null,
+      record.expanding ? "resumed, expanding" : null,
+      record.settling ? "materialized, settling" : null,
+      record.pinned ? "pinned" : null,
+      cluster.pending ? "structure task pending" : null,
+    ].filter(Boolean);
+    const facts = [
+      [cluster.level > 0 ? `meta-region, level ${cluster.level}` : "region", states.join(", ") || "at rest"],
+      ["in", record.container ?? "the top level"],
+      [cluster.level > 0 ? "clusters" : "members", cluster.members],
+      ["objects inside", record.objects ?? 0],
+      ...(cluster.level === 0 ? [["weight (objects + edges)", record.weight ?? 0]] : []),
+      ["deferred inside", record.deferred ?? 0],
+      ["explicitly unstable inside", explicit.length ? explicit.map(([cohort, count]) => `${count} in ${view.rootOf(cohort)}`).join(", ") : "none"],
+    ];
+    const list = (title, items) => div({ style: { marginTop: "4px" } }, muted(`${title}: `), ...(items.length ? items : [muted("none")]));
+    const inside = view.regions.filter((region) => region.container === id);
+    return section(
+      `Selected: ${id}`,
+      ...facts.map(([name, value]) => div(muted(`${name}: `), text(String(value)))),
+      cluster.level > 0 ? list("holds", inside.map((region) => clusterChip(region.id))) : null,
+      list("tree edges into it, from", cluster.entries.map((entry) => clusterChip(entry.cluster, `×${entry.count}`))),
+      list("tree edges out of it, to", cluster.exits.map((exit) => clusterChip(exit.cluster, `×${exit.count}`))),
+      list(`entry flags on it (${cluster.flagsOn.length}): may be referenced from`, cluster.flagsOn.map((flag) => clusterChip(flag.source, flag.copied ? "copy" : ""))),
+      list("flagged on: may reference into", cluster.flagsFrom.map((target) => clusterChip(target))),
+      div({ style: { marginTop: "6px" } }, muted("A cluster can be suspended when no tree edge enters it, nothing in it is deferred, and everything explicitly unstable in it is in one cohort.")),
+    );
+  }
+
   selection(view) {
+    if (model.selected.startsWith("R:")) return this.clusterSelection(view);
     const object = view.objects.find((o) => o.id === model.selected);
     if (!object) return section("Selected", muted(`${model.selected} does not exist at this frame.`));
     const referrers = view.edges.filter((e) => e.target === object.id);
     const facts = [
       ["state", object.display],
-      ["region", object.region],
+      ["region", object.region ?? "none"],
       ["tree parent", object.treeParent ?? "none"],
       ["cohort", object.cohort ?? "none"],
       ["shared", object.shared ? "yes" : "no"],
     ];
     return section(
       `Selected: ${object.id}`,
-      ...facts.map(([name, value]) => div(muted(`${name}: `), text(String(value)))),
+      ...facts.map(([name, value]) => div(muted(`${name}: `), name === "region" && object.region ? clusterChip(object.region) : text(String(value)))),
       div({ style: { marginTop: "4px" } }, muted("referrers: "), ...(referrers.length ? referrers.map((e) => chip(e.source)) : [muted("none")])),
       pre({ style: { margin: "6px 0 0 0", padding: "6px", background: colors.background, fontSize: "11px", whiteSpace: "pre-wrap" } }, text(JSON.stringify(object.fields, null, 1))),
     );
@@ -371,14 +440,24 @@ export class VisualizerApp extends Component {
       control("chevron_right", "Next step (Right)", callback("next", () => goTo(model.frame + 1)), model.frame === last),
       control("skip_next", "Next transaction (Shift+Right)", callback("nextTransaction", () => goToTransaction(1)), model.frame === last),
       control("last_page", "Last frame (End)", callback("last", () => goTo(last)), model.frame === last),
-      input({
-        type: "range",
-        min: "0",
-        max: String(last),
-        value: String(model.frame),
-        style: { flex: "1 1 0", margin: "0 10px" },
-        oninput: callback("seek", (event) => goTo(Number(event.target.value))),
-      }),
+      column(
+        { style: { flex: "1 1 0", margin: "0 10px", minWidth: 0 } },
+        input({
+          type: "range",
+          min: "0",
+          max: String(last),
+          value: String(model.frame),
+          style: { width: "100%", margin: 0 },
+          oninput: callback("seek", (event) => goTo(Number(event.target.value))),
+        }),
+        // A tick for every application transaction; the rest of the timeline is collector work.
+        div(
+          { title: "Ticks: application transactions. Between them: collector steps.", style: { position: "relative", height: "6px", margin: "0 8px" } },
+          ...transactionFrames(recording).map((frame) =>
+            span({ key: `tick${frame}`, style: { position: "absolute", left: `${last ? (frame / last) * 100 : 0}%`, top: 0, width: "1px", height: "6px", background: stepKinds.transaction.color } }),
+          ),
+        ),
+      ),
       muted(`${model.frame + 1} / ${last + 1}`),
       label(
         { style: { marginLeft: "12px", fontSize: "12px" } },
@@ -389,6 +468,7 @@ export class VisualizerApp extends Component {
         ),
       ),
       checkbox({ label: "Flags", checked: model.showFlags, onChange: callback("flags", (checked) => { model.showFlags = checked; }) }),
+      checkbox({ label: "Meta flags", checked: model.metaFlags, onChange: callback("metaFlags", (checked) => { model.metaFlags = checked; }) }),
       checkbox({ label: "Cohort outlines", checked: model.cohortOutlines, onChange: callback("cohortOutlines", (checked) => { model.cohortOutlines = checked; }) }),
       checkbox({ label: "Cohort colors", checked: model.cohortColors, onChange: callback("cohortColors", (checked) => { model.cohortColors = checked; }) }),
       checkbox({ label: "Weak", checked: model.showWeak, onChange: callback("weak", (checked) => { model.showWeak = checked; }) }),

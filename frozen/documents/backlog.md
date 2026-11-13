@@ -16,6 +16,14 @@ What is left to do on the store, the collector and the visualizer, from a review
 - **The rest of item 2:** expanding a resumed cluster and settling a materialized one take one region a step (U6).
 - **Profile of key reads** on LMDB: they follow the size of what is deleted (edge keys, membership and metadata of the dead objects, several passes); nothing stood out as waste. A transaction re-reads cluster records often (no caching within a transaction).
 
+- **A round of small items:**
+  - The store has `first(prefix)`, and the scheduler uses it instead of reading every pending task key.
+  - A re-home task skipped because its cluster was busy is tried again when that ends.
+  - Suspending a cluster and cutting its exits are one step, not two. A suspended cluster is always marked.
+  - Tests: aborted transactions and steps (`abort.test.js`), cost bounds (`cost.test.js`), and a fuzz operation that builds subtrees, so that the fuzzer's graphs are bigger.
+  - LMDB measured with durable commits (below).
+  - Visualizer: click a region or meta-region to see its record; only the selected cluster's flags are drawn, and flags between meta-regions only on request; ticks for application transactions on the timeline.
+
 ## Suggested order for the rest
 
 1. The application interface: volatile roots, chunked collections.
@@ -40,8 +48,7 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 ## Collector, smaller
 
-- **The scheduler reads too much per step:** all cohort records (`activeCohorts`) and all pending `s/` and `x/` keys, to pick one. The store interface needs "first key with this prefix".
-- **Dropped re-home tasks.** A re-home task that finds its cluster suspended or expanding is dropped, not retried when that ends.
+- **The scheduler reads all cohort records per step** (`activeCohorts`), merged ones included, to pick one. An index of the root cohorts would avoid it; cohorts alive at once are few, so it has not mattered.
 - **Deep structures.** The verified walk gives up after `walkBudget` steps (64), so a quick swap deep in a long chain fails and starts a cohort. Walk jumps across intact clusters (§9.5) are the design's answer. How often this happens has not been measured.
 - **Multi-root clusters cannot resume;** they are materialized when relinked (open question 1). A split that prefers a single-root piece whenever one is above the merge threshold would give more single-root regions, at the price of balance; not tried.
 - **Not built from step 6:** flag coarsening and the refining protocol, the intactness counters, walk jumps.
@@ -49,21 +56,15 @@ What is left to do on the store, the collector and the visualizer, from a review
 ## Store and database
 
 - **`MemoryStore` is slow by construction:** it clones every value on read, inserts keys into a sorted array, and a transaction's `range` rescans all of its own writes. Large loads are slow because of this; `LmdbStore` loads 80,000 objects in about 40 seconds. Use LMDB for anything big.
-- **`LmdbStore` is measured without disk flushes** (`noSync`). Durable commits will cost more per transaction; collector steps could share a flush, since losing the last few only repeats work.
-- **A delete reads about 1,200 keys for 50 objects** on LMDB, and a small edit about 100. Where they go has not been profiled; the scheduler's reads per step are a likely part.
+- **Durable commits on LMDB showed no extra cost** on the development machine: `DURABLE=1 node tools/lmdb.js 100` gave 1.6 ms per small edit and 11 ms per deleted document, the same as with `noSync`. That is surprisingly cheap for a flush per commit; whether each commit really reaches the disk there (and what it costs on other disks) has not been verified. If it turns out to cost, collector steps could share a flush, since losing the last few only repeats work.
 - **Big collections.** An array of thousands of references is one record, rewritten and re-diffed on every append, and an object heavier than the region cap cannot be split ("unsplittable"). The design chunks large collections (§5.4); not built.
 - **Holding objects across transactions.** Only holds exist. The volatile root table (§9.4) is not built; it belongs with the application interface.
 
 ## Testing gaps
 
-- **No crash or abort test.** The transaction principle (invariants §1) is never exercised by a transaction or collector step that throws midway.
-- **Fuzz graphs are small.** Meta-regions are only exercised with tiny caps.
-- **Suspension costs two steps per cluster** (suspend, then mark its item). Now that leaves cost no step, a small flat region is cheaper in steps without suspension, though not in writes. The two could be one step.
-- **No cost assertions.** Items 1 to 4 were invisible to the test suite; `tools/scale.js` and `tools/fragmentation.js` are run by hand.
+- **Fuzz graphs are still small** next to a real database: a few hundred objects. Meta-regions are exercised through small caps, not through size.
+- **No crash test on LMDB itself:** the abort test runs on the in-memory store. Killing a process in the middle of a commit would test LMDB, not this code.
 
 ## Visualizer
 
-- **Clusters cannot be inspected.** Only objects are clickable. Clicking a region or meta-region should show its record: counters, tree-edge counts, flags, suspension.
-- **Flags clutter the view** once there are meta-regions. Show them for the selected cluster only, or per level. (Copied, unverified flags are now drawn dotted and fainter.)
-- **Timeline:** ticks for application transactions on the slider.
 - **Recording blocks the page:** a long random recording is computed on the main thread before anything is shown.

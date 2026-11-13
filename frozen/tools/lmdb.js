@@ -8,7 +8,8 @@
  *   - a small edit (add a paragraph), with the collector work it causes;
  *   - deleting a document, with its whole collection.
  * Keys read and written are counted by a store observer; times are wall-clock. The store runs
- * with { noSync: true }, so times are without the disk flush of each commit.
+ * with { noSync: true }, so times are without the disk flush of each commit, unless DURABLE=1
+ * is set in the environment.
  */
 
 import { mkdtempSync, rmSync, statSync, readdirSync } from "node:fs";
@@ -19,11 +20,14 @@ import { ref } from "../src/model.js";
 import { LmdbStore } from "../src/store/LmdbStore.js";
 import { reachableFromRoot } from "../src/oracle.js";
 
+/** DURABLE=1: every commit is flushed to disk, as a database that must not lose one would. */
+const DURABLE = Boolean(process.env.DURABLE);
+
 const TEXT = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore. ".repeat(3);
 
 function measure(documents) {
   const path = mkdtempSync(join(tmpdir(), "frozen-scale-"));
-  const store = new LmdbStore(path, { noSync: true });
+  const store = new LmdbStore(path, { noSync: !DURABLE });
   const db = new Database({ store, options: { deferral: 0, regionCap: 150, clusterCap: 32 } });
   const counters = { read: 0, written: 0 };
   let counting = false;

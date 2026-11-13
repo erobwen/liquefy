@@ -597,7 +597,13 @@ export class GcState {
   /** Schedules a cluster and every cluster inside it (not their objects). */
   scheduleInside(cluster) {
     this.scheduleStructure(cluster);
-    if (this.cluster(cluster).level > 0) for (const member of this.regionMembers(cluster)) this.scheduleInside(member);
+    const record = this.cluster(cluster);
+    // A re-home task that was skipped while the cluster was busy gets its turn now.
+    if (record.rehomeSkipped) {
+      this.putCluster({ ...record, rehomeSkipped: false });
+      this.scheduleRehome(cluster);
+    }
+    if (record.level > 0) for (const member of this.regionMembers(cluster)) this.scheduleInside(member);
   }
 
   // ---- Cohorts ----
@@ -675,7 +681,8 @@ export class GcState {
 
   /** Removes and returns up to `limit` items of a root cohort's worklist. */
   take(root, list, limit = 1) {
-    const items = this.queued(root, list).slice(0, limit);
+    const first = limit === 1 ? this.tx.first(workPrefix(root, list)) : undefined;
+    const items = limit === 1 ? (first === undefined ? [] : [first.slice(workPrefix(root, list).length)]) : this.queued(root, list).slice(0, limit);
     for (const item of items) this.tx.delete(workKey(root, list, item));
     const cohort = this.cohort(root);
     cohort.pending[list] -= items.length;
@@ -762,7 +769,7 @@ export class GcState {
   /** A deferral whose deadline has passed (or any, if `flush`), as an id, or null. */
   dueDeferral(flush = false) {
     const due = (prefix, now) => {
-      const first = this.tx.keys(prefix)[0];
+      const first = this.tx.first(prefix);
       if (first === undefined) return null;
       const [, deadline, id] = first.split("/");
       return flush || Number(deadline) <= now ? id : null;
@@ -771,7 +778,7 @@ export class GcState {
   }
 
   hasDeferrals() {
-    return this.tx.keys("d/").length > 0 || this.tx.keys("h/").length > 0;
+    return this.tx.first("d/") !== undefined || this.tx.first("h/") !== undefined;
   }
 
   // ---- Verified walk and re-parenting ----
@@ -973,16 +980,16 @@ export class GcState {
       explicit += count;
     }
     if (record.objects <= explicit) return false;
-    if (this.tx.keys(treeInPrefix(cluster)).length > 0) return false;
+    if (this.tx.first(treeInPrefix(cluster)) !== undefined) return false;
     return !this.isInside(this.regionOf(ROOT), cluster);
   }
 
   /**
    * Suspends a cluster in a cohort (§8.1): all its stable objects become implicitly unstable at
    * once. Clusters inside it that were suspended in the same cohort are now covered by it
-   * (invariant U5). Mark items inside it (its anchors, inner cluster items) leave the mark
-   * list, and inner cluster items the check list; the cluster's item takes their place, and
-   * marking it cuts the tree edges that leave the cluster (Collector.markRegion).
+   * (invariant U5). Mark items inside it (its anchors) leave the mark list, and inner cluster
+   * items the check list. The caller then cuts the tree edges that leave the cluster, in the
+   * same step (Collector.markRegion), which queues the cluster's own item for its check.
    */
   suspend(cluster, root) {
     for (const familyId of this.cohortFamily(root)) {
@@ -1000,7 +1007,6 @@ export class GcState {
     };
     for (const item of this.queued(root, "mark")) if (inside(item)) this.unqueue(root, "mark", item);
     for (const item of this.queued(root, "check")) if (isRegionItem(item) && inside(item)) this.unqueue(root, "check", item);
-    this.push(root, "mark", regionItem(cluster));
   }
 
   /** Ends a suspension, keeping the cluster's internal tree. Returns the root cohort. */

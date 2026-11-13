@@ -76,6 +76,14 @@ export class MemoryStore {
     return result;
   }
 
+  /** The first committed key starting with `prefix`, or undefined. */
+  first(prefix) {
+    const key = this.sortedKeys[lowerBound(this.sortedKeys, prefix)];
+    if (key === undefined || !key.startsWith(prefix)) return undefined;
+    if (this.observers.length > 0) this.notifyRead(key);
+    return key;
+  }
+
   /** Committed keys starting with `prefix`, in order. */
   keys(prefix) {
     const result = [];
@@ -165,6 +173,23 @@ export class Transaction {
 
   keys(prefix) {
     return this.range(prefix).map(([key]) => key);
+  }
+
+  /** The first key starting with `prefix`, seen through this transaction's writes. */
+  first(prefix) {
+    let written;
+    for (const [key, value] of this.writes) {
+      if (value !== DELETED && key.startsWith(prefix) && (written === undefined || key < written)) written = key;
+    }
+    const { sortedKeys } = this.store;
+    for (let i = lowerBound(sortedKeys, prefix); i < sortedKeys.length; i++) {
+      const key = sortedKeys[i];
+      if (!key.startsWith(prefix) || (written !== undefined && key >= written)) break;
+      if (this.writes.get(key) === DELETED) continue;
+      if (this.store.observers.length > 0) this.store.notifyRead(key);
+      return key;
+    }
+    return written;
   }
 
   commit() {

@@ -46,7 +46,13 @@ Every **frame** is one committed store transaction: a user transaction, or one c
   change, and shows the selected object's record and referrers. **Cohorts** lists the cohorts
   with their expand, mark and check lists, the deferred cuts and the pending structure tasks.
   **Legend** has an entry for every look the graph can give an element. Click a node or any id
-  to select it.
+  to select it. Click a region or meta-region box to see its record: its counters, the tree
+  edges into and out of it, and its entry flags.
+- **Entry flags** are drawn for the selected cluster only (or the selected object's region), and
+  for all regions when nothing is selected. Flags between meta-regions are many and coarse:
+  "Meta flags" shows them. A dotted flag was copied in a move and not verified since.
+- **Ticks** under the timeline slider are the application transactions; between them is
+  collector work.
 
 ## How it works
 

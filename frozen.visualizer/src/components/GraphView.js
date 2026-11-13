@@ -74,6 +74,7 @@ const style = [
   { selector: "node.region.meta", style: { "background-color": "data(fill)", "background-opacity": 0.5, "border-color": colors.metaBorder, "border-width": 1.5, "border-style": "solid", padding: 10, "font-size": 11, "font-weight": "bold" } },
   { selector: "node.region.pending", style: { "border-color": colors.structure, "border-style": "dashed", "border-width": 2 } },
   { selector: "node.region.suspended", style: { "background-color": "data(color)", "background-opacity": 0.1, "border-color": "data(color)", "border-style": "solid", "border-width": 3, color: "data(color)" } },
+  { selector: "node.region.selected", style: { "outline-color": colors.selected, "outline-width": 3, "outline-offset": 1, "outline-opacity": 1 } },
   { selector: "node.region.ghost", style: { "border-style": "dotted", "background-opacity": 0.3 } },
   { selector: "node.region.subject", style: { "underlay-color": colors.subject, "underlay-opacity": 0.6, "underlay-padding": 6, "underlay-shape": "round-rectangle" } },
   {
@@ -97,20 +98,24 @@ const style = [
 ];
 
 /** The Cytoscape elements for a view, as a Map from id to { group, data, classes }. */
-function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
+function elementsOf(view, { selected, showFlags, metaFlags, showWeak, cohortColors }) {
   const elements = new Map();
   const { highlight } = view;
+  // A selected cluster, or the region of a selected object: only its flags are shown.
+  const selectedCluster = selected?.startsWith("R:") ? selected.slice(2) : null;
+  const focus = selected === null ? null : selectedCluster ?? view.objects.find((object) => object.id === selected)?.region ?? null;
   for (const region of view.regions) {
     const classes = ["region"];
     if (region.pending) classes.push("pending");
     if (region.ghost) classes.push("ghost");
     if (highlight.region === region.id) classes.push("subject");
+    if (selectedCluster === region.id) classes.push("selected");
     let label = region.level > 0 ? `${region.id} · level ${region.level} · ${region.members} clusters, ${region.objects} objects` : `${region.id} · ${region.members}`;
     let color = colors.regionBorder;
     if (region.level > 0) classes.push("meta");
     if (region.suspended) {
       classes.push("suspended");
-      label += ` · suspended in ${region.suspended.cohort}${region.suspended.marked ? ", exits cut" : ""}`;
+      label += ` · suspended in ${region.suspended.cohort}`;
       color = cohortColors ? cohortColor(region.suspended.cohort) : colors.unstable;
     }
     elements.set(`R:${region.id}`, {
@@ -149,11 +154,14 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
   for (const edge of view.edges) {
     if (edge.kind === "weak" && !showWeak) continue;
     const classes = [edge.kind];
-    if (selected !== null) classes.push(edge.source === selected || edge.target === selected ? "selected" : "dimmed");
+    if (selected !== null && selectedCluster === null) classes.push(edge.source === selected || edge.target === selected ? "selected" : "dimmed");
     elements.set(edge.id, { group: "edges", data: { id: edge.id, source: edge.source, target: edge.target, label: edge.label }, classes: classes.join(" ") });
   }
   if (showFlags) {
     for (const flag of view.flags) {
+      const touches = focus !== null && (flag.source === focus || flag.target === focus);
+      if (focus !== null && !touches) continue;
+      if (flag.level > 0 && !metaFlags && !touches) continue;
       elements.set(flag.id, { group: "edges", data: { id: flag.id, source: `R:${flag.source}`, target: `R:${flag.target}` }, classes: `flag${flag.level > 0 ? " meta" : ""}${flag.copied ? " copied" : ""}` });
     }
   }
@@ -161,7 +169,7 @@ function elementsOf(view, { selected, showFlags, showWeak, cohortColors }) {
 }
 
 export class GraphView extends DOMNodeComponent {
-  setProperties({ view, recordingId, selected = null, onSelect = null, showFlags = true, showWeak = true, cohortColors = false, cohortOutlines = true, fitRequest = 0 }) {
+  setProperties({ view, recordingId, selected = null, onSelect = null, showFlags = true, metaFlags = false, showWeak = true, cohortColors = false, cohortOutlines = true, fitRequest = 0 }) {
     this.cohortColors = cohortColors;
     this.cohortOutlines = cohortOutlines;
     this.view = view;
@@ -169,6 +177,7 @@ export class GraphView extends DOMNodeComponent {
     this.selected = selected;
     this.onSelect = onSelect;
     this.showFlags = showFlags;
+    this.metaFlags = metaFlags;
     this.showWeak = showWeak;
     this.fitRequest = fitRequest;
   }
@@ -180,6 +189,8 @@ export class GraphView extends DOMNodeComponent {
       Object.assign(u.node.style, { width: "100%", height: "100%", position: "absolute", inset: "0" });
       u.cy = cytoscape({ container: u.node, style, layout: { name: "preset" }, minZoom: 0.1, maxZoom: 1.6, wheelSensitivity: 0.3 });
       u.cy.on("tap", "node.object", (event) => u.onSelect?.(event.target.id()));
+      // A cluster's node id is "R:<id>", which is also how a selected cluster is named.
+      u.cy.on("tap", "node.region", (event) => u.onSelect?.(event.target.id()));
       u.cy.on("tap", (event) => {
         if (event.target === u.cy) u.onSelect?.(null);
       });
@@ -204,7 +215,7 @@ export class GraphView extends DOMNodeComponent {
     const { cy } = u;
     const fresh = u.recordingId !== this.recordingId;
     u.recordingId = this.recordingId;
-    const wanted = elementsOf(this.view, { selected: this.selected, showFlags: this.showFlags, showWeak: this.showWeak, cohortColors: this.cohortColors });
+    const wanted = elementsOf(this.view, { selected: this.selected, showFlags: this.showFlags, metaFlags: this.metaFlags, showWeak: this.showWeak, cohortColors: this.cohortColors });
     let structureChanged = fresh;
 
     cy.batch(() => {

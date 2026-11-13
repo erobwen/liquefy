@@ -420,7 +420,11 @@ function blocked(gc, cluster) {
 export function runRehomeTask(gc, cluster) {
   gc.tx.delete(keys.rehomeKey(cluster));
   if (!gc.regionExists(cluster)) return "gone";
-  if (blocked(gc, cluster)) return "re-home skipped";
+  if (blocked(gc, cluster)) {
+    // Remembered on the cluster: scheduleInside tries again when what blocks it has ended.
+    gc.patchCluster(cluster, { rehomeSkipped: true });
+    return "re-home skipped";
+  }
   const { level, container } = gc.cluster(cluster);
   if (container !== null) gc.scheduleRehome(container);
 

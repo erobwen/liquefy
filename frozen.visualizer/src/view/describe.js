@@ -185,8 +185,8 @@ function summarize(frame, state, previous) {
         return `Mark ${kindOf(state, frame.region)} ${frame.region} (${frame.cohort}): the tree edges that leave it are cut, as marking its objects one by one would have done. The edges inside it stay.${meta ? " They are found from its tree-edge counts, descending only into members with edges that leave it." : ""}`;
       }
       if (frame.suspended) {
-        if (kindOf(state, frame.suspended) === "meta-region") return `Mark ${frame.ids[0]} (${frame.cohort}): everything in the meta-region ${frame.suspended} around it is condemned to this cohort (its counters say so: no tree edge enters it, nothing in it is deferred or in another cohort), so the whole meta-region is suspended at once, with every region in it.`;
-        return `Mark ${frame.ids[0]} (${frame.cohort}): everything in its region ${frame.suspended} is condemned to this cohort, so the whole region is suspended at once instead of marked object by object.`;
+        if (kindOf(state, frame.suspended) === "meta-region") return `Mark ${frame.ids[0]} (${frame.cohort}): everything in the meta-region ${frame.suspended} around it is condemned to this cohort (its counters say so: no tree edge enters it, nothing in it is deferred or in another cohort), so the whole meta-region is suspended at once, with every region in it, and the tree edges that leave it are cut.`;
+        return `Mark ${frame.ids[0]} (${frame.cohort}): everything in its region ${frame.suspended} is condemned to this cohort, so the whole region is suspended at once instead of marked object by object, and the tree edges that leave it are cut.`;
       }
       return `Mark ${frame.ids[0]} (${frame.cohort}): its tree children become unstable, unless a shared child finds a replacement parent.`;
     case "check": {
@@ -248,7 +248,6 @@ function changesBetween(previousObjects, objects, previous, state) {
     const kind = kindOf(state, region);
     const members = record.objects ?? [...objects.values()].filter((o) => o.region === region).length;
     if (!was && is) changes.push(`${kind} ${region} suspended in ${is.cohort}: its ${members} objects are unstable as a unit`);
-    if (was && is && !was.marked && is.marked) changes.push(`${kind} ${region}: tree edges leaving it cut`);
     if (was && !is && !record.suspended) {
       // A resume marks the cluster as expanding (GcState.resume); a materialize sets
       // materializedIn; a cluster suspended around this one takes its suspension over.
@@ -314,12 +313,25 @@ export function describe(state, previous = new Map(), frame = null) {
       pending: state.has(`s/${id}`),
       ghost: false,
       suspended: suspended.get(id) ?? null,
+      // For the panel of a selected cluster: its record, and where it hangs in the tree.
+      record,
+      entries: [], // tree edges into it: { cluster, count }, from its P/ keys
+      exits: [], // tree edges out of it, from its T/ keys
+      flagsOn: [], // entry flags on it: { source, copied }
+      flagsFrom: [], // clusters it is flagged on
     });
+  }
+  for (const [key, value] of state) {
+    const kind = key.slice(0, 2);
+    if (kind !== "P/" && kind !== "T/") continue;
+    const [, cluster, other] = key.split("/");
+    const region = regions.get(cluster);
+    if (region) (kind === "P/" ? region.entries : region.exits).push({ cluster: other, count: value });
   }
   for (const object of shown.values()) {
     if (!object.region) continue;
     if (!regions.has(object.region)) {
-      regions.set(object.region, { id: object.region, level: 0, container: null, members: 0, objects: 0, pending: false, ghost: true, suspended: null });
+      regions.set(object.region, { id: object.region, level: 0, container: null, members: 0, objects: 0, pending: false, ghost: true, suspended: null, record: null, entries: [], exits: [], flagsOn: [], flagsFrom: [] });
     }
     if (object.display !== "reclaimed") regions.get(object.region).members++;
   }
@@ -331,6 +343,10 @@ export function describe(state, previous = new Map(), frame = null) {
     const [target, source] = key.split("/");
     return { id: `flag:${source}>${target}`, source, target, copied: value === "copy", level: state.get(`r/${target}`)?.level ?? 0 };
   }).filter((flag) => regions.has(flag.source) && regions.has(flag.target));
+  for (const flag of flags) {
+    regions.get(flag.target).flagsOn.push({ source: flag.source, copied: flag.copied });
+    regions.get(flag.source).flagsFrom.push(flag.target);
+  }
 
   const activeCohorts = [...cohorts.values()]
     .filter((cohort) => !cohort.mergedInto)

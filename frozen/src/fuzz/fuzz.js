@@ -36,6 +36,7 @@ const OPERATIONS = [
   "move",
   "cycle",
   "list",
+  "tree",
   "weak",
   "replace",
   "cut", "paste",
@@ -130,6 +131,16 @@ export function randomTransaction(db, rng, clipboard = []) {
           ref(rng.next() < 0.5 ? rng.pick(reachable) : tx.create({})),
         );
         tx.set(source, rng.pick(FIELDS), items);
+        break;
+      }
+      case "tree": {
+        // A subtree of up to twenty objects: something for regions and meta-regions to hold.
+        const build = (depth) => {
+          const fields = {};
+          if (depth > 0) for (let i = 1 + rng.int(4); i > 0; i--) fields[`k${i}`] = ref(build(depth - 1));
+          return tx.create(fields);
+        };
+        tx.set(source, rng.pick(FIELDS), ref(build(1 + rng.int(2))));
         break;
       }
       case "weak":

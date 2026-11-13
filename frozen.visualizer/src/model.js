@@ -19,8 +19,9 @@ export const model = observable({
   frame: 0,
   playing: false,
   speed: 4, // frames per second
-  selected: null,
+  selected: null, // an object id, or "R:<id>" for a region or meta-region
   showFlags: true,
+  metaFlags: false, // also the flags between meta-regions (many, and coarse)
   showWeak: true,
   cohortColors: false, // one color for all cohorts, or a color each
   cohortOutlines: true, // an outline around each cohort's members

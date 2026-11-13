@@ -58,6 +58,29 @@ for (const [name, create] of Object.entries(stores)) {
       assert.deepEqual(store.keys("x/"), ["x/1", "x/2"]);
     });
 
+    it("finds the first key of a prefix, through a transaction's writes", () => {
+      store.transaction((tx) => {
+        tx.put("q/2", 2);
+        tx.put("q/3", 3);
+        tx.put("r/1", 1);
+      });
+      assert.equal(store.first("q/"), "q/2");
+      assert.equal(store.first("p/"), undefined);
+      store.transaction((tx) => {
+        assert.equal(tx.first("q/"), "q/2");
+        tx.delete("q/2");
+        assert.equal(tx.first("q/"), "q/3");
+        tx.put("q/1", 1);
+        assert.equal(tx.first("q/"), "q/1");
+        tx.delete("q/1");
+        tx.delete("q/3");
+        assert.equal(tx.first("q/"), undefined);
+        tx.put("q/9", 9);
+        assert.equal(tx.first("q/"), "q/9");
+      });
+      assert.equal(store.first("q/"), "q/9");
+    });
+
     it("discards all writes when the transaction throws", () => {
       store.transaction((tx) => tx.put("k", 1));
       assert.throws(() =>

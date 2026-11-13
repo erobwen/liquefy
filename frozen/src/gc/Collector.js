@@ -62,11 +62,7 @@ export class Collector {
   isIdle() {
     return (
       this.store.range("c/").every(([, cohort]) => cohort.mergedInto) &&
-      this.store.keys("d/").length === 0 &&
-      this.store.keys("h/").length === 0 &&
-      this.store.keys("s/").length === 0 &&
-      this.store.keys("x/").length === 0 &&
-      this.store.keys("z/").length === 0
+      ["d/", "h/", "s/", "x/", "z/"].every((prefix) => this.store.first(prefix) === undefined)
     );
   }
 
@@ -129,7 +125,7 @@ export class Collector {
 
       // Re-home tasks, and then flag scrubs, wait until no other structure task is pending:
       // they are the lazy ones.
-      const structure = gc.tx.keys("s/")[0] ?? gc.tx.keys("x/")[0] ?? gc.tx.keys("z/")[0];
+      const structure = gc.tx.first("s/") ?? gc.tx.first("x/") ?? gc.tx.first("z/");
       if (structure !== undefined && (cohorts.length === 0 || previous !== "structure")) {
         this.stats.steps++;
         const run = { s: runStructureTask, x: runRehomeTask, z: runScrubTask }[structure[0]];
@@ -283,7 +279,9 @@ export class Collector {
       const chain = gc.chain(gc.regionOf(id));
       for (let level = chain.length - 1; level >= 0; level--) {
         if (!gc.suspendable(chain[level], root)) continue;
+        // Suspend it and cut its exits in the same step: a suspended cluster is always marked.
         gc.suspend(chain[level], root);
+        this.markRegion(gc, chain[level], cohortId);
         this.stats.suspended++;
         if (level > 0) this.stats.suspendedMeta++;
         if (this.lastStep) this.lastStep.suspended = chain[level];

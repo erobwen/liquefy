@@ -248,22 +248,22 @@ export const scenarios = [
       session.collect();
       session.explain("The library is cut from ROOT. It starts a cohort, and marking begins at the library object.");
       session.transaction("Delete the library", (tx) => tx.delete(ROOT, "library"));
-      session.explain("Marking reaches an object whose whole region hangs from it, and nothing else holds on to that region: the region is suspended. All its members are unstable at once, and they keep their internal tree.");
+      session.explain("Marking reaches an object whose whole region hangs from it, and nothing else holds on to that region: the region is suspended. All its members are unstable at once, and they keep their internal tree. In the same step, the tree edges that leave the region are cut; child regions hanging from it are reached this way.");
       session.stepUntil((step) => step.kind === "mark" && step.suspended);
 
       // Keep the first region whose exits are cut and that has a single anchor: it resumes.
       const store = session.store;
       const membersOf = (region) => store.keys(`m/${region}/`).map((key) => key.split("/")[2]);
       const explicitWithChildren = (region) => membersOf(region).filter((id) => store.get(`g/${id}`).cohort !== null && store.keys(`t/${id}/`).length > 0);
-      session.explain("Marking the region item cuts only the tree edges that leave the region. Child regions hanging from it are reached this way.");
-      session.stepUntil((step) => step.kind === "mark" && step.region && explicitWithChildren(step.region).length === 1);
-      const kept = explicitWithChildren(session.db.collector.lastStep.region)[0];
+      session.explain("A child region is suspended in turn. It hangs from a single object, its anchor.");
+      session.stepUntil((step) => step.kind === "mark" && step.suspended && explicitWithChildren(step.suspended).length === 1);
+      const kept = explicitWithChildren(session.db.collector.lastStep.suspended)[0];
       session.explain("The region's only anchor is linked from ROOT again. Its internal tree is still valid, so the whole region resumes in this transaction, and is queued for expansion.");
       session.transaction(`Keep ${store.get(`o/${kept}`).title ?? kept}`, (tx) => tx.set(ROOT, "kept", ref(kept)));
 
       // Quote a paragraph from another suspended region: it materializes.
-      session.stepUntil((step) => step.kind === "mark" && step.region && membersOf(step.region).some((id) => store.get(`g/${id}`).cohort === null));
-      const region = session.db.collector.lastStep.region;
+      session.stepUntil((step) => step.kind === "mark" && step.suspended && membersOf(step.suspended).some((id) => store.get(`g/${id}`).cohort === null));
+      const region = session.db.collector.lastStep.suspended;
       const quoted = membersOf(region).find((id) => store.get(`g/${id}`).cohort === null && store.get(`o/${id}`).text);
       session.explain("A paragraph inside a suspended region gets a stable referrer. Only part of the region survives, so the region is materialized: its anchors go back to object-by-object marking, and the paragraph will find ROOT as a replacement parent.");
       session.transaction(`Quote paragraph ${store.get(`o/${quoted}`).text}`, (tx) => tx.set(ROOT, "quote", ref(quoted)));
@@ -275,7 +275,7 @@ export const scenarios = [
   {
     key: "meta-regions",
     title: "Meta-regions: deleting a document",
-    description: "With small caps (12 per region, 3 clusters per meta-region), a library of four documents builds several levels of meta-regions: boxes around region boxes. Deleting one document suspends whole meta-regions at once, decided from their counters, so the document is marked, checked and reclaimed in a handful of steps instead of region by region.",
+    description: "With small caps (12 per region, 3 clusters per meta-region), a library of four documents builds several levels of meta-regions: boxes around region boxes. Deleting one document suspends whole meta-regions at once, decided from their counters, so the document is marked, checked and reclaimed in two or three steps instead of region by region.",
     options: { deferral: 0, regionCap: 12, clusterCap: 3 },
     run(session) {
       session.transaction("Create a library of four documents", (tx) => {
@@ -300,9 +300,9 @@ export const scenarios = [
         documents.shift();
         tx.set(library, "documents", documents);
       });
-      session.explain("Marking pops the document. The highest cluster around it whose counters show that everything in it is condemned (no tree edge enters it, nothing deferred, no other cohort) is suspended whole.");
+      session.explain("Marking pops the document. The highest cluster around it whose counters show that everything in it is condemned (no tree edge enters it, nothing deferred, no other cohort) is suspended whole, and the tree edges that leave it are cut, found by descending only along its tree-edge counts.");
       session.stepUntil((step) => step.kind === "mark" && step.suspended && (session.store.get(`r/${step.suspended}`)?.level ?? 0) > 0);
-      session.explain("Marking the meta-region's item cuts the tree edges that leave it, found by descending only along its tree-edge counts. Its check looks only at sources flagged on it at its own level, and narrows them level by level. Then the cohort is reclaimed: the meta-region is deleted whole, with every region in it.");
+      session.explain("The meta-region's check looks only at sources flagged on it at its own level, and narrows them level by level. Then the cohort is reclaimed: the meta-region is deleted whole, with every region in it.");
       session.collect();
     },
   },

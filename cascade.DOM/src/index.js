@@ -28,3 +28,4 @@ export {
   select, textarea, details, dialog, summary, slot, template,
 } from "./HTMLTags.js";
 export { portal, portalSource, Portal, PortalSource } from "./Portal.js";
+export { ScrollArea, scrollArea } from "./ScrollArea.js";

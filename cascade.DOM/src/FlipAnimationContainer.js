@@ -579,6 +579,17 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // the container would otherwise snap shut, or open. Its width and height
   // are set meanwhile - only the ones that change, and only while they do
   // (see drawSize()) - which places what's around it anew every frame.
+  //
+  // And what's in it, too: drawn at another size than its own, the
+  // container lays its children out otherwise than they'll lie at rest - a
+  // container anchored by its right edge has its left edge elsewhere, and
+  // everything in it with it; one centering what's in it, its middle. That
+  // isn't any element's own movement - each is drawn where its spring says,
+  // from where it lies at rest - so it's taken back out: how far the box,
+  // at the size it starts from, moves each element that's drawn relative
+  // to it (`shifts`) - and the layer raised ones are drawn in
+  // (`layerShift`) - is measured once, here, and undone in proportion to
+  // how far the box still has to go (see sizingShift()).
   startSizing(from, to) {
     const u = this.unobservable;
     const dx = from.width - to.width;
@@ -597,7 +608,43 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const saved = { boxSizing: style.boxSizing };
     if (Math.abs(dx) >= 1) saved.width = style.width;
     if (Math.abs(dy) >= 1) saved.height = style.height;
-    u.sizing = { spring, to, saved, written: {} };
+    u.sizing = { spring, to, saved, written: {}, dx, dy, shifts: new Map(), layerShift: { x: 0, y: 0 } };
+    // Measured with nothing drawn anywhere but where it lies (see
+    // startAnimations(): its transforms cleared, the layout read).
+    const top = u.tracked.filter(({ element, ancestor }) => !ancestor && element.nodeType === 1 && u.layout.has(element));
+    const probe = u.node.ownerDocument.createElement("div");
+    Object.assign(probe.style, { position: "absolute", left: "0px", top: "0px", width: "0px", height: "0px" });
+    u.node.appendChild(probe);
+    const probeAt = rectOf(probe);
+    this.drawSize();
+    for (const { element } of top) {
+      const at = rectOf(element);
+      const layout = u.layout.get(element);
+      const x = at.x - layout.x;
+      const y = at.y - layout.y;
+      if (Math.abs(x) >= 0.5 || Math.abs(y) >= 0.5) u.sizing.shifts.set(element, { x, y });
+    }
+    const probeNow = rectOf(probe);
+    u.sizing.layerShift = { x: probeNow.x - probeAt.x, y: probeNow.y - probeAt.y };
+    probe.remove();
+    // As it lies again, for what's placed before it's next drawn (see
+    // applyAnimation(): a travelling element raised, where it is now).
+    for (const key of Object.keys(u.sizing.written)) u.node.style[key] = saved[key];
+  }
+
+  // How far the container's box, drawn at the size it is right now on its
+  // way (see startSizing()), moves `element` from where it lies at rest -
+  // one drawn relative to the container itself, or (`raised`) in the
+  // layer: what its own drawing takes back out. Null: not at all.
+  sizingShift(element, raised) {
+    const sizing = this.unobservable.sizing;
+    if (!sizing) return null;
+    const shift = raised ? sizing.layerShift : sizing.shifts.get(element);
+    if (!shift) return null;
+    const { spring, dx, dy } = sizing;
+    const alongX = Math.abs(dx) >= 1 ? spring.x / dx : spring.y / dy;
+    const alongY = Math.abs(dy) >= 1 ? spring.y / dy : spring.x / dx;
+    return { x: shift.x * alongX, y: shift.y * alongY };
   }
 
   drawSize() {
@@ -711,6 +758,15 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         ty = (here.y - above.y) / above.sy - (layout.y - ancestorLayout.y);
         sx = here.sx / above.sx;
         sy = here.sy / above.sy;
+      } else {
+        // Drawn relative to the container's own box - or, raised, to the
+        // layer: where that is while the box is on its way to its size
+        // isn't where it will be (see startSizing()).
+        const shift = this.sizingShift(element, u.raised.has(element));
+        if (shift) {
+          tx -= shift.x;
+          ty -= shift.y;
+        }
       }
       // In a raised element being sized (see raise()), laid out anew as it
       // grows or shrinks: where that puts it, at its own scale - around its

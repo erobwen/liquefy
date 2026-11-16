@@ -1160,4 +1160,114 @@ describe("FlipAnimationContainer animations", function () {
       delete HTMLElement.prototype.offsetHeight;
     }
   });
+
+  describe("in a container that's centered - its own corner moving as its box changes size", function () {
+    // The fake layout, with the container centered in 400px: its top is
+    // where its height leaves it - the height it's given, on its way to
+    // its size, or 20px per element in it that isn't absolutely positioned
+    // (a ghost is, and what's raised). Everything in it goes with it - but
+    // for what's absolutely positioned in the container itself while that
+    // isn't positioned: placed by something further out, it stays put.
+    // And as a browser has it, what's given no position is "static" (jsdom
+    // says nothing).
+    let rootOf;
+    let originalRect;
+    let originalComputed;
+    let prototypes;
+
+    beforeEach(function () {
+      prototypes = document.defaultView;
+      Object.defineProperty(prototypes.HTMLElement.prototype, "offsetHeight", { configurable: true, get() {
+        return 20 * Array.from(this.querySelectorAll("*")).filter((each) => each.style.position !== "absolute").length;
+      } });
+      originalComputed = prototypes.getComputedStyle;
+      prototypes.getComputedStyle = (element) => {
+        const style = originalComputed.call(prototypes, element);
+        return new Proxy(style, { get: (target, key) => key === "position" ? (target.position || "static") : target[key] });
+      };
+      originalRect = prototypes.Element.prototype.getBoundingClientRect;
+      prototypes.Element.prototype.getBoundingClientRect = function () {
+        const rect = originalRect.call(this);
+        const root = rootOf && rootOf();
+        if (!root || !(this === root || root.contains(this))) return rect;
+        let top = this;
+        while (top !== root && top.parentElement !== root) top = top.parentElement;
+        const positioned = root.style.position !== "" && root.style.position !== "static";
+        if (top !== root && top.style.position === "absolute" && !positioned) return rect;
+        const height = root.style.height ? parseFloat(root.style.height) : root.offsetHeight;
+        const corner = (400 - height) / 2;
+        return { ...rect, top: rect.top + corner, bottom: rect.bottom + corner };
+      };
+    });
+
+    afterEach(function () {
+      prototypes.Element.prototype.getBoundingClientRect = originalRect;
+      prototypes.getComputedStyle = originalComputed;
+      delete prototypes.HTMLElement.prototype.offsetHeight;
+      rootOf = null;
+    });
+
+    const topOf = (element) => round(element.getBoundingClientRect().top);
+
+    it("what stays is first drawn where it was - not where the box, still at its old size, lays it out", function () {
+      const { lists, element } = setup();
+      const root = element("four").parentElement.parentElement;
+      rootOf = () => root;
+      const before = { one: topOf(element("one")), three: topOf(element("three")) };
+      lists.b = [];
+      assert.equal(root.style.height, "120px", "the box as tall as it was");
+      assert.equal(topOf(element("one")), before.one);
+      assert.equal(topOf(element("three")), before.three);
+      runFrames(10);
+      assert.notEqual(topOf(element("one")), before.one, "on its way");
+      runToRest();
+      assert.equal(root.style.height, "");
+      assert.equal(element("one").style.transform, "");
+      assert.equal(topOf(element("one")), before.one + 10, "where the box, at its new size, lays it out");
+    });
+
+    it("what travels, raised above everything, is first drawn where it was too - in a container that isn't positioned", function () {
+      const { lists, element } = setup();
+      const root = element("four").parentElement.parentElement;
+      rootOf = () => root;
+      assert.equal(root.style.position, "", "not positioned");
+      const three = element("three");
+      const before = { one: topOf(element("one")), three: topOf(three) };
+      postponeInvalidations();
+      lists.a = ["one", "two"];
+      lists.b = ["three"];
+      continueInvalidations();
+      const listA = element("one").parentElement;
+      assert.ok(three.parentElement !== listA && three.parentElement !== listA.nextElementSibling, "raised, out of the lists");
+      assert.equal(three.parentElement.parentElement, root, "into the layer");
+      assert.equal(root.style.height, "120px", "the box as tall as it was");
+      assert.equal(topOf(three), before.three);
+      assert.equal(topOf(element("one")), before.one);
+      runToRest();
+      assert.equal(three.parentElement, listA.nextElementSibling, "lowered into its new list");
+      assert.equal(three.style.transform, "");
+    });
+  });
+
+  it("a ghost in the container itself is positioned by it - scrolled and clipped with it - though the app didn't position it", function () {
+    class Flat extends Component {
+      initialState() {
+        return { items: ["one", "two", "three"] };
+      }
+      build() {
+        return flipAnimationContainer({ key: "flip" }, this.items.map((name) => div({ key: name }, text({ key: name + "Text", text: name }))));
+      }
+    }
+    const flat = new Flat();
+    flat.renderOnto(new DOMElementTarget(container));
+    const root = container.firstElementChild;
+    const two = root.children[1];
+    assert.equal(root.style.position, "");
+    flat.items = ["one", "three"];
+    assert.equal(two.parentElement, root, "fading out where it was");
+    assert.equal(two.style.position, "absolute");
+    assert.equal(root.style.position, "relative");
+    runToRest();
+    assert.equal(two.parentElement, null, "gone");
+  });
 });

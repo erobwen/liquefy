@@ -366,14 +366,18 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       });
       const { parent, next } = place;
       if (parent && parent.isConnected && (parent === root || root.contains(parent))) {
-        // Positioned by what it's in - so it goes along with that, exactly.
-        if (parent !== root && !u.positioning.has(parent) && root.ownerDocument.defaultView.getComputedStyle(parent).position === "static") {
+        // Positioned by what it's in - so it goes along with that, exactly:
+        // scrolled with it, and clipped where it is. The container itself
+        // too - and that stays positioned, as for its layer (see layer()).
+        if (parent === root) {
+          this.positionRoot();
+        } else if (!u.positioning.has(parent) && isStatic(root.ownerDocument.defaultView.getComputedStyle(parent))) {
           u.positioning.set(parent, parent.style.position);
           parent.style.position = "relative";
         }
         parent.insertBefore(element, next && next.parentNode === parent ? next : null);
       } else {
-        if (root.ownerDocument.defaultView.getComputedStyle(root).position === "static") root.style.position = "relative";
+        this.positionRoot();
         root.appendChild(element);
       }
       u.springs.delete(element);
@@ -612,10 +616,11 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // Measured with nothing drawn anywhere but where it lies (see
     // startAnimations(): its transforms cleared, the layout read).
     const top = u.tracked.filter(({ element, ancestor }) => !ancestor && element.nodeType === 1 && u.layout.has(element));
-    const probe = u.node.ownerDocument.createElement("div");
-    Object.assign(probe.style, { position: "absolute", left: "0px", top: "0px", width: "0px", height: "0px" });
-    u.node.appendChild(probe);
-    const probeAt = rectOf(probe);
+    // The layer is at the container's own corner (see layer()), whatever
+    // positions the container - one that isn't positioned yet is, by the
+    // time there's a layer in it: so it's the container itself that's
+    // measured, not something positioned in it.
+    const boxAt = rectOf(u.node);
     this.drawSize();
     for (const { element } of top) {
       const at = rectOf(element);
@@ -624,9 +629,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const y = at.y - layout.y;
       if (Math.abs(x) >= 0.5 || Math.abs(y) >= 0.5) u.sizing.shifts.set(element, { x, y });
     }
-    const probeNow = rectOf(probe);
-    u.sizing.layerShift = { x: probeNow.x - probeAt.x, y: probeNow.y - probeAt.y };
-    probe.remove();
+    const boxNow = rectOf(u.node);
+    u.sizing.layerShift = { x: boxNow.x - boxAt.x, y: boxNow.y - boxAt.y };
     // As it lies again, for what's placed before it's next drawn (see
     // applyAnimation(): a travelling element raised, where it is now).
     for (const key of Object.keys(u.sizing.written)) u.node.style[key] = saved[key];
@@ -906,7 +910,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const clipped = (clips(style.overflowX) || clips(style.overflowY) || clips(style.overflow)) && !hasRoundedCorners(style);
       const { overflow, overflowX, overflowY } = element.style;
       u.lifted.set(element, { zIndex: element.style.zIndex, position: this.positionOf(element), overflow: clipped ? { overflow, overflowX, overflowY } : null });
-      if (!style.position || style.position === "static") element.style.position = "relative";
+      if (isStatic(style)) element.style.position = "relative";
       element.style.zIndex = "1";
       if (clipped) element.style.overflow = "visible";
     }
@@ -1151,12 +1155,19 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const zIndex = parseInt(view.getComputedStyle(element).zIndex, 10);
       if (zIndex > highest) highest = zIndex;
     }
-    if (view.getComputedStyle(root).position === "static") root.style.position = "relative";
+    this.positionRoot();
     const layer = root.ownerDocument.createElement("div");
     Object.assign(layer.style, { position: "absolute", left: "0px", top: "0px", width: "0px", height: "0px", overflow: "visible", pointerEvents: "none", zIndex: String(highest + 1) });
     root.appendChild(layer);
     u.layer = layer;
     return layer;
+  }
+
+  // The container positions what's absolutely positioned in it - its
+  // ghosts and its layer: one that isn't positioned becomes relative.
+  positionRoot() {
+    const root = this.unobservable.node;
+    if (isStatic(root.ownerDocument.defaultView.getComputedStyle(root))) root.style.position = "relative";
   }
 
   requestFrame() {
@@ -1298,6 +1309,12 @@ function isBareBox(element) {
 function hasRoundedCorners(style) {
   return ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"]
     .some((key) => parseFloat(style[key]) > 0);
+}
+
+// Whether an element (its computed `style`) isn't positioned - so what's
+// absolutely positioned in it is placed by something further out.
+function isStatic(style) {
+  return !style.position || style.position === "static";
 }
 
 function round(value) {

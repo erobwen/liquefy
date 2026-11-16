@@ -30,11 +30,12 @@ import { div } from "./HTMLTags.js";
  *
  * An ordinary component, building ordinary elements: in a
  * FlipAnimationContainer, what's in it is placed and animated as anywhere
- * else. How tall what's in it is, is what's laid out - not `scrollHeight`,
- * which also counts what's only drawn there for now: something on its way
- * to a smaller size, or fading out where it was. Collapsing a card, the
- * indicator and the fade follow its place shrinking - not its animation
- * ending, when nothing changes size to tell.
+ * else. How tall what's in it is, is what's laid out - down to where the
+ * last of it ends, the gaps and margins between included - not
+ * `scrollHeight`, which also counts what's only drawn there for now:
+ * something on its way to a smaller size, or fading out where it was.
+ * Collapsing a card, the indicator and the fade follow its place shrinking
+ * - not its animation ending, when nothing changes size to tell.
  *
  * The indicator and the edges follow the scrolling and the sizes - written
  * to their elements directly, not built: scrolling rebuilds nothing.
@@ -72,11 +73,13 @@ export class ScrollArea extends Component {
   }
 
   initialUnobservables() {
-    return { id: "scrollArea" + (++lastId), stop: null, scrolls: false, update: null };
+    return { id: "scrollArea" + (++lastId), stop: null, scrolls: false };
   }
 
   // Found once the elements are there, then following the scrolling and
-  // every change of its size, or of what's in it.
+  // every change of its size, or of what's in it: each child's size, and
+  // which children there are - one added or removed changes no other's
+  // size, in an area that's as tall as it gets.
   onEstablish() {
     super.onEstablish();
     if (typeof(document) === "undefined" || typeof(ResizeObserver) === "undefined") return;
@@ -84,20 +87,42 @@ export class ScrollArea extends Component {
     const u = this.unobservable;
     let scroller = null;
     let observer = null;
+    let children = null;
     let frame = null;
     let observed = new Set();
+    // Where the last of what's laid out in it ends - its margin, and the
+    // area's own padding after it, included - from the top of what scrolls.
+    // By where each child lies, not how tall they are together: whatever
+    // lays them out - gaps between them, margins, side by side. Not what's
+    // out of the layout (absolutely positioned: something fading out).
     const laidOut = () => {
       const style = getComputedStyle(scroller);
-      let height = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const number = (value) => parseFloat(value) || 0;
+      // A child's offsetTop is from the scroller's padding edge if that
+      // positions it - otherwise from the same element the scroller's own
+      // is from. Either way as laid out: however far it's scrolled.
+      const within = (child) => child.offsetParent === scroller
+        ? child.offsetTop
+        : child.offsetTop - scroller.offsetTop - scroller.clientTop;
+      let end = number(style.paddingTop);
       for (const child of scroller.children) {
-        if (getComputedStyle(child).position !== "absolute") height += child.offsetHeight;
+        const childStyle = getComputedStyle(child);
+        if (childStyle.position === "absolute" || childStyle.position === "fixed" || childStyle.display === "none") continue;
+        end = Math.max(end, within(child) + child.offsetHeight + Math.max(0, number(childStyle.marginBottom)));
       }
-      return height;
+      return end + number(style.paddingBottom);
     };
     const update = () => {
       // Its elements may have been made anew since.
       if (!scroller || !scroller.isConnected) return find();
-      for (const child of scroller.children) {
+      const now = new Set(scroller.children);
+      for (const child of observed) {
+        if (!now.has(child)) {
+          observed.delete(child);
+          observer.unobserve(child);
+        }
+      }
+      for (const child of now) {
         if (!observed.has(child)) {
           observed.add(child);
           observer.observe(child);
@@ -131,6 +156,7 @@ export class ScrollArea extends Component {
     const find = () => {
       if (scroller) scroller.removeEventListener("scroll", update);
       if (observer) observer.disconnect();
+      if (children) children.disconnect();
       observed = new Set();
       scroller = document.querySelector(`[data-scroll-area="${u.id}"]`);
       if (!scroller) {
@@ -140,13 +166,17 @@ export class ScrollArea extends Component {
       scroller.addEventListener("scroll", update, { passive: true });
       observer = new ResizeObserver(update);
       observer.observe(scroller);
+      if (typeof(MutationObserver) !== "undefined") {
+        children = new MutationObserver(update);
+        children.observe(scroller, { childList: true });
+      }
       update();
     };
     find();
-    u.update = update;
     u.stop = () => {
       if (frame !== null) cancelAnimationFrame(frame);
       if (observer) observer.disconnect();
+      if (children) children.disconnect();
       if (scroller) scroller.removeEventListener("scroll", update);
     };
   }

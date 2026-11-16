@@ -28,7 +28,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "mocha ./src/test"
+    "test": "mocha ./src/test",
+    "test:browser": "mocha ./src/test/browser"
   },
   "repository": {
     "type": "git",

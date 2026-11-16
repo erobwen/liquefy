@@ -168,5 +168,48 @@ window.scenarios = {
     application.items = ["a", "c"];
     return { before, atStart: rects("a", "c") };
   },
+
+  // Two lists in one: split, the item first in it goes to the end of the
+  // upper one - which scrolls, and is too short to show it: at rest, it's
+  // beyond the upper list's edge, where the lower list is. What's visible
+  // of it is read every frame while it's on its way, raised.
+  async travellerIntoScrolledOut() {
+    FlipAnimationContainer.speed = 1;
+    const item = (key) => box(key, { height: "80px", marginBottom: "10px", flex: "none" });
+    const { application } = mount({}, { split: false }, (application) =>
+      flipAnimationContainer({ key: "flip", style: { height: "400px", display: "flex", flexDirection: "column" } },
+        application.split
+          ? [
+            div({ key: "upper", id: "upper", style: { height: "100px", flex: "none", overflowY: "auto" } },
+              div({ key: "upperList", id: "upperList" }, item("a"), item("b"), item("t"))),
+            div({ key: "lower", id: "lower", style: { flex: "1 1 auto", overflowY: "auto" } },
+              div({ key: "lowerList", id: "lowerList" }, item("c"))),
+          ]
+          : div({ key: "all", id: "all", style: { flex: "1 1 auto", overflowY: "auto" } },
+            div({ key: "allList", id: "allList" }, item("t"), item("a"), item("b"), item("c")))));
+    await frame();
+    application.split = true;
+    const upper = document.getElementById("upper").getBoundingClientRect();
+    const frames = [];
+    const started = performance.now();
+    while (performance.now() - started < 2000) {
+      const t = document.getElementById("t");
+      const raised = t.parentNode.id !== "upperList";
+      const rect = t.getBoundingClientRect();
+      let top = rect.top;
+      let bottom = rect.bottom;
+      const polygon = /polygon\(([^)]*)\)/.exec(t.style.clipPath);
+      if (raised && polygon) {
+        const ys = polygon[1].split(",").map((point) => parseFloat(point.trim().split(/\s+/)[1]));
+        const scale = t.offsetHeight > 0 ? rect.height / t.offsetHeight : 1;
+        top = Math.max(top, rect.top + Math.min(...ys) * scale);
+        bottom = Math.min(bottom, rect.top + Math.max(...ys) * scale);
+      }
+      frames.push({ raised, top, bottom: Math.max(top, bottom), restTop: rect.top });
+      if (!raised && frames.some((each) => each.raised)) break;
+      await frame();
+    }
+    return { upperBottom: upper.bottom, frames };
+  },
 };
 window.ready = true;

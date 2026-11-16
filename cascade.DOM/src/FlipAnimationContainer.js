@@ -156,6 +156,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // raise().
     result.raised = new Map();
     result.layer = null;
+    // What clips each raised element, as what it's in would: from what
+    // clipped it where it was to what clips it where it lands - see
+    // startClips().
+    result.clips = new Map();
     // Changes of look under way - a paused animation each, from how an
     // element looked to how it looks now - see changeLooks().
     result.looks = new Map();
@@ -199,6 +203,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // expansion makes.
     const drawnAt = new Map();
     if (animate) {
+      const clipCache = new Map();
       for (const { element } of u.tracked) {
         if (!element.isConnected) continue;
         const rect = rectOf(element);
@@ -211,6 +216,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         // A raised one is where its placeholder is.
         const raised = u.raised.get(element);
         rect.parent = raised ? raised.placeholder.parentNode : element.parentNode;
+        // And what clips it there, as it's drawn - a raised one, as it's
+        // clipped on its way (see startClips()).
+        const clipped = u.clips.get(element);
+        rect.clip = raised && clipped && clipped.current ? clipped.current : this.clipOf(rect.parent, clipCache);
         // And how it looks - as drawn, a change of look under way included.
         if (element.nodeType === 1) rect.looks = looksOf(element);
         // How round its corners are drawn - and where its own texts are.
@@ -581,10 +590,111 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         u.springs.set(element, spring);
       }
     }
+    this.startClips(drawnAt);
     if (sizedAt) this.startSizing(sizedAt, sizedNow);
 
     this.applyAnimation();
     if (this.isAnimating()) this.requestFrame();
+  }
+
+  // What clips each element on its way somewhere. Raised into the layer
+  // (see raise()), it's out of reach of what it's in - so a list that
+  // scrolls wouldn't clip it: what lies beyond the list's edge, scrolled
+  // out of sight, would be drawn over whatever is beyond that edge, until
+  // it arrived and was lowered back into its place, out of sight again. So
+  // it's clipped as what it's in would clip it (see clipOf()) - going from
+  // what clipped it where it was, as it was drawn, to what clips it where
+  // it lands, at the pace of its spring's k (as a change of look goes - see
+  // changeLooks()). Headed beyond a list's edge, it slips out of sight
+  // there; coming from beyond one, it's revealed as it comes out. Where
+  // nothing clipped it - or nothing will - it's as if something just large
+  // enough for it, there, had.
+  startClips(drawnAt) {
+    const u = this.unobservable;
+    u.clips = new Map();
+    const cache = new Map();
+    for (const [element, spring] of u.springs) {
+      const before = drawnAt.get(element);
+      if (!spring.travelling || !before || element.nodeType !== 1) continue;
+      const to = this.clipOf(element.parentNode, cache);
+      const from = before.clip;
+      if (!to && !from) continue;
+      const now = u.layout.get(element);
+      u.clips.set(element, {
+        from: from || unionOf(to, { left: before.x, top: before.y, right: before.x + before.width, bottom: before.y + before.height }),
+        to: to || unionOf(from, { left: now.x, top: now.y, right: now.x + now.width, bottom: now.y + now.height }),
+        current: null,
+      });
+      if (!from || !to || !sameRect(from, to)) {
+        spring.k = 1;
+        spring.vk = 0;
+      }
+    }
+  }
+
+  // What clips what's in `node` - every element from it out to the
+  // container (which clips its layer itself) whose overflow isn't visible,
+  // as it's drawn right now: the intersection of their padding boxes, in
+  // page terms, `left`, `top`, `right` and `bottom` (each way only where it
+  // clips that way). Null where nothing does. Nothing beyond a fixed
+  // element clips what's in it. Per node, in `cache`.
+  clipOf(node, cache) {
+    if (cache && cache.has(node)) return cache.get(node);
+    const root = this.unobservable.node;
+    let clip = null;
+    for (let each = node; each && each !== root && each.nodeType === 1; each = each.parentNode) {
+      const style = each.ownerDocument.defaultView.getComputedStyle(each);
+      const clipsX = style.overflowX && style.overflowX !== "visible";
+      const clipsY = style.overflowY && style.overflowY !== "visible";
+      if (clipsX || clipsY) {
+        const rect = each.getBoundingClientRect();
+        // Drawn scaled, perhaps: its padding box, scaled as much.
+        const sx = each.offsetWidth > 0 ? rect.width / each.offsetWidth : 1;
+        const sy = each.offsetHeight > 0 ? rect.height / each.offsetHeight : 1;
+        const left = rect.left + (each.clientLeft || 0) * sx;
+        const top = rect.top + (each.clientTop || 0) * sy;
+        const box = {
+          left: clipsX ? left : -Infinity,
+          right: clipsX ? left + (each.clientWidth || rect.width / sx) * sx : Infinity,
+          top: clipsY ? top : -Infinity,
+          bottom: clipsY ? top + (each.clientHeight || rect.height / sy) * sy : Infinity,
+        };
+        clip = clip ? intersectionOf(clip, box) : box;
+      }
+      if (style.position === "fixed") break;
+    }
+    if (cache) cache.set(node, clip);
+    return clip;
+  }
+
+  // A raised element clipped as far from what clipped it where it was to
+  // what clips it where it lands as its spring's k says (see startClips()) -
+  // drawn at `here` (its top-left in page terms, and its scale), `width`
+  // by `height` as it lies.
+  drawClip(element, clip, spring, here, width, height) {
+    const k = Math.max(0, Math.min(1, spring.k));
+    const { from, to } = clip;
+    const between = (key) => {
+      if (to[key] === from[key]) return to[key];
+      if (!isFinite(to[key]) || !isFinite(from[key])) return k > 0.5 ? from[key] : to[key];
+      return to[key] + (from[key] - to[key]) * k;
+    };
+    const at = { left: between("left"), top: between("top"), right: between("right"), bottom: between("bottom") };
+    clip.current = at;
+    const { sx, sy } = here.total;
+    if (!(sx > 0) || !(sy > 0)) return;
+    const left = (at.left - here.x) / sx;
+    const top = (at.top - here.y) / sy;
+    const right = (at.right - here.x) / sx;
+    const bottom = (at.bottom - here.y) / sy;
+    if (left <= 0 && top <= 0 && right >= width && bottom >= height) {
+      element.style.clipPath = "";
+      return;
+    }
+    // Only what's in the box, at most - a polygon may well reach past it.
+    const x1 = round(Math.max(left, -width)), y1 = round(Math.max(top, -height));
+    const x2 = round(Math.max(x1, Math.min(right, 2 * width))), y2 = round(Math.max(y1, Math.min(bottom, 2 * height)));
+    element.style.clipPath = "polygon(" + x1 + "px " + y1 + "px, " + x2 + "px " + y1 + "px, " + x2 + "px " + y2 + "px, " + x1 + "px " + y2 + "px)";
   }
 
   isAnimating() {
@@ -867,6 +977,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         element.style.width = layout.width * (1 + spring.w) + "px";
         element.style.height = layout.height * (1 + spring.h) + "px";
       }
+      // Raised, clipped as what it's in would clip it (see startClips()).
+      const clip = raised && u.clips.get(element);
+      if (clip) {
+        const width = raised.sized ? layout.width * (1 + spring.w) : layout.width;
+        const height = raised.sized ? layout.height * (1 + spring.h) : layout.height;
+        this.drawClip(element, clip, spring, here, width, height);
+      }
       // Rounded corners kept round on the way (see startCorners()) - as the
       // app has them again once it has arrived.
       const corners = u.corners.get(element);
@@ -1008,7 +1125,10 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const raised = u.raised.get(element);
       const moving = Math.abs(spring.x) >= 1 || Math.abs(spring.y) >= 1;
       const sizing = raised && raised.sized && (Math.abs(spring.w) * layout.width >= 0.5 || Math.abs(spring.h) * layout.height >= 0.5);
-      if (!moving && !sizing) continue;
+      // Or still clipped on its way otherwise than it will be in its place
+      // (see startClips()): lowered, it would be clipped so at once.
+      const clipping = u.clips.has(element) && Math.abs(spring.k) >= 0.01;
+      if (!moving && !sizing && !clipping) continue;
       const carrier = u.springs.get(ancestorOf.get(element));
       if (carrier && Math.abs(carrier.x - spring.x) < 1 && Math.abs(carrier.y - spring.y) < 1) continue;
       travelling.add(element);
@@ -1052,7 +1172,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const raisedStyle = {
       position: "absolute", left: "0px", top: "0px", right: "auto", bottom: "auto",
       width: layout.width + "px", height: layout.height + "px", minWidth: "0px", minHeight: "0px", maxWidth: "none", maxHeight: "none",
-      marginTop: "0px", marginRight: "0px", marginBottom: "0px", marginLeft: "0px", boxSizing: "border-box", ...looks,
+      marginTop: "0px", marginRight: "0px", marginBottom: "0px", marginLeft: "0px", boxSizing: "border-box", clipPath: "", ...looks,
       ...(sized ? { overflow: "hidden" } : {}),
     };
     const saved = {};
@@ -1141,6 +1261,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     if (placeholder.parentNode) placeholder.parentNode.replaceChild(element, placeholder);
     else element.remove();
     u.raised.delete(element);
+    // Clipped by what it's in again.
+    u.clips.delete(element);
     if (u.raised.size === 0 && u.layer) {
       u.layer.remove();
       u.layer = null;
@@ -1378,6 +1500,19 @@ function hasRoundedCorners(style) {
 // absolutely positioned in it is placed by something further out.
 function isStatic(style) {
   return !style.position || style.position === "static";
+}
+
+// Rectangles as `left`, `top`, `right` and `bottom`, in page terms.
+function intersectionOf(a, b) {
+  return { left: Math.max(a.left, b.left), top: Math.max(a.top, b.top), right: Math.min(a.right, b.right), bottom: Math.min(a.bottom, b.bottom) };
+}
+
+function unionOf(a, b) {
+  return { left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) };
+}
+
+function sameRect(a, b) {
+  return ["left", "top", "right", "bottom"].every((key) => a[key] === b[key] || Math.abs(a[key] - b[key]) < 0.5);
 }
 
 function round(value) {

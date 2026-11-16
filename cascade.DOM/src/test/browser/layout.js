@@ -135,4 +135,20 @@ describe("In a real layout (Chromium)", function () {
     const { before, atStart } = await run("wrappingRowItemLeaves");
     assert.deepEqual(atStart, before);
   });
+
+  it("what travels - raised - to beyond the edge of a list that scrolls is clipped by it, as it would be in its place: never seen beyond it once there", async function () {
+    const { upperBottom, frames } = await run("travellerIntoScrolledOut");
+    const raised = frames.filter((each) => each.raised);
+    assert.ok(raised.length > 0, "raised");
+    // Where it lands, it's beyond the upper list's edge: none of it to see.
+    const last = raised[raised.length - 1];
+    assert.ok(last.restTop > upperBottom, "lands beyond the edge: " + last.restTop + " > " + upperBottom);
+    assert.ok(last.bottom - last.top < 1 || last.bottom <= upperBottom + 1, "seen beyond the edge: " + last.top + "-" + last.bottom + " vs " + upperBottom);
+    // And what's seen of it only ever shrinks, as it goes there.
+    for (let i = 1; i < raised.length; i++) {
+      const was = raised[i - 1].bottom - raised[i - 1].top;
+      const now = raised[i].bottom - raised[i].top;
+      assert.ok(now <= was + 1, "grew: " + was + " -> " + now);
+    }
+  });
 });

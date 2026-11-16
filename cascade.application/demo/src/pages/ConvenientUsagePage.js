@@ -31,7 +31,7 @@ export class ConvenientUsagePage extends Component {
       p(
         "Wrap anything in ", name("flipAnimationContainer()"), ", and every change in it animates: elements ",
         "moving, appearing, leaving and resizing. What's inside is entirely unaware of it - this list is just a list, ",
-        "and the one line around it is all the animation there is.",
+        "and the one line around it is all the animation there is. The Animation Guide goes through everything it can do.",
       ),
       stage(new ShuffleList()),
       p(

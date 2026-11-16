@@ -22,6 +22,7 @@ const guide = [
   ["getting-started", "Getting Started", "From an empty folder to a running Cascade app."],
   ["convenient-usage", "Everyday Usage", "The patterns for building components and keeping state."],
   ["advanced-usage", "Advanced Usage", "render(), targets, contexts, services and the other hard parts."],
+  ["animation-guide", "Animation Guide", "Everything the animation container does, with an example of each, its pitfalls and limitations."],
   ["examples", "All Examples", "Every example in the demo, each with its code."],
 ];
 

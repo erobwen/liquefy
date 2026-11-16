@@ -8,6 +8,7 @@ import { GettingStartedPage } from "./src/pages/GettingStartedPage.js";
 import { ConvenientUsagePage } from "./src/pages/ConvenientUsagePage.js";
 import { ManualContentsPage, ManualChapterPage, chapters } from "./src/pages/ManualPage.js";
 import { AdvancedUsagePage } from "./src/pages/AdvancedUsagePage.js";
+import { AnimationGuidePage } from "./src/pages/AnimationGuidePage.js";
 import { ProgrammaticReactiveLayout } from "./src/pages/ProgrammaticReactiveLayout.js";
 import { RecursiveDemo } from "./src/pages/RecursiveDemo.js";
 import { HybridModalDialog } from "./src/pages/HybridModalDialog.js";
@@ -119,6 +120,7 @@ const applicationMenuFrame = new ApplicationMenuFrame({
     { key: "getting-started", group: "Guide", title: "Getting Started", description: "Getting started with Cascade: components, build(), and rendering onto the DOM.", component: new GettingStartedPage().establish() },
     { key: "convenient-usage", group: "Guide", title: "Everyday Usage", description: "Everyday usage of Cascade: the patterns for building components and keeping state.", component: new ConvenientUsagePage().establish() },
     { key: "advanced-usage", group: "Guide", title: "Advanced Usage", description: "Advanced usage of Cascade: render(), targets, contexts, services and the other hard parts.", component: new AdvancedUsagePage().establish() },
+    { key: "animation-guide", group: "Guide", title: "Animation Guide", description: "Everything Cascade's animation container does, one thing at a time: an example of each, how to get it, its pitfalls and limitations - and what to do when it isn't enough.", component: new AnimationGuidePage().establish() },
     // The reference manual - cascade/docs/manual, a page per chapter.
     { key: "manual", group: "Reference Manual", title: "Contents and Search", description: "The Cascade reference manual: everything to know before building with Cascade, chapter by chapter - and a search through all of it.", component: new ManualContentsPage().establish() },
     ...chapters.map((chapter) => ({

@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 
 const list = { display: "flex", flexDirection: "column", gap: "6px", padding: "12px", borderRadius: "8px", minWidth: "170px", minHeight: "44px" };
 const todo = { ...list, background: "#eaf2f8", fontSize: "18px", color: "#1b4f72" };
@@ -31,7 +31,7 @@ export class TwoLists extends Component {
       { key: name, style: task, onclick: callback("move" + name, () => this.move(name)) },
       text(name),
     ));
-    return flipAnimationContainer(
+    return animationContainer(
       { style: { display: "flex", alignItems: "flex-start", gap: "40px" } },
       div({ key: "todo", style: todo }, tasks(this.lists.todo)),
       div({ key: "done", style: done }, tasks(this.lists.done)),

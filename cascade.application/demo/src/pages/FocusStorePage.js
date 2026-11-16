@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer, portal, portalSource } from "@liquefy/cascade.dom";
+import { div, text, animationContainer, portal, portalSource } from "@liquefy/cascade.dom";
 import { button, card, icon, iconButton, row, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { animationControls } from "../components/animationControls.js";
@@ -153,7 +153,7 @@ export class FocusStore extends Component {
     const content = [new ProductList({ key: "products", products, size }), this.unobservable.statusBar];
     // One line animates it all:
     return this.animate
-      ? flipAnimationContainer({ key: "animated", confine: true, zoomAlong: true, speed, style }, content)
+      ? animationContainer({ key: "animated", confine: true, zoomAlong: true, speed, style }, content)
       : div({ key: "still", style }, content);
   }
 }

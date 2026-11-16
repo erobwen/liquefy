@@ -2,12 +2,22 @@ import { withoutRecording } from "@liquefy/cascade.component";
 import { DOMPlacingContainer } from "./DOMPlacingContainer.js";
 import { locateDOMComponent, registerDOMComponent } from "./DOMServiceLocator.js";
 
+// animationContainer(): the animation container - by what it is, not how
+// it works. The name to use: flipAnimationContainer() is the same
+// function, by its original name - kept, as is the class's
+// (FlipAnimationContainer: what to extend, or copy), and the name it's
+// asked for by through the service locator.
+export function animationContainer(...parameters) {
+  return flipAnimationContainer(...parameters);
+}
+
 export function flipAnimationContainer(...parameters) {
   return locateDOMComponent("flipAnimationContainer", parameters);
 }
 
 /**
- * FlipAnimationContainer - a container that places its whole subtree
+ * FlipAnimationContainer - made with animationContainer() (or, the same,
+ * flipAnimationContainer()) - a container that places its whole subtree
  * itself, in one pass, instead of letting each component in it render
  * itself, and animates every change in it: elements moving (within a
  * parent, or to another one), changing size, appearing and leaving. The

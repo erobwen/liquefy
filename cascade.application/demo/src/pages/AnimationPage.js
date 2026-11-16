@@ -1,5 +1,5 @@
 import { Component, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { button, card, controlPanel, row, column, filler, fillerStyle, naturalSizeStyle } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage, accentColor } from "../components/layout.js";
@@ -112,7 +112,7 @@ export class AnimationPage extends Component {
         button("Randomize", () => this.randomize()),
         button("Juggle", () => this.juggle()),
       ),
-      flipAnimationContainer(
+      animationContainer(
         { style: { ...fillerStyle, display: "flex", flexDirection: "column", overflow: "visible" } },
         filler(),
         row(

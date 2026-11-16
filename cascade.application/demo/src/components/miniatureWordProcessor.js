@@ -1,4 +1,4 @@
-import { Component, callback, repeat, retractRepeater } from "@liquefy/cascade.component";
+import { Component, callback, ensure, retractRepeater } from "@liquefy/cascade.component";
 import { div } from "@liquefy/cascade.dom";
 import { themeColor } from "@liquefy/cascade.ui";
 import { PaperSequence } from "@liquefy/cascade.print";
@@ -42,7 +42,7 @@ export class MiniatureWordProcessor extends Component {
   onEstablish() {
     super.onEstablish();
     const u = this.unobservable;
-    u.layoutRoot = repeat(() => u.layout.renderOnto(u.sequence), { independent: true });
+    u.layoutRoot = ensure(() => u.layout.renderOnto(u.sequence), { independent: true });
   }
 
   onDispose() {

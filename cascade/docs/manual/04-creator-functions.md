@@ -1,7 +1,7 @@
 # 4. Creator functions and argument lists
 
 Almost everything in a `build()` is made by calling a function: `div()`,
-`button()`, `row()`, `text()`, `flipAnimationContainer()` - or a constructor,
+`button()`, `row()`, `text()`, `animationContainer()` - or a constructor,
 `new Card()`. These are *creator functions*, and they all read their
 arguments the same way: **by type and position, not by name**. Pass a plain
 object and it's the properties. Pass components, strings and numbers and
@@ -234,9 +234,9 @@ key. So `icon("info")` is an icon *keyed* "info", with no name - write
 `icon({ name: "info" })`. Each widget's properties are listed in
 [10.7](10-dom-and-ui.md#107-cascadeui-widgets).
 
-**DOM components** (cascade.dom) - `flipAnimationContainer()`, `portal()`,
+**DOM components** (cascade.dom) - `animationContainer()`, `portal()`,
 `portalSource()`, `elementBoundsProvider()`, `providingElement()`, ... -
-parse as an element does: `flipAnimationContainer({ confine: true },
+parse as an element does: `animationContainer({ confine: true },
 ...items)`.
 
 **Your own components** - `new Card(...)` - parse the same way, in

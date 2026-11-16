@@ -16,6 +16,8 @@ export const {
   deeplyObservable,
   isObservable,
   isTemporal,
+  // ensure() is repeat() - the name to use (see cascade.reactive).
+  ensure,
   repeat,
   linkRepeater,
   finalize,

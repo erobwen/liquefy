@@ -25,7 +25,7 @@ Configuration options (defaults in parentheses):
 | Option | Meaning |
 |---|---|
 | `name` | Identifies the world. |
-| `timeLevels` (4) | Number of time levels for pipelines; `repeat({ time })` must be below it. |
+| `timeLevels` (4) | Number of time levels for pipelines; `ensure({ time })` must be below it. |
 | `sendEventsToObjects` (true) | Calls `onChange`/`onEstablish`/`onDispose` on observables that have them. |
 | `useNonObservablesAsValues` (false), `valueComparisonDepthLimit` (5) | Compare non-observable values written to properties deeply instead of by identity (frozen plain data is always compared by content). |
 | `requireRepeaterName`, `requireInvalidatorName` (false) | Throw when a repeater/invalidator gets no description. |
@@ -44,7 +44,7 @@ World members:
 | `deeplyObservable` | `deeplyObservable(object, [copy])` | Makes a tree of plain objects and arrays observable (timeless), in place or as a copy. |
 | `isObservable` | `isObservable(value) → boolean` | Whether `value` is an observable of this world, timeless or temporal. |
 | `isTemporal` | `isTemporal(value) → boolean` | Whether `value` is a temporal observable of this world. |
-| `repeat` | `repeat([description], action, [nonRecordedAction], [options]) → repeater` | Runs `action(repeater)` now and whenever what it read changes; `nonRecordedAction` runs after it without recording. Options: `independent` (own pipeline, not a child of the running repeater), `time` (time level), `pulledBy` (a repeater, or function returning one, that pulls this one instead of it being scheduled), `onRetract(repeater)`, `onRefresh(repeater)`, `rebuildShapeAnalysis`, `onStartBuildUpdate`, `onEndBuildUpdate` (the last three are used by component builds). |
+| `ensure` (also `repeat`: the same) | `ensure([description], action, [nonRecordedAction], [options]) → repeater` | Runs `action(repeater)` now and whenever what it read changes; `nonRecordedAction` runs after it without recording. Options: `independent` (own pipeline, not a child of the running repeater), `time` (time level), `pulledBy` (a repeater, or function returning one, that pulls this one instead of it being scheduled), `onRetract(repeater)`, `onRefresh(repeater)`, `rebuildShapeAnalysis`, `onStartBuildUpdate`, `onEndBuildUpdate` (the last three are used by component builds). |
 | `invalidateOnChange` | `invalidateOnChange([description], doFirst, doAfterChange) → invalidator` | Runs `doFirst` recording reads; calls `doAfterChange` once, on the first change. |
 | `linkRepeater` | `linkRepeater(repeater) → repeater` | Reattaches an existing repeater as a child at the current position. |
 | `refreshIfNeeded` | `refreshIfNeeded(repeater) → repeater` | Runs a pending repeater now (a pull). |
@@ -96,7 +96,7 @@ Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
 | `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:
@@ -204,7 +204,7 @@ Measurement, layout, animation (10.3, 10.4):
 |---|---|---|
 | `DOMElementBoundsProvider` / `elementBoundsProvider` | `elementBoundsProvider({ child, style, className })` | Measured, size-contained div; child reads `fromTarget("width"/"height")`. |
 | `DOMElementVisibilityProvider` / `elementVisibilityProvider` | `elementVisibilityProvider({ child, style, className, amount, margin })` | Watched div; child reads `fromTarget("inView"/"seen")`. |
-| `FlipAnimationContainer` / `flipAnimationContainer` | `flipAnimationContainer({ enabled, speed, confine, zoomAlong, keepCorners, isUnit, style }, ...children)` | Places and animates its subtree. Statics: `speed` (1), `clock` (`now`, `requestFrame`), `islandAttribute` (`"data-flip-island"`). |
+| `FlipAnimationContainer` / `animationContainer` (also `flipAnimationContainer`: the same) | `animationContainer({ enabled, speed, confine, zoomAlong, keepCorners, isUnit, style }, ...children)` | Places and animates its subtree. Statics: `speed` (1), `clock` (`now`, `requestFrame`), `islandAttribute` (`"data-flip-island"`). |
 | `OverflowContainer` / `overflowContainer` | `overflowContainer({ children, style, isUnit, ellipsis, overflowSlot, onOverflow })` | A row that moves what doesn't fit into a slot; `onOverflow(count)`. |
 | `DOMElementSlot` / `elementSlot` | `elementSlot({ style })` | An element for an overflow container to fill. |
 | `textWidth` | `textWidth(text, { fontSize = 13, fontWeight = 400, fontFamily })` | Text width in px, measured on a canvas. |

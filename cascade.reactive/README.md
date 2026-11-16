@@ -24,15 +24,15 @@ npm install @liquefy/cascade.reactive
 
 ```js
 import getWorld from "@liquefy/cascade.reactive";
-const { temporal, repeat } = getWorld({ name: "example" });
+const { temporal, ensure } = getWorld({ name: "example" });
 
 // The same object, read and written along a pipeline of repeaters.
 const layout = temporal({ width: 1000 });
 
-repeat(() => {
-  repeat(() => console.log("Header sees width", layout.width));  // before the write
-  repeat(() => { layout.width = layout.width - 200; });          // the sidebar takes 200
-  repeat(() => console.log("Content sees width", layout.width)); // after it
+ensure(() => {
+  ensure(() => console.log("Header sees width", layout.width));  // before the write
+  ensure(() => { layout.width = layout.width - 200; });          // the sidebar takes 200
+  ensure(() => console.log("Content sees width", layout.width)); // after it
 });
 // Header sees width 1000
 // Content sees width 800
@@ -55,23 +55,23 @@ It is possible to create several instances of causality, called worlds, each wit
 
     import getWorld from "@liquefy/cascade.reactive";
     let myWorld = getWorld({name: "myWorld", ...moreOptions}); // Create an instance with possibility to configure it.
-    let { observable, repeat } = myWorld;
+    let { observable, ensure } = myWorld;
 
 Calling getWorld multiple times with the same unique name given in the configuration, will return the same world object. Only the options given the first time will be considered. For consequtive calls with the same world name, the options will be ignored.
 
 
 # Quick Example
 
-This is just to show a simple example of what causality is all about, using the simple repeat primitive.
+This is just to show a simple example of what causality is all about, using the simple ensure primitive.
 
     import getWorld from "@liquefy/cascade.reactive";
-    let { observable, repeat } = getWorld();
+    let { observable, ensure } = getWorld();
 
     let x = observable({propA: 11});
     let y = observable({propB: 11, propC: 100});
     let z;
 
-    repeat(function(){
+    ensure(function(){
         z = x.propA + y.propB;  // Sets up a reactive setting of variable z
     });
     // z is now 22
@@ -128,24 +128,26 @@ A repeater that reads a property of a timeless object and then writes another va
 
 To access the inner workings of a causality object, you can access it by the causality property. For example write object.causality.id to get a system wide unique id for that particular object. 
 
-## repeat (MobX autorun)
+## ensure (MobX autorun)
+
+ensure() makes a *repeater*: it runs its action now, and again whenever what that read changes. The name says what it is for - ensure that x is the sum of y and z: it is so now, and stays so. repeat() is the same function by its original name, and stays: use whichever reads better.
 
 Repeat is typically used to enforce some certain data constraint. Such as reactive validation of a form, or calculation of some. In its basic form, it is simply a function that is reevaluated every time any of the data it read changes. For example:
 
-    repeat(function() {  x.value = y.value + z.value; });
+    ensure(function() {  x.value = y.value + z.value; });
 
 This will cause x.value to be assigned to y.value + z.value any time either y.value or z.value changes. The good part is that you can write any kind of code inside the function. There can be loops, function calls, recursive functions. Anything. And no matter what code is there, causality will always keep track of what data has been read by the repeater function at any given moment.
 
 It will however not detect changes in local variables, so for example if local or global variable y is assigned in this example, there will be no reevaluation of x.value. In practice however, this is in general not a limitation as application code typically reacts to changes to a specific model, rather than changes in local variables.
 
-### Using repeat with rebuilding keys
-repeat is equipped with some special features when it comes to creating data structures. Assume that you have an algorithm that constructs a data structure. For example a balanced index structure of some sort. However, when the input data is changed and the algorithm needs to repeat once more, you do not want a completely new output data structure.  Instead, you want to execute the algorithm once more, and at the end of it, compare the difference to the result of the last run, and update the previous result in a minimal way. This is something that is supported with causality! 
+### Using ensure with rebuilding keys
+ensure is equipped with some special features when it comes to creating data structures. Assume that you have an algorithm that constructs a data structure. For example a balanced index structure of some sort. However, when the input data is changed and the algorithm needs to repeat once more, you do not want a completely new output data structure.  Instead, you want to execute the algorithm once more, and at the end of it, compare the difference to the result of the last run, and update the previous result in a minimal way. This is something that is supported with causality! 
 
 React users might notice that this is actually a generalization of how React works with the synthetic dom. But instead of being limited to just dom structures, causality can do this trick for any data structure!
 
 For example: 
 
-    repeat(() => {
+    ensure(() => {
         for(let input of inputArray) {
             addToIndex(observable({value: input.value},"buildId" + input.id))
         }
@@ -153,7 +155,7 @@ For example:
     
 Note that the only difference is that we added a unique build id for each created object in the data structure. This way causality will know what previously created object correspond to the objects created at each repetition.
 
-### Using repeat with time
+### Using ensure with time
 
 When building a framework, such as a front end framework, it becomes apparent that some repeats should run at a later time than others. For example, if we have a rendering pipeline, that starts with model, view model and then ends with view. It would be highly innefficient if for every change in the model, we would update the view. Because say perhaps that there are 3 changes on the model level, that causes 9 changes in the view model level, that again causes 18 changes on the view itself. We want to finish all changes on the model level, before we start to work on the view model level, and we want to finish all changes on the view model, before we start to update the view. To do this, we need to stage repeaters into different times. 
 
@@ -161,18 +163,18 @@ You want the update to propagate through your dependency network breadth first f
 
 For example: 
 
-    repeat(() => updateViewModel(), {
+    ensure(() => updateViewModel(), {
         time: 1
     })
 
-To do this, causality has a limited number of time levels to divide repeaters into. When you execute a repeat operation, you can set the time of it: an integer from 0 up to, but not including, the world's `timeLevels` (4 by default - `getWorld({ timeLevels })` sets another). A time outside that range is an error. A repeater created inside another's run is part of that one's pipeline, and its own `time` is ignored - it runs where its creator places it.
+To do this, causality has a limited number of time levels to divide repeaters into. When you execute an ensure operation, you can set the time of it: an integer from 0 up to, but not including, the world's `timeLevels` (4 by default - `getWorld({ timeLevels })` sets another). A time outside that range is an error. A repeater created inside another's run is part of that one's pipeline, and its own `time` is ignored - it runs where its creator places it.
 
 Also, in addition to using time levels. causality internally uses a queue for repeater updates, and this by itself is a heuristic that makes it more likley for changes to propagate breadth first. But depending on your dependencies, reevaluation at some stage could potentially occur, so time levels helps to enforce some degree of breadth first.  
 
 ### Separate cause and effect (MobX reaction)
 A repeater can mix cause and effect, and there are some preventive measures in place to prevent a repeater from activating itself. So, in many cases it is safe to use a repeater with a single action (comparable to autorun in MobX). However, there could be situations where you would like to distinguish more between cause and effect. To do that, a second argument for the repeater is an action that is not recorded. 
 
-    repeat([description for debug], recordedAction, nonRecordedAction, options)
+    ensure([description for debug], recordedAction, nonRecordedAction, options)
 
 The options object contains further configurations for the repeater (`time`, `independent`, ...).
 
@@ -184,7 +186,7 @@ There is a famous quote from programmer Jeff Atwood (author of blog Coding Horro
 
 *There are two hard things in computer science: cache invalidation, naming things, and off-by-one errors.*
 
-Well, at least cache invalidation just got much more simple thanks to invalidateOnChange. While you could use a repeat to invalidate a cache, invalidateOnChange is a more basic primitive that is optimized for this specific purpose. For example, if a cache is filled up using lazy evaluation, it is convenient to just clear the cache without any direct reevaluation. 
+Well, at least cache invalidation just got much more simple thanks to invalidateOnChange. While you could use an ensure to invalidate a cache, invalidateOnChange is a more basic primitive that is optimized for this specific purpose. For example, if a cache is filled up using lazy evaluation, it is convenient to just clear the cache without any direct reevaluation. 
 
 Here is an example:
 
@@ -207,7 +209,7 @@ When working with causality it could be useful to sometimes break the rules. Rea
     let y = observable({ value: false });
     let z = observable({ value: 10});
 
-    repeat(function() {
+    ensure(function() {
         withoutRecording(function() {
             console.log("Repeating with these values:");
             console.log(y.value);

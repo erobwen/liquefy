@@ -30,14 +30,14 @@ off.
 
 ```js
 import getWorld from "@liquefy/cascade.reactive";
-const { temporal, repeat } = getWorld({ name: "example" });
+const { temporal, ensure } = getWorld({ name: "example" });
 
 const layout = temporal({ width: 1000 });
 
-repeat(() => {
-  repeat(() => console.log("Header sees width", layout.width));  // before the write
-  repeat(() => { layout.width = layout.width - 200; });          // the sidebar takes 200
-  repeat(() => console.log("Content sees width", layout.width)); // after it
+ensure(() => {
+  ensure(() => console.log("Header sees width", layout.width));  // before the write
+  ensure(() => { layout.width = layout.width - 200; });          // the sidebar takes 200
+  ensure(() => console.log("Content sees width", layout.width)); // after it
 });
 // Header sees width 1000
 // Content sees width 800

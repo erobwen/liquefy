@@ -7,7 +7,7 @@ an app can have services of its own.
 **The boundary rule.** Application code - your components, pages, demos,
 anything that builds a UI - gets platform components only through the
 factory functions that go through the locators: `div()`, `text()`,
-`button()`, `elementBoundsProvider()`, `flipAnimationContainer()`,
+`button()`, `elementBoundsProvider()`, `animationContainer()`,
 `providingElement()`, `hydrate()` and the like. Never `new
 DOMElementComponent(...)` or `new BasicButton(...)`: a component built that
 way ignores the theme and every `serviceProvider()` around it. Inside

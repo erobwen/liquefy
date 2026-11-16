@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { button, row } from "@liquefy/cascade.ui";
 
 const steps = [
@@ -22,7 +22,7 @@ export class OwnBox extends Component {
     const [title, lines] = steps[this.step];
     return div(
       { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "300px" } },
-      flipAnimationContainer(
+      animationContainer(
         {
           style: {
             display: "flex", flexDirection: "column", gap: "8px", width: "240px", padding: "16px",

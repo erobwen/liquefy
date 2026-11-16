@@ -15,20 +15,20 @@ cascade.reactive's API comes from a *world*:
 ```js
 import getWorld from "@liquefy/cascade.reactive"; // also a named export
 const world = getWorld({ name: "myApp", timeLevels: 4 });
-const { observable, repeat } = world;
+const { observable, ensure } = world;
 ```
 
 Calling `getWorld()` again with the same `name` returns the same world; the
 options are only read the first time. cascade.component creates the world
 named `"cascade.component"` and re-exports its functions. **In a Cascade app,
-import `observable`, `repeat` etc. from `@liquefy/cascade.component`**, so your
+import `observable`, `ensure` etc. from `@liquefy/cascade.component`**, so your
 models and your components share one world. `isObservable()` only recognizes
 the world's own observables, and a repeater doesn't follow an observable from
 another world: changing it doesn't rerun the repeater. Keep everything a
 component reads in one world.
 
 What `@liquefy/cascade.component` re-exports from its world: `observable`,
-`temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `repeat`, `linkRepeater`, `refreshIfNeeded`,
+`temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `refreshIfNeeded`,
 `retractRepeater`, `withoutRecording`, `invalidateOnChange`,
 `postponeInvalidations`, `continueInvalidations`, `flush`,
 `accessInitialValues`, `declareState`, `finalize`, `sameAsPreviousDeep`,
@@ -111,9 +111,9 @@ lets each reader see the array as the writers before it left it.
 ```js
 const model = observable({ width: 1000 });
 const target = temporal({ width: 1000 });
-repeat(() => {
-  repeat(() => console.log("before", model.width, target.width));
-  repeat(() => { model.width = 800; target.width = 800; });
+ensure(() => {
+  ensure(() => console.log("before", model.width, target.width));
+  ensure(() => { model.width = 800; target.width = 800; });
 });
 // before 1000 1000
 // before 800 1000   - the timeless write reaches a reader before it; the temporal one doesn't
@@ -155,11 +155,11 @@ applies at its own position.
 
 ```js
 const doc = temporal({ line: 0 });
-repeat(() => {
+ensure(() => {
   doc.line = 1;
-  repeat(() => console.log("A sees", doc.line)); // A sees 1
+  ensure(() => console.log("A sees", doc.line)); // A sees 1
   doc.line = 2;
-  repeat(() => console.log("B sees", doc.line)); // B sees 2
+  ensure(() => console.log("B sees", doc.line)); // B sees 2
 });
 doc.line; // 2 - outside, the latest
 ```
@@ -171,7 +171,7 @@ an outside read:
 
 ```js
 const m = temporal({ v: "base" });
-repeat(() => { m.v = "fromRepeater"; });
+ensure(() => { m.v = "fromRepeater"; });
 m.v = "click";   // lands at the baseline, under the repeater's writing
 m.v;             // "fromRepeater"
 ```
@@ -191,14 +191,21 @@ before the assignment returns. A write inside a running pipeline schedules
 its readers, which run when the scheduler reaches their position. To make
 several writes and react once, batch them (9.6).
 
-## 9.4 repeat()
+## 9.4 ensure()
+
+`ensure()` makes a **repeater**: it runs its action now, and again whenever
+what that read changes. The name says what it's for - *ensure that the
+content is 200 narrower than the layout*: it's so now, it stays so whatever
+changes, and it's taken back when the repeater is retracted. `repeat()` is
+the same function by its original name, and stays - use whichever reads
+better; this manual says `ensure()`.
 
 ```js
-const repeater = repeat([description], action, [nonRecordedAction], [options]);
+const repeater = ensure([description], action, [nonRecordedAction], [options]);
 ```
 
 - `action(repeater)` is run at once, and again whenever something it read
-  changes. `repeat()` returns the repeater object.
+  changes. `ensure()` returns the repeater object.
 - `description` - a string, for debugging.
 - With `nonRecordedAction`, the return value of `action` is passed to it,
   unrecorded (MobX `reaction`): reads in `action` are the cause, the
@@ -369,7 +376,7 @@ some other reason - rarely what you want.
 
 ```js
 const r = temporal({ y: "base" });
-const writer = repeat(() => { r.y = "written"; });
+const writer = ensure(() => { r.y = "written"; });
 retractRepeater(writer); // r.y is "base" again; its readers rerun
 writer.restart();        // r.y is "written" again
 ```
@@ -409,7 +416,7 @@ buildId)`) inside a repeater gives a created object a build identity: on the nex
 build id returns the established object, with its properties merged in.
 
 ```js
-repeat(() => {
+ensure(() => {
   for (const input of inputs) {
     index.add(observable({ value: input.value }, "entry" + input.id));
   }
@@ -457,7 +464,7 @@ warns (see [3.2](03-components.md#32-properties)).
 
 ## 9.14 Errors
 
-- An error thrown in a repeater's first run comes out of `repeat()`.
+- An error thrown in a repeater's first run comes out of `ensure()`.
 - An error thrown in a rerun comes out of whatever triggered it - usually the
   **write** in your event handler (`store.x = 1` throws), or
   `continueInvalidations()`. The scheduler keeps working; the repeater that
@@ -474,7 +481,7 @@ warns (see [3.2](03-components.md#32-properties)).
   `dispose`. Don't name a method `onChange` on a model class by accident.
 - `world.log(entity)`, `logGroup`, `logUngroup`, `logToString`, `loge`,
   `logs`, `logss` - debug output that never records dependencies.
-- Give repeaters a description (`repeat("cart total", () => ...)`) and use
+- Give repeaters a description (`ensure("cart total", () => ...)`) and use
   `repeater.causalityString()` to see what invalidated one.
 - `world.state` (re-exported as `state`), `enterContext`, `leaveContext`,
   `invalidateObserver` and the timeline functions are for extensions.

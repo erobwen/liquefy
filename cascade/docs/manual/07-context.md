@@ -142,7 +142,7 @@ A component is rendered onto a *target* with a *context* -
 
 **Why it matters.** A component's build runs in an *independent* repeater -
 a pipeline of its own, unrelated in time to the render pipeline (see
-[9.4](09-reactivity.md#94-repeat)). A read from it sees the *latest* writing
+[9.4](09-reactivity.md#94-ensure)). A read from it sees the *latest* writing
 of whatever it reads. For a value with one value per pass, the latest writing
 is the right one. For a temporal value - "the last node placed so far", "the
 height left after the toolbar" - the latest writing is whatever the *last*

@@ -6,7 +6,7 @@ theme. Each package README has more: `cascade.DOM/README.md`,
 `cascade.ui/README.md`, `cascade.ui.material/README.md`.
 
 One rule runs through all of it: **application code gets platform components
-through the service locator** - `div()`, `text()`, `flipAnimationContainer()`,
+through the service locator** - `div()`, `text()`, `animationContainer()`,
 `elementBoundsProvider()`, `button()` - never `new DOMSomething(...)`. Only
 cascade.DOM's own components construct each other directly (a
 `DOMElementComponent` its text children, say): whoever wants another
@@ -194,12 +194,17 @@ you:
 - Components it places get `onShow()`/`onHide()` as rendering would give
   them; while the container is hidden, their builds don't run.
 
-`flipAnimationContainer({ enabled, speed, confine, zoomAlong, keepCorners, isUnit, style }, ...children)`
-places its subtree and **animates every change in it**: moves within a parent
+`animationContainer({ enabled, speed, confine, zoomAlong, keepCorners, isUnit, style }, ...children)`
+makes a `FlipAnimationContainer`: it places its subtree and **animates every change in it**: moves within a parent
 or to another, resizes, appearing and leaving. The components inside know
 nothing about animation. Items must keep their identity to animate as moves:
 give keys to what can move, appear or disappear
 ([5](05-identity.md#5-identity-keys-and-pattern-matching)).
+
+`animationContainer()` is the name to use: what it is, not how it works.
+`flipAnimationContainer()` is the same function by its original name, and
+stays; the class is `FlipAnimationContainer` - what you extend, or copy, to
+make one of your own.
 
 | Option | Default | Meaning |
 |---|---|---|

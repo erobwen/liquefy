@@ -42,13 +42,13 @@ const shownKey = "cascade.showcaseShown";
 const temporalSignalsExample = `const heading = temporal({ text: "hello world", size: 16 });
 
 // Time 0: capitalizes the text - writing the very property it reads.
-repeat(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });
+ensure(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });
 
 // Time 1: headings are twice the size - the same, for the size.
-repeat(() => { heading.size = heading.size * 2; }, { time: 1 });
+ensure(() => { heading.size = heading.size * 2; }, { time: 1 });
 
 // Time 2: sees the heading as times 0 and 1 left it.
-repeat(() => console.log(heading.text, heading.size + "px"), { time: 2 });
+ensure(() => console.log(heading.text, heading.size + "px"), { time: 2 });
 // HELLO WORLD 32px`;
 
 // The Focus Store's own code - what animates it all, the very code running
@@ -475,7 +475,7 @@ class OneLiner extends Section {
         icon({ name: "code", style: { fontSize: "20px" } }),
         text("src/pages/FocusStorePage.js - FocusStore"),
       ),
-      new HighlightedCode({ source: focusStoreBuild, marks: [{ call: "flipAnimationContainer" }], style: { padding: "12px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" } }),
+      new HighlightedCode({ source: focusStoreBuild, marks: [{ call: "animationContainer" }], style: { padding: "12px", overflow: "auto", lineHeight: "1.5", fontSize: "14px" } }),
     ));
     // Not flown in: it would be drawn squeezed into the wing's width on the
     // way - it rises into view, as text does.
@@ -488,7 +488,7 @@ class OneLiner extends Section {
           this.eyebrow("Standout feature"),
           this.title([text("Animate an entire interface. "), shine("With one line.")], 100),
           this.lead([
-            text("A shelf, a close-up, a cart and an overlay - products growing, flying and fading between them. All of it fully animated by a single line of code: the highlighted one, wrapping the store in flipAnimationContainer()."),
+            text("A shelf, a close-up, a cart and an overlay - products growing, flying and fading between them. All of it fully animated by a single line of code: the highlighted one, wrapping the store in animationContainer()."),
           ], 200),
           this.lead([
             text("No animation code anywhere else, and no changes to the components animated. Every element is measured where it really is, before and after each change, and glides between the two - set up in the middle of a render, thanks to sub-frame precision."),

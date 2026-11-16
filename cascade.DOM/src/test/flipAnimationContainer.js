@@ -4,7 +4,7 @@ import { Component, RenderContext, ObservableCompoundServiceLocator, observable 
 import { DOMElementTarget } from "../DOMElementTarget.js";
 import { DOMServiceLocator } from "../DOMServiceLocator.js";
 import { DOMNodeComponent } from "../DOMNodeComponent.js";
-import { FlipAnimationContainer, flipAnimationContainer } from "../FlipAnimationContainer.js";
+import { FlipAnimationContainer, flipAnimationContainer, animationContainer } from "../FlipAnimationContainer.js";
 import { div, span, p, button, h1, h2, ul, li } from "../HTMLTags.js";
 import { text } from "../DOMTextComponent.js";
 import { portal, portalSource } from "../Portal.js";
@@ -90,6 +90,14 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     // App -> root (div/container) -> the List it was built with.
     return appComponent.currentBuild.children[0];
   }
+
+  it("animationContainer() makes one too: the same container, by the name to use", function () {
+    const made = animationContainer({ key: "flip", confine: true }, div({ key: "a" }, text("A")));
+    assert.ok(made instanceof FlipAnimationContainer);
+    assert.equal(made.confine, true);
+    made.renderOnto(new DOMElementTarget(container));
+    assert.equal(container.firstElementChild.textContent, "A");
+  });
 
   it("renders the same DOM as rendering normally - nested builds, arrays, loose and keyed text, show(false)", function () {
     const both = renderBoth(app(() => [new List({ key: "list" })]));

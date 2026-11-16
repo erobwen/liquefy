@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer, scrollArea } from "@liquefy/cascade.dom";
+import { div, text, animationContainer, scrollArea } from "@liquefy/cascade.dom";
 import { button, column, controlPanel } from "@liquefy/cascade.ui";
 
 const message = { padding: "8px 12px", borderRadius: "6px", background: "#d6dbdf", color: "#212f3d", cursor: "pointer" };
@@ -23,7 +23,7 @@ export class Scrolling extends Component {
       }))),
       scrollArea(
         { fade: 24, style: { height: "200px", width: "280px" }, scrollStyle: { flex: 1, paddingRight: "10px" } },
-        flipAnimationContainer(
+        animationContainer(
           { style: { display: "flex", flexDirection: "column", gap: "6px" } },
           this.messages.map((id) => div(
             {

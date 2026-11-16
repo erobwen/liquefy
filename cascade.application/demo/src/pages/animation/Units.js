@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { button, column, controlPanel } from "@liquefy/cascade.ui";
 
 const tile = { display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", borderRadius: "8px", background: "#fdebd0", color: "#784212" };
@@ -39,7 +39,7 @@ export class Units extends Component {
     return column(
       { style: { gap: "12px", overflow: "visible" } },
       controlPanel(button(text("Shuffle"), callback("shuffle", () => { this.names = [...this.names].sort(() => Math.random() - 0.5); }))),
-      flipAnimationContainer(
+      animationContainer(
         { isUnit: isCounter, style: { display: "flex", flexWrap: "wrap", gap: "8px" } },
         this.names.map((name) => new Counter({ key: name, name })),
       ),

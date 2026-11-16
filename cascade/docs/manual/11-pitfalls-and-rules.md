@@ -557,7 +557,7 @@ children do. A frame inside a frame finds the outer one.
 
 **Rule.** Application code makes platform and widget components with the
 factory functions - `div()`, `text()`, `button()`, `portal()`,
-`flipAnimationContainer()`, `elementBoundsProvider()` - never
+`animationContainer()`, `elementBoundsProvider()` - never
 `new DOMElementComponent(...)` and the like. And it calls them inside a
 `build()`.
 

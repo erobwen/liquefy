@@ -60,7 +60,7 @@ argument that starts with a lowercase letter for a key - so wrap text in
   out of view; what's placed on it reads `this.fromTarget("inView")`, and
   `("seen")` - true from the first time it came into view: a page that
   reveals itself as it's scrolled, section by section.
-- **`flipAnimationContainer()`** - animates every change in the subtree inside
+- **`animationContainer()`** (also `flipAnimationContainer()`: the same) - animates every change in the subtree inside
   it: elements moving (within a parent, or to another one), resizing,
   appearing and leaving. Nothing inside it knows about animation.
 - **`overflowContainer()`** - places its children one by one, measuring each

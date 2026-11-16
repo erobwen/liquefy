@@ -32,7 +32,7 @@ import source from "./AnimationGuidePage.js?raw";
  */
 
 // Its pace, and switching it off - nothing to run: an excerpt.
-const paceExcerpt = `import { FlipAnimationContainer, flipAnimationContainer } from "@liquefy/cascade.dom";
+const paceExcerpt = `import { FlipAnimationContainer, animationContainer } from "@liquefy/cascade.dom";
 
 // Every container's pace, unless it says otherwise: 1 is the natural one.
 FlipAnimationContainer.speed = 0.5;
@@ -40,7 +40,7 @@ FlipAnimationContainer.speed = 0.5;
 // Whoever asked their system for less motion gets none.
 const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-flipAnimationContainer({ enabled: !calm, speed: 2 }, ...children);`;
+animationContainer({ enabled: !calm, speed: 2 }, ...children);`;
 
 // A list of points - each a string, or strings and names from the code.
 const points = (...items) => ul(
@@ -57,9 +57,13 @@ export class AnimationGuidePage extends Component {
       pageActions({ source, fileName: "src/pages/AnimationGuidePage.js" }),
       h1("Animation Guide"),
       p(
-        "Everything ", name("flipAnimationContainer()"), " does, one thing at a time - each with an example running ",
+        "Everything ", name("animationContainer()"), " does, one thing at a time - each with an example running ",
         "on the page, how to get it, and where it ends. Read it through as a tutorial, or look up the one thing you ",
         "need to know is covered.",
+      ),
+      p(
+        name("animationContainer()"), " makes a ", name("FlipAnimationContainer"), " - the class, named for how it works. ",
+        name("flipAnimationContainer()"), " is the same function by its original name: either will do.",
       ),
 
       h2("How it works, in a paragraph"),

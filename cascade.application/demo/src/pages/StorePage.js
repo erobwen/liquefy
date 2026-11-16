@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer, portal, portalSource } from "@liquefy/cascade.dom";
+import { div, text, animationContainer, portal, portalSource } from "@liquefy/cascade.dom";
 import { button, card, icon, iconButton, row, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../components/pageActions.js";
 import { fullPage } from "../components/layout.js";
@@ -85,7 +85,7 @@ export class StorePage extends Component {
     return fullPage(
       { style: { overflow: "hidden", gap: 0 } },
       pageActions({ information, source, fileName: "src/pages/StorePage.js" }),
-      flipAnimationContainer(
+      animationContainer(
         {
           style: { display: "flex", flexDirection: "column", gap: "16px", height: "100%", boxSizing: "border-box" },
         },

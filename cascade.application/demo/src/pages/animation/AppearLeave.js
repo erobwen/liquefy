@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { button, column, controlPanel } from "@liquefy/cascade.ui";
 
 const note = { padding: "8px 12px", borderRadius: "6px", background: "#fcf3cf", color: "#7d6608", cursor: "pointer" };
@@ -22,7 +22,7 @@ export class AppearLeave extends Component {
     return column(
       { style: { gap: "12px", overflow: "visible" } },
       controlPanel(button(text("Add a note"), add)),
-      flipAnimationContainer(
+      animationContainer(
         { style: { display: "flex", flexDirection: "column", gap: "6px", width: "260px" } },
         this.notes.map((id) => div(
           {

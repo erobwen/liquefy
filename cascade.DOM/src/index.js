@@ -8,7 +8,7 @@ export { DOMNodeComponent } from "./DOMNodeComponent.js";
 export { DOMProvidingElement, providingElement } from "./DOMProvidingElement.js";
 export { DOMElementBoundsProvider, elementBoundsProvider } from "./DOMElementBoundsProvider.js";
 export { DOMElementVisibilityProvider, elementVisibilityProvider } from "./DOMElementVisibilityProvider.js";
-export { FlipAnimationContainer, flipAnimationContainer } from "./FlipAnimationContainer.js";
+export { FlipAnimationContainer, animationContainer, flipAnimationContainer } from "./FlipAnimationContainer.js";
 export { DOMPlacingContainer } from "./DOMPlacingContainer.js";
 export { OverflowContainer, overflowContainer, DOMElementSlot, elementSlot } from "./OverflowContainer.js";
 export { DOMElementComponent, taggedElement } from "./DOMElementComponent.js";

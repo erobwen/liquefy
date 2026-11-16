@@ -1,5 +1,5 @@
 import { Component, callback, deeplyObservable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
-import { div, span, text, input, button as htmlButton, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, span, text, input, button as htmlButton, animationContainer } from "@liquefy/cascade.dom";
 import {
   button, card, controlPanel, icon, iconButton, alert, textField, checkbox,
   row, column, filler, fitContainerStyle, themeColor,
@@ -161,7 +161,7 @@ export class ReactiveFormPage extends Component {
         { style: { flex: "1 1 0", minWidth: 0, height: "100%", overflowY: "auto", boxSizing: "border-box" } },
         wide ? null : div({ key: "narrowTop", style: { maxWidth: "720px", paddingBottom: pageGap } }, demoControls),
         this.animate
-          ? flipAnimationContainer({ key: "form", style: formStyle, speed: this.speed, confine: this.confine }, form)
+          ? animationContainer({ key: "form", style: formStyle, speed: this.speed, confine: this.confine }, form)
           : column({ key: "plainForm", style: formStyle }, form),
         wide ? null : div({ key: "narrowBottom", style: { maxWidth: "720px", padding: "0 4px 16px", boxSizing: "border-box" } }, modelData),
       ),

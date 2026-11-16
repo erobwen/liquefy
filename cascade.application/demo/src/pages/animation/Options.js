@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { button, checkbox, column, controlPanel } from "@liquefy/cascade.ui";
 
 const box = { display: "flex", flexDirection: "column", gap: "6px", padding: "10px", width: "150px", background: "#d5f5e3" };
@@ -27,7 +27,7 @@ export class Options extends Component {
         button({ disabled: this.count === 0 }, text("Remove"), callback("remove", () => { this.count--; })),
         option("enabled"), option("slow"), option("confine"), option("zoomAlong"), option("keepCorners"),
       ),
-      flipAnimationContainer(
+      animationContainer(
         {
           enabled: this.enabled,
           speed: this.slow ? 0.25 : 1,

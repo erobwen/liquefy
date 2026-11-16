@@ -14,18 +14,18 @@ import onelinerAnimation from "../../../../cascade/images/oneliner-animation.png
 // Temporal signals in their smallest form - its printouts as they really
 // are (run it with @liquefy/cascade.reactive).
 const temporalSignalsExample = `import getWorld from "@liquefy/cascade.reactive";
-const { temporal, repeat } = getWorld({ timeLevels: 3 });
+const { temporal, ensure } = getWorld({ timeLevels: 3 });
 
 const heading = temporal({ text: "hello world", size: 16 });
 
 // Time 0: capitalizes the text - writing the very property it reads.
-repeat(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });
+ensure(() => { heading.text = heading.text.toUpperCase(); }, { time: 0 });
 
 // Time 1: headings are twice the size - the same, for the size.
-repeat(() => { heading.size = heading.size * 2; }, { time: 1 });
+ensure(() => { heading.size = heading.size * 2; }, { time: 1 });
 
 // Time 2: sees the heading as times 0 and 1 left it.
-repeat(() => console.log(heading.text, heading.size + "px"), { time: 2 });
+ensure(() => console.log(heading.text, heading.size + "px"), { time: 2 });
 // HELLO WORLD 32px
 
 heading.text = "temporal signals";

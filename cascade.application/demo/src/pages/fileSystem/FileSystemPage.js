@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { card, iconButton, dropdown, drawers, drawerPanel, themeColor } from "@liquefy/cascade.ui";
 import { pageActions } from "../../components/pageActions.js";
 import { animationControls } from "../../components/animationControls.js";
@@ -235,7 +235,7 @@ export class FileSystemPage extends Component {
     // the same element - and files coming and going fade.
     const style = { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" };
     return this.animate
-      ? flipAnimationContainer({ key: "animated", speed: this.speed, confine: true, style }, areas)
+      ? animationContainer({ key: "animated", speed: this.speed, confine: true, style }, areas)
       : div({ key: "still", style }, areas);
   }
 }

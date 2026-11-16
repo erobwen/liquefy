@@ -1,5 +1,5 @@
 import { Component, callback } from "@liquefy/cascade.component";
-import { div, text, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { div, text, animationContainer } from "@liquefy/cascade.dom";
 import { button, column, controlPanel } from "@liquefy/cascade.ui";
 
 const chip = { padding: "6px 14px", borderRadius: "16px", background: "#d6eaf8", color: "#1b4f72" };
@@ -19,7 +19,7 @@ export class Reorder extends Component {
         button(text("Shuffle"), callback("shuffle", () => { this.items = [...this.items].sort(() => Math.random() - 0.5); })),
         button(text("Reverse"), callback("reverse", () => { this.items = [...this.items].reverse(); })),
       ),
-      flipAnimationContainer(
+      animationContainer(
         { style: { display: "flex", flexWrap: "wrap", gap: "8px" } },
         this.items.map((name) => div({ key: name, style: chip }, text(name))),
       ),

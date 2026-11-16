@@ -136,6 +136,12 @@ function createWorld(configuration) {
     isObservable,
     isTemporal,
     invalidateOnChange,
+    // ensure(): repeat(), by what it's for rather than how it works - the
+    // name to use. "Ensure that the content is 200 narrower than the
+    // layout": it's so now, stays so whatever changes, and is taken back
+    // when the repeater is retracted. The same function - what it makes
+    // is, as ever, a repeater.
+    ensure: repeat,
     repeat,
     linkRepeater,
     finalize,

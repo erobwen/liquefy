@@ -1,4 +1,4 @@
-import { Component, callback, repeat, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { Component, callback, ensure, retractRepeater, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, text } from "@liquefy/cascade.dom";
 import { button, controlPanel, iconButton, filler, fillerStyle } from "@liquefy/cascade.ui";
 import { PaperSequence, paperSizes, margins, mm, inch } from "@liquefy/cascade.print";
@@ -71,7 +71,7 @@ export class WordProcessorPage extends Component {
     const u = this.unobservable;
     // A root of its own: independent of whatever happens to be running when
     // this page is established.
-    u.layoutRoot = repeat(() => u.layout.renderOnto(u.sequence), { independent: true });
+    u.layoutRoot = ensure(() => u.layout.renderOnto(u.sequence), { independent: true });
   }
 
   onDispose() {

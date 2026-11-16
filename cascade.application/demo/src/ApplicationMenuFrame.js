@@ -1,5 +1,5 @@
 import { Component, callback, frozen } from "@liquefy/cascade.component";
-import { a, button, div, img, span, text, providingElement, elementBoundsProvider, portal, flipAnimationContainer } from "@liquefy/cascade.dom";
+import { a, button, div, img, span, text, providingElement, elementBoundsProvider, portal, animationContainer } from "@liquefy/cascade.dom";
 import { overlayFrame, iconButton, currentColorScheme, themeColor } from "@liquefy/cascade.ui";
 import menuBarLogo from "../../../cascade/images/menu-bar-logo.svg";
 import { versionNotice, showVersionNotice } from "./versionNotice.js";
@@ -367,7 +367,7 @@ class MenuList extends Component {
         // its pages, and closing, closes the gap after them. The menu's
         // height changes at once, as laid out - so the scroll indicator
         // (see indicatedScroll()) follows it, measuring that.
-        flipAnimationContainer(...items),
+        animationContainer(...items),
       ),
     });
   }

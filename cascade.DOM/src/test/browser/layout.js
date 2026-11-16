@@ -101,17 +101,38 @@ describe("In a real layout (Chromium)", function () {
     });
   }
 
-  // Known gaps: the container's box, drawn at the size it comes from, also
-  // lays what's in it out at another *size* than it has at rest - which
-  // isn't taken back out, the way where it lies is (see startSizing()). One
-  // with nothing of its own to scale by - no text - is then scaled twice.
-  it.skip("what stretches to a row's height is first drawn as tall as it was, as something beside it grows", async function () {
+  // The container's box, drawn at the size it comes from, lays what's in
+  // it out at another size than it has at rest, too - not only elsewhere.
+  it("what stretches to a row's height is first drawn as tall as it was, as something beside it grows - and so is what's in it, where it was", async function () {
     const { before, atStart } = await run("stretchingSibling");
     assert.deepEqual(atStart, before);
   });
 
-  it.skip("what stretches to a column's width is first drawn as wide as it was, as the column widens", async function () {
+  it("on its way, it only grows - from as tall as it was to as tall as it is - with what's at its bottom at its bottom all the way", async function () {
+    const { before, onTheWay } = await run("stretchingSibling", 1);
+    let last = before;
+    for (const now of onTheWay) {
+      for (const key of ["stretcher", "full"]) {
+        assert.ok(now[key].height >= last[key].height - 0.2, key + " shrinking: " + last[key].height + " -> " + now[key].height);
+        assert.ok(now[key].height <= 200.2, key + " too tall: " + now[key].height);
+      }
+      const bottomOf = (rect) => rect.y + rect.height;
+      assert.ok(Math.abs(bottomOf(now.bottom) - bottomOf(now.stretcher)) < 0.5, "not at its bottom: " + bottomOf(now.bottom) + " ~ " + bottomOf(now.stretcher));
+      assert.ok(Math.abs(now.bottom.height - 20) < 0.5, "squashed: " + now.bottom.height);
+      last = now;
+    }
+    assert.ok(onTheWay.some((now) => now.stretcher.height > 110 && now.stretcher.height < 190), "gradually");
+    assert.equal(last.stretcher.height, 200);
+    assert.equal(last.full.height, 200);
+  });
+
+  it("what stretches to a column's width is first drawn as wide as it was, as the column widens", async function () {
     const { before, atStart } = await run("shrinkToFitWidens");
+    assert.deepEqual(atStart, before);
+  });
+
+  it("in a wrapping row that's first drawn two rows tall, what ends up side by side is first drawn where, and as tall as, it was", async function () {
+    const { before, atStart } = await run("wrappingRowItemLeaves");
     assert.deepEqual(atStart, before);
   });
 });

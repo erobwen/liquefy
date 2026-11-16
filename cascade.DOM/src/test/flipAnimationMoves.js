@@ -1249,6 +1249,48 @@ describe("FlipAnimationContainer animations", function () {
     });
   });
 
+  it("what the container's box makes as tall as it's drawn - an item stretching to its height - is first drawn as tall as it was, not scaled twice", function () {
+    // The fake layout, with the second list as tall as the container: the
+    // height that's given, on its way to its size, or 20px per element in
+    // it that isn't absolutely positioned.
+    const view = document.defaultView;
+    Object.defineProperty(view.HTMLElement.prototype, "offsetHeight", { configurable: true, get() {
+      return 20 * Array.from(this.querySelectorAll("*")).filter((each) => each.style.position !== "absolute").length;
+    } });
+    const originalRect = view.Element.prototype.getBoundingClientRect;
+    let stretching = null;
+    view.Element.prototype.getBoundingClientRect = function () {
+      const rect = originalRect.call(this);
+      if (this !== stretching) return rect;
+      const root = this.parentElement;
+      const laidOut = root.style.height ? parseFloat(root.style.height) : root.offsetHeight;
+      const height = laidOut * drawn(this).sy;
+      return { ...rect, height, bottom: rect.top + height };
+    };
+    try {
+      const { lists, element } = setup();
+      stretching = element("four").parentElement;
+      const root = stretching.parentElement;
+      const heightOf = (each) => round(each.getBoundingClientRect().height);
+      assert.equal(heightOf(stretching), 120);
+      assert.equal(heightOf(element("four")), 20);
+      lists.a = ["one", "two"];
+      assert.equal(root.style.height, "120px", "the box as tall as it was");
+      assert.equal(heightOf(stretching), 120, "as tall as it was");
+      assert.equal(heightOf(element("four")), 20, "what's in it not squashed");
+      runFrames(10);
+      const midway = heightOf(stretching);
+      assert.ok(midway > 100 && midway < 120, "shrinking: " + midway);
+      assert.equal(heightOf(element("four")), 20);
+      runToRest();
+      assert.equal(heightOf(stretching), 100);
+      assert.equal(stretching.style.transform, "");
+    } finally {
+      view.Element.prototype.getBoundingClientRect = originalRect;
+      delete view.HTMLElement.prototype.offsetHeight;
+    }
+  });
+
   it("a ghost in the container itself is positioned by it - scrolled and clipped with it - though the app didn't position it", function () {
     class Flat extends Component {
       initialState() {

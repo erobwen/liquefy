@@ -120,17 +120,27 @@ window.scenarios = {
     return { before, added, atBottom: read() };
   },
 
-  // A row whose items stretch to its height; one grows taller.
-  async stretchingSibling() {
-    FlipAnimationContainer.speed = frozen;
+  // A row whose items stretch to its height; one grows taller. In the one
+  // beside it: something at its bottom, and something as tall as it.
+  async stretchingSibling(speed = frozen) {
+    FlipAnimationContainer.speed = speed;
     const { application } = mount({}, { tall: false }, (application) =>
       flipAnimationContainer({ key: "flip", style: { display: "flex", alignItems: "stretch", gap: "10px" } },
         box("grower", { width: "100px" }, box("inner", { height: application.tall ? "200px" : "100px", background: "#999" })),
-        box("stretcher", { width: "100px" })));
+        box("stretcher", { width: "100px", position: "relative", display: "flex" },
+          box("full", { width: "20px", minHeight: 0, background: "#999" }),
+          box("bottom", { position: "absolute", bottom: 0, right: 0, width: "20px", height: "20px", minHeight: 0, background: "#555" }))));
     await frame();
-    const before = rects("stretcher");
+    const before = rects("stretcher", "full", "bottom");
     application.tall = true;
-    return { before, atStart: rects("stretcher") };
+    const atStart = rects("stretcher", "full", "bottom");
+    // On its way: each as it's drawn, frame by frame, until it's there.
+    const onTheWay = [];
+    for (let i = 0; i < 120 && speed !== frozen; i++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      onTheWay.push(rects("stretcher", "full", "bottom"));
+    }
+    return { before, atStart, onTheWay };
   },
 
   // A column as wide as what's in it; that widens.
@@ -144,6 +154,19 @@ window.scenarios = {
     const before = rects("filler");
     application.wide = true;
     return { before, atStart: rects("filler") };
+  },
+
+  // A wrapping row, anchored by its right edge; one leaves, and the two
+  // left lie side by side - in a row that's first drawn two rows tall.
+  async wrappingRowItemLeaves() {
+    FlipAnimationContainer.speed = frozen;
+    const { application } = mount({}, { items: ["a", "b", "c"] }, (application) =>
+      flipAnimationContainer({ key: "flip", style: { position: "absolute", right: 0, top: 0, display: "flex", flexWrap: "wrap", maxWidth: "250px", gap: "10px" } },
+        application.items.map((key) => box(key, { width: "100px" }))));
+    await frame();
+    const before = rects("a", "c");
+    application.items = ["a", "c"];
+    return { before, atStart: rects("a", "c") };
   },
 };
 window.ready = true;

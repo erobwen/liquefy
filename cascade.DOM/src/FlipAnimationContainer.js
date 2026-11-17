@@ -524,6 +524,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       element.style.transformOrigin = "";
     }
     u.layout = new Map(u.tracked.map(({ element }) => [element, rectOf(element)]));
+    // And how far everything around the container was scrolled, then: all
+    // of this is where things are in the window, as it was scrolled.
+    u.scrolled = this.scrolled();
     const sizedNow = sizeOf(u.node);
     const fonts = new Map();
     for (const { element } of u.tracked) {
@@ -782,11 +785,36 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     if (!u.sizing) return null;
     this.drawSize();
     for (const { element } of u.tracked) element.style.transform = "";
+    // In the terms the layout at rest was read in: where it would be in
+    // the window, scrolled as it was then. Scrolled since, everything is
+    // elsewhere in the window - which isn't the box laying it out
+    // otherwise, and nothing to take back out: it goes along.
+    const now = this.scrolled();
+    const then = u.scrolled || now;
+    const dx = now.x - then.x;
+    const dy = now.y - then.y;
     const measured = new Map();
     for (const { element } of u.tracked) {
-      if (element.nodeType === 1 && u.layout.has(element)) measured.set(element, rectOf(element));
+      if (element.nodeType !== 1 || !u.layout.has(element)) continue;
+      const at = rectOf(element);
+      at.x += dx;
+      at.y += dy;
+      measured.set(element, at);
     }
     return measured;
+  }
+
+  // How far everything the container is in is scrolled, in all: every
+  // element around it that scrolls - the window among them, which is
+  // scrolled as far as the document's own element is.
+  scrolled() {
+    const root = this.unobservable.node;
+    const total = { x: 0, y: 0 };
+    for (let each = root.parentNode; each && each.nodeType === 1; each = each.parentNode) {
+      total.x += each.scrollLeft || 0;
+      total.y += each.scrollTop || 0;
+    }
+    return total;
   }
 
   drawSize() {
@@ -1058,14 +1086,17 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
   // What a browser paints on: whole pixels - device pixels, as many to a
   // pixel here as the screen and the zoom make it - counted from the
-  // page's corner (`page`, in the terms everything is measured in).
+  // corner of what's scrolled (`page`, in the terms everything is measured
+  // in: the window's, as it was scrolled when the layout was read).
   // `snap` rounds a distance to them; `offset` is how far from a place,
   // measured as everything is, to where something lying there is painted.
   pixels() {
-    const view = this.unobservable.node.ownerDocument.defaultView;
+    const u = this.unobservable;
+    const view = u.node.ownerDocument.defaultView;
     const ratio = view.devicePixelRatio > 0 ? view.devicePixelRatio : 1;
     const snap = (value) => Math.round(value * ratio) / ratio;
-    const page = { x: -(view.scrollX || 0), y: -(view.scrollY || 0) };
+    const scrolled = u.scrolled || this.scrolled();
+    const page = { x: -scrolled.x, y: -scrolled.y };
     const offset = (at) => ({ x: snap(at.x - page.x) - (at.x - page.x), y: snap(at.y - page.y) - (at.y - page.y) });
     return { snap, page, offset };
   }

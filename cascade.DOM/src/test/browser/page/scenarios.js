@@ -162,6 +162,27 @@ window.scenarios = {
     return { clip: { x: before.x + 10, y: before.y - 6, width: 20, height: 12 } };
   },
 
+  // A centered container shrinking, slowly, as something leaves - and the
+  // page scrolled meanwhile: how far what stays is from what it's in,
+  // before and after.
+  async scrolledWhileSizing() {
+    FlipAnimationContainer.speed = 0.02;
+    const { application, host } = mount(centering, { items: ["a", "tall", "b"] }, (application) =>
+      flipAnimationContainer({ key: "flip", style: { padding: "10px" } },
+        application.items.map((key) => box(key, { width: "100px", height: key === "tall" ? "120px" : "30px" }))));
+    const below = document.createElement("div");
+    below.style.height = "3000px";
+    document.body.appendChild(below);
+    await frame();
+    application.items = ["a", "b"];
+    await frame();
+    const read = () => Object.fromEntries(["a", "b"].map((id) => [id, document.getElementById(id).getBoundingClientRect().top - host.getBoundingClientRect().top]));
+    const before = read();
+    window.scrollBy(0, 80);
+    await frame();
+    return { before, after: read(), scrolled: window.scrollY };
+  },
+
   // A column as wide as what's in it; that widens.
   async shrinkToFitWidens() {
     FlipAnimationContainer.speed = frozen;

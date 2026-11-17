@@ -145,6 +145,14 @@ describe("In a real layout (Chromium)", function () {
     assert.ok(heights.size >= 4, "the container was growing meanwhile: " + [...heights].join(", "));
   });
 
+  it("scrolled while the container's box is on its way to its size, what's in it scrolls with the page - rather than staying where it was in the window", async function () {
+    const { before, after, scrolled } = await run("scrolledWhileSizing");
+    assert.equal(scrolled, 80, "scrolled");
+    for (const key of ["a", "b"]) {
+      assert.ok(Math.abs(after[key] - before[key]) < 5, key + " left behind: " + before[key] + " -> " + after[key]);
+    }
+  });
+
   it("what stretches to a column's width is first drawn as wide as it was, as the column widens", async function () {
     const { before, atStart } = await run("shrinkToFitWidens");
     assert.deepEqual(atStart, before);

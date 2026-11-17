@@ -730,6 +730,32 @@ describe("FlipAnimationContainer animations", function () {
       runToRest();
       assert.equal(round(drawn(more).sx), 1, "at its own size, at rest");
     });
+
+    it("a newcomer with text, still small on its way, goes on from the size it's drawn at as something else changes - rather than jumping to its own", function () {
+      class Growing extends Component {
+        initialState() {
+          return { count: 0 };
+        }
+        build() {
+          const item = (name) => div({ key: name, style: { fontSize: "13px" } }, text({ key: name + "Text", text: name }));
+          return flipAnimationContainer(
+            { key: "flip", zoomAlong: true },
+            div({ key: "panel", title: String(100 + 100 * this.count) }, ["first", "second"].slice(0, this.count).map(item)),
+          );
+        }
+      }
+      const growing = new Growing();
+      growing.renderOnto(new DOMElementTarget(container));
+      growing.count = 1;
+      const first = named("first");
+      runFrames(10);
+      const size = drawn(first).sx;
+      assert.ok(size > 0.5 && size < 0.95, "still small: " + size);
+      growing.count = 2;
+      assert.ok(Math.abs(drawn(first).sx - size) < 0.01, "as large as it was drawn: " + drawn(first).sx + " ~ " + size);
+      runToRest();
+      assert.equal(round(drawn(first).sx), 1, "at its own size, at rest");
+    });
   });
 
   it("a leaving box with nothing to see of its own fades out as what's in it, each where it was drawn", function () {
@@ -1156,6 +1182,27 @@ describe("FlipAnimationContainer animations", function () {
       runToRest();
       assert.equal(root.style.height, "", "its own size again, once there");
       assert.equal(root.style.boxSizing, "");
+    } finally {
+      delete HTMLElement.prototype.offsetHeight;
+    }
+  });
+
+  it("its own box is sized in the box sizing it has - padding left out of a content-box height, and its width, unchanged, untouched", function () {
+    const HTMLElement = document.defaultView.HTMLElement;
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get() {
+      return 20 * Array.from(this.querySelectorAll("*")).filter((each) => each.style.position !== "absolute").length;
+    } });
+    try {
+      const { lists, element } = setup();
+      const root = element("four").parentElement.parentElement;
+      root.style.width = "240px";
+      root.style.padding = "10px";
+      lists.b = [];
+      assert.equal(root.style.boxSizing, "", "content-box, as it was: its width means what it did");
+      assert.equal(root.style.width, "240px");
+      assert.equal(root.style.height, "100px", "drawn 120px tall: less its padding");
+      runToRest();
+      assert.equal(root.style.height, "");
     } finally {
       delete HTMLElement.prototype.offsetHeight;
     }

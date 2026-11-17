@@ -211,7 +211,7 @@ export class AnimationGuidePage extends Component {
       h2("Pitfalls and limitations"),
       h3("Things to get right"),
       points(
-        [emphasis("No key, no move."), " Without a key, an item that changes place is one item changing what it says - nothing moves. Whatever can move, appear or leave needs one."],
+        [emphasis("No identity, no move."), " The container animates an element from where it was to where it is - so it has to be the same element. An item that changes place without keeping its identity is just one item changing what it says: nothing moves. A ", name("key"), " is the usual way to keep it, but not the only one: a component you create once and keep - in state, say - and put wherever it goes in each build is the same one everywhere, and what stays in the same place is the same by pattern matching, with no key at all. However you do it, whatever can move, appear or leave has to stay itself."],
         [emphasis("One change, not two."), " What goes from one place to another has to be in the new one in the same rebuild it leaves the old (see 3)."],
         [emphasis("One container."), " A move is only a move inside one container. From one container to another, an element leaves the first and appears in the second - put the container around both."],
         [emphasis("Its transform and opacity are the container's."), " It draws with the inline ", name("transform"), " and ", name("opacity"), " of every element it places, and clears them when it's done - yours with them. To move or turn something yourself, use ", name("translate"), ", ", name("rotate"), " and ", name("scale"), ", which are properties of their own - or do it inside a unit, where the container doesn't reach."],

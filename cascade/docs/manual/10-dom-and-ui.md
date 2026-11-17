@@ -201,6 +201,12 @@ nothing about animation. Items must keep their identity to animate as moves:
 give keys to what can move, appear or disappear
 ([5](05-identity.md#5-identity-keys-and-pattern-matching)).
 
+Its goal: wrap something in `animationContainer()` and **nothing ever jumps**:
+not what's in it, and not the container's own box. That holds when an
+animation starts, while it runs and when it ends. If anything jumps, in any
+layout, that is a bug in the container, not something the app should work
+around.
+
 `animationContainer()` is the name to use: what it is, not how it works.
 `flipAnimationContainer()` is the same function by its original name, and
 stays; the class is `FlipAnimationContainer` - what you extend, or copy, to

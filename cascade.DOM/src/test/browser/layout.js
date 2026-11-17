@@ -117,13 +117,32 @@ describe("In a real layout (Chromium)", function () {
         assert.ok(now[key].height <= 200.2, key + " too tall: " + now[key].height);
       }
       const bottomOf = (rect) => rect.y + rect.height;
-      assert.ok(Math.abs(bottomOf(now.bottom) - bottomOf(now.stretcher)) < 0.5, "not at its bottom: " + bottomOf(now.bottom) + " ~ " + bottomOf(now.stretcher));
+      // Within a pixel, as measured: it's painted on whole pixels, from
+      // where the browser rounds it to - which measuring doesn't show.
+      assert.ok(Math.abs(bottomOf(now.bottom) - bottomOf(now.stretcher)) < 1, "not at its bottom: " + bottomOf(now.bottom) + " ~ " + bottomOf(now.stretcher));
       assert.ok(Math.abs(now.bottom.height - 20) < 0.5, "squashed: " + now.bottom.height);
       last = now;
     }
     assert.ok(onTheWay.some((now) => now.stretcher.height > 110 && now.stretcher.height < 190), "gradually");
     assert.equal(last.stretcher.height, 200);
     assert.equal(last.full.height, 200);
+  });
+
+  // To the pixel - which only what's painted shows: measured, an element
+  // is where its layout and its transform add up to, but a browser paints
+  // it from where it's laid out rounded to whole pixels.
+  it("what stays where it is, in a centered container growing around it, is painted on the same pixels all the way - never a pixel off", async function () {
+    const { clip } = await run("stillInCenteredGrowing");
+    const heights = new Set();
+    let first = null;
+    for (let i = 0; i < 12; i++) {
+      heights.add(await page.evaluate(() => Math.round(document.getElementById("still").parentNode.getBoundingClientRect().height * 10)));
+      const shot = await page.screenshot({ clip });
+      if (!first) first = shot;
+      assert.ok(shot.equals(first), "painted otherwise, at screenshot " + i);
+      await page.waitForTimeout(60);
+    }
+    assert.ok(heights.size >= 4, "the container was growing meanwhile: " + [...heights].join(", "));
   });
 
   it("what stretches to a column's width is first drawn as wide as it was, as the column widens", async function () {

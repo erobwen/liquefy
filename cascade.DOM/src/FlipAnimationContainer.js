@@ -24,6 +24,13 @@ export function flipAnimationContainer(...parameters) {
  * components in it stay exactly as they are everywhere else, knowing
  * nothing about animation.
  *
+ * The goal - the invariant every change to it is held to: wrap anything in
+ * an animation container, and nothing in it, nor the container's own box,
+ * ever jumps. Not as an animation starts, not on its way, not as it ends -
+ * every frame continues from the one before, and the last one is exactly
+ * how the page lies at rest. A jump of any kind, anywhere, in any layout,
+ * is a bug in the container, never something the app has to work around.
+ *
  * How it sees and places the subtree - expanded down to DOM nodes, then
  * every element's child nodes put in order, islands for what can only be
  * rendered - is DOMPlacingContainer's (see there). At rest, the result is
@@ -189,7 +196,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const u = this.unobservable;
     // How large its own box is drawn right now - on its way to another size
     // included.
-    const sizedAt = u.node && u.node.isConnected ? { width: u.node.offsetWidth, height: u.node.offsetHeight } : null;
+    const sizedAt = u.node && u.node.isConnected ? sizeOf(u.node) : null;
     super.render(target, context);
 
     // Only meaningful while the container is in the page: hidden, nothing
@@ -207,11 +214,14 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       for (const { element } of u.tracked) {
         if (!element.isConnected) continue;
         const rect = rectOf(element);
-        // Text is drawn at its font size times the (uniform) scale it's
-        // animating with - see startAnimations().
+        // Text is drawn at its font size times the scale it's drawn at -
+        // its own spring's (uniform - see startAnimations()), or, coming
+        // along with something, what that gives it (zooming along with
+        // its carrier, say - see applyAnimation()).
         const spring = u.springs.get(element);
+        const drawn = u.drawn.get(element);
         const font = textFontSize(element);
-        if (font) rect.font = font * (spring ? 1 + spring.sx : 1);
+        if (font) rect.font = font * (drawn && drawn.sx > 0 && drawn.sy > 0 ? Math.sqrt(drawn.sx * drawn.sy) : spring ? 1 + spring.sx : 1);
         // Where it is in the tree, too: one that goes elsewhere travels.
         // A raised one is where its placeholder is.
         const raised = u.raised.get(element);
@@ -223,7 +233,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         // And how it looks - as drawn, a change of look under way included.
         if (element.nodeType === 1) rect.looks = looksOf(element);
         // How round its corners are drawn - and where its own texts are.
-        const drawn = u.drawn.get(element);
+        // And how far from there it's painted - on whole pixels (see
+        // applyAnimation()).
+        rect.off = drawn && (drawn.transformed || drawn.frame) ? drawn.off : null;
         if (element.nodeType === 1) rect.corners = cornersOf(element, drawn && drawn.total);
         if (element.nodeType === 1) rect.texts = textsOf(element);
         drawnAt.set(element, rect);
@@ -512,7 +524,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       element.style.transformOrigin = "";
     }
     u.layout = new Map(u.tracked.map(({ element }) => [element, rectOf(element)]));
-    const sizedNow = { width: u.node.offsetWidth, height: u.node.offsetHeight };
+    const sizedNow = sizeOf(u.node);
     const fonts = new Map();
     for (const { element } of u.tracked) {
       const font = textFontSize(element);
@@ -521,6 +533,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     u.textual = new Set(fonts.keys());
     const keepCorners = withoutRecording(() => this.keepCorners);
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
+    const pixels = this.pixels();
     u.following = new Map();
     u.carried = new Set();
     // Where each element, and each element's own texts, were drawn - for
@@ -534,8 +547,13 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const spring = u.springs.get(element) || newSpring();
       if (before) {
         u.from.set(element, before);
-        spring.x = before.x - now.x;
-        spring.y = before.y - now.y;
+        // From where it was painted, to where it will be: both on whole
+        // pixels, which where it was drawn and where it lies needn't be
+        // (see applyAnimation()).
+        const off = before.off || pixels.offset(before);
+        const rest = pixels.offset(now);
+        spring.x = before.x + off.x - (now.x + rest.x);
+        spring.y = before.y + off.y - (now.y + rest.y);
         // Moved to another parent: on its way somewhere - raised, until it
         // has arrived (see raise()).
         const moved = before.parent && before.parent !== element.parentNode;
@@ -720,14 +738,14 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // and what's at the bottom of one of those lies further up or down. That
   // isn't any element's own movement, or change of size - each is drawn
   // where, and as large as, its spring says, from how it lies at rest - so
-  // it's taken back out: how the box, at the size it starts from, lays
-  // each element out (`laid` - those it lays out otherwise) - and how far
-  // it moves the layer raised ones are drawn in (`layerShift`) - is
-  // measured once, here. From then on, each is taken to lie as far from
-  // how it lies at rest towards that as the box still has to go (see
-  // laidOutNow()) - exactly so where the layout follows the box's size
-  // evenly (anchoring, centering, stretching), nearly where it doesn't (a
-  // row wrapping at some width).
+  // it's taken back out: how the box, at the size it's drawn at, lays
+  // each element out - what's raised into the layer included - is
+  // measured, every frame it's on its way (see measureLaidOut()), and
+  // each is drawn from there (see applyAnimation()). Measured rather than
+  // worked out from how it lay at the size the box started from: that's
+  // only right where the layout follows the box's size evenly, not where
+  // a row wraps at some width, or something gives way only once there's
+  // no room - and what's painted, on whole pixels, takes knowing exactly.
   startSizing(from, to) {
     const u = this.unobservable;
     const dx = from.width - to.width;
@@ -743,75 +761,37 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       spring.vy = previous.vy;
     }
     const style = u.node.style;
-    const saved = { boxSizing: style.boxSizing };
+    const saved = {};
     if (Math.abs(dx) >= 1) saved.width = style.width;
     if (Math.abs(dy) >= 1) saved.height = style.height;
-    u.sizing = { spring, to, saved, written: {}, dx, dy, laid: new Map(), layerShift: { x: 0, y: 0 } };
-    // Measured with nothing drawn anywhere but where it lies (see
-    // startAnimations(): its transforms cleared, the layout read).
-    // The layer is at the container's own corner (see layer()), whatever
-    // positions the container - one that isn't positioned yet is, by the
-    // time there's a layer in it: so it's the container itself that's
-    // measured, not something positioned in it.
-    const boxAt = rectOf(u.node);
+    // The sizes are in the terms its width and height are given in (see
+    // sizeOf()) - its box sizing is left alone: switched to border-box, a
+    // dialog 240px wide with padding, only growing taller, would be drawn
+    // narrower all the way, then snap out.
+    u.sizing = { spring, to, saved, written: {}, dx, dy };
+  }
+
+  // How everything is laid out right now, nothing drawn anywhere but where
+  // it lies, with the container's box at the size it's drawn at on its way
+  // (see startSizing()) - measured, every frame it's on its way: its size
+  // written, every transform of the container's cleared, and each element
+  // read where it is. One layout pass - which the box's new size takes
+  // anyway. Null with the box at its size: everything lies as at rest.
+  measureLaidOut() {
+    const u = this.unobservable;
+    if (!u.sizing) return null;
     this.drawSize();
+    for (const { element } of u.tracked) element.style.transform = "";
+    const measured = new Map();
     for (const { element } of u.tracked) {
-      const layout = u.layout.get(element);
-      if (element.nodeType !== 1 || !layout) continue;
-      const at = rectOf(element);
-      const differs = (key) => Math.abs(at[key] - layout[key]) >= 0.5;
-      if (differs("x") || differs("y") || differs("width") || differs("height")) u.sizing.laid.set(element, at);
+      if (element.nodeType === 1 && u.layout.has(element)) measured.set(element, rectOf(element));
     }
-    const boxNow = rectOf(u.node);
-    u.sizing.layerShift = { x: boxNow.x - boxAt.x, y: boxNow.y - boxAt.y };
-    // As it lies again, for what's placed before it's next drawn (see
-    // applyAnimation(): a travelling element raised, where it is now).
-    for (const key of Object.keys(u.sizing.written)) u.node.style[key] = saved[key];
-  }
-
-  // How far the container's box still has to go to its size (see
-  // startSizing()): 1 at the size it started from, 0 at its own - across
-  // and down (one that only changes one way: the same both). Null: it's
-  // at its size.
-  sizingProgress() {
-    const sizing = this.unobservable.sizing;
-    if (!sizing) return null;
-    const { spring, dx, dy } = sizing;
-    return {
-      x: Math.abs(dx) >= 1 ? spring.x / dx : spring.y / dy,
-      y: Math.abs(dy) >= 1 ? spring.y / dy : spring.x / dx,
-    };
-  }
-
-  // How `element` is laid out right now - where, and how large, nothing
-  // drawn anywhere but where it lies - with the container's box as far
-  // (`along`, see sizingProgress()) from its size as it is: `layout`, how
-  // it lies at rest, unless the box lays it out otherwise on its way (see
-  // startSizing()). In the layer (`inLayer`: raised, or in something
-  // that is), it's out of the container's layout: as at rest, but for
-  // where the layer itself is.
-  laidOutNow(element, layout, along, inLayer) {
-    const sizing = this.unobservable.sizing;
-    if (!sizing || !along) return layout;
-    if (inLayer) {
-      const { x, y } = sizing.layerShift;
-      if (x === 0 && y === 0) return layout;
-      return { x: layout.x + x * along.x, y: layout.y + y * along.y, width: layout.width, height: layout.height };
-    }
-    const at = sizing.laid.get(element);
-    if (!at) return layout;
-    return {
-      x: layout.x + (at.x - layout.x) * along.x,
-      y: layout.y + (at.y - layout.y) * along.y,
-      width: layout.width + (at.width - layout.width) * along.x,
-      height: layout.height + (at.height - layout.height) * along.y,
-    };
+    return measured;
   }
 
   drawSize() {
     const u = this.unobservable;
     const { spring, to, saved, written } = u.sizing;
-    written.boxSizing = "border-box";
     if ("width" in saved) written.width = round(Math.max(0, to.width + spring.x)) + "px";
     if ("height" in saved) written.height = round(Math.max(0, to.height + spring.y)) + "px";
     Object.assign(u.node.style, written);
@@ -880,7 +860,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // Where, and how large, is in terms of how it lies at rest. What it's
   // moved and scaled by to be drawn so is from how it's laid out right
   // now - which, while the container's own box is on its way to its size,
-  // may be otherwise (see startSizing() and laidOutNow()).
+  // may be otherwise (see startSizing() and measureLaidOut()).
   applyAnimation() {
     const u = this.unobservable;
     this.raiseTravellers();
@@ -890,7 +870,9 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     // out right now (`laid`), and what it's scaled by in all, its
     // ancestors' scale included, to be drawn that large (`total`).
     const drawn = new Map();
-    const along = this.sizingProgress();
+    const measured = this.measureLaidOut();
+    // What the browser paints on: whole pixels - see below.
+    const { snap, page, offset } = this.pixels();
     const inLayer = new Set(); // what's raised, and what's in it
     const inSized = new Set(); // what's in a raised element being sized
     for (const { element, ancestor } of u.tracked) {
@@ -923,7 +905,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       // up for that, too. Not one with text of its own: its box isn't
       // scaled to a size (see startAnimations()) - it's as large as it's
       // laid out, all the way.
-      const laid = this.laidOutNow(element, layout, along, inLayer.has(element));
+      const laid = (measured && measured.get(element)) || layout;
       const total = { sx: here.sx, sy: here.sy };
       if (laid !== layout && !u.textual.has(element)) {
         if (laid.width > 0 && layout.width > 0) total.sx = here.sx * layout.width / laid.width;
@@ -934,17 +916,40 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       drawn.set(element, here);
       // From where it's laid out right now - the container's own box, or
       // raised, the layer, not being where it will be - to where it's drawn.
-      let tx = spring.x - (laid.x - layout.x);
-      let ty = spring.y - (laid.y - layout.y);
-      let sx = total.sx;
-      let sy = total.sy;
+      //
+      // To the pixel. A browser paints an element with a transform from
+      // where it's laid out in what it's in - the nearest element with a
+      // transform around it (its `frame`), or the page - rounded to whole
+      // pixels, and one without, where it lies, rounded likewise. So with
+      // what it's in laid out a fraction of a pixel further on every frame
+      // (a centered container's corner, as its box grows), something moved
+      // back by exactly as much would be painted a pixel off every now and
+      // then - shaking, where it should stand still. It's moved from where
+      // the browser paints it from, instead, to where it's painted
+      // (`painted`): where it's drawn, as far off that as it is at rest -
+      // on whole pixels there, and its spring is from where it was painted
+      // (see startAnimations()). So it starts where it was painted, and
+      // is where it's painted at rest once it has no transform. How far
+      // from where it's drawn it's painted (`off`) is kept, for next time.
       const above = ancestor && !u.raised.has(element) && drawn.get(ancestor);
-      if (above) {
-        tx = (here.x - above.x) / above.total.sx - (laid.x - above.laid.x);
-        ty = (here.y - above.y) / above.total.sy - (laid.y - above.laid.y);
-        sx = total.sx / above.total.sx;
-        sy = total.sy / above.total.sy;
-      }
+      const frame = above ? (above.transformed ? above : above.frame) : null;
+      const origin = frame ? frame.laid : page;
+      const base = frame ? frame.painted : page;
+      const scale = frame ? frame.total : UNSCALED;
+      const rest = offset(layout);
+      here.painted = { x: here.x + rest.x, y: here.y + rest.y };
+      const fromX = snap(laid.x - origin.x);
+      const fromY = snap(laid.y - origin.y);
+      const frameOff = frame ? frame.off : NOWHERE;
+      here.off = {
+        x: frameOff.x + scale.sx * (fromX - (laid.x - origin.x)),
+        y: frameOff.y + scale.sy * (fromY - (laid.y - origin.y)),
+      };
+      let tx = even((here.painted.x - base.x) / scale.sx - fromX);
+      let ty = even((here.painted.y - base.y) / scale.sy - fromY);
+      let sx = total.sx / scale.sx;
+      let sy = total.sy / scale.sy;
+      here.frame = frame;
       // In a raised element being sized (see raise()), laid out anew as it
       // grows or shrinks: where that puts it, at its own scale - around its
       // middle - rather than where it will be once that has its new size.
@@ -967,6 +972,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         ty = middleY + offset.y / scale.sy;
       }
       const moved = Math.abs(tx) > 0.01 || Math.abs(ty) > 0.01 || Math.abs(sx - 1) > 0.0001 || Math.abs(sy - 1) > 0.0001;
+      here.transformed = moved;
       element.style.transform = moved ? "translate(" + tx + "px, " + ty + "px) scale(" + sx + ", " + sy + ")" : "";
       element.style.transformOrigin = moved ? "0 0" : "";
       element.style.opacity = spring.o < -0.001 ? String(Math.max(0, 1 + spring.o)) : "";
@@ -1009,7 +1015,6 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         span.style.transform = offset ? "translate(" + offset.x / scale.sx + "px, " + offset.y / scale.sy + "px)" : "";
       }
     }
-    if (u.sizing) this.drawSize();
     // How far along each change of look is: as far as its spring.
     for (const [element, change] of u.looks) {
       const spring = u.springs.get(element);
@@ -1049,6 +1054,20 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     spring.y = from.y - at.y;
     u.springs.set(key, spring);
     return spring;
+  }
+
+  // What a browser paints on: whole pixels - device pixels, as many to a
+  // pixel here as the screen and the zoom make it - counted from the
+  // page's corner (`page`, in the terms everything is measured in).
+  // `snap` rounds a distance to them; `offset` is how far from a place,
+  // measured as everything is, to where something lying there is painted.
+  pixels() {
+    const view = this.unobservable.node.ownerDocument.defaultView;
+    const ratio = view.devicePixelRatio > 0 ? view.devicePixelRatio : 1;
+    const snap = (value) => Math.round(value * ratio) / ratio;
+    const page = { x: -(view.scrollX || 0), y: -(view.scrollY || 0) };
+    const offset = (at) => ({ x: snap(at.x - page.x) - (at.x - page.x), y: snap(at.y - page.y) - (at.y - page.y) });
+    return { snap, page, offset };
   }
 
   // Lift every appearing element, and every animated element it's inside,
@@ -1456,6 +1475,13 @@ const LOOK_DURATION = 1000;
 
 const FIELDS = ["x", "y", "sx", "sy", "o", "w", "h", "k"];
 const RESTING = { x: 0, y: 0, sx: 0, sy: 0, o: 0, w: 0, h: 0, k: 0 };
+const UNSCALED = { sx: 1, sy: 1 };
+const NOWHERE = { x: 0, y: 0 };
+
+// Without the noise of adding and taking away the same thing.
+function even(value) {
+  return Math.round(value * 10000) / 10000;
+}
 
 function newSpring() {
   return { x: 0, y: 0, sx: 0, sy: 0, o: 0, w: 0, h: 0, k: 0, vx: 0, vy: 0, vsx: 0, vsy: 0, vo: 0, vw: 0, vh: 0, vk: 0 };
@@ -1470,10 +1496,10 @@ function advanceSpring(spring, seconds) {
 }
 
 function isSettled(spring) {
-  return Math.abs(spring.x) < 0.5 && Math.abs(spring.y) < 0.5 && Math.abs(spring.vx) < 5 && Math.abs(spring.vy) < 5
-    && Math.abs(spring.sx) < 0.002 && Math.abs(spring.sy) < 0.002 && Math.abs(spring.vsx) < 0.02 && Math.abs(spring.vsy) < 0.02
+  return Math.abs(spring.x) < 0.05 && Math.abs(spring.y) < 0.05 && Math.abs(spring.vx) < 1 && Math.abs(spring.vy) < 1
+    && Math.abs(spring.sx) < 0.0005 && Math.abs(spring.sy) < 0.0005 && Math.abs(spring.vsx) < 0.01 && Math.abs(spring.vsy) < 0.01
     && Math.abs(spring.o) < 0.01 && Math.abs(spring.vo) < 0.05
-    && Math.abs(spring.w) < 0.002 && Math.abs(spring.h) < 0.002 && Math.abs(spring.vw) < 0.02 && Math.abs(spring.vh) < 0.02
+    && Math.abs(spring.w) < 0.0005 && Math.abs(spring.h) < 0.0005 && Math.abs(spring.vw) < 0.01 && Math.abs(spring.vh) < 0.01
     && Math.abs(spring.k) < 0.01 && Math.abs(spring.vk) < 0.05;
 }
 
@@ -1500,6 +1526,32 @@ function hasRoundedCorners(style) {
 // absolutely positioned in it is placed by something further out.
 function isStatic(style) {
   return !style.position || style.position === "static";
+}
+
+// How large an element is, in the terms its width and height are given in:
+// its content box, or - border-box - its whole box. To the fraction of a
+// pixel it's laid out at: rounded (as offsetWidth and offsetHeight are), a
+// box sized from there would be up to half a pixel off at either end.
+function sizeOf(element) {
+  const style = element.ownerDocument.defaultView.getComputedStyle(element);
+  const width = parseFloat(style.width);
+  const height = parseFloat(style.height);
+  if (isFinite(width) && isFinite(height)) return { width, height };
+  const { extraX, extraY } = boxExtras(element);
+  return { width: Math.max(0, element.offsetWidth - extraX), height: Math.max(0, element.offsetHeight - extraY) };
+}
+
+// What an element's padding and border take, across (`extraX`) and down
+// (`extraY`), of the width and height it's given - nothing, for one that's
+// border-box: its width and height are its whole box.
+function boxExtras(element) {
+  const style = element.ownerDocument.defaultView.getComputedStyle(element);
+  if (style.boxSizing === "border-box") return { extraX: 0, extraY: 0 };
+  const sum = (...keys) => keys.reduce((total, key) => total + (parseFloat(style[key]) || 0), 0);
+  return {
+    extraX: sum("paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"),
+    extraY: sum("paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"),
+  };
 }
 
 // Rectangles as `left`, `top`, `right` and `bottom`, in page terms.

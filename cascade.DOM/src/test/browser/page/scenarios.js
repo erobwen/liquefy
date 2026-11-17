@@ -143,6 +143,25 @@ window.scenarios = {
     return { before, atStart, onTheWay };
   },
 
+  // A centered container growing at both ends, around something that
+  // stays exactly where it is on the page - while the container's corner,
+  // and so where that's laid out, moves by fractions of a pixel. Slowly:
+  // the test looks at what's painted, on the way.
+  async stillInCenteredGrowing() {
+    FlipAnimationContainer.speed = 0.1;
+    const end = (key, tall) => box(key, { width: "100px", minHeight: 0, flex: "none", height: tall ? "41px" : "20px" });
+    const { application } = mount(centering, { tall: false }, (application) =>
+      flipAnimationContainer({ key: "flip", style: { display: "flex", flexDirection: "column" } },
+        end("top", application.tall),
+        box("still", { width: "100px", height: "30px", margin: "10px 0", background: "#555" }),
+        end("bottom", application.tall)));
+    await frame();
+    const before = rectOf(document.getElementById("still"));
+    application.tall = true;
+    // Its upper edge, and what's above it: nothing else is drawn there.
+    return { clip: { x: before.x + 10, y: before.y - 6, width: 20, height: 12 } };
+  },
+
   // A column as wide as what's in it; that widens.
   async shrinkToFitWidens() {
     FlipAnimationContainer.speed = frozen;

@@ -3,15 +3,19 @@
 ![Causality Logotype](https://raw.githubusercontent.com/erobwen/liquefy/main/causality/docs/logotype.png "Causality Logotype")
 
 Reactive programming for simple, scalable state management, using ES6
-proxies. The reactive engine of [Flow](https://github.com/erobwen/liquefy/tree/main/flow.core#readme) - and the
-ancestor of [cascade.reactive](https://github.com/erobwen/liquefy/tree/main/cascade.reactive#readme), Cascade's
-temporal signals.
+proxies. The reactive engine of [Flow](https://github.com/erobwen/liquefy/tree/main/flow.core#readme).
+
+**The previous generation.** Causality is succeeded by
+[cascade.reactive](https://github.com/erobwen/liquefy/tree/main/cascade.reactive#readme), Liquefy's reactive
+core - the same API, plus temporal signals. For new code, use that. Causality
+stays for Flow, and as part of the history.
 
 ```console
 npm install @liquefy/causality
 ```
 
-(Versions up to 2.x were published as `causalityjs`.)
+(Versions up to 2.x were published as `causalityjs`, the original standalone
+library - now historical.)
 
 # Usage
 
@@ -243,17 +247,7 @@ Check if an object is an observable by checking for `obj.causality`.
 
 # React Integration
 
-It is fairly simple to integrate causality with react. The only thing you have to do is to run all render functions wrapped in invalidateUponChange. If change occurs, register the react component as dirty, and later, when all model changes are finished, we run forceUpdate on all dirty components. There will be a package for this purpose, perhaps later this year. 
-
-# Community
-
-For discussions, see:
-
-https://gitter.im/causalityjs/Lobby
-
-For discussions in Swedish:
-
-https://gitter.im/avantgarde_web_development/Lobby
+It is fairly simple to integrate causality with react. The only thing you have to do is to run all render functions wrapped in invalidateUponChange. If change occurs, register the react component as dirty, and later, when all model changes are finished, we run forceUpdate on all dirty components. 
 
 # Comparison to MobX
 
@@ -265,4 +259,4 @@ Causality also offers some experimental features that can not be found in MobX, 
 
 # Context
 
-Causality is to be a foundation to an isomorphic application framework called "liquefy" that will feature full stack data binding and reactive programming (https://github.com/erobwen/liquid). It is useful to anyone that would like to do reactive programming in Javascript (https://en.wikipedia.org/wiki/Reactive_programming).
+Causality is part of [Liquefy](https://github.com/erobwen/liquefy#readme): the engine of Flow, its earlier front end framework. Liquefy has since moved on to Cascade, and to full stack reactivity, all on [cascade.reactive](https://github.com/erobwen/liquefy/tree/main/cascade.reactive#readme).

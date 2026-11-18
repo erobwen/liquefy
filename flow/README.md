@@ -6,8 +6,9 @@ Flow is what you get if you take all the capabilities of MobX + React and
 integrate them into one unit: components that build reactively, a UI that
 follows your data with minimal DOM updates, and no stores, reducers or
 notifications to wire up. It is the generation before
-[Cascade](../README.md#cascade) - without Cascade's temporal signals, and
-without their overhead: for context free UIs, built context free.
+[Cascade](../README.md#cascade), without Cascade's temporal signals. Cascade
+now covers everything Flow does, at nearly the same cost, so Flow is kept
+mainly for its history.
 
 To install it and get started, see [@liquefy/flow.core](../flow.core#readme).
 [Try the demo](https://erobwen.github.io/liquefy/flow/) - every page has a

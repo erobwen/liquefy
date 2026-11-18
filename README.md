@@ -2,8 +2,16 @@
 
 # Liquefy
 
-A home for two generations of a reactive, JavaScript-first front end
-framework: **Cascade**, and **Flow** before it.
+Reactive, JavaScript-first components, one repository for all of them -
+heading for **full stack reactivity**: the same live JavaScript objects, from
+the database to the screen.
+
+- **[Cascade](#cascade)** - the front end framework, on
+  [cascade.reactive](cascade.reactive#readme), the reactive core.
+- **[Frozen](#frozen)** - a garbage collected JavaScript object database, the
+  first piece of the full stack. A prototype.
+- **[Fountain](#fountain)** - the server on top of it. Planned.
+- **[Flow](#flow)** - the generation before Cascade, kept for its history.
 
 **[Try the demo](https://erobwen.github.io/liquefy/cascade/)** - every page has a
 button showing its own code. (And [Flow's demo](https://erobwen.github.io/liquefy/flow/) - both
@@ -100,14 +108,36 @@ Before building anything real with Cascade, read the
 chapter, the rules to follow and why, and an API reference. It's also in the
 demo app, under Reference Manual, with a search through all of it.
 
+## Frozen
+
+A JavaScript-first persistent object database with change-driven garbage
+collection: objects stay plain JavaScript objects, and whatever can no longer
+be reached is found and reclaimed incrementally, as references change, without
+ever scanning the whole database. It is a prototype, not yet published - see
+[frozen](frozen#readme), and [frozen.visualizer](frozen.visualizer#readme),
+which shows its collector at work step by step.
+
+## Fountain
+
+The server planned on top of Frozen, for full stack reactivity: clients
+subscribe to persistent objects over WebSockets and stay in sync as they
+change, with authorization per object and shared snapshots for large
+readerships. Nothing runs yet - the design is in
+[the whitepaper](fountain/whitepaper.md).
+
 ## Flow
 
 The generation before Cascade. Flow is what you get if you take all the
 capabilities of MobX + React and integrate them into one unit: components
 that build reactively, auto-observed state, minimal DOM updates and
-transition animations. It has no temporal signals - and none of their
-overhead: for context free UIs, built context free, it's a simpler machine.
+transition animations. Cascade now does all of that too, and its models and
+components are plain timeless observables, nearly as cheap as Flow's - so
+Flow is kept mainly for its history: the ideas in Cascade go back a long way.
 [Try its demo](https://erobwen.github.io/liquefy/flow/).
+
+Flow's reactive engine is causality, which began as a standalone library
+(published as `causalityjs`, now historical), was moved here as
+`@liquefy/causality`, and is succeeded by cascade.reactive.
 
 | Package | |
 |---|---|
@@ -120,8 +150,8 @@ overhead: for context free UIs, built context free, it's a simpler machine.
 
 ## Development
 
-This is a monorepo of npm workspaces - one install, at the root, links every
-package to the others:
+This is a monorepo of npm workspaces, one for each package - one install, at
+the root, links every package to the others:
 
 ```console
 npm install

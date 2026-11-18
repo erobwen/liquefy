@@ -45,13 +45,14 @@ layout.width = 1200;
 This is what lets a Cascade component render before its children, measure
 the room it has, and hand that down to them - in the same pass.
 
-cascade.reactive grew out of [causality](https://github.com/erobwen/liquefy/tree/main/causality#readme) (the reactive
-engine of Flow), and shares its API: the reference below still calls it
-causality in places.
+cascade.reactive is Liquefy's reactive core, and the successor of
+[causality](https://github.com/erobwen/liquefy/tree/main/causality#readme), the reactive engine of Flow (itself
+once the standalone `causalityjs`). It keeps causality's API, and the name
+survives in one place: an observable's metadata property, `object.causality`.
 
 # Usage
 
-It is possible to create several instances of causality, called worlds, each with its separate config and dependencies. As the name implies, you typically just create one single causality world for your app to use. But you can sometimes benefit from created several isolated worlds where causality isolates observation and event propagation within each world.
+It is possible to create several instances of cascade.reactive, called worlds, each with its separate config and dependencies. As the name implies, you typically just create one single world for your app to use. But you can sometimes benefit from creating several isolated worlds, where observation and event propagation are isolated within each world.
 
     import getWorld from "@liquefy/cascade.reactive";
     let myWorld = getWorld({name: "myWorld", ...moreOptions}); // Create an instance with possibility to configure it.
@@ -62,7 +63,7 @@ Calling getWorld multiple times with the same unique name given in the configura
 
 # Quick Example
 
-This is just to show a simple example of what causality is all about, using the simple ensure primitive.
+This is just to show a simple example of what reactive programming with timeless observables is all about, using the simple ensure primitive.
 
     import getWorld from "@liquefy/cascade.reactive";
     let { observable, ensure } = getWorld();
@@ -89,15 +90,15 @@ However, there are a lot more interesting features to try out.
 
 ## observable
 
-With observable you simply create a causality object. The observable function takes any other Javascript object as input. Example usage:
+With observable you simply create an observable object. The observable function takes any other Javascript object as input. Example usage:
 
     observable({a: 1, b: 2, c: 3});
     observable([1, 2, 3]);
     observable(new MyClass());
 
-A causality object is an object that can be observed by causality. This means that changes in causality objects will be detected automatically by the causality framework. While it is possible to mix the use of causality object and plain Javascript object, it is not recommended to do so, as changes in plain Javascript objects will go undetected by causality.
+Changes to an observable object are detected automatically. While it is possible to mix observable objects and plain Javascript objects, it is not recommended to do so, as changes in plain Javascript objects will go undetected.
 
-In every other aspect, a causality object behaves just as an ordinary Javascript object would. So you could for example write:
+In every other aspect, an observable object behaves just as an ordinary Javascript object would. So you could for example write:
 
     var x = observable({a: 1, b: 2});
     var y = x.a + x.b; // 3
@@ -126,7 +127,7 @@ A write to it from inside a repeater is a writing of its own, at that repeater's
 
 A repeater that reads a property of a timeless object and then writes another value to it reruns - until it writes the same value again. So `model.count = model.count + 1` in a repeater never settles on a timeless object; on a temporal one it reads what came before it and writes its own.
 
-To access the inner workings of a causality object, you can access it by the causality property. For example write object.causality.id to get a system wide unique id for that particular object. 
+To access the inner workings of an observable object, use its causality property (named after the library this one grew from). For example write object.causality.id to get a system wide unique id for that particular object. 
 
 ## ensure (MobX autorun)
 
@@ -136,14 +137,14 @@ Repeat is typically used to enforce some certain data constraint. Such as reacti
 
     ensure(function() {  x.value = y.value + z.value; });
 
-This will cause x.value to be assigned to y.value + z.value any time either y.value or z.value changes. The good part is that you can write any kind of code inside the function. There can be loops, function calls, recursive functions. Anything. And no matter what code is there, causality will always keep track of what data has been read by the repeater function at any given moment.
+This will cause x.value to be assigned to y.value + z.value any time either y.value or z.value changes. The good part is that you can write any kind of code inside the function. There can be loops, function calls, recursive functions. Anything. And no matter what code is there, cascade.reactive will always keep track of what data has been read by the repeater function at any given moment.
 
 It will however not detect changes in local variables, so for example if local or global variable y is assigned in this example, there will be no reevaluation of x.value. In practice however, this is in general not a limitation as application code typically reacts to changes to a specific model, rather than changes in local variables.
 
 ### Using ensure with rebuilding keys
-ensure is equipped with some special features when it comes to creating data structures. Assume that you have an algorithm that constructs a data structure. For example a balanced index structure of some sort. However, when the input data is changed and the algorithm needs to repeat once more, you do not want a completely new output data structure.  Instead, you want to execute the algorithm once more, and at the end of it, compare the difference to the result of the last run, and update the previous result in a minimal way. This is something that is supported with causality! 
+ensure is equipped with some special features when it comes to creating data structures. Assume that you have an algorithm that constructs a data structure. For example a balanced index structure of some sort. However, when the input data is changed and the algorithm needs to repeat once more, you do not want a completely new output data structure.  Instead, you want to execute the algorithm once more, and at the end of it, compare the difference to the result of the last run, and update the previous result in a minimal way. This is something that is supported with cascade.reactive! 
 
-React users might notice that this is actually a generalization of how React works with the synthetic dom. But instead of being limited to just dom structures, causality can do this trick for any data structure!
+React users might notice that this is actually a generalization of how React works with the synthetic dom. But instead of being limited to just dom structures, cascade.reactive can do this trick for any data structure!
 
 For example: 
 
@@ -153,7 +154,7 @@ For example:
         }
     })
     
-Note that the only difference is that we added a unique build id for each created object in the data structure. This way causality will know what previously created object correspond to the objects created at each repetition.
+Note that the only difference is that we added a unique build id for each created object in the data structure. This way cascade.reactive will know what previously created object correspond to the objects created at each repetition.
 
 ### Using ensure with time
 
@@ -167,9 +168,9 @@ For example:
         time: 1
     })
 
-To do this, causality has a limited number of time levels to divide repeaters into. When you execute an ensure operation, you can set the time of it: an integer from 0 up to, but not including, the world's `timeLevels` (4 by default - `getWorld({ timeLevels })` sets another). A time outside that range is an error. A repeater created inside another's run is part of that one's pipeline, and its own `time` is ignored - it runs where its creator places it.
+To do this, cascade.reactive has a limited number of time levels to divide repeaters into. When you execute an ensure operation, you can set the time of it: an integer from 0 up to, but not including, the world's `timeLevels` (4 by default - `getWorld({ timeLevels })` sets another). A time outside that range is an error. A repeater created inside another's run is part of that one's pipeline, and its own `time` is ignored - it runs where its creator places it.
 
-Also, in addition to using time levels. causality internally uses a queue for repeater updates, and this by itself is a heuristic that makes it more likley for changes to propagate breadth first. But depending on your dependencies, reevaluation at some stage could potentially occur, so time levels helps to enforce some degree of breadth first.  
+Also, in addition to using time levels, cascade.reactive internally uses a queue for repeater updates, and this by itself is a heuristic that makes it more likley for changes to propagate breadth first. But depending on your dependencies, reevaluation at some stage could potentially occur, so time levels helps to enforce some degree of breadth first.  
 
 ### Separate cause and effect (MobX reaction)
 A repeater can mix cause and effect, and there are some preventive measures in place to prevent a repeater from activating itself. So, in many cases it is safe to use a repeater with a single action (comparable to autorun in MobX). However, there could be situations where you would like to distinguish more between cause and effect. To do that, a second argument for the repeater is an action that is not recorded. 
@@ -199,11 +200,11 @@ Here is an example:
         }
     );
 
-In this case, if y.value is changed for instance, it will only mean that the second function is run, setting xIsValid to false. invalidateOnChange is in particularly useful when integrating causality with other frameworks. For example, rendering code could be run using invalidateOnChange, and the second function could simply invalidate a certain view-component. 
+In this case, if y.value is changed for instance, it will only mean that the second function is run, setting xIsValid to false. invalidateOnChange is in particularly useful when integrating cascade.reactive with other frameworks. For example, rendering code could be run using invalidateOnChange, and the second function could simply invalidate a certain view-component. 
 
 ## withoutRecording and withoutReactions
 
-When working with causality it could be useful to sometimes break the rules. Reading data without creating a dependency could for example be useful for debug printouts. In the following code, the debug printout itself would create a false dependency on `z.value`  if it wasnt for the withoutRecording clause.
+When working with cascade.reactive it could be useful to sometimes break the rules. Reading data without creating a dependency could for example be useful for debug printouts. In the following code, the debug printout itself would create a false dependency on `z.value`  if it wasnt for the withoutRecording clause.
 
     let x = null
     let y = observable({ value: false });
@@ -231,9 +232,9 @@ There are probably less use cases for being able to change data without triggeri
 
 ## Emiting Events   
 
-Somtimes you just need to observe objects, and record events. For this purpose you can set an onEventGlobal callback in the causality configuration. This callback can then monitor any change that happens in the world from a birds eye perspective.
+Somtimes you just need to observe objects, and record events. For this purpose you can set an onEventGlobal callback in the world's configuration. This callback can then monitor any change that happens in the world from a birds eye perspective.
  
-Activating sendEventsToObjects will also cause causality to try to send events directly to your observable objects. If your objects implement the following callbacks, causality will then try to call them.  
+Activating sendEventsToObjects will also make the world try to send events directly to your observable objects. If your objects implement the following callbacks, it will then try to call them.  
 
  - onChange
  - onEstablish
@@ -250,7 +251,7 @@ The re building mechanism internally uses a forwarding mechanism that can be use
 
 ## transaction
 
-It is possible to do many changes at once, before causality has a chance to responde to any of the changes. This can be done by the use of "transaction".  Here is an example: 
+It is possible to do many changes at once, before cascade.reactive has a chance to respond to any of the changes. This can be done by the use of "transaction".  Here is an example: 
 
     transaction(function() {
        x.a = 12;
@@ -261,12 +262,12 @@ Warning: A transaction should typically only write data, as reading data inside 
 
 # Comparison to MobX
 
-Causality is comparable to MobX. 
+cascade.reactive is comparable to MobX. 
 
-Early, non-conclusive experiments indicated that causality, the library this one grew from, could be almost twice as fast as MobX; the temporal signals added since have not been benchmarked. Causality also takes full advantage of ES6/proxies which makes it comparable to MobX version 5 and above. 
+Early, non-conclusive experiments indicated that causality, the library this one grew from, could be almost twice as fast as MobX; cascade.reactive has not been benchmarked against it. It takes full advantage of ES6 proxies, which makes it comparable to MobX version 5 and above. 
 
-Causality also offers some experimental features that can not be found in MobX, such as data structure rebuilding using rebuild keys. On the other hand, MobX is a more mature library with a large supporting community and better integration with other libraries.
+It also offers features that can not be found in MobX: temporal signals, and data structure rebuilding using rebuild keys. On the other hand, MobX is a more mature library with a large supporting community and better integration with other libraries.
 
 # Context
 
-Causality is to be a foundation to an isomorphic application framework called "liquefy" that will feature full stack data binding and reactive programming (https://github.com/erobwen/liquid). It is useful to anyone that would like to do reactive programming in Javascript (https://en.wikipedia.org/wiki/Reactive_programming).
+cascade.reactive is the core of [Liquefy](https://github.com/erobwen/liquefy#readme): the reactivity under the Cascade front end framework today, and under full stack reactivity tomorrow - [Frozen](https://github.com/erobwen/liquefy/tree/main/frozen#readme), a garbage collected JavaScript object database, and [Fountain](https://github.com/erobwen/liquefy/tree/main/fountain#readme), the server planned on top of it. It is just as useful on its own, to anyone who would like to do [reactive programming](https://en.wikipedia.org/wiki/Reactive_programming) in JavaScript.

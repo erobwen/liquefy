@@ -10,9 +10,9 @@ and no stores, reducers or notifications to wire up.
 
 Flow is the generation before [Cascade](https://github.com/erobwen/liquefy#readme),
 which adds temporal signals to render in real time - a parent measuring, and
-its children laying out within what it measured, in the same pass. If you
-don't need that, Flow is a simpler machine: context free UIs, built context
-free, without the overhead of temporal signals.
+its children laying out within what it measured, in the same pass - while its
+models and components stay plain timeless observables, nearly as cheap as
+Flow's. For new work, use Cascade; Flow is kept for its history.
 
 ```console
 npm install @liquefy/flow.core @liquefy/flow.dom @liquefy/causality

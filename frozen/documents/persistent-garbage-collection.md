@@ -3,7 +3,7 @@
 
 **Status:** Design proposal, intended to be prototyped  
 **Date:** November 2026  
-**Builds on:** `whitepaper.md`, sections 8–15. Related work is listed in §17.
+**Builds on:** [the Fountain whitepaper](../../fountain/whitepaper.md), sections 8–15. Related work is listed in §17.
 
 ---
 

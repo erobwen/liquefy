@@ -1,0 +1,24 @@
+# Fountain
+
+*Planned - nothing here runs yet.*
+
+Fountain is the server Liquefy is heading toward: full stack reactivity, with
+persistent JavaScript objects as the one model shared by the database, the
+server and every connected client.
+
+- A central server holds the authoritative object graph, stored in
+  [Frozen](../frozen), Liquefy's garbage collected object database.
+- Clients subscribe to objects, or to reactive projections of them, over
+  WebSockets, and receive incremental updates as the data changes. On both
+  sides, the reactivity is [cascade.reactive](../cascade.reactive#readme)'s.
+- Authorization is per object, written as methods of the application's own
+  classes.
+- Shared, immutable snapshots serve large numbers of passive readers without a
+  live subscription each.
+- Indexes and other derived structures are ordinary persistent objects, and
+  schemas migrate lazily, one object at a time, as objects are loaded.
+
+The design is in [the whitepaper](whitepaper.md). Its garbage collection part
+(sections 8-15) is the one being built first, in Frozen. Its
+[design document](../frozen/documents/persistent-garbage-collection.md) takes
+it further.

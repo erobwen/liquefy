@@ -16,6 +16,8 @@ A central server maintains the authoritative object graph. Clients subscribe to 
 
 The architecture also supports shared, immutable snapshots for large numbers of passive consumers, reducing the computational and networking overhead of maintaining thousands of individual live subscriptions.
 
+What a client synchronizes is defined by data selectors: functions that, starting from one object, select the set of objects that belong together, such as everything in a document. A selection is maintained reactively as the graph changes. Code loads explicitly, through ensure operations that hold a selection while they are active, and every object carries observable metadata, such as whether it is loaded and whether its changes are saved. Indexes are built from ordinary persistent objects and kept up to date by index demons, small programs that are triggered when a key they computed changes. A query over such an index is live: its result is updated as objects arrive, change, and leave.
+
 A major architectural challenge is persistent garbage collection. Unlike an ordinary in-memory garbage collector, a persistent database must identify unreachable objects without requiring periodic, expensive scans of the entire database.
 
 The initial proposal uses a continuously maintained spanning tree of reachable objects, together with complete incoming-reference information. When references are removed, detached subtrees become unstable and are incrementally examined for alternative connections to the reachable graph. Objects that cannot reconnect are eventually reclaimed, including cyclic structures.
@@ -166,6 +168,73 @@ Executable class definitions are not stored as database records. Instead, stored
 
 The exact serialization format remains an implementation detail.
 
+## 2.3 Three kinds of objects
+
+Not every object needs to be persistent and shared.
+
+The architecture distinguishes:
+
+**Shared persistent objects**
+
+The application's data. They are stored in the database, have stable identity, and are synchronized to the clients that select them.
+
+**Server-local objects**
+
+Selections, live queries, sessions, and snapshot builders. They exist in the server's memory only while something uses them. They are never stored and never synchronized as objects. A client talks to them through a small protocol: it subscribes, and receives results.
+
+**Client-local objects**
+
+User-interface state, and the client's copies of selected objects.
+
+Keeping the second kind out of the database removes a large class of problems. Nothing that observes on behalf of a connected client ever has to be serialized, and a server restart simply discards it together with the sessions it served.
+
+## 2.4 Object metadata
+
+A client's copy of an object is more than its fields. The client also needs to know things about it:
+
+- Whether it has been loaded, or is only a stub: an identity and a type without content (section 3.4).
+- Whether it has changes that have not been saved, are being saved, or were rejected.
+- The commit that last changed it.
+- How many ensure operations hold it (section 3.7).
+- The store it belongs to (section 3.8).
+
+Some of this is per property rather than per object. The form field example in Cascade keeps a record per property with the saved value, a count of saves in flight, whether the property is locked by someone else, and the latest error:
+
+https://erobwen.github.io/liquefy/cascade/form-field
+
+The user interface reads these states: it shows a field as unsaved, saving, rejected, or locked. The metadata must therefore be observable, like the object itself.
+
+It must not be part of the object's fields. The model keeps the shape it would have without any of this, an application can name a field `meta` or `saved` without colliding with anything, and serialization never has to skip anything.
+
+**meta() in Cascade**
+
+Cascade has this as `meta()`, in cascade.reactive.
+
+`meta(object)` is the object's metadata object: Cascade's own bookkeeping (the object's id, its target, its handler), and the place where every layer built on Cascade keeps what it knows about the object. Cascade's components keep their unobservable data there. It is the one property a Cascade proxy answers itself instead of passing on to its target, under a configurable name: still `object.causality` by default, and at Cascade's next major version a long name that application data is unlikely to use (`object.cascadeMetadataObject`). `meta()` is the way to reach it.
+
+`meta(object, property)` is the metadata record of one property: an observable, empty until something is put in it, and made the first time it is asked for, so properties that nobody asks about cost nothing. The form field example keeps its saved values, counts of saves in flight, locks and errors in these records.
+
+The metadata object itself is not observable. A layer that needs observable state about a whole object keeps an observable of its own there. The synchronization layer would keep one record per object:
+
+```javascript
+meta(document).sync.loaded     // "unloaded" | "loading" | "loaded"
+meta(document).sync.saving     // changes sent and not yet confirmed
+meta(document).sync.holds      // ensures holding it (section 3.7)
+meta(document).store           // the store it belongs to (section 3.8)
+meta(document, "title").saved  // the last value the server confirmed
+meta(document, "title").error
+```
+
+Cascade decides no field of the records. The synchronization layer defines `loaded`, `saving` and `saved`, and an application can add its own.
+
+Derived states such as "unsaved" are computed from the record rather than stored: a property is unsaved while its value differs from `meta(object, property).saved`.
+
+**Reading an unloaded object**
+
+Reading a field of a stub is a programming error: the code is outside the boundary it ensured.
+
+Cascade already has a hook for this. A world can be given an `onReadGlobal` function that is asked before every read and may refuse it, returning a configured `cannotReadPropertyValue` instead. The synchronization layer can use it to report reads of unloaded objects in development, and to return a recognizable value in production.
+
 ---
 
 # 3. Reactive Client Synchronization
@@ -240,6 +309,220 @@ These relationships overlap but should not be represented as the same thing.
 For example, a million objects may reference a shared font, while only a small number of active client computations currently depend on its name.
 
 The persistence system must understand all million references, but the reactive engine only needs to invalidate the computations that actually depend on the changed property.
+
+## 3.4 Data selectors
+
+Across the whole stack, code must have an object before it can operate on it.
+
+On the server this is cheap: a reference can be followed synchronously, loading the object from storage if necessary.
+
+On a client it is not. A reference to an object the client does not have cannot be followed without a network round trip.
+
+Clients therefore subscribe to sets of objects in advance. The set is defined by a data selector.
+
+A data selector is a function that takes an object and a set, and fills the set with every object that should be selected together with that object.
+
+```javascript
+function selectDocument(document, selection) {
+    selection.add(document);
+
+    for (const chapter of document.chapters) {
+        selection.add(chapter);
+
+        for (const paragraph of chapter.paragraphs) {
+            selection.add(paragraph);
+        }
+    }
+
+    // document.creator is not followed.
+}
+```
+
+The result is a selection: a boundary around the objects to be synchronized.
+
+The selector decides which references to follow. A document selector follows the document's structure, but does not run away across a reference that merely names the creator of an object.
+
+A reference that leaves the selection is delivered to the client as a stub: an identity and a type, without content. The client can subscribe to another selection to obtain the object behind it.
+
+Selectors are registered by name, as classes are. A client subscribes by naming a selector and a starting object. It never sends code to the server.
+
+A selection is the unit of several things at once:
+
+- **Subscription.** Changes to any object in the selection are sent to its subscribers.
+- **Loading.** A client receives the whole selection before it operates on any of it, so that code within the boundary can run synchronously.
+- **Holding.** The objects of a selection are held by its subscribers, and must not be collected while they are (the volatile roots of the garbage collector).
+- **Sharing.** Clients that name the same selector and starting object, with equivalent access rights (section 4.3), share one selection on the server.
+
+## 3.5 Reactive selections
+
+A selection must follow the graph.
+
+When a paragraph is added to a chapter, it must be added to the selection and sent to every subscriber. When it is removed, the subscribers must be told.
+
+Running a selector is therefore a reactive computation. It records what it reads. When something it read changes, the selection is updated, the difference from the previous selection is computed, and the difference is distributed.
+
+**Rerunning the whole selector**
+
+The simplest implementation reruns the selector from its starting object and compares the two sets.
+
+It is correct by construction, and its cost is proportional to the size of the selection for every structural change.
+
+That is acceptable for small selections, and it is the reference against which any faster implementation should be tested.
+
+**Local rules**
+
+A selector can instead be written as a local rule: given one object, which of the objects it references are selected along with it.
+
+```javascript
+const documentSelector = {
+    Document: (document, selection) => selection.add(...document.chapters),
+    Chapter: (chapter, selection) => selection.add(...chapter.paragraphs)
+};
+```
+
+The engine applies the rule transitively.
+
+Each application of the rule is then a small computation of its own, depending on the fields of one object. A change to one chapter reruns the rule for that chapter only.
+
+**Removal is a reachability problem**
+
+Adding to a selection is easy: apply the rule to the new object and continue from there.
+
+Removing is not. An object can be selected through several paths, and selected objects can reference each other in cycles. When one path is cut, the object leaves the selection only if no other path remains.
+
+This is the garbage collector's problem (sections 8 and 9), over the subset of references the selector follows, starting from the selection's starting object.
+
+It is much smaller, though. A selection has the size of a document, not of a database, and it lives in memory. Retracing one selection after a removal is affordable in a way that tracing the database is not. The spanning-tree algorithm could also be applied to a selection directly.
+
+The two kinds of error are not equally serious. A selection that is temporarily too large sends objects that a client did not need. A selection that is too small breaks the client. Removal can therefore lag behind; addition cannot.
+
+**Selections and regions**
+
+The collector's regions are automatically discovered branches of the reachability spanning tree.
+
+A selector that follows ownership will often select something close to a union of regions.
+
+Whether regions can serve as a coarse unit of selection, loading, or distribution is an open question.
+
+## 3.6 Observation on the server
+
+The server needs to know when something that a selector, a query, or an index demon has read is changed.
+
+It does not need the temporal signals that Cascade uses to order a rendering pipeline. On the server, order is given by commits. Plain observation is sufficient: what was read, and whether it has since been written.
+
+**The commit change set is the source of all triggers**
+
+Every transaction produces a change set: the objects and fields it wrote.
+
+Everything that reacts to data does so by matching its recorded reads against committed change sets.
+
+**Volatile observers**
+
+Selections, live queries, and snapshot builders are server-local objects (section 2.3).
+
+Their recorded reads are kept in memory, in a table from object identity and field to observer, beside the object cache rather than inside the stored objects.
+
+Nothing about them is written to the database.
+
+After a restart they are gone, which is correct, because the sessions they served are gone too. A reconnecting client subscribes again and states the commit it last saw. The server recomputes the selection and sends what has changed since. This requires that every object records the commit that last changed it.
+
+**Persistent observers**
+
+An index demon is different. Its index is persistent, so it must be triggered by every relevant change, also after a restart, and also when the objects involved are not in memory.
+
+Its dependencies cannot be references to observers in memory.
+
+They are not stored as observers at all. Section 6.4 describes what is stored instead.
+
+**When observers run**
+
+A demon that maintains a transactional index runs inside the transaction that triggered it, before the commit.
+
+Volatile observers run after the commit and see only committed state. The changes they distribute are grouped by commit, so that a client moves from one consistent state to the next.
+
+**How much of Cascade is needed**
+
+Cascade's plain, timeless observables record dependencies through a replaceable interface and can report every change as an event. That is the mechanism described here, and the first implementation can use it as it is.
+
+Whether the server should eventually use a smaller tracker of its own is a question of cost, not of design. In both cases application code sees ordinary property access, and the same classes run on the server and on clients.
+
+## 3.7 Explicit loading: ensure
+
+An early version of this architecture (section 18.1) loaded data implicitly. Node Fibers made it possible to suspend execution in the middle of a property getter, load the missing object, and resume, so that code never had to know what was loaded.
+
+It was elegant, but Fibers were discontinued, and the technique could never work on a client, where loading means waiting for the network.
+
+Loading is therefore explicit. Code states what it is about to use, by naming a starting object and a selector, and receives control once that has arrived:
+
+```javascript
+// On a client
+ensureSubscribed(document, selectDocument, () => {
+    // Everything selectDocument selects from document is here,
+    // and stays up to date while this ensure is active.
+});
+
+// On the server
+ensureLoaded(document, selectDocument, () => {
+    // Everything selectDocument selects from document is in memory.
+});
+```
+
+Inside the action, code runs synchronously and may follow any reference within the selection.
+
+The two functions have the same shape, so code written against a selection can run on either side.
+
+On the server, a reference outside an ensured selection could still be followed by loading on demand, since storage reads are synchronous. In development it should nevertheless be reported, as on a client, so that code that works on the server does not fail when it runs on a client.
+
+**Ensures are held, and counted**
+
+An ensure is not a one-off fetch. It holds its selection, and the selection follows the graph (section 3.5), until the ensure is released.
+
+Every object keeps a count of the ensures that currently hold it, in its synchronization metadata (`meta(object).sync.holds`). An ensure increments the count of each object in its selection, and of each object that later joins it. It decrements the count of objects that leave its selection, and of all of them when it is released.
+
+When an object's count falls to zero, it can be released:
+
+- On a client, its subscription ends and its content is dropped. It becomes a stub again, or disappears entirely if nothing references it.
+- On the server, it can be evicted from the object cache, and it is no longer a volatile root of the garbage collector (section 9 and Frozen's design document, §9.4).
+
+**When an ensure is released**
+
+An ensure made inside a reactive computation, such as a Cascade component's `build()`, belongs to that computation. It is released when the computation is disposed, and kept when the computation reruns and makes the same ensure again. This is how Cascade already treats objects created inside a repeater, and it means that a component holds exactly the data it is showing.
+
+An ensure made outside any reactive computation returns a handle with which it is released.
+
+**Overlapping ensures**
+
+Two ensures whose selections overlap share the objects in the overlap, each holding them once. On the server, ensures of the same selector and starting object share one selection (section 3.4), so the counts are per selection rather than per client.
+
+## 3.8 Stores
+
+A client may hold thousands of objects that mirror server objects. Every change to any of them, in any property, must be noticed, gathered with the other changes of the same transaction, and sent to the server as one message.
+
+Observing each object individually would be wasteful. Instead, objects belong to a store.
+
+A store is a server-local or client-local object (section 2.3) that receives a notification on every change to every object that belongs to it. The object's metadata names its store (`meta(object).store`).
+
+On a client, the store:
+
+1. Collects the changes of the current transaction: property writes, deletions, and array splices.
+2. Coalesces them: a property written several times is sent once, with its last value.
+3. At the end of the transaction, sends one message to the server, including any newly created objects in full.
+4. Marks the changed properties as saving in their metadata, and as saved, or rejected, when the server answers.
+5. Applies changes that arrive from the server without sending them back.
+
+Objects created on the client join the store of the transaction that created them, and receive their permanent identity when the server confirms them.
+
+**What Cascade already provides**
+
+Cascade emits an event for every change to an observable: `set`, `delete`, and `splice`, each carrying the object, its identity, and the old and new values. A world can be given one `onEventGlobal` function that receives all of them. A store can be built on it directly, by routing each event to `meta(event.object).store`.
+
+A store also needs to know when a transaction has ended, so that it can send. Cascade tells it: `onTransactionEnd(listener)` calls the listener once at the end of each transaction that changed something, after the repeaters it set off have run again, so that their writes go in the same message. A write made outside any transaction is a transaction of its own.
+
+**The same structure on the server**
+
+On the server, the object layer over Frozen is a store as well. At the end of a transaction, its changes are written to the database as one Frozen transaction, and the resulting change set is what triggers selections, queries, and index demons (section 3.6).
+
+A client store and the server store differ only in where they send a finished transaction.
 
 ---
 
@@ -389,6 +672,8 @@ Snapshots should be produced from a transactionally consistent database state. I
 
 # 6. Persistent Indexes and Derived Structures
 
+## 6.1 Indexes as ordinary objects
+
 The database should not require every index to be implemented as a special database-engine feature.
 
 Instead, indexes can be ordinary persistent JavaScript data structures.
@@ -403,17 +688,118 @@ Examples include:
 
 An index can maintain references to ordinary persistent objects.
 
-Reactive computations may help detect changes requiring index updates.
+## 6.2 Live indexes
 
-However, required index maintenance must participate in the database's consistency model.
+An index has three parts:
+
+- **A member set:** the objects it covers. This is a collection, or more generally a selection (section 3.4).
+- **A key:** a function of a member. It may be computed, and it may read other objects.
+- **An ordered structure:** for example a B-tree whose nodes are persistent objects, holding the members sorted by key.
+
+```javascript
+defineIndex("productsByPrice", {
+    members: catalog => catalog.products,
+    key: product => product.price * product.currency.rate
+});
+```
+
+The API is illustrative.
+
+The index is live: when the key of a member changes, the member moves to its new position, and when the member set changes, entries are added and removed.
+
+## 6.3 Index demons
+
+The program that keeps an index up to date is an index demon.
+
+It is a small JavaScript program, registered by name as classes and selectors are. When something its key function read is changed, it is triggered, evaluates the key again, and moves the entry.
+
+Three restrictions keep demons manageable:
+
+1. **A key is a pure function of persistent state.** It reads objects and nothing else: no clock, no session, no randomness. It is evaluated in a context where writing fails.
+
+2. **A demon is the only writer of what it maintains.** Nothing else modifies its index.
+
+3. **What a demon maintains can be rebuilt from nothing.** This follows from the first two.
+
+The third property carries a great deal. It is the recovery strategy if an index is damaged. It is the migration strategy when the definition of an index changes: the stored index records the version of its definition, and a newer definition causes a rebuild. And it is the test oracle: an incrementally maintained index can be compared with one built from scratch, under random mutation.
+
+The same restrictions would allow demons that maintain other derived data, such as counters or denormalized fields. General demons that write arbitrary shared objects in response to changes are deliberately not proposed. Their order, termination, and recovery are much harder to reason about.
+
+## 6.4 Triggering a demon without stored observers
+
+A demon must be triggered by changes to objects that are not in memory, and after a restart.
+
+Storing a reference to an observer in each observed object is not possible, and is not necessary.
+
+**Keys that read only the member itself**
+
+For each member, the index stores the key it was last filed under. This is needed in any case, to find the entry.
+
+Any committed write to a member causes its key to be evaluated again and compared with the stored one. If they differ, the entry moves.
+
+No dependencies are stored at all. Membership is the trigger.
+
+This is the common case, and it costs one key evaluation per written member per index.
+
+**Keys that read other objects**
+
+A key such as `product.price * product.currency.rate` depends on an object other than the member.
+
+When the key is evaluated, the objects it read are recorded. For each one other than the member itself, a dependency record is stored: from the object read, to the index and the member.
+
+These are records in the store, keyed by the identity of the object read, like the collector's edge index. They are not part of the objects, and they are changed only when an evaluation reads a different set of objects than the previous one did, which is rare.
+
+A committed write to an object looks up its dependency records and triggers the members they name.
+
+**Objects that many keys depend on**
+
+If a million product keys read one currency rate, a change of the rate moves a million entries. That work is inherent in the index, whoever performs it.
+
+It cannot be done inside the transaction that changed the rate. It is done in the background, in bounded steps from a persistent worklist, in the same way the garbage collector works. Meanwhile, the index is known to be stale for those members.
+
+The million dependency records are not inherent, however. They can be replaced by a single coarse record saying that the index as a whole depends on the rate, at the price of evaluating every key again when it changes. This is the trade-off the collector makes with its abstract incoming references (section 12.4).
+
+**Members that are reclaimed**
+
+An index holds its members weakly, unless the index is itself the collection that owns them.
+
+When a member is reclaimed, its entry and its dependency records are removed.
+
+## 6.5 Live queries
+
+A query reads an index: a range of keys, possibly filtered and limited.
+
+Because the nodes of the index are ordinary objects, reading a range records a dependency on the nodes that were visited. Inserting a member into that range changes one of those nodes, and the query is triggered.
+
+Observing a range therefore requires no mechanism of its own. It follows from building indexes out of observable objects.
+
+The result of a live query is an ordered selection. It is delivered to clients by the protocol that delivers any other selection: the objects first, then changes.
+
+A user searching a catalog can then see the result change as new products arrive.
+
+Whether a result should change under the user's eyes, or announce that newer results exist, is a decision for the application. The publication policies of section 5 apply to query results as well.
+
+## 6.6 Queries as server-local objects
+
+A query is a server-local object (section 2.3) with ordinary query and result semantics: a client names a registered query, supplies parameters, and receives a result.
+
+What produces the result is hidden behind the name.
+
+It can be a live index. It can also be a specialized structure, an external search engine, or a scan, and the result can be one that is not kept up to date.
+
+Live indexes are the default, the proof of concept, and sufficient for simple applications. Where a live index costs too much, that query can be given an optimized implementation without changing the clients that use it.
+
+## 6.7 Consistency
+
+Required index maintenance must participate in the database's consistency model.
 
 An index that is expected to be complete and authoritative cannot simply update whenever a background reactive scheduler happens to execute.
 
 The architecture should distinguish:
 
-1. Synchronously maintained transactional indexes.
-2. Eventually consistent derived indexes.
-3. Lazy indexes whose coverage is explicitly tracked.
+1. Synchronously maintained transactional indexes. A demon whose keys read only the member, or a few other objects, runs inside the triggering transaction.
+2. Eventually consistent derived indexes. Work caused by a widely read object is done in the background, and the index records which members are stale.
+3. Lazy indexes whose coverage is explicitly tracked. An index being built, or rebuilt after its definition changed, records how much of its member set it covers.
 
 This distinction also applies to schema migrations.
 
@@ -1199,9 +1585,60 @@ Important measurements include:
 - Cost of region splitting and merging.
 - Frequency and scope of fallback scans.
 
+## 17.8 Incremental selections
+
+Can a selection be maintained with work proportional to the change, including removals through shared paths and cycles?
+
+Is retracing one selection cheap enough in practice, or is the spanning-tree algorithm needed at this level as well?
+
+Can the collector's regions serve as a coarse unit of selection?
+
+## 17.9 The cost of live indexes
+
+Everything that is observed by a volatile observer is held in the server's memory. How many simultaneous selections and live queries does that allow?
+
+How should dependency records be coarsened for objects that many keys read, and when?
+
+At what size or rate of change does a live index stop being the right implementation of a query?
+
+## 17.10 Authorization and shared selections
+
+A shared selection must be safe for every subscriber (section 4.3).
+
+Can authorization be evaluated as part of the selector, so that it is itself reactive and a change of permissions updates the selection like any other change?
+
+## 17.11 Writes from clients
+
+This paper describes how changes reach clients, but not how a client's own changes reach the server.
+
+Are they sent as transactions to be validated and committed in order? Are they applied optimistically on the client, and if so, how is a rejected or reordered change undone?
+
+Stores (section 3.8) give the mechanism for sending; the policy remains open.
+
+## 17.12 Metadata
+
+Which metadata fields should be standard, defined by Cascade or by the synchronization layer, and which should be left to applications?
+
+Should property metadata be kept for every property of every object, or only for properties that someone has asked about?
+
 ---
 
 # 18. Related Research
+
+## 18.1 Earlier attempts
+
+This architecture has been attempted twice before, by the same author:
+
+- https://github.com/erobwen/liquid
+- https://github.com/erobwen/liquid-demo
+
+Liquid synchronized an object graph between a server and its clients, with subscriptions keyed by selectors, reactive object-level security (`noAccess`, `readOnly`, `readAndWrite`), and placeholder objects standing in for objects whose data had not yet arrived. Changes made on a client were grouped into a pulse and sent to the server as a list of events.
+
+Its earliest form relied on Node Fibers to load data in the middle of a property getter (section 3.7).
+
+Several of the ideas in this paper come from there: selectors, stubs (liquid's placeholders), and the grouping of client changes per transaction. The repositories may contain more worth recovering.
+
+## 18.2 Other work
 
 Several existing approaches provide relevant foundations.
 
@@ -1227,15 +1664,58 @@ Relevant to distributed reachability, bounded metadata, and cycle collection.
 
 The proposed architecture should be evaluated against these algorithms before making claims of novelty or superior performance.
 
+The synchronization and indexing parts have close relatives as well.
+
+**Incremental view maintenance: differential dataflow, DBSP, Materialize**
+
+A selection, an index over it, and a query over the index form a chain of derived collections, each updated from the changes of the one before. This is the subject of incremental view maintenance.
+
+**Convex**
+
+Queries are JavaScript functions executed by the database. Their read sets are recorded, and a query is run again and its subscribers updated when a write intersects what it read.
+
+**ElectricSQL shapes, and similar partial replication**
+
+A shape defines the subset of a database that is synchronized to a client. It plays the role of a data selector, over tables rather than an object graph.
+
+**Meteor publications, RethinkDB changefeeds, Firestore listeners**
+
+Earlier systems in which the result of a query is kept up to date on the client.
+
+**Database triggers and materialized views**
+
+The conventional counterpart of index demons.
+
 ---
 
 # 19. Proposed Development Roadmap
+
+The phases are numbered as first proposed. Phases 3 to 5 were taken first, and exist as a prototype.
 
 ## Phase 1: Persistent reactive object model
 
 Implement stable object identity, persistence, transactions, reactive proxies, and WebSocket synchronization.
 
 Establish the basic security and subscription model.
+
+In order:
+
+1. In Cascade: `meta(object)` and `meta(object, property)` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
+2. An object layer on the store: persistent objects as proxies, one instance per identity, classes registered by name, and a server store that turns each transaction into one Frozen transaction and a change set.
+3. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
+4. Selections and `ensureLoaded`, with hold counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7).
+5. The protocol and `ensureSubscribed`: subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.
+6. Client stores: writes from clients, with authorization and save states in metadata.
+
+## Phase 1b: Live indexes and queries
+
+Implement a B-tree of persistent objects and index demons whose keys read only the member (sections 6.2 to 6.4).
+
+Deliver live queries as ordered selections (section 6.5).
+
+Then add keys that read other objects, with stored dependency records, background work, and tracked staleness.
+
+Test every index against one rebuilt from nothing.
 
 ## Phase 2: Shared reactive snapshots
 
@@ -1276,6 +1756,8 @@ Benchmark against established garbage-collection algorithms.
 The proposed system combines a persistent JavaScript object model with reactive synchronization, object-level authorization, application-defined indexes, lazy schema evolution, and incremental garbage collection.
 
 The architectural goal is to make persistent distributed data behave naturally within a reactive JavaScript programming environment.
+
+Synchronization is defined by data selectors, which draw the boundary of what a client holds, and indexes are kept live by demons that are triggered through stored keys and dependency records rather than through observers in memory. Selections, indexes, and queries form one chain of incrementally maintained collections.
 
 The garbage-collection proposal begins with a relatively simple principle: maintain a spanning tree that certifies reachability, together with complete incoming-reference information that allows detached objects to reconnect without a global trace.
 

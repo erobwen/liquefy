@@ -11,12 +11,16 @@ server and every connected client.
 - Clients subscribe to objects, or to reactive projections of them, over
   WebSockets, and receive incremental updates as the data changes. On both
   sides, the reactivity is [cascade.reactive](../cascade.reactive#readme)'s.
+- What a client holds is defined by data selectors: functions that select the
+  objects that belong together, such as everything in a document. A selection
+  follows the graph as it changes.
+- Indexes are ordinary persistent objects, kept live by index demons, so the
+  result of a query can be updated as the data changes.
 - Authorization is per object, written as methods of the application's own
   classes.
 - Shared, immutable snapshots serve large numbers of passive readers without a
   live subscription each.
-- Indexes and other derived structures are ordinary persistent objects, and
-  schemas migrate lazily, one object at a time, as objects are loaded.
+- Schemas migrate lazily, one object at a time, as objects are loaded.
 
 The design is in [the whitepaper](whitepaper.md). Its garbage collection part
 (sections 8-15) is the one being built first, in Frozen. Its

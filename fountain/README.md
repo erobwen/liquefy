@@ -14,8 +14,11 @@ server and every connected client.
 - What a client holds is defined by data selectors: functions that select the
   objects that belong together, such as everything in a document. A selection
   follows the graph as it changes.
-- Indexes are ordinary persistent objects, kept live by index demons, so the
-  result of a query can be updated as the data changes.
+- Writes are one real-time stream to the server, and the last write wins.
+  Locks and anything stricter are built by applications on top.
+- Indexes are ordinary persistent objects, kept live by persistent repeaters
+  (pure computations, such as an index key, whose dependencies are stored), so
+  the result of a query can be updated as the data changes.
 - Authorization is per object, written as methods of the application's own
   classes.
 - Shared, immutable snapshots serve large numbers of passive readers without a

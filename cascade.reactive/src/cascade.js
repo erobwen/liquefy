@@ -1892,11 +1892,17 @@ function createWorld(configuration) {
     } else if (successor === null) {
       orderNumber = predecessor.orderNumber + chainSpacerFor(chainHead); // appending at the tail
     } else {
-      const spacer = chainSpacerFor(chainHead);
-      const candidate = predecessor.orderNumber + spacer;
-      orderNumber = candidate < successor.orderNumber
-        ? candidate
-        : Math.floor((predecessor.orderNumber + successor.orderNumber) / 2);
+      // No number left between the two: make room first (see
+      // releaseChainPressure()), then insert into it.
+      if (successor.orderNumber - predecessor.orderNumber < 2) releaseChainPressure(chainHead, predecessor);
+      // A small step from the predecessor, not the midpoint: inserts come
+      // in runs (a list body rebuilt with new children, say), each right
+      // after the one before, all before the same successor - so whatever
+      // is left of the gap ahead is where the rest of the run goes. The
+      // midpoint would use up half of what's left with every insert; this
+      // uses a 64th.
+      const gap = successor.orderNumber - predecessor.orderNumber;
+      orderNumber = predecessor.orderNumber + Math.max(1, Math.min(chainSpacerFor(chainHead), Math.floor(gap / 64)));
     }
 
     partial.orderNumber = orderNumber;
@@ -1906,25 +1912,36 @@ function createWorld(configuration) {
     if (successor !== null) successor.orderPrevious = partial; else chainHead.last = partial;
     chainHead.count++;
     chainHead.executionCursor = partial;
-
-    // Only inserting *between* two existing neighbors can leave no room to
-    // insert anything else there later - an append always still has the
-    // entire rest of the number space open ahead of it.
-    if (successor !== null &&
-        ((orderNumber - predecessor.orderNumber) <= 1 || (successor.orderNumber - orderNumber) <= 1)) {
-      releaseChainPressure(chainHead, partial);
-    }
   }
 
-  // Widen the gaps around `center` (just inserted, with no room left on at
-  // least one side) by collecting a window of its order-chain neighbors and
-  // spreading them evenly across the interval they currently span. Expands
-  // whichever side currently has the smaller delta, so the window grows
-  // roughly symmetrically, and keeps going until the window is at most
-  // half-full (density <= 1/2 - the standard order-maintenance threshold).
-  // Only then does respreading actually create room: with density <= 1/2
-  // the step between neighbors comes out > 2, so every number in the
-  // window is distinct afterwards. There is deliberately no cap on how many
+  // How many nodes a release window spanning `span` order numbers may
+  // hold, at most, before it's spread out (see releaseChainPressure()):
+  // span^log2(2/T), for T = 1.5 - the thresholds of Bender, Cole, Demaine,
+  // Farach-Colton and Zito, "Two Simplified Algorithms for Maintaining
+  // Order in a List" (ESA 2002), where a window of 2^i numbers may hold
+  // (2/T)^i nodes. So the larger a window, the sparser it must be - which
+  // is what keeps releases cheap: a fixed density (an earlier version
+  // stopped at 1/2) leaves a large window, once spread, with gaps of only
+  // about 2, and a run of inserts at one spot then needs another release,
+  // over the whole run so far, almost every time - quadratic in the run's
+  // length (seconds, for a list of a few hundred new children). With these
+  // thresholds a big window comes out sparse, every smaller window in it
+  // sparser than its own threshold, and the releases that follow stay
+  // small: O(log n) renumbered per insert, amortized. Never more than half
+  // full either, so that every gap comes out at least 2.
+  const chainReleaseExponent = Math.log2(2 / 1.5);
+  function chainWindowCapacity(span) {
+    return Math.min(span / 2, Math.pow(span, chainReleaseExponent));
+  }
+
+  // Widen the gaps around `center` (with no room left right after it) by
+  // collecting a window of its order-chain neighbors and spreading them
+  // evenly across the interval they currently span. Expands whichever side
+  // currently has the smaller delta, so the window grows roughly
+  // symmetrically, and keeps going until the window holds no more than
+  // its span allows (see chainWindowCapacity()) - at most half full, so
+  // the step between neighbors comes out at least 2, and every number in
+  // the window is distinct afterwards. There is deliberately no cap on how many
   // nodes the search may visit - an earlier version stopped after a fixed
   // count and respread whatever it had, which is a no-op when those nodes
   // were already too dense for their span. That was fine for the flat
@@ -1983,7 +2000,7 @@ function createWorld(configuration) {
 
     while (
       !(forwardExhausted && backwardExhausted) &&
-      visited / (deltaForward + deltaBackward) > 0.5
+      visited > chainWindowCapacity(deltaForward + deltaBackward)
     ) {
       if (backwardExhausted) stepForward();
       else if (forwardExhausted) stepBackward();
@@ -1999,7 +2016,10 @@ function createWorld(configuration) {
       collected.push(node);
       if (node === forwardEdge) break;
     }
-    const gapCount = collected.length - 1;
+    // Run off the end: the last gap is the one past the last node, up to
+    // MAXINT - so the last node doesn't land on MAXINT itself, with no
+    // room left to append after it.
+    const gapCount = forwardExhausted ? collected.length : collected.length - 1;
     if (gapCount <= 0) return; // nothing to spread out (shouldn't happen - center always has a real successor when this is called)
     const step = (rangeEnd - rangeStart) / gapCount;
     for (let i = 0; i < collected.length; i++) {

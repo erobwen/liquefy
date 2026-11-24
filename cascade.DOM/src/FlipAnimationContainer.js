@@ -357,6 +357,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     const u = this.unobservable;
     const ghosts = [];
     const root = u.node;
+    const checked = new Set();
     for (const { element, place, look } of fading) {
       const rect = drawnAt.get(element);
       if (!rect) continue;
@@ -405,9 +406,14 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
         // too - and that stays positioned, as for its layer (see layer()).
         if (parent === root) {
           this.positionRoot();
-        } else if (!u.positioning.has(parent) && isStatic(root.ownerDocument.defaultView.getComputedStyle(parent))) {
-          u.positioning.set(parent, parent.style.position);
-          parent.style.position = "relative";
+        } else if (!checked.has(parent)) {
+          // Once per parent - its style read again after each ghost put in
+          // it would be worked out again each time.
+          checked.add(parent);
+          if (!u.positioning.has(parent) && isStatic(root.ownerDocument.defaultView.getComputedStyle(parent))) {
+            u.positioning.set(parent, parent.style.position);
+            parent.style.position = "relative";
+          }
         }
         parent.insertBefore(element, next && next.parentNode === parent ? next : null);
       } else {
@@ -430,11 +436,25 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // its place in there growing and shrinking with it, as everything else
   // in there does - but at its own size (see follow()), the way something
   // appearing in it isn't scaled along either.
+  //
+  // Everything is read first, then everything written - one layout for
+  // all of them, rather than two per ghost (seconds, with a thousand
+  // ghosts in a large page). Moving one ghost moves no other, nor its
+  // carrier: they're all absolutely positioned, so take no room in what
+  // they're in, and none is in another (they're put in what the leaving
+  // element was in, which isn't leaving - see removeAsGhosts()).
   positionGhosts(ghosts, drawnAt) {
     const u = this.unobservable;
-    for (const element of ghosts) {
+    const carriersAt = new Map();
+    const measured = ghosts.map((element) => {
+      const carrier = element.parentNode;
+      // Where it is in its carrier as that's drawn now - and where the
+      // carrier's own coordinates start, for placing it there.
+      if (u.layout.has(carrier) && !carriersAt.has(carrier)) carriersAt.set(carrier, rectOf(carrier));
+      return { element, carrier, at: rectOf(element) };
+    });
+    for (const { element, carrier, at } of measured) {
       const rect = drawnAt.get(element);
-      const at = rectOf(element);
       const width = parseFloat(element.style.width) || 0;
       const height = parseFloat(element.style.height) || 0;
       const sx = width > 0 && at.width > 0 ? at.width / width : 1;
@@ -443,11 +463,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
       const top = (rect.y - at.y) / sy;
       element.style.left = left + "px";
       element.style.top = top + "px";
-      const carrier = element.parentNode;
-      if (!u.layout.has(carrier)) continue;
-      // Where it is in its carrier as that's drawn now - and where the
-      // carrier's own coordinates start, for placing it there.
-      const drawn = rectOf(carrier);
+      const drawn = carriersAt.get(carrier);
+      if (!drawn) continue;
       Object.assign(u.ghosts.get(element), {
         carrier, left, top,
         originX: (at.x - drawn.x) / sx, originY: (at.y - drawn.y) / sy,

@@ -396,14 +396,28 @@ al.) applied to repeater execution order:
   that child, whether or not the child itself just reran - needed because
   `rightmostPartial` (unlike `currentPartial`) is never nulled by
   `dispose()`, so it stays correct through the dispose-to-refresh gap.
-- Insertion between two existing neighbors uses a small spacer step
-  (large while the chain is nearly empty, shrinking in coarse tiers as
-  `count / MAXINT` rises - `chainSpacerFor`), falling back to bisection.
-  If that leaves adjacent order numbers with no gap, `releaseChainPressure`
-  (a pressure-release "blast") widens a window around the new partial -
-  expanding whichever side has the smaller delta, stopping only once the
-  window is at most half-full - and spreads that window evenly across the
-  interval it spans. There is no cap on how far the window may grow: an
+- Insertion between two existing neighbors takes a small step from the
+  predecessor: the spacer (large while the chain is nearly empty,
+  shrinking in coarse tiers as `count / MAXINT` rises - `chainSpacerFor`),
+  or a 64th of the gap if that's smaller, at least 1 - never the
+  midpoint, since new partials come in runs, each right after the last,
+  before the same successor, and the rest of the gap is where the run
+  goes on. If the two neighbors have no number left between them,
+  `releaseChainPressure` (a pressure-release "blast") first widens a
+  window around the predecessor - expanding whichever side has the
+  smaller delta, stopping once the window holds no more than
+  `span^log2(2/T)` partials, T = 1.5 (`chainWindowCapacity`; the
+  thresholds of Bender et al., "Two Simplified Algorithms for Maintaining
+  Order in a List", ESA 2002: the larger the window, the sparser it must
+  be) - and spreads that window evenly across the interval it spans.
+  Amortized, that renumbers O(log n) partials per insert. A fixed
+  threshold (an earlier version stopped at half full) left a large window
+  with gaps of about 2 once spread, so a run of inserts released again,
+  over the whole run so far, almost every time: quadratic in the run's
+  length - 21 s for a list of 300 new children of about 60 partials each.
+  The thresholds keep the chain cheap up to about 2^22 partials (the most
+  the whole number space may hold); past that every release respreads the
+  whole chain - still correct, just slow. There is no cap on how far the window may grow: an
   earlier `chainBlastRadius` cap made the blast a no-op whenever the
   capped window was already denser than its span allowed, which under deep
   nesting (a new subtree inserted at the same spot every time, with the
@@ -414,7 +428,8 @@ al.) applied to repeater execution order:
   becomes `MAXINT` instead of a real neighbor, which satisfies the density
   condition immediately - so a dense region eventually vents into the
   huge unused range past the current tail, without needing a special case
-  for it. `removePartialFromChain` is the exact inverse, called when a
+  for it. (The last gap is then the one past the last partial, so that
+  doesn't land on `MAXINT` itself, with no room to append after it.) `removePartialFromChain` is the exact inverse, called when a
   partial is genuinely retracted, freeing its number for reuse.
 - Capacity: `Partials * 2 + 1 = MAXINT` (`Number.MAX_SAFE_INTEGER`, not
   BigInt - already far beyond any realistic count) is the densest possible

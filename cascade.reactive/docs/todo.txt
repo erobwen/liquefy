@@ -1,9 +1,32 @@
 Things to do:
 
-- Moving many existing keyed children is slow. Reversing 300 children that
-  already exist (about 60 partials each) takes about 370 ms in
-  cascade.reactive alone, and 1.2-1.7 s with cascade.dom, animation off.
-  It's not the order chain: 602 inserts (two per moved child), no
-  releases. So it's somewhere in reattaching moved children
-  (attachToCurrentParent(), movePartialToCurrentPosition() and what they
-  set off). Profile it before changing anything.
+- Rebuilding a large build() is slow, whatever changed. Every object a
+  build() constructs is made anew, matched against the last run's
+  (takeShape(), matchShape()) and merged into it (mergeInto()) - through
+  the observables' proxies. A list of 300 cells built by a plain function
+  (5,700 elements in one build()) takes 300-500 ms in Chromium to rebuild
+  with nothing changed, or one cell moved. With each cell a component of
+  its own, the list's build() constructs 300 components and the same
+  change takes 50-80 ms: the cells' own builds don't run again. So for
+  now: what's repeated many times should be a component. Ideas for the
+  machinery itself, none tried:
+  - takeShape(), matchShape() and mergeInto() read what the run
+    constructed through the proxies (getHandlerObject is the largest
+    single cost in the profiles, ownKeys and getOwnPropertyDescriptor
+    follow). They could read the targets directly: these are the
+    repeater's own, new objects, read without recording.
+  - The shape is taken twice per run: once to match, once more at the
+    end for the next run. The second could come from the first.
+
+- Building and removing many components costs far more than the DOM work
+  they do: replacing 300 cells (5,700 elements) takes 700-900 ms in
+  Chromium - about 70 microseconds per element to take down and 90 to
+  build - where the DOM's part is a few percent. About 3.5 partials per
+  element. In the profile: time outside any function (presumably proxy traps and
+  the like, a third), getHandlerObject (a sixth), removeAllSources,
+  takeShape. Ideas, none tried:
+  - Retract a subtree as a whole: dependencies inside it die with it,
+    and only those on what's outside need unlinking; its partials are one
+    stretch of the order chain, to cut out at once.
+  - Fewer partials per element: see what a plain div with a text costs,
+    and whether what reads nothing could share one.

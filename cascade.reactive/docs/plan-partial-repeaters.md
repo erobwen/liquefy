@@ -427,9 +427,12 @@ al.) applied to repeater execution order:
   If the forward side runs off the real end of the chain, its bound
   becomes `MAXINT` instead of a real neighbor, which satisfies the density
   condition immediately - so a dense region eventually vents into the
-  huge unused range past the current tail, without needing a special case
-  for it. (The last gap is then the one past the last partial, so that
-  doesn't land on `MAXINT` itself, with no room to append after it.) `removePartialFromChain` is the exact inverse, called when a
+  unused range past the current tail, without needing a special case
+  for it. It takes 1024 times the least span the window may have
+  (`chainWindowSpanFor`, `chainTailSlack`), not all of what's open: spread
+  all the way to `MAXINT`, the tail would be at the top of the number
+  space the first time a release reached it. A tail that does get there
+  (some 10^11 appends on) is drawn back before the next append. `removePartialFromChain` is the exact inverse, called when a
   partial is genuinely retracted, freeing its number for reuse.
 - Capacity: `Partials * 2 + 1 = MAXINT` (`Number.MAX_SAFE_INTEGER`, not
   BigInt - already far beyond any realistic count) is the densest possible

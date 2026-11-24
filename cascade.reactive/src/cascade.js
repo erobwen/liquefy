@@ -1890,7 +1890,17 @@ function createWorld(configuration) {
     if (predecessor === null) {
       orderNumber = 0; // first partial ever in this chain
     } else if (successor === null) {
-      orderNumber = predecessor.orderNumber + chainSpacerFor(chainHead); // appending at the tail
+      // Appending at the tail. At the very top of the number space (a
+      // chain that has grown there over a long life), what's before it is
+      // first drawn back - see releaseChainPressure().
+      const spacer = chainSpacerFor(chainHead);
+      if (predecessor.orderNumber + spacer > chainOrderMaxInt) {
+        releaseChainPressure(chainHead, predecessor, true);
+        if (predecessor.orderNumber >= chainOrderMaxInt) {
+          throw new Error("Partial chain exhausted its order-number space");
+        }
+      }
+      orderNumber = predecessor.orderNumber + Math.min(spacer, Math.ceil((chainOrderMaxInt - predecessor.orderNumber) / 2));
     } else {
       // No number left between the two: make room first (see
       // releaseChainPressure()), then insert into it.
@@ -1933,6 +1943,11 @@ function createWorld(configuration) {
   function chainWindowCapacity(span) {
     return Math.min(span / 2, Math.pow(span, chainReleaseExponent));
   }
+  const chainTailSlack = 1024;
+  // The other way around: the smallest span that may hold `count` nodes.
+  function chainWindowSpanFor(count) {
+    return Math.ceil(Math.max(count * 2, Math.pow(count, 1 / chainReleaseExponent)));
+  }
 
   // Widen the gaps around `center` (with no room left right after it) by
   // collecting a window of its order-chain neighbors and spreading them
@@ -1957,14 +1972,19 @@ function createWorld(configuration) {
   //
   // If the forward side ever runs off the real end of the chain, its
   // "successor" becomes the open space all the way up to MAXINT - which
-  // satisfies the density condition immediately, spreading that whole
-  // window generously into previously untouched territory. Concretely: the
-  // chain grows conservatively left-to-right at first (small, fixed steps),
-  // and the first blast whose search happens to reach the tail vents a
-  // whole neighborhood of pressure out into that huge unused range at once
-  // - permanently, if edits stay roughly local the way they do in a
-  // document (this falls out of the rule above for free, no special case).
-  function releaseChainPressure(chainHead, center) {
+  // satisfies the density condition immediately, and the window is spread
+  // into previously untouched territory: a good deal more of it than the
+  // window needs to be as sparse as it must (see chainWindowSpanFor()). So a
+  // dense region near the tail vents into the unused range past it, with
+  // no special case - but only so far: an earlier version spread such a
+  // window all the way to MAXINT, which put the tail at the top of the
+  // number space the first time a release reached it.
+  //
+  // `drawBack`: for a tail that has reached the top of the number space
+  // (see insertPartialIntoChain()) - the window, found the same way, is
+  // drawn back into the least span it may have, leaving what's past it
+  // open again.
+  function releaseChainPressure(chainHead, center, drawBack) {
     const x = center.orderNumber;
 
     let backwardEdge = center;
@@ -2009,18 +2029,25 @@ function createWorld(configuration) {
     }
 
     const rangeStart = backwardEdge.orderNumber;
-    const rangeEnd = forwardExhausted ? chainOrderMaxInt : forwardEdge.orderNumber;
+    // Run off the end, into the open space past the last node: only as far
+    // as the window needs to be as sparse as it must - not all the way to
+    // MAXINT, which would put the chain's tail at the very top of the
+    // number space the first time a release reached it, with little room
+    // left to append after it. A good deal more than the least it may
+    // have, though (chainTailSlack): open space is what there's most of,
+    // and a window left exactly as dense as it may be is released again
+    // soon (measured: half as much time again on a list replaced whole).
+    const rangeEnd = forwardExhausted
+      ? Math.min(chainOrderMaxInt, Math.max(drawBack ? 0 : forwardEdge.orderNumber, rangeStart + chainWindowSpanFor(visited) * chainTailSlack))
+      : forwardEdge.orderNumber;
 
     const collected = [];
     for (let node = backwardEdge; ; node = node.orderNext) {
       collected.push(node);
       if (node === forwardEdge) break;
     }
-    // Run off the end: the last gap is the one past the last node, up to
-    // MAXINT - so the last node doesn't land on MAXINT itself, with no
-    // room left to append after it.
-    const gapCount = forwardExhausted ? collected.length : collected.length - 1;
-    if (gapCount <= 0) return; // nothing to spread out (shouldn't happen - center always has a real successor when this is called)
+    const gapCount = collected.length - 1;
+    if (gapCount <= 0) return; // nothing to spread out: a chain of one
     const step = (rangeEnd - rangeStart) / gapCount;
     for (let i = 0; i < collected.length; i++) {
       collected[i].orderNumber = Math.round(rangeStart + i * step);
@@ -3785,6 +3812,7 @@ function createWorld(configuration) {
       // list) - see createChildList()/attachToCurrentParent() below.
       nextSibling: null,
       previousSibling: null,
+      pendingNumber: 0, // see numberPendingChildren()
       // This partial's position in its root repeater's partial chain (see
       // "Time as tree position" above) - orderNumber compares in O(1);
       // orderNext/orderPrevious are this chain's own linked-list pointers,
@@ -3896,20 +3924,11 @@ function createWorld(configuration) {
   }
 
   // Every writing produced anywhere in `node`'s own subtree, as it stood
-  // last run - `node` is a "moved-away predecessor" (see
-  // attachToCurrentParent()): something still sitting, unclaimed, in
-  // pendingChildren in front of wherever a sibling is being reconciled
-  // right now. Purely a read - nothing here is retracted, disposed, or
-  // unlinked; a moved-away predecessor may still be reused later this same
-  // run (a shared child used by both branches of a conditional, say - see
-  // this file's own git history for a real regression from retracting one
-  // of those instead of leaving it alone) or swept up normally, once truly
-  // unclaimed, by finalizeChildren() at the end of this parent's own run,
-  // same as always. `node` is either one of parentRepeater's own partials
-  // (its own writings live directly on it) or a genuinely nested child
-  // repeater (recurse into its own `.children`, exactly the same mixed
-  // partial/repeater list attachToCurrentParent()/createNextPartial()
-  // build everywhere else).
+  // last run - for a child reattached somewhere else than it was (see
+  // retouchSubtreeWritings()). Purely a read. `node` is either a partial
+  // (its own writings live directly on it) or a repeater (recurse into its
+  // own `.children`, the same mixed partial/repeater list
+  // attachToCurrentParent()/createNextPartial() build everywhere else).
   //
   // `includePending`: also what a repeater's previous run left in
   // pendingChildren - for a repeater invalidated (disposed, awaiting its
@@ -3931,19 +3950,6 @@ function createWorld(configuration) {
     }
   }
 
-  // Whether `repeater` is `subtreeRoot` itself or genuinely nested inside
-  // it, walked via parentRepeater - the same upward walk
-  // structuralWriterPath() uses, just stopping the moment it finds what
-  // it's looking for rather than building the whole path.
-  function repeaterIsWithinSubtree(repeater, subtreeRoot) {
-    let r = repeater;
-    while (r !== null) {
-      if (r === subtreeRoot) return true;
-      r = r.parentRepeater;
-    }
-    return false;
-  }
-
   // A sibling (`child`) just found reconciling to a different position
   // than last time (see attachToCurrentParent()) may have its own real
   // dependency on something a *moved-away predecessor* - still sitting in
@@ -3957,15 +3963,14 @@ function createWorld(configuration) {
   // when a reader's own position does) would silently leave `child`
   // depending on a stale answer.
   //
-  // For each `predecessor` skipped over: collect every writing its own
-  // subtree produced last run, and for each one, check whichever of its
-  // own observers falls anywhere inside `child`'s own subtree - `child`
-  // itself, or one of its own nested descendants. A build()-composed
-  // subtree that never reads anything position-sensitive (most of one,
-  // ordinarily) has no matching entries at all here and is left completely
-  // untouched - only the specific partials that actually depended on the
-  // predecessor's own output are ever considered, not `child`'s whole
-  // subtree wholesale.
+  // What's looked for: every writing a skipped `predecessor`'s own
+  // subtree produced last run that something inside `child`'s own subtree
+  // - `child` itself, or one of its own nested descendants - observes. A
+  // build()-composed subtree that never reads anything position-sensitive
+  // (most of one, ordinarily) has no such dependency at all and is left
+  // completely untouched - only the specific partials that actually
+  // depended on the predecessor's own output are ever invalidated, not
+  // `child`'s whole subtree wholesale.
   //
   // Deliberately *not* routed through flagRepeaterEntry()/resolveFlaggedRepeater()'s
   // own deferred, re-seek-and-compare-values treatment (what an ordinarily
@@ -3996,19 +4001,83 @@ function createWorld(configuration) {
   // falls back to stale order-numbers that still reflect *last* run's
   // order (confirmed by direct instrumentation - the whole mechanism
   // silently does nothing if called too early).
-  function flagOverlapWithMovedPredecessor(predecessor, child) {
-    const writings = [];
-    collectSubtreeWritings(predecessor, writings);
-    for (const writing of writings) {
-      const entries = collectOvertakenPropertyObservers(writing, () => true);
-      for (const entry of entries) {
-        if (entry.flagged) continue;
-        if (!repeaterIsWithinSubtree(entry.observer.repeater, child)) continue;
-        if (compareWriterOrder(writing.writer, entry.writer) < 0) continue; // still genuinely before this reader - no problem
-        entry.flagged = true;
-        invalidateRepeater(entry.observer.repeater);
+  //
+  // Found from `child`'s side: what its own subtree depends on (each of
+  // its partials' sources) is walked once, and each dependency asked
+  // whether its writing was made in a moved-away predecessor (see
+  // writtenInMovedPredecessor()). An earlier version went the other way -
+  // for each predecessor skipped, every writing in its whole subtree, and
+  // each one's observers - which walks every skipped subtree again for
+  // every child that skips it: reversing a list of N children walked
+  // N * N / 2 of them (half a second for 300 children of 60 partials each,
+  // and four times that for 600), nearly always to find nothing.
+  function flagOverlapWithMovedPredecessors(parentRepeater, child, skippedBefore) {
+    for (const { entry, writing } of dependenciesOnMovedPredecessors(parentRepeater, child, skippedBefore)) {
+      // Flagged, or gone, by now: invalidating one repeater may rerun
+      // others on the spot.
+      if (entry.flagged || entry.removed) continue;
+      if (compareWriterOrder(writing.writer, entry.writer) < 0) continue; // still genuinely before this reader - no problem
+      entry.flagged = true;
+      invalidateRepeater(entry.observer.repeater);
+    }
+  }
+
+  // Every dependency (its `entry`, and the `writing` it's on) anything in
+  // `child`'s own subtree has on a writing made in a moved-away
+  // predecessor of `child`. The subtree as its lists have it, a pending
+  // sequence included: an invalidated repeater's old partials keep their
+  // sources until its rerun reaches them, and its child repeaters are
+  // untouched.
+  function dependenciesOnMovedPredecessors(parentRepeater, child, skippedBefore) {
+    const found = [];
+    function visit(node) {
+      if (node.type === "partial") {
+        for (const observerSet of node.sources) {
+          // No longer in it: moved to a closer writing (see
+          // relocatePropertyObserverEntry), the set still among its sources.
+          const entry = observerSet.contents[node.id];
+          if (typeof(entry) === 'undefined' || entry.flagged) continue;
+          const writing = (observerSet.isRoot ? observerSet : observerSet.parent).writing;
+          if (writtenInMovedPredecessor(writing, parentRepeater, skippedBefore)) found.push({ entry, writing });
+        }
+      } else {
+        for (let inner = node.children.first; inner !== null; inner = inner.nextSibling) visit(inner);
+        for (let inner = node.pendingChildren.first; inner !== null; inner = inner.nextSibling) visit(inner);
       }
     }
+    visit(child);
+    return found;
+  }
+
+  // Whether `writing` was made, last run, in a moved-away predecessor of
+  // the child that had number `skippedBefore` among `parentRepeater`'s
+  // pending children: by a partial that's in one's subtree as it stood
+  // (confirmed all the way up to it), or that is one itself - one of
+  // parentRepeater's own old partials. O(depth).
+  function writtenInMovedPredecessor(writing, parentRepeater, skippedBefore) {
+    const writer = writing.writer;
+    if (writer === null || writer.type !== "partial" || writer.writings.get(writing.timeline) !== writing) return false;
+    let node = writer;
+    let parent = writer.repeater;
+    while (parent !== parentRepeater) {
+      if (node.listMembership !== "confirmed") return false;
+      node = parent;
+      parent = node.parentRepeater;
+      if (!parent) return false;
+    }
+    return node.listMembership === "pending" && node.pendingNumber < skippedBefore;
+  }
+
+  // Number what's pending in `repeater`, in order - so that which of two
+  // pending children came first is a comparison (see
+  // writtenInMovedPredecessor()). Once per run at most, the first time a
+  // child is found out of place: the list only loses members after that,
+  // in any order, and the numbers of what's left stay in order. What
+  // dispose() adds to it has it numbered again.
+  function numberPendingChildren(repeater) {
+    let number = 0;
+    for (let node = repeater.pendingChildren.first; node !== null; node = node.nextSibling) node.pendingNumber = number++;
+    repeater.pendingNumbered = true;
   }
 
   // The other half of the moved-predecessor problem: `child` just moved
@@ -4042,8 +4111,8 @@ function createWorld(configuration) {
   // stops wherever the touching does. This is still bounded, just not as
   // tightly as touching only the last one: it costs one relink+migrate
   // per writing `child`'s subtree actually produced on each property, the
-  // same O(subtree writings) collectSubtreeWritings already walks for
-  // flagOverlapWithMovedPredecessor above - not a new order of cost, just
+  // same order of cost as the walk of `child`'s subtree
+  // flagOverlapWithMovedPredecessors above makes - not a new one, just
   // matching output-side work to the input-side walk already being paid
   // for.
   //
@@ -4098,7 +4167,7 @@ function createWorld(configuration) {
       return;
     }
     const parentRepeater = parentContext.repeater;
-    let skippedPredecessors = null;
+    let skippedBefore = null;
     let reconciliationBroke = false;
 
     if (parentRepeater.reconciling && parentRepeater.pendingChildren.first === child) {
@@ -4135,7 +4204,7 @@ function createWorld(configuration) {
         // reconsiders a dependency when its *value* changes, never when a
         // reader's own position does) would silently leave `child` - or
         // one of its own nested descendants - watching a stale answer.
-        // flagOverlapWithMovedPredecessor() finds exactly those readers -
+        // flagOverlapWithMovedPredecessors() finds exactly those readers -
         // but needs `child` itself already fully, structurally reattached
         // and repositioned first (below), not just found here: it asks
         // "is the predecessor's own writer still structurally before this
@@ -4145,11 +4214,14 @@ function createWorld(configuration) {
         // reflect *last* run's order, the opposite of what's needed. So
         // this list of predecessors is only *collected* here; the actual
         // check happens after `child`'s own reattachment, further below.
-        skippedPredecessors = [];
-        let node = parentRepeater.pendingChildren.first;
-        while (node !== child) {
-          skippedPredecessors.push(node);
-          node = node.nextSibling;
+        //
+        // Which they are isn't listed, either: what's pending is numbered
+        // in order, once (see numberPendingChildren()), and a moved-away
+        // predecessor of `child` is whatever is still pending with a lower
+        // number than `child` had - `skippedBefore`.
+        if (parentRepeater.pendingChildren.first !== child) {
+          if (!parentRepeater.pendingNumbered) numberPendingChildren(parentRepeater);
+          skippedBefore = child.pendingNumber;
         }
         unlinkFromChildList(parentRepeater.pendingChildren, child);
       }
@@ -4188,7 +4260,7 @@ function createWorld(configuration) {
     appendToChildList(parentRepeater.children, child);
     // Only now - `child` is fully, structurally confirmed and repositioned
     // above, so comparing a moved-away predecessor's own writer against it
-    // (compareWriterOrder, inside flagOverlapWithMovedPredecessor) reflects
+    // (compareWriterOrder, inside flagOverlapWithMovedPredecessors) reflects
     // *this* run's real order, not a stale or undecidable one.
     // The reverse direction - see retouchSubtreeWritings's own comment.
     // Scoped to "reconciliation broke for this child at all" (same
@@ -4196,7 +4268,7 @@ function createWorld(configuration) {
     // anything was actually skipped to reach *it* - a child with no
     // skipped predecessors of its own can still be the *cause* of a later
     // sibling needing this (see reorder-fuzz.js's own tests). Must run
-    // *before* flagOverlapWithMovedPredecessor below - that call may
+    // *before* flagOverlapWithMovedPredecessors below - that call may
     // invalidate `child` itself (a direct dependency on a skipped
     // predecessor), and invalidating disposes it, which resets its own
     // `.children` into `.pendingChildren` for its *own* upcoming
@@ -4205,10 +4277,8 @@ function createWorld(configuration) {
     if (reconciliationBroke) {
       retouchSubtreeWritings(child);
     }
-    if (skippedPredecessors !== null) {
-      for (const predecessor of skippedPredecessors) {
-        flagOverlapWithMovedPredecessor(predecessor, child);
-      }
+    if (skippedBefore !== null) {
+      flagOverlapWithMovedPredecessors(parentRepeater, child, skippedBefore);
     }
 
     // Whatever comes next in the parent's own sequence belongs immediately
@@ -4390,10 +4460,16 @@ function createWorld(configuration) {
       // finalizeChildren() above.
       children: createChildList(),
       pendingChildren: createChildList(),
+      // Whether what's in pendingChildren has its pendingNumber - see
+      // numberPendingChildren().
+      pendingNumbered: false,
       // Sibling pointers within a *parent's* children/pendingChildren list
       // (unused while this repeater is top-level).
       nextSibling: null,
       previousSibling: null,
+      // Where it was among its parent's pending children, when they were
+      // last numbered - see numberPendingChildren().
+      pendingNumber: 0,
       parentRepeater: null,
       listMembership: null, // "confirmed" | "pending" | null (top-level)
       // Retracted: this repeater's writings are gone and it's sitting
@@ -4562,6 +4638,7 @@ function createWorld(configuration) {
           // order every run (structural, creation order), so appending
           // here and consuming FIFO in setHandlerObject lines up the Nth
           // write this run with the Nth write last run.
+          this.pendingNumbered = false; // see numberPendingChildren()
           let node = this.children.first;
           while (node !== null) {
             node.listMembership = "pending";

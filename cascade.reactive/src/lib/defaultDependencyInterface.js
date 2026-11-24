@@ -6,13 +6,18 @@ export function defaultDependencyInterfaceCreator(causality) {
   const state = causality.state;
   const invalidateObserver = causality.invalidateObserver;
 
-  function createObserverSet(description, optionalKey, handler) {
-    // Called with (description, handler) when there is no key.
-    if (arguments.length < 3) {
+  // `writing`: the writing whose observers these are - for finding, from
+  // an observer's own sources, what it depends on (see cascade.js's
+  // flagOverlapWithMovedPredecessors()). A set stays with its writing for
+  // good.
+  function createObserverSet(writing, description, optionalKey, handler) {
+    // Called with (writing, description, handler) when there is no key.
+    if (arguments.length < 4) {
       handler = optionalKey;
       optionalKey = null;
     }
     return {
+      writing: writing,
       description : description,
       key: optionalKey,
       handler: handler,
@@ -219,7 +224,7 @@ export function defaultDependencyInterfaceCreator(causality) {
     // entry: cascade.js notes on it what was read, and what was seen.
     recordDependencyOnArray: (observer, handler, writing, time, writer) => {
       if (writing.observers === null) {
-        writing.observers = createObserverSet("arrayDependees", handler);
+        writing.observers = createObserverSet(writing, "arrayDependees", handler);
       }
       return recordDependency(observer, writing.observers, undefined, time, writer);
     },
@@ -227,7 +232,7 @@ export function defaultDependencyInterfaceCreator(causality) {
     recordDependencyOnEnumeration: (observer, handler, time, writer) => {
       const writing = causality.getOrCreateEnumerationTimelineWriting(handler, time, writer);
       if (writing.observers === null) {
-        writing.observers = createObserverSet("enumerationDependees", handler);
+        writing.observers = createObserverSet(writing, "enumerationDependees", handler);
       }
       recordDependency(observer, writing.observers, undefined, time, writer);
     },
@@ -235,7 +240,7 @@ export function defaultDependencyInterfaceCreator(causality) {
     recordDependencyOnProperty: (observer, handler, key, time, writer) => {
       const writing = causality.getOrCreateTimelineWriting(handler, key, time, writer);
       if (writing.observers === null) {
-        writing.observers = createObserverSet("propertyDependees", key, handler);
+        writing.observers = createObserverSet(writing, "propertyDependees", key, handler);
       }
       recordDependency(observer, writing.observers, key, time, writer);
     },
@@ -307,6 +312,7 @@ export function defaultDependencyInterfaceCreator(causality) {
       removeFromObserverSet(found.id, found.owner);
       if (freshWriting.observers === null) {
         freshWriting.observers = createObserverSet(
+          freshWriting,
           previousWriting.observers.description,
           previousWriting.observers.key,
           previousWriting.observers.handler

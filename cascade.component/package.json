@@ -1,6 +1,6 @@
 {
   "name": "@liquefy/cascade.component",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "The component model of Cascade: components that build and render reactively, with stable identity, state, services and inheritance - on cascade.reactive's temporal signals.",
   "keywords": [
     "reactive",

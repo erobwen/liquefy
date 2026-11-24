@@ -1,1 +1,9 @@
 Things to do:
+
+- Moving many existing keyed children is slow. Reversing 300 children that
+  already exist (about 60 partials each) takes about 370 ms in
+  cascade.reactive alone, and 1.2-1.7 s with cascade.dom, animation off.
+  It's not the order chain: 602 inserts (two per moved child), no
+  releases. So it's somewhere in reattaching moved children
+  (attachToCurrentParent(), movePartialToCurrentPosition() and what they
+  set off). Profile it before changing anything.

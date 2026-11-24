@@ -192,6 +192,33 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     return result;
   }
 
+  // Large lists - for later. Measured (Nov 2026) with 300 cells of about
+  // 19 elements each, in a scrolling container, 90% of them replaced:
+  // 1.2 s animated, 0.55 s not (`enabled: false`). Forced layouts are down
+  // to a couple per render (see positionGhosts()); what's left is the cost
+  // of measuring and animating every element, on screen or not. Ideas, by
+  // what they'd likely give:
+  //  - Skip what can't be seen. Of 300 cells in a scrolling area, about 30
+  //    are on screen. Clip the container's box by the scrolling elements
+  //    it's in and the viewport, and then: a leaving element drawn outside
+  //    that is removed at once (no ghost, computedLooks() or
+  //    visibleParts()); a moving one outside it both before and after is
+  //    placed without a spring; an appearing one outside it doesn't fade
+  //    in. The measuring loop above could then skip looksOf(), cornersOf()
+  //    and textsOf() for what's off screen - read rects first, styles only
+  //    for what's seen. The cost then depends on what's seen, not on the
+  //    list's length. It changes what's seen, though: something scrolled
+  //    into view while the rest is still on its way is already in place.
+  //  - A limit (`maxAnimated`, say - Infinity keeps today's behavior):
+  //    with more than that moving, appearing or leaving, this render just
+  //    places, as with `enabled: false`. An app gets that fallback without
+  //    building a plain element in the container's place, which rebuilds
+  //    every element. wastudio does that today (`ANIMATED` in its
+  //    explorer.js and braille-view.js).
+  //  - One getComputedStyle() per element per render: textFontSize(),
+  //    looksOf(), cornersOf(), isBareBox() and computedLooks() each ask
+  //    for it. After the first, it's cheap, but not free with thousands of
+  //    elements.
   render(target, context) {
     const u = this.unobservable;
     // How large its own box is drawn right now - on its way to another size

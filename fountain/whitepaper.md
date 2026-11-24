@@ -200,6 +200,8 @@ Selections, live queries, sessions, and snapshot builders. They exist in the ser
 
 User-interface state, and the client's copies of selected objects.
 
+A fourth kind, presence objects such as other users' cursors, is shared but volatile (section 3.10).
+
 Keeping the second kind out of the database removes a large class of problems. Nothing that observes on behalf of a connected client ever has to be serialized, and a server restart simply discards it together with the sessions it served.
 
 ## 2.4 Object metadata
@@ -558,7 +560,127 @@ A different route was considered, closer to form state, in which a field is edit
 
 **What can still fail**
 
-A write the user is not authorized to make is refused (section 4). That is an error rather than a conflict. It is reported in the property's metadata (`meta(object, property).error`), and the client's value is replaced by the server's.
+The authorization methods of section 4 are ordinary methods of the application's classes, and run the same on clients and on the server. A client therefore knows, before it writes, whether a write is allowed, and the user interface does not offer what is not.
+
+The server still checks every write, since a client can be modified. But for an unmodified client, a refused write means one of three things:
+
+- **A bug**, such as an authorization method that reads something outside the client's selection, and so decides differently on the client.
+- **A code mismatch** between client and server (section 17.13).
+- **A race**: the client decided on a state that had already changed on the server, such as a permission withdrawn a moment earlier.
+
+None of these is a normal outcome of concurrent editing. A refusal is reported in the property's metadata (`meta(object, property).error`), and the client's value is replaced by the server's, which the refusal carries.
+
+**Locks from authorization**
+
+The race is also what makes a lock possible without a new primitive.
+
+```javascript
+class Paragraph extends PersistentObject {
+    canWrite(user, property) {
+        return !this.lockedBy || this.lockedBy === user;
+    }
+}
+```
+
+Taking the lock is writing `lockedBy`. Two clients that try at the same time both find it free, and both write. The server applies the first, and refuses the second, because by then the paragraph is locked by someone else. The refusal is the second client's feedback. It must therefore wait for its write of `lockedBy` to be confirmed before it starts editing.
+
+Every client can see who holds the lock, since `lockedBy` is an ordinary field, and the user interface can show it.
+
+Since the lock is part of the authorization, it is enforced on the server as well. A client cannot write past it, even by mistake.
+
+This is the pattern for anything stricter than last-write-wins. The base model does not provide the feature. It provides what the feature is built from: ordinary fields, authorization that runs on both sides, and a server that applies writes in order.
+
+**Arrays**
+
+Last-write-wins is simple for properties. It is not as simple for arrays.
+
+Cascade reports a change to an array as a splice: a position, a number of elements removed, and the elements inserted. If two clients splice the same array concurrently, the second splice's position may refer to an array that the first has already shifted. Applied in arrival order, it removes or inserts in the wrong place.
+
+Replacing the whole array, the plain last-write-wins answer, would lose concurrent insertions into a chapter's list of paragraphs, which is exactly the collaborative case.
+
+**An index is not an identity**
+
+The underlying problem is that a position cannot be tracked across the network. Position 7 on one client is not position 7 on the server once someone else has inserted before it. An object's identity can be tracked.
+
+Where arrays become a problem, an application can therefore use a structure built from identities instead, such as a linked list. That is the application's choice, in the spirit of the base model.
+
+**Linked lists, written so that nobody else's fields are written**
+
+A doubly linked list with `next` and `prev` fields does not work under last-write-wins as it is. Two users inserting after the same word both write that word's `next`. One write wins, and the other user's word is no longer reachable from the list. It is not reported, and the garbage collector will eventually reclaim it. Concurrent removal of two neighbours can similarly leave a removed node in the list.
+
+The cause is that an insertion writes a field of an existing node, which someone else may be writing too.
+
+A list in which an insertion only creates objects avoids that:
+
+- A new node records the node it was inserted after (`after`), and nothing else is changed. It is never written by anyone else.
+- A removal sets a `removed` flag on the node. Only the node's own fields are written, and two users removing it at the same time agree.
+- The order is derived: each node follows the node it was inserted after, and nodes inserted after the same node are ordered by a rule both sides apply, such as newest first, ties broken by identity.
+
+Concurrent insertions at the same place both survive. Concurrent removals do not interfere. Every client derives the same order from the same nodes. Nothing needs transforming or rebasing, because last-write-wins on fields that only one writer ever writes is never a conflict.
+
+This is the structure of the sequence CRDTs (section 17.11), here built from ordinary objects within the base model, with the server's order replacing the clocks.
+
+The derived order is a reactive computation on the client, and on the server it is a value that a persistent repeater can maintain (section 6.3), or an index.
+
+The cost is that removed nodes stay, because later nodes may be anchored to them. They can be reclaimed once nothing is anchored to them, or a list can be compacted occasionally, by rewriting it as new nodes, as a transaction of its own.
+
+**Arrays of objects, anchored by the store**
+
+For arrays of objects, the store can do much the same automatically, without the application changing its data structure.
+
+The client's store translates each splice into operations that name elements rather than positions:
+
+- `insert(elements, after: X, before: Y)`, where X and Y were the neighbours when the client inserted.
+- `remove(element)`.
+
+The server resolves the anchors against its own array at the moment it applies the operation. If X has been removed in the meantime, it uses Y; if both are gone, the position the client gave, limited to the array's length.
+
+Inserting an element that is already in the array moves it. A move is therefore a removal and an insertion of the same element, and two users moving overlapping ranges at the same time leave every element in one place, the place of the move that arrived last. Removing an element that is no longer there does nothing.
+
+Two insertions after the same element both survive, in the order the server received them.
+
+**Rebasing on the client**
+
+The client applied its own splices at once, so when the server's operations arrive, the client's array may differ from the server's: both inserted after X, but the server put the other client's element first.
+
+The client therefore keeps its unconfirmed operations, per array, and when operations arrive from the server, it rebases: it takes back its own unconfirmed operations, applies the server's, and applies its own again. Anchors are resolved by the same function on both sides, so after its own operations are confirmed, the client's array is the server's.
+
+This is the general form of the rule for properties: a property's unconfirmed value, applied again after the server's older values, is the same as ignoring those values.
+
+**Limits**
+
+Anchoring needs elements with identity, which is the case for arrays of objects, such as a chapter's paragraphs or the entries of a list. These are the arrays that people edit together.
+
+An array of primitive values, or one that contains the same object twice, has no identity to anchor to. For those, the fallback is to shift a splice's position past the splices the server applied in between. That is the simplest form of operational transformation (section 17.11), simple because one server decides the order. Text, a sequence of characters, is the important case of this kind.
+
+## 3.10 Presence
+
+Users editing the same document need to see each other: where the others' cursors are, what they have selected, which paragraph they are in. Collaborative editors show this, and users respond to it. They keep their distance, and seldom edit on top of each other.
+
+**Presence is shared, but not persistent**
+
+A cursor belongs to a session. It is synchronized to everyone in the document, changes many times a second, and is meaningless after the session ends.
+
+Presence objects are therefore a kind of their own, beside the three of section 2.3: shared like persistent objects, volatile like server-local ones. They live in the server's memory, belong to a session, are selected along with the document they are in, and disappear with the session. They are never written to the database, never trigger persistent repeaters, and can be sent at a lower priority, or throttled, without harm.
+
+**What presence makes simpler**
+
+Since users can see each other, collisions are rare. That changes what the rare cases have to do, not whether they are handled:
+
+- **Convergence and no silent loss are still required.** Every client must end with the server's state, and nothing a user did may disappear without a trace, however rarely it happens.
+- **The result of a collision may be crude.** When two users do edit the same place at the same time, it is enough that the outcome is consistent, visible, and correctable by the users, who can see each other and talk. It need not be the best possible merge.
+
+Presence is also a natural advisory lock. A paragraph with someone else's cursor in it can be shown as being edited, and the user interface can discourage entering it, without any lock being taken.
+
+**What it does not make simpler**
+
+Keeping a distance avoids overlapping edits, but not concurrent edits of the same array or string. Two users adding paragraphs at opposite ends of a chapter both splice the chapter's list of paragraphs. Two users typing at opposite ends of a paragraph both write its text.
+
+The rule that follows: **the unit of last-write-wins must be smaller than the distance users keep.**
+
+- Arrays of objects still need anchoring by identity (section 3.9). Distance makes the anchors almost always valid, so the fallbacks are seldom exercised.
+- For text, the distance users keep is about a paragraph. A paragraph's text as one string, written last-write-wins, is acceptable if two users in the same paragraph are rare, and the user interface makes them rarer. Then it should be detected rather than silently resolved: a write that replaces a paragraph text that the writer had not yet seen can be marked in metadata and shown, so that the overwritten user knows.
+- When writing inside the same paragraph must work, text needs splices (section 17.11).
 
 **Ordering on the client**
 
@@ -1718,9 +1840,27 @@ Can authorization be evaluated as part of the selector, so that it is itself rea
 
 The base model is decided: a real-time stream in which the last write wins (section 3.9).
 
-What remains open is what applications will want on top of it, and whether some of it should be provided. A standard lock object, with its state shown in property metadata, is the obvious candidate. A form-state layer, in which a submission can be refused when the field has changed underneath, is another.
+What remains open is what applications will want on top of it, and whether some of it should be provided. Locks can be built from authorization (section 3.9), and a library of such patterns may be worth providing. A form-state layer, in which a submission can be refused when the field has changed underneath, is another candidate. Concurrent splices of arrays are proposed to be anchored by identity and rebased on the client (section 3.9); that proposal needs a fuzz test against a model, as indexes do.
 
-Text is a special case. Two users typing in the same paragraph overwrite each other's paragraph under last-write-wins at the level of a property. Whether text is split into objects small enough that this does not matter, or is given an operation-based representation of its own, is open.
+**Text**
+
+Two users typing in the same paragraph, whose text is one string, overwrite each other under last-write-wins.
+
+Fast synchronization helps less than one would hope. With a round trip of 100 milliseconds and someone typing ten characters a second, every keystroke overlaps the other user's. Each client keeps its own value while its writes are unconfirmed (section 3.9), and when both are confirmed, the one that arrived last replaces the whole paragraph, and the other user's characters are gone.
+
+The options:
+
+1. **A lock per paragraph** (section 3.9). The user who enters a paragraph first holds it, others see who is writing there, and edit other paragraphs meanwhile. Simple, built entirely from the base model, and acceptable when paragraphs are short and people mostly write in different places.
+2. **Text as a sequence of splices.** The paragraph's text is changed by inserting and deleting at positions, not by replacing the string, and the server adjusts the positions of concurrent splices as it does for arrays. This is operational transformation. Google Docs works this way, on a central server that orders operations, the same arrangement as here. With one server deciding the order, it is much simpler than in the general peer-to-peer case.
+3. **A CRDT for text**, such as Yjs or Automerge use. Each character has an identity of its own, so concurrent edits merge without a server. It works offline, and costs memory per character. With an authoritative server it is more than is needed.
+4. **Smaller objects.** Text split into objects small enough, such as one per sentence, that collisions are rare. It reduces the problem without solving it.
+5. **A list of words, built from identities** (section 3.9). Each word is an object that records the word it was inserted after; a removed word is flagged; the order is derived. Insertions at the start and the end of a paragraph, or anywhere else, never disturb each other, and only two users typing in the same word compete for its text. It needs nothing beyond the base model, and since users keep their distance (section 3.10), a word is a small enough unit.
+
+A cursor is then just another object: a reference to a word and an offset within it. Unlike a position in a string, it stays where it was when others type elsewhere.
+
+With presence (section 3.10), users see each other's cursors and seldom write in the same paragraph, so a paragraph as one string, last-write-wins, with an overwrite made visible rather than silent, may be enough for a first version, before even a lock.
+
+Of the options above, the lock and the list of words are the natural start, because they need nothing new. The list of words is the one that lets people write in the same paragraph. Splices with transformed positions are needed only if text must stay one string. A CRDT is, in these terms, the list of words carried down to single characters.
 
 ## 17.12 Metadata
 

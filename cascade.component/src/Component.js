@@ -526,13 +526,24 @@ export class Component {
   // creator's own properties come from its creator. A creator whose build
   // is up to date, retracted, or running right now (it's the one pulling)
   // is left as it is.
+  //
+  // The chain is read without recording: who made a component never
+  // changes, and this runs for every component rendered - recorded, each
+  // step up was three dependencies more for the render (measured: a third
+  // of everything a tree of list cells recorded, all of it unlinked again
+  // as they're taken down). Then refreshed outermost first, as each
+  // creator's properties come from the build above it.
   refreshCreatorBuild() {
-    const creator = this.creator;
-    if (!creator) return;
-    const creatorBuild = creator.unobservable.buildRepeater;
-    if (!creatorBuild || creatorBuild.retracted) return;
-    creator.refreshCreatorBuild();
-    refreshIfNeeded(creatorBuild);
+    const builds = withoutRecording(() => {
+      const result = [];
+      for (let creator = this.creator; creator; creator = creator.creator) {
+        const creatorBuild = creator.unobservable.buildRepeater;
+        if (!creatorBuild || creatorBuild.retracted) break;
+        result.push(creatorBuild);
+      }
+      return result;
+    });
+    for (let i = builds.length - 1; i >= 0; i--) refreshIfNeeded(builds[i]);
   }
 
   // Override: do this component's own real-time work against `target` -

@@ -210,7 +210,18 @@ export function defaultDependencyInterfaceCreator(causality) {
       // Asked without recording: the read would otherwise be a dependency
       // of whoever happens to be running - and give every object a
       // timeline for this name.
-      if (noMoreObservers && typeof(causality.withoutRecording(() => root.handler.proxy.onRemovedLastObserver)) === "function") {
+      // Looked for first where it could be at all - a timeline of that
+      // name, or on the target or its prototypes - without the proxy: a
+      // read through it costs, and when many objects lose their last
+      // observer at once (a large subtree taken down), nearly none of them
+      // has one. A rebuild twin answers for another object: asked through
+      // the proxy, as before.
+      const handler = root.handler;
+      if (noMoreObservers &&
+          (handler.meta.rebuildTwin !== null ||
+           typeof(handler.timelines.onRemovedLastObserver) !== 'undefined' ||
+           "onRemovedLastObserver" in handler.target) &&
+          typeof(causality.withoutRecording(() => root.handler.proxy.onRemovedLastObserver)) === "function") {
         root.handler.proxy.onRemovedLastObserver(root.description, root.key)
       }
     }
@@ -243,6 +254,25 @@ export function defaultDependencyInterfaceCreator(causality) {
         writing.observers = createObserverSet(writing, "propertyDependees", key, handler);
       }
       recordDependency(observer, writing.observers, key, time, writer);
+    },
+
+    // A read that found a member of the object's prototypes (a method, a
+    // getter) - nothing of the object's own by that name, no timeline for
+    // it. One set per object, for all such reads of it, with no writing
+    // and no timeline: what's on a prototype doesn't change (see
+    // cascade.js's "Prototype members"). Only what shadows one, written on
+    // the object itself, tells these readers - all of them.
+    recordDependencyOnPrototype: (observer, handler) => {
+      if (handler.prototypeObservers === null) {
+        handler.prototypeObservers = createObserverSet(null, "prototypeDependees", handler);
+      }
+      recordDependency(observer, handler.prototypeObservers);
+    },
+
+    invalidatePrototypeObservers: (handler, key) => {
+      if (handler.prototypeObservers !== null) {
+        invalidateObservers(handler.prototypeObservers, handler.proxy, key);
+      }
     },
 
     invalidatePropertyObservers: (handler, key, time, writer) => {

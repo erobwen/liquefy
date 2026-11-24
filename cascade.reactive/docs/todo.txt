@@ -19,14 +19,24 @@ Things to do:
     end for the next run. The second could come from the first.
 
 - Building and removing many components costs far more than the DOM work
-  they do: replacing 300 cells (5,700 elements) takes 700-900 ms in
-  Chromium - about 70 microseconds per element to take down and 90 to
-  build - where the DOM's part is a few percent. About 3.5 partials per
-  element. In the profile: time outside any function (presumably proxy traps and
-  the like, a third), getHandlerObject (a sixth), removeAllSources,
-  takeShape. Ideas, none tried:
+  they do. Measured in Chromium, 300 cells (each a component, 19
+  elements): emptying the list takes 130-170 ms, building it 0.9-1 s.
+  Teardown was halved (Nov 2026) by recording fewer dependencies - reads
+  of methods and getters on prototypes (see cascade.js's "Prototype
+  members") and Component.refreshCreatorBuild()'s walk up the creators -
+  240,000 dependencies to unlink for 300 cells down to 82,000. About 3.5
+  partials per element. Ideas, none tried:
+  - Half of the dependencies left are reads of prototype members, one per
+    reader per object. Not recording them at all, as arrays already
+    don't, would drop them - but then a method replaced on the object
+    itself would go unnoticed by those who called the old one.
   - Retract a subtree as a whole: dependencies inside it die with it,
     and only those on what's outside need unlinking; its partials are one
-    stretch of the order chain, to cut out at once.
+    stretch of the order chain, to cut out at once. But a retracted
+    repeater may be relinked, and an object it built may be held from
+    outside - so what "dies with it" needs care.
+  - Observer sets keep their observers in plain objects keyed by id,
+    deleted one by one (removeFromObserverSet, the largest single cost of
+    a teardown now). A Map might be cheaper.
   - Fewer partials per element: see what a plain div with a text costs,
     and whether what reads nothing could share one.

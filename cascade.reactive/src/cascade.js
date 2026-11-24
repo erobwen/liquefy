@@ -227,6 +227,10 @@ function createWorld(configuration) {
   const recordDependencyOnArray = dependencyInterface.recordDependencyOnArray;
   const recordDependencyOnEnumeration = dependencyInterface.recordDependencyOnEnumeration;
   const recordDependencyOnProperty = dependencyInterface.recordDependencyOnProperty;
+  // A custom interface without these records reads of prototype members
+  // as any other (see "Prototype members").
+  const recordDependencyOnPrototype = dependencyInterface.recordDependencyOnPrototype || null;
+  const invalidatePrototypeObservers = dependencyInterface.invalidatePrototypeObservers || (() => {});
   const invalidateEnumerateObservers = dependencyInterface.invalidateEnumerateObservers;
   const invalidatePropertyObservers = dependencyInterface.invalidatePropertyObservers;
   const invalidateWritingObservers = dependencyInterface.invalidateWritingObservers;
@@ -2873,6 +2877,62 @@ function createWorld(configuration) {
    ***************************************************************/
 
 
+  /***************************************************************
+   *
+   *  Prototype members
+   *
+   *  A read that finds a member of an object's prototypes - a method, a
+   *  getter - with nothing of the object's own by that name, and no
+   *  timeline for it, depends on nothing that changes: what's on a
+   *  prototype is the class's, not state. Recorded as a property, every
+   *  method a repeater called (this.render(), this.setProperties(), a
+   *  getter's own name) got a timeline and an observer set of its own, on
+   *  every object - well over half of all dependencies in a tree of
+   *  components (measured: 374,000 recorded reads building 300 list cells,
+   *  60% of them methods and getters), each one made and then taken down
+   *  again.
+   *
+   *  Such reads are recorded once per reader per object instead, in one
+   *  set (see recordDependencyOnPrototype). All the object can do to them
+   *  is shadow a prototype member with a value of its own - written, or
+   *  defined - and that tells every reader in the set (see
+   *  shadowPrototypeMember()): more than need to know, but that's rare. A
+   *  getter's own reads are recorded as they're made, as before.
+   *
+   ***************************************************************/
+
+  function isPrototypeMember(handler, target, key) {
+    return typeof(handler.timelines[key]) === 'undefined'
+      && !Object.prototype.hasOwnProperty.call(target, key)
+      && key in target;
+  }
+
+  // `write()` gives the object `descriptor` of its own by `key`: if that
+  // hides a prototype member, whoever read the member is told - once it's
+  // written, since being told may run them at once. Not for the very value
+  // the member has: what they read is what they'd read now. (A rebuild
+  // merges what it built into the established object by every enumerable
+  // key, inherited ones included - see mergeInto() - and so writes a
+  // view()'s methods onto it, unchanged.)
+  function shadowPrototypeMember(handler, key, descriptor, write) {
+    let shadows = handler.prototypeObservers !== null && isPrototypeMember(handler, handler.target, key);
+    if (shadows && "value" in descriptor) {
+      const inherited = inheritedDescriptor(handler.target, key);
+      if (inherited && "value" in inherited && inherited.value === descriptor.value) shadows = false;
+    }
+    const result = write();
+    if (shadows) invalidatePrototypeObservers(handler, key);
+    return result;
+  }
+
+  function inheritedDescriptor(target, key) {
+    for (let scan = Object.getPrototypeOf(target); scan !== null; scan = Object.getPrototypeOf(scan)) {
+      const descriptor = Object.getOwnPropertyDescriptor(scan, key);
+      if (typeof(descriptor) !== 'undefined') return descriptor;
+    }
+    return undefined;
+  }
+
   function getHandlerObject(target, key) {
     if (key === objectMetaProperty) {
       return this.meta;
@@ -2890,16 +2950,29 @@ function createWorld(configuration) {
 
     const time = readTimeOf(this);
     const writer = writerOf(this);
-    if (state.inActiveRecording) recordDependencyOnProperty(state.context, this, key, time, writer);
-
-    let scan = target;
-    while ( scan !== null && typeof(scan) !== 'undefined' ) {
-      let descriptor = Object.getOwnPropertyDescriptor(scan, key);
-      if (typeof(descriptor) !== 'undefined' &&
-          typeof(descriptor.get) !== 'undefined') {
-        return descriptor.get.bind(this.meta.proxy)();
+    if (state.inActiveRecording) {
+      if (recordDependencyOnPrototype !== null && isPrototypeMember(this, target, key)) {
+        recordDependencyOnPrototype(state.context, this);
+      } else {
+        recordDependencyOnProperty(state.context, this, key, time, writer);
       }
-      scan = Object.getPrototypeOf( scan );
+    }
+
+    // A getter, on the object or its prototypes, is called. Not looked for
+    // above a data property of the object's own - that hides whatever its
+    // prototypes have by the name - which saves a look at every prototype
+    // on nearly every read (a component has four or five).
+    const own = Object.getOwnPropertyDescriptor(target, key);
+    if (typeof(own) === 'undefined' || !("value" in own)) {
+      let scan = target;
+      while ( scan !== null && typeof(scan) !== 'undefined' ) {
+        let descriptor = Object.getOwnPropertyDescriptor(scan, key);
+        if (typeof(descriptor) !== 'undefined' &&
+            typeof(descriptor.get) !== 'undefined') {
+          return descriptor.get.call(this.meta.proxy);
+        }
+        scan = Object.getPrototypeOf( scan );
+      }
     }
 
     // Still on the target - see "Lazy timelines".
@@ -2960,6 +3033,7 @@ function createWorld(configuration) {
       scan = Object.getPrototypeOf( scan );
     }
 
+    if (this.prototypeObservers !== null) return shadowPrototypeMember(this, key, { value }, () => writeProperty(this, key, value, true));
     return writeProperty(this, key, value, true);
   }
 
@@ -3250,10 +3324,11 @@ function createWorld(configuration) {
     // A function value, like a method in an object literal (see "Lazy
     // timelines"), and a getter or setter, are defined on the target.
     if ("value" in descriptor && typeof(descriptor.value) !== "function") {
+      if (this.prototypeObservers !== null) return shadowPrototypeMember(this, key, descriptor, () => writeProperty(this, key, descriptor.value, true));
       return writeProperty(this, key, descriptor.value, true);
     }
     invalidateEnumerateObservers(this, key, writeTimeOf(this), writerOf(this));
-    return Reflect.defineProperty(target, key, descriptor);
+    return shadowPrototypeMember(this, key, descriptor, () => Reflect.defineProperty(target, key, descriptor));
   }
 
   function getOwnPropertyDescriptorHandlerObject(target, key) {
@@ -3416,6 +3491,8 @@ function createWorld(configuration) {
     handler.target = target;
     handler.proxy = proxy;
     handler.timeless = timeless;
+    // Who read a member of its prototypes - see "Prototype members".
+    handler.prototypeObservers = null;
 
     handler.meta = {
       world: world,
@@ -4038,6 +4115,8 @@ function createWorld(configuration) {
           const entry = observerSet.contents[node.id];
           if (typeof(entry) === 'undefined' || entry.flagged) continue;
           const writing = (observerSet.isRoot ? observerSet : observerSet.parent).writing;
+          // A read of a prototype member: no one wrote it.
+          if (writing === null) continue;
           if (writtenInMovedPredecessor(writing, parentRepeater, skippedBefore)) found.push({ entry, writing });
         }
       } else {

@@ -140,6 +140,11 @@ meta(object, property) is the metadata record of one property: an observable, em
 
 A record is made at the baseline, whoever asks for it first: one first asked for inside a repeater is not that repeater's, and stays when it reruns or is retracted.
 
+metaData(object, name) is meta(object)[name], made a plain object if it is not there yet - a named place of one's own on the metadata object, without checking first whether it exists. Without a name it is meta(object).metadata. A name cascade.reactive keeps its own bookkeeping under ("proxy", "id", "target" ...) throws:
+
+    metaData(document, "sync").loaded = "loading";   // meta(document).sync
+    metaData(document).note = "draft";               // meta(document).metadata
+
 ## ensure (MobX autorun)
 
 ensure() makes a *repeater*: it runs its action now, and again whenever what that read changes. The name says what it is for - ensure that x is the sum of y and z: it is so now, and stays so. repeat() is the same function by its original name, and stays: use whichever reads better.

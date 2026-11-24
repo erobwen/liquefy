@@ -30,7 +30,7 @@ component reads in one world.
 What `@liquefy/cascade.component` re-exports from its world: `observable`,
 `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `refreshIfNeeded`,
 `retractRepeater`, `withoutRecording`, `invalidateOnChange`,
-`postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `flush`,
+`postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `metaData`, `flush`,
 `accessInitialValues`, `declareState`, `finalize`, `sameAsPreviousDeep`,
 `state` - and the world itself as `world`. Everything else is reached through
 it: `world.transaction`, `world.withoutReactions`, `world.establish`,
@@ -81,7 +81,8 @@ enumerated.
 - Each observable has a metadata object, `meta(obj)` (`meta(obj).id` is a
   unique id), and an observable metadata record per property,
   `meta(obj, property)`, for what is known about the property beyond its
-  value (see the Form Field demo).
+  value (see the Form Field demo). `metaData(obj, name)` is `meta(obj)[name]`, made a
+  plain object if it is not there yet.
 - A reader of an array is rerun only when what *it* read changed - its
   length, an index, the whole contents, or an element counted from the end
   (`pop()`, `at(-1)`).

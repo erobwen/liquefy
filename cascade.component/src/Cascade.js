@@ -30,6 +30,7 @@ export const {
   continueInvalidations,
   onTransactionEnd,
   meta,
+  metaData,
   flush,
   accessInitialValues,
   declareState,

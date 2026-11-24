@@ -62,6 +62,7 @@ World members:
 | `postponeInvalidations` / `continueInvalidations` | `()` | Start / end (and process) a batch by hand. |
 | `onTransactionEnd` | `onTransactionEnd(listener) → remove` | Calls `listener()` each time a transaction that changed something has ended, after the repeaters it set off have run again. A write outside any transaction and any repeater is one of its own. |
 | `meta` | `meta(object) → metadata`, `meta(object, property) → record` | An observable's metadata object (its `id`, and what extensions keep about it), or the observable metadata record of one of its properties, made on first use. |
+| `metaData` | `metaData(object, [name = "metadata"]) → object` | `meta(object)[name]`, made a plain object if it is not there yet. Throws for a name cascade keeps its own bookkeeping under (`"proxy"`, `"id"` ...). |
 | `sameAsPreviousDeep` | `sameAsPreviousDeep(a, b, [depthLimit = 8])` | Deep comparison of plain (non-observable) values. |
 | `caching` | `caching(fn) → cachedFn` | See below. |
 | `log`, `logGroup`, `logUngroup`, `logToString`, `loge`, `logs`, `logss` | | Debug logging without recording. |
@@ -98,7 +99,7 @@ Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `metaData`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
 | `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:

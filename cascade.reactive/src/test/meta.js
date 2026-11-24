@@ -1,7 +1,50 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-const { observable, temporal, meta, repeat, retractRepeater, transaction } = getWorld();
+const { observable, temporal, meta, metaData, repeat, retractRepeater, transaction } = getWorld();
+
+describe("metaData()", function () {
+
+  it("metaData(object) is meta(object).metadata, a plain object made the first time", function () {
+    const object = observable({});
+    assert.equal(typeof(meta(object).metadata), "undefined");
+    const data = metaData(object);
+    assert.strictEqual(meta(object).metadata, data);
+    assert.deepEqual(data, {});
+    data.loaded = "loading";
+    assert.strictEqual(metaData(object), data);
+    assert.equal(metaData(object).loaded, "loading");
+  });
+
+  it("metaData(object, name) is meta(object)[name]", function () {
+    const object = observable({});
+    const sync = metaData(object, "sync");
+    assert.strictEqual(meta(object).sync, sync);
+    assert.notStrictEqual(metaData(object), sync);
+  });
+
+  it("keeps what is already there, whatever it is", function () {
+    const object = observable({});
+    const store = { name: "the store" };
+    meta(object).store = store;
+    assert.strictEqual(metaData(object, "store"), store);
+  });
+
+  it("is not observable, nor part of the object", function () {
+    const object = observable({ a: 1 });
+    metaData(object).saved = 1;
+    assert.throws(() => meta(metaData(object)), /observable/);
+    assert.deepEqual(Object.keys(object), ["a"]);
+  });
+
+  it("throws for the names cascade keeps its own bookkeeping under", function () {
+    const object = observable({});
+    for (const name of ["proxy", "id", "target", "handler", "world", "rebuildTwin", "stateProperties", "propertyMetadata"]) {
+      assert.throws(() => metaData(object, name), /bookkeeping/, name);
+    }
+    assert.throws(() => metaData({}), /observable/);
+  });
+});
 
 describe("meta()", function () {
 

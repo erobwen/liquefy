@@ -172,6 +172,7 @@ function createWorld(configuration) {
 
     // Metadata
     meta,
+    metaData,
 
     // Transaction
     transaction : postponeInvalidationsAndDo,
@@ -411,7 +412,31 @@ function createWorld(configuration) {
    *   kept beside the object so that the object keeps the shape it would
    *   have without it, and shared by everything that shows the property.
    *
+   *   metaData(object, name = "metadata") is meta(object)[name], made a
+   *   plain object if it is not there yet: a named place of one's own on
+   *   the metadata object, without checking first whether it exists. A
+   *   name cascade keeps its own bookkeeping under ("proxy", "id" ...)
+   *   throws.
+   *
    **********************************/
+
+  // What cascade itself keeps on an object's metadata object - see
+  // createObservable(), and wherever meta(...).something is written.
+  const reservedMetadataNames = new Set([
+    "world", "id", "buildId", "target", "handler", "proxy",
+    "rebuildTwin", "isRebuildTwin", "establishedOriginal", "established",
+    "pendingOnEstablishCall", "pendingCreationEvent", "pendingReCreationEvent",
+    "stateProperties", "givenProperties", "onGivenWrite", "propertyMetadata",
+  ]);
+
+  function metaData(object, name = "metadata") {
+    if (reservedMetadataNames.has(name)) {
+      throw new Error("metaData(): \"" + name + "\" is a name cascade keeps its own bookkeeping under - use another.");
+    }
+    const objectMeta = meta(object);
+    if (typeof(objectMeta[name]) === "undefined") objectMeta[name] = {};
+    return objectMeta[name];
+  }
 
   function meta(object, property) {
     if (!isObservable(object)) throw new Error("meta() expects an observable object.");

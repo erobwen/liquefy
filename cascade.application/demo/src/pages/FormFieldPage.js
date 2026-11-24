@@ -1,4 +1,4 @@
-import { Component, callback, observable, deeplyObservable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { Component, callback, meta, deeplyObservable, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 import { div, span, text, input, label, select, option, table, thead, tbody, tr, th, td } from "@liquefy/cascade.dom";
 import { button, card, checkbox, icon, row, column, themeColor } from "@liquefy/cascade.ui";
 import { pageActions, informationBox } from "../components/pageActions.js";
@@ -12,7 +12,7 @@ const information = {
   points: [
     "Most of it is the browser's: disabled, readonly, :user-invalid and :user-valid come from the input's own attributes and pseudo-classes, and the field only renders the attributes.",
     "The rest is about a server: an unsaved change (flux), a value being loaded (updating), someone else editing (locked), a save that failed (error). Cascade never shows anything between two waves, so none of this is Cascade's own updating - it lasts as long as a request does, over several waves.",
-    "So it's kept as plain observable data beside the model - on the model object itself, one record per property: what the server has, whether it's loading, what went wrong - written by the event handlers and by the server's replies. A field reads it, and works out one data-state from it.",
+    "So it's kept as plain observable data beside the model - in meta(object, property), the metadata record cascade keeps for each property: what the server has, whether it's loading, what went wrong - written by the event handlers and by the server's replies. A field reads it, and works out one data-state from it.",
     "The model stays plain data. And since what's known about a property is the property's, not a field's, every field showing it agrees: the login email is the contact's email - edit either, and both follow.",
     "Edit a field and leave it to save it - or turn on autosave, and it's saved once you pause typing. Make the server slow, reject values or go offline, and watch the state table follow.",
   ],
@@ -21,7 +21,7 @@ const information = {
 /**
  * Form Field - a sketch of form fields with a state vocabulary: a plain
  * model, what is known about each of its properties beyond the value kept
- * on the model object itself (trackProperties()), and a FormField that
+ * in its metadata record (trackProperties()), and a FormField that
  * shows an object's property - one data-state on its
  * input group, and the attributes its input takes - styled by a small
  * stylesheet of its own, since :has(), :user-invalid and :user-valid can't
@@ -79,7 +79,7 @@ export class FormFieldPage extends Component {
   }
 
   serverControls() {
-    const anyLocked = contactProperties.some((property) => metadataOf(contact, property).locked);
+    const anyLocked = contactProperties.some((property) => meta(contact, property).locked);
     return card(
       { style: { display: "flex", flexDirection: "column", gap: "10px" } },
       sectionTitle("The server, and the form"),
@@ -113,7 +113,7 @@ export class FormFieldPage extends Component {
         checkbox({ label: "Read only", checked: this.readonly, onChange: callback("readonly", (checked) => { this.readonly = checked; }) }),
         checkbox({ label: "Autosave while typing", checked: this.autosave, onChange: callback("autosave", (checked) => { this.autosave = checked; }) }),
         checkbox({ label: "Locked by someone else", checked: anyLocked, onChange: callback("locked", (checked) => {
-          transaction(() => contactProperties.forEach((property) => { metadataOf(contact, property).locked = checked; }));
+          transaction(() => contactProperties.forEach((property) => { meta(contact, property).locked = checked; }));
         }) }),
       ),
       button({ style: { alignSelf: "flex-start" } }, text("Reload from server"), callback("reload", () => contactProperties.forEach((property) => reload(contact, property)))),
@@ -124,12 +124,11 @@ export class FormFieldPage extends Component {
 // --- The model, and what is known about it ---
 
 /**
- * What is known about an object's properties beyond their values, kept on
- * the object itself - in its meta, beside cascade's own bookkeeping
- * (object.causality.unobservable, where Component keeps its unobservable
- * bag) - so the model stays the shape it would have without any of this,
- * and whatever shows a property (two fields, a table) shares one record
- * of it. One observable record per property:
+ * What is known about an object's properties beyond their values, kept in
+ * their metadata records - meta(object, property), an observable record
+ * per property that cascade keeps beside the object - so the model stays
+ * the shape it would have without any of this, and whatever shows a
+ * property (two fields, a table) shares one record of it. Filled in here:
  * - initial: the value as loaded - `value !== initial` is "modified".
  * - saved: what the server has - `value !== saved` is "flux".
  * - saving: how many saves are on their way.
@@ -137,32 +136,20 @@ export class FormFieldPage extends Component {
  * - locked: someone else is editing it.
  * - invalid: the server rejected the value - about the content.
  * - error: something went wrong that isn't about the content.
- *
- * Made with the model, outside any repeater - though, being timeless
- * observables, they would stay just the same if a build made them.
  */
 function trackProperties(object) {
-  const meta = object.causality;
-  if (!meta.unobservable) meta.unobservable = {};
-  const metadata = observable({});
   for (const property in object) {
     const value = object[property];
-    metadata[property] = observable({ initial: value, saved: value, saving: 0, loading: false, locked: false, invalid: null, error: null });
+    Object.assign(meta(object, property), { initial: value, saved: value, saving: 0, loading: false, locked: false, invalid: null, error: null });
   }
-  meta.unobservable.metadata = metadata;
   return object;
-}
-
-// A property's record (see trackProperties()).
-function metadataOf(object, property) {
-  return object.causality.unobservable.metadata[property];
 }
 
 // The one data-state a property's fields show, of those its data can be
 // in - the most pressing one. The browser's own states aren't here:
 // they're the input's (see FormField).
 function dataState(object, property) {
-  const metadata = metadataOf(object, property);
+  const metadata = meta(object, property);
   if (metadata.error) return "error";
   if (metadata.loading) return "updating";
   if (object[property] !== metadata.saved) return "flux";
@@ -174,7 +161,7 @@ function dataState(object, property) {
 const server = deeplyObservable({ behavior: "accept", latency: 1200 });
 
 function save(object, property) {
-  const metadata = metadataOf(object, property);
+  const metadata = meta(object, property);
   const sent = object[property];
   const { behavior, latency } = server;
   transaction(() => {
@@ -193,7 +180,7 @@ function save(object, property) {
 // The server's value, loaded again: unsaved changes are gone, and it's
 // unmodified again.
 function reload(object, property) {
-  const metadata = metadataOf(object, property);
+  const metadata = meta(object, property);
   metadata.loading = true;
   setTimeout(() => transaction(() => {
     metadata.loading = false;
@@ -256,7 +243,7 @@ class FormField extends Component {
   build() {
     ensureStyleSheet();
     const { object, property } = this;
-    const metadata = metadataOf(object, property);
+    const metadata = meta(object, property);
     const value = object[property];
     const state = dataState(object, property);
     const message = metadata.invalid || metadata.error || this.hint;
@@ -299,14 +286,14 @@ const autosaveDelay = 500;
 const autosaveTimers = new Map();
 
 function saveIfChanged(object, property, element) {
-  const metadata = metadataOf(object, property);
+  const metadata = meta(object, property);
   clearTimeout(autosaveTimers.get(metadata));
   autosaveTimers.delete(metadata);
   if (object[property] !== metadata.saved && element.checkValidity()) save(object, property);
 }
 
 function scheduleSave(object, property, element) {
-  const metadata = metadataOf(object, property);
+  const metadata = meta(object, property);
   clearTimeout(autosaveTimers.get(metadata));
   autosaveTimers.set(metadata, setTimeout(() => saveIfChanged(object, property, element), autosaveDelay));
 }
@@ -326,7 +313,7 @@ class StateTable extends Component {
         thead(tr(th(text("Field")), th(text("Value")), th(text("Saved")), th(text("Saving")), th(text("data-state")))),
         tbody(
           contactProperties.map((property) => {
-            const metadata = metadataOf(contact, property);
+            const metadata = meta(contact, property);
             return tr(
               { key: property },
               cell(property),

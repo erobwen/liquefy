@@ -152,7 +152,7 @@ function buildPropertiesObject(arglist) {
       content.push(current);
     }
 
-    if (typeof(current) === "object" && !current.causality) {
+    if (typeof(current) === "object" && !isObservable(current)) {
       if (current instanceof Array) {
         // A copy: what follows is pushed onto it, and the array is the
         // caller's (often a component's own children, or frozen).

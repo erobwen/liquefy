@@ -47,8 +47,7 @@ the room it has, and hand that down to them - in the same pass.
 
 cascade.reactive is Liquefy's reactive core, and the successor of
 [causality](https://github.com/erobwen/liquefy/tree/main/causality#readme), the reactive engine of Flow (itself
-once the standalone `causalityjs`). It keeps causality's API, and the name
-survives in one place: an observable's metadata property, `object.causality`.
+once the standalone `causalityjs`). It keeps causality's API.
 
 # Usage
 
@@ -127,7 +126,19 @@ A write to it from inside a repeater is a writing of its own, at that repeater's
 
 A repeater that reads a property of a timeless object and then writes another value to it reruns - until it writes the same value again. So `model.count = model.count + 1` in a repeater never settles on a timeless object; on a temporal one it reads what came before it and writes its own.
 
-To access the inner workings of an observable object, use its causality property (named after the library this one grew from). For example write object.causality.id to get a system wide unique id for that particular object. 
+## meta
+
+meta(object) is an observable's metadata object: cascade.reactive's own bookkeeping, such as meta(object).id, a system wide unique id for that particular object, and the place where whatever builds on cascade.reactive keeps what it knows about the object outside the object's own data (cascade.component keeps its unobservable bag there). It is not observable itself. Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty), and still `object.causality` by default, after the library this one grew from; the next major version will make the default a long name that no application data is likely to use, `cascadeMetadataObject`. Use meta(object), and it does not matter.
+
+meta(object, property) is the metadata record of one property: an observable, empty until something is put in it, made the first time it is asked for, and the same ever after. It is for what is known about a property beyond its value - the value last saved, whether it is being saved, an error - kept beside the object, so that the object keeps the shape it would have without it, and shared by everything that shows the property:
+
+    Object.assign(meta(contact, "email"), { saved: contact.email, saving: 0 });
+
+    ensure(() => {
+      field.unsaved = contact.email !== meta(contact, "email").saved;
+    });
+
+A record is made at the baseline, whoever asks for it first: one first asked for inside a repeater is not that repeater's, and stays when it reruns or is retracted.
 
 ## ensure (MobX autorun)
 
@@ -244,9 +255,9 @@ onChange will receive a message, containing information about any change that ha
 
 onEstablish and onDispose are called on an object built in a rebuild when it is first established, and when a rebuild no longer creates it. They correspond to the React concepts of componentDidMount and componentWillUnmount, but for a generalized data structure rebuilding framework.
 
-## causality.rebuildTwin
+## meta(object).rebuildTwin
 
-The re building mechanism internally uses a forwarding mechanism that can be used directly. To use it, simply type myObject.causality.rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. Note that the forwarding disregards the meta data of the object that is reached by myObject.causality. As a consequence of this, object.causality.id cannot be relied upon when forwarding is used, such as in a rebuilding scenario. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
+The re building mechanism internally uses a forwarding mechanism that can be used directly. To use it, simply type meta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. Note that the forwarding disregards the meta data of the object that is reached by meta(myObject). As a consequence of this, meta(object).id cannot be relied upon when forwarding is used, such as in a rebuilding scenario. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
 
 
 ## transaction
@@ -259,6 +270,18 @@ It is possible to do many changes at once, before cascade.reactive has a chance 
     })
 
 Warning: A transaction should typically only write data, as reading data inside a transaction might result in reading non-updated data since all repeaters are frozen inside the transaction.
+
+## onTransactionEnd
+
+onTransactionEnd(listener) calls the listener each time a transaction that changed something has ended, and returns a function that removes it:
+
+    const stop = onTransactionEnd(() => sendChanges());
+    ...
+    stop();
+
+It is for whoever gathers changes and acts on them as a whole - a store that sends one message per transaction to a server, say - with the events (onEventGlobal, onChange) telling it what changed.
+
+A transaction is one outermost transaction(), or postponeInvalidations() ... continueInvalidations(), together with what it sets off: the repeaters it invalidated have run again when the listener is called, and their writes are part of it. A write made outside any transaction and outside any repeater is a transaction of its own, and so is the first run of a repeater made outside any. A change is a set, a delete or an array change; creating an object is none. A write made by a listener is a new transaction, ended right after the listeners return.
 
 # Comparison to MobX
 

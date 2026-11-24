@@ -30,7 +30,7 @@ import assert from "assert";
 // its case 1 needs a third rebuild) - here b.claim is nonzero, so a
 // version of cascade.js without this fix gives a final answer that is
 // simply wrong, not just less efficient.
-const { temporal, repeat, linkRepeater } = getWorld({ name: "migrate-overtaken-observers", timeLevels: 5 });
+const { meta, temporal, repeat, linkRepeater } = getWorld({ name: "migrate-overtaken-observers", timeLevels: 5 });
 
 describe("migrateOvertakenObserversFor (a farther-writing dependency catches up once a closer writing shows up)", function () {
 
@@ -38,10 +38,10 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
 
   class Leaf {
     get unobservable() {
-      if (!this.causality.unobservable) {
-        this.causality.unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
+      if (!meta(this).unobservable) {
+        meta(this).unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
       }
-      return this.causality.unobservable;
+      return meta(this).unobservable;
     }
     constructor(claim) {
       this.claim = claim;
@@ -63,10 +63,10 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
 
   class Panel {
     get unobservable() {
-      if (!this.causality.unobservable) {
-        this.causality.unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
+      if (!meta(this).unobservable) {
+        meta(this).unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
       }
-      return this.causality.unobservable;
+      return meta(this).unobservable;
     }
     constructor(a, b) {
       const wrapped = temporal(this);

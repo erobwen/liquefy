@@ -30,7 +30,7 @@ component reads in one world.
 What `@liquefy/cascade.component` re-exports from its world: `observable`,
 `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `refreshIfNeeded`,
 `retractRepeater`, `withoutRecording`, `invalidateOnChange`,
-`postponeInvalidations`, `continueInvalidations`, `flush`,
+`postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `flush`,
 `accessInitialValues`, `declareState`, `finalize`, `sameAsPreviousDeep`,
 `state` - and the world itself as `world`. Everything else is reached through
 it: `world.transaction`, `world.withoutReactions`, `world.establish`,
@@ -78,8 +78,10 @@ enumerated.
 - `observable(x)` on something already observable **throws**. A non-object
   is returned as it is. `deeplyObservable()` leaves already observable
   objects as they are.
-- Each observable has a meta object on `.causality` (`obj.causality.id` is a
-  unique id).
+- Each observable has a metadata object, `meta(obj)` (`meta(obj).id` is a
+  unique id), and an observable metadata record per property,
+  `meta(obj, property)`, for what is known about the property beyond its
+  value (see the Form Field demo).
 - A reader of an array is rerun only when what *it* read changed - its
   length, an index, the whole contents, or an element counted from the end
   (`pop()`, `at(-1)`).
@@ -287,6 +289,13 @@ its result (`world.transaction`, not re-exported by name). Batches nest:
 every `postponeInvalidations()` needs its `continueInvalidations()`, also
 when the code in between throws. Don't *read* inside a batch expecting
 derived values to be up to date - nothing has rerun yet.
+
+`onTransactionEnd(listener)` calls `listener()` each time a batch that
+changed something has ended - after the readers it set off have run - and
+returns a function that removes it. A write outside any batch and any
+repeater is a batch of its own. It is for whoever gathers the changes (with
+`onEventGlobal` or `onChange`) and acts on them as a whole, such as a store
+sending one message per transaction to a server.
 
 ## 9.7 flush()
 

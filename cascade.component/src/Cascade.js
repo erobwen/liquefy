@@ -28,6 +28,8 @@ export const {
   invalidateOnChange,
   postponeInvalidations,
   continueInvalidations,
+  onTransactionEnd,
+  meta,
   flush,
   accessInitialValues,
   declareState,

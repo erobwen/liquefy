@@ -18,11 +18,11 @@ import assert from "assert";
 // Bookkeeping fields (which repeater a component owns, render counts, what
 // it last saw) live under `this.unobservable`, not as plain observable
 // properties - matching the escape hatch already used in flow.core's
-// Component.js (`this.causality.unobservable`, lazily initialized). A
+// Component.js (`meta(this).unobservable`, lazily initialized). A
 // component reading-then-conditionally-setting one of these as an
 // observable property is exactly the shape that broke meta_repeaters.js:
 // retraction can make a fresh read of it fall through, even though nothing
-// about the component's actual identity changed. `this.causality` is
+// about the component's actual identity changed. `meta(this)` is
 // cascade's reserved meta-property (`handler.meta`) - a plain, non-proxied
 // object, so anything stashed on it is invisible to the reactive system
 // entirely, not just untracked by it.
@@ -44,7 +44,7 @@ import assert from "assert";
 //     a data-correctness gap, not just a missed optimization - it's the
 //     concrete reason partials have to exist, not just linkRepeater.
 
-const { temporal, repeat, linkRepeater } = getWorld({ name: "renderOnto", timeLevels: 5 });
+const { meta, temporal, repeat, linkRepeater } = getWorld({ name: "renderOnto", timeLevels: 5 });
 
 describe("renderOnto", function () {
 
@@ -52,10 +52,10 @@ describe("renderOnto", function () {
 
   class Leaf {
     get unobservable() {
-      if (!this.causality.unobservable) {
-        this.causality.unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
+      if (!meta(this).unobservable) {
+        meta(this).unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
       }
-      return this.causality.unobservable;
+      return meta(this).unobservable;
     }
 
     constructor(claim) {
@@ -79,10 +79,10 @@ describe("renderOnto", function () {
 
   class Panel {
     get unobservable() {
-      if (!this.causality.unobservable) {
-        this.causality.unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
+      if (!meta(this).unobservable) {
+        meta(this).unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
       }
-      return this.causality.unobservable;
+      return meta(this).unobservable;
     }
 
     constructor(a, b) {

@@ -43,8 +43,8 @@ const logg = (string) => {
 // skipped: they belong to the established object's own life, not to
 // whatever this rebuild happened to construct - copying them would reset
 // them to their defaults on every rebuild.
-export function mergeInto(target, source) {
-  const stateProperties = target.causality.stateProperties || null;
+export function mergeInto(target, source, targetMeta) {
+  const stateProperties = targetMeta.stateProperties || null;
   const isState = (property) => stateProperties !== null && stateProperties.has(property);
   if (source instanceof Array) {
     // The elements, as this rebuild built them, written in one go - an
@@ -52,7 +52,7 @@ export function mergeInto(target, source) {
     // array held: what comes before it on its timeline may yet change (see
     // cascade.js's "Temporal arrays"). Read without recording: a rebuild
     // never depends on what it built.
-    const world = target.causality.world;
+    const world = targetMeta.world;
     world.assignArray(target, world.withoutRecording(() => source.slice()));
     for (let property in source) {
       if (isNaN(property) && !isState(property)) {

@@ -170,7 +170,7 @@ describe("build()-based composition surviving retraction (buildOneStep() itself,
 // refresh symptom it was fixing: reconciling a keyed child sets the
 // *established* object's own rebuildTwin to point at the freshly
 // constructed, about-to-be-discarded twin, and every read of anything but
-// its causality/timelines meta gets transparently redirected through
+// its metadata object and timelines gets transparently redirected through
 // rebuildTwin until finishRebuilding() clears it - which only happens once
 // whichever repeater did the constructing finishes its own refresh(). A
 // bare, repeater-less build() call means that never happens until

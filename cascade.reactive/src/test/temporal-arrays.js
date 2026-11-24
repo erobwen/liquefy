@@ -6,7 +6,7 @@ import assert from "assert";
 // written before it, not after - and a reader reruns only when what *it*
 // read changed: the whole array, its length, one index, or one element
 // counted from the end (pop(), at(-1)).
-const { temporal, repeat, invalidateOnChange } = getWorld({ name: "temporal-arrays" });
+const { meta, temporal, repeat, invalidateOnChange } = getWorld({ name: "temporal-arrays" });
 
 describe("temporal arrays", function () {
 
@@ -318,9 +318,9 @@ describe("temporal arrays", function () {
       assert.equal(JSON.stringify(array), "[1,2,3]");
       assert.equal(array + "", "1,2,3");
       assert.deepEqual(array.map((value, index, self) => self === array && value * index), [0, 2, 6]);
-      assert.deepEqual([...array.causality.target], [1, 2, 3], "the target mirrors what an external read sees");
+      assert.deepEqual([...meta(array).target], [1, 2, 3], "the target mirrors what an external read sees");
       array.push(0);
-      assert.deepEqual([...array.causality.target], [0, 1, 2, 3]);
+      assert.deepEqual([...meta(array).target], [0, 1, 2, 3]);
     });
   });
 });

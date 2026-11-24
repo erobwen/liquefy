@@ -30,7 +30,7 @@ Configuration options (defaults in parentheses):
 | `useNonObservablesAsValues` (false), `valueComparisonDepthLimit` (5) | Compare non-observable values written to properties deeply instead of by identity (frozen plain data is always compared by content). |
 | `requireRepeaterName`, `requireInvalidatorName` (false) | Throw when a repeater/invalidator gets no description. |
 | `warnOnNestedRepeater` (true), `traceWarnings` | Warning about non-independent repeaters created while recording; printed only with `traceWarnings`. |
-| `objectMetaProperty` (`"causality"`), `objectTimelinesProperty` (`"timelines"`) | Property names of an observable's meta data (`component.causality`). |
+| `objectMetaProperty` (`"causality"`), `objectTimelinesProperty` (`"timelines"`) | The two properties an observable answers itself: its metadata object (use `meta(object)`) and its timelines. To become `"cascadeMetadataObject"` and `"cascadeTimelinesObject"` at the next major version. |
 | `onEventGlobal`, `onWriteGlobal`, `onReadGlobal`, `cannotReadPropertyValue`, `emitReBuildEvents` | Global hooks (advanced). |
 | `customCreateRepeater`, `customCreateInvalidator`, `customDependencyInterfaceCreator`, `customObjectlog` | Replace internals (advanced). |
 
@@ -60,6 +60,8 @@ World members:
 | `flush` | `flush(fn) → result` | Lets invalidations caused in `fn` be processed in the current wave, in order, rather than in a later one (see [9.7](09-reactivity.md#97-flush)). |
 | `transaction` | `transaction(fn) → result` | Batches invalidations around `fn` (processed even if `fn` throws). |
 | `postponeInvalidations` / `continueInvalidations` | `()` | Start / end (and process) a batch by hand. |
+| `onTransactionEnd` | `onTransactionEnd(listener) → remove` | Calls `listener()` each time a transaction that changed something has ended, after the repeaters it set off have run again. A write outside any transaction and any repeater is one of its own. |
+| `meta` | `meta(object) → metadata`, `meta(object, property) → record` | An observable's metadata object (its `id`, and what extensions keep about it), or the observable metadata record of one of its properties, made on first use. |
 | `sameAsPreviousDeep` | `sameAsPreviousDeep(a, b, [depthLimit = 8])` | Deep comparison of plain (non-observable) values. |
 | `caching` | `caching(fn) → cachedFn` | See below. |
 | `log`, `logGroup`, `logUngroup`, `logToString`, `loge`, `logs`, `logss` | | Debug logging without recording. |
@@ -96,7 +98,7 @@ Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
 | `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:
@@ -158,7 +160,7 @@ Components and helpers:
 | `getComponentTypeName()`, `toString()` | Debug names (`"Card:42(key)"`). |
 
 Fields: `key`, `creator`, `renderContext` (observable), `unobservable`,
-`currentBuild`, `causality` (meta data), `componentTypeName` (optional
+`currentBuild`, `componentTypeName` (optional
 override for the debug name).
 
 ## 12.3 @liquefy/cascade.dom

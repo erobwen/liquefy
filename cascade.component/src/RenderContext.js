@@ -1,4 +1,4 @@
-import { observable, repeat, refreshIfNeeded, accessInitialValues, withoutRecording, retractRepeater } from "./Cascade.js";
+import { observable, meta, repeat, refreshIfNeeded, accessInitialValues, withoutRecording, retractRepeater } from "./Cascade.js";
 
 /**
  * RenderContext - what a component's subtree inherits: a chain of what the
@@ -70,21 +70,21 @@ export class RenderContext {
 
   // What `name` is above this context - cached here (see the class doc).
   inheritFromAbove(name) {
-    const meta = this.causality;
+    const own = meta(this);
     // Gone for good (see onDispose()): still answered - a stale read of a
     // dropped component is no reason to fail - but not cached any more:
     // nothing would ever dispose of a repeater started now.
-    if (meta.disposed) {
+    if (own.disposed) {
       const parent = this.parent;
       return parent ? parent.inherit(name) : undefined;
     }
-    if (!meta.inheritCache) meta.inheritCache = new Map();
-    let entry = meta.inheritCache.get(name);
+    if (!own.inheritCache) own.inheritCache = new Map();
+    let entry = own.inheritCache.get(name);
     if (entry) {
       if (!entry.repeater.retracted) refreshIfNeeded(entry.repeater);
     } else {
       entry = { slot: null, repeater: null };
-      meta.inheritCache.set(name, entry);
+      own.inheritCache.set(name, entry);
       let started = null;
       try {
         entry.repeater = repeat((repeater) => {
@@ -101,7 +101,7 @@ export class RenderContext {
         // The first fetch failed (a provider's getter threw): nothing is
         // cached, so the next inherit() tries again - instead of finding a
         // half-made entry for good.
-        meta.inheritCache.delete(name);
+        own.inheritCache.delete(name);
         if (started) retractRepeater(started);
         throw error;
       }
@@ -125,11 +125,11 @@ export class RenderContext {
 
   // Its component is gone for good: so are the lookups cached on it.
   onDispose() {
-    this.causality.disposed = true;
-    const cache = this.causality.inheritCache;
+    meta(this).disposed = true;
+    const cache = meta(this).inheritCache;
     if (!cache) return;
     for (const entry of cache.values()) retractRepeater(entry.repeater);
-    this.causality.inheritCache = null;
+    meta(this).inheritCache = null;
   }
 }
 

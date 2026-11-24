@@ -1,4 +1,4 @@
-import { observable, temporal, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { observable, temporal, meta, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 
 /**
  * DOMElementTarget wraps one real DOM element that components render children
@@ -74,8 +74,8 @@ export class DOMElementTarget {
    * what it can.
    */
   observeBounds() {
-    const meta = this.causality;
-    if (meta.boundsObserver) return;
+    const own = meta(this);
+    if (own.boundsObserver) return;
     const element = this.element;
     const view = element.ownerDocument.defaultView;
     const timeless = this.timelessValues({ width: undefined, height: undefined });
@@ -108,19 +108,19 @@ export class DOMElementTarget {
         }
       });
       observer.observe(element);
-      meta.boundsObserver = () => observer.disconnect();
+      own.boundsObserver = () => observer.disconnect();
     } else if (view) {
       view.addEventListener("resize", measure);
-      meta.boundsObserver = () => view.removeEventListener("resize", measure);
+      own.boundsObserver = () => view.removeEventListener("resize", measure);
     }
   }
 
   // No longer measured - its element is gone for good.
   stopObservingBounds() {
-    const meta = this.causality;
-    if (!meta.boundsObserver) return;
-    meta.boundsObserver();
-    meta.boundsObserver = null;
+    const own = meta(this);
+    if (!own.boundsObserver) return;
+    own.boundsObserver();
+    own.boundsObserver = null;
   }
 
   /**
@@ -155,8 +155,8 @@ export class DOMElementTarget {
    * somewhere without a viewport), the element counts as seen at once.
    */
   observeVisibility({ amount = 0.25, margin = "0px" } = {}) {
-    const meta = this.causality;
-    if (meta.visibilityObserver) return;
+    const own = meta(this);
+    if (own.visibilityObserver) return;
     const element = this.element;
     const view = element.ownerDocument.defaultView;
     const timeless = this.timelessValues({ inView: false, seen: false });
@@ -175,8 +175,8 @@ export class DOMElementTarget {
     };
     if (!view || typeof(view.IntersectionObserver) !== "function") {
       write(true);
-      meta.visibilityObserver = () => {};
-      meta.visibilityReset = () => {};
+      own.visibilityObserver = () => {};
+      own.visibilityReset = () => {};
       return;
     }
     // How much of what it could be is visible: of its own height, or the
@@ -193,10 +193,10 @@ export class DOMElementTarget {
       }
     }, { rootMargin: margin, threshold: Array.from({ length: 101 }, (_, index) => index / 100) });
     observer.observe(element);
-    meta.visibilityObserver = () => observer.disconnect();
+    own.visibilityObserver = () => observer.disconnect();
     // Not seen again - and watched anew: observing reports at once, where
     // it is now, whether that has changed since the last report or not.
-    meta.visibilityReset = () => {
+    own.visibilityReset = () => {
       write(false, false);
       observer.unobserve(element);
       observer.observe(element);
@@ -208,17 +208,17 @@ export class DOMElementTarget {
   // revealed, it reveals anew. Where nothing can tell (no
   // IntersectionObserver), it stays seen.
   resetVisibility() {
-    const meta = this.causality;
-    if (meta.visibilityReset) meta.visibilityReset();
+    const own = meta(this);
+    if (own.visibilityReset) own.visibilityReset();
   }
 
   // No longer watched - its element is gone for good.
   stopObservingVisibility() {
-    const meta = this.causality;
-    if (!meta.visibilityObserver) return;
-    meta.visibilityObserver();
-    meta.visibilityObserver = null;
-    meta.visibilityReset = null;
+    const own = meta(this);
+    if (!own.visibilityObserver) return;
+    own.visibilityObserver();
+    own.visibilityObserver = null;
+    own.visibilityReset = null;
   }
 
   // The target's timeless side (see observeBounds()), created the first

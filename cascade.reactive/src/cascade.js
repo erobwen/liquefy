@@ -19,6 +19,13 @@ const defaultConfiguration = {
 
   timeLevels: 4,
 
+  // The two properties an observable answers itself instead of passing on
+  // to its target: its metadata object (meta(object) - see "Metadata") and
+  // its timelines. Still the old names, so as not to break code that reads
+  // object.causality; reach it with meta(object). At the next major
+  // version, long names that no application data is likely to use:
+  // objectMetaProperty: "cascadeMetadataObject",
+  // objectTimelinesProperty: "cascadeTimelinesObject",
   objectMetaProperty: "causality",
   objectTimelinesProperty: "timelines",
 
@@ -104,6 +111,11 @@ function createWorld(configuration) {
     // pipeline's own internal wavefront) - checked once, right after every
     // processRepeater() call, never mid-refresh - see checkWaveRetreat().
     waveRetreated: false,
+
+    // Transaction ends - see "Transaction ends" below.
+    runningRepeaters: 0,
+    changedInTransaction: false,
+    endingTransaction: false,
   };
 
   // Reserved key for each object handler's enumeration timeline (tracks
@@ -158,10 +170,14 @@ function createWorld(configuration) {
     retractRepeater,
     refreshIfNeeded,
 
+    // Metadata
+    meta,
+
     // Transaction
     transaction : postponeInvalidationsAndDo,
     postponeInvalidations,
     continueInvalidations,
+    onTransactionEnd,
 
     // Debugging and testing
     
@@ -174,7 +190,7 @@ function createWorld(configuration) {
     logUngroup,
     logToString,
     
-    // Advanced (only if you know what you are doing, typically used by plugins to causality)
+    // Advanced (only if you know what you are doing, typically used by plugins to cascade)
     state,
     enterContext,
     leaveContext,
@@ -253,7 +269,9 @@ function createWorld(configuration) {
     cannotReadPropertyValue
   } = configuration;  
 
-  const emitEvents = !!onEventGlobal || sendEventsToObjects; 
+  // Let: a transaction end listener needs the events too (see
+  // onTransactionEnd()), and turns them on.
+  let emitEvents = !!onEventGlobal || sendEventsToObjects;
 
   /**********************************
    *
@@ -285,6 +303,7 @@ function createWorld(configuration) {
       // Even when the callback throws: what it did write before throwing
       // is written, and what depends on it must not stay stale.
       proceedWithPostponedInvalidations();
+      settleTransaction();
     }
   }
 
@@ -295,6 +314,119 @@ function createWorld(configuration) {
   function continueInvalidations() {
     state.postponeInvalidation--;
     proceedWithPostponedInvalidations();
+    settleTransaction();
+  }
+
+
+  /**********************************
+   *
+   *   Transaction ends
+   *
+   *   onTransactionEnd(listener) calls listener() each time a transaction
+   *   that changed something has ended, and returns a function that
+   *   removes it. For whoever gathers changes and acts on them as a whole
+   *   - a store sending one message per transaction to a server, say -
+   *   with the events (onEventGlobal, onChange) telling it what changed.
+   *
+   *   A transaction is one outermost transaction() (or postponeInvalidations()
+   *   ... continueInvalidations()), together with everything it sets off:
+   *   the repeaters it invalidates have run again when it ends. A write
+   *   made outside any transaction and outside any repeater is a
+   *   transaction of its own, and so is the first run of a repeater made
+   *   outside any. A write a listener makes starts a new one, ended
+   *   right after the listeners return.
+   *
+   **********************************/
+
+  const transactionEndListeners = [];
+
+  function onTransactionEnd(listener) {
+    if (typeof(listener) !== "function") throw new Error("onTransactionEnd() expects a function.");
+    transactionEndListeners.push(listener);
+    emitEvents = true; // What marks a transaction as having changed something - see emitEvent().
+    return () => {
+      const index = transactionEndListeners.indexOf(listener);
+      if (index !== -1) transactionEndListeners.splice(index, 1);
+    };
+  }
+
+  // Nothing is going on that a transaction could end in the middle of.
+  function atRest() {
+    return state.postponeInvalidation === 0
+      && state.postponeRefreshRepeaters === 0
+      && !state.refreshingAllDirtyRepeaters
+      && state.runningRepeaters === 0
+      && state.context === null
+      && !state.endingTransaction;
+  }
+
+  function settleTransaction() {
+    if (!state.changedInTransaction || !atRest()) return;
+    if (transactionEndListeners.length === 0) {
+      state.changedInTransaction = false;
+      return;
+    }
+    state.endingTransaction = true;
+    try {
+      let rounds = 0;
+      while (state.changedInTransaction) {
+        if (++rounds > 100) {
+          state.changedInTransaction = false;
+          throw new Error("onTransactionEnd(): the listeners changed something at the end of 100 transactions in a row - a listener that always writes?");
+        }
+        state.changedInTransaction = false;
+        for (const listener of transactionEndListeners.slice()) listener();
+      }
+    } finally {
+      state.endingTransaction = false;
+    }
+  }
+
+  // A write handler made a transaction of its own when it is called at
+  // rest - only while someone listens for transaction ends. (A write
+  // without observers would otherwise never come by any place where a
+  // transaction ends.)
+  function inOwnTransaction(write) {
+    return function() {
+      if (transactionEndListeners.length === 0 || !atRest()) return write.apply(this, arguments);
+      return postponeInvalidationsAndDo(() => write.apply(this, arguments));
+    };
+  }
+
+
+  /**********************************
+   *
+   *   Metadata
+   *
+   *   meta(object) is an observable's metadata object: cascade's own
+   *   bookkeeping (its id, target, handler, proxy ...), and the place
+   *   where whatever builds on cascade keeps what it knows about the
+   *   object, outside the object's own data - cascade.component's
+   *   unobservable bag, say. Not observable itself.
+   *
+   *   meta(object, property) is the metadata record of one property: an
+   *   observable, empty until someone puts something in it, made the first
+   *   time it is asked for. For what is known about a property beyond its
+   *   value - the value last saved, whether it is being saved, an error -
+   *   kept beside the object so that the object keeps the shape it would
+   *   have without it, and shared by everything that shows the property.
+   *
+   **********************************/
+
+  function meta(object, property) {
+    if (!isObservable(object)) throw new Error("meta() expects an observable object.");
+    const objectMeta = object[objectMetaProperty];
+    if (arguments.length < 2) return objectMeta;
+    if (!objectMeta.propertyMetadata) objectMeta.propertyMetadata = new Map();
+    let record = objectMeta.propertyMetadata.get(property);
+    if (typeof(record) === "undefined") {
+      // Made at the baseline, whoever asks first: a record made from
+      // inside a repeater must not be that repeater's, gone (or taken for
+      // a rebuilt one) when it reruns.
+      record = accessInitialValues(() => observable({}));
+      objectMeta.propertyMetadata.set(property, record);
+    }
+    return record;
   }
 
   function withoutReactionsDo(callback) {
@@ -1149,6 +1281,11 @@ function createWorld(configuration) {
         if (emitEvents) emitSpliceEvent(this, 0, before, contentAtWritePosition(this).slice());
         return this.proxy;
       };
+    });
+
+    // Each a transaction of its own when called at rest - see inOwnTransaction().
+    ['push', 'unshift', 'pop', 'shift', 'splice', 'reverse', 'sort', 'fill', 'copyWithin'].forEach((functionName) => {
+      result[functionName] = inOwnTransaction(result[functionName]);
     });
 
     // Reads of the whole: run on the snapshot, recorded once. A callback
@@ -3082,6 +3219,15 @@ function createWorld(configuration) {
    *
    ***************************************************************/
 
+  // The write handlers, each write a transaction of its own when made at
+  // rest - see inOwnTransaction().
+  const setHandlerObjectInOwnTransaction = inOwnTransaction(setHandlerObject);
+  const deletePropertyHandlerObjectInOwnTransaction = inOwnTransaction(deletePropertyHandlerObject);
+  const definePropertyHandlerObjectInOwnTransaction = inOwnTransaction(definePropertyHandlerObject);
+  const setHandlerArrayInOwnTransaction = inOwnTransaction(setHandlerArray);
+  const deletePropertyHandlerArrayInOwnTransaction = inOwnTransaction(deletePropertyHandlerArray);
+  const definePropertyHandlerArrayInOwnTransaction = inOwnTransaction(definePropertyHandlerArray);
+
   function isObservable(entity) {
     return entity !== null && typeof(entity) === "object" && typeof(entity[objectMetaProperty]) === "object" && entity[objectMetaProperty].world === world; 
   }
@@ -3153,11 +3299,11 @@ function createWorld(configuration) {
         // apply: function () {},
         // construct: function () {},
         get: getHandlerArray,
-        set: setHandlerArray,
-        deleteProperty: deletePropertyHandlerArray,
+        set: setHandlerArrayInOwnTransaction,
+        deleteProperty: deletePropertyHandlerArrayInOwnTransaction,
         ownKeys: ownKeysHandlerArray,
         has: hasHandlerArray,
-        defineProperty: definePropertyHandlerArray,
+        defineProperty: definePropertyHandlerArrayInOwnTransaction,
         getOwnPropertyDescriptor: getOwnPropertyDescriptorHandlerArray
       };
     } else {
@@ -3184,11 +3330,11 @@ function createWorld(configuration) {
         // apply: function () {},
         // construct: function () {},
         get: getHandlerObject,
-        set: setHandlerObject,
-        deleteProperty: deletePropertyHandlerObject,
+        set: setHandlerObjectInOwnTransaction,
+        deleteProperty: deletePropertyHandlerObjectInOwnTransaction,
         ownKeys: ownKeysHandlerObject,
         has: hasHandlerObject,
-        defineProperty: definePropertyHandlerObject,
+        defineProperty: definePropertyHandlerObjectInOwnTransaction,
         getOwnPropertyDescriptor: getOwnPropertyDescriptorHandlerObject
       };
     }
@@ -3377,6 +3523,10 @@ function createWorld(configuration) {
     if (!emitReBuildEvents && handler.meta.isRebuildTwin) {
       return;
     }
+
+    // See "Transaction ends". A change of data: making an object is none -
+    // it is a change once something refers to it.
+    if (event.type === "set" || event.type === "delete" || event.type === "splice") state.changedInTransaction = true;
 
     if (onEventGlobal) {
       onEventGlobal(event);
@@ -4284,7 +4434,7 @@ function createWorld(configuration) {
         // });
 
         const contextString = (context ? context.description : "outside repeater/invalidator") 
-        // const causeString = objectClassName + ":" + (object.causality.buildId ? object.causality.buildId : object.causality.id) + "." + key + " (modified)";
+        // const causeString = objectClassName + ":" + (meta(object).buildId ? meta(object).buildId : meta(object).id) + "." + key + " (modified)";
         const causeString = "  " + object.toString() + "." + key + "";
         const effectString = "" + this.description + "";
 
@@ -4426,9 +4576,12 @@ function createWorld(configuration) {
         repeater.isRecording = true;
         const contextBeforeThisRun = state.context;
         enterContext(partial);
+        state.runningRepeaters++; // See "Transaction ends".
         try {
           repeater.returnValue = repeater.repeaterAction(repeater);
+          state.runningRepeaters--;
         } catch (error) {
+          state.runningRepeaters--;
           // Contain the damage: state.context is a single, module-level
           // pointer, not scoped to this repeater or this call - left
           // pointing into this run's own (now-abandoned) context tree,
@@ -4830,7 +4983,7 @@ function createWorld(configuration) {
           temporaryObject[objectMetaProperty].establishedOriginal = null;
           temporaryObject[objectMetaProperty].isRebuildTwin = false;
           object[objectMetaProperty].rebuildTwin = null;
-          mergeInto(object, temporaryObject);
+          mergeInto(object, temporaryObject, meta(object));
 
           // Send recreate event (for a match by shape - one by build id
           // sent its own when it was constructed)
@@ -4875,7 +5028,7 @@ function createWorld(configuration) {
           created[objectMetaProperty].rebuildTwin = null;
           // created[objectMetaProperty].isRebuildTwin = false; // Consider? Should this be done on 
           temporaryObject[objectMetaProperty].isRebuildTwin = false; 
-          mergeInto(created, temporaryObject);
+          mergeInto(created, temporaryObject, meta(created));
         } else {
           establish(created);
         }
@@ -4946,7 +5099,7 @@ function createWorld(configuration) {
       // A re-build, push changes to established object.
       object[objectMetaProperty].rebuildTwin = null;
       temporaryObject[objectMetaProperty].isRebuildTwin = false; 
-      mergeInto(object, temporaryObject);
+      mergeInto(object, temporaryObject, meta(object));
 
       
 
@@ -5036,6 +5189,7 @@ function createWorld(configuration) {
     // comes next. See attachToCurrentParent().
     if (!independent) attachToCurrentParent(repeater);
     if (state.context === null) flushArrayMirrors();
+    settleTransaction();
     return result;
   }
 
@@ -5803,6 +5957,7 @@ function createWorld(configuration) {
         // At rest only - not from inside a repeater still running (an
         // invalidation settled at one of its partial boundaries, say).
         if (!state.refreshingAllDirtyRepeaters && state.context === null) flushArrayMirrors();
+        settleTransaction();
       }
     }
   }

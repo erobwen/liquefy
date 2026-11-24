@@ -5,7 +5,7 @@ import assert from "assert";
 // writes it and whenever. temporal() creates a temporal signal: a write
 // from inside a repeater is a writing at that repeater's position (what
 // every other test here is about).
-const { observable, temporal, isObservable, isTemporal, repeat, retractRepeater } =
+const { meta, observable, temporal, isObservable, isTemporal, repeat, retractRepeater } =
   getWorld({ name: "timeless", timeLevels: 3 });
 
 describe("timeless objects", function () {
@@ -56,7 +56,7 @@ describe("timeless objects", function () {
     repeat(() => model.w, { time: 0 });
     repeat(() => { model.w = 6; }, { time: 1 });
     repeat(() => { model.w = 7; model.v = 1; }, { time: 2 });
-    const timelines = model.causality.handler.timelines;
+    const timelines = meta(model).handler.timelines;
     assert.deepEqual(Object.keys(timelines), ["w"], "v was never read by a repeater: still on the target");
     assert.equal(timelines.w.first, timelines.w.last);
     assert.equal(model.w, 7);

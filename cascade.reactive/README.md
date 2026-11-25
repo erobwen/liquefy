@@ -285,7 +285,7 @@ kind is "property" (key is the property's name), "keys" (it enumerated the objec
 
 ## innerMeta(object).checkWrite
 
-A function set on one object's inner metadata, asked before every value is written to that object: `checkWrite(key, value)`. It refuses a write by throwing; the write is then not made, no event is emitted, and nothing is invalidated.
+A function set on one object's inner metadata, asked before every write to that object: `checkWrite(key, value, operation)`. It refuses a write by throwing; the write is then not made, no event is emitted, and nothing is invalidated.
 
 ```js
 const settings = observable({});
@@ -296,7 +296,14 @@ settings.tabs = 4;         // fine
 settings.load = () => {};  // throws, and settings.load stays undefined
 ```
 
-It is asked for assignments, for `Object.defineProperty` (with the value, or with the getter or setter of an accessor), and for every element that an array method adds (`push`, `unshift`, `splice`, `fill`), with an undefined key, since the method decides where the element lands. It is not asked for deletes, nor for methods that only move elements (`sort`, `reverse`, `pop`, `shift`, `copyWithin`).
+`operation` says what kind of write it is:
+
+- `"set"`: an assignment, or `Object.defineProperty` (with the value, or with the getter or setter of an accessor).
+- `"delete"`: a delete, with an undefined value.
+- the name of an array method (`"push"`, `"unshift"`, `"pop"`, `"shift"`, `"splice"`, `"sort"`, `"reverse"`, `"fill"`, `"copyWithin"`), asked once before the method changes anything, with an undefined key and value;
+- `"add"`: then once for each element the method adds, with an undefined key, since the method decides where the element lands.
+
+A check that only cares about values looks at `"set"` and `"add"`; one that decides who may change the object at all, such as authorization, looks at every call.
 
 Unlike `onWriteGlobal`, which a world has once and which is told only the key, `checkWrite` belongs to one object and is given the value. Wellspring uses it for the write check of its synchronized objects.
 

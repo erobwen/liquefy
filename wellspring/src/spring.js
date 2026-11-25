@@ -9,13 +9,19 @@
  *
  * What is here: the identity map, references resolved when they are read, persistence by
  * reachability, one Aquifer transaction per Cascade transaction, objects whose records are
- * reclaimed while they are in memory, and load(), which holds a selection in memory and pins
- * it in Aquifer while it is held. Migrations and persistent repeaters come later (design
- * section 11).
+ * reclaimed while they are in memory, load(), which holds a selection in memory and pins it in
+ * Aquifer while it is held, checks before writes, and volatile objects, which are synchronized
+ * but never stored. Migrations and persistent repeaters come later (design section 11).
  */
 
 import { Database, ROOT } from "@liquefy/aquifer";
 import { DataModelError, ARRAY_CLASS, OBJECT_CLASS, escapeKey, unescapeKey, RECORD_KEYS } from "./values.js";
+
+/** Whether an object's class says its instances are volatile: `static volatile = true`. */
+function isVolatileClass(object) {
+  const prototype = Object.getPrototypeOf(object);
+  return Boolean(prototype && prototype.constructor && prototype.constructor.volatile === true);
+}
 
 /** Whether an encoded value contains a strong reference anywhere. */
 function holdsReference(encoded) {
@@ -69,6 +75,12 @@ export class Spring {
     this.pinned = new Set();
     this.pendingPins = new Set();
 
+    // Checks before writes (design section 4), and volatile objects (design section 2).
+    this.checks = [];
+    this.skipChecks = 0;
+    this.nextVolatile = 1;
+    this.removeWriteCheck = model.addWriteCheck((object, key, value, operation) => this.checkWrite(object, key, value, operation));
+
     this.db = new Database({ store, options: options.aquifer || {}, onReclaimed: (ids) => this.reclaimed(ids) });
     this.lastCommit = this.db.commit();
     this.root = this.objectFor(ROOT);
@@ -77,6 +89,7 @@ export class Spring {
 
   close() {
     this.removeTransactionEndListener();
+    this.removeWriteCheck();
     this.onClose();
   }
 
@@ -84,10 +97,20 @@ export class Spring {
    *  Ownership
    *-----------------------------------------------------------------*/
 
-  /** Whether an object is stored by this store. */
+  /** Whether an object belongs to this store: stored by it, or volatile in it. */
   owns(object) {
     const info = this.model.infoOf(object);
     return info !== undefined && info.spring === this && info.id !== undefined;
+  }
+
+  /** Whether an object is a volatile object of this store: synchronized, never stored. */
+  isVolatile(object) {
+    return this.owns(object) && this.model.infoOf(object).volatile === true;
+  }
+
+  /** Whether an object is stored by this store. */
+  isStored(object) {
+    return this.owns(object) && this.model.infoOf(object).volatile !== true;
   }
 
   adoptAs(object, id) {
@@ -187,13 +210,20 @@ export class Spring {
       ? () => this.objectFor(encoded.$ref)
       : function () { return resolve(); };
     get.encoded = encoded; // Encoding an unread field copies it, without loading anything.
+    const spring = this;
     Object.defineProperty(target, field, {
       enumerable: true,
       configurable: true,
       get,
       set(value) {
+        // The write has been checked already, on its way here.
         resolve();
-        object[field] = value;
+        spring.skipChecks++;
+        try {
+          object[field] = value;
+        } finally {
+          spring.skipChecks--;
+        }
       },
     });
   }
@@ -225,24 +255,41 @@ export class Spring {
     this.changed = new Set();
     this.events = [];
 
-    // What becomes shared: local synchronized objects reachable from what changed.
+    // What becomes shared: local synchronized objects reachable from what changed. Those that
+    // stored objects reach are stored; those that only volatile objects reach become volatile.
     const created = [];
     const newIds = new Map();
     const visit = (object) => {
       for (const value of this.referencedObjects(object)) {
         if (this.model.identityOf(value) !== undefined || newIds.has(value)) continue;
+        if (isVolatileClass(value)) {
+          this.rollBack(events);
+          throw new DataModelError("A stored object cannot refer to an object of a volatile class (" + value.constructor.name + ").");
+        }
         newIds.set(value, undefined);
         created.push(value);
         visit(value);
       }
     };
-    for (const object of changed) visit(object);
+    const storedChanged = changed.filter((object) => !this.isVolatile(object));
+    const volatileChanged = changed.filter((object) => this.isVolatile(object));
+    for (const object of storedChanged) visit(object);
+    const volatileCreated = [];
+    for (const object of volatileChanged) volatileCreated.push(...this.makeVolatileFrom(object, newIds));
+
+    if (created.length === 0 && storedChanged.length === 0) {
+      this.writePins();
+      const change = { commit: null, created, changed, events, volatileCreated, volatileChanged };
+      for (const listener of this.commitListeners) listener(change);
+      return;
+    }
 
     let commit;
     try {
       this.db.transaction((tx) => {
       for (const object of created) newIds.set(object, tx.create({}));
       const identify = (object, isWeak) => {
+        if (this.isVolatile(object)) throw new DataModelError("A stored object cannot refer to a volatile object (design section 2).");
         const id = this.model.identityOf(object) ?? newIds.get(object);
         if (id === undefined) {
           throw new DataModelError(isWeak
@@ -252,8 +299,8 @@ export class Spring {
         return id;
       };
       for (const object of created) tx.replace(newIds.get(object), this.encode(object, identify));
-      for (const object of changed) {
-        if (this.owns(object)) tx.replace(this.model.identityOf(object), this.encode(object, identify));
+      for (const object of storedChanged) {
+        if (this.isStored(object)) tx.replace(this.model.identityOf(object), this.encode(object, identify));
       }
       for (const object of created) {
         if (this.holds.has(object)) tx.pin(newIds.get(object));
@@ -270,8 +317,87 @@ export class Spring {
       if (this.holds.has(object)) this.pinned.add(object);
       this.adoptAs(object, newIds.get(object));
     }
-    const change = { commit: this.lastCommit, created, changed, events };
+    const change = { commit: this.lastCommit, created, changed, events, volatileCreated, volatileChanged };
     for (const listener of this.commitListeners) listener(change);
+  }
+
+  /*------------------------------------------------------------------
+   *  Volatile objects (design section 2)
+   *-----------------------------------------------------------------*/
+
+  /**
+   * Makes a local object a volatile object of this store: synchronized, with an identity
+   * beginning with "v", but never stored. A stored object can never refer to it. Local objects
+   * that it refers to become volatile with it. Fountain makes its sessions, connections and
+   * presence objects this way.
+   */
+  volatile(object) {
+    if (!this.model.isSynchronized(object)) throw new DataModelError("volatile() takes a synchronized object.");
+    if (this.model.identityOf(object) !== undefined) throw new DataModelError("volatile() takes a local object; this one is stored or volatile already.");
+    this.adoptVolatile(object);
+    this.makeVolatileFrom(object, new Map());
+    return object;
+  }
+
+  adoptVolatile(object) {
+    this.adoptAs(object, "v" + this.nextVolatile++);
+    this.model.infoOf(object).volatile = true;
+  }
+
+  /** Makes the local objects that a volatile object reaches volatile. Returns them. */
+  makeVolatileFrom(object, alreadyStored) {
+    const made = [];
+    const visit = (from) => {
+      for (const value of this.referencedObjects(from)) {
+        if (this.model.identityOf(value) !== undefined || alreadyStored.has(value)) continue;
+        this.adoptVolatile(value);
+        made.push(value);
+        visit(value);
+      }
+    };
+    visit(object);
+    return made;
+  }
+
+  /*------------------------------------------------------------------
+   *  Checks before writes (design section 4)
+   *-----------------------------------------------------------------*/
+
+  /**
+   * Adds a check, asked before every write to an object of this store, stored or volatile:
+   * `check({ object, key, value, operation })`, where `operation` is "set", "delete", "add",
+   * or the name of an array method (cascade.reactive's meta(object).checkWrite). It is asked
+   * against the state before the write, and refuses the write by throwing; then nothing is
+   * written, and there is nothing to undo. Returns a function that removes it.
+   *
+   * Fountain checks authorization and gated writes this way.
+   */
+  checkWrites(check) {
+    this.checks.push(check);
+    return () => { this.checks = this.checks.filter((other) => other !== check); };
+  }
+
+  checkWrite(object, key, value, operation) {
+    if (this.loading > 0 || this.skipChecks > 0 || !this.owns(object)) return;
+    if (!this.isVolatile(object) && this.refersToVolatile(value)) {
+      throw new DataModelError("A stored object cannot refer to a volatile object (design section 2).");
+    }
+    for (const check of this.checks) check({ object, key, value, operation });
+  }
+
+  refersToVolatile(value) {
+    if (this.model.isSynchronized(value)) return this.isVolatile(value);
+    if (value instanceof this.model.WeakReference) {
+      const target = value.deref();
+      return target !== undefined && target !== null && this.isVolatile(target);
+    }
+    if (value instanceof Map) {
+      for (const [key, item] of value) if (this.refersToVolatile(key) || this.refersToVolatile(item)) return true;
+    }
+    if (value instanceof Set) {
+      for (const item of value) if (this.refersToVolatile(item)) return true;
+    }
+    return false;
   }
 
   /**

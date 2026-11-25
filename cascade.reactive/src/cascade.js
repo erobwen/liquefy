@@ -1373,7 +1373,7 @@ function createWorld(configuration) {
     // Writes. `this` is the handler.
     result.push = function() {
       const items = argumentsToArray(arguments);
-      checkAddedElements(this, items);
+      checkArrayMethod(this, "push", items);
       const length = mutateArray(this, { kind: "push", items });
       if (emitEvents) emitSpliceEvent(this, length - items.length, null, items);
       return length;
@@ -1381,13 +1381,14 @@ function createWorld(configuration) {
 
     result.unshift = function() {
       const items = argumentsToArray(arguments);
-      checkAddedElements(this, items);
+      checkArrayMethod(this, "unshift", items);
       const length = mutateArray(this, { kind: "unshift", items });
       if (emitEvents) emitSpliceEvent(this, 0, null, items);
       return length;
     };
 
     result.pop = function() {
+      checkArrayMethod(this, "pop", []);
       observeArray(this, "fromEnd", 1);
       const index = contentAtWritePosition(this).length - 1;
       const removed = mutateArray(this, { kind: "pop" });
@@ -1396,6 +1397,7 @@ function createWorld(configuration) {
     };
 
     result.shift = function() {
+      checkArrayMethod(this, "shift", []);
       observeArray(this, "index", 0);
       const length = contentAtWritePosition(this).length;
       const removed = mutateArray(this, { kind: "shift" });
@@ -1428,7 +1430,7 @@ function createWorld(configuration) {
           if (rawCount > length - start) readsLength = true;
         }
       }
-      checkAddedElements(this, args.slice(2));
+      checkArrayMethod(this, "splice", args.slice(2));
       if (readsLength) observeArray(this, "length");
       for (let i = start; i < start + count; i++) observeArray(this, "index", i);
       const removed = mutateArray(this, { kind: "splice", args });
@@ -1439,7 +1441,7 @@ function createWorld(configuration) {
     ['reverse', 'sort', 'fill', 'copyWithin'].forEach((functionName) => {
       result[functionName] = function() {
         const args = argumentsToArray(arguments);
-        if (functionName === "fill") checkAddedElements(this, args.slice(0, 1));
+        checkArrayMethod(this, functionName, functionName === "fill" ? args.slice(0, 1) : []);
         const before = emitEvents ? contentAtWritePosition(this).slice() : null;
         mutateArray(this, { kind: functionName, args });
         if (emitEvents) emitSpliceEvent(this, 0, before, contentAtWritePosition(this).slice());
@@ -1447,11 +1449,15 @@ function createWorld(configuration) {
       };
     });
 
-    // A per-object check before values are added (see innerMeta(object).checkWrite
-    // under "Metadata"): the key is undefined, since an array method decides
-    // where its elements land.
-    function checkAddedElements(handler, items) {
-      if (handler.meta.checkWrite) for (const item of items) handler.meta.checkWrite(undefined, item);
+    // A per-object check before an array method changes the array (see
+    // innerMeta(object).checkWrite in the README): once for the method, then once
+    // for each element it adds. The key is undefined, since the method
+    // decides where its elements land.
+    function checkArrayMethod(handler, method, items) {
+      const check = handler.meta.checkWrite;
+      if (!check) return;
+      check(undefined, undefined, method);
+      for (const item of items) check(undefined, item, "add");
     }
 
     // Each a transaction of its own when called at rest - see inOwnTransaction().
@@ -1556,7 +1562,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
-    if (this.meta.checkWrite) this.meta.checkWrite(key, value);
+    if (this.meta.checkWrite) this.meta.checkWrite(key, value, "set");
 
     if (key === "length") {
       const length = Number(value);
@@ -1608,6 +1614,7 @@ function createWorld(configuration) {
 
     if (key === "length") return false;
     if (isArrayIndex(key)) {
+      if (this.meta.checkWrite) this.meta.checkWrite(key, undefined, "delete");
       const index = Number(key);
       const visible = contentAtWritePosition(this);
       if (writerOf(this) === null && !(index in visible)) return true;
@@ -3182,7 +3189,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
-    if (this.meta.checkWrite) this.meta.checkWrite(key, value);
+    if (this.meta.checkWrite) this.meta.checkWrite(key, value, "set");
 
     // Respect real setters (and reject writes to getter-only properties),
     // mirroring the getter lookup in getHandlerObject.
@@ -3399,6 +3406,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
+    if (this.meta.checkWrite) this.meta.checkWrite(key, undefined, "delete");
 
     const time = writeTimeOf(this);
     const writer = writerOf(this);
@@ -3484,7 +3492,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
-    if (this.meta.checkWrite) this.meta.checkWrite(key, "value" in descriptor ? descriptor.value : (descriptor.get || descriptor.set));
+    if (this.meta.checkWrite) this.meta.checkWrite(key, "value" in descriptor ? descriptor.value : (descriptor.get || descriptor.set), "set");
 
     // A data property's value is written like any other value - what
     // reads see (its writable/enumerable/configurable flags aren't kept).

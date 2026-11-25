@@ -5,8 +5,8 @@ const { observable, innerMeta, repeat, transaction } = getWorld({ name: "check-w
 
 function refuseStrings(object) {
   const seen = [];
-  innerMeta(object).checkWrite = (key, value) => {
-    seen.push([key, value]);
+  innerMeta(object).checkWrite = (key, value, operation) => {
+    seen.push(operation === "set" ? [key, value] : [key, value, operation]);
     if (typeof(value) === "string") throw new Error("No strings: " + String(key));
   };
   return seen;
@@ -44,7 +44,7 @@ describe("innerMeta(object).checkWrite", function () {
     assert.deepEqual(seen, [["n", 5], ["g", getter]]);
   });
 
-  it("is asked for every element an array method adds, with an undefined key", function () {
+  it("is asked once per array method, then for every element it adds, with an undefined key", function () {
     const array = observable([1]);
     const seen = refuseStrings(array);
     array.push(2, 3);
@@ -52,21 +52,43 @@ describe("innerMeta(object).checkWrite", function () {
     array.splice(1, 1, 7);
     array.fill(9, 0, 1);
     array[1] = 8;
-    assert.deepEqual(seen, [[undefined, 2], [undefined, 3], [undefined, 0], [undefined, 7], [undefined, 9], ["1", 8]]);
+    assert.deepEqual(seen, [
+      [undefined, undefined, "push"], [undefined, 2, "add"], [undefined, 3, "add"],
+      [undefined, undefined, "unshift"], [undefined, 0, "add"],
+      [undefined, undefined, "splice"], [undefined, 7, "add"],
+      [undefined, undefined, "fill"], [undefined, 9, "add"],
+      ["1", 8]]);
     assert.throws(() => array.push(4, "x"), /No strings/);
     assert.throws(() => array.splice(0, 0, "x"), /No strings/);
     assert.throws(() => array.fill("x"), /No strings/);
     assert.deepEqual([...array], [9, 8, 2, 3]);
   });
 
-  it("does not ask about methods that only move elements", function () {
-    const array = observable([3, 1, 2]);
+  it("is asked about methods that only remove or move elements, by name", function () {
+    const array = observable([3, 1, 2, 4]);
     const seen = refuseStrings(array);
     array.sort();
     array.reverse();
+    array.copyWithin(0, 1);
     array.pop();
     array.shift();
-    assert.deepEqual(seen, []);
+    assert.deepEqual(seen.map((call) => call[2]), ["sort", "reverse", "copyWithin", "pop", "shift"]);
+  });
+
+  it("is asked about deletes, with an undefined value, and can refuse them", function () {
+    const object = observable({ a: 1, kept: 2 });
+    const array = observable([1, 2]);
+    const seen = [];
+    innerMeta(object).checkWrite = (key, value, operation) => {
+      seen.push([key, value, operation]);
+      if (key === "kept") throw new Error("Kept.");
+    };
+    innerMeta(array).checkWrite = (key, value, operation) => seen.push([key, value, operation]);
+    delete object.a;
+    assert.throws(() => { delete object.kept; }, /Kept/);
+    assert.equal(object.kept, 2);
+    delete array[1];
+    assert.deepEqual(seen, [["a", undefined, "delete"], ["kept", undefined, "delete"], ["1", undefined, "delete"]]);
   });
 
   it("refuses inside a transaction without leaving earlier writes undone", function () {

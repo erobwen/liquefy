@@ -479,7 +479,10 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - Objects that are held but still local are pinned in the transaction that stores them.
    - Unloading is section 3.4: weakly held identity map, and reference fields that look their objects up rather than keep them.
    - **Not yet:** a load made inside a repeater does not belong to that repeater (section 3.2); it is independent, and released through its handle. Cascade gives no hook when a repeater is retracted, which ownership would need.
-5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2).
+5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2). *Done*, in `src/spring.js`. How it came out:
+   - `spring.checkWrites(check)` adds a check asked before every write to an object of the store, stored or volatile, with `{ object, key, value, operation }`. It runs against the state before the write and refuses by throwing, so a refused write leaves nothing to undo. For this, cascade.reactive's `meta(object).checkWrite` now also names the operation, and is asked about deletes and about every array method, also those that only remove or move elements.
+   - `spring.volatile(object)` makes a local object volatile: an identity beginning with "v", synchronized, never stored. Local objects a volatile object comes to refer to become volatile too; a class can say `static volatile = true`, and its instances are then refused where they would be stored. A stored object never refers to a volatile one: such a write is refused when it is made, and a local structure that would bring one in is refused when it would be stored, and rolled back.
+   - Changes to volatile objects make no Aquifer transaction. They are reported to `onCommit` listeners with `commit: null`, in `volatileChanged` and `volatileCreated`.
 6. **Migrations** (section 8).
 7. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
 8. **Keys that read other objects**: stored dependency records, background work, tracked staleness.

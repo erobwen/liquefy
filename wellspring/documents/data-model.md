@@ -175,7 +175,7 @@ A map or set held by a synchronized field must not be changed in place. To chang
 A synchronized object is accepted whether it is local or shared. Every synchronized object makes the check on its own fields from the moment it is made, also while it is local, so that when it becomes shared, its fields have already been checked.
 
 The check is made at the moment of writing, on the side that writes, so that the error points at the code that caused it. The server makes the same check on every value it receives, and refuses a transaction that contains a value that fails it.
-*Maintained by:* the object layer, through cascade.reactive's per-object hook `meta(object).checkWrite(key, value)`, which is asked before every write, including the elements that array methods add, and refuses by throwing. *Verified:* tests, one per refused kind.
+*Maintained by:* the object layer, through cascade.reactive's per-object hook `meta(object).checkWrite(key, value, operation)`, which is asked before every write, including deletes and every array method, and refuses by throwing. A delete of an array element is refused, since it would leave a hole (A2). *Verified:* tests, one per refused kind.
 
 Deep checks of frozen values cost time in proportion to their size. A value that has been checked once can be remembered, by identity, in a weak set; since it is frozen, it cannot change afterwards.
 

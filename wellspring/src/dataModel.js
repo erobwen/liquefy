@@ -68,9 +68,29 @@ export function createDataModel(world) {
     info.model = model;
     info.id = undefined;
     meta(proxy).checkWrite = isArray
-      ? (key, value) => checkArrayWrite(key, value)
-      : (key, value) => checkField(key, value);
+      ? (key, value, operation) => { checkArrayWrite(key, value, operation); runWriteChecks(proxy, key, value, operation); }
+      : (key, value, operation) => { checkField(key, value, operation); runWriteChecks(proxy, key, value, operation); };
     return proxy;
+  }
+
+  /*
+   * Checks that layers above add (design section 4): asked before every write to every
+   * synchronized object of this data model, after the data model's own check, with the object,
+   * the key, the value, and the operation, as cascade.reactive's meta(object).checkWrite gives
+   * them. A check refuses a write by throwing.
+   */
+  const writeChecks = [];
+
+  function addWriteCheck(check) {
+    writeChecks.push(check);
+    return () => {
+      const index = writeChecks.indexOf(check);
+      if (index !== -1) writeChecks.splice(index, 1);
+    };
+  }
+
+  function runWriteChecks(object, key, value, operation) {
+    for (let i = 0; i < writeChecks.length; i++) writeChecks[i](object, key, value, operation);
   }
 
   /**
@@ -220,8 +240,9 @@ export function createDataModel(world) {
     }
   }
 
-  function checkField(key, value) {
+  function checkField(key, value, operation = "set") {
     if (typeof(key) === "symbol") throw new DataModelError("A synchronized object cannot have symbol keys.");
+    if (operation === "delete") return;
     kindOf(value);
   }
 
@@ -232,7 +253,10 @@ export function createDataModel(world) {
     kindOf(value);
   }
 
-  function checkArrayWrite(key, value) {
+  function checkArrayWrite(key, value, operation = "set") {
+    if (operation === "add") return checkElement(value);
+    if (operation === "delete") throw new DataModelError("Deleting an element would leave a hole (data model A2). Use splice().");
+    if (operation !== "set") return; // an array method, asked once before it runs
     if (key === "length") return;
     if (key === undefined || isIndex(key)) return checkElement(value);
     throw new DataModelError("A synchronized array has no named fields (data model A5): \"" + String(key) + "\".");
@@ -502,6 +526,7 @@ export function createDataModel(world) {
     Synchronized, synchronized, isSynchronized,
     identityOf, setIdentity, clearIdentity, localIdOf, infoOf,
     adopt: (target) => makeSynchronized(target, true),
+    addWriteCheck,
     WeakReference, weak,
     kindOf, checkValue: kindOf,
     sameValue: (a, b) => sameValue(a, b, sameReference),

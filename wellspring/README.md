@@ -1,6 +1,6 @@
 # Wellspring
 
-*In progress - the data model, objects over Aquifer's records, and loading and unloading are implemented; migrations and indexes are planned.*
+*In progress - the data model, objects over Aquifer's records, loading and unloading, checks before writes, and volatile objects are implemented; migrations and indexes are planned.*
 
 Wellspring makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -54,6 +54,9 @@ it; a reference is loaded when it is first read; each Cascade transaction is
 written as one Aquifer transaction. `load(start, selector, action)` holds a
 selection in memory, and pins it in Aquifer, until it is released; what
 nothing holds is unloaded, and read from its record again when needed.
+`spring.checkWrites(check)` sees every write before it is made, and can refuse
+it; `spring.volatile(object)` makes an object that is synchronized but never
+stored.
 
 ```javascript
 import { MemoryStore } from "@liquefy/aquifer";

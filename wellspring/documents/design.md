@@ -40,12 +40,12 @@ An application with no clients: a server-side tool, a desktop application, a sin
 The interface is illustrative. It shows the shape, not the final names.
 
 ```javascript
-import { open, load, transaction } from "@liquefy/wellspring";
+import { open, load, transaction, synchronized, Synchronized } from "@liquefy/wellspring";
 import { LmdbStore } from "@liquefy/aquifer/src/store/LmdbStore.js";
 
-class Document {
+class Document extends Synchronized {
     title = "Untitled";
-    chapters = observable([]);
+    chapters = synchronized([]);
 }
 
 const spring = open({
@@ -53,10 +53,10 @@ const spring = open({
     classes: { Document, Chapter, Paragraph },
 });
 
-// Creating: the document becomes persistent when a persistent object refers to it.
+// Making: the document is local until a stored object refers to it.
 transaction(() => {
-    const document = observable(new Document());
-    spring.root.documents.push(document);
+    const document = new Document();
+    spring.root.documents.push(document);   // now it is stored
 });
 
 // Loading: everything the selector selects is in memory inside the action.
@@ -70,15 +70,21 @@ load(spring.root, selectLibrary, () => {
 document.title = "A New Title";
 ```
 
-**The root.** A database has one root object, `spring.root`, which always exists and is always loaded. Everything persistent is reachable from it (whitepaper section 4.5).
+**Synchronized objects.** An object that Wellspring can store is a synchronized object: an instance of a class that extends `Synchronized`, or a plain object or array passed to `synchronized()` ([data model](data-model.md) section 2.1). Both are Cascade observables. `Synchronized` returns the observable from its constructor, as Cascade's components do, so `this` is already the observable inside a subclass's constructor.
+
+**The root.** A database has one root object, `spring.root`, which always exists and is always loaded. Everything stored is reachable from it (whitepaper section 4.5).
 
 **Transactions.** A transaction is Cascade's: `transaction(() => {...})`. At its end, after the repeaters it set off have run, its changes are written as one Aquifer transaction. A write made outside any transaction is a transaction of its own.
 
-**Persistence by reachability.** An object becomes persistent when a persistent object comes to refer to it. At the end of a transaction, Wellspring follows the new references from stored objects and stores every object they reach that is not yet stored. Nothing is saved by calling a method, and nothing is deleted by calling one: an object that can no longer be reached from the root is garbage, and Aquifer reclaims it.
+**Persistence by reachability.** A synchronized object is local when it is made, and is stored when a stored object comes to refer to it ([data model](data-model.md) O2). At the end of a transaction, Wellspring follows the new references from stored objects and stores every local object they reach. Nothing is saved by calling a method, and nothing is deleted by calling one: an object that can no longer be reached from the root is garbage, and Aquifer reclaims it. The criterion is always reachability from the root, as for a file in a file system.
 
-An observable that no persistent object refers to is an ordinary object in memory, and is never stored. This is how the same world can hold both the application's data and objects that must not be stored, such as Fountain's sessions and selections.
+A synchronized object that no stored object refers to is an ordinary object in memory, and is never stored. This is how the same world can hold both the application's data and objects that must not be stored.
 
-**Open.** Whether persistence by reachability is enough, or whether a class should also be able to say that its instances are never persistent, so that a reference to one from a persistent object is an error rather than a request to store it. Fountain's presence objects need the second (whitepaper section 3.11).
+**Volatile objects.** Some synchronized objects must never be stored, though they are synchronized with clients: Fountain's sessions, connections, and presence objects (whitepaper section 2.3). Wellspring lets an object be marked volatile when it is made. A volatile object is never stored, and a write that would make a stored object refer to one is refused ([data model](data-model.md) R1).
+
+**The same names at every level**
+
+The layers are meant to read alike. An object is made ready in the same way whether it is to be shown in a user interface, stored, or sent to other machines: with `synchronized()`, or by extending `Synchronized`. Code gets hold of a structure of objects in the same way on a server and on a client: `load` here, `subscribe` in Fountain, each with a starting object and a selector. And there is one Cascade world on each machine, so that an object that is stored, or sent, is the same object that a component reads and a repeater watches.
 
 ---
 
@@ -111,42 +117,57 @@ A load made inside a reactive computation belongs to that computation: it is rel
 
 An object that a load holds must not be reclaimed, though nothing in the database may refer to it any longer: code is working on it, and may link it in again. Wellspring pins it in Aquifer for as long as it is held (Aquifer's volatile roots).
 
+Pins are kept in memory only. They are gone when the process ends, and there are none when a store is opened.
+
+Only loads pin. A JavaScript variable that refers to an object does not keep its record.
+
 ## 3.4 Unloading
 
 An object that nothing holds can be dropped from memory. Its record stays in Aquifer.
 
-The identity map must still give the same object for the same identity for as long as any code has a reference to it. The proposal is that the map holds unheld objects weakly, through JavaScript's `WeakRef`: an unheld object stays in the map until the JavaScript engine finds that nothing refers to it, and is then gone. An object that is held is referred to strongly.
+The identity map must still give the same object for the same identity for as long as any code has a reference to it. The map therefore holds unheld objects weakly, through JavaScript's `WeakRef`: an unheld object stays in the map until the JavaScript engine finds that nothing refers to it, and is then gone. An object that is held is referred to strongly.
 
-**Open.** Whether weak holding by the JavaScript engine is enough, or whether memory must also be bounded explicitly, by dropping the fields of unheld objects that have not been used for a while and leaving them as stubs. The earlier attempts kept a list of the least recently used objects for this.
+**Open.** Whether weak holding by the JavaScript engine is enough, or whether memory must also be bounded explicitly, by dropping the fields of unheld objects that have not been used for a while. The earlier attempts kept a list of the least recently used objects for this.
 
-## 3.5 Reading what is not loaded
+## 3.5 An object in memory whose record is reclaimed
 
-A reference that leaves a loaded selection names an object whose fields may not be in memory: a stub ([data model](data-model.md) section 7).
+Code can keep a reference to an object after the load that held it has been released. If the object then becomes unreachable from the root, Aquifer reclaims its record, while the JavaScript object is still in memory.
 
-On a server, the fields could be read on demand, since Aquifer reads synchronously. Whether to do so is a choice between convenience and discipline:
+Wellspring is told of every reclaim (section 9.1). An object in memory whose record is reclaimed becomes local again ([data model](data-model.md) O3): it keeps the fields it has, and loses its identity. If code later makes a stored object refer to it, it is stored anew, by reachability, under a new identity, like any other local object.
 
-- **Load on demand.** Reading a field of a stub loads the object. Code never fails for lack of a load. But nothing holds the object, and code that works here would fail on a client, where loading cannot be synchronous.
-- **Report.** Reading a field of a stub is an error in development, as on a client.
+What was persistent has become volatile, because its persistence was pulled from under it. Nothing dangles in the database, and nothing is kept alive by a variable.
 
-The proposal is to load on demand, and to report it in development when Wellspring is used under Fountain, where the same code may run on clients. Used alone, loading on demand is simply a convenience.
+The cost is in what the object referred to. Objects that were reclaimed with it and were in memory are local again too, and still referred to. Objects that were reclaimed with it and were not in memory are gone, and a reference to one of them names nothing ([data model](data-model.md), the open point of section 2.2).
+
+Code that means to detach a structure and attach it somewhere else later holds it with a load in the meantime, which pins all of it. For the common case of a move within one or a few transactions, Aquifer's time-limited hold is enough, and Wellspring applies it to what a transaction detaches.
+
+## 3.6 Following a reference that is not loaded
+
+On a server, a reference can always be followed. A stored reference is an identity; when the field that holds it is read, Wellspring takes the object from the identity map, or reads its record from Aquifer and makes it ([data model](data-model.md) K7). Aquifer reads synchronously, so application code sees an ordinary property read. There are no stubs on a server.
+
+An object reached this way is in memory, but nothing holds it. It is correct to read and write it. Two things are different from an object that a load holds: it may be unloaded when nothing refers to it, and a selection does not follow it.
+
+Under Fountain, the same code may run on a client, where a reference outside the subscribed selection cannot be followed. Wellspring therefore reports, in development and when asked to, every reference followed outside a load, so that code that works on a server does not fail on a client. Used alone, following references freely is simply a convenience.
 
 ---
 
 # 4. Transactions and the store
 
-Wellspring is a store in the sense of whitepaper section 3.8: it receives every change to every object that belongs to it, through Cascade's `onEventGlobal`, collects the changes of a transaction, and at the transaction's end (`onTransactionEnd`) writes them.
+Wellspring is a store in the sense of whitepaper section 3.8: it receives every change to every synchronized object, through Cascade's `onEventGlobal`, collects the changes of a transaction, and at the transaction's end (`onTransactionEnd`) writes them.
 
 Writing a transaction means, in one Aquifer transaction:
 
-1. Storing every object that has become reachable from a stored object (section 2).
+1. Storing every local object that has become reachable from a stored object (section 2).
 2. Encoding the changed fields ([data model](data-model.md) section 8) and writing the records.
-3. Running the persistent repeaters that the changes trigger, when they are of the kind that runs inside the transaction (section 7.3), and writing what they change.
+3. Writing what persistent repeaters changed (section 7.3). Those that maintain a transactional index have already run, as part of the Cascade transaction.
 
-If any of it fails, nothing is written, and the objects in memory are returned to their state before the transaction.
+**The change set comes from Cascade's events.** The changes of a transaction, as Wellspring passes them on, are built from the events Cascade emitted: which fields of which objects were set and deleted, with their old and new values, and which splices were made to which arrays. Aquifer could not supply this. It sees a record with fields, and an array as one field, so a splice would be lost.
 
-**Open.** Returning objects in memory to their earlier state requires the old values, which Cascade's change events carry. Whether that is done by replaying the events backwards, or by reloading the objects from their records, is to be decided.
+From Aquifer, Wellspring takes the commit number, and what the collector did: the objects it reclaimed.
 
-Aquifer reports the change set of the commit, and its commit number (section 9). Wellspring passes it on, in terms of objects, to whoever listens: its own observers (section 5), and Fountain.
+**Checks before writes.** A layer above can ask to see each write before it is applied, and refuse it. Fountain uses this for authorization and for gated writes, which must be judged against the state before the write ([protocol](../../fountain/documents/protocol.md) section 7.3). A write that is refused before it is applied leaves nothing to undo.
+
+**Failing after the fact.** If the Aquifer transaction itself fails, nothing is written, and the objects in memory are returned to their state before the transaction, from the old values that Cascade's events carry. This should be rare: values are checked when they are written, and refusals are made before applying.
 
 ---
 
@@ -156,15 +177,16 @@ Wellspring needs to know when something that a selection or a persistent repeate
 
 It does not need the temporal signals that Cascade uses to order a rendering pipeline. On a server, order is given by commits. Plain observation is sufficient: what was read, and whether it has since been written.
 
-**The change set of a commit is the source of all triggers.** Every transaction produces a change set: the objects and fields it wrote. Everything that reacts to data does so by matching what it read against committed change sets.
+**Volatile observers are Cascade repeaters.** A load's selection, and anything Fountain builds on top, such as a session's selections and live queries, is a Cascade repeater, used as it is. Cascade records what it read, in memory, and runs it again when that is written. Nothing about it is stored. After a restart it is gone, which is correct, because the code that made it is gone too.
 
-**Volatile observers.** A load's selection, and anything Fountain builds on top, such as a session's selections and live queries, is in memory only. What it read is kept in memory, in a table from object and field to observer, beside the objects rather than in their records. Nothing about it is stored. After a restart it is gone, which is correct, because the code that made it is gone too.
+A repeater runs again inside the Cascade transaction that changed what it read, before that transaction's end. A selection is therefore up to date when the transaction is written, and what joined and left it is part of the transaction's result. What is sent to anyone, and what is loaded and let go, is acted on after the Aquifer commit.
 
-**Persistent observers.** A persistent repeater maintains something that is stored, so it must be triggered by every relevant change, also after a restart, and also when the objects involved are not in memory. Its dependencies cannot be references to observers in memory. Section 7.2 describes what is stored instead.
+**Persistent observers.** A persistent repeater maintains something that is stored, so it must be triggered by every relevant change, also after a restart, and also when the objects involved are not in memory. Its dependencies cannot be Cascade's observers in memory. Section 7.2 describes what is stored instead.
 
-**When observers run.** A persistent repeater that maintains a transactional index runs inside the transaction that triggered it, before the commit. Volatile observers run after the commit, and see only committed state.
+**When persistent repeaters run.** One that maintains a transactional index runs inside the transaction that triggered it. Others run in the background, in transactions of their own (section 7.3).
 
 ---
+
 # 6. Indexes
 
 ## 6.1 Indexes as ordinary objects
@@ -249,7 +271,7 @@ There is one key repeater per index and member. A key that reads only its member
 
 A single repeater for a whole index would be the same as rebuilding it on every change. It is useful only as the test oracle.
 
-The same structure, at the level of selections, gives rule repeaters: one per selection and object, computing which objects are selected along with it (whitepaper section 3.5).
+The same split into a pure computation and a reaction is used, in memory and without storing anything, for the rules of a selection: one repeater per selection and object, computing which objects are selected along with it (whitepaper section 3.5). Those are ordinary Cascade repeaters, not persistent ones.
 
 **Maintaining the tree**
 
@@ -337,46 +359,38 @@ This distinction also applies to schema migrations.
 
 # 8. Lazy schema migration
 
-Because objects are loaded individually, the database can support per-object schema evolution.
-
-A class might define:
+Because objects are loaded individually, a class can change without the database being rewritten.
 
 ```javascript
-class Book extends PersistentObject {
-    static type = "Book";
-    static version = 3;
+class Book extends Synchronized {
+    static version = 2;
 
     static migrations = {
-        1(book) {
+        // From version 0 to 1.
+        0(book) {
             book.language = "en";
         },
 
-        2(book) {
-            book.author = new Author({
-                name: book.authorName
-            });
-
+        // From version 1 to 2.
+        1(book) {
+            book.author = new Author({ name: book.authorName });
             delete book.authorName;
         }
     };
 }
 ```
 
-When an older object is loaded, its migrations can be applied incrementally.
+A class has a version, 0 unless it says otherwise, and every record stores the version it was written under ([data model](data-model.md) C5). A migration is named by the version it migrates from. When a record older than its class is loaded, the migrations from its version up to the class's are applied in order, and the record is written back under the class's version, before application code sees the object.
 
-A migration may:
+A migration may add or remove fields, change the structure of an object, make new objects, and remove or introduce references. The objects it makes become stored by reachability, like any others.
 
-- Add or remove properties.
-- Change object structure.
-- Create new persistent objects.
-- Remove or introduce references.
-- Update indexes.
+**A migration is a transaction of its own.** It is written by Wellspring, as the system, whatever the code that caused the load was doing. A load made inside a computation that must not write, such as a key (section 7.1), still migrates what it loads: the migration is not that computation's write. It goes through Aquifer's write barrier like any other transaction.
 
-Migrations must be coordinated with persistence transactions and garbage-collection bookkeeping.
+**A migration is a pure function of the object.** It reads and writes the object it is given, and the objects it makes. It does not depend on when it runs, since objects of one class are migrated at different times, as they happen to be loaded.
 
-Lazy migration is particularly attractive because it avoids requiring a complete database rewrite whenever application schemas evolve.
+**Indexes.** An index over a field that a migration introduces must account for objects that have not yet been migrated. Whether an index is complete is a separate question from whether each object is correct (section 7.3): an index over a new field is built by loading its members, which migrates them.
 
-However, an index over a newly introduced property must account for objects that have not yet been migrated. Index completeness is a separate concern from the correctness of any individual migrated object.
+Lazy migration avoids rewriting the database whenever a class changes. A migration that must be finished, so that an old version can be dropped, is completed by loading every object of the class, in the background.
 
 ---
 
@@ -386,19 +400,20 @@ However, an index over a newly introduced property must account for objects that
 
 Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Four things are missing, and are in [Aquifer's backlog](../../aquifer/documents/backlog.md):
 
-1. **Volatile roots.** Pinning an object across transactions, for as long as a load holds it (section 3.3).
-2. **A change set per transaction**, with a commit number. Everything in section 5 is triggered from it.
-3. **Notification of a reclaim inside the transaction that performs it**, so that an index removes its entry for a member (section 7.2), and weak references are cleared, together with the reclaim.
+1. **Volatile roots.** Pinning an object across transactions, for as long as a load holds it (section 3.3). Pins are in memory only, and are cleared when a store is opened.
+2. **A commit number per transaction**, from one counter, and a report of what the collector did. The field-level change set is built by Wellspring itself, from Cascade's events (section 4).
+3. **Notification of a reclaim inside the transaction that performs it**, so that an index removes its entry for a member (section 7.2), weak references are cleared, and an object still in memory becomes local again (section 3.5), together with the reclaim.
 4. **The commit that last changed each record.** Wellspring does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
 
-Aquifer finds references in records by their `$ref` tag. Wellspring's encoding guarantees that the tag appears nowhere else ([data model](data-model.md) E4), so the two agree on the graph.
+Aquifer finds references in a record by looking, at any depth, for an object with a `$ref` key. Wellspring's encoding escapes every key of the application's that begins with `$`, so that the tag appears only where a reference is ([data model](data-model.md) E1 and E4), and the two agree on the graph.
 
 ## 9.2 What Wellspring offers Fountain
 
 - Objects, classes, and `load`.
 - A transaction around a client's writes, with everything stored or nothing.
 - The change set of each commit, in terms of objects and fields.
-- The table of volatile observers, so that Fountain's selections are triggered like Wellspring's own.
+- A check on each write before it is applied, which Fountain uses for authorization and gated writes (section 4).
+- Volatile objects, which are synchronized but never stored (section 2).
 - A way to run a selector with a filter on which objects it may pass through, which Fountain uses to pass only through what a user may read. Wellspring itself knows nothing of users.
 - Indexes and persistent repeaters. Fountain delivers their contents to clients as live queries (whitepaper sections 5.5 and 5.6).
 
@@ -412,10 +427,8 @@ The data model, which is the encoding, the registry of classes, the check on wha
 
 | Question | Section |
 |---|---|
-| Classes whose instances are never persistent | 2 |
 | Bounding memory: weak holding alone, or least-recently-used unloading as well | 3.4 |
-| Loading on demand, or reporting reads of what is not loaded | 3.5 |
-| How objects in memory are returned to their earlier state when a transaction fails | 4 |
+| What a local-again object's references to reclaimed objects read as | 3.5 |
 | How dependency records are coarsened for objects that many keys read, and when | 7.2 |
 | At what size or rate of change a live index stops being the right tool | 7.2 |
 | What happens to a member whose key computation throws: it must not stop the index, and must not stay filed under a key that is no longer true (whitepaper section 8.16) | 7.1 |
@@ -430,10 +443,10 @@ The data model, which is the encoding, the registry of classes, the check on wha
 Each step is tested against a model before the next is begun, as Aquifer was: a fuzzer makes random changes to objects, and an oracle compares what Wellspring has stored with a plain object graph kept in memory. Closing the store and opening it again must give the same graph.
 
 1. **The data model's code**: encoding and decoding, the write check, the registry of classes, making an object from a record. No Aquifer, no network. Round-trip tests over generated values.
-2. **Aquifer's interface upward** (section 9.1): volatile roots, change sets, reclaim notifications, the commit per record.
-3. **Objects over records**: the identity map, persistence by reachability, the store that writes each transaction as one Aquifer transaction, failing transactions.
-4. **Loading**: `load`, hold counts, volatile roots, selections that follow the graph, first by running the whole selector again, unloading.
-5. **Observation**: the table of volatile observers, triggered from change sets.
+2. **Aquifer's interface upward** (section 9.1): volatile roots, commit numbers, reclaim notifications, the commit per record.
+3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed.
+4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading.
+5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2).
 6. **Migrations** (section 8).
 7. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
 8. **Keys that read other objects**: stored dependency records, background work, tracked staleness.

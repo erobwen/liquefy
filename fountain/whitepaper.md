@@ -180,6 +180,14 @@ A conceptual storage representation might be:
 
 Executable class definitions are not stored as database records. Instead, stored objects are associated with registered application classes when loaded.
 
+**References are one way**
+
+A reference between persistent objects is an ordinary JavaScript reference: it goes from one object to another, and the object referred to does not know about it.
+
+Fountain does not offer references back to the objects that refer to an object as part of the model. An application that needs a child to know its parent, in a tree, stores a `parent` field explicitly, as it would in plain JavaScript.
+
+Whatever the garbage collector keeps about incoming references internally is its own business, and not visible to applications. An earlier attempt made incoming references part of the model, since the collector of that time needed them in detail anyway (section 18.1). That reason is gone, and the model is the one JavaScript already has.
+
 The exact serialization format remains an implementation detail.
 
 ## 2.3 Kinds of objects
@@ -731,9 +739,18 @@ Both end in the same place: a session bound to a `User` object.
 
 **Sessions**
 
-A session is a server-local object (section 2.3). It holds the user, the client's subscriptions and presence objects, and its code version (section 17.13). It is gone after a restart, and a reconnecting client authenticates again, typically with a token it was given when it first signed in.
+Two objects are involved, as in the earlier attempts (section 18.1):
 
-The session is also the client's way of talking to the server, and its security gateway (section 4.5).
+- **The session** lasts for one sign-in, across browser tabs and reconnections. It holds the user and any grants (section 4.5). Its class is the one the application extends, and it is the client's way of talking to the server and its security gateway (section 4.5).
+- **The connection** lasts for one tab. It holds the subscriptions, the presence objects, the code version (section 17.13), and the order of the client's messages. It belongs to a session, and is internal to Fountain.
+
+Both are server-local objects (section 2.3). They are gone after a restart, and a reconnecting client authenticates again, typically with a token it was given when it first signed in.
+
+**The client sees its own session**
+
+The session and the connection are selected for their client like any other objects, without the server-only parts: the current user, the active subscriptions, what is being loaded. On the client they are ordinary observable state. A user interface that shows who is signed in reads `session.user`, and is updated when it changes, whatever changed it.
+
+An earlier attempt went further, and let the client subscribe by writing: it added a subscription to a list in an object it could write, and the server responded to the change. In Fountain, subscriptions are made through `subscribe` (section 3.7), but they are visible in the same way.
 
 Signing a user out, or disabling a user, ends their sessions. Their subscriptions end, and their clients are told to drop what they hold.
 
@@ -870,6 +887,34 @@ if (await session.anyOtherEmployeeWithHigherSalaryThanMe()) { ... }
 
 A method of the session is what an API endpoint is in a conventional server: a named operation, with arguments, that runs on the server and returns a response. The difference is that it is written as a method, called as a method, and works on the same objects as everything else.
 
+**Every method of the session class is remote**
+
+The convention is that the application's session class lives in server-only code, and every method in it is a remote method. On a client, `session` is a stub with a method of the same name for each of them, which sends the call and returns a promise of the result. On the server, the same methods are ordinary methods.
+
+Other conventions were considered:
+
+- **An explicit call**, `object.callOnServer("methodName", ...args)`, as in the earlier attempts (section 18.1). It shows at the call site that the network is involved, but the method is named by a string, and nothing about the method itself says that it is reachable from outside.
+- **A naming convention**, such as `tryLoginOnServer` beside `tryLogin`, also from the earlier attempts. It marks the definition, but a name cannot keep the code out of the client.
+- **A decorator**, `@remote`, on methods of any class.
+
+What decides the matter is that the boundary that counts is which code is sent to the client, not what a method is called. A server-only class is that boundary. At the call site, the explicitness is kept by `await`: a remote call returns a promise, and code that waits for it shows that it does.
+
+A method that needs to do something on the client first, such as a `tryLogin` that hashes the password before calling the server, is written in an ordinary client-side function or class that calls the session.
+
+**Only the session**
+
+The earlier attempts allowed a remote call on any shared object, each guarded by its own `allowCallOnServer` (section 18.1). Fountain allows them only on the session.
+
+One gateway is one place to read when auditing what a client can make the server do. An operation on a particular object takes the object as an argument, `session.publish(document)`, and the method checks what it needs to. An application that wants the call to read as a method of the object can give the object's class a client-side method that does exactly that:
+
+```javascript
+class Document extends PersistentObject {
+    publish() { return session.publish(this); }
+}
+```
+
+It is hard to think of an application that would need more. If one does, the session can dispatch to server-side methods declared by other classes, without changing the protocol.
+
 It is the request and response half of the model, beside the stream of writes. It is also where server queries are made, when an application wants them: a query is a session method that returns a result (section 6.6).
 
 **The session is the security gateway**
@@ -884,10 +929,11 @@ This is the place for everything that is decided by the server rather than predi
 
 **Rules for session methods**
 
-- **Server-only code.** The bodies of session methods are not sent to clients. They may contain secrets and logic that the user should not see. A client receives the names of the methods it may call, and calls them through a stub. The session class is therefore split, or marked, so that the bundler leaves its server half out of the client. This is the one deliberate exception to running the same code on both sides.
+- **Server-only code.** The bodies of session methods are not sent to clients. They may contain secrets and logic that the user should not see. A client receives the names of the methods it may call, and the stub is generated from them. The bundler must be kept from including the session class in the client. This is the one deliberate exception to running the same code on both sides.
 - **Arguments and results are data.** A method receives and returns values that can be serialized: numbers, strings, plain objects, and references to persistent objects. A returned reference gives the client an identity, not access. If the client subscribes to it, its `canRead` still decides.
 - **Granting access for longer than a call.** A method can grant its session access to particular objects, for example the results of a search that the user may see, though `canRead` alone would not say so. The grant is held by the session, consulted by authorization along with `canRead`, and ends with the session.
 - **Writes are a transaction.** A method's writes are committed as one transaction, and reach every subscriber, including the caller, through the ordinary stream.
+- **Effects arrive as state.** A method's return value is for answers, such as the boolean above. Its effects are best seen as changes to selected objects. Signing in returns whether it succeeded, but the user interface follows `session.user`, which changes on every client of that session, in every tab. The earlier attempts worked only this way: their remote calls returned nothing, and the client saw their effects through synchronization.
 - **Ordering.** The call travels on the same connection as the client's writes, so it sees every write that the client made before it. The server sends the changes the method made before it sends the response, so when the client's call resolves, its objects already show the method's effects.
 - **Limits.** Since every call passes through the session, the session is the natural place for rate limits and quotas (section 17.19).
 
@@ -1130,6 +1176,8 @@ The million dependency records are not inherent, however. They can be replaced b
 An index holds its members weakly, unless the index is itself the collection that owns them.
 
 When a member is reclaimed, its entry and its dependency records are removed.
+
+Removing an entry is not the same as clearing a reference. The tree may have to be rebalanced, and node summaries updated. A note from an earlier attempt (section 18.1) says that indexes therefore cannot hold weak references at all. They can, but only if the collector, before it reclaims a member, calls the index's own removal code, as it would call `keyChanged` for a key that had disappeared. The weak reference marks what does not keep the member alive; the index's code does the removal.
 
 ## 6.5 Live queries
 
@@ -2075,7 +2123,7 @@ A client can subscribe to large selections, write at a high rate, or create many
 
 ## 18.1 Earlier attempts
 
-This architecture has been attempted twice before, by the same author:
+This architecture has been attempted before, by the same author, in liquid and its demo, and in eternity, the database that followed:
 
 - https://github.com/erobwen/liquid
 - https://github.com/erobwen/liquid-demo
@@ -2084,7 +2132,22 @@ Liquid synchronized an object graph between a server and its clients, with subsc
 
 Its earliest form relied on Node Fibers to load data in the middle of a property getter (section 3.7).
 
-Several of the ideas in this paper come from there: selectors, stubs (liquid's placeholders), and the grouping of client changes per transaction. The repositories may contain more worth recovering.
+Several of the ideas in this paper come from there: selectors, stubs (liquid's placeholders), and the grouping of client changes per transaction.
+
+**Sessions and calls on the server**
+
+Liquid had three objects per client: a session per sign-in, holding the user; a page per browser tab, holding the connection and the server's selection; and a page service per page, which was the only one the client could write. The client subscribed by adding to a list in the page service, and the page selected itself, its session, its user, and its subscriptions, so that the client held all of it as ordinary synchronized objects. Fountain keeps the split between session and connection, and the visibility (section 4.1).
+
+Any shared object could be called on the server, with `object.callOnServer("methodName", ...args)`. Methods meant for it were named with the suffix `OnServer` by convention, and each object guarded them with `allowCallOnServer(user)`, false by default. The server ran the method with every object unlocked. In the words of the code: "Call on server grants admin rights inside the call, so it should be guarded well." That is the session gateway of section 4.5. Calls returned nothing, and their effects reached the client through synchronization. The password was kept in a separate object that no client could access.
+
+**Other notes from the repositories**
+
+- Liquid's to-do list proposed organizing servers in cluster trees, in which clients talk to the leaves and the tree acts as a multi-level cache (section 17.14).
+- Eternity, the database that followed liquid, noted that storing observers persistently would require Causality to use methods rather than functions, the conclusion that persistent repeaters reach (section 6.3).
+- Eternity made incoming references part of the model. That has been dropped (section 2.2).
+- Eternity also noted that indexes cannot hold weak references, because removal requires rebalancing (section 6.4).
+
+https://github.com/erobwen/eternity
 
 ## 18.2 Other work
 

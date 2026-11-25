@@ -1,6 +1,6 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { meta, temporal, repeat } = getWorld();
+const { innerMeta, temporal, repeat } = getWorld();
 
 describe("Observe", function(){
 
@@ -44,14 +44,14 @@ describe("Observe", function(){
 		// });
 		
 		// // Manipulate twice with no observer
-		// assert.equal(typeof(meta(specimen).handler.observers), 'undefined'); // no observer!
+		// assert.equal(typeof(innerMeta(specimen).handler.observers), 'undefined'); // no observer!
 		// specimen.manipulate = toggle();
 		// specimen.manipulate = toggle();
 		// assert.equal(observationCounter, 0);
 		
 		// // Activate observer using repeater
 		// controller.haveObserver = true;
-		// assert.equal(Object.keys(meta(specimen).handler.observers).length, 1); // one observer!
+		// assert.equal(Object.keys(innerMeta(specimen).handler.observers).length, 1); // one observer!
 		// specimen.manipulate = toggle();
 		// specimen.manipulate = toggle();
 		// assert.equal(observationCounter, 2);
@@ -63,6 +63,6 @@ describe("Observe", function(){
 		// assert.equal(observationCounter, 2); // still 2 !
 		
 		// // Assert no observation structure left!
-		// assert.equal(Object.keys(meta(specimen).handler.observers).length, 0);
+		// assert.equal(Object.keys(innerMeta(specimen).handler.observers).length, 0);
   // });
 });

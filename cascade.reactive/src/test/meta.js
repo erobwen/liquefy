@@ -1,96 +1,119 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-const { observable, temporal, meta, metaData, repeat, retractRepeater, transaction } = getWorld();
+const { observable, temporal, meta, plainMeta, innerMeta, repeat, retractRepeater, transaction } = getWorld();
 
-describe("metaData()", function () {
+describe("innerMeta()", function () {
 
-  it("metaData(object) is meta(object).metadata, a plain object made the first time", function () {
-    const object = observable({});
-    assert.equal(typeof(meta(object).metadata), "undefined");
-    const data = metaData(object);
-    assert.strictEqual(meta(object).metadata, data);
-    assert.deepEqual(data, {});
-    data.loaded = "loading";
-    assert.strictEqual(metaData(object), data);
-    assert.equal(metaData(object).loaded, "loading");
-  });
-
-  it("metaData(object, name) is meta(object)[name]", function () {
-    const object = observable({});
-    const sync = metaData(object, "sync");
-    assert.strictEqual(meta(object).sync, sync);
-    assert.notStrictEqual(metaData(object), sync);
-  });
-
-  it("keeps what is already there, whatever it is", function () {
-    const object = observable({});
-    const store = { name: "the store" };
-    meta(object).store = store;
-    assert.strictEqual(metaData(object, "store"), store);
-  });
-
-  it("is not observable, nor part of the object", function () {
-    const object = observable({ a: 1 });
-    metaData(object).saved = 1;
-    assert.throws(() => meta(metaData(object)), /observable/);
-    assert.deepEqual(Object.keys(object), ["a"]);
-  });
-
-  it("throws for the names cascade keeps its own bookkeeping under", function () {
-    const object = observable({});
-    for (const name of ["proxy", "id", "target", "handler", "world", "rebuildTwin", "stateProperties", "propertyMetadata"]) {
-      assert.throws(() => metaData(object, name), /bookkeeping/, name);
-    }
-    assert.throws(() => metaData({}), /observable/);
-  });
-});
-
-describe("meta()", function () {
-
-  it("meta(object) is the object's metadata object, on its dedicated property", function () {
+  it("innerMeta(object) is cascade's own bookkeeping, on the dedicated property", function () {
     const object = observable({ name: "a" });
-    assert.strictEqual(meta(object), object.causality);
-    assert.strictEqual(meta(object).proxy, object);
-    assert.equal(typeof(meta(object).id), "number");
-    assert.notEqual(meta(object).id, meta(observable({})).id);
+    assert.strictEqual(innerMeta(object), object.causality);
+    assert.strictEqual(innerMeta(object).proxy, object);
+    assert.equal(typeof(innerMeta(object).id), "number");
+    assert.notEqual(innerMeta(object).id, innerMeta(observable({})).id);
   });
 
   it("works for arrays and temporal objects too", function () {
     const array = observable([1, 2]);
-    assert.strictEqual(meta(array).proxy, array);
+    assert.strictEqual(innerMeta(array).proxy, array);
     const signal = temporal({});
-    assert.strictEqual(meta(signal).proxy, signal);
+    assert.strictEqual(innerMeta(signal).proxy, signal);
   });
 
-  it("the metadata property is not one of the object's own keys, and cannot be written", function () {
+  it("the dedicated property is not one of the object's own keys, and cannot be written", function () {
     const object = observable({ name: "a" });
     assert.deepEqual(Object.keys(object), ["name"]);
     assert.throws(() => { object.causality = {}; });
   });
 
-  it("the property's name is configurable, and meta() finds it whatever it is", function () {
+  it("the property's name is configurable, and innerMeta() finds it whatever it is", function () {
     const world = getWorld({ name: "meta test, long name", objectMetaProperty: "cascadeMetadataObject" });
     const object = world.observable({ causality: "just data" });
-    assert.strictEqual(world.meta(object), object.cascadeMetadataObject);
+    assert.strictEqual(world.innerMeta(object), object.cascadeMetadataObject);
     assert.equal(object.causality, "just data");
     assert.equal(world.meta(object, "causality").saved, undefined);
   });
+});
 
-  it("throws for what is not observable", function () {
-    assert.throws(() => meta({}), /observable/);
-    assert.throws(() => meta(null), /observable/);
+// meta() and plainMeta() are the same pair of records, observable and not.
+for (const [name, record, observed] of [["meta", meta, true], ["plainMeta", plainMeta, false]]) {
+  describe(name + "()", function () {
+
+    it(name + "(object) is a record for the object, made on first use and the same ever after", function () {
+      const object = observable({ a: 1 });
+      const objectRecord = record(object);
+      assert.strictEqual(record(object), objectRecord);
+      assert.deepEqual(Object.keys(objectRecord), []);
+      assert.notStrictEqual(record(observable({})), objectRecord);
+    });
+
+    it(name + "(object, property) is a record for the property, one per property", function () {
+      const object = observable({ title: "Untitled" });
+      const titleRecord = record(object, "title");
+      assert.strictEqual(record(object, "title"), titleRecord);
+      assert.notStrictEqual(record(object, "other"), titleRecord);
+      assert.notStrictEqual(record(object), titleRecord);
+    });
+
+    it("is beside the object, not in it", function () {
+      const object = observable({ a: 1 });
+      record(object).loaded = true;
+      record(object, "a").saved = 1;
+      assert.deepEqual(Object.keys(object), ["a"]);
+    });
+
+    it(observed ? "is observable" : "is not observable", function () {
+      const object = observable({});
+      assert.equal(innerMetaOrNull(record(object)) !== null, observed);
+      assert.equal(innerMetaOrNull(record(object, "a")) !== null, observed);
+    });
+
+    it("throws for what is not observable", function () {
+      assert.throws(() => record({}), /observable/);
+      assert.throws(() => record(null, "a"), /observable/);
+    });
+  });
+}
+
+function innerMetaOrNull(object) {
+  try { return innerMeta(object); } catch (error) { return null; }
+}
+
+describe("meta() and plainMeta() together", function () {
+
+  it("are separate records, and neither is cascade's bookkeeping", function () {
+    const object = observable({ a: 1 });
+    assert.notStrictEqual(meta(object), plainMeta(object));
+    assert.notStrictEqual(meta(object, "a"), plainMeta(object, "a"));
+    assert.notStrictEqual(meta(object), innerMeta(object));
+    assert.notStrictEqual(plainMeta(object), innerMeta(object));
+    plainMeta(object).id = "mine";
+    meta(object).proxy = "mine too";
+    assert.equal(typeof(innerMeta(object).id), "number");
+    assert.strictEqual(innerMeta(object).proxy, object);
   });
 
-  it("meta(object, property) is an observable record, made on first use and the same ever after", function () {
-    const object = observable({ title: "Untitled" });
-    const record = meta(object, "title");
-    assert.strictEqual(meta(object, "title"), record);
-    assert.notStrictEqual(meta(object, "other"), record);
-    assert.deepEqual(Object.keys(record), []);
-    assert.strictEqual(meta(record).proxy, record);
-    // Beside the object, not in it.
-    assert.deepEqual(Object.keys(object), ["title"]);
+  it("hold values, plain objects and observables alike", function () {
+    const document = observable({ title: "Untitled" });
+    const sync = observable({ loaded: "unloaded" });
+    meta(document).sync = sync;
+    plainMeta(document).store = { name: "the store" };
+    meta(document, "title").saved = "Untitled";
+    assert.strictEqual(meta(document).sync, sync);
+    assert.equal(plainMeta(document).store.name, "the store");
+    assert.equal(meta(document, "title").saved, "Untitled");
+  });
+});
+
+describe("observing meta()", function () {
+
+  it("an object record is observed like any observable", function () {
+    const object = observable({});
+    const seen = [];
+    repeat(() => seen.push(meta(object).loaded || "unloaded"));
+    meta(object).loaded = "loading";
+    meta(object).loaded = "loaded";
+    assert.deepEqual(seen, ["unloaded", "loading", "loaded"]);
   });
 
   it("a property record is observed like any observable", function () {
@@ -105,14 +128,19 @@ describe("meta()", function () {
 
   it("a record first asked for inside a repeater outlives the repeater", function () {
     const object = observable({ title: "Untitled" });
-    let record = null;
+    let propertyRecord = null;
+    let objectRecord = null;
     const repeater = repeat(() => {
-      record = meta(object, "title");
-      record.saving = 0;
+      propertyRecord = meta(object, "title");
+      propertyRecord.saving = 0;
+      objectRecord = meta(object);
+      objectRecord.loaded = "loaded";
     });
     retractRepeater(repeater);
-    assert.strictEqual(meta(object, "title"), record);
-    transaction(() => { record.saving++; });
+    assert.strictEqual(meta(object, "title"), propertyRecord);
+    assert.strictEqual(meta(object), objectRecord);
+    transaction(() => { propertyRecord.saving++; });
     assert.equal(meta(object, "title").saving, 1);
+    assert.equal(meta(object).loaded, "loaded");
   });
 });

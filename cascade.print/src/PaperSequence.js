@@ -1,4 +1,4 @@
-import { temporal, meta } from "@liquefy/cascade.component";
+import { temporal, plainMeta } from "@liquefy/cascade.component";
 
 /**
  * PaperSequence - the render target of a printed document: a sequence of
@@ -38,7 +38,7 @@ export class PaperSequence {
   // instead, and what shows a page reads only its own page's lines. Beyond
   // the last page, empty.
   linesOf(index) {
-    const own = meta(this);
+    const own = plainMeta(this);
     if (!own.pageLines) own.pageLines = [];
     let lines = own.pageLines[index];
     if (!lines) {

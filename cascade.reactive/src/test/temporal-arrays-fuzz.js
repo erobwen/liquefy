@@ -8,7 +8,7 @@ import assert from "assert";
 // relabeled at random, and after every step checked against a plain,
 // from-scratch walk: the array's latest elements, what every node saw, and
 // that no node's writings pile up across reruns.
-const { meta, temporal, repeat, linkRepeater } = getWorld({ name: "temporal-arrays-fuzz" });
+const { innerMeta, temporal, repeat, linkRepeater } = getWorld({ name: "temporal-arrays-fuzz" });
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -91,7 +91,7 @@ function computeOracle(node, labels, placed) {
 
 function linkedWritings(array) {
   let count = 0;
-  for (let writing = meta(array).handler.elements.first; writing !== null; writing = writing.next) count++;
+  for (let writing = innerMeta(array).handler.elements.first; writing !== null; writing = writing.next) count++;
   return count;
 }
 

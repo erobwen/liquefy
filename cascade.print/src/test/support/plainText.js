@@ -1,4 +1,4 @@
-import { Component, observable, meta } from "@liquefy/cascade.component";
+import { Component, observable, innerMeta } from "@liquefy/cascade.component";
 import { Section, contentWidth } from "../../Section.js";
 import { Paragraph } from "../../Paragraph.js";
 import { PaperSequence } from "../../PaperSequence.js";
@@ -53,7 +53,7 @@ class PlainSection extends Section {
   build() {
     const format = this.pageFormat();
     return this.section.paragraphs.map((paragraph) =>
-      new PlainParagraph({ key: "paragraph" + meta(paragraph).id, paragraph, width: contentWidth(format), format }));
+      new PlainParagraph({ key: "paragraph" + innerMeta(paragraph).id, paragraph, width: contentWidth(format), format }));
   }
 }
 
@@ -68,7 +68,7 @@ class PlainDocument extends Component {
   }
 
   build() {
-    return this.document.sections.map((section) => new PlainSection({ key: "section" + meta(section).id, section }));
+    return this.document.sections.map((section) => new PlainSection({ key: "section" + innerMeta(section).id, section }));
   }
 }
 

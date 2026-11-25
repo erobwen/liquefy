@@ -30,7 +30,7 @@ Configuration options (defaults in parentheses):
 | `useNonObservablesAsValues` (false), `valueComparisonDepthLimit` (5) | Compare non-observable values written to properties deeply instead of by identity (frozen plain data is always compared by content). |
 | `requireRepeaterName`, `requireInvalidatorName` (false) | Throw when a repeater/invalidator gets no description. |
 | `warnOnNestedRepeater` (true), `traceWarnings` | Warning about non-independent repeaters created while recording; printed only with `traceWarnings`. |
-| `objectMetaProperty` (`"causality"`), `objectTimelinesProperty` (`"timelines"`) | The two properties an observable answers itself: its metadata object (use `meta(object)`) and its timelines. To become `"cascadeMetadataObject"` and `"cascadeTimelinesObject"` at the next major version. |
+| `objectMetaProperty` (`"causality"`), `objectTimelinesProperty` (`"timelines"`) | The two properties an observable answers itself: its metadata object (use `innerMeta(object)`) and its timelines. To become `"cascadeMetadataObject"` and `"cascadeTimelinesObject"` at the next major version. |
 | `onEventGlobal`, `onWriteGlobal`, `onReadGlobal`, `cannotReadPropertyValue`, `emitReBuildEvents` | Global hooks (advanced). |
 | `customCreateRepeater`, `customCreateInvalidator`, `customDependencyInterfaceCreator`, `customObjectlog` | Replace internals (advanced). |
 
@@ -61,8 +61,9 @@ World members:
 | `transaction` | `transaction(fn) → result` | Batches invalidations around `fn` (processed even if `fn` throws). |
 | `postponeInvalidations` / `continueInvalidations` | `()` | Start / end (and process) a batch by hand. |
 | `onTransactionEnd` | `onTransactionEnd(listener) → remove` | Calls `listener()` each time a transaction that changed something has ended, after the repeaters it set off have run again. A write outside any transaction and any repeater is one of its own. |
-| `meta` | `meta(object) → metadata`, `meta(object, property) → record` | An observable's metadata object (its `id`, and what extensions keep about it), or the observable metadata record of one of its properties, made on first use. |
-| `metaData` | `metaData(object, [name = "metadata"]) → object` | `meta(object)[name]`, made a plain object if it is not there yet. Throws for a name cascade keeps its own bookkeeping under (`"proxy"`, `"id"` ...). |
+| `meta` | `meta(object, [property]) → record` | The observable metadata record of an observable, or of one of its properties: empty, made on first use, the same ever after. |
+| `plainMeta` | `plainMeta(object, [property]) → object` | The same, as a plain object: for bookkeeping that must not be observed. |
+| `innerMeta` | `innerMeta(object) → object` | Cascade's own bookkeeping about an observable (its `id`, target, handler ...). For reading. |
 | `sameAsPreviousDeep` | `sameAsPreviousDeep(a, b, [depthLimit = 8])` | Deep comparison of plain (non-observable) values. |
 | `caching` | `caching(fn) → cachedFn` | See below. |
 | `log`, `logGroup`, `logUngroup`, `logToString`, `loge`, `logs`, `logss` | | Debug logging without recording. |
@@ -99,7 +100,7 @@ Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `metaData`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `plainMeta`, `innerMeta`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
 | `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:

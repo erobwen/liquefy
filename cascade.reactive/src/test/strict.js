@@ -1,14 +1,14 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
-const { meta, temporal } = getWorld();
+const { innerMeta, temporal } = getWorld();
 
 describe("Proxy object traps", function () {
   const box = temporal();
 
   it('rebuildTwin',  function () {
-    meta(box).rebuildTwin = temporal({ name: "rebuildTwin"});
+    innerMeta(box).rebuildTwin = temporal({ name: "rebuildTwin"});
     box.other = null;
-    meta(box).rebuildTwin = null;
+    innerMeta(box).rebuildTwin = null;
   });
 
   it('nochange',  function () {
@@ -37,9 +37,9 @@ describe("Array object traps", function () {
   const stack = temporal([]);
 
   it('rebuildTwin',  function () {
-    meta(stack).rebuildTwin = temporal(['aa','bb']);
+    innerMeta(stack).rebuildTwin = temporal(['aa','bb']);
     stack[2] = false;
-    meta(stack).rebuildTwin = null;
+    innerMeta(stack).rebuildTwin = null;
   });
 
 

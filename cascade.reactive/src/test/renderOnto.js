@@ -18,14 +18,14 @@ import assert from "assert";
 // Bookkeeping fields (which repeater a component owns, render counts, what
 // it last saw) live under `this.unobservable`, not as plain observable
 // properties - matching the escape hatch already used in flow.core's
-// Component.js (`meta(this).unobservable`, lazily initialized). A
+// Component.js (`plainMeta(this).unobservable`, lazily initialized). A
 // component reading-then-conditionally-setting one of these as an
 // observable property is exactly the shape that broke meta_repeaters.js:
 // retraction can make a fresh read of it fall through, even though nothing
-// about the component's actual identity changed. `meta(this)` is
-// cascade's reserved meta-property (`handler.meta`) - a plain, non-proxied
-// object, so anything stashed on it is invisible to the reactive system
-// entirely, not just untracked by it.
+// about the component's actual identity changed. `plainMeta(this)` is a
+// plain, non-proxied object kept beside the component, so anything stashed
+// on it is invisible to the reactive system entirely, not just untracked
+// by it.
 //
 // Three things this needs to prove out:
 //  1. A child's own input changes -> only that child (and whoever reads
@@ -44,7 +44,7 @@ import assert from "assert";
 //     a data-correctness gap, not just a missed optimization - it's the
 //     concrete reason partials have to exist, not just linkRepeater.
 
-const { meta, temporal, repeat, linkRepeater } = getWorld({ name: "renderOnto", timeLevels: 5 });
+const { plainMeta, temporal, repeat, linkRepeater } = getWorld({ name: "renderOnto", timeLevels: 5 });
 
 describe("renderOnto", function () {
 
@@ -52,10 +52,10 @@ describe("renderOnto", function () {
 
   class Leaf {
     get unobservable() {
-      if (!meta(this).unobservable) {
-        meta(this).unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
+      if (!plainMeta(this).unobservable) {
+        plainMeta(this).unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
       }
-      return meta(this).unobservable;
+      return plainMeta(this).unobservable;
     }
 
     constructor(claim) {
@@ -79,10 +79,10 @@ describe("renderOnto", function () {
 
   class Panel {
     get unobservable() {
-      if (!meta(this).unobservable) {
-        meta(this).unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
+      if (!plainMeta(this).unobservable) {
+        plainMeta(this).unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
       }
-      return meta(this).unobservable;
+      return plainMeta(this).unobservable;
     }
 
     constructor(a, b) {

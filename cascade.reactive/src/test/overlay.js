@@ -14,12 +14,12 @@ describe("Overlays", function(){
     // Create rebuildTwin
     // console.log(" Create rebuildTwin ===========================")
     let xOverlay = causality.temporal({ name: "rebuildTwin"});
-    causality.meta(x).rebuildTwin = xOverlay;
-    // console.log(causality.meta(x).handler);
-    // console.log(causality.meta(x).handler);
+    causality.innerMeta(x).rebuildTwin = xOverlay;
+    // console.log(causality.innerMeta(x).handler);
+    // console.log(causality.innerMeta(x).handler);
     // console.log(x);
-    // console.log(causality.meta(x).rebuildTwin);
-    // console.log(causality.meta(x).handler);
+    // console.log(causality.innerMeta(x).rebuildTwin);
+    // console.log(causality.innerMeta(x).handler);
     // console.log(x.foo);
     assert.equal(typeof(x.foo), 'undefined');
 
@@ -31,7 +31,7 @@ describe("Overlays", function(){
     assert.equal(x.fie, 32);
 
     // Remove rebuildTwin
-    causality.meta(x).rebuildTwin = null;
+    causality.innerMeta(x).rebuildTwin = null;
     assert.equal(x.foo, 1);
     assert.equal(typeof(x.fie), 'undefined');
   });

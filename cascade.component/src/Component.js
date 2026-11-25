@@ -1,4 +1,4 @@
-import { observable, repeat, linkRepeater, accessInitialValues, declareState, declareGiven, retractRepeater, refreshIfNeeded, withoutRecording, meta, establish as establishObject, dispose as disposeObject } from "./Cascade.js";
+import { observable, repeat, linkRepeater, accessInitialValues, declareState, declareGiven, retractRepeater, refreshIfNeeded, withoutRecording, plainMeta, innerMeta, establish as establishObject, dispose as disposeObject } from "./Cascade.js";
 import { toPropertiesWithChildren, extractProperty } from "./implicitProperties.js";
 import { RenderContext } from "./RenderContext.js";
 
@@ -174,17 +174,21 @@ export class Component {
   // writings of whichever repeater happened to touch this first - retracted
   // with it the moment that repeater is (a page hidden), and never
   // rewritten, since nothing constructs it again.
+  //
+  // It is the component's plainMeta(this) (see cascade.reactive's
+  // "Metadata"): seeded the first time, recognized by its `repeater`.
   get unobservable() {
-    if (!meta(this).unobservable) {
+    const bag = plainMeta(this);
+    if (!("repeater" in bag)) {
       const own = accessInitialValues(() => this.initialUnobservables());
       for (const name in own) {
         if (reservedUnobservables.has(name)) {
           throw new Error(this.constructor.name + ".initialUnobservables(): \"" + name + "\" is a name Component keeps its own bookkeeping under - use another.");
         }
       }
-      meta(this).unobservable = Object.assign({ repeater: null }, own);
+      Object.assign(bag, { repeater: null }, own);
     }
-    return meta(this).unobservable;
+    return bag;
   }
 
   // Override to seed additional non-observable bookkeeping fields (render
@@ -225,7 +229,7 @@ export class Component {
   // this way - anything else is a property, and a property written back
   // in time would be a bug hiding, not a feature.
   setState(values) {
-    const declared = meta(this).stateProperties;
+    const declared = innerMeta(this).stateProperties;
     for (const key in values) {
       if (!declared || !declared.has(key)) {
         throw new Error("setState(): '" + key + "' is not a state property of this component - declare it in initialState().");
@@ -285,7 +289,7 @@ export class Component {
     // warnGivenWrite() below) - noted the first time only: in a rebuild,
     // its writes go to a throwaway twin. Only for one built by another: a
     // root has no creator to give it anything again.
-    const firstConstruction = meta(me).rebuildTwin === null && me.creator !== null;
+    const firstConstruction = innerMeta(me).rebuildTwin === null && me.creator !== null;
     // Read without recording: the build constructing it doesn't depend on
     // what its child has.
     const keys = () => withoutRecording(() => Object.keys(me));
@@ -981,7 +985,7 @@ export class Component {
 
   // Ported from flow.core's Component.js verbatim (getComponentTypeName()/
   // toString()) - a debug identity string, "ClassName:id(key)": `id` is
-  // `meta(this).id` (see cascade.reactive's own observable(), the
+  // `innerMeta(this).id` (see cascade.reactive's own observable(), the
   // same auto-incrementing counter every observable object gets, so this
   // is unique across the whole app, not just within one component type),
   // `key` is this component's own build identity if it has one. See
@@ -1003,7 +1007,7 @@ export class Component {
     // invalidate whoever merely asked this component to describe itself.
     let result;
     withoutRecording(() => {
-      result = this.getComponentTypeName() + ":" + meta(this).id + (this.key !== null ? "(" + this.key + ")" : "");
+      result = this.getComponentTypeName() + ":" + innerMeta(this).id + (this.key !== null ? "(" + this.key + ")" : "");
     });
     return result;
   }

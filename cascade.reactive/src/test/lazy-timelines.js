@@ -5,9 +5,9 @@ import assert from "assert";
 // property needs a timeline: when a repeater first reads it, or when it is
 // first written anywhere but the baseline. Nothing an application sees
 // depends on which of the two a property currently is.
-const { meta, temporal, repeat, withoutRecording } = getWorld({ name: "lazy-timelines", timeLevels: 3 });
+const { innerMeta, temporal, repeat, withoutRecording } = getWorld({ name: "lazy-timelines", timeLevels: 3 });
 
-const timelineKeys = (object) => Object.keys(meta(object).handler.timelines);
+const timelineKeys = (object) => Object.keys(innerMeta(object).handler.timelines);
 
 describe("lazy timelines", function () {
   it("creating, reading and writing from outside any repeater creates no timeline", function () {

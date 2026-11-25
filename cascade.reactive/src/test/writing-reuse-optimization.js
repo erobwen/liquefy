@@ -16,7 +16,7 @@ import assert from "assert";
 // plugins" escape hatch (see its own doc comment in cascade.js) - used
 // here only to observe object identity directly, which the ordinary
 // observable() API has no reason to expose.
-const { meta, temporal, repeat, invalidateOnChange, getOrCreateTimelineWriting } =
+const { innerMeta, temporal, repeat, invalidateOnChange, getOrCreateTimelineWriting } =
   getWorld({ name: "writing-reuse-optimization", timeLevels: 2 });
 
 function currentWriting(obj, key) {
@@ -24,7 +24,7 @@ function currentWriting(obj, key) {
   // currentReadTime()) - "whatever's actually the latest writing", not
   // the baseline (time 0, writer null) anchor a real writer's own writing
   // sorts *after*, not through.
-  return getOrCreateTimelineWriting(meta(obj).handler, key, Infinity, null);
+  return getOrCreateTimelineWriting(innerMeta(obj).handler, key, Infinity, null);
 }
 
 describe("writing reuse optimization (only retire when an observer actually needs it)", function () {

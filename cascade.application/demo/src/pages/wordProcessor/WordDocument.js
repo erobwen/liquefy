@@ -1,4 +1,4 @@
-import { Component, frozen, meta } from "@liquefy/cascade.component";
+import { Component, frozen, innerMeta } from "@liquefy/cascade.component";
 import { Section, Paragraph, contentWidth, monospaceMeasurer } from "@liquefy/cascade.print";
 import { paragraphStyleOf, resolveFont } from "./styles.js";
 
@@ -46,7 +46,7 @@ export class WordDocument extends Component {
   }
 
   build() {
-    return this.document.sections.map((section) => new WordSection({ key: "section" + meta(section).id, section }));
+    return this.document.sections.map((section) => new WordSection({ key: "section" + innerMeta(section).id, section }));
   }
 }
 
@@ -67,7 +67,7 @@ export class WordSection extends Section {
     const format = this.pageFormat();
     const width = contentWidth(format);
     return this.section.paragraphs.map((paragraph) =>
-      new WordParagraph({ key: "paragraph" + meta(paragraph).id, paragraph, width, format }));
+      new WordParagraph({ key: "paragraph" + innerMeta(paragraph).id, paragraph, width, format }));
   }
 }
 

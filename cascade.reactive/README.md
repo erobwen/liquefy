@@ -128,11 +128,17 @@ A repeater that reads a property of a timeless object and then writes another va
 
 ## meta
 
-meta(object) is an observable's metadata object: cascade.reactive's own bookkeeping, such as meta(object).id, a system wide unique id for that particular object, and the place where whatever builds on cascade.reactive keeps what it knows about the object outside the object's own data (cascade.component keeps its unobservable bag there). It is not observable itself. Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty), and still `object.causality` by default, after the library this one grew from; the next major version will make the default a long name that no application data is likely to use, `cascadeMetadataObject`. Use meta(object), and it does not matter.
+Metadata is what is known about an object, or about one of its properties, beyond its value - the value last saved, whether it is being saved, an error, whether it is loaded. It is kept beside the object, so that the object keeps the shape it would have without it, and it is shared by everything that shows the object. There are two kinds of record, each for the object as a whole or for one of its properties:
 
-meta(object, property) is the metadata record of one property: an observable, empty until something is put in it, made the first time it is asked for, and the same ever after. It is for what is known about a property beyond its value - the value last saved, whether it is being saved, an error - kept beside the object, so that the object keeps the shape it would have without it, and shared by everything that shows the property:
+    meta(object)                  // observable record about the object
+    meta(object, property)        // observable record about one property
+    plainMeta(object)             // plain record about the object
+    plainMeta(object, property)   // plain record about one property
+
+Each is empty until something is put in it, made the first time it is asked for, and the same ever after. meta() is for what the user interface reads, and is observed like any observable; plainMeta() is for bookkeeping that must not be observed (cascade.component keeps a component's unobservable bag there). cascade.reactive decides no field of either: put values, plain objects or observables in them. A layer that wants a corner of its own keeps one object under a name of its own.
 
     Object.assign(meta(contact, "email"), { saved: contact.email, saving: 0 });
+    meta(document).sync = observable({ loaded: "unloaded" });
 
     ensure(() => {
       field.unsaved = contact.email !== meta(contact, "email").saved;
@@ -140,10 +146,7 @@ meta(object, property) is the metadata record of one property: an observable, em
 
 A record is made at the baseline, whoever asks for it first: one first asked for inside a repeater is not that repeater's, and stays when it reruns or is retracted.
 
-metaData(object, name) is meta(object)[name], made a plain object if it is not there yet - a named place of one's own on the metadata object, without checking first whether it exists. Without a name it is meta(object).metadata. A name cascade.reactive keeps its own bookkeeping under ("proxy", "id", "target" ...) throws:
-
-    metaData(document, "sync").loaded = "loading";   // meta(document).sync
-    metaData(document).note = "draft";               // meta(document).metadata
+innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it. Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty), and still `object.causality` by default, after the library this one grew from; the next major version will make the default a long name that no application data is likely to use, `cascadeMetadataObject`. Use innerMeta(object), and it does not matter.
 
 ## ensure (MobX autorun)
 

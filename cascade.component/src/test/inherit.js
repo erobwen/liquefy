@@ -1,4 +1,4 @@
-import { observable, meta } from "../Cascade.js";
+import { observable, plainMeta } from "../Cascade.js";
 import { Component } from "../Component.js";
 import { RenderContext } from "../RenderContext.js";
 import assert from "assert";
@@ -245,11 +245,11 @@ describe("a disposed render context", function () {
     const root = new RenderContext({ frame: "root frame" });
     const context = new RenderContext({ other: 1 }, root);
     assert.equal(context.inherit("frame"), "root frame");
-    const cached = meta(context).inheritCache.size;
+    const cached = plainMeta(context).inheritCache.size;
     context.onDispose();
     assert.equal(context.inherit("frame"), "root frame");
     assert.equal(context.inherit("somethingElse"), undefined);
-    assert.equal(meta(context).inheritCache, null, "nothing cached on it again");
+    assert.equal(plainMeta(context).inheritCache, null, "nothing cached on it again");
     assert.ok(cached > 0);
   });
 

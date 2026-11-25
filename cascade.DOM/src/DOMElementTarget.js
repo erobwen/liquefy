@@ -1,4 +1,4 @@
-import { observable, temporal, meta, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
+import { observable, temporal, plainMeta, accessInitialValues, withoutRecording, postponeInvalidations, continueInvalidations } from "@liquefy/cascade.component";
 
 /**
  * DOMElementTarget wraps one real DOM element that components render children
@@ -74,7 +74,7 @@ export class DOMElementTarget {
    * what it can.
    */
   observeBounds() {
-    const own = meta(this);
+    const own = plainMeta(this);
     if (own.boundsObserver) return;
     const element = this.element;
     const view = element.ownerDocument.defaultView;
@@ -117,7 +117,7 @@ export class DOMElementTarget {
 
   // No longer measured - its element is gone for good.
   stopObservingBounds() {
-    const own = meta(this);
+    const own = plainMeta(this);
     if (!own.boundsObserver) return;
     own.boundsObserver();
     own.boundsObserver = null;
@@ -155,7 +155,7 @@ export class DOMElementTarget {
    * somewhere without a viewport), the element counts as seen at once.
    */
   observeVisibility({ amount = 0.25, margin = "0px" } = {}) {
-    const own = meta(this);
+    const own = plainMeta(this);
     if (own.visibilityObserver) return;
     const element = this.element;
     const view = element.ownerDocument.defaultView;
@@ -208,13 +208,13 @@ export class DOMElementTarget {
   // revealed, it reveals anew. Where nothing can tell (no
   // IntersectionObserver), it stays seen.
   resetVisibility() {
-    const own = meta(this);
+    const own = plainMeta(this);
     if (own.visibilityReset) own.visibilityReset();
   }
 
   // No longer watched - its element is gone for good.
   stopObservingVisibility() {
-    const own = meta(this);
+    const own = plainMeta(this);
     if (!own.visibilityObserver) return;
     own.visibilityObserver();
     own.visibilityObserver = null;

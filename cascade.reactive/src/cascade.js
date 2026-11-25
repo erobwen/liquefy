@@ -20,9 +20,9 @@ const defaultConfiguration = {
   timeLevels: 4,
 
   // The two properties an observable answers itself instead of passing on
-  // to its target: its metadata object (meta(object) - see "Metadata") and
-  // its timelines. Still the old names, so as not to break code that reads
-  // object.causality; reach it with meta(object). At the next major
+  // to its target: its metadata object (innerMeta(object) - see "Metadata")
+  // and its timelines. Still the old names, so as not to break code that
+  // reads object.causality; reach it with innerMeta(object). At the next major
   // version, long names that no application data is likely to use:
   // objectMetaProperty: "cascadeMetadataObject",
   // objectTimelinesProperty: "cascadeTimelinesObject",
@@ -172,7 +172,8 @@ function createWorld(configuration) {
 
     // Metadata
     meta,
-    metaData,
+    plainMeta,
+    innerMeta,
 
     // Transaction
     transaction : postponeInvalidationsAndDo,
@@ -403,59 +404,65 @@ function createWorld(configuration) {
    *
    *   Metadata
    *
-   *   meta(object) is an observable's metadata object: cascade's own
-   *   bookkeeping (its id, target, handler, proxy ...), and the place
-   *   where whatever builds on cascade keeps what it knows about the
-   *   object, outside the object's own data - cascade.component's
-   *   unobservable bag, say. Not observable itself.
+   *   What is known about an object, or about one of its properties,
+   *   beyond its value - kept beside the object, so that the object keeps
+   *   the shape it would have without it. Two kinds of record, each for
+   *   the object as a whole or for one property, made the first time it is
+   *   asked for and the same ever after:
    *
-   *   meta(object, property) is the metadata record of one property: an
-   *   observable, empty until someone puts something in it, made the first
-   *   time it is asked for. For what is known about a property beyond its
-   *   value - the value last saved, whether it is being saved, an error -
-   *   kept beside the object so that the object keeps the shape it would
-   *   have without it, and shared by everything that shows the property.
+   *   meta(object, [property]) is an observable record: for what the user
+   *   interface reads - the value last saved, whether it is being saved, an
+   *   error, whether it is loaded.
    *
-   *   metaData(object, name = "metadata") is meta(object)[name], made a
-   *   plain object if it is not there yet: a named place of one's own on
-   *   the metadata object, without checking first whether it exists. A
-   *   name cascade keeps its own bookkeeping under ("proxy", "id" ...)
-   *   throws.
+   *   plainMeta(object, [property]) is a plain object: for bookkeeping that
+   *   must not be observed - a component's unobservable bag, the handle to
+   *   disconnect an observer with.
+   *
+   *   Cascade decides no field of either. Put values, plain objects or
+   *   observables in them; a layer that wants a corner of its own keeps one
+   *   object under a name of its own.
+   *
+   *   innerMeta(object) is cascade's own bookkeeping about the object: its
+   *   id, target, handler, proxy ... For reading (an id for a key, say);
+   *   only cascade writes it.
    *
    **********************************/
 
-  // What cascade itself keeps on an object's metadata object - see
-  // createObservable(), and wherever meta(...).something is written.
-  const reservedMetadataNames = new Set([
-    "world", "id", "buildId", "target", "handler", "proxy",
-    "rebuildTwin", "isRebuildTwin", "establishedOriginal", "established",
-    "pendingOnEstablishCall", "pendingCreationEvent", "pendingReCreationEvent",
-    "stateProperties", "givenProperties", "onGivenWrite", "propertyMetadata",
-  ]);
-
-  function metaData(object, name = "metadata") {
-    if (reservedMetadataNames.has(name)) {
-      throw new Error("metaData(): \"" + name + "\" is a name cascade keeps its own bookkeeping under - use another.");
-    }
-    const objectMeta = meta(object);
-    if (typeof(objectMeta[name]) === "undefined") objectMeta[name] = {};
-    return objectMeta[name];
+  function innerMeta(object) {
+    if (!isObservable(object)) throw new Error("innerMeta() expects an observable object.");
+    return object[objectMetaProperty];
   }
 
-  function meta(object, property) {
-    if (!isObservable(object)) throw new Error("meta() expects an observable object.");
+  // Each record lives on the inner metadata object: the one for the object
+  // under objectName, the ones for its properties in a map under mapName.
+  function metaRecord(caller, object, property, hasProperty, objectName, mapName, create) {
+    if (!isObservable(object)) throw new Error(caller + "() expects an observable object.");
     const objectMeta = object[objectMetaProperty];
-    if (arguments.length < 2) return objectMeta;
-    if (!objectMeta.propertyMetadata) objectMeta.propertyMetadata = new Map();
-    let record = objectMeta.propertyMetadata.get(property);
+    if (!hasProperty) {
+      if (typeof(objectMeta[objectName]) === "undefined") objectMeta[objectName] = create();
+      return objectMeta[objectName];
+    }
+    if (!objectMeta[mapName]) objectMeta[mapName] = new Map();
+    let record = objectMeta[mapName].get(property);
     if (typeof(record) === "undefined") {
-      // Made at the baseline, whoever asks first: a record made from
-      // inside a repeater must not be that repeater's, gone (or taken for
-      // a rebuilt one) when it reruns.
-      record = accessInitialValues(() => observable({}));
-      objectMeta.propertyMetadata.set(property, record);
+      record = create();
+      objectMeta[mapName].set(property, record);
     }
     return record;
+  }
+
+  // Made at the baseline, whoever asks first: a record made from inside a
+  // repeater must not be that repeater's, gone (or taken for a rebuilt
+  // one) when it reruns.
+  const createObservableRecord = () => accessInitialValues(() => observable({}));
+  const createPlainRecord = () => ({});
+
+  function meta(object, property) {
+    return metaRecord("meta", object, property, arguments.length >= 2, "objectMetadata", "propertyMetadata", createObservableRecord);
+  }
+
+  function plainMeta(object, property) {
+    return metaRecord("plainMeta", object, property, arguments.length >= 2, "plainObjectMetadata", "plainPropertyMetadata", createPlainRecord);
   }
 
   function withoutReactionsDo(callback) {
@@ -5184,7 +5191,7 @@ function createWorld(configuration) {
           temporaryObject[objectMetaProperty].establishedOriginal = null;
           temporaryObject[objectMetaProperty].isRebuildTwin = false;
           object[objectMetaProperty].rebuildTwin = null;
-          mergeInto(object, temporaryObject, meta(object));
+          mergeInto(object, temporaryObject, innerMeta(object));
 
           // Send recreate event (for a match by shape - one by build id
           // sent its own when it was constructed)
@@ -5229,7 +5236,7 @@ function createWorld(configuration) {
           created[objectMetaProperty].rebuildTwin = null;
           // created[objectMetaProperty].isRebuildTwin = false; // Consider? Should this be done on 
           temporaryObject[objectMetaProperty].isRebuildTwin = false; 
-          mergeInto(created, temporaryObject, meta(created));
+          mergeInto(created, temporaryObject, innerMeta(created));
         } else {
           establish(created);
         }
@@ -5300,7 +5307,7 @@ function createWorld(configuration) {
       // A re-build, push changes to established object.
       object[objectMetaProperty].rebuildTwin = null;
       temporaryObject[objectMetaProperty].isRebuildTwin = false; 
-      mergeInto(object, temporaryObject, meta(object));
+      mergeInto(object, temporaryObject, innerMeta(object));
 
       
 

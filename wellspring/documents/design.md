@@ -398,11 +398,11 @@ Lazy migration avoids rewriting the database whenever a class changes. A migrati
 
 ## 9.1 What Wellspring asks of Aquifer
 
-Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Five things are missing, and are in [Aquifer's backlog](../../aquifer/documents/backlog.md):
+Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Five things were missing. They are now built ([Aquifer's backlog](../../aquifer/documents/backlog.md), "The interface upward"):
 
 1. **Volatile roots.** Pinning an object across transactions, for as long as a load holds it (section 3.3). Pins are in memory only, and are cleared when a store is opened.
 2. **A commit number per transaction**, from one counter, and a report of what the collector did. The field-level change set is built by Wellspring itself, from Cascade's events (section 4).
-3. **Notification of a reclaim inside the transaction that performs it**, so that an index removes its entry for a member (section 7.2), weak references are cleared, and an object still in memory becomes local again (section 3.5), together with the reclaim.
+3. **Notification of a reclaim**, `onReclaimed(ids)`, so that an index removes its entry for a member (section 7.2), weak references are cleared, and an object still in memory becomes local again (section 3.5). It comes right after the collector's step has committed, before anything else runs, rather than inside the step: what Wellspring does with it is in memory, and must not act on a reclaim that could still be rolled back. An index's entry for a reclaimed member is removed in Wellspring's next transaction, and dangles, weakly, until then.
 4. **The commit that last changed each record.** Wellspring does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
 5. **The size of the collector's backlog**, so that Wellspring can report pressure (section 9.4). Collector steps already exist (`collector.run`), are bounded, and end when there is nothing to do.
 
@@ -465,7 +465,7 @@ Used alone, Wellspring's application decides the ratio. Under Fountain, Fountain
 Each step is tested against a model before the next is begun, as Aquifer was: a fuzzer makes random changes to objects, and an oracle compares what Wellspring has stored with a plain object graph kept in memory. Closing the store and opening it again must give the same graph.
 
 1. **The data model's code**: encoding and decoding, the write check, the registry of classes, making an object from a record. No Aquifer, no network. Round-trip tests over generated values. *Done*, in `src/dataModel.js` and `src/values.js`, on cascade.reactive's `meta(object).checkWrite`.
-2. **Aquifer's interface upward** (section 9.1): volatile roots, commit numbers, reclaim notifications, the commit per record.
+2. **Aquifer's interface upward** (section 9.1): volatile roots, commit numbers, reclaim notifications, the commit per record, the collector's backlog. *Done.*
 3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed.
 4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading.
 5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2).

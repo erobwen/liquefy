@@ -53,7 +53,9 @@ describe("Collector cost", () => {
     assert.ok(steps <= 80, `${steps} steps for 1,000 leaves`);
     // The one big step deletes the list object itself, with its 1,000 edge keys: one object
     // with a thousand references is one unit (the design chunks big collections, §5.4).
-    assert.ok(largest <= 100 * 5 + 1000, `the largest step wrote ${largest} keys, for a budget of 100 objects`);
+    // Six keys per deleted object: its record, metadata, version (v/), region membership, edge
+    // key and tree key.
+    assert.ok(largest <= 100 * 6 + 1000, `the largest step wrote ${largest} keys, for a budget of 100 objects`);
   });
 
   it("does nothing after an edit that leaves its region within bounds", () => {

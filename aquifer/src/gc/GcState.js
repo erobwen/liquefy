@@ -31,6 +31,7 @@
  *   x/<cluster>             pending re-home task: does all of it hang from one place? (§6.7)
  *   meta/nextId             id counter
  *   meta/clock              logical clock: the number of application transactions
+ *   v/<obj>                 the commit (logical clock) that last changed the object
  *
  * Clusters (§6.9): level-0 clusters are regions of objects; a level-k cluster (a meta-region)
  * holds level k-1 clusters. Every level-0 region has a chain of containers of the same length,
@@ -63,6 +64,7 @@ export const ROOT_REGION = "r0";
 export const STABLE = "STABLE";
 
 const objectKey = (id) => `o/${id}`;
+const versionKey = (id) => `v/${id}`;
 const metaKey = (id) => `g/${id}`;
 const treeKey = (parent, child) => `t/${parent}/${child}`;
 const treePrefix = (parent) => `t/${parent}/`;
@@ -94,7 +96,7 @@ const treeInPrefix = (to) => `P/${to}/`;
 const deferralKey = (deferred, id) => `${deferred.kind === "ms" ? "h" : "d"}/${String(deferred.at).padStart(16, "0")}/${id}`;
 
 export const keys = {
-  objectKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
+  objectKey, versionKey, metaKey, treeKey, treePrefix, cohortKey, memberKey, memberPrefix, deferralKey,
   regionKey, regionMemberKey, regionMemberPrefix, flagKey, flagPrefix, structureKey,
   suspendedKey, suspendedPrefix, edgeKey, edgePrefix, topKey, rehomeKey, scrubKey, workKey, workPrefix, mirrorKey, mirrorPrefix, treeOutKey, treeOutPrefix,
   treeInKey, treeInPrefix,
@@ -285,6 +287,7 @@ export class GcState {
     this.addWeight(meta.region, -1 - outgoing.length);
     if (this.options.edgeIndex) for (const target of outgoing) this.tx.delete(edgeKey(meta.region, id, target));
     this.tx.delete(objectKey(id));
+    this.tx.delete(versionKey(id));
     this.tx.delete(metaKey(id));
   }
 
@@ -1149,6 +1152,7 @@ export class GcState {
           if (meta.treeParent !== null) this.tx.delete(treeKey(meta.treeParent, member));
           if (meta.cohort !== null) this.tx.delete(memberKey(meta.cohort, member));
           this.tx.delete(objectKey(member));
+          this.tx.delete(versionKey(member));
           this.tx.delete(metaKey(member));
           deleted.push(member);
         } else {

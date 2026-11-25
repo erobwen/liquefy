@@ -23,14 +23,19 @@ import { runStructureTask, runRehomeTask, runScrubTask } from "./regions.js";
 export class Collector {
   /**
    * @param store      the MemoryStore
-   * @param onReclaim  optional hook, called inside the reclaim step with the ids about to be
-   *                   deleted, before anything is written. Tests use it to check safety
+   * @param onReclaim  optional hook, called inside the reclaim step with the ids being
+   *                   deleted, before the step commits. Tests use it to check safety
    *                   against the committed state.
+   * @param onReclaimed optional hook, called after a step that reclaimed objects has
+   *                   committed, with their ids, before anything else can run. The layer
+   *                   above uses it to forget them: what is called here is final.
    * @param options    collector options (GcState.defaultOptions)
    */
-  constructor(store, { onReclaim, options = {} } = {}) {
+  constructor(store, { onReclaim, onReclaimed, options = {} } = {}) {
     this.store = store;
     this.onReclaim = onReclaim;
+    this.onReclaimed = onReclaimed;
+    this.reclaimedInStep = [];
     this.options = options;
     this.lastCohort = null;
     /** What the last step did, for tools such as the visualizer: { kind, ... }, or null. */
@@ -102,6 +107,21 @@ export class Collector {
    * reverse.
    */
   step({ flush = false } = {}) {
+    this.reclaimedInStep = [];
+    let worked;
+    try {
+      worked = this.stepInTransaction({ flush });
+    } catch (error) {
+      this.reclaimedInStep = [];
+      throw error;
+    }
+    const reclaimed = this.reclaimedInStep;
+    this.reclaimedInStep = [];
+    if (reclaimed.length > 0) this.onReclaimed?.(reclaimed);
+    return worked;
+  }
+
+  stepInTransaction({ flush }) {
     const previous = this.lastStep?.kind ?? null;
     this.lastStep = null;
     return this.store.transaction((tx) => {
@@ -471,6 +491,28 @@ export class Collector {
    * (§8.3): they hold only implicit objects and explicit members of this cohort. Then the
    * explicit members outside them, by their membership keys. Then the cohort records.
    */
+  /**
+   * How much work is pending, for the layer above to tell when the collector falls behind
+   * (backlog, "The interface upward"): the active cohorts and their worklist items, the
+   * pending structure tasks, and the deferred cuts. It reads the cohort records and counts
+   * keys, so it costs in proportion to the backlog it reports.
+   */
+  backlog() {
+    return this.store.transaction((tx) => {
+      const gc = this.gc(tx);
+      const cohorts = gc.activeCohorts();
+      let items = 0;
+      for (const cohort of cohorts) items += cohort.pending.expand + cohort.pending.mark + cohort.pending.check;
+      const count = (prefix) => tx.keys(prefix).length;
+      return {
+        cohorts: cohorts.length,
+        items,
+        structureTasks: count("s/") + count("x/") + count("z/"),
+        deferrals: count("d/") + count("h/"),
+      };
+    });
+  }
+
   reclaim(gc, cohortId) {
     const root = gc.findCohort(cohortId);
     const cohort = gc.cohort(root);
@@ -534,6 +576,7 @@ export class Collector {
     }
 
     this.onReclaim?.(doomed);
+    this.reclaimedInStep.push(...doomed);
     if (!more) for (const familyId of family) gc.tx.delete(keys.cohortKey(familyId));
     this.stats.reclaimed += doomed.length;
     this.stats.regionsReclaimed += finished.length;

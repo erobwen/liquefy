@@ -61,6 +61,12 @@ Each invariant names who maintains it and how it is verified. "Oracle" means `ch
 *Maintained by:* `ObjectTransaction.finish` refuses a transaction that writes a strong reference to a missing object. Reclaim deletes only closed cohorts (S1): no object outside the cohort references a member, so no surviving object is left with a dangling strong reference.
 *Verified:* the oracle's trace fails on a missing reachable object; the barrier's check on every write.
 
+**R3. The commit that last changed an object is kept for objects that exist.** A key `v/<id>` exists only if `o/<id>` does, and holds a commit number between 1 and the logical clock. It is written by every application transaction for each object it changed, and for each new object it kept; it is deleted with the object, by `deleteObject` and by whole-cluster deletion. An object without one has not changed since the key was introduced, and counts as changed at commit 0.
+*Maintained by:* `ObjectTransaction.finish`, `GcState.deleteObject`, `GcState.deleteClusterWhole`. *Verified:* oracle.
+
+**R4. Pins are ordinary references.** A pinned object is referred to strongly from a bucket object, which is referred to from the pins object, which ROOT refers to through its field `$pins`. Pins therefore need no rule of the collector's own: a pinned object is reachable, and every invariant here holds for it as for any reachable object. Opening a database replaces the pins object's fields with none, in one application transaction, which ends every pin of the process before.
+*Maintained by:* `ObjectTransaction.pin`, `unpin`, `Database.clearPins`. *Verified:* the fuzzer's pin and unpin operations, and `upward.test.js`.
+
 **R3. New objects are either placed or never written.** A new object that no placed object references at the end of its transaction is not persisted.
 *Maintained by:* the barrier. *Verified:* unit tests.
 

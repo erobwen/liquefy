@@ -41,6 +41,7 @@ const OPERATIONS = [
   "replace",
   "cut", "paste",
   "hold", "release",
+  "pin", "unpin",
   "skip", "skip",
 ];
 
@@ -73,6 +74,22 @@ export function randomTransaction(db, rng, clipboard = []) {
         tx.delete(source, field);
         tx.hold(value.$ref, rng.next() < 0.5 ? { transactions: 1 + rng.int(20) } : { milliseconds: rng.int(5000) });
         clipboard.push(value);
+        break;
+      }
+      case "pin": {
+        // Like cut, but the application pins the object: a volatile root, kept until unpinned.
+        const fields = Object.entries(tx.get(source)).filter(([, value]) => isRef(value));
+        if (fields.length === 0) break;
+        const [field, value] = rng.pick(fields);
+        tx.delete(source, field);
+        tx.pin(value.$ref);
+        clipboard.push(value);
+        break;
+      }
+      case "unpin": {
+        if (clipboard.length === 0) break;
+        const value = rng.pick(clipboard);
+        if (tx.exists(value.$ref)) tx.unpin(value.$ref);
         break;
       }
       case "release": {

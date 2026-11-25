@@ -32,6 +32,21 @@ npm test -w @liquefy/aquifer
 
 [aquifer.visualizer](../aquifer.visualizer#readme) shows the collector step by step.
 
+## For the layer above
+
+Besides transactions over records, Aquifer offers what [Wellspring](../wellspring#readme)
+needs from it:
+
+- **Volatile roots:** `tx.pin(id)` keeps an object alive though nothing
+  refers to it, until `tx.unpin(id)`, or until the database is opened again.
+- **Commit numbers:** `tx.commit` and `db.lastCommit`, one per application
+  transaction; `db.lastChanged(id)`, the commit that last changed an object.
+- **`onReclaimed(ids)`:** called after a collector step that reclaimed objects
+  has committed.
+- **`db.collector.backlog()`:** how much collector work is pending, so that a
+  caller that runs the collector in a ratio to its own work can tell when it
+  falls behind.
+
 ## Documents
 
 - [persistent-garbage-collection.md](documents/persistent-garbage-collection.md) - the collector's design

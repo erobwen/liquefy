@@ -75,6 +75,12 @@ export function checkIntegrity(store, { quiescent = false } = {}) {
   for (const key of store.keys("g/")) {
     if (!objectIds.has(key.slice(2))) problems.push(`g/ record for missing object ${key.slice(2)}`);
   }
+  // R3: the commit that last changed an object is kept only for objects that exist.
+  const clock = store.get("meta/clock") ?? 0;
+  for (const [key, commit] of store.range("v/")) {
+    if (!objectIds.has(key.slice(2))) problems.push(`R3: v/ key for missing object ${key.slice(2)}`);
+    else if (!(Number.isInteger(commit) && commit >= 1 && commit <= clock)) problems.push(`R3: ${key} is ${commit}, the clock is ${clock}`);
+  }
 
   // Tree edges: t/ keys match treeParent, and every tree edge is a real strong edge.
   const treeEdges = new Set(store.keys("t/").map((key) => key.slice(2)));

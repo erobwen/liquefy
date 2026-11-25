@@ -82,6 +82,10 @@ The default is live and simple; optimization is local and does not change the mo
 | Decision | Section |
 |---|---|
 | References are one way, as in JavaScript. No incoming references in the model. | 2.2 |
+| A synchronized object is a Cascade observable. Plain data is a frozen value, synchronized as a whole. An unfrozen plain object in a synchronized field throws. | 2.5 |
+| Synchronized arrays are supported but expected to be small. Large collections are trees or linked structures. | 2.5 |
+| Weak references follow JavaScript's `WeakRef`. Erasure is done by overwriting. | 2.5, 8.15 |
+| Constructors run once, where an object is created, and never on loading. | 2.5 |
 | Loading is explicit: `subscribe` on a client, `load` on the server, each with a starting object and a named selector. | 3.7 |
 | The server alone decides what a selection contains. Clients do not run selectors. | 3.4 |
 | Selections are per session. They are not shared between users. | 4.4 |
@@ -90,6 +94,9 @@ The default is live and simple; optimization is local and does not change the mo
 | Users, sessions and authentication are part of Fountain from the start. | 4.1 |
 | Security is activated per class, by defining `canRead` and `canWrite`, and runs the same on both sides. | 4.2 |
 | A client calls the server only through methods of its session. Every method of the session class is remote. | 4.5 |
+| Session methods are synchronous on the server and atomic. External effects happen after the commit. | 4.5 |
+| A client starts from its session, and server code from the database's root. | 4.5 |
+| A stub reveals that an object exists, and its class. | 3.4 |
 | Different repeaters run on clients and on the server. Repeaters on both sides that write the same data are an application bug. | 3.8 |
 | What keeps derived data up to date is a persistent repeater: a pure computed value with a reaction, defined by an object and its methods. | 5.3 |
 | Index trees are maintained by the index's own code, not by repeaters. B-trees are the default. | 5.3 |
@@ -150,7 +157,7 @@ An application might define:
 ```javascript
 class Document extends PersistentObject {
     title = "Untitled";
-    chapters = [];
+    chapters = observable([]);
 
     canRead(user) {
         return this.owner === user ||
@@ -270,11 +277,75 @@ Cascade decides no field of the records. The synchronization layer defines `load
 
 Derived states such as "unsaved" are computed from the record rather than stored: a property is unsaved while its value differs from `meta(object, property).saved`.
 
+A stub has metadata like any other object, and its loaded state is observable there. A user interface can show a spinner where an object has not yet arrived, by reading that state rather than the object's fields.
+
 **Reading an unloaded object**
 
 Reading a field of a stub is a programming error: the code is outside the boundary it subscribed to.
 
 Cascade already has a hook for this. A world can be given an `onReadGlobal` function that is asked before every read and may refuse it, returning a configured `cannotReadPropertyValue` instead. The synchronization layer can use it to report reads of unloaded objects in development, and to return a recognizable value in production.
+
+## 2.5 What a field can hold
+
+A synchronized object is a Cascade observable: an object or an array made with `observable` or `temporal`, usually an instance of a registered class. Its fields can hold the following.
+
+**Primitive values**
+
+Numbers, strings, booleans, `null`. A property that is `undefined` and a property that has been deleted are the same thing to the database.
+
+**Other synchronized objects**
+
+A reference. The object referred to has its own identity, its own record, and its own place in selections and in security.
+
+**Frozen values**
+
+A plain JavaScript object or array that has been frozen, with `Object.freeze`, all the way down, is a value. It has no identity. It is stored and sent as a whole, as JSON, and it is changed only by replacing it:
+
+```javascript
+document.settings = Object.freeze({ margin: 20, columns: 2 });
+```
+
+Since nothing inside it can change, there is nothing to observe inside it and nothing to synchronize but the field that holds it, which is written last-write-wins like any other. Cascade already recognizes frozen plain data, and compares it by content.
+
+A frozen value takes the security of the object that holds it, since it is part of that object. This settles most of the question of plain objects (section 8.8): a small plain object is a frozen value, and has no security of its own to get wrong.
+
+A frozen value contains data only. It does not refer to synchronized objects.
+
+**Dates, maps, and sets**
+
+A `Date` is treated as a value, and replaced rather than changed.
+
+A `Map` or a `Set` is supported as a value in the same way: frozen in effect, replaced as a whole. A map or set that is changed in place and synchronized entry by entry would need observable maps and sets in Cascade, which do not exist yet. Until they do, a collection that changes is an object, an array, or a structure built from objects.
+
+**Binary data**
+
+A `Uint8Array` is a value, for small amounts of data such as an icon. Anything larger is a blob (section 8.17).
+
+**A plain object that is not frozen**
+
+An ordinary, unfrozen JavaScript object assigned to a field of a synchronized object is an error, and throws when it is written.
+
+It cannot be synchronized: it is not observable, so a change inside it would never be noticed, and the server's copy would silently drift from the client's. Making it observable behind the application's back would change its identity. The application says which it means: `observable({...})` for an object of its own, `Object.freeze({...})` for a value.
+
+**Arrays**
+
+An observable array is a synchronized object, with its own identity.
+
+Arrays are expected to be small. An array is stored as one record, rewritten when it changes, and concurrent changes to it need anchoring and rebasing (section 3.9). A large synchronized array is an anti-pattern, and is documented as one: the server survives it, but nothing is done to make it fast. Large or heavily edited collections are trees or linked structures built from objects (sections 3.9 and 5.2).
+
+**Weak references**
+
+A reference is strong: it keeps what it refers to alive. A field can instead hold a weak reference, which does not.
+
+The model is JavaScript's own `WeakRef`: `weak(object)` makes one, and `deref()` returns the object, or `undefined` if it has been reclaimed. Indexes hold their members this way (section 5.4).
+
+A weak reference is also how deletion is verified. Code that removes a document from everything that refers to it can keep a weak reference, and see `deref()` return `undefined` once the collector has proven the document unreachable. The collector works incrementally, so this happens shortly after, not at once. An object that is unreachable but not yet reclaimed can still be reached through a weak reference and referred to strongly again, which rescues it, until the collector has decided; from then on `deref()` returns `undefined`.
+
+**Constructors**
+
+A constructor runs once, where an object is created. It does not run again when the object arrives at the server, when it is loaded from storage, or when it is delivered to another client. In those cases the object is made from its class's prototype and its stored fields.
+
+Field initializers in a class body are part of the constructor, and do not run again either. A field added to a class later gets its value in existing objects through a migration (section 6), not through its initializer.
 
 ---
 
@@ -375,6 +446,8 @@ The result is a selection: a boundary around the objects to be synchronized.
 The selector decides which references to follow. A document selector follows the document's structure, but does not run away across a reference that merely names the creator of an object.
 
 A reference that leaves the selection is delivered to the client as a stub: an identity and a type, without content. The client can subscribe to another selection to obtain the object behind it.
+
+A stub reveals that an object exists, and its class, also when the user may not read the object. That is accepted. An application for which it is too much keeps such references in an object that the user cannot read at all.
 
 Selectors are registered by name, as classes are. A client subscribes by naming a selector and a starting object. It never sends code to the server.
 
@@ -821,18 +894,20 @@ The server's evaluation is the one that counts, since a client can be modified. 
 
 A client can only predict correctly if the methods read what is in its selection. A `canWrite` that reads a group's membership needs the membership selected along with the document. Development mode should report an authorization method that reads outside the client's selection, as it reports any other such read (section 2.4).
 
-**Plain objects**
+**Objects without a class, and arrays**
 
-Not every object is an instance of an application class. A document's settings may be a plain JavaScript object, `{ margin: 20, columns: 2 }`, which has no methods and so no security.
+A small piece of plain data, such as a document's settings, `{ margin: 20, columns: 2 }`, is a frozen value (section 2.5). It is part of the object that holds it, and is read and written under that object's security.
+
+What remains is synchronized objects that are not instances of an application class: an `observable({...})` without a class, and every observable array, such as a chapter's list of paragraphs. They have identities of their own, and no methods, and so no security of their own.
 
 Such objects need no security of their own if a client can reach them only through objects that do. A client receives an object only through a selection, and a selection passes only through objects that the user may read (section 4.3). An object referred to only from a protected document is visible only to those who may see the document.
 
 That leaves two holes, and both need closing:
 
 - **Reaching an object by its identity.** If a client can subscribe to any object by naming its identity, then knowing the identity is the only protection. Identities must then be unguessable, long and random rather than sequential, and treated as capabilities. Alternatively, a client can be allowed to name only objects that a selection has already given it, and roots that it is explicitly granted.
-- **Writing.** A plain object inside a protected document would be writable by everyone who may read the document. The natural rule is that a plain object is protected by its owner: the classed object through which it was created, or, more robustly, the classed object it is nearest to in the selection that delivered it. Its fields are then written under the owner's `canWrite`.
+- **Writing.** An array inside a protected document would be writable by everyone who may read the document: anyone could add a paragraph to a chapter they may only read. The natural rule is that such an object is protected by its owner, the classed object through which it was created, recorded when it is created. It is then written under the owner's `canWrite`, which is given the property that holds it.
 
-Which rule to choose is open (section 8.8). The aim is that plain objects remain the cheap default, and that they never become the way around a protected object.
+Which rule to choose is open (section 8.8). The aim is that arrays and classless objects remain the cheap default, and that they never become the way around a protected object.
 
 **Creating objects**
 
@@ -951,7 +1026,9 @@ This is the place for everything that is decided by the server rather than predi
 - **Arguments and results are data.** A method receives and returns values that can be serialized: numbers, strings, plain objects, and references to persistent objects. A returned reference gives the client an identity, not access. If the client subscribes to it, its `canRead` still decides.
 - **Granting access for longer than a call.** A method can grant its session access to particular objects, for example the results of a search that the user may see, though `canRead` alone would not say so. The grant is held by the session, consulted by authorization along with `canRead`, and ends with the session.
 - **Calls are asynchronous for the caller.** A remote call can never return synchronously. On a client it returns a promise.
-- **Writes are a transaction, between waits.** A method that does not wait for anything runs as one transaction, and is atomic. A method that waits, for an email service or a payment, cannot keep a transaction open while it does, because the store has one writer and everything else would stop. Each synchronous stretch of such a method is a transaction of its own, and after each `await` the method must expect that the data has changed. Its writes reach every subscriber, including the caller, through the ordinary stream.
+- **Methods are synchronous on the server, and atomic.** A session method runs from start to end without waiting, as one transaction. What it read cannot change under it, and its writes are applied together or not at all. Its writes reach every subscriber, including the caller, through the ordinary stream.
+- **External effects happen after the commit.** A method that sends an email or charges a card does not do so inside the transaction: it could not wait for the answer, and the effect must not happen if the transaction fails. It registers the effect, which is carried out after the commit. If the outcome matters, the effect's completion calls another method, in a new transaction, which records it. A method written with `async` and `await` is possible, but then each stretch between waits is a transaction of its own, the method must expect that the data has changed after each wait, and it is no longer atomic. It is the exception.
+- **Rules across several objects belong here.** Last-write-wins cannot keep a rule that involves more than one write: that user names are unique, or that an account has the money before a transfer is made. A session method can, because it checks and writes in one transaction on the server. Besides secrets and external effects, this is what session methods are for.
 - **Effects arrive as state.** A method's return value is for answers, such as the boolean above. Its effects are best seen as changes to selected objects. Signing in returns whether it succeeded, but the user interface follows `session.user`, which changes on every client of that session, in every tab. The earlier attempts worked only this way: their remote calls returned nothing, and the client saw their effects through synchronization.
 - **Ordering.** The call travels on the same connection as the client's writes, so it sees every write that the client made before it. The server sends the changes the method made before it sends the response, so when the client's call resolves, its objects already show the method's effects.
 - **Limits.** Since every call passes through the session, the session is the natural place for rate limits and quotas (section 8.12).
@@ -962,9 +1039,21 @@ The session can decide, too, which subscriptions a client may make: which select
 
 This is one answer to the question of naming objects by identity (section 8.8): the session decides which roots a client may start from.
 
-**On the server**
+**The session is where a client starts**
 
-Server code can call the same methods directly, as ordinary method calls. A server-side job, or a test, can then act as a given user by creating a session for that user and calling its methods.
+Code must have an object before it can subscribe from it (section 3.4), so a client needs a first object. That is its session, which it always has.
+
+The session's fields refer to what the user starts from: `session.user`, and whatever the application adds, such as a workspace, or the list of the user's documents. They arrive as stubs, and the client subscribes from them.
+
+On the server, application code starts from the database's root object, to which it attaches the structures the application needs: the users, the indexes, the top of the application's own data.
+
+**Code that no client called**
+
+Not everything on the server happens because a client asked. A scheduled job runs at night; a payment service calls back over HTTP; another system fetches data through a conventional endpoint.
+
+Such code is ordinary server code that works on the same objects, in transactions of its own. It runs either as the system, with full access, or as a user, by creating a session for that user and calling its methods as ordinary method calls. Tests act as users in the same way.
+
+Fountain does not need to provide the scheduler or the HTTP server. It needs to make the database usable from them: a transaction, the root, and a session for a given user.
 
 ---
 
@@ -1345,10 +1434,10 @@ It is far beyond a first version. It is noted here because it shapes earlier dec
 
 *Status: open, to be decided before clients can write.*
 
-Plain objects have no security methods of their own (section 4.2). Two decisions follow:
+Small plain data is a frozen value, and takes the security of the object that holds it (section 2.5). That settles the common case. Arrays, and observable objects without a class, still have identities and no security methods of their own (section 4.2). Two decisions follow:
 
 - Can a client name any object by its identity, in which case identities must be unguessable, or only objects a selection has given it and roots it has been granted? The second is safer and makes identities ordinary numbers; the first makes links that can be shared. The session's control of subscriptions (section 4.5) makes the second easy to enforce, and lets each application choose.
-- Which classed object protects a plain object's fields: the one through which it was created, recorded when it is created, or the nearest in the selection that delivered it, which can differ between users and change as the graph changes?
+- Which classed object protects an array, or a classless object: the one through which it was created, recorded when it is created, or the nearest in the selection that delivered it, which can differ between users and change as the graph changes? The first is proposed. An array that is moved to another owner would then have to be given to it explicitly.
 
 ## 8.9 Stale writes
 
@@ -1397,6 +1486,58 @@ It should be built from what is already here, rather than as a mechanism of its 
 A reader who starts editing switches from the publication to a selection of their own.
 
 The security condition is the one that sharing selections could not meet in general: a publication contains only objects that are readable by everyone, which is decided when it is defined, not per user.
+
+## 8.14 Reconnecting, and applying a transaction once
+
+*Status: proposed, to be settled in the protocol specification.*
+
+**Once only.** If a connection is lost after a client has sent a transaction and before the confirmation has arrived, the client cannot know whether the server applied it. Sending it again would apply it twice, which for an insertion into a list is a visible error. Each client transaction therefore carries an identity, and the server remembers, for a while, which it has applied, and answers a repeated one with the confirmation it gave the first time.
+
+**What left while the client was away.** A reconnecting client states the commit it last saw, and the server sends what has changed since (section 3.6). That covers objects that changed, and objects that joined a selection. It does not cover objects that left one, if the server has been restarted and no longer knows what the client held. The server then sends the complete membership of each selection, as identities only, and the client drops what is not in it.
+
+## 8.15 Erasing data
+
+*Status: proposed.*
+
+An object lives for as long as anything refers to it. A request to erase a person's data cannot be met by removing one reference, if other objects still refer to the same data.
+
+The main method is overwriting: follow the shape of what is to be erased, with a selector, and delete every property of every object in it. The objects may live on for a while, where something still refers to them, but they are empty. A weak reference shows when they are gone (section 2.5).
+
+Two notes on the consequences.
+
+For the collector, emptying objects first is not cheaper than letting go of them. Each removed reference is work for the write barrier, while an intact structure that becomes unreachable can be reclaimed region by region. Erasing is done for the guarantee, not for speed, and where only the content is sensitive, the content fields can be deleted and the references left for the collector.
+
+Overwriting erases the data from the database as applications see it. The bytes may remain in the store's file until its pages are reused, and they remain in backups. How far erasure must go is a question for the operator, and for the store.
+
+## 8.16 Errors in application code on the server
+
+*Status: open.*
+
+An authorization method that throws refuses the write. That much is clear.
+
+A key computation that throws, for one member of an index, must not stop the index, and must not leave the member filed under a key that is no longer true. The member needs somewhere to go: a list of members whose keys could not be computed, kept by the index and visible to the operator.
+
+A session method that throws writes nothing, and its error is returned to the caller, without details that the client should not see.
+
+## 8.17 Files and binary data
+
+*Status: open.*
+
+A document with images needs somewhere to keep them.
+
+Small binary data is a value: a `Uint8Array`, or a base64 string, in a field (section 2.5). That is enough for an icon. It is wrong for megabytes: the data is in the record, in the server's memory, and in the memory of every client that holds the object, and it travels through the stream of writes.
+
+For larger data, the proposal is a blob: an immutable persistent object whose content is not delivered with a selection. A client that holds it has its identity, its type and its size, and fetches the content when it needs it, over HTTP, authorized by its session. Uploading is the reverse. Since a blob is an object, it is referred to, selected, protected, and reclaimed like any other; since it never changes, it can be cached without limit.
+
+Where the content is stored, in the object store or in files beside it, is an implementation matter.
+
+## 8.18 Large selections
+
+*Status: later.*
+
+A client receives a whole selection before it uses any of it (section 3.4). For a document of tens of thousands of paragraphs that is slow.
+
+The model already has the means to avoid it: a selector that selects the outline, and further selectors for the parts, subscribed to as they are shown. What is missing is support for doing it smoothly: delivering a selection in order of priority, and letting code run on the part that has arrived, with the rest shown as loading through metadata (section 2.4).
 
 ---
 
@@ -1474,7 +1615,9 @@ Frozen: the object store, the spanning-tree collector with regions and cohorts, 
 
 Frozen was built from a design document and a list of invariants, each stating who maintains it and how it is verified, with an oracle that a fuzzer runs after every step. Fountain is built the same way, one layer at a time: the specification of a layer is written just before the layer is, in enough detail to test against.
 
-The first to be specified is the protocol between the client store and the server store: the messages, their order, and reconnection. Everything else depends on it, and it can be tested by a simulator with several clients and random interleaving of messages. Among its invariants:
+The first to be specified is the data model: exactly which values a field can hold, how each is stored and sent, how an object is made again from its stored fields, and how weak references behave (section 2.5). The protocol's messages are made of these values.
+
+The second is the protocol between the client store and the server store: the messages, their order, and reconnection (section 8.14). Everything else depends on it, and it can be tested by a simulator with several clients and random interleaving of messages. Among its invariants:
 
 - **Convergence.** When no messages are in flight, every client's copy of an object equals the server's.
 - **Closure.** A client holds exactly the union of its selections, and every reference that leaves them is a stub.

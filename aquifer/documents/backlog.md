@@ -33,12 +33,14 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 Aquifer stays at the level of records: ids, fields, strong and weak references, transactions, and the collector. It knows nothing of classes, observables, or users. [Wellspring](../../wellspring#readme) above it (persistent JavaScript objects, with loading and unloading; its [design](../../wellspring/documents/design.md), section 9.1, lists the same four things) and Fountain above that are separate packages (decided 2026-11-25; [the Fountain whitepaper](../../fountain/whitepaper.md), [data model](../../wellspring/documents/data-model.md) and [protocol](../../fountain/documents/protocol.md) say what they need).
 
-What exists is enough for most of it: `transaction`, `create`, `get`, `set`, `delete`, `replace`, `exists`, `ref`, `weak`, `onReclaim`. Four things are missing:
+What exists is enough for most of it: `transaction`, `create`, `get`, `set`, `delete`, `replace`, `exists`, `ref`, `weak`, `onReclaim`, and `collector.run(steps)`, which the layer above calls in a ratio to its own work (Wellspring's [design](../../wellspring/documents/design.md), section 9.4). Five things are missing:
 
 1. **Volatile roots.** Pin and unpin an object across transactions, so that an object loaded into memory is not collected while a load holds it, though nothing in the database refers to it any longer. Pins are kept in memory only: there are none when a store is opened, and the collector's invariants treat them as roots that exist for the life of the process. Today's `hold` covers only an object detached within one transaction, for a limited time (design §9.4).
 2. **A commit number per transaction,** from one counter, returned by `transaction()`, and a report of what a collector step reclaimed. The field-level change set is not Aquifer's to give: Wellspring builds it from its own change events, which also carry array splices that a record-level store cannot see.
 3. **Reclaim notifications inside the transaction.** `onReclaim` is called after the fact. An index must remove its entry for a member in the same transaction that reclaims it, weak references must be seen as cleared from the same moment, and an object still in memory must be told that its record is gone. The notification therefore has to be delivered inside the collector's step, with a transaction to write in, or the reclaim has to be offered to the layer above before it happens.
 4. **The commit that last changed each record.** Kept with the object's metadata, and readable. Reconnecting clients are sent what has changed since a commit they name.
+
+5. **The size of the collector's backlog.** A cheap reading of how much work is pending (cohorts, worklist items, pending structure tasks), so that the layer above can tell when the collector is falling behind, and stall new work if it must.
 
 Chunked collections (below, "Big collections") belong here as well, and can come after these.
 

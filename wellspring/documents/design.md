@@ -398,12 +398,13 @@ Lazy migration avoids rewriting the database whenever a class changes. A migrati
 
 ## 9.1 What Wellspring asks of Aquifer
 
-Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Four things are missing, and are in [Aquifer's backlog](../../aquifer/documents/backlog.md):
+Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Five things are missing, and are in [Aquifer's backlog](../../aquifer/documents/backlog.md):
 
 1. **Volatile roots.** Pinning an object across transactions, for as long as a load holds it (section 3.3). Pins are in memory only, and are cleared when a store is opened.
 2. **A commit number per transaction**, from one counter, and a report of what the collector did. The field-level change set is built by Wellspring itself, from Cascade's events (section 4).
 3. **Notification of a reclaim inside the transaction that performs it**, so that an index removes its entry for a member (section 7.2), weak references are cleared, and an object still in memory becomes local again (section 3.5), together with the reclaim.
 4. **The commit that last changed each record.** Wellspring does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
+5. **The size of the collector's backlog**, so that Wellspring can report pressure (section 9.4). Collector steps already exist (`collector.run`), are bounded, and end when there is nothing to do.
 
 Aquifer finds references in a record by looking, at any depth, for an object with a `$ref` key. Wellspring's encoding escapes every key of the application's that begins with `$`, so that the tag appears only where a reference is ([data model](data-model.md) E1 and E4), and the two agree on the graph.
 
@@ -421,6 +422,26 @@ Aquifer finds references in a record by looking, at any depth, for an object wit
 
 The data model, which is the encoding, the registry of classes, the check on what a field may hold, and the making of an object from a record, runs on Fountain's clients as well. It depends on neither Aquifer nor a network. It is either a part of Wellspring that a browser can load, or a small package of its own. To be decided when it is written.
 
+## 9.4 Background work, and who schedules it
+
+Aquifer's collector does its work in steps. Each step is one transaction of bounded size, roughly constant in time, and steps can be interleaved with the application's transactions in any order (Aquifer's invariant B1). Wellspring has background work of the same kind: persistent repeaters that catch up in the background (section 7.3), and migrations that are being completed (section 8).
+
+Nothing runs on its own. Everything stays synchronous, and the program at the top decides when background work is done. Wellspring offers one call for all of it:
+
+```javascript
+const result = spring.work(steps);   // { steps, remaining, pressure }
+```
+
+`work` runs up to `steps` steps of background work, collector steps through Aquifer's `collector.run`, and returns at once when there is nothing to do. It reports how many steps it ran, whether work remains, and whether there is **pressure**: the collector's backlog has grown beyond a configured size, or memory is near a configured limit.
+
+**A quota, in the normal case.** The program at the top calls `work` between the things it does, in a configured ratio: one step after every event it handles, or one after every fifth. When it is idle, it calls `work` until nothing remains.
+
+**Pressure, in the rare case.** When `work` reports pressure, the program may stop taking new requests and call `work` until the pressure is gone. That is a decision for the program, which knows what stalling costs; Wellspring only reports.
+
+Used alone, Wellspring's application decides the ratio. Under Fountain, Fountain's main loop does (whitepaper section 2.6).
+
+**Open.** The defaults: the ratio, the backlog size that counts as pressure, and how memory is measured. To be set from measurements.
+
 ---
 
 # 10. Open questions
@@ -434,6 +455,7 @@ The data model, which is the encoding, the registry of classes, the check on wha
 | What happens to a member whose key computation throws: it must not stop the index, and must not stay filed under a key that is no longer true (whitepaper section 8.16) | 7.1 |
 | Large arrays: chunked storage in Aquifer, or only the documented advice to use trees | [data model](data-model.md) A4 |
 | Where the code shared with clients lives | 9.3 |
+| Defaults for background work: the ratio, and what counts as pressure | 9.4 |
 | The open points of the data model | [data model](data-model.md) section 11 |
 
 ---

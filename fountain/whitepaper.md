@@ -109,6 +109,7 @@ The default is live and simple; optimization is local and does not change the mo
 | What keeps derived data up to date is a persistent repeater: a pure computed value with a reaction, defined by an object and its methods. | 5.3 |
 | Index trees are maintained by the index's own code, not by repeaters. B-trees are the default. | 5.3 |
 | The collector is Aquifer's: a maintained spanning tree with regions and cohorts. | 7 |
+| Fountain's main loop schedules background work, garbage collection included, in a configured ratio to the messages it handles, and may stall new messages when Wellspring reports pressure. | 2.6 |
 | Shared publications for large readerships are left for later. | 8.13 |
 
 ---
@@ -400,6 +401,12 @@ The data model itself, which is the encoding of values, the registry of classes,
 **What each layer asks of the one below**
 
 Wellspring asks of Aquifer: volatile roots, so that a loaded object is not collected while it is held; the set of changes of each transaction, with a commit number, from which everything reactive is triggered; notification of a reclaim inside the transaction that performs it, so that indexes and weak references are updated with it; and the commit that last changed each record (section 7).
+
+**The main loop**
+
+The server is one synchronous loop. It takes the next message from a client, handles it in a transaction, and sends what has to be sent. Between messages, it lets Wellspring do background work, including Aquifer's garbage collection, in a ratio that is a setting: one step of background work after every message, or one after every fifth. When no message is waiting, it does background work until there is none.
+
+The collector's steps are bounded and can be interleaved with transactions in any order, so the ratio decides only how fast garbage is reclaimed, not whether the database is correct. In the rare case that Wellspring reports pressure, because the collector has fallen far behind or memory is running out, the loop may stop taking new messages until the pressure is gone (Wellspring's [design](../wellspring/documents/design.md), section 9.4).
 
 Fountain asks of Wellspring: objects, classes and `load`; a transaction around a client's writes; the change set of each commit, in terms of objects; and a way to run a selector as a given user, passing only through what that user may read.
 

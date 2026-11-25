@@ -146,7 +146,7 @@ Each is empty until something is put in it, made the first time it is asked for,
 
 A record is made at the baseline, whoever asks for it first: one first asked for inside a repeater is not that repeater's, and stays when it reruns or is retracted.
 
-innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it. Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty): by default `cascadeMetadataObject`, a long name that no application data is likely to use (until 4.0.0 it was `causality`, after the library this one grew from). Use innerMeta(object), and it does not matter.
+innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it (save for rebuildTwin, below). Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty): by default `cascadeMetadataObject`, a long name that no application data is likely to use (until 4.0.0 it was `causality`, after the library this one grew from). Use innerMeta(object), and it does not matter.
 
 ## ensure (MobX autorun)
 
@@ -263,9 +263,9 @@ onChange will receive a message, containing information about any change that ha
 
 onEstablish and onDispose are called on an object built in a rebuild when it is first established, and when a rebuild no longer creates it. They correspond to the React concepts of componentDidMount and componentWillUnmount, but for a generalized data structure rebuilding framework.
 
-## meta(object).rebuildTwin
+## innerMeta(object).rebuildTwin
 
-The re building mechanism internally uses a forwarding mechanism that can be used directly. To use it, simply type meta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. Note that the forwarding disregards the meta data of the object that is reached by meta(myObject). As a consequence of this, meta(object).id cannot be relied upon when forwarding is used, such as in a rebuilding scenario. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
+The re building mechanism internally uses a forwarding mechanism that can be used directly - the one place where you write to innerMeta(). To use it, simply type innerMeta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. Note that the forwarding disregards the inner metadata of the object that is reached by innerMeta(myObject). As a consequence of this, innerMeta(object).id cannot be relied upon when forwarding is used, such as in a rebuilding scenario. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
 
 
 ## transaction

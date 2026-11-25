@@ -216,13 +216,22 @@ export function defaultDependencyInterfaceCreator(causality) {
       // observer at once (a large subtree taken down), nearly none of them
       // has one. A rebuild twin answers for another object: asked through
       // the proxy, as before.
+      // Looked up and called without recording: an observer taken down
+      // while another one records (a parent's build disposing a child's
+      // repeater, say) must not make that one observe the object - neither
+      // through the lookup nor through whatever the hook itself reads.
       const handler = root.handler;
       if (noMoreObservers &&
           (handler.meta.rebuildTwin !== null ||
            typeof(handler.timelines.onRemovedLastObserver) !== 'undefined' ||
-           "onRemovedLastObserver" in handler.target) &&
-          typeof(causality.withoutRecording(() => root.handler.proxy.onRemovedLastObserver)) === "function") {
-        root.handler.proxy.onRemovedLastObserver(root.description, root.key)
+           "onRemovedLastObserver" in handler.target)) {
+        causality.withoutRecording(() => {
+          const proxy = root.handler.proxy;
+          const onRemovedLastObserver = proxy.onRemovedLastObserver;
+          if (typeof(onRemovedLastObserver) === "function") {
+            onRemovedLastObserver.call(proxy, root.description, root.key);
+          }
+        });
       }
     }
   }

@@ -63,6 +63,26 @@ read `object.causality` directly should use `innerMeta(object)`, which works
 whatever the property is called. Using cascade.reactive on its own, you can
 keep the old names by passing them to `getWorld()`.
 
+## Prototype members are observed once per object (since 3.0.7)
+
+If you come from a version before 3.0.7, and use cascade.reactive on its own
+(hooks or diagnostics, not just components):
+
+- A read that finds a method or getter on the prototype no longer gives that
+  name a timeline of its own. All such reads of an object are observed
+  together, so `onRemovedLastObserver(description, key)` can now also be
+  called with `("prototypeDependees", null)`, when the last reader of any
+  prototype member leaves the object. Don't assume that `key` is always a
+  property name.
+- For the same reason, an observer's `sources` shows inherited getters and
+  methods as one entry, `{ description: "prototypeDependees", key: null }`,
+  not one entry per name.
+
+`onRemovedLastObserver` is now also called without recording. Taking an
+observer down from inside another repeater no longer makes that repeater
+observe the object, so you no longer need to wrap `dispose()` or
+`retractRepeater()` in `withoutRecording()` for that reason.
+
 ## Components: unobservable becomes plain
 
 | 3.x | 4.0 |

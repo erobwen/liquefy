@@ -4639,7 +4639,7 @@ function createWorld(configuration) {
         // });
 
         const contextString = (context ? context.description : "outside repeater/invalidator") 
-        // const causeString = objectClassName + ":" + (meta(object).buildId ? meta(object).buildId : meta(object).id) + "." + key + " (modified)";
+        // const causeString = objectClassName + ":" + (innerMeta(object).buildId ? innerMeta(object).buildId : innerMeta(object).id) + "." + key + " (modified)";
         const causeString = "  " + object.toString() + "." + key + "";
         const effectString = "" + this.description + "";
 

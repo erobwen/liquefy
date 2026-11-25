@@ -466,7 +466,12 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
 
 1. **The data model's code**: encoding and decoding, the write check, the registry of classes, making an object from a record. No Aquifer, no network. Round-trip tests over generated values. *Done*, in `src/dataModel.js` and `src/values.js`, on cascade.reactive's `meta(object).checkWrite`.
 2. **Aquifer's interface upward** (section 9.1): volatile roots, commit numbers, reclaim notifications, the commit per record, the collector's backlog. *Done.*
-3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed.
+3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed. *Done*, in `src/spring.js`. How it came out:
+   - **Events.** Wellspring's default world is made with an event hook that hands Cascade's change events to every open store; each store keeps those of the objects it owns. At `onTransactionEnd`, it stores the local objects that have become reachable from what changed, and writes every changed object's record, in one Aquifer transaction.
+   - **References resolved on read.** A field of a record object that holds a reference is an accessor on the target until it is first read; the accessor decodes the field, puts the value in its place, and returns it. Writing such a field first puts the value in place, then writes through the observable, so that the write has its event. A field that was never read is written back as it was stored, without loading what it names.
+   - **Arrays are resolved when they are made**, since Cascade copies an array's elements then. A cycle of arrays that contain each other cannot be loaded, and says so.
+   - **Failed transactions are rolled back** in memory, from the old values the events carry.
+   - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4); migrations (step 6). Classes are registered per data model, so two stores in one process share their classes.
 4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading.
 5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2).
 6. **Migrations** (section 8).

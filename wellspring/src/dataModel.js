@@ -45,14 +45,17 @@ export function createDataModel(world) {
    * Makes `target` a synchronized object of this world: an observable that
    * checks every value written to it (V9).
    */
-  function makeSynchronized(target) {
+  function makeSynchronized(target, trusted = false) {
     if (isObservable(target)) {
       if (isSynchronized(target)) return target;
       throw new DataModelError("This object is already observable, but not synchronized. Pass the plain object to synchronized() instead.");
     }
     const isArray = Array.isArray(target);
-    // Fields it already has are checked as if they were written now.
-    if (isArray) {
+    // Fields it already has are checked as if they were written now; unless the object layer
+    // has prepared them itself, from a record (adopt()).
+    if (trusted) {
+      // Nothing to check.
+    } else if (isArray) {
       for (let index = 0; index < target.length; index++) checkElement(index in target ? target[index] : undefined);
     } else {
       for (const key of Reflect.ownKeys(target)) {
@@ -131,9 +134,12 @@ export function createDataModel(world) {
    * JavaScript WeakRef.
    */
   class WeakReference {
-    constructor(target, id) {
+    constructor(target, id, resolve) {
       this.localTarget = target === undefined ? undefined : new WeakRef(target);
       this.knownId = id;
+      // How to find the target by its identity, when it is not at hand: set by the object layer
+      // that decoded the reference, or that owns the target.
+      this.resolve = resolve || (target !== undefined && infoOf(target) ? infoOf(target).resolve : undefined);
     }
 
     get id() {
@@ -146,8 +152,13 @@ export function createDataModel(world) {
 
     deref() {
       const id = this.id;
-      if (id !== undefined && model.resolveWeak) return model.resolveWeak(id);
-      return this.localTarget ? this.localTarget.deref() : undefined;
+      const target = this.localTarget ? this.localTarget.deref() : undefined;
+      if (target !== undefined) {
+        // An object that had an identity and has lost it was reclaimed (data model O3).
+        return id !== undefined && identityOf(target) === undefined ? undefined : target;
+      }
+      const resolve = this.resolve || model.resolveWeak;
+      return id !== undefined && resolve ? resolve(id) : undefined;
     }
   }
 
@@ -489,7 +500,8 @@ export function createDataModel(world) {
   Object.assign(model, {
     world,
     Synchronized, synchronized, isSynchronized,
-    identityOf, setIdentity, clearIdentity, localIdOf,
+    identityOf, setIdentity, clearIdentity, localIdOf, infoOf,
+    adopt: (target) => makeSynchronized(target, true),
     WeakReference, weak,
     kindOf, checkValue: kindOf,
     sameValue: (a, b) => sameValue(a, b, sameReference),

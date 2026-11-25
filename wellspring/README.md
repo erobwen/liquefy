@@ -1,6 +1,6 @@
 # Wellspring
 
-*In progress - the data model is implemented; objects over Aquifer's records, loading, and the rest are planned.*
+*In progress - the data model and objects over Aquifer's records are implemented; loading and unloading, migrations, and indexes are planned.*
 
 Wellspring makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -22,7 +22,7 @@ server-side tool, a desktop application, a single-user editor that keeps its
 documents as objects.
 
 ```javascript
-// The interface is illustrative.
+// load() is planned; the rest exists.
 const spring = open({ store: new LmdbStore("./data"), classes: { Document, Chapter } });
 
 load(spring.root, selectLibrary, () => {
@@ -49,19 +49,29 @@ load(spring.root, selectLibrary, () => {
 
 ## What exists
 
-The [data model](documents/data-model.md), in `src/`, shared by Wellspring and
-Fountain's clients: `Synchronized` and `synchronized()`, the check on what a
-field may hold, the registry of classes, weak references, and the encoding of
-values and records.
+**Objects over records** (`src/spring.js`): open a store, and its root is an
+object like any other. What a stored object comes to refer to is stored with
+it; a reference is loaded when it is first read; each Cascade transaction is
+written as one Aquifer transaction.
 
 ```javascript
-import getWorld from "@liquefy/cascade.reactive";
-import { createDataModel } from "@liquefy/wellspring";
+import { MemoryStore } from "@liquefy/aquifer";
+import { open, transaction, Synchronized, synchronized } from "@liquefy/wellspring";
 
-const model = createDataModel(getWorld());   // one per Cascade world
-class Document extends model.Synchronized { title = "Untitled"; }
-model.registerClasses({ Document });
+class Document extends Synchronized { title = "Untitled"; }
+
+const spring = open({ store: new MemoryStore(), classes: { Document } });
+transaction(() => {
+    spring.root.documents = synchronized([]);
+    spring.root.documents.push(new Document());   // stored: reachable from the root
+});
 ```
+
+**The data model** ([specification](documents/data-model.md), `src/dataModel.js`),
+which Fountain's clients share, and which loads without Aquifer as
+`@liquefy/wellspring/dataModel`: `Synchronized` and `synchronized()`, the
+check on what a field may hold, the registry of classes, weak references, and
+the encoding of values and records.
 
 ```console
 npm test -w @liquefy/wellspring

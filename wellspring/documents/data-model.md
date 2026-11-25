@@ -175,7 +175,7 @@ A map or set held by a synchronized field must not be changed in place. To chang
 A synchronized object is accepted whether it is local or shared. Every synchronized object makes the check on its own fields from the moment it is made, also while it is local, so that when it becomes shared, its fields have already been checked.
 
 The check is made at the moment of writing, on the side that writes, so that the error points at the code that caused it. The server makes the same check on every value it receives, and refuses a transaction that contains a value that fails it.
-*Maintained by:* the object layer's write handler. *Verified:* tests, one per refused kind.
+*Maintained by:* the object layer, through cascade.reactive's per-object hook `meta(object).checkWrite(key, value)`, which is asked before every write, including the elements that array methods add, and refuses by throwing. *Verified:* tests, one per refused kind.
 
 Deep checks of frozen values cost time in proportion to their size. A value that has been checked once can be remembered, by identity, in a weak set; since it is frozen, it cannot change afterwards.
 
@@ -185,9 +185,7 @@ Deep checks of frozen values cost time in proportion to their size. A value that
 
 **A1. An array object is a synchronized object.** An array made with `synchronized([])` and held by a field is a strong reference to an array object, with its own identity once shared.
 
-**A2. Arrays are dense.** An array object has no holes. Its elements are values of the kinds in section 3, other than absent. Writing `undefined` at an index stores `null`.
-
-**Open.** Whether to refuse holes and `undefined` rather than turn them into `null`. Turning them into `null` is what JSON does, and is least surprising.
+**A2. Arrays are dense.** An array object has no holes. Its elements are values of the kinds in section 3, other than absent. Writing `undefined` at an index, or adding it with an array method, is refused, and so is making an array with holes synchronized. (The hook that checks writes cannot change the value written, so turning `undefined` into `null` would need more of Cascade; refusing is the stricter rule, and can be relaxed later.)
 
 **A3. Changes are splices.** Every change to an array object is described as a splice: a position, a number of elements removed, and the elements inserted. A write to an index is a splice that removes one element and inserts one. Cascade already reports array changes this way. How concurrent splices are anchored and rebased is the protocol's concern (whitepaper section 3.9).
 
@@ -210,7 +208,7 @@ Deep checks of frozen values cost time in proportion to their size. A value that
 
 **C5. Class versions.** A registered class has a version, a non-negative integer, 0 by default. Every record stores the version of the class it was last written under. An object whose stored version is older than its class's is migrated when it is loaded ([design](design.md) section 8), before any application code sees it.
 
-**C6. No private fields.** A class whose instances are synchronized must not declare `#private` fields or methods. A private field belongs to the object the constructor made, not to the observable that stands for it, so a method that reads one throws when it is called on the observable; and an object made from a record (K2) never had it. Registration refuses a class in which private members can be detected, and the rule is documented for the rest. State that must not be synchronized is kept in metadata (K5).
+**C6. No private fields.** A class whose instances are synchronized must not declare `#private` fields or methods. On an object that was constructed they work: the base class returns the observable, and the subclass's private fields are installed on it. But an object made from a record (K2) never ran the constructor, and has none, so every method that reads one throws on every object that was stored, sent, or loaded. Registration refuses a class in which private members can be seen in the source, and the rule is documented for the rest. State that must not be synchronized is kept in metadata (K5).
 
 ---
 
@@ -356,7 +354,6 @@ The last point is not what Cascade does today: it compares dates, maps, sets, an
 | What a local-again object's references to reclaimed objects read as | 2.2 |
 | Support for `bigint` | 3.2 |
 | Stopping in-place changes to held dates, maps, sets, and binary values | 3.5 |
-| Holes and `undefined` in arrays: refuse, or store as `null` | 4 |
 | Name and rules of the hook after loading | 6 |
 | Declaring fields as not synchronized | 6 |
 | Where in Cascade's reads a reference is resolved | 6 |

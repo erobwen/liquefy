@@ -1,0 +1,20 @@
+{
+  "name": "@liquefy/wellspring",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Persistent JavaScript objects on top of Aquifer's records. Planned; this is its data model.",
+  "author": "Robert Renbris",
+  "license": "ISC",
+  "type": "module",
+  "main": "./src/index.js",
+  "scripts": {
+    "test": "mocha ./src/test"
+  },
+  "dependencies": {
+    "@liquefy/cascade.reactive": "^3.2.1"
+  },
+  "devDependencies": {
+    "mocha": "^10.8.2",
+    "@liquefy/aquifer": "*"
+  }
+}

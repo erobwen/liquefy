@@ -146,7 +146,7 @@ Each is empty until something is put in it, made the first time it is asked for,
 
 A record is made at the baseline, whoever asks for it first: one first asked for inside a repeater is not that repeater's, and stays when it reruns or is retracted.
 
-innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it (save for rebuildTwin, below). Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty): by default `cascadeMetadataObject`, a long name that no application data is likely to use (until 4.0.0 it was `causality`, after the library this one grew from). Use innerMeta(object), and it does not matter.
+innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it (save for checkWrite and rebuildTwin, below). Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty): by default `cascadeMetadataObject`, a long name that no application data is likely to use (until 4.0.0 it was `causality`, after the library this one grew from). Use innerMeta(object), and it does not matter.
 
 ## ensure (MobX autorun)
 
@@ -283,9 +283,26 @@ sourcesOf(observer) lists what a repeater (its own reads, not its child repeater
 
 kind is "property" (key is the property's name), "keys" (it enumerated the object), "elements" (it read an array's elements or length) or "prototype" (it read a method or getter on the prototype; key is null, since which one is not kept).
 
+## innerMeta(object).checkWrite
+
+A function set on one object's inner metadata, asked before every value is written to that object: `checkWrite(key, value)`. It refuses a write by throwing; the write is then not made, no event is emitted, and nothing is invalidated.
+
+```js
+const settings = observable({});
+innerMeta(settings).checkWrite = (key, value) => {
+  if (typeof value === "function") throw new Error("No functions in settings.");
+};
+settings.tabs = 4;         // fine
+settings.load = () => {};  // throws, and settings.load stays undefined
+```
+
+It is asked for assignments, for `Object.defineProperty` (with the value, or with the getter or setter of an accessor), and for every element that an array method adds (`push`, `unshift`, `splice`, `fill`), with an undefined key, since the method decides where the element lands. It is not asked for deletes, nor for methods that only move elements (`sort`, `reverse`, `pop`, `shift`, `copyWithin`).
+
+Unlike `onWriteGlobal`, which a world has once and which is told only the key, `checkWrite` belongs to one object and is given the value. Wellspring uses it for the write check of its synchronized objects.
+
 ## innerMeta(object).rebuildTwin
 
-The re building mechanism internally uses a forwarding mechanism that can be used directly - the one place where you write to innerMeta(). To use it, simply type innerMeta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. innerMeta(myObject) itself is never forwarded: it stays myObject's own, id included. A getter, though, runs on the object it is forwarded to, so inside a getter `this` is otherObject, and innerMeta(this).id is otherObject's id - in a rebuild, the temporary twin's. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
+The re building mechanism internally uses a forwarding mechanism that can be used directly - with checkWrite, the only places where you write to innerMeta(). To use it, simply type innerMeta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. innerMeta(myObject) itself is never forwarded: it stays myObject's own, id included. A getter, though, runs on the object it is forwarded to, so inside a getter `this` is otherObject, and innerMeta(this).id is otherObject's id - in a rebuild, the temporary twin's. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
 
 
 ## transaction

@@ -1,6 +1,6 @@
 # Wellspring
 
-*Planned - nothing here runs yet.*
+*In progress - the data model is implemented; objects over Aquifer's records, loading, and the rest are planned.*
 
 Wellspring makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -46,6 +46,26 @@ load(spring.root, selectLibrary, () => {
   pure computations, such as an index key, whose dependencies are stored, so
   that they are evaluated again when something they read changes, also after a
   restart.
+
+## What exists
+
+The [data model](documents/data-model.md), in `src/`, shared by Wellspring and
+Fountain's clients: `Synchronized` and `synchronized()`, the check on what a
+field may hold, the registry of classes, weak references, and the encoding of
+values and records.
+
+```javascript
+import getWorld from "@liquefy/cascade.reactive";
+import { createDataModel } from "@liquefy/wellspring";
+
+const model = createDataModel(getWorld());   // one per Cascade world
+class Document extends model.Synchronized { title = "Untitled"; }
+model.registerClasses({ Document });
+```
+
+```console
+npm test -w @liquefy/wellspring
+```
 
 ## Documents
 

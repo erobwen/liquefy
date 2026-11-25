@@ -1373,6 +1373,7 @@ function createWorld(configuration) {
     // Writes. `this` is the handler.
     result.push = function() {
       const items = argumentsToArray(arguments);
+      checkAddedElements(this, items);
       const length = mutateArray(this, { kind: "push", items });
       if (emitEvents) emitSpliceEvent(this, length - items.length, null, items);
       return length;
@@ -1380,6 +1381,7 @@ function createWorld(configuration) {
 
     result.unshift = function() {
       const items = argumentsToArray(arguments);
+      checkAddedElements(this, items);
       const length = mutateArray(this, { kind: "unshift", items });
       if (emitEvents) emitSpliceEvent(this, 0, null, items);
       return length;
@@ -1426,6 +1428,7 @@ function createWorld(configuration) {
           if (rawCount > length - start) readsLength = true;
         }
       }
+      checkAddedElements(this, args.slice(2));
       if (readsLength) observeArray(this, "length");
       for (let i = start; i < start + count; i++) observeArray(this, "index", i);
       const removed = mutateArray(this, { kind: "splice", args });
@@ -1436,12 +1439,20 @@ function createWorld(configuration) {
     ['reverse', 'sort', 'fill', 'copyWithin'].forEach((functionName) => {
       result[functionName] = function() {
         const args = argumentsToArray(arguments);
+        if (functionName === "fill") checkAddedElements(this, args.slice(0, 1));
         const before = emitEvents ? contentAtWritePosition(this).slice() : null;
         mutateArray(this, { kind: functionName, args });
         if (emitEvents) emitSpliceEvent(this, 0, before, contentAtWritePosition(this).slice());
         return this.proxy;
       };
     });
+
+    // A per-object check before values are added (see innerMeta(object).checkWrite
+    // under "Metadata"): the key is undefined, since an array method decides
+    // where its elements land.
+    function checkAddedElements(handler, items) {
+      if (handler.meta.checkWrite) for (const item of items) handler.meta.checkWrite(undefined, item);
+    }
 
     // Each a transaction of its own when called at rest - see inOwnTransaction().
     ['push', 'unshift', 'pop', 'shift', 'splice', 'reverse', 'sort', 'fill', 'copyWithin'].forEach((functionName) => {
@@ -1545,6 +1556,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
+    if (this.meta.checkWrite) this.meta.checkWrite(key, value);
 
     if (key === "length") {
       const length = Number(value);
@@ -3170,6 +3182,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
+    if (this.meta.checkWrite) this.meta.checkWrite(key, value);
 
     // Respect real setters (and reject writes to getter-only properties),
     // mirroring the getter lookup in getHandlerObject.
@@ -3471,6 +3484,7 @@ function createWorld(configuration) {
     if (onWriteGlobal && !onWriteGlobal(this, target, key)) {
       return;
     }
+    if (this.meta.checkWrite) this.meta.checkWrite(key, "value" in descriptor ? descriptor.value : (descriptor.get || descriptor.set));
 
     // A data property's value is written like any other value - what
     // reads see (its writable/enumerable/configurable flags aren't kept).

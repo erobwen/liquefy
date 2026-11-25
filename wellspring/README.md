@@ -1,6 +1,6 @@
 # Wellspring
 
-*In progress - the data model and objects over Aquifer's records are implemented; loading and unloading, migrations, and indexes are planned.*
+*In progress - the data model, objects over Aquifer's records, and loading and unloading are implemented; migrations and indexes are planned.*
 
 Wellspring makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -22,7 +22,6 @@ server-side tool, a desktop application, a single-user editor that keeps its
 documents as objects.
 
 ```javascript
-// load() is planned; the rest exists.
 const spring = open({ store: new LmdbStore("./data"), classes: { Document, Chapter } });
 
 load(spring.root, selectLibrary, () => {
@@ -52,7 +51,9 @@ load(spring.root, selectLibrary, () => {
 **Objects over records** (`src/spring.js`): open a store, and its root is an
 object like any other. What a stored object comes to refer to is stored with
 it; a reference is loaded when it is first read; each Cascade transaction is
-written as one Aquifer transaction.
+written as one Aquifer transaction. `load(start, selector, action)` holds a
+selection in memory, and pins it in Aquifer, until it is released; what
+nothing holds is unloaded, and read from its record again when needed.
 
 ```javascript
 import { MemoryStore } from "@liquefy/aquifer";

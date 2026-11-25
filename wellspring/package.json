@@ -8,7 +8,7 @@
   "type": "module",
   "main": "./src/index.js",
   "scripts": {
-    "test": "mocha ./src/test"
+    "test": "mocha --expose-gc ./src/test"
   },
   "dependencies": {
     "@liquefy/cascade.reactive": "^3.2.1",

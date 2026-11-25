@@ -127,6 +127,8 @@ An object that nothing holds can be dropped from memory. Its record stays in Aqu
 
 The identity map must still give the same object for the same identity for as long as any code has a reference to it. The map therefore holds unheld objects weakly, through JavaScript's `WeakRef`: an unheld object stays in the map until the JavaScript engine finds that nothing refers to it, and is then gone. An object that is held is referred to strongly.
 
+For that to work, the objects in memory must not hold each other strongly through their stored references. A field that holds one reference therefore stays an accessor for as long as it is not written: each read looks the object up in the identity map, and makes it from its record if it is not there. An object is kept in memory by a load that holds it, by a JavaScript variable, by a repeater that has read it, by an array that contains it (an array's elements are resolved when it is made), and by a field written in memory since it was loaded; by nothing else. When none of these holds it, it is unloaded, and made again from its record when it is next read. Its metadata goes with it.
+
 **Open.** Whether weak holding by the JavaScript engine is enough, or whether memory must also be bounded explicitly, by dropping the fields of unheld objects that have not been used for a while. The earlier attempts kept a list of the least recently used objects for this.
 
 ## 3.5 An object in memory whose record is reclaimed
@@ -472,7 +474,11 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - **Arrays are resolved when they are made**, since Cascade copies an array's elements then. A cycle of arrays that contain each other cannot be loaded, and says so.
    - **Failed transactions are rolled back** in memory, from the old values the events carry.
    - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4); migrations (step 6). Classes are registered per data model, so two stores in one process share their classes.
-4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading.
+4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading. *Done*, in `src/spring.js`. How it came out:
+   - `load(start, selector, action)` runs the selector in an independent repeater, holds what it selects, pins the stored objects among it in Aquifer, and runs `action(selection)`. It returns a handle with `selection` and `release()`. When the selection changes, joined objects are held and pinned and left objects let go, in the same Aquifer transaction as the write that changed it.
+   - Objects that are held but still local are pinned in the transaction that stores them.
+   - Unloading is section 3.4: weakly held identity map, and reference fields that look their objects up rather than keep them.
+   - **Not yet:** a load made inside a repeater does not belong to that repeater (section 3.2); it is independent, and released through its handle. Cascade gives no hook when a repeater is retracted, which ownership would need.
 5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2).
 6. **Migrations** (section 8).
 7. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.

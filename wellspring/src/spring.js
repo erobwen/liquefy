@@ -8,9 +8,10 @@
  *   spring.root.documents.push(new Document());    // stored too: reachable from the root
  *
  * What is here: the identity map, references resolved when they are read, persistence by
- * reachability, one Aquifer transaction per Cascade transaction, and objects whose records are
- * reclaimed while they are in memory. Loading and holding selections (load), migrations, and
- * persistent repeaters come later (design section 11).
+ * reachability, one Aquifer transaction per Cascade transaction, objects whose records are
+ * reclaimed while they are in memory, and load(), which holds a selection in memory and pins
+ * it in Aquifer while it is held. Migrations and persistent repeaters come later (design
+ * section 11).
  */
 
 import { Database, ROOT } from "@liquefy/aquifer";
@@ -62,6 +63,12 @@ export class Spring {
     this.loading = 0;
     this.resolve = (id) => this.objectFor(id);
 
+    // Loads (design section 3): how many loads hold each object, which held objects are pinned
+    // in Aquifer, and the pins and unpins not yet written.
+    this.holds = new Map();
+    this.pinned = new Set();
+    this.pendingPins = new Set();
+
     this.db = new Database({ store, options: options.aquifer || {}, onReclaimed: (ids) => this.reclaimed(ids) });
     this.lastCommit = this.db.commit();
     this.root = this.objectFor(ROOT);
@@ -90,6 +97,7 @@ export class Spring {
     info.resolve = this.resolve;
     this.objects.set(id, new WeakRef(object));
     this.forget.register(object, id);
+    if (this.holds.has(object) && !this.pinned.has(object)) this.pendingPins.add(object);
   }
 
   /*------------------------------------------------------------------
@@ -154,18 +162,30 @@ export class Spring {
   }
 
   /**
-   * A field that holds a reference is resolved when it is first read (data model K7): until
-   * then it is an accessor on the target, which decodes the field, puts the value in its place,
-   * and returns it. Writing it first puts the value in place, then writes through the object,
-   * so that the write is an ordinary one, with its event.
+   * A field that holds a reference is resolved when it is read (data model K7).
+   *
+   * A field that holds one reference stays an accessor on the target for as long as it is not
+   * written: each read looks the object up in the identity map, which holds objects weakly, and
+   * makes it from its record if it is not there. The field therefore does not keep the object
+   * in memory, and an object that nothing holds can be unloaded (design section 3.4).
+   *
+   * A field that holds references inside a map or a set is decoded on its first read, and the
+   * value put in its place, so that it keeps its identity.
+   *
+   * Writing such a field first puts its value in place, then writes through the object, so that
+   * the write is an ordinary one, with its event.
    */
   defineLazyField(object, target, field, encoded, decodeOptions) {
+    const keys = Object.keys(encoded);
+    const single = keys.length === 1 && keys[0] === "$ref";
     const resolve = () => {
       const value = this.model.decodeValue(encoded, decodeOptions);
       Object.defineProperty(target, field, { value, writable: true, enumerable: true, configurable: true });
       return value;
     };
-    const get = function () { return resolve(); };
+    const get = single
+      ? () => this.objectFor(encoded.$ref)
+      : function () { return resolve(); };
     get.encoded = encoded; // Encoding an unread field copies it, without loading anything.
     Object.defineProperty(target, field, {
       enumerable: true,
@@ -196,7 +216,10 @@ export class Spring {
    * Aquifer transaction.
    */
   flush() {
-    if (this.changed.size === 0) return;
+    if (this.changed.size === 0) {
+      this.writePins();
+      return;
+    }
     const changed = [...this.changed];
     const events = this.events;
     this.changed = new Set();
@@ -232,6 +255,10 @@ export class Spring {
       for (const object of changed) {
         if (this.owns(object)) tx.replace(this.model.identityOf(object), this.encode(object, identify));
       }
+      for (const object of created) {
+        if (this.holds.has(object)) tx.pin(newIds.get(object));
+      }
+      this.applyPins(tx);
       commit = tx;
       });
     } catch (error) {
@@ -239,7 +266,10 @@ export class Spring {
       throw error;
     }
     this.lastCommit = commit.commit;
-    for (const object of created) this.adoptAs(object, newIds.get(object));
+    for (const object of created) {
+      if (this.holds.has(object)) this.pinned.add(object);
+      this.adoptAs(object, newIds.get(object));
+    }
     const change = { commit: this.lastCommit, created, changed, events };
     for (const listener of this.commitListeners) listener(change);
   }
@@ -319,6 +349,104 @@ export class Spring {
    *  Reclaimed records (data model O3), and background work (design 9.4)
    *-----------------------------------------------------------------*/
 
+  /*------------------------------------------------------------------
+   *  Loading (design section 3)
+   *-----------------------------------------------------------------*/
+
+  /**
+   * Holds what `selector` selects from `start` in memory, and pins the stored objects among
+   * it in Aquifer, so that they are not reclaimed while they are held, though nothing in the
+   * database may refer to them any longer. Runs `action(selection)` once it is in memory.
+   *
+   * The selection follows the graph: the selector runs in a repeater, which runs again when
+   * something it read changes, and objects that join are held, objects that leave let go.
+   * Returns a handle: `handle.selection` is the current selection, a Set, and
+   * `handle.release()` ends the load.
+   *
+   * On a server, a reference outside the selection can still be followed (design section
+   * 3.6); what the load adds is that its objects stay, and stay pinned.
+   */
+  load(start, selector, action) {
+    if (!this.owns(start)) throw new DataModelError("load() starts from an object of this store.");
+    const handle = { selection: new Set(), released: false, release: () => {} };
+    let current = new Set();
+    const repeater = this.world.repeat("load", () => {
+      const selection = new Set();
+      selector(start, selection);
+      this.world.withoutRecording(() => {
+        for (const object of selection) {
+          if (!this.model.isSynchronized(object)) throw new DataModelError("A selector selects synchronized objects only.");
+          if (!current.has(object)) this.hold(object);
+        }
+        for (const object of current) if (!selection.has(object)) this.release(object);
+      });
+      current = selection;
+      handle.selection = selection;
+    }, { independent: true });
+    handle.release = () => {
+      if (handle.released) return;
+      handle.released = true;
+      this.world.retractRepeater(repeater);
+      for (const object of current) this.release(object);
+      current = new Set();
+      handle.selection = current;
+      this.writePins();
+    };
+    this.writePins();
+    if (action) action(handle.selection);
+    return handle;
+  }
+
+  hold(object) {
+    const count = (this.holds.get(object) || 0) + 1;
+    this.holds.set(object, count);
+    if (count === 1 && this.owns(object) && !this.pinned.has(object)) this.pendingPins.add(object);
+  }
+
+  release(object) {
+    const count = this.holds.get(object) - 1;
+    if (count > 0) {
+      this.holds.set(object, count);
+      return;
+    }
+    this.holds.delete(object);
+    if (this.pinned.has(object)) this.pendingPins.add(object);
+    else this.pendingPins.delete(object);
+  }
+
+  /** How many loads hold an object. */
+  holdsOf(object) {
+    return this.holds.get(object) || 0;
+  }
+
+  /** Whether an object is pinned in Aquifer, because a load holds it. */
+  isPinned(object) {
+    return this.pinned.has(object);
+  }
+
+  /** Writes pins and unpins in a transaction of their own, unless there are none. */
+  writePins() {
+    if (this.pendingPins.size === 0) return;
+    this.db.transaction((tx) => this.applyPins(tx));
+    this.lastCommit = this.db.lastCommit;
+  }
+
+  /** Pins what is held and not pinned, and unpins what is pinned and no longer held. */
+  applyPins(tx) {
+    for (const object of this.pendingPins) {
+      if (!this.owns(object)) continue;
+      const id = this.model.identityOf(object);
+      if (this.holds.has(object) && !this.pinned.has(object)) {
+        tx.pin(id);
+        this.pinned.add(object);
+      } else if (!this.holds.has(object) && this.pinned.has(object)) {
+        tx.unpin(id);
+        this.pinned.delete(object);
+      }
+    }
+    this.pendingPins.clear();
+  }
+
   /** An object in memory whose record is reclaimed becomes local again. */
   reclaimed(ids) {
     for (const id of ids) {
@@ -329,6 +457,7 @@ export class Spring {
       const info = this.model.infoOf(object);
       this.model.clearIdentity(object);
       info.spring = undefined;
+      this.pinned.delete(object);
     }
   }
 

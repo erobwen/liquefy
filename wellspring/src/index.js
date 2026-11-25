@@ -28,6 +28,17 @@ export const open = host.open;
 
 export const { transaction, repeat, ensure, meta, metaData } = world;
 
+/**
+ * Holds what `selector` selects from `start` in memory, pinned, and runs `action` once it is:
+ * `load(document, selectDocument, (selection) => {...})`. Returns a handle with `release()`
+ * (design section 3).
+ */
+export function load(start, selector, action) {
+  const info = model.infoOf(start);
+  if (!info || !info.spring) throw new Error("load() starts from a stored object.");
+  return info.spring.load(start, selector, action);
+}
+
 export const {
   Synchronized, synchronized, isSynchronized, weak,
   registerClass, registerClasses,

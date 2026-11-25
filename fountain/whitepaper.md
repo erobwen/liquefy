@@ -55,7 +55,7 @@ The system should provide:
 
 4. **Reactive subscriptions.** Clients automatically receive changes to the data they observe.
 
-5. **Fine-grained authorization.** Read and write permissions can be defined on individual objects.
+5. **Fine-grained authorization.** Read and write permissions can be defined on individual objects, for users that are part of the database from the start.
 
 6. **Collaborative editing.** Multiple clients can interact with the same object graph in real time.
 
@@ -182,7 +182,7 @@ Executable class definitions are not stored as database records. Instead, stored
 
 The exact serialization format remains an implementation detail.
 
-## 2.3 Three kinds of objects
+## 2.3 Kinds of objects
 
 Not every object needs to be persistent and shared.
 
@@ -194,7 +194,7 @@ The application's data. They are stored in the database, have stable identity, a
 
 **Server-local objects**
 
-Selections, live queries, sessions, and snapshot builders. They exist in the server's memory only while something uses them. They are never stored and never synchronized as objects. A client talks to them through a small protocol: it subscribes, and receives results.
+Selections, live queries, sessions (section 4.1), and snapshot builders. They exist in the server's memory only while something uses them. They are never stored and never synchronized as objects. A client talks to them through a small protocol: it subscribes, and receives results.
 
 **Client-local objects**
 
@@ -272,10 +272,10 @@ When an object property changes, dependent computations are invalidated and the 
 A simplified example:
 
 ```javascript
-const document = db.get("document-123");
-
-repeat(() => {
-    titleElement.textContent = document.title;
+subscribe(document, selectDocument, () => {
+    ensure(() => {
+        titleElement.textContent = document.title;
+    });
 });
 ```
 
@@ -369,7 +369,7 @@ A selection is the unit of several things at once:
 - **Subscription.** Changes to any object in the selection are sent to its subscribers.
 - **Loading.** A client receives the whole selection before it operates on any of it, so that code within the boundary can run synchronously.
 - **Holding.** The objects of a selection are held by its subscribers, and must not be collected while they are (the volatile roots of the garbage collector).
-- **Sharing.** Clients that name the same selector and starting object, with equivalent access rights (section 4.3), share one selection on the server.
+- **Sharing.** Clients that name the same selector and starting object, with equivalent access rights (section 4.4), share one selection on the server.
 
 ## 3.5 Reactive selections
 
@@ -562,7 +562,7 @@ A different route was considered, closer to form state, in which a field is edit
 
 **What can still fail**
 
-The authorization methods of section 4 are ordinary methods of the application's classes, and run the same on clients and on the server. A client therefore knows, before it writes, whether a write is allowed, and the user interface does not offer what is not.
+The authorization methods of section 4.2 are ordinary methods of the application's classes, and run the same on clients and on the server. A client therefore knows, before it writes, whether a write is allowed, and the user interface does not offer what is not.
 
 The server still checks every write, since a client can be modified. But for an unmodified client, a refused write means one of three things:
 
@@ -704,7 +704,50 @@ Until the answer arrives, the object exists only on its client. Another client c
 
 # 4. Object-Level Security
 
-## 4.1 Authorization through object methods
+## 4.1 Users, sessions, and authentication
+
+Every authorization decision is about a user. The user model is therefore part of Fountain from the start, not something an application adds.
+
+**Users are persistent objects**
+
+A user is an ordinary persistent object of a built-in class, `User`, which applications may extend with fields of their own: a name, a picture, memberships. Authorization methods receive it, and compare it with references in the data, such as `this.owner === user`.
+
+A user's credentials are kept apart from the user, in an object that no client can read or select, so that selecting a user, to show an author's name, never comes near a password hash.
+
+**The super user**
+
+A new database is created with one user, the super user, who can read and write everything and can create other users. The authorization methods are not asked about the super user's operations.
+
+The super user is the way into an empty database. It is also the visualizer's user (section 19).
+
+**Authentication**
+
+A connection starts with an anonymous session, whose user is none. Signing in is a call to a method of the session (section 4.5), which binds it to a user; from then on, every message on the connection acts as that user. Two ways in should be supported from the beginning:
+
+- **Passwords.** The super user, or an application acting for it, creates a user with a password. The server stores a slow, salted hash, such as scrypt or Argon2, and never the password.
+- **An external login service.** The client signs in with an identity provider, using OpenID Connect or a similar protocol, and presents the access token it receives. Fountain verifies the token's signature and issuer, and finds the user recorded for that issuer and subject, or creates one if the application allows it. Fountain does not have to implement logins, password resets, or two-factor authentication itself.
+
+Both end in the same place: a session bound to a `User` object.
+
+**Sessions**
+
+A session is a server-local object (section 2.3). It holds the user, the client's subscriptions and presence objects, and its code version (section 17.13). It is gone after a restart, and a reconnecting client authenticates again, typically with a token it was given when it first signed in.
+
+The session is also the client's way of talking to the server, and its security gateway (section 4.5).
+
+Signing a user out, or disabling a user, ends their sessions. Their subscriptions end, and their clients are told to drop what they hold.
+
+**The system**
+
+Persistent repeaters, migrations, and the garbage collector act as no user. They are not subject to the authorization methods, and what they compute must not depend on who is asking. A key is computed once for everyone. Who may see the result is decided when it is delivered (section 4.3).
+
+**Operations that only the server may perform**
+
+Some operations cannot be expressed as field writes from a client, because the client must not do them itself: creating a user with a hashed password, sending an email, charging a card, or answering a question about data the user may not see.
+
+These are methods of the session object, which a client calls remotely (section 4.5). Signing in is the first of them.
+
+## 4.2 Authorization through object methods
 
 The proposed security model allows persistent objects to implement authorization methods:
 
@@ -715,19 +758,46 @@ class Document extends PersistentObject {
                this.owner === user;
     }
 
-    canWrite(user) {
+    canWrite(user, property, value) {
         return this.owner === user;
     }
 }
 ```
 
-The methods are evaluated by the authoritative server.
+`canWrite` receives the property and the new value as well, so that it can allow some properties and not others, and reject values that are invalid. Validation is thus the same mechanism as authorization.
 
-They may also be available on clients for predictive UI behavior, such as disabling editing controls when the user is unlikely to have permission.
+**Security is activated by the class**
 
-However, client-side evaluations are never authoritative.
+An object of a class that defines `canRead` is protected for reading, and one that defines `canWrite` for writing. An object whose class defines neither is unprotected: anyone who can reach it can read and write it.
 
-## 4.2 Authorization and subscriptions
+An application can start without security and add it class by class.
+
+**The same on both sides**
+
+The methods are ordinary methods of the application's classes, and run the same on clients and on the server. A client knows whether a write is allowed before it makes it, and the user interface does not offer what is not.
+
+The server's evaluation is the one that counts, since a client can be modified. For an unmodified client, a refusal means a bug, a code mismatch, or a race (section 3.9).
+
+A client can only predict correctly if the methods read what is in its selection. A `canWrite` that reads a group's membership needs the membership selected along with the document. Development mode should report an authorization method that reads outside the client's selection, as it reports any other such read (section 2.4).
+
+**Plain objects**
+
+Not every object is an instance of an application class. A document's settings may be a plain JavaScript object, `{ margin: 20, columns: 2 }`, which has no methods and so no security.
+
+Such objects need no security of their own if a client can reach them only through objects that do. A client receives an object only through a selection, and a selection passes only through objects that the user may read (section 4.3). An object referred to only from a protected document is visible only to those who may see the document.
+
+That leaves two holes, and both need closing:
+
+- **Reaching an object by its identity.** If a client can subscribe to any object by naming its identity, then knowing the identity is the only protection. Identities must then be unguessable, long and random rather than sequential, and treated as capabilities. Alternatively, a client can be allowed to name only objects that a selection has already given it, and roots that it is explicitly granted.
+- **Writing.** A plain object inside a protected document would be writable by everyone who may read the document. The natural rule is that a plain object is protected by its owner: the classed object through which it was created, or, more robustly, the classed object it is nearest to in the selection that delivered it. Its fields are then written under the owner's `canWrite`.
+
+Which rule to choose is open (section 17.15). The aim is that plain objects remain the cheap default, and that they never become the way around a protected object.
+
+**Creating objects**
+
+Anyone may create objects. A new object is kept only if it is referenced from an object that its creator may write, since otherwise it is unreachable, and the garbage collector reclaims it. Creating objects therefore needs no authorization method of its own; attaching them does.
+
+## 4.3 Authorization and subscriptions
 
 Authorization must be enforced when:
 
@@ -746,7 +816,17 @@ A practical design is to evaluate subscriptions through an authorization-aware o
 
 Permission changes must also invalidate affected subscriptions. A client that loses access must stop receiving protected data, and its previously synchronized local representation may need to be revoked or cleared.
 
-## 4.3 Shared security projections
+**Queries and indexes**
+
+An index is computed once, for everyone (section 4.1). The result of a query over it may contain objects that the asking user may not read, and they must be filtered out on delivery.
+
+Filtering after a range has been read breaks limits and paging: the first twenty entries may contain five that the user may not see. Either the query reads further until it has enough, or, when most of an index is invisible to most users, there is one index per audience, such as per team. This is a design decision for each query (section 6.6).
+
+**Granularity**
+
+Security is per object, not per property. A property that only some readers may see, such as a salary, belongs in an object of its own with its own `canRead`.
+
+## 4.4 Shared security projections
 
 When multiple users have equivalent access rights, they may share a reactive projection.
 
@@ -763,6 +843,63 @@ Document
 ```
 
 Sharing should occur only when the server can establish that the projection is safe for every subscriber.
+
+## 4.5 The session as the server's API
+
+**Remote methods on the session**
+
+Besides writing to the objects it has selected, a client can call methods on its session object, which lives on the server, and receive their results.
+
+The application defines the session's class, by extending Fountain's:
+
+```javascript
+class CompanySession extends Session {
+    anyOtherEmployeeWithHigherSalaryThanMe() {
+        const me = this.user.employee;
+        return this.company.employees.some(
+            employee => employee !== me && employee.salary > me.salary
+        );
+    }
+}
+```
+
+```javascript
+// On a client
+if (await session.anyOtherEmployeeWithHigherSalaryThanMe()) { ... }
+```
+
+A method of the session is what an API endpoint is in a conventional server: a named operation, with arguments, that runs on the server and returns a response. The difference is that it is written as a method, called as a method, and works on the same objects as everything else.
+
+It is the request and response half of the model, beside the stream of writes. It is also where server queries are made, when an application wants them: a query is a session method that returns a result (section 6.6).
+
+**The session is the security gateway**
+
+The authorization methods of section 4.2 govern what a user can do directly: which objects a selection can deliver, and which fields a client can write.
+
+A session method is trusted code. While it runs, it reads and writes with full access, and decides itself what crosses back to the client. The example reads the salaries of the whole company, which the user may not read, and returns a single boolean.
+
+A session method thus extends a user's access for the duration of one call, and only in the way the method allows. The user never gets the salary data; the user gets an answer about it.
+
+This is the place for everything that is decided by the server rather than predicted on the client: creating users, aggregates over data the user may not see, operations with external effects, and checks that need secrets.
+
+**Rules for session methods**
+
+- **Server-only code.** The bodies of session methods are not sent to clients. They may contain secrets and logic that the user should not see. A client receives the names of the methods it may call, and calls them through a stub. The session class is therefore split, or marked, so that the bundler leaves its server half out of the client. This is the one deliberate exception to running the same code on both sides.
+- **Arguments and results are data.** A method receives and returns values that can be serialized: numbers, strings, plain objects, and references to persistent objects. A returned reference gives the client an identity, not access. If the client subscribes to it, its `canRead` still decides.
+- **Granting access for longer than a call.** A method can grant its session access to particular objects, for example the results of a search that the user may see, though `canRead` alone would not say so. The grant is held by the session, consulted by authorization along with `canRead`, and ends with the session.
+- **Writes are a transaction.** A method's writes are committed as one transaction, and reach every subscriber, including the caller, through the ordinary stream.
+- **Ordering.** The call travels on the same connection as the client's writes, so it sees every write that the client made before it. The server sends the changes the method made before it sends the response, so when the client's call resolves, its objects already show the method's effects.
+- **Limits.** Since every call passes through the session, the session is the natural place for rate limits and quotas (section 17.19).
+
+**The session also governs subscriptions**
+
+The session can decide, too, which subscriptions a client may make: which selectors, from which starting objects. The default allows any selector from any object that the user may read. An application can narrow it, for example to a few named selectors from objects that the session has given the client.
+
+This is one answer to the question of naming objects by identity (section 17.15): the session decides which roots a client may start from.
+
+**On the server**
+
+Server code can call the same methods directly, as ordinary method calls. A server-side job, or a test, can then act as a given user by creating a session for that user and calling its methods.
 
 ---
 
@@ -1011,6 +1148,8 @@ Whether a result should change under the user's eyes, or announce that newer res
 ## 6.6 Queries as server-local objects
 
 A query is a server-local object (section 2.3) with ordinary query and result semantics: a client names a registered query, supplies parameters, and receives a result.
+
+The natural way to name and call it is as a method of the session (section 4.5). The method runs on the server with full access, filters the result for the user, and returns either the result itself or a live result object, a server-local selection that the client then subscribes to.
 
 What produces the result is hidden behind the name.
 
@@ -1834,7 +1973,7 @@ At what size or rate of change does a live index stop being the right implementa
 
 ## 17.10 Authorization and shared selections
 
-A shared selection must be safe for every subscriber (section 4.3).
+A shared selection must be safe for every subscriber (section 4.4).
 
 Can authorization be evaluated as part of the selector, so that it is itself reactive and a change of permissions updates the selection like any other change?
 
@@ -1896,6 +2035,39 @@ The collector's regions (section 12) are a natural candidate for the parts that 
 This resembles server meshing in large online games, where the world is divided between servers dynamically, and objects and players are handed over at the boundaries.
 
 It is far beyond a first version. It is noted here because it shapes earlier decisions: identity must not encode which server an object lives on, and the protocol should allow a subscription to be served by a server other than the authoritative one.
+
+## 17.15 Plain objects and identities
+
+Plain objects have no security methods of their own (section 4.2). Two decisions follow:
+
+- Can a client name any object by its identity, in which case identities must be unguessable, or only objects a selection has given it and roots it has been granted? The second is safer and makes identities ordinary numbers; the first makes links that can be shared. The session's control of subscriptions (section 4.5) makes the second easy to enforce, and lets each application choose.
+- Which classed object protects a plain object's fields: the one through which it was created, recorded when it is created, or the nearest in the selection that delivered it, which can differ between users and change as the graph changes?
+
+## 17.16 Stale writes
+
+Last-write-wins means last to arrive, not last to be made. A client that was offline for an hour, or on a slow connection, sends writes made against data that has since changed, and they override everything that happened meanwhile.
+
+If every write carries the commit that the client had last seen, the server can tell when a write overrides a value that its writer had never seen. That is the same detection as for overwritten paragraphs (section 3.10). What to do then is policy: apply and mark it, as for text, or, for writes older than some limit, refuse them and let the client show what it had.
+
+Offline work in general, with writes queued for longer than a reconnection, is not a goal of the first version. But the base commit costs little, and is worth sending from the start.
+
+## 17.17 Atomicity of a client transaction
+
+A client sends one transaction as one message (section 3.8). If one of its writes is refused, are the others applied?
+
+Applying all or nothing is the expected meaning of a transaction, and it is what lets a client keep its invariants: a paragraph moved from one chapter to another is not left in both, or in neither. The proposal is all or nothing, with the refusal naming the write that failed.
+
+## 17.18 Undo
+
+Editors need undo. In a multi-user document, undo means undoing one's own changes, not the latest change, which may be someone else's.
+
+A client can keep its own transactions, with the values they replaced, and undo by writing those values back, as a new write. Under last-write-wins that is mostly straightforward.
+
+Two things are not. Undoing a removal brings an object back that may have been reclaimed meanwhile, unless a client's undo history keeps what it refers to alive, for example as volatile roots for as long as the session lasts. And undoing a change that someone else has changed since would override their change; the base commits of section 17.16 can detect it.
+
+## 17.19 Limits and abuse
+
+A client can subscribe to large selections, write at a high rate, or create many objects that are collected again. Per user limits are needed on subscription size, write rate, and the number of unconfirmed operations, and the server must be able to end a session that exceeds them.
 
 ---
 
@@ -1989,17 +2161,19 @@ It is a debugging tool, a teaching tool, and an administration tool. Since it is
 
 Implement stable object identity, persistence, transactions, reactive proxies, and WebSocket synchronization.
 
-Establish the basic security and subscription model.
+Establish the user model, security, and subscriptions. Security is not added later: the user model is the base of every authorization decision, and the protocol, selections and stores are all shaped by it.
 
 In order:
 
 1. In Cascade: `meta()`, `untrackedMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
 2. An object layer on the store: persistent objects as proxies, one instance per identity, classes registered by name, and a server store that turns each transaction into one Frozen transaction and a change set.
-3. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
-4. Selections and `load`, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7).
-5. The protocol and `subscribe`: subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.
-6. Client stores: the stream of writes from clients, last write wins, with temporary ids for new objects, authorization, and save states in metadata (sections 3.8 and 3.9).
-7. Code versions: clients state their version, old clients are told to reload, and a reload recovers subscriptions and unconfirmed writes (section 17.13).
+3. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, and the rule for plain objects is decided before clients can write (sections 4.1, 4.2 and 17.15).
+4. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
+5. Selections and `load`, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.
+6. The protocol and `subscribe`: authenticated connections, subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.
+7. Client stores: the stream of writes from clients, last write wins, each carrying its base commit, all or nothing per transaction, with temporary ids for new objects and save states in metadata (sections 3.8, 3.9, 17.16 and 17.17).
+8. Presence objects (section 3.10).
+9. Code versions: clients state their version, old clients are told to reload, and a reload recovers subscriptions and unconfirmed writes (section 17.13).
 
 ## Phase 1b: Live indexes and queries
 

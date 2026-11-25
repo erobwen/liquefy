@@ -106,7 +106,8 @@ new Hello({ to: "World" }).establish().renderOnto(target, new RenderContext({ se
 Before building anything real with Cascade, read the
 [reference manual](cascade/docs/manual/README.md): every package, chapter by
 chapter, the rules to follow and why, and an API reference. It's also in the
-demo app, under Reference Manual, with a search through all of it.
+demo app, under Reference Manual, with a search through all of it. Coming
+from 3.x? See [Upgrading to Cascade 4.0](cascade/docs/upgrading-to-4.md).
 
 ## Frozen
 

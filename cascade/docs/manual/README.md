@@ -30,4 +30,6 @@ Contents:
 11. [Pitfalls and rules](11-pitfalls-and-rules.md)
 12. [API reference](12-api-reference.md)
 
+Coming from 3.x? See [Upgrading to Cascade 4.0](../upgrading-to-4.md).
+
 ---

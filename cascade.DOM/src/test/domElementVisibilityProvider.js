@@ -61,7 +61,7 @@ describe("DOMElementVisibilityProvider", function () {
   // Reads whether the element it's placed in is in view, from build().
   class Probe extends Component {
     build() {
-      const u = this.unobservable;
+      const u = this.plain;
       u.builds = (u.builds || 0) + 1;
       u.inView = this.fromTarget("inView");
       u.seen = this.fromTarget("seen");
@@ -73,8 +73,8 @@ describe("DOMElementVisibilityProvider", function () {
     const probe = new Probe();
     const provider = new DOMElementVisibilityProvider({ child: probe });
     provider.renderOnto(new DOMElementTarget(container));
-    const element = provider.unobservable.node;
-    const u = probe.unobservable;
+    const element = provider.plain.node;
+    const u = probe.plain;
     assert.ok(FakeIntersectionObserver.observing(element));
     assert.deepEqual([u.builds, u.inView, u.seen], [1, false, false], "first built as not seen yet");
 
@@ -92,34 +92,34 @@ describe("DOMElementVisibilityProvider", function () {
     const probe = new Probe();
     const provider = new DOMElementVisibilityProvider({ child: probe });
     provider.renderOnto(new DOMElementTarget(container));
-    const element = provider.unobservable.node;
+    const element = provider.plain.node;
     FakeIntersectionObserver.report(element, 10);
-    assert.equal(probe.unobservable.seen, false, "a sliver of it isn't enough");
+    assert.equal(probe.plain.seen, false, "a sliver of it isn't enough");
     FakeIntersectionObserver.report(element, 25);
-    assert.equal(probe.unobservable.seen, true);
+    assert.equal(probe.plain.seen, true);
     FakeIntersectionObserver.report(element, 20);
-    assert.equal(probe.unobservable.inView, false, "less than that again: out of view");
+    assert.equal(probe.plain.inView, false, "less than that again: out of view");
   });
 
   it("taller than the viewport, it's the viewport it has to fill that much of", function () {
     const probe = new Probe();
     const provider = new DOMElementVisibilityProvider({ child: probe, amount: 0.5 });
     provider.renderOnto(new DOMElementTarget(container));
-    const element = provider.unobservable.node;
+    const element = provider.plain.node;
     FakeIntersectionObserver.report(element, 400, { height: 3000, viewport: 1000 });
-    assert.equal(probe.unobservable.seen, false);
+    assert.equal(probe.plain.seen, false);
     FakeIntersectionObserver.report(element, 500, { height: 3000, viewport: 1000 });
-    assert.equal(probe.unobservable.seen, true, "half the screen - a sixth of it");
+    assert.equal(probe.plain.seen, true, "half the screen - a sixth of it");
   });
 
   it("amount 0: any part of it at all - and a margin moves the viewport's edges", function () {
     const probe = new Probe();
     const provider = new DOMElementVisibilityProvider({ child: probe, amount: 0, margin: "0px 0px -40% 0px" });
     provider.renderOnto(new DOMElementTarget(container));
-    const element = provider.unobservable.node;
+    const element = provider.plain.node;
     assert.equal(FakeIntersectionObserver.observing(element).options.rootMargin, "0px 0px -40% 0px");
     FakeIntersectionObserver.report(element, 1);
-    assert.equal(probe.unobservable.seen, true);
+    assert.equal(probe.plain.seen, true);
   });
 
   it("only rebuilds what reads it: a sibling section stays as it is", function () {
@@ -136,8 +136,8 @@ describe("DOMElementVisibilityProvider", function () {
     page.renderOnto(new DOMElementTarget(container));
     const [firstElement] = container.children;
     FakeIntersectionObserver.report(firstElement, 100);
-    assert.deepEqual([first.unobservable.builds, first.unobservable.seen], [2, true]);
-    assert.deepEqual([second.unobservable.builds, second.unobservable.seen], [1, false]);
+    assert.deepEqual([first.plain.builds, first.plain.seen], [2, true]);
+    assert.deepEqual([second.plain.builds, second.plain.seen], [1, false]);
   });
 
   it("hidden and shown again, it's not seen until it comes into view again - and watched anew", function () {
@@ -150,17 +150,17 @@ describe("DOMElementVisibilityProvider", function () {
       }
     }
     new Frame().renderOnto(new DOMElementTarget(container));
-    const element = provider.unobservable.node;
+    const element = provider.plain.node;
     FakeIntersectionObserver.report(element, 100);
-    assert.equal(probe.unobservable.seen, true);
+    assert.equal(probe.plain.seen, true);
 
     model.shown = false;
-    assert.equal(probe.unobservable.seen, true, "hidden, nothing is built");
+    assert.equal(probe.plain.seen, true, "hidden, nothing is built");
     model.shown = true;
-    assert.deepEqual([probe.unobservable.seen, probe.unobservable.inView], [false, false], "shown again: built not seen");
+    assert.deepEqual([probe.plain.seen, probe.plain.inView], [false, false], "shown again: built not seen");
     assert.ok(FakeIntersectionObserver.observing(element), "still watched");
     FakeIntersectionObserver.report(element, 100);
-    assert.equal(probe.unobservable.seen, true, "and seen again, once in view");
+    assert.equal(probe.plain.seen, true, "and seen again, once in view");
   });
 
   it("without an IntersectionObserver, everything counts as seen at once", function () {
@@ -174,10 +174,10 @@ describe("DOMElementVisibilityProvider", function () {
       }
     }
     new Frame().renderOnto(new DOMElementTarget(container));
-    assert.deepEqual([probe.unobservable.inView, probe.unobservable.seen], [true, true]);
+    assert.deepEqual([probe.plain.inView, probe.plain.seen], [true, true]);
     model.shown = false;
     model.shown = true;
-    assert.deepEqual([probe.unobservable.inView, probe.unobservable.seen], [true, true], "and stays so, shown again: nothing could tell otherwise");
+    assert.deepEqual([probe.plain.inView, probe.plain.seen], [true, true], "and stays so, shown again: nothing could tell otherwise");
   });
 
   it("stops watching once dropped from its own build()-owning parent", function () {

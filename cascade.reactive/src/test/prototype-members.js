@@ -7,7 +7,7 @@ import assert from "assert";
 // only a value of the object's own by that name tells its readers.
 describe("Prototype members", function () {
   function setup() {
-    const { temporal, repeat } = getWorld({ name: "prototype-members-" + Math.random() });
+    const { temporal, repeat, innerMeta } = getWorld({ name: "prototype-members-" + Math.random() });
     class Thing {
       constructor() {
         this.size = 1;
@@ -16,14 +16,14 @@ describe("Prototype members", function () {
       area() { return 10; }
       get doubled() { return this.size * 2; }
     }
-    return { temporal, repeat, Thing };
+    return { temporal, repeat, innerMeta, Thing };
   }
 
   it("calling a method gives its name no timeline", function () {
     const { repeat, Thing } = setup();
     const thing = new Thing();
     repeat(() => thing.area());
-    assert.equal(typeof thing.timelines.area, "undefined");
+    assert.equal(typeof thing.cascadeTimelinesObject.area, "undefined");
   });
 
   it("a method replaced on the object itself is seen", function () {
@@ -65,7 +65,7 @@ describe("Prototype members", function () {
   });
 
   it("a reader taken down no longer hears of it", function () {
-    const { temporal, repeat, Thing } = setup();
+    const { temporal, repeat, innerMeta, Thing } = setup();
     const thing = new Thing();
     const shown = temporal({ on: true });
     let inner = 0;
@@ -74,7 +74,7 @@ describe("Prototype members", function () {
     });
     assert.equal(inner, 1);
     shown.on = false;
-    assert.equal(thing.causality.handler.prototypeObservers.contentsCounter, 0);
+    assert.equal(innerMeta(thing).handler.prototypeObservers.contentsCounter, 0);
     thing.area = () => 30;
     assert.equal(inner, 1);
   });

@@ -135,7 +135,7 @@ Metadata is what is known about an object, or about one of its properties, beyon
     plainMeta(object)             // plain record about the object
     plainMeta(object, property)   // plain record about one property
 
-Each is empty until something is put in it, made the first time it is asked for, and the same ever after. meta() is for what the user interface reads, and is observed like any observable; plainMeta() is for bookkeeping that must not be observed (cascade.component keeps a component's unobservable bag there). cascade.reactive decides no field of either: put values, plain objects or observables in them. A layer that wants a corner of its own keeps one object under a name of its own.
+Each is empty until something is put in it, made the first time it is asked for, and the same ever after. meta() is for what the user interface reads, and is observed like any observable; plainMeta() is for bookkeeping that must not be observed (cascade.component keeps a component's plain fields, this.plain, there). cascade.reactive decides no field of either: put values, plain objects or observables in them. A layer that wants a corner of its own keeps one object under a name of its own.
 
     Object.assign(meta(contact, "email"), { saved: contact.email, saving: 0 });
     meta(document).sync = observable({ loaded: "unloaded" });
@@ -146,7 +146,7 @@ Each is empty until something is put in it, made the first time it is asked for,
 
 A record is made at the baseline, whoever asks for it first: one first asked for inside a repeater is not that repeater's, and stays when it reruns or is retracted.
 
-innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it. Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty), and still `object.causality` by default, after the library this one grew from; the next major version will make the default a long name that no application data is likely to use, `cascadeMetadataObject`. Use innerMeta(object), and it does not matter.
+innerMeta(object) is cascade.reactive's own bookkeeping about the object, such as innerMeta(object).id, a system wide unique id for that particular object - useful for keys. Read it; only cascade.reactive writes it. Underneath, it is the one property an observable answers itself instead of passing on to its target. Its name is configurable (objectMetaProperty): by default `cascadeMetadataObject`, a long name that no application data is likely to use (until 4.0.0 it was `causality`, after the library this one grew from). Use innerMeta(object), and it does not matter.
 
 ## ensure (MobX autorun)
 

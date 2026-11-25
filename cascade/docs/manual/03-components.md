@@ -125,28 +125,28 @@ creator also passes a property of that name, the creator's next build
 overwrites it (see [3.2](#32-properties)), and a write to it from a repeater
 isn't caught.
 
-## 3.4 Unobservables
+## 3.4 Plain fields
 
-`this.unobservable` is a plain object for non-reactive bookkeeping: render
+`this.plain` is a plain object for non-reactive bookkeeping: render
 counters, cached measurements, references to components you own. Seed it
-with `initialUnobservables()`:
+with `initialPlain()`:
 
 ```js
-initialUnobservables() {
+initialPlain() {
   return { lastScrollTop: 0 };
 }
 ```
 
-`initialUnobservables()` runs lazily, the first time `this.unobservable` is
+`initialPlain()` runs lazily, the first time `this.plain` is
 read, inside `accessInitialValues()` - normally on the established object, so
 it runs once per component, not once per rebuild. What it returns is copied
-(see [11.17](11-pitfalls-and-rules.md#1117-what-initialunobservables-returns-is-copied)).
+(see [11.17](11-pitfalls-and-rules.md#1117-what-initialplain-returns-is-copied)).
 Some names are reserved by `Component` itself (`repeater`, `buildRepeater`,
 `pullingComponent`, `renderTarget`, `renderContext`, `renderParent`,
 `ownContext`, `childContext`, `renderTimeless`, `callbacks`, `callbackBuild`,
 `hydratedInBuild`, `hydrated` - using one throws).
 
-Reading an unobservable records nothing, and writing one invalidates
+Reading a plain field records nothing, and writing one invalidates
 nothing. Never keep something there that a build or render should follow.
 
 ## 3.5 build()
@@ -261,7 +261,7 @@ don't need `render()`.
 | Hook | When | Notes |
 |---|---|---|
 | `constructor` → `setProperties()` → `initialState()` | Every construction, including the throwaway twin of a rebuild | Do not acquire resources here, or create components you mean to keep. |
-| `initialUnobservables()` | First access to `this.unobservable` | Runs at the baseline. Create owned components here. |
+| `initialPlain()` | First access to `this.plain` | Runs at the baseline. Create owned components here. |
 | `onEstablish()` | Built for the first time - when its creator's build finishes, before it is rendered - or `establish()` called by its owner | Acquire external resources (subscriptions, timers). Call `super.onEstablish()`. Runs inside the creator's build: write state with `setState()`. |
 | `provide()` | Once, when it first enters the tree | Returns what it provides, or `null`. |
 | `build()` | Reactively, when rendered | |
@@ -283,13 +283,13 @@ A component rendered at the root without `establish()` still renders, but its
 ## 3.8 Components you own (created outside build())
 
 A component constructed in a `build()` is established and disposed for you by
-that build. A component created any other way - kept in an unobservable,
+that build. A component created any other way - kept in a plain field,
 say, so it survives being absent from a build - has nobody to do that, so its
 owner must:
 
 ```js
 export class Owned extends Component {
-  initialUnobservables() {
+  initialPlain() {
     return {
       first: new Tally({ label: "First" }).establish(),
       second: new Tally({ label: "Second" }).establish(),
@@ -297,18 +297,18 @@ export class Owned extends Component {
   }
 
   onDispose() {
-    this.unobservable.first.dispose();
-    this.unobservable.second.dispose();
+    this.plain.first.dispose();
+    this.plain.second.dispose();
     super.onDispose();
   }
 
   build() {
-    return this.tab === "first" ? this.unobservable.first : this.unobservable.second;
+    return this.tab === "first" ? this.plain.first : this.plain.second;
   }
 }
 ```
 
-- Create them in `initialUnobservables()`, **not** in `initialState()`:
+- Create them in `initialPlain()`, **not** in `initialState()`:
   `initialState()` also runs for the throwaway instance of every rebuild, so a
   component established there would be thrown away without being disposed.
 - `establish()` is a no-op on an already established component and returns

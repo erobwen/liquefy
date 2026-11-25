@@ -11,7 +11,7 @@ function pages(sequence) {
     sequence.linesOf(index).map((line) => line.runs.map((run) => run.text).join("") + "@" + line.top));
 }
 
-const counts = (components) => components.map((p) => [p.unobservable.breaks, p.unobservable.placements]);
+const counts = (components) => components.map((p) => [p.plain.breaks, p.plain.placements]);
 
 describe("Laying out onto a PaperSequence", function () {
   it("places paragraphs line by line, down the paper and onto the next", function () {
@@ -142,7 +142,7 @@ describe("Laying out onto a PaperSequence", function () {
     document.sections[0].paragraphs.splice(1, 1);
     assert.deepEqual(pages(sequence), [["aaaa@1000", "cccc@6000"]]);
     removed.text = "bbbb bbbb";
-    assert.equal(gone.unobservable.breaks, 1);
+    assert.equal(gone.plain.breaks, 1);
   });
 
   it("breaks every paragraph again when what they're all laid out with changes", function () {

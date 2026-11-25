@@ -197,13 +197,13 @@ describe("drawer", function () {
       initialState() {
         return { side: "left" };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { counter: new Counter().establish() };
       }
       build() {
         return div(
           { style: { position: "relative" } },
-          drawer({ open: true, side: this.side, title: "Filters", animate: false }, this.unobservable.counter),
+          drawer({ open: true, side: this.side, title: "Filters", animate: false }, this.plain.counter),
         );
       }
     }

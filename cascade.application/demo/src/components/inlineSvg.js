@@ -18,7 +18,7 @@ export class InlineSvg extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.node || u.source !== this.source) {
       u.source = this.source;
       const parsed = new DOMParser().parseFromString(this.source, "image/svg+xml").documentElement;

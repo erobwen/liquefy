@@ -33,15 +33,15 @@ describe("popover", function () {
       initialState() {
         return { onPage: true };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { page: new Page().establish() };
       }
       onDispose() {
-        this.unobservable.page.dispose();
+        this.plain.page.dispose();
         super.onDispose();
       }
       build() {
-        return overlayFrame(this.onPage ? this.unobservable.page : div({ key: "other" }));
+        return overlayFrame(this.onPage ? this.plain.page : div({ key: "other" }));
       }
     }
     const host = document.createElement("div");

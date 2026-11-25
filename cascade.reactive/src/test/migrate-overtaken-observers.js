@@ -37,18 +37,18 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
   const PADDING = 5;
 
   class Leaf {
-    get unobservable() {
-      if (!plainMeta(this).unobservable) {
-        plainMeta(this).unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
+    get plain() {
+      if (!("repeater" in plainMeta(this))) {
+        Object.assign(plainMeta(this), { repeater: null, renderCount: 0, seenSpaceLeft: null });
       }
-      return plainMeta(this).unobservable;
+      return plainMeta(this);
     }
     constructor(claim) {
       this.claim = claim;
       return temporal(this);
     }
     renderOnto(target) {
-      const u = this.unobservable;
+      const u = this.plain;
       if (u.repeater) {
         linkRepeater(u.repeater);
       } else {
@@ -62,20 +62,20 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
   }
 
   class Panel {
-    get unobservable() {
-      if (!plainMeta(this).unobservable) {
-        plainMeta(this).unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
+    get plain() {
+      if (!("repeater" in plainMeta(this))) {
+        Object.assign(plainMeta(this), { repeater: null, rebuildCount: 0, a: null, b: null });
       }
-      return plainMeta(this).unobservable;
+      return plainMeta(this);
     }
     constructor(a, b) {
       const wrapped = temporal(this);
-      wrapped.unobservable.a = a;
-      wrapped.unobservable.b = b;
+      wrapped.plain.a = a;
+      wrapped.plain.b = b;
       return wrapped;
     }
     renderOnto(target) {
-      const u = this.unobservable;
+      const u = this.plain;
       if (u.repeater) {
         linkRepeater(u.repeater);
       } else {
@@ -105,8 +105,8 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
 
     // b must see the space left as panel's own "between" write settles to
     // with a's fresh output - 95 - 30 - 5 = 60.
-    assert.equal(b.unobservable.seenSpaceLeft, 60);
-    assert.equal(b.unobservable.renderCount, 2);
+    assert.equal(b.plain.seenSpaceLeft, 60);
+    assert.equal(b.plain.renderCount, 2);
 
     // The only mathematically correct final answer: 60 - b.claim(7) -
     // PADDING(5) = 48. A version of this file's own migration logic that
@@ -119,7 +119,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     // Confirms this needed panel's own dependency to actually be
     // re-pointed and re-triggered, not just the ordinary a -> panel
     // "between" -> b cascade already covered by renderOnto.js's case 1.
-    assert.equal(panel.unobservable.rebuildCount, 3);
+    assert.equal(panel.plain.rebuildCount, 3);
   });
 
   it("when the migrated value happens not to change, the migration itself does not force an extra notification", function () {
@@ -149,7 +149,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     // not), without needing to cross-reference renderOnto.js to see why
     // the numbers land where they do.
     assert.equal(target.spaceLeft, 55);
-    assert.equal(panel.unobservable.rebuildCount, 2);
+    assert.equal(panel.plain.rebuildCount, 2);
   });
 
 });

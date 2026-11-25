@@ -15,15 +15,15 @@ placed:
 
 ```js
 class NoticeBoard extends Component {
-  initialUnobservables() {
+  initialPlain() {
     return { board: portal({ style: { minHeight: "150px" } }).establish() };
   }
   onDispose() {
-    this.unobservable.board.dispose();
+    this.plain.board.dispose();
     super.onDispose();
   }
   provide() {
-    return { noticeBoard: this.unobservable.board };
+    return { noticeBoard: this.plain.board };
   }
   build() { /* ... */ }
 }
@@ -53,7 +53,7 @@ const board = this.inherit("noticeBoard");
     when they change, so an unchanged value invalidates no lookup:
     ```js
     provide() {
-      const u = this.unobservable;
+      const u = this.plain;
       if (!u.provided) u.provided = observable({ modalPresentation: this.presentation() });
       return u.provided;
     }
@@ -79,7 +79,7 @@ const board = this.inherit("noticeBoard");
 - `inherit()` **throws** if the component has not entered the tree yet. A
   component inherits from where it is *placed*, so there is nothing to
   inherit from in the constructor, `setProperties()`, `initialState()` or
-  `initialUnobservables()`. Read inherited values in `build()` or later.
+  `initialPlain()`. Read inherited values in `build()` or later.
 - `undefined` means nothing provides it. To *block* a value for a subtree,
   provide it as `null`: the lookup stops there and returns `null`. (The demo
   takes the ability to switch theme away from a subtree this way, by

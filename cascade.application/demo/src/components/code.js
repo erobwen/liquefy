@@ -40,7 +40,7 @@ export class HighlightedCode extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.node) {
       u.node = document.createElement("pre");
       u.node.style.margin = "0";

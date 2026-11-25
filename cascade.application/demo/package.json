@@ -21,14 +21,14 @@
   },
   "homepage": "https://github.com/erobwen/liquefy#readme",
   "dependencies": {
-    "@liquefy/cascade.reactive": "^3.0.0",
-    "@liquefy/cascade.component": "^3.0.0",
-    "@liquefy/cascade.dom": "^3.0.0",
-    "@liquefy/cascade.print": "^3.0.0",
-    "@liquefy/cascade.ui": "^3.0.0",
-    "@liquefy/cascade.ui.material": "^3.0.0",
+    "@liquefy/cascade.reactive": "^4.0.0",
+    "@liquefy/cascade.component": "^4.0.0",
+    "@liquefy/cascade.dom": "^4.0.0",
+    "@liquefy/cascade.print": "^4.0.0",
+    "@liquefy/cascade.ui": "^4.0.0",
+    "@liquefy/cascade.ui.material": "^4.0.0",
     "highlight.js": "^11.12.0",
-    "@liquefy/cascade.prerender": "^3.0.0"
+    "@liquefy/cascade.prerender": "^4.0.0"
   },
   "devDependencies": {
     "vite": "^5.3.1",

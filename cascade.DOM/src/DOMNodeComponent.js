@@ -19,7 +19,7 @@ import { Component, aggregateToString } from "@liquefy/cascade.component";
  */
 export class DOMNodeComponent extends Component {
   render(target, context) {
-    const u = this.unobservable;
+    const u = this.plain;
     const wasFresh = !u.node;
     u.node = this.renderNode(target, u.node || null);
     // Ported from flow.DOM's own DOMNode.js (ensureDomNodeExists()'s
@@ -51,7 +51,7 @@ export class DOMNodeComponent extends Component {
   //    it likes (measuring, owning a target for its children, ...). Such a
   //    component can only be rendered, never placed by someone else.
   //
-  // ensureNode() keeps unobservable.node up to date itself.
+  // ensureNode() keeps plain.node up to date itself.
   ensureNode() {
     throw new Error(this.constructor.name + " must implement ensureNode() or renderNode(target, existingElement)");
   }
@@ -95,7 +95,7 @@ export class DOMNodeComponent extends Component {
   // on the reactive side while its element just sits there, orphaned,
   // still fully attached to the DOM.
   onRetract() {
-    if (this.unobservable.node) this.unobservable.node.remove();
+    if (this.plain.node) this.plain.node.remove();
     super.onRetract();
   }
 
@@ -105,7 +105,7 @@ export class DOMNodeComponent extends Component {
   // ever put the element back. Put it back at the current position, the
   // same way appendElement would for a brand new one.
   onReattach(target) {
-    if (this.unobservable.node) target.reattachElement(this.unobservable.node);
+    if (this.plain.node) target.reattachElement(this.plain.node);
     super.onReattach(target);
   }
 }

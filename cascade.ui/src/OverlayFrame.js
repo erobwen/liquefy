@@ -86,7 +86,7 @@ export class OverlayFrame extends Component {
     return { shownContent: null, shownContext: null };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return { assigningContentProvider: null };
   }
 
@@ -119,7 +119,7 @@ export class OverlayFrame extends Component {
   // `context` is where the Overlay stands: the content is shown with it
   // (see the class doc).
   showOverlay(contentProvider, overlayContent, context) {
-    this.unobservable.assigningContentProvider = contentProvider;
+    this.plain.assigningContentProvider = contentProvider;
     const current = withoutRecording(() => [this.shownContent, this.shownContext]);
     if (current[0] !== overlayContent || current[1] !== (context || null)) {
       flush(() => this.setState({ shownContent: overlayContent, shownContext: context || null }));
@@ -127,7 +127,7 @@ export class OverlayFrame extends Component {
   }
 
   hideOverlay(contentProvider) {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.assigningContentProvider !== contentProvider) return;
     u.assigningContentProvider = null;
     flush(() => this.setState({ shownContent: null, shownContext: null }));

@@ -49,8 +49,8 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
     this.className = className || null;
   }
 
-  initialUnobservables() {
-    const result = super.initialUnobservables();
+  initialPlain() {
+    const result = super.initialPlain();
     result.previouslySetStyle = {};
     return result;
   }
@@ -63,7 +63,7 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
     // not leave the old one stuck (same reasoning applyStyle below has for
     // a style property that disappears the same way).
     element.className = this.className || "";
-    const u = this.unobservable;
+    const u = this.plain;
     u.previouslySetStyle = applyStyle(element, { contain: "size layout", ...(this.style || {}) }, u.previouslySetStyle);
     return element;
   }
@@ -72,7 +72,7 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
   // already reads the size.
   render(target, context) {
     super.render(target, context);
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.childTarget) {
       u.childTarget = DOMElementTarget.forElement(u.node);
       u.childTarget.observeBounds();
@@ -82,7 +82,7 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
 
   onDispose() {
     super.onDispose();
-    if (this.unobservable.childTarget) this.unobservable.childTarget.stopObservingBounds();
+    if (this.plain.childTarget) this.plain.childTarget.stopObservingBounds();
   }
 }
 

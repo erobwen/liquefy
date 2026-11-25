@@ -120,19 +120,19 @@ export class FocusStore extends Component {
     this.style = style || {};
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return { statusBar: new StatusBar({ key: "statusBar", height: this.size.statusBar }).establish() };
   }
 
   onDispose() {
-    this.unobservable.statusBar.dispose();
+    this.plain.statusBar.dispose();
     super.onDispose();
   }
 
   // Provided for portalSource({ portal: "cartPortal" }) - see
   // Component.provide().
   provide() {
-    const bar = this.unobservable.statusBar.unobservable;
+    const bar = this.plain.statusBar.plain;
     return { cartPortal: bar.cart, cartSummaryPortal: bar.summary };
   }
 
@@ -150,7 +150,7 @@ export class FocusStore extends Component {
   build() {
     const { products, size, speed } = this;
     const style = { ...storeStyle, fontSize: size.fontSize, ...this.style };
-    const content = [new ProductList({ key: "products", products, size }), this.unobservable.statusBar];
+    const content = [new ProductList({ key: "products", products, size }), this.plain.statusBar];
     // One line animates it all:
     return this.animate
       ? animationContainer({ key: "animated", confine: true, zoomAlong: true, speed, style }, content)
@@ -314,7 +314,7 @@ class StatusBar extends Component {
     return { cartShown: true };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return {
       cart: portal(
         { key: "cart", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", flex: "1 1 auto", minWidth: 0, overflow: "visible" } },
@@ -325,8 +325,8 @@ class StatusBar extends Component {
   }
 
   onDispose() {
-    this.unobservable.cart.dispose();
-    this.unobservable.summary.dispose();
+    this.plain.cart.dispose();
+    this.plain.summary.dispose();
     super.onDispose();
   }
 
@@ -344,12 +344,12 @@ class StatusBar extends Component {
         () => { this.cartShown = !this.cartShown; },
       ),
       this.cartShown
-        ? this.unobservable.cart
+        ? this.plain.cart
         : div(
           { style: { flex: "1 1 auto", fontStyle: "italic", opacity: 0.7 } },
           text("The cart is hidden - what you choose waits in it."),
         ),
-      this.unobservable.summary,
+      this.plain.summary,
     );
   }
 }

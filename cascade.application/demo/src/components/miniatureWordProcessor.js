@@ -26,7 +26,7 @@ export class MiniatureWordProcessor extends Component {
     this.style = style || {};
   }
 
-  initialUnobservables() {
+  initialPlain() {
     const document = miniatureDocument();
     const measurer = domMeasurer();
     return {
@@ -41,12 +41,12 @@ export class MiniatureWordProcessor extends Component {
 
   onEstablish() {
     super.onEstablish();
-    const u = this.unobservable;
+    const u = this.plain;
     u.layoutRoot = ensure(() => u.layout.renderOnto(u.sequence), { independent: true });
   }
 
   onDispose() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.layoutRoot) retractRepeater(u.layoutRoot);
     u.layout.dispose();
     u.measurer.dispose();
@@ -54,7 +54,7 @@ export class MiniatureWordProcessor extends Component {
   }
 
   build() {
-    const { document, sequence, measurer, editing } = this.unobservable;
+    const { document, sequence, measurer, editing } = this.plain;
     // Keyed: built again, it's the editor already there - the one the
     // toolbar formats with.
     const editor = paperEditor({

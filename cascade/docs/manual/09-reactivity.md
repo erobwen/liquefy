@@ -53,7 +53,7 @@ Options of `getWorld()` (defaults in brackets):
 - `onWriteGlobal`, `onReadGlobal`, `cannotReadPropertyValue`,
   `customObjectlog`, `customDependencyInterfaceCreator`,
   `customCreateRepeater`, `customCreateInvalidator`, `objectMetaProperty`
-  ["causality"] - hooks for extensions; leave them alone in an application.
+  ["cascadeMetadataObject"] - hooks for extensions; leave them alone in an application.
 
 ## 9.2 Observables
 

@@ -17,7 +17,7 @@ export class DOMTextComponent extends DOMNodeComponent {
   // once, its data patched in place. Placed by the default renderNode()
   // when rendered, or by whoever places it otherwise.
   ensureNode() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.node) u.node = document.createTextNode("");
     const data = String(this.text);
     if (u.node.data !== data) u.node.data = data;

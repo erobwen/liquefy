@@ -18,9 +18,9 @@ export function getCreator() {
   return creators.length > 0 ? creators[creators.length - 1] : null;
 }
 
-// What Component itself keeps in `unobservable` (and callback() in its
-// creator's) - not to be used by a subclass's initialUnobservables().
-const reservedUnobservables = new Set([
+// What Component itself keeps in `plain` (and callback() in its
+// creator's) - not to be used by a subclass's initialPlain().
+const reservedPlain = new Set([
   "repeater", "buildRepeater", "pullingComponent", "renderTarget", "renderContext", "renderParent",
   "ownContext", "childContext", "renderTimeless", "callbacks", "callbackBuild", "hydratedInBuild", "hydrated",
 ]);
@@ -166,7 +166,7 @@ function duplicateKeyError(error, component, properties) {
  */
 export class Component {
   // Created on first access - which can be anywhere: inside some other
-  // component's render, say. So initialUnobservables() runs at initial time
+  // component's render, say. So initialPlain() runs at initial time
   // whenever that is (accessInitialValues()): a component created there (a
   // portal this one owns, its portalSource - see
   // cascade.component/README.md on creating a sub-component directly, in
@@ -177,13 +177,13 @@ export class Component {
   //
   // It is the component's plainMeta(this) (see cascade.reactive's
   // "Metadata"): seeded the first time, recognized by its `repeater`.
-  get unobservable() {
+  get plain() {
     const bag = plainMeta(this);
     if (!("repeater" in bag)) {
-      const own = accessInitialValues(() => this.initialUnobservables());
+      const own = accessInitialValues(() => this.initialPlain());
       for (const name in own) {
-        if (reservedUnobservables.has(name)) {
-          throw new Error(this.constructor.name + ".initialUnobservables(): \"" + name + "\" is a name Component keeps its own bookkeeping under - use another.");
+        if (reservedPlain.has(name)) {
+          throw new Error(this.constructor.name + ".initialPlain(): \"" + name + "\" is a name Component keeps its own bookkeeping under - use another.");
         }
       }
       Object.assign(bag, { repeater: null }, own);
@@ -197,7 +197,7 @@ export class Component {
   // doesn't work for this: a fresh read of it can fall through once
   // retraction is involved, even though the component's own identity
   // hasn't changed.
-  initialUnobservables() {
+  initialPlain() {
     return {};
   }
 
@@ -257,7 +257,7 @@ export class Component {
   // key that matches one from the enclosing repeater's *previous* run
   // discards this freshly-constructed instance and returns the
   // established one instead (its own observable fields merged in from
-  // this fresh one, but its identity - unobservable.repeater included -
+  // this fresh one, but its identity - plain.repeater included -
   // completely untouched). A component with no key constructed in a
   // build() is reconciled too, by pattern matching instead - the same
   // class in the same place (see buildOneStep()'s
@@ -408,11 +408,11 @@ export class Component {
   //
   // The result is stashed on `this.currentBuild` - an ordinary *observable*
   // property (matching flow.core's own naming), not something on
-  // `unobservable`: buildRepeater is the sole writer and render() the
+  // `plain`: buildRepeater is the sole writer and render() the
   // reader, so a rebuild invalidates render() through that ordinary
   // dependency.
   buildOneStep() {
-    const u = this.unobservable;
+    const u = this.plain;
     u.pullingComponent = getRenderParent();
     // First time only: a repeat() call's first pass runs synchronously,
     // right here, which is what this method's caller needs - it uses the
@@ -430,7 +430,7 @@ export class Component {
         // exactly: a component constructed directly inside another's
         // build() call captures that component as its creator.
         creators.push(this);
-        const u = this.unobservable;
+        const u = this.plain;
         u.callbackBuild = (u.callbackBuild || 0) + 1;
         try {
           this.currentBuild = this.build();
@@ -471,7 +471,7 @@ export class Component {
         // then in a FlipAnimationContainer again when animation is switched
         // back on) still has one, retracted, which would leave every
         // rebuild pending for good.
-        pulledBy: () => (u.pullingComponent && u.pullingComponent.unobservable.repeater) || u.repeater,
+        pulledBy: () => (u.pullingComponent && u.pullingComponent.plain.repeater) || u.repeater,
         // Pattern matching (ported from flow.core's getShapeAnalysis()):
         // what a rebuild constructs without a key is matched to what the
         // previous build constructed in the same place - the same class
@@ -504,7 +504,7 @@ export class Component {
       // rebuildTwin at the freshly-constructed, about-to-be-discarded one
       // until finishRebuilding() clears it at the end of that refresh.
       // Rendering the result before then would read the throwaway twin's
-      // own empty unobservable bag, find no repeater there, and create a
+      // own empty plain bag, find no repeater there, and create a
       // redundant one instead of relinking the real one.
       //
       // Retracted only if this component was once dropped (onDispose()) and
@@ -541,7 +541,7 @@ export class Component {
     const builds = withoutRecording(() => {
       const result = [];
       for (let creator = this.creator; creator; creator = creator.creator) {
-        const creatorBuild = creator.unobservable.buildRepeater;
+        const creatorBuild = creator.plain.buildRepeater;
         if (!creatorBuild || creatorBuild.retracted) break;
         result.push(creatorBuild);
       }
@@ -598,7 +598,7 @@ export class Component {
   // FlipAnimationContainer), so the two can never differ in what a
   // component gets:
   //
-  //  - its target, kept as plain bookkeeping (unobservable.renderTarget):
+  //  - its target, kept as plain bookkeeping (plain.renderTarget):
   //    what the render repeater renders onto. Never readable reactively -
   //    a build has no business with the target, which is temporal.
   //  - the target's timeless side, if it has one (`target.timeless` - see
@@ -611,7 +611,7 @@ export class Component {
   //    baseline writing is never retired by a parent's rerun - read back
   //    undefined by a child whose own rerun was already queued, as an
   //    ordinary writing from the parent's partial would be.
-  //  - who placed it (unobservable.renderParent).
+  //  - who placed it (plain.renderParent).
   //  - its own context, for its children, if it provides anything (see
   //    provide()): created the first time, and kept - only its parent link
   //    is re-pointed when it's placed under another context (a provider
@@ -623,7 +623,7 @@ export class Component {
   // cascade.dom's DOMPlacingContainer.notifyPlaced()) - after this step, so
   // what it does when shown can already inherit.
   enterTree(target, context, renderParent) {
-    const u = this.unobservable;
+    const u = this.plain;
     context = this.enteredContext(context);
     u.renderTarget = target;
     u.renderParent = renderParent;
@@ -685,7 +685,7 @@ export class Component {
   //
   // Only this chain is expanded - a leaf's own children (a DOM element's,
   // say) are the caller's business too, since only it knows what they are:
-  // they're given the leaf's unobservable.childContext.
+  // they're given the leaf's plain.childContext.
   //
   // `visited`, when given, is a Set every component on the way is added
   // to - the leaves and everything in between - for a caller that needs to
@@ -709,7 +709,7 @@ export class Component {
   // its own, at the root, can leave the context out: it then inherits
   // nothing.
   renderOnto(target, context = RenderContext.empty) {
-    const u = this.unobservable;
+    const u = this.plain;
     // Captured synchronously, right here - correct regardless of whether
     // render() itself ends up running synchronously below or is deferred
     // (see the restart() call further down): this parent/child relationship
@@ -889,7 +889,7 @@ export class Component {
 
   // The lifecycle of a component its creator manages itself (see
   // README.md, "Building Sub Components" and its warning) -
-  // one created in initialization and kept as an unobservable, say, rather
+  // one created in initialization and kept in a plain field, say, rather
   // than constructed in a build(). A component built in a build() is
   // established and disposed by its creator's build (cascade.reactive's
   // finishRebuilding() calls onEstablish() and onDispose()); one created
@@ -899,12 +899,12 @@ export class Component {
   // that reads data that never changes again is never invalidated, and so
   // never lets go of what it built and subscribed to.
   //
-  //   initialUnobservables() {
+  //   initialPlain() {
   //     return { board: portal({ key: "board" }).establish() };
   //   }
   //
   //   onDispose() {
-  //     this.unobservable.board.dispose();
+  //     this.plain.board.dispose();
   //     super.onDispose();
   //   }
   //
@@ -941,7 +941,7 @@ export class Component {
   // (see cascade.reactive's retractRepeater() for the full shape). A
   // subclass overriding this for its own cleanup must call super.onDispose().
   onDispose() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.repeater) retractRepeater(u.repeater);
     // Its own context goes with it - and whatever lookups are cached on it
     // (see RenderContext.js). Nothing below it is in the tree any more.

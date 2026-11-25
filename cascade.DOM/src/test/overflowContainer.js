@@ -52,11 +52,11 @@ describe("OverflowContainer", function () {
     target.timeless = observable({ width: rowWidth });
     const reported = [];
     class Toolbar extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { slot: new DOMElementSlot({ key: "slot" }).establish() };
       }
       onDispose() {
-        this.unobservable.slot.dispose();
+        this.plain.slot.dispose();
         super.onDispose();
       }
       build() {
@@ -66,7 +66,7 @@ describe("OverflowContainer", function () {
           key: "row",
           children: tools,
           ellipsis: div({ key: "ellipsis", title: "30" }, text({ key: "dots", text: "..." })),
-          overflowSlot: this.unobservable.slot,
+          overflowSlot: this.plain.slot,
           onOverflow: (count) => reported.push(count),
         });
       }
@@ -77,7 +77,7 @@ describe("OverflowContainer", function () {
     return {
       target, reported,
       inRow: () => names(rowElement),
-      inSlot: () => names(toolbar.unobservable.slot.ensureNode()),
+      inSlot: () => names(toolbar.plain.slot.ensureNode()),
     };
   }
 
@@ -141,11 +141,11 @@ describe("OverflowContainer", function () {
       initialState() {
         return { generation: 0, showRow: true };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { slot: new DOMElementSlot({ key: "slot" }).establish() };
       }
       onDispose() {
-        this.unobservable.slot.dispose();
+        this.plain.slot.dispose();
         super.onDispose();
       }
       build() {
@@ -156,13 +156,13 @@ describe("OverflowContainer", function () {
           key: "row",
           children: tools,
           ellipsis: div({ key: "ellipsis", title: "10" }, text("...")),
-          overflowSlot: this.unobservable.slot,
+          overflowSlot: this.plain.slot,
         });
       }
     }
     const toolbar = new Toolbar();
     toolbar.renderOnto(target);
-    return { toolbar, observed, slot: toolbar.unobservable.slot.ensureNode() };
+    return { toolbar, observed, slot: toolbar.plain.slot.ensureNode() };
   }
 
   afterEach(function () {

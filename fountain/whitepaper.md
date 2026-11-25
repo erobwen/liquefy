@@ -228,9 +228,9 @@ Cascade has this as `meta()`, in cascade.reactive.
 
 `meta(object)` is an observable record about the object, and `meta(object, property)` one about a single property. Each is empty until something is put in it, and made the first time it is asked for, so objects and properties that nobody asks about cost nothing. The form field example keeps its saved values, counts of saves in flight, locks and errors in the property records.
 
-`plainMeta(object)` and `plainMeta(object, property)` are the same records as plain objects, for bookkeeping that must not be observed. Cascade's components keep their unobservable data there.
+`plainMeta(object)` and `plainMeta(object, property)` are the same records as plain objects, for bookkeeping that must not be observed. Cascade's components keep their plain fields (`this.plain`) there.
 
-Cascade's own bookkeeping (the object's id, its target, its handler) is kept apart, in `innerMeta(object)`, so that no name in the records is reserved. It is the one property a Cascade proxy answers itself instead of passing on to its target, under a configurable name: still `object.causality` by default, and at Cascade's next major version a long name that application data is unlikely to use (`object.cascadeMetadataObject`). `innerMeta()` is the way to reach it.
+Cascade's own bookkeeping (the object's id, its target, its handler) is kept apart, in `innerMeta(object)`, so that no name in the records is reserved. It is the one property a Cascade proxy answers itself instead of passing on to its target, under a configurable name, by default one that application data is unlikely to use (`object.cascadeMetadataObject`). `innerMeta()` is the way to reach it.
 
 A layer that needs state of its own about an object keeps it under a name of its own in one of the records. The synchronization layer would keep one observable record per object, and the store, which nothing displays, in the plain one:
 

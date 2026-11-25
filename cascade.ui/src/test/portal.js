@@ -27,17 +27,17 @@ describe("portals", function () {
     initialState() {
       return { chosen: 0 };
     }
-    initialUnobservables() {
+    initialPlain() {
       return { topBar: portal({ key: "topBarPortal" }, text({ key: "empty", text: "(nothing)" })) };
     }
     provide() {
       const component = this;
-      return { get topBarPortal() { return component.unobservable.topBar; } };
+      return { get topBarPortal() { return component.plain.topBar; } };
     }
     build() {
       return div(
         { key: "app" },
-        div({ key: "topBar" }, this.unobservable.topBar),
+        div({ key: "topBar" }, this.plain.topBar),
         div({ key: "workArea" }, this.pages[this.chosen]),
       );
     }
@@ -119,14 +119,14 @@ describe("portals", function () {
 
   it("two contents rendered at once: the last one rendered wins, and neither keeps rerunning the other", function () {
     class Both extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { shared: portal({ key: "shared" }) };
       }
       build() {
-        const target = this.unobservable.shared;
+        const target = this.plain.shared;
         return div(
           { key: "both" },
-          this.unobservable.shared,
+          this.plain.shared,
           portalSource({ key: "a", portal: target }, text({ key: "aText", text: "A" })),
           portalSource({ key: "b", portal: target }, text({ key: "bText", text: "B" })),
         );
@@ -178,23 +178,23 @@ describe("portals", function () {
     // A store: the items not chosen in the middle, the chosen ones in the
     // cart - a portal in a bar the list knows nothing else about.
     class Bar extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { cart: portal({ key: "cart" }) };
       }
       build() {
-        return div({ key: "bar" }, this.unobservable.cart);
+        return div({ key: "bar" }, this.plain.cart);
       }
     }
     class Store extends Component {
       initialState() {
         return { chosen: [] };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { bar: new Bar({ key: "bar" }) };
       }
       provide() {
         const component = this;
-        return { get cart() { return component.unobservable.bar.unobservable.cart; } };
+        return { get cart() { return component.plain.bar.plain.cart; } };
       }
       build() {
         const item = (name) => div({ key: name }, text({ key: name + "Text", text: name }));
@@ -203,7 +203,7 @@ describe("portals", function () {
           { key: "flip" },
           div({ key: "shelf" }, all.filter((name) => !this.chosen.includes(name)).map(item)),
           portalSource({ key: "chosen", portal: "cart" }, this.chosen.map(item)),
-          this.unobservable.bar,
+          this.plain.bar,
         );
       }
     }
@@ -230,11 +230,11 @@ describe("portals", function () {
     // properties would be the render's own writings - gone after its next
     // run, which doesn't construct it again).
     class RenderedPage extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { actions: portalSource({ key: "actions", portal: "topBarPortal" }, text({ key: "renderedText", text: "rendered action" })) };
       }
       render(target, context) {
-        this.unobservable.actions.renderOnto(target, context);
+        this.plain.actions.renderOnto(target, context);
       }
     }
     const pages = [new Page({ key: "first", name: "first" }), new RenderedPage({ key: "rendered" })];
@@ -255,17 +255,17 @@ describe("portals", function () {
       initialState() {
         return { chosen: [] };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { cart: portal({ key: "cart" }, text({ key: "empty", text: "empty" })) };
       }
       provide() {
         const component = this;
-        return { get cart() { return component.unobservable.cart; } };
+        return { get cart() { return component.plain.cart; } };
       }
       build() {
         return div(
           { key: "shelf" },
-          this.unobservable.cart,
+          this.plain.cart,
           portalSource({ key: "contents", portal: "cart" }, this.chosen.map((name) => text({ key: name, text: name }))),
         );
       }
@@ -312,18 +312,18 @@ describe("portals", function () {
       initialState() {
         return { chosen: 0 };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { topBar: portal({ key: "topBarPortal" }) };
       }
       provide() {
         const component = this;
-        return { get topBarPortal() { return component.unobservable.topBar; } };
+        return { get topBarPortal() { return component.plain.topBar; } };
       }
       build() {
         const page = this.pages[this.chosen];
         return div(
           { key: "app" },
-          div({ key: "topBar" }, this.unobservable.topBar),
+          div({ key: "topBar" }, this.plain.topBar),
           providingElement({ key: "workArea", child: page, context: { path: page.name } }),
         );
       }

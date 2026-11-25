@@ -74,7 +74,7 @@ export class Modal extends Component {
   // baseline when it changes, as everything a context holds (see
   // cascade.component's RenderContext.js).
   provide() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.provided) u.provided = observable({ modalPresentation: this.presentation() });
     return u.provided;
   }

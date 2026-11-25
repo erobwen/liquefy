@@ -32,13 +32,13 @@ export class DOMProvidingElement extends DOMNodeComponent {
   // An observable object of its own, holding what it provides: created
   // with every field already in it, then only rewritten (see render()).
   provide() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.provided) u.provided = observable({ ...(this.contextExtra || {}) });
     return u.provided;
   }
 
-  initialUnobservables() {
-    const result = super.initialUnobservables();
+  initialPlain() {
+    const result = super.initialPlain();
     result.previouslySetStyle = {};
     return result;
   }
@@ -46,14 +46,14 @@ export class DOMProvidingElement extends DOMNodeComponent {
   renderNode(target, existingElement) {
     const element = existingElement || target.appendElement("div");
     if (existingElement) target.reattachElement(existingElement);
-    const u = this.unobservable;
+    const u = this.plain;
     u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
     return element;
   }
 
   render(target, context) {
     super.render(target, context);
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.node);
     provideAtBaseline(u.provided, this.contextExtra);
     this.child.renderOnto(u.childTarget, context);

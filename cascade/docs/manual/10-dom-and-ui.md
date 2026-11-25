@@ -100,7 +100,7 @@ with measured layout ([10.3](#103-measurement-and-layout)).
 Writing a DOM component of your own (rare - a canvas, a third-party widget):
 
 - Extend `DOMNodeComponent` and implement **`ensureNode()`** - create the
-  node if there is none (`this.unobservable.node`), bring it up to date,
+  node if there is none (`this.plain.node`), bring it up to date,
   return it, without placing it. Such a component can also be placed by a
   placing container ([10.4](#104-placing-containers-and-flipanimationcontainer)).
   Or implement **`renderNode(target, existingElement)`** to create, update
@@ -111,7 +111,7 @@ Writing a DOM component of your own (rare - a canvas, a third-party widget):
 - Extend `SingleNodeComponent` instead for a `build()`-composed component
   that must build exactly one DOM node component (it throws otherwise).
 - `applyStyle(element, style, previous)` gives you the same style diffing
-  as elements; keep its return value in `unobservable`.
+  as elements; keep its return value in `plain`.
 
 ## 10.3 Measurement and layout
 
@@ -286,17 +286,17 @@ locator.
   work area), so assigning is a backward write: done with `setState()` and
   `flush()`, so the portal fills in within the same wave, in order. This
   is intended (see [11.21](11-pitfalls-and-rules.md#1121-writing-back-to-something-already-rendered-setstate-and-flush-and-make-it-converge)).
-- **Own the portal**: create it in `initialUnobservables()`,
+- **Own the portal**: create it in `initialPlain()`,
   `.establish()` it there, `dispose()` it in `onDispose()`, and provide it
   ([3.8](03-components.md#38-components-you-own-created-outside-build)):
 
   ```js
-  initialUnobservables() {
+  initialPlain() {
     return { topBarPortal: portal({ key: "topBarPortal", style: { display: "flex" } }).establish() };
   }
-  provide() { return { topBarPortal: this.unobservable.topBarPortal }; }
-  onDispose() { this.unobservable.topBarPortal.dispose(); super.onDispose(); }
-  // in build(): render this.unobservable.topBarPortal in the bar;
+  provide() { return { topBarPortal: this.plain.topBarPortal }; }
+  onDispose() { this.plain.topBarPortal.dispose(); super.onDispose(); }
+  // in build(): render this.plain.topBarPortal in the bar;
   // anywhere below: portalSource({ portal: "topBarPortal" }, button("save", save))
   ```
 

@@ -56,7 +56,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     }
 
     renderNode(target, existingElement) {
-      const u = this.unobservable;
+      const u = this.plain;
       const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
       if (!u.childTarget) {
@@ -105,7 +105,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     assert.ok(container.querySelector(".menu")); // docked initially
 
     root.usableWidth = 500; // < 660 -> modal, and menuOpen is false
-    menuFrame.unobservable.repeater.restart();
+    menuFrame.plain.repeater.restart();
 
     assert.ok(!container.querySelector(".menu")); // retracted, not just hidden
     assert.equal(container.querySelector(".work-area").dataset.usableWidth, "500"); // full width
@@ -134,15 +134,15 @@ describe("MenuFrame modal/docked breakpoint", function () {
 
     root.usableWidth = 1000;
     menuFrame.renderOnto(root);
-    const originalMenuElement = menuFrame.menu.unobservable.node;
+    const originalMenuElement = menuFrame.menu.plain.node;
     assert.ok(container.querySelector(".menu"));
 
     root.usableWidth = 500; // modal - menu retracted, element removed
-    menuFrame.unobservable.repeater.restart();
+    menuFrame.plain.repeater.restart();
     assert.ok(!container.querySelector(".menu"));
 
     root.usableWidth = 1000; // back to docked
-    menuFrame.unobservable.repeater.restart();
+    menuFrame.plain.repeater.restart();
 
     assert.ok(container.querySelector(".menu")); // reattached, not missing
     assert.equal(container.querySelector(".menu"), originalMenuElement); // same element, not a new one
@@ -162,7 +162,7 @@ describe("MenuFrame modal/docked breakpoint", function () {
     menuFrame.renderOnto(root);
 
     menuFrame.menuOpen = true;
-    const originalMenuElement = menuFrame.menu.unobservable.node;
+    const originalMenuElement = menuFrame.menu.plain.node;
     menuFrame.menuOpen = false;
     assert.ok(!container.querySelector(".menu"));
 
@@ -186,11 +186,11 @@ describe("MenuFrame modal/docked breakpoint", function () {
 
     root.usableWidth = 1000; // docked - menu renders with menuIsOverlay=false
     menuFrame.renderOnto(root);
-    const originalMenuElement = menuFrame.menu.unobservable.node;
+    const originalMenuElement = menuFrame.menu.plain.node;
     assert.equal(container.querySelector(".menu").dataset.overlay, "false");
 
     root.usableWidth = 500; // modal, closed - menu retracted without ever seeing menuIsOverlay=true
-    menuFrame.unobservable.repeater.restart();
+    menuFrame.plain.repeater.restart();
     assert.ok(!container.querySelector(".menu"));
 
     menuFrame.menuOpen = true; // opened as an overlay - reuses the same element

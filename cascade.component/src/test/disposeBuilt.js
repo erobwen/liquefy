@@ -57,11 +57,11 @@ describe("disposing what a dropped component built", function () {
       super();
       this.list = list;
     }
-    initialUnobservables() {
+    initialPlain() {
       return { labels: [] };
     }
     render(target, context) {
-      this.unobservable.labels = this.list.expand(target, context, this, isLeaf).map((leaf) => leaf.label);
+      this.plain.labels = this.list.expand(target, context, this, isLeaf).map((leaf) => leaf.label);
     }
   }
 
@@ -72,15 +72,15 @@ describe("disposing what a dropped component built", function () {
     const list = new List({ data });
     const expanding = new Expanding(list);
     expanding.renderOnto(context());
-    assert.deepEqual(expanding.unobservable.labels, ["form 1", "item 3"]);
+    assert.deepEqual(expanding.plain.labels, ["form 1", "item 3"]);
 
     const item = list.currentBuild[0].currentBuild[1];
     first.open = false;
-    assert.deepEqual(expanding.unobservable.labels, ["form 1"], "closed: the item built, but left out");
+    assert.deepEqual(expanding.plain.labels, ["form 1"], "closed: the item built, but left out");
 
     // Removing the form: its item must go with it, not build again.
     data.forms.splice(0, 1);
-    assert.deepEqual(expanding.unobservable.labels, []);
-    assert.ok(item.unobservable.buildRepeater.retracted, "the closed drawer's item is disposed too");
+    assert.deepEqual(expanding.plain.labels, []);
+    assert.ok(item.plain.buildRepeater.retracted, "the closed drawer's item is disposed too");
   });
 });

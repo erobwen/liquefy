@@ -48,7 +48,7 @@ export class Popover extends Component {
     return { moved: 0 };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return { following: null };
   }
 
@@ -58,7 +58,7 @@ export class Popover extends Component {
     const anchor = this.anchor;
     if (!anchor) return { left: 0, top: 0, right: 0, bottom: 0 };
     if (typeof(anchor.getBoundingClientRect) !== "function") return anchor;
-    const u = this.unobservable;
+    const u = this.plain;
     if (anchor.isConnected || !u.lastAnchorRect) u.lastAnchorRect = anchor.getBoundingClientRect();
     return u.lastAnchorRect;
   }
@@ -66,7 +66,7 @@ export class Popover extends Component {
   // Following an element: while shown, on a resize or a scroll, place again
   // - in the frames after, whenever the element has moved.
   follow() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.following) return;
     const view = document.defaultView;
     const later = view.requestAnimationFrame ? (action) => view.requestAnimationFrame(action) : (action) => setTimeout(action, 0);
@@ -105,7 +105,7 @@ export class Popover extends Component {
   }
 
   unfollow() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.following) return;
     u.following();
     u.following = null;
@@ -138,7 +138,7 @@ export class Popover extends Component {
     const view = document.defaultView;
     const width = view ? view.innerWidth : 1024;
     const height = view ? view.innerHeight : 768;
-    this.unobservable.placedViewport = width + "x" + height;
+    this.plain.placedViewport = width + "x" + height;
     const placement = {};
     if ((anchor.top + anchor.bottom) / 2 < height / 2) placement.top = anchor.bottom + GAP + "px";
     else placement.bottom = height - anchor.top + GAP + "px";

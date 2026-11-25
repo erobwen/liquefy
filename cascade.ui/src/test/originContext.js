@@ -46,16 +46,16 @@ describe("content shown elsewhere keeps the context it came from", function () {
   for (const animated of [false, true]) {
     it("through a portal: from where it was put in - the entrance's own provisions included" + (animated ? " (in a FlipAnimationContainer)" : ""), function () {
       class App extends Component {
-        initialUnobservables() {
+        initialPlain() {
           return { bar: portal({ key: "bar" }).establish() };
         }
         provide() {
-          return { bar: this.unobservable.bar };
+          return { bar: this.plain.bar };
         }
         build() {
           const content = [
             // Around the portal: the bar's own tone.
-            new Provide({ key: "barTone", values: { tone: "bar" }, child: div({ key: "barArea" }, this.unobservable.bar) }),
+            new Provide({ key: "barTone", values: { tone: "bar" }, child: div({ key: "barArea" }, this.plain.bar) }),
             // The page: its tone - and, at the entrance, one for what it
             // puts through.
             new Provide({
@@ -91,16 +91,16 @@ describe("content shown elsewhere keeps the context it came from", function () {
       }
     }
     class App extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { bar: portal({ key: "bar" }).establish() };
       }
       provide() {
-        return { bar: this.unobservable.bar, tone: "app" };
+        return { bar: this.plain.bar, tone: "app" };
       }
       build() {
         return div(
           { key: "app" },
-          div({ key: "barArea" }, this.unobservable.bar),
+          div({ key: "barArea" }, this.plain.bar),
           new Entrance({ key: "entrance" }, new Toned({ key: "throughPortal" })),
         );
       }

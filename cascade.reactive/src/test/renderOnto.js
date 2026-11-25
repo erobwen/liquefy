@@ -16,9 +16,9 @@ import assert from "assert";
 // finalize shape already built for property writings, just one level up.
 //
 // Bookkeeping fields (which repeater a component owns, render counts, what
-// it last saw) live under `this.unobservable`, not as plain observable
+// it last saw) live under `this.plain`, not as plain observable
 // properties - matching the escape hatch already used in flow.core's
-// Component.js (`plainMeta(this).unobservable`, lazily initialized). A
+// Component.js (`plainMeta(this)`, lazily initialized). A
 // component reading-then-conditionally-setting one of these as an
 // observable property is exactly the shape that broke meta_repeaters.js:
 // retraction can make a fresh read of it fall through, even though nothing
@@ -51,11 +51,11 @@ describe("renderOnto", function () {
   const PADDING = 5;
 
   class Leaf {
-    get unobservable() {
-      if (!plainMeta(this).unobservable) {
-        plainMeta(this).unobservable = { repeater: null, renderCount: 0, seenSpaceLeft: null };
+    get plain() {
+      if (!("repeater" in plainMeta(this))) {
+        Object.assign(plainMeta(this), { repeater: null, renderCount: 0, seenSpaceLeft: null });
       }
-      return plainMeta(this).unobservable;
+      return plainMeta(this);
     }
 
     constructor(claim) {
@@ -64,7 +64,7 @@ describe("renderOnto", function () {
     }
 
     renderOnto(target) {
-      const u = this.unobservable;
+      const u = this.plain;
       if (u.repeater) {
         linkRepeater(u.repeater);
       } else {
@@ -78,22 +78,22 @@ describe("renderOnto", function () {
   }
 
   class Panel {
-    get unobservable() {
-      if (!plainMeta(this).unobservable) {
-        plainMeta(this).unobservable = { repeater: null, rebuildCount: 0, a: null, b: null };
+    get plain() {
+      if (!("repeater" in plainMeta(this))) {
+        Object.assign(plainMeta(this), { repeater: null, rebuildCount: 0, a: null, b: null });
       }
-      return plainMeta(this).unobservable;
+      return plainMeta(this);
     }
 
     constructor(a, b) {
       const wrapped = temporal(this);
-      wrapped.unobservable.a = a;
-      wrapped.unobservable.b = b;
+      wrapped.plain.a = a;
+      wrapped.plain.b = b;
       return wrapped;
     }
 
     renderOnto(target) {
-      const u = this.unobservable;
+      const u = this.plain;
       if (u.repeater) {
         linkRepeater(u.repeater);
       } else {
@@ -117,11 +117,11 @@ describe("renderOnto", function () {
 
     panel.renderOnto(target);
 
-    assert.equal(a.unobservable.seenSpaceLeft, 95);   // 100 - padding before
-    assert.equal(b.unobservable.seenSpaceLeft, 70);   // 95 - a.claim(20) - padding between
+    assert.equal(a.plain.seenSpaceLeft, 95);   // 100 - padding before
+    assert.equal(b.plain.seenSpaceLeft, 70);   // 95 - a.claim(20) - padding between
     assert.equal(target.spaceLeft, 65);               // 70 - padding after
-    assert.equal(a.unobservable.renderCount, 1);
-    assert.equal(b.unobservable.renderCount, 1);
+    assert.equal(a.plain.renderCount, 1);
+    assert.equal(b.plain.renderCount, 1);
   });
 
   it("case 1: a leaf's own input changes -> only its own partial and the specific downstream reader redo", function () {
@@ -133,7 +133,7 @@ describe("renderOnto", function () {
 
     a.claim = 30; // a's own dependency changes - a's repeater reruns on its own
 
-    assert.equal(a.unobservable.renderCount, 2);
+    assert.equal(a.plain.renderCount, 2);
     // b depends on the space left as panel's own "padding between" write
     // left it (not directly on a - that write sits between a and b), so
     // panel's action does have to run once more to redo that one specific
@@ -142,8 +142,8 @@ describe("renderOnto", function () {
     // reconcile away unchanged (same value as last time, no further
     // cascade), rather than the invalidation of "padding between" forcing
     // panel to re-settle repeatedly until everything downstream catches up.
-    assert.equal(b.unobservable.renderCount, 2);
-    assert.equal(b.unobservable.seenSpaceLeft, 60);   // 95 - a.claim(30) - padding between
+    assert.equal(b.plain.renderCount, 2);
+    assert.equal(b.plain.seenSpaceLeft, 60);   // 95 - a.claim(30) - padding between
     assert.equal(target.spaceLeft, 55);               // 60 - padding after
     // Panel's own "padding after" write reads target.spaceLeft *before* b
     // has rerun (b's own writing is unlinked - see repeater.dispose() -
@@ -162,7 +162,7 @@ describe("renderOnto", function () {
     // b.claim === 0 here, b's own final value happens to already match
     // what panel's "between" write settled on, so that sweep resolves as
     // "no real change" and panel needs no third rebuild at all.
-    assert.equal(panel.unobservable.rebuildCount, 2);
+    assert.equal(panel.plain.rebuildCount, 2);
   });
 
   it('case 2: parent rebuilds for an unrelated reason -> unaffected children are relinked, not rerun', function () {
@@ -176,13 +176,13 @@ describe("renderOnto", function () {
     // data - simulating whatever external trigger the real component model
     // would eventually provide (e.g. the panel reading something of its
     // own). Using repeater.restart() directly as the harness's stand-in.
-    panel.unobservable.repeater.restart();
+    panel.plain.repeater.restart();
 
-    assert.equal(panel.unobservable.rebuildCount, 2);
+    assert.equal(panel.plain.rebuildCount, 2);
     // a and b's own inputs never changed, so linking them back in should
     // be a no-op for them - no rerun, no state loss.
-    assert.equal(a.unobservable.renderCount, 1);
-    assert.equal(b.unobservable.renderCount, 1);
+    assert.equal(a.plain.renderCount, 1);
+    assert.equal(b.plain.renderCount, 1);
     assert.equal(target.spaceLeft, 65);
   });
 
@@ -197,7 +197,7 @@ describe("renderOnto", function () {
 
     class TaggingLeaf extends Leaf {
       renderOnto(target) {
-        const u = this.unobservable;
+        const u = this.plain;
         if (u.repeater) {
           linkRepeater(u.repeater);
         } else {
@@ -225,8 +225,8 @@ describe("renderOnto", function () {
     assert.equal(outsideRenderCount, 1);
     assert.equal(outsideSawMarker, b);
 
-    panel.unobservable.b = null; // panel decides to stop rendering b
-    panel.unobservable.repeater.restart();
+    panel.plain.b = null; // panel decides to stop rendering b
+    panel.plain.repeater.restart();
 
     // Panel's own "padding after" write, during this one rebuild, still
     // reads target.spaceLeft as b's own writing left it - b isn't
@@ -240,8 +240,8 @@ describe("renderOnto", function () {
     // change, needing one more rebuild (on top of the one restart()
     // itself triggers) to pick up - even though, with b's own claim at 0,
     // the actual number involved never moves.
-    assert.equal(panel.unobservable.rebuildCount, 3);
-    assert.equal(a.unobservable.renderCount, 1); // a is untouched
+    assert.equal(panel.plain.rebuildCount, 3);
+    assert.equal(a.plain.renderCount, 1); // a is untouched
 
     // b was never re-linked this run, so its writings (including
     // external.marker) are retracted - and that ripples to the outside
@@ -250,8 +250,8 @@ describe("renderOnto", function () {
     assert.equal(outsideSawMarker, undefined);
 
     // Check that b is retracted but not disposed
-    assert.ok(b.unobservable.repeater.retracted);
-    assert.ok(!b.unobservable.repeater.disposed);
+    assert.ok(b.plain.repeater.retracted);
+    assert.ok(!b.plain.repeater.disposed);
 
     // options.onRetract is the escape hatch for cleaning up side effects
     // the reactive system has no visibility into (e.g. a DOM node parented

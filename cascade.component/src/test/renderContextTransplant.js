@@ -18,11 +18,11 @@ describe("renderOnto() under a different context after retraction", function () 
     const contextB = ({ name: "b" });
 
     class Leaf extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { seenTarget: null, renderCount: 0 };
       }
       render(target) {
-        const u = this.unobservable;
+        const u = this.plain;
         u.renderCount++;
         u.seenTarget = target.name;
       }
@@ -49,18 +49,18 @@ describe("renderOnto() under a different context after retraction", function () 
     const parent = new Parent(leaf);
     parent.renderOnto(({ name: "root" }));
 
-    assert.equal(leaf.unobservable.seenTarget, "a");
-    assert.equal(leaf.unobservable.renderCount, 1);
+    assert.equal(leaf.plain.seenTarget, "a");
+    assert.equal(leaf.plain.renderCount, 1);
 
     // Move it: not rendered onto A this run (retracted), rendered onto B.
     parent.slot = "b";
-    assert.equal(leaf.unobservable.seenTarget, "b", "must render against the context it was just handed, not the one it was first created with");
-    assert.equal(leaf.unobservable.renderCount, 2);
+    assert.equal(leaf.plain.seenTarget, "b", "must render against the context it was just handed, not the one it was first created with");
+    assert.equal(leaf.plain.renderCount, 2);
 
     // And back again.
     parent.slot = "a";
-    assert.equal(leaf.unobservable.seenTarget, "a");
-    assert.equal(leaf.unobservable.renderCount, 3);
+    assert.equal(leaf.plain.seenTarget, "a");
+    assert.equal(leaf.plain.renderCount, 3);
   });
 
   it("a component transplanted between two *different* parents - retracted by one, reattached by the other - renders against the new one's context and keeps its state", function () {
@@ -77,14 +77,14 @@ describe("renderOnto() under a different context after retraction", function () 
       initialState() {
         return { counter: 0 };
       }
-      initialUnobservables() {
+      initialPlain() {
         return { seenTarget: null, retractions: 0 };
       }
       render(target) {
-        this.unobservable.seenTarget = target.name;
+        this.plain.seenTarget = target.name;
       }
       onRetract() {
-        this.unobservable.retractions++;
+        this.plain.retractions++;
       }
     }
 
@@ -119,7 +119,7 @@ describe("renderOnto() under a different context after retraction", function () 
     const leaf = new Leaf();
     const root = new Root(leaf);
     root.renderOnto(({ name: "root" }));
-    assert.equal(leaf.unobservable.seenTarget, "a");
+    assert.equal(leaf.plain.seenTarget, "a");
 
     leaf.counter = 3; // state set while docked in A
 
@@ -131,15 +131,15 @@ describe("renderOnto() under a different context after retraction", function () 
     // unlink-from-old-parent step). Both orders must end up the same, so
     // only the outcome is asserted, in both directions.
     root.slot = "b";
-    assert.equal(leaf.unobservable.seenTarget, "b", "must render against slot B's context after moving there");
+    assert.equal(leaf.plain.seenTarget, "b", "must render against slot B's context after moving there");
     assert.equal(leaf.counter, 3, "state lives on the component, and survives the move");
 
     root.slot = "a";
-    assert.equal(leaf.unobservable.seenTarget, "a", "and back - the direction where the new owner claims it before the old one reruns");
+    assert.equal(leaf.plain.seenTarget, "a", "and back - the direction where the new owner claims it before the old one reruns");
     assert.equal(leaf.counter, 3);
 
     root.slot = "b";
-    assert.equal(leaf.unobservable.seenTarget, "b");
+    assert.equal(leaf.plain.seenTarget, "b");
     assert.equal(leaf.counter, 3);
   });
 });

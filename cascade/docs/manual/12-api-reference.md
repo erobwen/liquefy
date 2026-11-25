@@ -30,7 +30,7 @@ Configuration options (defaults in parentheses):
 | `useNonObservablesAsValues` (false), `valueComparisonDepthLimit` (5) | Compare non-observable values written to properties deeply instead of by identity (frozen plain data is always compared by content). |
 | `requireRepeaterName`, `requireInvalidatorName` (false) | Throw when a repeater/invalidator gets no description. |
 | `warnOnNestedRepeater` (true), `traceWarnings` | Warning about non-independent repeaters created while recording; printed only with `traceWarnings`. |
-| `objectMetaProperty` (`"causality"`), `objectTimelinesProperty` (`"timelines"`) | The two properties an observable answers itself: its metadata object (use `innerMeta(object)`) and its timelines. To become `"cascadeMetadataObject"` and `"cascadeTimelinesObject"` at the next major version. |
+| `objectMetaProperty` (`"cascadeMetadataObject"`), `objectTimelinesProperty` (`"cascadeTimelinesObject"`) | The two properties an observable answers itself: its metadata object (use `innerMeta(object)`) and its timelines. Until 4.0.0, `"causality"` and `"timelines"`. |
 | `onEventGlobal`, `onWriteGlobal`, `onReadGlobal`, `cannotReadPropertyValue`, `emitReBuildEvents` | Global hooks (advanced). |
 | `customCreateRepeater`, `customCreateInvalidator`, `customDependencyInterfaceCreator`, `customObjectlog` | Replace internals (advanced). |
 
@@ -135,7 +135,7 @@ Components and helpers:
 |---|---|
 | `setProperties(properties)` | Interpret properties (default: assign all). |
 | `initialState() → object` | Declare state and defaults (runs after `setProperties()`). |
-| `initialUnobservables() → object` | Seed `this.unobservable` (at initial time; the place to create owned components). |
+| `initialPlain() → object` | Seed `this.plain` (at initial time; the place to create owned components). |
 | `provide() → object \| null` | What the subtree inherits (default `null`: no context of its own). Called once. |
 | `build() → Component \| Component[] \| null` | What this component is made of. |
 | `render(target, context)` | Real-time work on the target (default: build and render the result). |
@@ -161,7 +161,7 @@ Components and helpers:
 | `refreshCreatorBuild()` | Bring the creator's build up to date. Advanced. |
 | `getComponentTypeName()`, `toString()` | Debug names (`"Card:42(key)"`). |
 
-Fields: `key`, `creator`, `renderContext` (observable), `unobservable`,
+Fields: `key`, `creator`, `renderContext` (observable), `plain`,
 `currentBuild`, `componentTypeName` (optional
 override for the debug name).
 

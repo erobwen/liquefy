@@ -10,15 +10,15 @@ describe("onShow / onHide", function () {
 
   // Records its own notifications; renders nothing.
   class Watched extends Component {
-    initialUnobservables() {
+    initialPlain() {
       return { events: [] };
     }
     render() {}
     onShow() {
-      this.unobservable.events.push("show");
+      this.plain.events.push("show");
     }
     onHide() {
-      this.unobservable.events.push("hide");
+      this.plain.events.push("hide");
     }
   }
 
@@ -41,13 +41,13 @@ describe("onShow / onHide", function () {
     const watched = new Watched();
     const parent = new Parent(watched);
     parent.renderOnto(context());
-    assert.deepEqual(watched.unobservable.events, ["show"]);
+    assert.deepEqual(watched.plain.events, ["show"]);
 
     parent.showing = false;
-    assert.deepEqual(watched.unobservable.events, ["show", "hide"]);
+    assert.deepEqual(watched.plain.events, ["show", "hide"]);
 
     parent.showing = true;
-    assert.deepEqual(watched.unobservable.events, ["show", "hide", "show"]);
+    assert.deepEqual(watched.plain.events, ["show", "hide", "show"]);
   });
 
   it("an ordinary rerun is neither", function () {
@@ -63,17 +63,17 @@ describe("onShow / onHide", function () {
     new Parent(watched).renderOnto(context());
     watched.count = 1;
     watched.count = 2;
-    assert.deepEqual(watched.unobservable.events, ["show"]);
+    assert.deepEqual(watched.plain.events, ["show"]);
   });
 
   it("onRetract()/onReattach() call them by default - an override keeps that through super", function () {
     class WithMechanics extends Watched {
       onRetract() {
-        this.unobservable.events.push("retract");
+        this.plain.events.push("retract");
         super.onRetract();
       }
       onReattach(renderContext) {
-        this.unobservable.events.push("reattach");
+        this.plain.events.push("reattach");
         super.onReattach(renderContext);
       }
     }
@@ -82,6 +82,6 @@ describe("onShow / onHide", function () {
     parent.renderOnto(context());
     parent.showing = false;
     parent.showing = true;
-    assert.deepEqual(watched.unobservable.events, ["show", "retract", "hide", "reattach", "show"]);
+    assert.deepEqual(watched.plain.events, ["show", "retract", "hide", "reattach", "show"]);
   });
 });

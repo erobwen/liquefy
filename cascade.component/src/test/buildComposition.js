@@ -18,20 +18,20 @@ describe("build()-based composition with key reconciliation", function () {
     }
 
     render(target) {
-      this.unobservable.renderCount = (this.unobservable.renderCount || 0) + 1;
+      this.plain.renderCount = (this.plain.renderCount || 0) + 1;
       target.remainingHeight -= this.height;
     }
   }
 
   class ContentArea extends Component {
     render(target) {
-      this.unobservable.renderCount = (this.unobservable.renderCount || 0) + 1;
-      this.unobservable.seenAvailableHeight = target.remainingHeight;
+      this.plain.renderCount = (this.plain.renderCount || 0) + 1;
+      this.plain.seenAvailableHeight = target.remainingHeight;
     }
 
     onDispose() {
       super.onDispose();
-      this.unobservable.disposed = true;
+      this.plain.disposed = true;
     }
   }
 
@@ -56,9 +56,9 @@ describe("build()-based composition with key reconciliation", function () {
     mainFrame.renderOnto(target);
     const [toolbar1, contentArea1] = mainFrame.currentBuild;
 
-    assert.equal(contentArea1.unobservable.seenAvailableHeight, 350);
-    assert.equal(toolbar1.unobservable.renderCount, 1);
-    assert.equal(contentArea1.unobservable.renderCount, 1);
+    assert.equal(contentArea1.plain.seenAvailableHeight, 350);
+    assert.equal(toolbar1.plain.renderCount, 1);
+    assert.equal(contentArea1.plain.renderCount, 1);
 
     // MainFrame's own build() inputs change - build() constructs BRAND NEW
     // Toolbar/ContentArea JS objects every time it runs, but key-based
@@ -70,9 +70,9 @@ describe("build()-based composition with key reconciliation", function () {
     assert.equal(toolbar2, toolbar1); // same identity, not a fresh instance
     assert.equal(contentArea2, contentArea1); // same identity
     assert.equal(toolbar1.height, 80); // new constructor arg merged onto the established instance
-    assert.equal(toolbar1.unobservable.renderCount, 2); // reran - its own height changed
-    assert.equal(contentArea1.unobservable.renderCount, 2); // depends on toolbar's write, so it reran too
-    assert.equal(contentArea1.unobservable.seenAvailableHeight, 320);
+    assert.equal(toolbar1.plain.renderCount, 2); // reran - its own height changed
+    assert.equal(contentArea1.plain.renderCount, 2); // depends on toolbar's write, so it reran too
+    assert.equal(contentArea1.plain.seenAvailableHeight, 320);
   });
 
   it("a child no longer returned by build() is disposed", function () {
@@ -84,7 +84,7 @@ describe("build()-based composition with key reconciliation", function () {
     mainFrame.showContent = false; // content area no longer built at all
 
     assert.equal(mainFrame.currentBuild.length, 1);
-    assert.ok(contentArea.unobservable.disposed);
+    assert.ok(contentArea.plain.disposed);
   });
 
 });
@@ -104,12 +104,12 @@ describe("build()-based composition surviving retraction (buildOneStep() itself,
       // (which would renderOnto() the result) - this test is specifically
       // about what buildOneStep() itself hands back, not about
       // rendering a further tree underneath it.
-      this.unobservable.lastEquivalent = this.buildOneStep();
+      this.plain.lastEquivalent = this.buildOneStep();
     }
 
     build() {
-      const count = (this.unobservable.buildCount || 0) + 1;
-      this.unobservable.buildCount = count;
+      const count = (this.plain.buildCount || 0) + 1;
+      this.plain.buildCount = count;
       return { marker: "built-" + count };
     }
   }
@@ -134,8 +134,8 @@ describe("build()-based composition surviving retraction (buildOneStep() itself,
     const parent = new Parent("parent", true);
     parent.renderOnto(target);
 
-    assert.equal(parent.leaf.unobservable.lastEquivalent.marker, "built-1");
-    const buildRepeater = parent.leaf.unobservable.buildRepeater;
+    assert.equal(parent.leaf.plain.lastEquivalent.marker, "built-1");
+    const buildRepeater = parent.leaf.plain.buildRepeater;
 
     parent.showLeaf = false; // leaf's render repeater retracted
     parent.showLeaf = true; // renderOnto()'d again - relinked and reattached
@@ -144,8 +144,8 @@ describe("build()-based composition surviving retraction (buildOneStep() itself,
     // unlinked, and reattaching handed back undefined.) Nothing build()
     // reads changed while hidden, so its result is still current: the
     // same build repeater, not rerun, still handing back what it built.
-    assert.equal(parent.leaf.unobservable.buildRepeater, buildRepeater, "the same build repeater");
-    assert.equal(parent.leaf.unobservable.lastEquivalent.marker, "built-1");
+    assert.equal(parent.leaf.plain.buildRepeater, buildRepeater, "the same build repeater");
+    assert.equal(parent.leaf.plain.lastEquivalent.marker, "built-1");
   });
 
 });
@@ -176,8 +176,8 @@ describe("build()-based composition surviving retraction (buildOneStep() itself,
 // bare, repeater-less build() call means that never happens until
 // Grandparent's *own* enclosing render-repeater finishes - too late, if
 // build()'s result gets renderOnto()'d before then, in that same call:
-// Parent.renderOnto() reads Parent's own .unobservable while it's still
-// mid-rebuildTwin, finds its temporary twin's own, empty unobservable bag
+// Parent.renderOnto() reads Parent's own .plain while it's still
+// mid-rebuildTwin, finds its temporary twin's own, empty plain bag
 // instead of the established one's, and creates a redundant new render-
 // repeater instead of relinking the real one - orphaning Parent's whole
 // previously-established subtree (GC included), silently, with no
@@ -195,7 +195,7 @@ describe("buildOneStep(), nested two levels deep through components it itself co
       this.marker = marker;
     }
     render() {
-      this.unobservable.lastSeenMarker = this.marker;
+      this.plain.lastSeenMarker = this.marker;
     }
   }
 
@@ -207,7 +207,7 @@ describe("buildOneStep(), nested two levels deep through components it itself co
     }
     build() {
       const gc = new GC({ key: "gc", marker: this.items.join(",") });
-      this.unobservable.lastGC = gc;
+      this.plain.lastGC = gc;
       return gc;
     }
   }
@@ -217,12 +217,12 @@ describe("buildOneStep(), nested two levels deep through components it itself co
   class Grandparent extends Component {
     build() {
       const parent = new Parent({ key: "parent", items: [this.n] });
-      this.unobservable.lastParent = parent;
+      this.plain.lastParent = parent;
       return parent;
     }
 
     render(target) {
-      this.n = "run" + ((this.unobservable.renderCount = (this.unobservable.renderCount || 0) + 1));
+      this.n = "run" + ((this.plain.renderCount = (this.plain.renderCount || 0) + 1));
       const equivalent = this.buildOneStep();
       equivalent.renderOnto(target);
     }
@@ -233,20 +233,20 @@ describe("buildOneStep(), nested two levels deep through components it itself co
     const gp = new Grandparent();
     gp.renderOnto(target);
 
-    const parent1 = gp.unobservable.lastParent;
-    const gc1 = parent1.unobservable.lastGC;
+    const parent1 = gp.plain.lastParent;
+    const gc1 = parent1.plain.lastGC;
     assert.equal(gc1.marker, "run1");
-    assert.equal(gc1.unobservable.lastSeenMarker, "run1");
+    assert.equal(gc1.plain.lastSeenMarker, "run1");
 
-    gp.unobservable.repeater.restart();
+    gp.plain.repeater.restart();
 
-    const parent2 = gp.unobservable.lastParent;
+    const parent2 = gp.plain.lastParent;
     assert.equal(parent2, parent1, "Parent reconciles to the same instance");
 
-    const gc2 = parent2.unobservable.lastGC;
+    const gc2 = parent2.plain.lastGC;
     assert.equal(gc2, gc1, "GC reconciles to the same instance too, one level further");
     assert.equal(gc2.marker, "run2", "GC's own property must reflect the fresh build, not fall through to undefined/stale");
-    assert.equal(gc2.unobservable.lastSeenMarker, "run2", "GC's own render() must actually have rerun to see the fresh marker");
+    assert.equal(gc2.plain.lastSeenMarker, "run2", "GC's own render() must actually have rerun to see the fresh marker");
   });
 
 });

@@ -33,7 +33,7 @@ export class Overlay extends Component {
     this.showing = !!showing;
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return { visibleOnFrame: null, shownChild: null, shownContext: null };
   }
 
@@ -56,7 +56,7 @@ export class Overlay extends Component {
   // No longer shown - its page switched away from, say: take the content
   // back, whatever `showing` says.
   onHide() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.visibleOnFrame) {
       u.visibleOnFrame.hideOverlay(this);
       u.visibleOnFrame = null;
@@ -64,7 +64,7 @@ export class Overlay extends Component {
   }
 
   update() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (this.showing) {
       const overlayFrame = this.inherit("overlayFrame");
       if (!overlayFrame && !u.warnedMissing) {

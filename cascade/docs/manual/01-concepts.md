@@ -62,8 +62,8 @@ one paragraph, and only it and what comes after it run again.
 ## The mental model
 
 - A **component** has *properties* (given by whoever builds it, again on every
-  rebuild), *state* (set once, then changed by the user) and *unobservables*
-  (plain, non-reactive bookkeeping).
+  rebuild), *state* (set once, then changed by the user) and *plain fields*
+  (`this.plain`: non-reactive bookkeeping).
 - `build()` returns child components. It is a reactive function: it reruns
   when anything it read changes. What it returns is matched to what it
   returned last time, so that the same component stays the same component -

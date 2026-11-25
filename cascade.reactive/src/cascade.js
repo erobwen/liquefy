@@ -21,13 +21,11 @@ const defaultConfiguration = {
 
   // The two properties an observable answers itself instead of passing on
   // to its target: its metadata object (innerMeta(object) - see "Metadata")
-  // and its timelines. Still the old names, so as not to break code that
-  // reads object.causality; reach it with innerMeta(object). At the next major
-  // version, long names that no application data is likely to use:
-  // objectMetaProperty: "cascadeMetadataObject",
-  // objectTimelinesProperty: "cascadeTimelinesObject",
-  objectMetaProperty: "causality",
-  objectTimelinesProperty: "timelines",
+  // and its timelines. Long names that no application data is likely to
+  // use (until 4.0.0, "causality" and "timelines"); reach the metadata
+  // object with innerMeta(object), whatever it is called.
+  objectMetaProperty: "cascadeMetadataObject",
+  objectTimelinesProperty: "cascadeTimelinesObject",
 
   useNonObservablesAsValues: false, 
   valueComparisonDepthLimit: 5, 
@@ -415,7 +413,7 @@ function createWorld(configuration) {
    *   error, whether it is loaded.
    *
    *   plainMeta(object, [property]) is a plain object: for bookkeeping that
-   *   must not be observed - a component's unobservable bag, the handle to
+   *   must not be observed - a component's plain fields (this.plain), the handle to
    *   disconnect an observer with.
    *
    *   Cascade decides no field of either. Put values, plain objects or

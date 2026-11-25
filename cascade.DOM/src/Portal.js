@@ -60,7 +60,7 @@ export class Portal extends Component {
     return { contents: null, contentsContext: null };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return { assignedBy: null };
   }
 
@@ -68,7 +68,7 @@ export class Portal extends Component {
   // without recording, so that render never depends on it - two contents
   // taking turns would otherwise keep rerunning each other.
   show(contentsProvider, contents, context) {
-    this.unobservable.assignedBy = contentsProvider;
+    this.plain.assignedBy = contentsProvider;
     const current = withoutRecording(() => [this.contents, this.contentsContext]);
     if (current[0] !== contents || current[1] !== (context || null)) {
       flush(() => this.setState({ contents, contentsContext: context || null }));
@@ -79,7 +79,7 @@ export class Portal extends Component {
   // one that has since been taken over by another doesn't clear its
   // successor's.
   hide(contentsProvider) {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.assignedBy !== contentsProvider) return;
     u.assignedBy = null;
     flush(() => this.setState({ contents: null, contentsContext: null }));
@@ -101,7 +101,7 @@ export class PortalSource extends Component {
     this.portalChildren = frozen(children || []);
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return { shownIn: null };
   }
 
@@ -125,7 +125,7 @@ export class PortalSource extends Component {
   // No longer shown (hidden, its page switched away from, dropped): take
   // the contents back.
   onHide() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.shownIn) {
       u.shownIn.hide(this);
       u.shownIn = null;
@@ -133,7 +133,7 @@ export class PortalSource extends Component {
   }
 
   assign() {
-    const u = this.unobservable;
+    const u = this.plain;
     const portal = typeof(this.portal) === "string" ? this.inherit(this.portal) : this.portal;
     // A name nothing provides - a typo, or placed outside what provides
     // it: its contents are shown nowhere. Said once, not silently.

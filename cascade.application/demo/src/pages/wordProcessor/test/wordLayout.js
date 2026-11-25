@@ -40,7 +40,7 @@ function paragraphComponents(component) {
   return firstSection.currentBuild;
 }
 
-const counts = (components) => components.map((p) => [p.unobservable.breaks, p.unobservable.placements]);
+const counts = (components) => components.map((p) => [p.plain.breaks, p.plain.placements]);
 
 // The word processor's model laid out with cascade.print: what its styles,
 // sections and spans mean on the papers - and that a change to the model
@@ -173,7 +173,7 @@ describe("Laying out the word processor's model", function () {
     document.sections[0].paragraphs.splice(1, 1);
     assert.deepEqual(pages(sequence), [["aaaa@1000", "cccc@6000"]]);
     removed.spans[0].text = "bbbb bbbb";
-    assert.equal(gone.unobservable.breaks, 1);
+    assert.equal(gone.plain.breaks, 1);
   });
 
   it("breaks every paragraph again when the styles change", function () {

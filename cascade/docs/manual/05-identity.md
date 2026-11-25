@@ -31,7 +31,7 @@ Also key:
 - two components of the same class taking turns in the same place (without
   keys, the second carries on as the first, with the first's state);
 - a component referred to from outside the build result (a closure, an
-  unobservable) - after a pattern match those references point to the
+  plain field) - after a pattern match those references point to the
   discarded twin; a key makes the constructor return the established instance
   itself.
 

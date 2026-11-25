@@ -180,7 +180,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     // instance would itself be a write the container's render depends on.
     class CountingContainer extends FlipAnimationContainer {
       render(target, context) {
-        this.unobservable.runs = (this.unobservable.runs || 0) + 1;
+        this.plain.runs = (this.plain.runs || 0) + 1;
         super.render(target, context);
       }
     }
@@ -194,12 +194,12 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
 
     const flipContainer = both.flip.currentBuild;
     assert.ok(flipContainer instanceof FlipAnimationContainer);
-    const runsBefore = flipContainer.unobservable.runs;
+    const runsBefore = flipContainer.plain.runs;
 
     counters.forEach((counter) => { counter.value = 7; });
     same(both, "after an edit inside the island");
     assert.equal(both.flipRoot.querySelector("output").textContent, "value 7");
-    assert.equal(flipContainer.unobservable.runs, runsBefore, "the island reran on its own - the container didn't");
+    assert.equal(flipContainer.plain.runs, runsBefore, "the island reran on its own - the container didn't");
   });
 
   it("while hidden, the builds of the components it expanded don't run - they're pulled, and revalidated once, when it's shown again", function () {
@@ -209,7 +209,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     const model = observable({ show: true, label: "one" });
     class Labelled extends Component {
       build() {
-        this.unobservable.builds = (this.unobservable.builds || 0) + 1;
+        this.plain.builds = (this.plain.builds || 0) + 1;
         return p({ key: "label" }, text({ key: "text", text: model.label }));
       }
     }
@@ -222,15 +222,15 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     const frame = new Frame();
     frame.flip = flipAnimationContainer({ key: "flip" }, labelled);
     frame.renderOnto(new DOMElementTarget(container));
-    assert.equal(labelled.unobservable.builds, 1);
+    assert.equal(labelled.plain.builds, 1);
 
     model.show = false;
     model.label = "two";
     model.label = "three";
-    assert.equal(labelled.unobservable.builds, 1, "not rebuilt while hidden");
+    assert.equal(labelled.plain.builds, 1, "not rebuilt while hidden");
 
     model.show = true;
-    assert.equal(labelled.unobservable.builds, 2, "rebuilt once, when shown");
+    assert.equal(labelled.plain.builds, 2, "rebuilt once, when shown");
     assert.equal(container.querySelector("p").textContent, "three");
   });
 
@@ -319,17 +319,17 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     // Build-composed, so the container expands (places) it rather than
     // rendering it; records the notifications it gets.
     class Watched extends Component {
-      initialUnobservables() {
+      initialPlain() {
         return { events: [] };
       }
       build() {
         return p({ key: "watchedText" }, text({ key: "text", text: "watched" }));
       }
       onShow() {
-        this.unobservable.events.push("show");
+        this.plain.events.push("show");
       }
       onHide() {
-        this.unobservable.events.push("hide");
+        this.plain.events.push("hide");
       }
     }
     const model = observable({ inTree: true, pageShown: true });
@@ -347,7 +347,7 @@ describe("FlipAnimationContainer (placement, no animation yet)", function () {
     const frame = new Frame();
     frame.flip = flipAnimationContainer({ key: "flip" }, new Holder({ key: "holder" }));
     frame.renderOnto(new DOMElementTarget(container));
-    const events = () => watched.unobservable.events;
+    const events = () => watched.plain.events;
     assert.deepEqual(events(), ["show"], "placed: shown");
     assert.equal(container.querySelector("p").textContent, "watched");
 

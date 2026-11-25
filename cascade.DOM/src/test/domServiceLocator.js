@@ -143,7 +143,7 @@ describe("DOM service locators (reached through the render context)", function (
   it("an observable compound swaps services at runtime - rebuilding what used them", function () {
     class Buttons extends Component {
       build() {
-        this.unobservable.buildCount = (this.unobservable.buildCount || 0) + 1;
+        this.plain.buildCount = (this.plain.buildCount || 0) + 1;
         return div({ key: "row" }, button({ key: "save" }, text("Save")));
       }
     }
@@ -153,7 +153,7 @@ describe("DOM service locators (reached through the render context)", function (
     assert.equal(container.querySelector("button").style.color, "");
 
     locator.locators.unshift(new RedButtons());
-    assert.equal(buttons.unobservable.buildCount, 2);
+    assert.equal(buttons.plain.buildCount, 2);
     assert.equal(container.querySelector("button").style.color, "red");
     assert.equal(container.querySelectorAll("button").length, 1);
 
@@ -164,7 +164,7 @@ describe("DOM service locators (reached through the render context)", function (
   it("a plain compound records no dependency on its locators", function () {
     class Buttons extends Component {
       build() {
-        this.unobservable.buildCount = (this.unobservable.buildCount || 0) + 1;
+        this.plain.buildCount = (this.plain.buildCount || 0) + 1;
         return button({ key: "save" }, text("Save"));
       }
     }
@@ -173,7 +173,7 @@ describe("DOM service locators (reached through the render context)", function (
     buttons.renderOnto(new DOMElementTarget(container), contextWith(locator));
 
     locator.locators.unshift(new RedButtons()); // not observable: nothing reacts
-    assert.equal(buttons.unobservable.buildCount, 1);
+    assert.equal(buttons.plain.buildCount, 1);
     assert.equal(container.querySelector("button").style.color, "");
   });
 

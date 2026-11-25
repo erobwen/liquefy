@@ -5,9 +5,9 @@ const { observable, temporal, meta, plainMeta, innerMeta, repeat, retractRepeate
 
 describe("innerMeta()", function () {
 
-  it("innerMeta(object) is cascade's own bookkeeping, on the dedicated property", function () {
+  it("innerMeta(object) is cascade's own bookkeeping, on the dedicated property, cascadeMetadataObject by default", function () {
     const object = observable({ name: "a" });
-    assert.strictEqual(innerMeta(object), object.causality);
+    assert.strictEqual(innerMeta(object), object.cascadeMetadataObject);
     assert.strictEqual(innerMeta(object).proxy, object);
     assert.equal(typeof(innerMeta(object).id), "number");
     assert.notEqual(innerMeta(object).id, innerMeta(observable({})).id);
@@ -23,15 +23,15 @@ describe("innerMeta()", function () {
   it("the dedicated property is not one of the object's own keys, and cannot be written", function () {
     const object = observable({ name: "a" });
     assert.deepEqual(Object.keys(object), ["name"]);
-    assert.throws(() => { object.causality = {}; });
+    assert.throws(() => { object.cascadeMetadataObject = {}; });
   });
 
   it("the property's name is configurable, and innerMeta() finds it whatever it is", function () {
-    const world = getWorld({ name: "meta test, long name", objectMetaProperty: "cascadeMetadataObject" });
-    const object = world.observable({ causality: "just data" });
-    assert.strictEqual(world.innerMeta(object), object.cascadeMetadataObject);
-    assert.equal(object.causality, "just data");
-    assert.equal(world.meta(object, "causality").saved, undefined);
+    const world = getWorld({ name: "meta test, old name", objectMetaProperty: "causality" });
+    const object = world.observable({ cascadeMetadataObject: "just data" });
+    assert.strictEqual(world.innerMeta(object), object.causality);
+    assert.equal(object.cascadeMetadataObject, "just data");
+    assert.equal(world.meta(object, "cascadeMetadataObject").saved, undefined);
   });
 });
 

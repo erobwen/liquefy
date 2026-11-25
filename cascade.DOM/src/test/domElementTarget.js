@@ -6,7 +6,7 @@ import { DOMNodeComponent } from "../DOMNodeComponent.js";
 
 // Same toolbar/main-frame shape as cascade.component's own vertical-slice
 // test, but rendering real DOM elements this time - proving the mechanism
-// (renderOnto/render/unobservable, plus the target's own lastChild
+// (renderOnto/render/plain, plus the target's own lastChild
 // versioning) generalizes from a plain number (spaceLeft) to an actual
 // side effect (a DOM node existing, in a specific position).
 describe("DOMElementTarget (real-time DOM renderOnto)", function () {
@@ -48,7 +48,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     }
 
     renderNode(target, existingElement) {
-      const u = this.unobservable;
+      const u = this.plain;
       const el = existingElement || target.appendElement("div");
       el.className = "main-frame";
       // Both the inner target and the context wrapping it have to persist
@@ -77,8 +77,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const frameElement = container.children[0];
     assert.equal(frameElement.className, "main-frame");
     assert.equal(frameElement.children.length, 2);
-    assert.equal(frameElement.children[0], toolbar.unobservable.node);
-    assert.equal(frameElement.children[1], contentArea.unobservable.node);
+    assert.equal(frameElement.children[0], toolbar.plain.node);
+    assert.equal(frameElement.children[1], contentArea.plain.node);
     assert.equal(frameElement.children[0].className, "toolbar");
     assert.equal(frameElement.children[0].textContent, "Toolbar");
     assert.equal(frameElement.children[1].className, "content");
@@ -91,10 +91,10 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(root);
 
-    const originalFrameElement = mainFrame.unobservable.node;
-    const originalToolbarElement = toolbar.unobservable.node;
+    const originalFrameElement = mainFrame.plain.node;
+    const originalToolbarElement = toolbar.plain.node;
 
-    mainFrame.unobservable.repeater.restart();
+    mainFrame.plain.repeater.restart();
 
     assert.equal(container.children.length, 1);
     assert.equal(container.children[0], originalFrameElement); // reused in place, not recreated
@@ -109,14 +109,14 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(root);
 
-    const frameElement = mainFrame.unobservable.node;
-    const originalContentElement = contentArea.unobservable.node;
+    const frameElement = mainFrame.plain.node;
+    const originalContentElement = contentArea.plain.node;
 
     toolbar.label = "Toolbar v2"; // toolbar's own input changes
 
     assert.equal(frameElement.children.length, 2); // still exactly 2, no duplicate
     assert.equal(frameElement.children[0].textContent, "Toolbar v2"); // replaced in place
-    assert.equal(frameElement.children[0], toolbar.unobservable.node);
+    assert.equal(frameElement.children[0], toolbar.plain.node);
     assert.equal(frameElement.children[1], originalContentElement); // content area untouched, same element
   });
 
@@ -145,7 +145,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       }
 
       renderNode(target, existingElement) {
-        const u = this.unobservable;
+        const u = this.plain;
         const el = existingElement || target.appendElement("div");
         el.className = "main-frame";
         if (!u.childTarget) {
@@ -157,27 +157,27 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         // that writing a *different* value into the same, persistent
         // context object is what invalidates the child, same as any other
         // reactive write - not the renderOnto() call itself.
-        u.childTarget.spaceLeft = this.unobservable.simulatedSpaceLeft;
+        u.childTarget.spaceLeft = this.plain.simulatedSpaceLeft;
         this.contentArea.renderOnto(u.childTarget);
         return el;
       }
     }
     const mainFrame = new MeasuringMainFrame(toolbar, contentArea);
-    mainFrame.unobservable.simulatedSpaceLeft = 300;
+    mainFrame.plain.simulatedSpaceLeft = 300;
 
     mainFrame.renderOnto(root);
     assert.equal(seenSpaceLeft, 300);
     assert.equal(renderCount, 1);
 
     // Same measurement again - reconciles quietly, content area untouched.
-    mainFrame.unobservable.repeater.restart();
+    mainFrame.plain.repeater.restart();
     assert.equal(renderCount, 1);
 
     // A genuinely different measurement - content area reruns and sees it,
     // purely through the ordinary reactive write above, not a special
     // "notify children" call.
-    mainFrame.unobservable.simulatedSpaceLeft = 250;
-    mainFrame.unobservable.repeater.restart();
+    mainFrame.plain.simulatedSpaceLeft = 250;
+    mainFrame.plain.repeater.restart();
     assert.equal(seenSpaceLeft, 250);
     assert.equal(renderCount, 2);
   });

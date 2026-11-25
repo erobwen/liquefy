@@ -178,7 +178,7 @@ function legend(view, cohortColors) {
 export class VisualizerApp extends Component {
   onEstablish() {
     super.onEstablish();
-    const u = this.unobservable;
+    const u = this.plain;
     let last = 0;
     u.timer = setInterval(() => {
       if (!model.playing || !model.recording) return;
@@ -207,8 +207,8 @@ export class VisualizerApp extends Component {
   }
 
   onDispose() {
-    clearInterval(this.unobservable.timer);
-    document.removeEventListener("keydown", this.unobservable.keys);
+    clearInterval(this.plain.timer);
+    document.removeEventListener("keydown", this.plain.keys);
     super.onDispose();
   }
 

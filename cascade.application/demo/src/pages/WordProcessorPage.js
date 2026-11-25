@@ -53,7 +53,7 @@ export class WordProcessorPage extends Component {
     return { zoom: 1 };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     const document = sampleDocument();
     const measurer = domMeasurer();
     return {
@@ -68,14 +68,14 @@ export class WordProcessorPage extends Component {
 
   onEstablish() {
     super.onEstablish();
-    const u = this.unobservable;
+    const u = this.plain;
     // A root of its own: independent of whatever happens to be running when
     // this page is established.
     u.layoutRoot = ensure(() => u.layout.renderOnto(u.sequence), { independent: true });
   }
 
   onDispose() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.layoutRoot) retractRepeater(u.layoutRoot);
     u.layout.dispose();
     u.measurer.dispose();
@@ -84,7 +84,7 @@ export class WordProcessorPage extends Component {
 
   // Paper and margins together - one change to the layout, not two.
   setPaper(name) {
-    const section = this.unobservable.document.sections[0];
+    const section = this.plain.document.sections[0];
     postponeInvalidations();
     section.paper = paperSizes[name];
     section.margins = paperMargins[name];
@@ -97,7 +97,7 @@ export class WordProcessorPage extends Component {
   }
 
   build() {
-    const { document, sequence, measurer, editing } = this.unobservable;
+    const { document, sequence, measurer, editing } = this.plain;
     const paper = document.sections[0].paper;
     const pageCount = sequence.pages.length;
     // Keyed: built again, it's the editor already there - the one the

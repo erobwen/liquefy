@@ -105,7 +105,7 @@ export class EllipsisToolbar extends Component {
     return { overflowCount: 0, menuOpen: false, anchor: null };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return {
       overflowSlot: elementSlot({ key: "overflowSlot", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: GAP + "px" } }).establish(),
     };
@@ -114,7 +114,7 @@ export class EllipsisToolbar extends Component {
   // The slot is this toolbar's own, not built by a build() - so it's
   // disposed of here (see Component.establish()).
   onDispose() {
-    this.unobservable.overflowSlot.dispose();
+    this.plain.overflowSlot.dispose();
     super.onDispose();
   }
 
@@ -134,7 +134,7 @@ export class EllipsisToolbar extends Component {
         style: { display: "flex", flexDirection: "row", alignItems: "center", gap: GAP + "px", width: "100%", overflow: "hidden" },
         children: this.tools,
         ellipsis,
-        overflowSlot: this.unobservable.overflowSlot,
+        overflowSlot: this.plain.overflowSlot,
         // Reported from the bar's own rendering - a write back to this
         // toolbar, which built it: setState() and flush(), so the ellipsis
         // says the right number in the same frame.
@@ -154,7 +154,7 @@ export class EllipsisToolbar extends Component {
             }),
             style: { maxWidth: "360px", padding: "4px" },
           },
-          this.unobservable.overflowSlot,
+          this.plain.overflowSlot,
         ),
       ),
     ];

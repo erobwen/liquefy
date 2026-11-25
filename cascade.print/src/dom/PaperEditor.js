@@ -70,7 +70,7 @@ export class PaperEditor extends Component {
     return { caret: null, anchor: null, focused: false, blink: 0 };
   }
 
-  initialUnobservables() {
+  initialPlain() {
     return {
       // Created here and placed in build() as it is - this editor owns it
       // (see cascade.component/README.md on creating a sub-component
@@ -89,7 +89,7 @@ export class PaperEditor extends Component {
   }
 
   onDispose() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.endDrag) u.endDrag();
     u.input.dispose();
     super.onDispose();
@@ -117,7 +117,7 @@ export class PaperEditor extends Component {
     } finally {
       continueInvalidations();
     }
-    this.unobservable.input.focus();
+    this.plain.input.focus();
     this.followCaret();
   }
 
@@ -135,7 +135,7 @@ export class PaperEditor extends Component {
         onmousedown: callback("press", (event) => this.press(event)),
       },
       paperSequenceView({ sequence, zoom: this.zoom, caret: geometry && { ...geometry, blink: this.blink }, selection }),
-      this.unobservable.input,
+      this.plain.input,
     );
   }
 
@@ -147,7 +147,7 @@ export class PaperEditor extends Component {
     if (!paper || event.button !== 0) return;
     // Not the paper taking focus from the input - the input takes it.
     event.preventDefault();
-    const u = this.unobservable;
+    const u = this.plain;
     u.element = event.currentTarget;
     const at = this.positionAtPoint(event.clientX, event.clientY);
     u.input.focus();
@@ -159,7 +159,7 @@ export class PaperEditor extends Component {
   }
 
   followMouse(event) {
-    const u = this.unobservable;
+    const u = this.plain;
     if (u.endDrag) u.endDrag();
     const doc = event.currentTarget.ownerDocument;
     const startX = event.clientX;
@@ -183,7 +183,7 @@ export class PaperEditor extends Component {
   // The place in the text nearest a point on screen - on the paper it's on,
   // or, between and beside the papers, the nearest one.
   positionAtPoint(clientX, clientY) {
-    const element = this.unobservable.element;
+    const element = this.plain.element;
     if (!element) return null;
     let nearest = null;
     let distance = Infinity;
@@ -246,7 +246,7 @@ export class PaperEditor extends Component {
       case "End": return this.moveCaret(primary ? editing.documentEnd() : lineEnd(sequence, from), extend);
       case "ArrowUp":
       case "ArrowDown": {
-        const u = this.unobservable;
+        const u = this.plain;
         if (u.goalX === null) {
           const geometry = caretAt(sequence, from, this.measurer);
           u.goalX = geometry ? geometry.x : 0;
@@ -279,7 +279,7 @@ export class PaperEditor extends Component {
   // stretched from its anchor (where the caret was, if nothing was
   // selected) to there.
   moveCaret(at, { extend = false, vertical = false } = {}) {
-    if (!vertical) this.unobservable.goalX = null;
+    if (!vertical) this.plain.goalX = null;
     postponeInvalidations();
     if (!extend) this.anchor = null;
     else if (!this.anchor) this.anchor = this.caret;
@@ -291,7 +291,7 @@ export class PaperEditor extends Component {
 
   select(anchor, focus) {
     if (!anchor || !focus) return;
-    this.unobservable.goalX = null;
+    this.plain.goalX = null;
     postponeInvalidations();
     this.anchor = anchor;
     this.caret = focus;
@@ -303,13 +303,13 @@ export class PaperEditor extends Component {
   // The input to the caret - or the selection's end - so an input method
   // opens there, and it scrolled into view.
   followCaret() {
-    const element = this.unobservable.element;
+    const element = this.plain.element;
     if (!element) return;
     const marks = element.querySelectorAll("[data-caret], [data-selection]");
     const mark = this.hasSelection() ? this.focusEndOf(marks) : marks[0];
     if (!mark) return;
     const rect = mark.getBoundingClientRect();
-    this.unobservable.input.moveTo(rect.left, rect.top);
+    this.plain.input.moveTo(rect.left, rect.top);
     scrollIntoView(mark);
   }
 

@@ -40,7 +40,7 @@ export class AnimatedLogotype extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.unobservable;
+    const u = this.plain;
     if (!u.node) {
       const parsed = new DOMParser().parseFromString(logotypeSource, "image/svg+xml").documentElement;
       const svg = document.importNode(parsed, true);

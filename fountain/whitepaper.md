@@ -14,7 +14,7 @@ The central idea is to make persistent objects behave as much as possible like o
 
 A central server maintains the authoritative object graph. Clients subscribe to selections of objects through WebSocket connections, receiving incremental updates as the underlying data changes. Users are part of the database from the start. Object-level authorization is expressed through application-defined JavaScript methods that run the same on clients and on the server, and a session object, whose methods a client calls remotely, is the server's API and its security gateway.
 
-What a client synchronizes is defined by data selectors: functions that, starting from one object, select the set of objects that belong together, such as everything in a document. A selection is maintained reactively as the graph changes. Code loads explicitly, through subscriptions that hold a selection while they are active, and every object carries observable metadata, such as whether it is loaded and whether its changes are saved. Writes form one real-time stream to the server, in which the last write wins. Indexes are built from ordinary persistent objects and kept up to date by persistent repeaters: pure computations, such as an index key, whose dependencies are stored rather than held in memory, so that they are evaluated again when something they read changes, also after a restart. A query over such an index is live: its result is updated as objects arrive, change, and leave.
+What a client synchronizes is defined by data selectors: functions that, starting from one object, select the set of objects that belong together, such as everything in a document. A selection is maintained reactively as the graph changes. Code loads explicitly, through subscriptions that hold a selection while they are active, and every object carries observable metadata, such as whether it is loaded and whether its changes are saved. Writes form one real-time stream to the server, in which the last write wins, or, for a gated subscription, in which a write succeeds only against what its writer saw, and conflicts are marked rather than overwritten. Indexes are built from ordinary persistent objects and kept up to date by persistent repeaters: pure computations, such as an index key, whose dependencies are stored rather than held in memory, so that they are evaluated again when something they read changes, also after a restart. A query over such an index is live: its result is updated as objects arrive, change, and leave.
 
 Objects are never deleted explicitly. Whatever cannot be reached from the database's root is garbage, and is found incrementally as references change, without scanning the database. That collector exists, in Aquifer, and is summarized in section 7.
 
@@ -90,6 +90,7 @@ The default is live and simple; optimization is local and does not change the mo
 | The server alone decides what a selection contains. Clients do not run selectors. | 3.4 |
 | Selections are per session. They are not shared between users. | 4.4 |
 | Writes are one real-time stream, and the last write wins. No conflict detection or merging in the base model. | 3.9 |
+| Per subscription, synchronization can be gated: a write succeeds only against the values its writer saw, and server changes to locally edited fields are marked out of sync instead of applied. Resolving is the application's procedure, built on pull and force. | 3.10 |
 | Stricter rules, such as locks, are built by applications from authorization. | 3.9 |
 | Users, sessions and authentication are part of Fountain from the start. | 4.1 |
 | Security is activated per class, by defining `canRead` and `canWrite`, and runs the same on both sides. | 4.2 |
@@ -230,7 +231,7 @@ User-interface state, and the client's copies of selected objects.
 
 **Presence objects**
 
-Other users' cursors and selections. They are shared, like persistent objects, but volatile, like server-local ones (section 3.10).
+Other users' cursors and selections. They are shared, like persistent objects, but volatile, like server-local ones (section 3.11).
 
 Keeping the second kind out of the database removes a large class of problems. Nothing that observes on behalf of a connected client ever has to be serialized, and a server restart simply discards it together with the sessions it served.
 
@@ -649,7 +650,7 @@ The assumption is therefore that repeaters on the two sides do not write the sam
 
 An earlier attempt marked the writes of repeaters as consequences, so that the receiving side could tell them from direct writes (section 9.1). The idea is kept in reserve. Nothing so far needs it.
 
-## 3.9 Writes: a real-time stream, last write wins
+## 3.9 Writes: a real-time stream, last write wins by default
 
 **The base model**
 
@@ -661,7 +662,7 @@ Concurrent edits are thus treated the way a shared whiteboard treats them: every
 
 Locks, semaphores, reservations, and check-and-set are application concerns. They can be built from ordinary objects within this model, for example a `lockedBy` field that the application sets and respects, and shown to the user through property metadata (section 2.4).
 
-A different route was considered, closer to form state, in which a field is edited locally and submitted, and a submission can be refused when the field has changed underneath. It suits forms and workflows with approval steps. It can be built by an application on top of the base model, but it is not the base model.
+Last-write-wins is the default. Where no one's work may be lost without their knowing, a subscription can instead be gated: a write succeeds only against the values its writer saw, and changes from the server do not overwrite local work but mark it as out of sync (section 3.10).
 
 **What can still fail**
 
@@ -758,7 +759,88 @@ Anchoring needs elements with identity, which is the case for arrays of objects,
 
 An array of primitive values, or one that contains the same object twice, has no identity to anchor to. For those, the fallback is to shift a splice's position past the splices the server applied in between. That is the simplest form of operational transformation (section 8.4), simple because one server decides the order. Text, a sequence of characters, is the important case of this kind.
 
-## 3.10 Presence
+**Ordering on the client**
+
+The client applies its own writes at once, without waiting for the server.
+
+A value that arrives from the server for a property with unconfirmed writes of the client's own must not overwrite it. If the server received another client's write first, then committed the client's own write after it, the client's value is the one that stands. Applying the older value would make it flicker back and then forward again.
+
+The rule is therefore: while a property has writes of the client's own that the server has not yet confirmed, incoming values for it are ignored. The count of writes in flight is already in its metadata (`meta(object, property).saving`). Because one WebSocket delivers messages in order, every value the server sends after confirming the client's last write is newer, and is applied as usual.
+
+**New objects**
+
+An object created on a client already has a client-side identity. When it is sent to the server, it is given a temporary id, valid only within that one message, so that the other objects in the message can refer to it.
+
+The server creates the object and answers with its permanent id. The client records the permanent id in its map from server ids to local objects, and the temporary id is forgotten.
+
+Until the answer arrives, the object exists only on its client. Another client cannot have a reference to it, because every message that could carry one comes from the server, after the object has been created there.
+
+## 3.10 Gated synchronization
+
+Last-write-wins suits games, whiteboards, and editors where people see each other and adjust. It does not suit an information system in which several people work on the same record, and no one's work may be lost without their knowing: a case file, a patient's chart, a contract under negotiation.
+
+For those, a subscription can be gated.
+
+```javascript
+subscribe(caseFile, selectCaseFile, { gated: true }, () => { ... });
+```
+
+A gated subscription changes two things, one in each direction.
+
+**Outgoing: a write succeeds only against what the writer saw**
+
+Every write that the client sends for an object in a gated subscription carries the value it replaced, as the client saw it. The server applies the write only if the field still holds that value. If any field has changed since the client saw it, the whole transaction is refused (section 8.10), and the refusal carries the server's current values.
+
+The check is per field, not per object. Two people editing different fields of the same record do not stop each other; only a write to a field that someone else has changed in the meantime is refused. And it compares values, so no version numbers need to be stored: a field that was changed and then changed back is the value the writer saw, and nothing is lost by writing over it.
+
+For a reference, the value compared is the identity. For an array, a splice whose anchors are not where the client saw them, or an array that has changed since the client saw it, is refused; the proposal is the second, coarser check, which is simple and safe.
+
+**Incoming: the server's changes do not overwrite local work**
+
+In a subscription that is not gated, a change from the server is applied at once, except to a field with the client's own unconfirmed writes (section 3.9).
+
+In a gated subscription, a change from the server to a field that the client has changed locally, and not yet had confirmed, is not applied. The client keeps its own value, and records the server's beside it. The field is out of sync.
+
+A change from the server to a field that the client has not touched is applied as usual. Nothing is lost by it, and the document stays current wherever the user is not working.
+
+**Out of sync is metadata**
+
+An out-of-sync field is marked in its metadata:
+
+```javascript
+meta(caseFile, "diagnosis").outOfSync    // true
+meta(caseFile, "diagnosis").serverValue  // what the server has now
+```
+
+The editor can show it: a field outlined, with the other value beside it, or a banner saying that a document has changed while it was being edited.
+
+**Resolving is the application's procedure**
+
+Fountain provides three operations, and no policy:
+
+- **Pull** discards the local value, and takes the server's: `pull(object, property)`.
+- **Force** writes the local value again, with the server's current value as the new base, so that it succeeds, knowingly overwriting: `force(object, property)`.
+- **Merge** is done by the application: it computes a value from the two, writes it, and forces it.
+
+Each can apply to one field, to one object, or to everything that is out of sync in a subscription.
+
+What a procedure does with them is the application's: ask the user field by field, prefer the newer value for some fields and the user's for others, or show the two versions of a document side by side. Fountain does not implement version control. It provides the mechanism on which an application can build as much of it as it needs.
+
+**Drafts**
+
+A gated subscription can also hold the client's writes until the application sends them, rather than sending them as they are made: `{ gated: true, send: "explicit" }`. The user then edits a draft, and the draft is submitted as one transaction, checked as above. This is form state, as in the form field example (section 2.4), built on the same mechanism.
+
+**Mixing modes**
+
+The mode belongs to the subscription, and so to the client that made it. An object that is in both a gated and an ungated subscription of the same client is treated as gated. A gated client never overwrites a change it has not seen, and is never overwritten silently while it works. A client that is not gated, writing to the same objects, still writes last-write-wins: it can overwrite what the gated client has saved, and the gated client then sees the change arrive like any other.
+
+When that is not enough, and every writer to some data must be checked, the class can require it: a class that declares its writes gated is written only through gated checks, by every client. **Open:** whether this is needed, and how it is declared (section 8.4).
+
+**What it costs**
+
+Every write in a gated subscription carries its base value, which roughly doubles its size. The server compares before applying. Nothing is stored that would not be stored anyway.
+
+## 3.11 Presence
 
 Users editing the same document need to see each other: where the others' cursors are, what they have selected, which paragraph they are in. Collaborative editors show this, and users respond to it. They keep their distance, and seldom edit on top of each other.
 
@@ -788,22 +870,6 @@ The rule that follows: **the unit of last-write-wins must be smaller than the di
 - Arrays of objects still need anchoring by identity (section 3.9). Distance makes the anchors almost always valid, so the fallbacks are seldom exercised.
 - For text, the distance users keep is about a paragraph. A paragraph's text as one string, written last-write-wins, is acceptable if two users in the same paragraph are rare, and the user interface makes them rarer. Then it should be detected rather than silently resolved: a write that replaces a paragraph text that the writer had not yet seen can be marked in metadata and shown, so that the overwritten user knows.
 - When writing inside the same paragraph must work, text needs splices (section 8.4).
-
-**Ordering on the client**
-
-The client applies its own writes at once, without waiting for the server.
-
-A value that arrives from the server for a property with unconfirmed writes of the client's own must not overwrite it. If the server received another client's write first, then committed the client's own write after it, the client's value is the one that stands. Applying the older value would make it flicker back and then forward again.
-
-The rule is therefore: while a property has writes of the client's own that the server has not yet confirmed, incoming values for it are ignored. The count of writes in flight is already in its metadata (`meta(object, property).saving`). Because one WebSocket delivers messages in order, every value the server sends after confirming the client's last write is newer, and is applied as usual.
-
-**New objects**
-
-An object created on a client already has a client-side identity. When it is sent to the server, it is given a temporary id, valid only within that one message, so that the other objects in the message can refer to it.
-
-The server creates the object and answers with its permanent id. The client records the permanent id in its map from server ids to local objects, and the temporary id is forgotten.
-
-Until the answer arrives, the object exists only on its client. Another client cannot have a reference to it, because every message that could carry one comes from the server, after the object has been created there.
 
 ---
 
@@ -1367,9 +1433,9 @@ Could an application declare audiences, so that `canRead` answers with a role or
 
 *Status: open.*
 
-The base model is decided: a real-time stream in which the last write wins (section 3.9).
+The base model is decided: a real-time stream in which the last write wins (section 3.9), and, per subscription, gated synchronization, in which a write succeeds only against what its writer saw (section 3.10).
 
-What remains open is what applications will want on top of it, and whether some of it should be provided. Locks can be built from authorization (section 3.9), and a library of such patterns may be worth providing. A form-state layer, in which a submission can be refused when the field has changed underneath, is another candidate. Concurrent splices of arrays are proposed to be anchored by identity and rebased on the client (section 3.9); that proposal needs a fuzz test against a model, as indexes do.
+What remains open is what applications will want on top of it, and whether some of it should be provided. Locks can be built from authorization (section 3.9), and a library of such patterns may be worth providing. Form state is covered by gated subscriptions with explicit sending (section 3.10). Whether a class should be able to require gated writes from every client, and how, is open. Concurrent splices of arrays are proposed to be anchored by identity and rebased on the client (section 3.9); that proposal needs a fuzz test against a model, as indexes do.
 
 **Text**
 
@@ -1383,11 +1449,11 @@ The options:
 2. **Text as a sequence of splices.** The paragraph's text is changed by inserting and deleting at positions, not by replacing the string, and the server adjusts the positions of concurrent splices as it does for arrays. This is operational transformation. Google Docs works this way, on a central server that orders operations, the same arrangement as here. With one server deciding the order, it is much simpler than in the general peer-to-peer case.
 3. **A CRDT for text**, such as Yjs or Automerge use. Each character has an identity of its own, so concurrent edits merge without a server. It works offline, and costs memory per character. With an authoritative server it is more than is needed.
 4. **Smaller objects.** Text split into objects small enough, such as one per sentence, that collisions are rare. It reduces the problem without solving it.
-5. **A list of words, built from identities** (section 3.9). Each word is an object that records the word it was inserted after; a removed word is flagged; the order is derived. Insertions at the start and the end of a paragraph, or anywhere else, never disturb each other, and only two users typing in the same word compete for its text. It needs nothing beyond the base model, and since users keep their distance (section 3.10), a word is a small enough unit.
+5. **A list of words, built from identities** (section 3.9). Each word is an object that records the word it was inserted after; a removed word is flagged; the order is derived. Insertions at the start and the end of a paragraph, or anywhere else, never disturb each other, and only two users typing in the same word compete for its text. It needs nothing beyond the base model, and since users keep their distance (section 3.11), a word is a small enough unit.
 
 A cursor is then just another object: a reference to a word and an offset within it. Unlike a position in a string, it stays where it was when others type elsewhere.
 
-With presence (section 3.10), users see each other's cursors and seldom write in the same paragraph, so a paragraph as one string, last-write-wins, with an overwrite made visible rather than silent, may be enough for a first version, before even a lock.
+With presence (section 3.11), users see each other's cursors and seldom write in the same paragraph, so a paragraph as one string, last-write-wins, with an overwrite made visible rather than silent, may be enough for a first version, before even a lock.
 
 Of the options above, the lock and the list of words are the natural start, because they need nothing new. The list of words is the one that lets people write in the same paragraph. Splices with transformed positions are needed only if text must stay one string. A CRDT is, in these terms, the list of words carried down to single characters.
 
@@ -1445,7 +1511,7 @@ Small plain data is a frozen value, and takes the security of the object that ho
 
 Last-write-wins means last to arrive, not last to be made. A client that was offline for an hour, or on a slow connection, sends writes made against data that has since changed, and they override everything that happened meanwhile.
 
-If every write carries the commit that the client had last seen, the server can tell when a write overrides a value that its writer had never seen. That is the same detection as for overwritten paragraphs (section 3.10). What to do then is policy: apply and mark it, as for text, or, for writes older than some limit, refuse them and let the client show what it had.
+If every write carries the commit that the client had last seen, the server can tell when a write overrides a value that its writer had never seen. That is the same detection as for overwritten paragraphs (section 3.11). What to do then is policy: apply and mark it, as for text, or, for writes older than some limit, refuse them and let the client show what it had. A gated subscription (section 3.10) already refuses them, by comparing values rather than commits.
 
 Offline work in general, with writes queued for longer than a reconnection, is not a goal of the first version. But the base commit costs little, and is worth sending from the start.
 
@@ -1653,7 +1719,7 @@ In order:
 5. Selections and `load`, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.
 6. The protocol and `subscribe`: authenticated connections, subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.
 7. Client stores: the stream of writes from clients, last write wins, each carrying its base commit, all or nothing per transaction, with temporary ids for new objects and save states in metadata (sections 3.8, 3.9, 8.9 and 8.10).
-8. Presence objects (section 3.10).
+8. Presence objects (section 3.11).
 9. Code versions: clients state their version, old clients are told to reload, and a reload recovers subscriptions and unconfirmed writes (section 8.6).
 
 ## Phase 2: Live indexes and queries

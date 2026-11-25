@@ -26,6 +26,8 @@ server and every connected client.
 - Schemas migrate lazily, one object at a time, as objects are loaded.
 
 The design is in [the whitepaper](whitepaper.md), which lists the decisions
-made so far and what is still open. The storage and garbage collection layer
+made so far and what is still open. The specifications, written one layer at a
+time before each is built, are in [documents](documents): first
+[the data model](documents/data-model.md). The storage and garbage collection layer
 was built first, in Aquifer, and is described in
 [its own documents](../aquifer/documents/persistent-garbage-collection.md).

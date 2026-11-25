@@ -3,8 +3,12 @@
 *A prototype - not published.*
 
 A JavaScript-first persistent object database with change-driven garbage
-collection. It is the first piece of Liquefy's full stack reactivity, and the
-storage of [Fountain](../fountain#readme), the server that is planned on top of it.
+collection. It is the first piece of Liquefy's full stack reactivity: the storage under
+Wellspring, the planned layer of persistent JavaScript objects, and
+[Fountain](../fountain#readme), the planned server on top of that.
+
+Aquifer works with records: ids, fields, and strong and weak references. It
+knows nothing of classes or reactivity, and does not depend on Cascade.
 
 Objects are stored as plain JavaScript objects whose references to each other
 are strong or weak (`ref`, `weak`). Anything that can't be reached from `ROOT`

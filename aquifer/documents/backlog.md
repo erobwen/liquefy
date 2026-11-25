@@ -26,8 +26,21 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 ## Suggested order for the rest
 
-1. The application interface: volatile roots, chunked collections.
+1. The application interface: volatile roots, chunked collections. See "The interface upward" below.
 2. Flag coarsening, only if the number of flags stored on a pinned region becomes a problem.
+
+## The interface upward
+
+Aquifer stays at the level of records: ids, fields, strong and weak references, transactions, and the collector. It knows nothing of classes, observables, or users. Wellspring above it (persistent JavaScript objects, with loading and unloading) and Fountain above that are separate packages (decided 2026-11-25; [the Fountain whitepaper](../../fountain/whitepaper.md), [data model](../../fountain/documents/data-model.md) and [protocol](../../fountain/documents/protocol.md) say what they need).
+
+What exists is enough for most of it: `transaction`, `create`, `get`, `set`, `delete`, `replace`, `exists`, `ref`, `weak`, `onReclaim`. Four things are missing:
+
+1. **Volatile roots.** Pin and unpin an object across transactions, so that an object loaded into memory is not collected while code holds it, though nothing in the database refers to it any longer. Today's `hold` covers only an object detached within one transaction, for a limited time (design §9.4).
+2. **A change set per transaction.** `transaction()` reports, at commit, which objects were created and which fields of which objects were written and deleted, with a commit number from one counter. Everything reactive above is triggered from this.
+3. **Reclaim notifications inside the transaction.** `onReclaim` is called after the fact. An index must remove its entry for a member in the same transaction that reclaims it, and weak references must be seen as cleared from the same moment. The notification therefore has to be delivered inside the collector's step, with a transaction to write in, or the reclaim has to be offered to the layer above before it happens.
+4. **The commit that last changed each record.** Kept with the object's metadata, and readable. Reconnecting clients are sent what has changed since a commit they name.
+
+Chunked collections (below, "Big collections") belong here as well, and can come after these.
 
 ## Measured problems
 

@@ -1,10 +1,12 @@
 # Data model
 
-*Specification, draft. Part of [Fountain](../README.md); it details [the whitepaper](../whitepaper.md), section 2.5.*
+*Specification, draft. It details [the whitepaper](../whitepaper.md), section 2.5, and is implemented by Wellspring (whitepaper section 2.6) on the server and by Fountain's client store on clients.*
 
 This document states exactly what a synchronized object is, which values its fields can hold, how each value is stored and sent, and how an object is made again from what was stored. The protocol between client and server (to be specified next) is built from these values, and the object layer over [Aquifer](../../aquifer#readme) stores them.
 
 Each rule that can be checked is stated as an invariant, with who maintains it and how it is verified, in the style of Aquifer's [invariants](../../aquifer/documents/invariants.md). "Encoder" means the function that turns a field value into its stored or sent form, and "decoder" its inverse. "Write check" means the check made when a value is written to a field of a synchronized object, on the client or on the server.
+
+"The object layer" means whichever of the two is at work: Wellspring on the server, the client store on a client. Both use the same code for what this document specifies. Rules that concern storage apply to Wellspring only.
 
 Open points are marked **Open** where they occur, and collected in section 11.
 
@@ -297,3 +299,4 @@ Cascade compares frozen plain data by content already; dates, maps, sets, and bi
 | Name and rules of the hook after loading | 6 |
 | Declaring fields as not synchronized | 6 |
 | Where `$class` and `$version` are stored in Aquifer's records | 8.1 |
+| A `$commit` in every record, the commit that last changed the object, which reconnection needs ([protocol](protocol.md) section 11.2) | 8.1 |

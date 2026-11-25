@@ -81,6 +81,7 @@ The default is live and simple; optimization is local and does not change the mo
 
 | Decision | Section |
 |---|---|
+| Three layers: Aquifer stores records and collects garbage, Wellspring makes them persistent objects with `load`, Fountain adds users and clients. Aquifer does not depend on Cascade. | 2.6 |
 | References are one way, as in JavaScript. No incoming references in the model. | 2.2 |
 | A synchronized object is a Cascade observable. Plain data is a frozen value, synchronized as a whole. An unfrozen plain object in a synchronized field throws. | 2.5 |
 | Synchronized arrays are supported but expected to be small. Large collections are trees or linked structures. | 2.5 |
@@ -150,6 +151,8 @@ The server is responsible for:
 - Performing garbage collection.
 
 Clients maintain local representations of subscribed objects and use reactive computations to update their interfaces.
+
+The server is built in three layers, Aquifer, Wellspring and Fountain, described in section 2.6.
 
 ## 2.2 Persistent JavaScript objects
 
@@ -347,6 +350,42 @@ A weak reference is also how deletion is verified. Code that removes a document 
 A constructor runs once, where an object is created. It does not run again when the object arrives at the server, when it is loaded from storage, or when it is delivered to another client. In those cases the object is made from its class's prototype and its stored fields.
 
 Field initializers in a class body are part of the constructor, and do not run again either. A field added to a class later gets its value in existing objects through a migration (section 6), not through its initializer.
+
+## 2.6 Three layers
+
+The system is three packages, each with one purpose, and each usable without the ones above it.
+
+```text
+  Fountain     users, sessions, security, selections per session,
+               the protocol, the client store
+     |
+  Wellspring   persistent JavaScript objects on a server:
+               classes, loading and unloading, migrations
+     |
+  Aquifer      records, references, transactions, garbage collection
+```
+
+**Aquifer** is a database of records. A record has an id and fields, and a field can hold a strong or a weak reference to another record. Aquifer runs transactions and collects what cannot be reached (section 7). It knows nothing of classes, observables, or users, and does not depend on Cascade. Its correctness is stated, and tested, in terms of records alone.
+
+**Wellspring** turns records into objects. A Wellspring object is a Cascade observable, an instance of a registered class, whose property writes are stored without the application saying so. Wellspring keeps one instance per identity, makes objects from records and records from objects ([the data model](documents/data-model.md)), migrates old objects when they are loaded (section 6), and decides what is in memory.
+
+Its central operation is `load`: code names a starting object and a selector, and receives control when everything the selector selects is in memory, and held there (section 3.7). It is to a server what `subscribe` is to a client. Because a selector follows the fields of objects, loading belongs here and not in Aquifer; and because Cascade records what a selector reads, a loaded selection follows the graph as it changes.
+
+Wellspring needs Cascade for two things: Cascade's change events are how an ordinary property write becomes a write to the database, and its recording of reads is how a selection, or a persistent repeater (section 5.3), knows what it depends on.
+
+An application with no clients at all can be written on Wellspring alone: a server-side tool, a desktop application, a single-user editor that keeps its documents as objects.
+
+**Fountain** is everything that involves more than one party: users and sessions, authorization, a selection per session, the protocol, and the store on each client.
+
+**What is shared with clients**
+
+The data model itself, which is the encoding of values, the registry of classes, the check on what a field may hold, and the making of an object from a record, runs on clients as well as on the server. It depends on neither Aquifer nor a network. Whether it is a part of Wellspring that a browser can load, or a small package of its own, is decided when it is written.
+
+**What each layer asks of the one below**
+
+Wellspring asks of Aquifer: volatile roots, so that a loaded object is not collected while it is held; the set of changes of each transaction, with a commit number, from which everything reactive is triggered; notification of a reclaim inside the transaction that performs it, so that indexes and weak references are updated with it; and the commit that last changed each record (section 7).
+
+Fountain asks of Wellspring: objects, classes and `load`; a transaction around a client's writes; the change set of each commit, in terms of objects; and a way to run a selector as a given user, passing only through what that user may read.
 
 ---
 
@@ -583,7 +622,7 @@ load(document, selectDocument, () => {
 
 Inside the action, code runs synchronously and may follow any reference within the selection.
 
-The two functions have the same shape, so code written against a selection can run on either side. They are kept as two names because they are different things: a subscription involves a connection and a user, and loading does not.
+`load` is Wellspring's (section 2.6), and works without Fountain. The two functions have the same shape, so code written against a selection can run on either side. They are kept as two names because they are different things: a subscription involves a connection and a user, and loading does not.
 
 The names were earlier `ensureSubscribed` and `ensureLoaded`. They were changed because `ensure()` already has a meaning in Cascade, where it is the preferred name for `repeat()`.
 
@@ -636,7 +675,7 @@ A store also needs to know when a transaction has ended, so that it can send. Ca
 
 **The same structure on the server**
 
-On the server, the object layer over Aquifer is a store as well. At the end of a transaction, its changes are written to the database as one Aquifer transaction, and the resulting change set is what triggers selections, queries, and persistent repeaters (section 3.6).
+On the server, Wellspring (section 2.6) is a store as well. At the end of a transaction, its changes are written to the database as one Aquifer transaction, and the resulting change set is what triggers selections, queries, and persistent repeaters (section 3.6).
 
 A client store and the server store differ only in where they send a finished transaction.
 
@@ -1384,11 +1423,12 @@ In brief:
 - **Work is done in bounded steps**, each one a transaction, and every invariant holds at every commit. A crash therefore needs no recovery beyond the store's own.
 - **It is tested against a full trace.** A fuzzer runs random transactions and collector steps, and after each one an oracle checks every invariant against a complete trace of the database.
 
-**What Fountain needs from it**
+**What the layers above need from it**
 
 - **Volatile roots.** An object held by a selection, by a `load`, or by a client's undo history must not be reclaimed, though nothing in the database may refer to it any longer (sections 3.7 and 8.11).
 - **Weak references.** An index holds its members weakly, and its own removal code is called before a member is reclaimed (section 5.4).
 - **The same write barrier for migrations.** A lazy migration changes references while an object is being loaded, and must go through the barrier like any other transaction (section 6).
+- **A change set per transaction, and the commit that last changed each record.** Everything reactive is triggered from the first (section 3.6), and reconnecting clients are served from the second (section 8.14).
 - **Regions, possibly, as a unit of other things**: of selection (section 3.5), and of distribution between servers (section 8.7).
 
 ---
@@ -1706,21 +1746,22 @@ It is a debugging tool, a teaching tool, and an administration tool. Since it is
 
 ## Phase 1: Persistent reactive object model
 
-Implement stable object identity, persistence, transactions, reactive proxies, and WebSocket synchronization.
+Implement Wellspring, on Aquifer, and then Fountain's first parts on Wellspring: stable object identity, persistence, transactions, reactive objects, and WebSocket synchronization.
 
 Establish the user model, security, and subscriptions. Security is not added later: the user model is the base of every authorization decision, and the protocol, selections and stores are all shaped by it.
 
 In order:
 
 1. In Cascade: `meta()`, `untrackedMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
-2. An object layer on the store: persistent objects as proxies, one instance per identity, classes registered by name, and a server store that turns each transaction into one Aquifer transaction and a change set.
-3. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, and the rule for plain objects is decided before clients can write (sections 4.1, 4.2 and 8.8).
-4. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
-5. Selections and `load`, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.
-6. The protocol and `subscribe`: authenticated connections, subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.
-7. Client stores: the stream of writes from clients, last write wins, each carrying its base commit, all or nothing per transaction, with temporary ids for new objects and save states in metadata (sections 3.8, 3.9, 8.9 and 8.10).
-8. Presence objects (section 3.11).
-9. Code versions: clients state their version, old clients are told to reload, and a reload recovers subscriptions and unconfirmed writes (section 8.6).
+2. Aquifer's interface upward: volatile roots, a change set and commit number per transaction, reclaim notifications inside the transaction, and the commit that last changed each record (section 2.6).
+3. Wellspring: persistent objects as observables, one instance per identity, classes registered by name, the data model's encoding, `load` with hold counts, unloading, and a store that turns each transaction into one Aquifer transaction. Usable and tested on its own, without clients.
+4. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, and the rule for plain objects is decided before clients can write (sections 4.1, 4.2 and 8.8).
+5. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
+6. Selections per session, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.
+7. The protocol and `subscribe`: authenticated connections, subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.
+8. Client stores: the stream of writes from clients, last write wins, each carrying its base commit, all or nothing per transaction, with temporary ids for new objects and save states in metadata (sections 3.8, 3.9, 8.9 and 8.10).
+9. Presence objects (section 3.11).
+10. Code versions: clients state their version, old clients are told to reload, and a reload recovers subscriptions and unconfirmed writes (section 8.6).
 
 ## Phase 2: Live indexes and queries
 

@@ -1,7 +1,7 @@
 # A Reactive Distributed Object Database
 ## Fountain: architecture, synchronization, and security
 
-**Status:** Architectural proposal. Decisions made so far are listed in section 1.3; what is open is in section 8. The storage and garbage-collection layer exists as a prototype, Frozen, and is described in its own documents.  
+**Status:** Architectural proposal. Decisions made so far are listed in section 1.3; what is open is in section 8. The storage and garbage-collection layer exists as a prototype, Aquifer, and is described in its own documents.  
 **Date:** November 2026
 
 ---
@@ -16,7 +16,7 @@ A central server maintains the authoritative object graph. Clients subscribe to 
 
 What a client synchronizes is defined by data selectors: functions that, starting from one object, select the set of objects that belong together, such as everything in a document. A selection is maintained reactively as the graph changes. Code loads explicitly, through subscriptions that hold a selection while they are active, and every object carries observable metadata, such as whether it is loaded and whether its changes are saved. Writes form one real-time stream to the server, in which the last write wins. Indexes are built from ordinary persistent objects and kept up to date by persistent repeaters: pure computations, such as an index key, whose dependencies are stored rather than held in memory, so that they are evaluated again when something they read changes, also after a restart. A query over such an index is live: its result is updated as objects arrive, change, and leave.
 
-Objects are never deleted explicitly. Whatever cannot be reached from the database's root is garbage, and is found incrementally as references change, without scanning the database. That collector exists, in Frozen, and is summarized in section 7.
+Objects are never deleted explicitly. Whatever cannot be reached from the database's root is garbage, and is found incrementally as references change, without scanning the database. That collector exists, in Aquifer, and is summarized in section 7.
 
 The overall goal is a database architecture in which persistence, reactive computation, synchronization, indexing, and garbage collection are incremental operations over a shared object graph.
 
@@ -100,7 +100,7 @@ The default is live and simple; optimization is local and does not change the mo
 | Different repeaters run on clients and on the server. Repeaters on both sides that write the same data are an application bug. | 3.8 |
 | What keeps derived data up to date is a persistent repeater: a pure computed value with a reaction, defined by an object and its methods. | 5.3 |
 | Index trees are maintained by the index's own code, not by repeaters. B-trees are the default. | 5.3 |
-| The collector is Frozen's: a maintained spanning tree with regions and cohorts. | 7 |
+| The collector is Aquifer's: a maintained spanning tree with regions and cohorts. | 7 |
 | Shared publications for large readerships are left for later. | 8.13 |
 
 ---
@@ -597,7 +597,7 @@ Every object keeps a count of the subscriptions that currently hold it, in its s
 When an object's count falls to zero, it can be released:
 
 - On a client, its subscription ends and its content is dropped. It becomes a stub again, or disappears entirely if nothing references it.
-- On the server, it can be evicted from the object cache, and it is no longer a volatile root of the garbage collector (section 7 and Frozen's design document, §9.4).
+- On the server, it can be evicted from the object cache, and it is no longer a volatile root of the garbage collector (section 7 and Aquifer's design document, §9.4).
 
 **When a subscription is released**
 
@@ -635,7 +635,7 @@ A store also needs to know when a transaction has ended, so that it can send. Ca
 
 **The same structure on the server**
 
-On the server, the object layer over Frozen is a store as well. At the end of a transaction, its changes are written to the database as one Frozen transaction, and the resulting change set is what triggers selections, queries, and persistent repeaters (section 3.6).
+On the server, the object layer over Aquifer is a store as well. At the end of a transaction, its changes are written to the database as one Aquifer transaction, and the resulting change set is what triggers selections, queries, and persistent repeaters (section 3.6).
 
 A client store and the server store differ only in where they send a finished transaction.
 
@@ -1300,13 +1300,13 @@ Objects are never deleted explicitly. An object lives for as long as it can be r
 
 Finding garbage in a persistent database is hard for two reasons. Reference counting does not find cycles: two objects that refer to each other keep each other's counts above zero after everything else has let go of them. And tracing, which does find cycles, visits everything reachable, which for a database means reading all of it.
 
-**Frozen**
+**Aquifer**
 
-The collector exists as a prototype, Frozen, and is described in its own documents:
+The collector exists as a prototype, Aquifer, and is described in its own documents:
 
-- [The design](../frozen/documents/persistent-garbage-collection.md)
-- [The invariants](../frozen/documents/invariants.md)
-- [The original proposal](../frozen/documents/original-proposal.md), which was the garbage-collection chapters of earlier versions of this paper
+- [The design](../aquifer/documents/persistent-garbage-collection.md)
+- [The invariants](../aquifer/documents/invariants.md)
+- [The original proposal](../aquifer/documents/original-proposal.md), which was the garbage-collection chapters of earlier versions of this paper
 
 In brief:
 
@@ -1573,7 +1573,7 @@ https://github.com/erobwen/eternity
 
 ## 9.2 Other work
 
-The garbage collector's relatives are listed in Frozen's documents (section 7).
+The garbage collector's relatives are listed in Aquifer's documents (section 7).
 
 The synchronization and indexing parts have close relatives.
 
@@ -1609,11 +1609,11 @@ The conventional counterpart of persistent repeaters. A trigger is awakened by a
 
 ## Done: storage and garbage collection
 
-Frozen: the object store, the spanning-tree collector with regions and cohorts, and a visualizer (frozen.visualizer) that shows the collector step by step. It is a prototype, with its own backlog.
+Aquifer: the object store, the spanning-tree collector with regions and cohorts, and a visualizer (aquifer.visualizer) that shows the collector step by step. It is a prototype, with its own backlog.
 
 ## Before each phase: a specification with invariants
 
-Frozen was built from a design document and a list of invariants, each stating who maintains it and how it is verified, with an oracle that a fuzzer runs after every step. Fountain is built the same way, one layer at a time: the specification of a layer is written just before the layer is, in enough detail to test against.
+Aquifer was built from a design document and a list of invariants, each stating who maintains it and how it is verified, with an oracle that a fuzzer runs after every step. Fountain is built the same way, one layer at a time: the specification of a layer is written just before the layer is, in enough detail to test against.
 
 The first to be specified is the data model: exactly which values a field can hold, how each is stored and sent, how an object is made again from its stored fields, and how weak references behave (section 2.5). The protocol's messages are made of these values.
 
@@ -1629,7 +1629,7 @@ Indexes, publications and distribution are not specified in detail until what th
 
 ## Throughout: a visualizer
 
-Frozen's visualizer proved its worth while the collector was built. Fountain should have one from the start, and grow it with each step:
+Aquifer's visualizer proved its worth while the collector was built. Fountain should have one from the start, and grow it with each step:
 
 - Browse the database: follow references, see an object's fields, its metadata, its incoming references, and its region.
 - Manipulate objects directly: edit a field, create an object, cut a reference, and watch what follows.
@@ -1647,7 +1647,7 @@ Establish the user model, security, and subscriptions. Security is not added lat
 In order:
 
 1. In Cascade: `meta()`, `untrackedMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
-2. An object layer on the store: persistent objects as proxies, one instance per identity, classes registered by name, and a server store that turns each transaction into one Frozen transaction and a change set.
+2. An object layer on the store: persistent objects as proxies, one instance per identity, classes registered by name, and a server store that turns each transaction into one Aquifer transaction and a change set.
 3. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, and the rule for plain objects is decided before clients can write (sections 4.1, 4.2 and 8.8).
 4. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
 5. Selections and `load`, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.

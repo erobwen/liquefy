@@ -1,6 +1,6 @@
 # Invariants
 
-This document states the invariants of the frozen object store and its garbage collector as precisely as possible. It is the reference for the code in `frozen/src`, and for the design in `persistent-garbage-collection.md` ("the design").
+This document states the invariants of the Aquifer object store and its garbage collector as precisely as possible. It is the reference for the code in `aquifer/src`, and for the design in `persistent-garbage-collection.md` ("the design").
 
 ---
 

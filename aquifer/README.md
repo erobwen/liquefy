@@ -1,4 +1,4 @@
-# Frozen
+# Aquifer
 
 *A prototype - not published.*
 
@@ -23,10 +23,10 @@ the whole database:
 Stores: `MemoryStore`, and `LmdbStore` on [LMDB](https://github.com/kriszyp/lmdb-js).
 
 ```console
-npm test -w @liquefy/frozen
+npm test -w @liquefy/aquifer
 ```
 
-[frozen.visualizer](../frozen.visualizer#readme) shows the collector step by step.
+[aquifer.visualizer](../aquifer.visualizer#readme) shows the collector step by step.
 
 ## Documents
 

@@ -7,7 +7,7 @@ persistent JavaScript objects as the one model shared by the database, the
 server and every connected client.
 
 - A central server holds the authoritative object graph, stored in
-  [Frozen](../frozen), Liquefy's garbage collected object database.
+  [Aquifer](../aquifer), Liquefy's garbage collected object database.
 - Clients subscribe to selections of objects over WebSockets, and receive
   incremental updates as the data changes. On both sides, the reactivity is
   [cascade.reactive](../cascade.reactive#readme)'s.
@@ -27,5 +27,5 @@ server and every connected client.
 
 The design is in [the whitepaper](whitepaper.md), which lists the decisions
 made so far and what is still open. The storage and garbage collection layer
-was built first, in Frozen, and is described in
-[its own documents](../frozen/documents/persistent-garbage-collection.md).
+was built first, in Aquifer, and is described in
+[its own documents](../aquifer/documents/persistent-garbage-collection.md).

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { MemoryStore, checkIntegrity, reachableFromRoot } from "@liquefy/frozen";
+import { MemoryStore, checkIntegrity, reachableFromRoot } from "@liquefy/aquifer";
 import { Recorder } from "../recording/Recorder.js";
 import { scenarios, recordScenario } from "../recording/scenarios.js";
 import { describe as describeFrame } from "../view/describe.js";

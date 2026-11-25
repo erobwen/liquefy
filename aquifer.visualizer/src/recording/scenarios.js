@@ -7,8 +7,8 @@
  * are about them. Captions follow the setting in use (session.deferCuts).
  */
 
-import { ROOT, ref } from "@liquefy/frozen";
-import { random, randomTransaction } from "@liquefy/frozen/src/fuzz/fuzz.js";
+import { ROOT, ref } from "@liquefy/aquifer";
+import { random, randomTransaction } from "@liquefy/aquifer/src/fuzz/fuzz.js";
 import { Recorder } from "./Recorder.js";
 
 /** Creates sections × paragraphs under a new document object, and returns its id. */

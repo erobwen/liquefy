@@ -12,7 +12,7 @@
  * the same path continues where it was, in the middle of a collection if need be.
  *
  * It is not exported from the package's index, which must also load in a browser: import it
- * from "@liquefy/frozen/src/store/LmdbStore.js".
+ * from "@liquefy/aquifer/src/store/LmdbStore.js".
  *
  * One difference from MemoryStore: a read of the store itself during a transaction sees that
  * transaction's writes, since LMDB has a single write transaction. Nothing in the database

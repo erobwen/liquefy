@@ -12,7 +12,7 @@
  *   const timeline = session.timeline();
  */
 
-import { Database, MemoryStore } from "@liquefy/frozen";
+import { Database, MemoryStore } from "@liquefy/aquifer";
 import { Timeline } from "./Timeline.js";
 
 /**

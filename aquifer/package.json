@@ -1,5 +1,5 @@
 {
-  "name": "@liquefy/frozen",
+  "name": "@liquefy/aquifer",
   "version": "0.0.0",
   "private": true,
   "description": "Prototype of a persistent JavaScript object store with change-driven garbage collection.",

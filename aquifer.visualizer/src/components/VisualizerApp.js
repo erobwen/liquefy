@@ -251,7 +251,7 @@ export class VisualizerApp extends Component {
       { style: { padding: "10px 14px", gap: "6px", background: colors.surface, borderBottom: `1px solid ${colors.line}` } },
       row(
         { style: { alignItems: "center", gap: "12px", flexWrap: "wrap" } },
-        h1({ style: { fontSize: "16px", margin: 0 } }, text("frozen · garbage collector")),
+        h1({ style: { fontSize: "16px", margin: 0 } }, text("aquifer · garbage collector")),
         select(
           {
             style: { fontSize: "13px", padding: "4px" },

@@ -2,7 +2,7 @@
 
 *Moved here from the Fountain whitepaper in November 2026, unchanged, with its original section numbers (8 to 16, and research questions 17.1 to 17.7).*
 
-This is the proposal that Frozen started from. It is kept for the reasoning, and because [the design](persistent-garbage-collection.md) refers to it by section number. Where the two differ, the design is what was built: in particular, the complete incoming-reference lists of section 9.2 and the reachability summaries of section 12.6 were not kept.
+This is the proposal that Aquifer started from. It is kept for the reasoning, and because [the design](persistent-garbage-collection.md) refers to it by section number. Where the two differ, the design is what was built: in particular, the complete incoming-reference lists of section 9.2 and the reachability summaries of section 12.6 were not kept.
 
 ---
 

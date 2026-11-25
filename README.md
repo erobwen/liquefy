@@ -8,7 +8,7 @@ the database to the screen.
 
 - **[Cascade](#cascade)** - the front end framework, on
   [cascade.reactive](cascade.reactive#readme), the reactive core.
-- **[Frozen](#frozen)** - a garbage collected JavaScript object database, the
+- **[Aquifer](#aquifer)** - a garbage collected JavaScript object database, the
   first piece of the full stack. A prototype.
 - **[Fountain](#fountain)** - the server on top of it. Planned.
 - **[Flow](#flow)** - the generation before Cascade, kept for its history.
@@ -109,18 +109,18 @@ chapter, the rules to follow and why, and an API reference. It's also in the
 demo app, under Reference Manual, with a search through all of it. Coming
 from 3.x? See [Upgrading to Cascade 4.0](cascade/docs/upgrading-to-4.md).
 
-## Frozen
+## Aquifer
 
 A JavaScript-first persistent object database with change-driven garbage
 collection: objects stay plain JavaScript objects, and whatever can no longer
 be reached is found and reclaimed incrementally, as references change, without
 ever scanning the whole database. It is a prototype, not yet published - see
-[frozen](frozen#readme), and [frozen.visualizer](frozen.visualizer#readme),
+[aquifer](aquifer#readme), and [aquifer.visualizer](aquifer.visualizer#readme),
 which shows its collector at work step by step.
 
 ## Fountain
 
-The server planned on top of Frozen, for full stack reactivity: clients
+The server planned on top of Aquifer, for full stack reactivity: clients
 subscribe to persistent objects over WebSockets and stay in sync as they
 change, with users and authorization per object built in from the start.
 Nothing runs yet - the design is in

@@ -1,11 +1,11 @@
-# frozen.visualizer
+# aquifer.visualizer
 
-Step-by-step visualization of [frozen](../frozen)'s garbage collector, built with Cascade and
+Step-by-step visualization of [Aquifer](../aquifer)'s garbage collector, built with Cascade and
 [Cytoscape.js](https://js.cytoscape.org/).
 
 ```console
-npm run frozen:visualizer        # from the repository root, then open http://localhost:5181
-npm test -w @liquefy/frozen.visualizer
+npm run aquifer:visualizer        # from the repository root, then open http://localhost:5181
+npm test -w @liquefy/aquifer.visualizer
 ```
 
 Pick a scenario, then step or play through it. "Region cap" and "Cluster cap" in the header

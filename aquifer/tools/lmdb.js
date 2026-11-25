@@ -26,7 +26,7 @@ const DURABLE = Boolean(process.env.DURABLE);
 const TEXT = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore. ".repeat(3);
 
 function measure(documents) {
-  const path = mkdtempSync(join(tmpdir(), "frozen-scale-"));
+  const path = mkdtempSync(join(tmpdir(), "aquifer-scale-"));
   const store = new LmdbStore(path, { noSync: !DURABLE });
   const db = new Database({ store, options: { deferral: 0, regionCap: 150, clusterCap: 32 } });
   const counters = { read: 0, written: 0 };

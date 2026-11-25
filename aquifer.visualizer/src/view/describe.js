@@ -1,7 +1,7 @@
 /**
  * What the visualizer shows at one frame, computed from the store contents alone.
  *
- * Everything here reads the store's keys (frozen/src/gc/GcState.js documents them), never the
+ * Everything here reads the store's keys (aquifer/src/gc/GcState.js documents them), never the
  * collector, so the same function works for a recorded timeline and, later, for a live
  * database that sends its store changes.
  */

@@ -16,7 +16,7 @@ describe("A database on LMDB", () => {
     stores.push(store);
     return store;
   };
-  beforeEach(() => (path = mkdtempSync(join(tmpdir(), "frozen-db-"))));
+  beforeEach(() => (path = mkdtempSync(join(tmpdir(), "aquifer-db-"))));
   afterEach(() => {
     for (const store of stores.splice(0)) store.close();
     rmSync(path, { recursive: true, force: true });

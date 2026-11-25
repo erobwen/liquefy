@@ -9,7 +9,7 @@ import { LmdbStore } from "../store/LmdbStore.js";
 const stores = {
   MemoryStore: () => ({ store: new MemoryStore(), close: () => {} }),
   LmdbStore: () => {
-    const path = mkdtempSync(join(tmpdir(), "frozen-store-"));
+    const path = mkdtempSync(join(tmpdir(), "aquifer-store-"));
     const store = new LmdbStore(path, { noSync: true });
     return {
       store,

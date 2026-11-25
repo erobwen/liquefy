@@ -122,8 +122,8 @@ which shows its collector at work step by step.
 
 The server planned on top of Frozen, for full stack reactivity: clients
 subscribe to persistent objects over WebSockets and stay in sync as they
-change, with authorization per object and shared snapshots for large
-readerships. Nothing runs yet - the design is in
+change, with users and authorization per object built in from the start.
+Nothing runs yet - the design is in
 [the whitepaper](fountain/whitepaper.md).
 
 ## Flow

@@ -8,9 +8,9 @@ server and every connected client.
 
 - A central server holds the authoritative object graph, stored in
   [Frozen](../frozen), Liquefy's garbage collected object database.
-- Clients subscribe to objects, or to reactive projections of them, over
-  WebSockets, and receive incremental updates as the data changes. On both
-  sides, the reactivity is [cascade.reactive](../cascade.reactive#readme)'s.
+- Clients subscribe to selections of objects over WebSockets, and receive
+  incremental updates as the data changes. On both sides, the reactivity is
+  [cascade.reactive](../cascade.reactive#readme)'s.
 - What a client holds is defined by data selectors: functions that select the
   objects that belong together, such as everything in a document. A selection
   follows the graph as it changes.
@@ -19,13 +19,13 @@ server and every connected client.
 - Indexes are ordinary persistent objects, kept live by persistent repeaters
   (pure computations, such as an index key, whose dependencies are stored), so
   the result of a query can be updated as the data changes.
-- Authorization is per object, written as methods of the application's own
-  classes.
-- Shared, immutable snapshots serve large numbers of passive readers without a
-  live subscription each.
+- Users and sessions are built in. Authorization is per object, written as
+  methods of the application's own classes, and runs the same on both sides.
+- A client calls the server through methods of its session object, which is
+  the server's API and its security gateway.
 - Schemas migrate lazily, one object at a time, as objects are loaded.
 
-The design is in [the whitepaper](whitepaper.md). Its garbage collection part
-(sections 8-15) is the one being built first, in Frozen. Its
-[design document](../frozen/documents/persistent-garbage-collection.md) takes
-it further.
+The design is in [the whitepaper](whitepaper.md), which lists the decisions
+made so far and what is still open. The storage and garbage collection layer
+was built first, in Frozen, and is described in
+[its own documents](../frozen/documents/persistent-garbage-collection.md).

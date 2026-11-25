@@ -3,7 +3,7 @@
 
 **Status:** Design proposal, intended to be prototyped  
 **Date:** November 2026  
-**Builds on:** [the Fountain whitepaper](../../fountain/whitepaper.md), sections 8–15. Related work is listed in §17.
+**Builds on:** [the original proposal](original-proposal.md), sections 8–15, which was part of [the Fountain whitepaper](../../fountain/whitepaper.md). Related work is listed in §17.
 
 ---
 
@@ -12,7 +12,7 @@
 This document covers only the storage and garbage-collection core of the database:
 
 - How persistent JavaScript objects and the references between them are stored on top of an ordinary key/value store.
-- How the spanning-tree collector from the whitepaper (§9) is extended with **regions**, so that it scales to highly shared objects and large subtrees.
+- How the spanning-tree collector from the original proposal (§9) is extended with **regions**, so that it scales to highly shared objects and large subtrees.
 - What abstract information is kept per region.
 - How regions are formed.
 - What the collector's main loop looks like once regions exist.
@@ -103,7 +103,7 @@ It avoids most global work. However, garbage cycles that span partitions still r
    - The target side keeps only conservative **entry flags**: *"region or meta-region C may reference into me."* When a region has too many flags, they are coarsened to meta-region level.
    - Moving a target object never rewrites any key that points at it.
 
-4. **The spanning tree certifies reachability; regions only make it cheaper.** There are no entry-to-exit reachability summaries (whitepaper §12.6). Region-level reasoning is used only where a whole region shares one state: an entire region becomes unstable at once (*suspension*), comes back at once (*resume*), or is deleted at once.
+4. **The spanning tree certifies reachability; regions only make it cheaper.** There are no entry-to-exit reachability summaries (original proposal §12.6). Region-level reasoning is used only where a whole region shares one state: an entire region becomes unstable at once (*suspension*), comes back at once (*resume*), or is deleted at once.
 
 5. **Unstable objects are grouped into cohorts.** A cohort is the set of objects detached by one or more cuts whose fates depend on each other. Each cohort runs the original four-step ladder independently: expand, mark, reconnect, reclaim. A busy part of the database therefore cannot starve a quiet one. Deleting a cohort needs no global proof.
 
@@ -168,13 +168,13 @@ So the object model distinguishes **weak references**. A weak reference:
 - is ignored by the collector: it creates no entry flag, never rescues, never counts as a referrer in a check, and is never a tree edge;
 - may dangle after its target is reclaimed. Resolving a dangling weak reference yields `null`, and the holder is expected to drop or repair the entry. Reclamation writes no tombstone; an id that does not resolve is simply gone.
 
-Indexes maintained as ordinary persistent structures (whitepaper §6) should hold their entries weakly and tolerate dangling entries, which is how database indexes behave anyway. Whether a field is weak is declared by the application class.
+Indexes maintained as ordinary persistent structures (whitepaper §5) should hold their entries weakly and tolerate dangling entries, which is how database indexes behave anyway. Whether a field is weak is declared by the application class.
 
 ---
 
 # 5. Abstract incoming references: why the shared-font problem disappears
 
-The whitepaper's scalability concern (§11) is a single object, the default font, with a million incoming references.
+The original proposal's scalability concern (§11) is a single object, the default font, with a million incoming references.
 
 ## 5.1 What is stored, and what is not
 
@@ -877,7 +877,7 @@ A second unbounded cost is a check of a target whose flags name large coarse sou
 
 # 14. Deliberately left out of v1, and when it would be needed
 
-**Entry-to-exit reachability summaries (whitepaper §12.6).** Not needed: reachability through a region is never derived from a summary, only from the spanning tree.
+**Entry-to-exit reachability summaries (original proposal §12.6).** Not needed: reachability through a region is never derived from a summary, only from the spanning tree.
 
 **Region-prefixed object ids (`o/<region>/<id>`).** These would make region deletion a single range delete. But objects now move between regions, so ids would have to change. Ids stay independent, and the `m/` membership index is used instead.
 
@@ -898,7 +898,7 @@ A second unbounded cost is a check of a target whose flags name large coarse sou
 5. **Does splitting on the spanning tree match "what belongs together"?** The spanning tree reflects how objects were reached, which usually matches ownership. Measure how many cross-region edges real documents produce compared with a split based on the type of object or on the order objects were created in.
 6. **Quick-swap budget.** How many alternative referrers and how many walk steps to try before falling back to a cohort? This is a tuning question, and correctness does not depend on it.
 7. **Concurrency.** The design assumes a single writer: commits and collector steps are serialized transactions. That is natural for LMDB and SQLite. Multi-writer setups need more thought.
-8. **Lazy schema migration** (whitepaper §7) changes references inside a load. It must go through the same barrier as a normal transaction.
+8. **Lazy schema migration** (whitepaper §6) changes references inside a load. It must go through the same barrier as a normal transaction.
 9. **Scheduler policy.** Oldest cohort first, smallest remaining work first, or weighted by storage reclaimed?
 10. **Deferral policy.** How long should a cut be deferred: a fixed time, a number of transactions, or the end of the session that made it? Longer delays save more work on relinks but keep garbage longer.
 11. **Replacement-parent budget, and region-level replacement.** Is the `shared` bit a selective enough filter in practice? Should `markRegion` also look for replacement parents for the anchors of child regions before suspending them?
@@ -944,7 +944,7 @@ Between transactions it runs random amounts of collector work. It then checks:
 Steps 1 to 5, and most of step 6, are implemented in `frozen/src`, with the fuzzer in `frozen/src/fuzz`, a seed sweep in `frozen/tools/sweep.js`, `frozen/tools/coverage.js` to check that the fuzzer exercises every mechanism, and `frozen/tools/scale.js` to check that GC work stays flat as the database grows. Step 4 is without re-homing, which moves to step 5 together with the intactness it serves; split and merge are lazy structure tasks that recompute a region's weight from its records. The fuzzer found two flaws in the design, now fixed in §7.3 and §10.2. Step 5 suspends a region when marking reaches an object whose region is entirely condemned to the cohort: the prototype reads the region to decide that (invariant U2), instead of the intactness counters of §6.8, so suspension works without re-homing. Three rules came out of fuzzing step 5, and are in invariants M2, M3 and G4: materializing a region queues its anchors' checks again and re-checks what its members reference, and a resumed region is not restructured before its expansion has run. A cohort never suspends a region it has materialized before. Step 6 adds meta-regions with per-level entry flags and `E/` mirrors, per-level `T/` counts (with `P/` mirrors), and aggregated counters (objects, deferred and explicit members per cohort), so that the suspension test reads counters instead of the region. A cluster at any level can be suspended, marked along its `T/` exits, checked through its own flags, resumed, materialized and reclaimed whole. The prototype differs from §6.9 at the top: the top level is the set of clusters without a container, and a level is added above all of them when there are more than `clusterCap`, and removed when one is left; splits and merges stay inside one container, so every region is at the same depth. Re-homing (§6.7) is implemented as a lazy structure task with its own queue, run only when no other structure task is pending. It needs no stored parent region: a cluster's home is the source with the most tree edges into it (its `P/` keys), and what hangs from any other source moves there, at every level; such a move may cross meta-regions, which splits and merges never do. In a measurement (`tools/fragmentation.js`: 800 random moves of paragraphs between 40 documents, then deleting 10 documents), collector steps per reclaimed object rose from 0.08 to 0.74 without re-homing, and to 0.15 with it. After a review (`backlog.md`), three things changed in how the collector does its work, none in what it decides. Worklists are keys, not arrays in the cohort record, and an object without tree children is not queued for marking: deleting an object with 4,000 leaf children went from 4,097 steps and 68 seconds to 156 steps and 1.3 seconds. Steps are bounded by a budget (invariant B1): checks run in batches, an object with many children is marked a batch at a time, and reclaim is incremental as §10.3 says, with the members of a reclaiming cohort treated as gone meanwhile. And a region keeps its weight as a counter, so an edit that leaves it within bounds schedules no structure task and costs the collector nothing. Step 7, the `y/` edge index, is implemented behind `edgesOfRegion` and on by default (invariant Y1). Measured against A (`tools/edgeindex.js`, 200 documents whose runs carry 300 bytes of text, deleting 10 documents): the collector reads 344 KB instead of 802 KB and no object record at all; with tiny records the two read about the same. The index costs 2 more keys written per small edit (15 against 13) and about half again as many keys written while loading, where splits move objects and their edge keys with them. Step 8, the LMDB backend, is `src/store/LmdbStore.js`, with the interface of the in-memory store. A database closed in the middle of a collection continues it when opened again, since all collector state is in the store. On LMDB (`tools/lmdb.js`), the cost of a change is flat from 5,000 to 80,000 objects: a small edit takes about 1.5 to 2 ms, reads about 100 keys and writes 15; deleting a 50-object document, with its whole collection, takes 11 to 15 ms, reads about 1,200 keys and writes 300. Pinning (§14) is implemented, and turned out to be what the shared-font case needs. Coarsening bounds how many flags a region stores, but a check then scans the whole flagged meta-region, so it reads as much. Pinning moves the object that drew most of a region's flags to a region of its own, so that its former neighbours stop inheriting its referrers; a low-priority scrub then verifies the flags both regions were left with. In a test with a font referenced from 40 document regions, collecting an object that used to share the font's region scans a handful of regions instead of more than 30. Expanding a resumed cluster and settling a materialized one now take one region a step (invariants B1, U6). Flag coarsening, the refining protocol, the intactness counters and walk jumps are not implemented: flags are unbounded and every scan runs in one transaction. One change to §10.2 came out of measuring: a region item's check must not read "the y/ ranges of C's level-0 regions" for a flagged meta-region C, because C can be much bigger than the checked cluster (the parent of a deleted branch usually sits in a big cluster). The prototype narrows each flag one level down through the flags of the checked cluster's members, which by the coverage invariant finds every source region with an edge into it, and proves the rest of the flags stale. The invariants are in `invariants.md`. In step 3, deferral deadlines are counted on a logical clock of application transactions.
 
 1. **Store interface, object model and oracle.** An in-memory ordered KV with transactions, object records, a ROOT, and the full-trace oracle. `edgesOfRegion(R)` uses implementation A (§5.5), reading object records. No GC.
-2. **Basic collector (whitepaper §9) with cohorts.** A single region, object items only. Establishes the ladder, merging and the reclaim condition.
+2. **Basic collector (original proposal §9) with cohorts.** A single region, object items only. Establishes the ladder, merging and the reclaim condition.
 3. **Quick swap, deferred cuts and replacement parents.** These are the mechanisms that avoid needless marking. They are tested in a single region first, so their correctness is separated from regions.
 4. **Level-0 regions without suspension.**
    - placement, centroid split by weight, merge, re-homing;

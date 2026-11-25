@@ -33,4 +33,5 @@ npm test -w @liquefy/frozen
 - [persistent-garbage-collection.md](documents/persistent-garbage-collection.md) - the collector's design
 - [invariants.md](documents/invariants.md) - what the store and the collector keep true
 - [backlog.md](documents/backlog.md) - what is left to do
+- [original-proposal.md](documents/original-proposal.md) - the proposal the design started from, moved here from the Fountain whitepaper
 - [The Fountain whitepaper](../fountain/whitepaper.md) - the larger system this is part of

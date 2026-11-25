@@ -31,7 +31,7 @@ What is left to do on the store, the collector and the visualizer, from a review
 
 ## The interface upward
 
-Aquifer stays at the level of records: ids, fields, strong and weak references, transactions, and the collector. It knows nothing of classes, observables, or users. Wellspring above it (persistent JavaScript objects, with loading and unloading) and Fountain above that are separate packages (decided 2026-11-25; [the Fountain whitepaper](../../fountain/whitepaper.md), [data model](../../fountain/documents/data-model.md) and [protocol](../../fountain/documents/protocol.md) say what they need).
+Aquifer stays at the level of records: ids, fields, strong and weak references, transactions, and the collector. It knows nothing of classes, observables, or users. [Wellspring](../../wellspring#readme) above it (persistent JavaScript objects, with loading and unloading; its [design](../../wellspring/documents/design.md), section 9.1, lists the same four things) and Fountain above that are separate packages (decided 2026-11-25; [the Fountain whitepaper](../../fountain/whitepaper.md), [data model](../../wellspring/documents/data-model.md) and [protocol](../../fountain/documents/protocol.md) say what they need).
 
 What exists is enough for most of it: `transaction`, `create`, `get`, `set`, `delete`, `replace`, `exists`, `ref`, `weak`, `onReclaim`. Four things are missing:
 

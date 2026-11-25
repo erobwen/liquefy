@@ -10,7 +10,7 @@ the database to the screen.
   [cascade.reactive](cascade.reactive#readme), the reactive core.
 - **[Aquifer](#aquifer)** - a garbage collected JavaScript object database, the
   first piece of the full stack. A prototype.
-- **Wellspring** - persistent JavaScript objects on top of Aquifer. Planned.
+- **[Wellspring](#wellspring)** - persistent JavaScript objects on top of Aquifer. Planned.
 - **[Fountain](#fountain)** - the server on top of that. Planned.
 - **[Flow](#flow)** - the generation before Cascade, kept for its history.
 
@@ -119,11 +119,17 @@ ever scanning the whole database. It is a prototype, not yet published - see
 [aquifer](aquifer#readme), and [aquifer.visualizer](aquifer.visualizer#readme),
 which shows its collector at work step by step.
 
+## Wellspring
+
+The layer planned on top of Aquifer: it turns Aquifer's records into persistent
+JavaScript objects that server code loads, reads and writes like any others.
+Usable on its own, without clients. Nothing runs yet - see
+[wellspring](wellspring#readme) for its design and the specification of its
+data model.
+
 ## Fountain
 
-The server planned on top of Aquifer and Wellspring (the planned layer that
-turns Aquifer's records into persistent JavaScript objects), for full stack
-reactivity: clients
+The server planned on top of Wellspring, for full stack reactivity: clients
 subscribe to persistent objects over WebSockets and stay in sync as they
 change, with users and authorization per object built in from the start.
 Nothing runs yet - the design is in

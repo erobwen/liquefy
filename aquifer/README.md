@@ -4,7 +4,7 @@
 
 A JavaScript-first persistent object database with change-driven garbage
 collection. It is the first piece of Liquefy's full stack reactivity: the storage under
-Wellspring, the planned layer of persistent JavaScript objects, and
+[Wellspring](../wellspring#readme), the planned layer of persistent JavaScript objects, and
 [Fountain](../fountain#readme), the planned server on top of that.
 
 Aquifer works with records: ids, fields, and strong and weak references. It

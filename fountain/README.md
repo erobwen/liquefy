@@ -8,7 +8,7 @@ server and every connected client.
 
 - A central server holds the authoritative object graph. It is built in three
   layers: [Aquifer](../aquifer) stores records and collects garbage,
-  Wellspring (planned) makes them persistent JavaScript objects that server
+  [Wellspring](../wellspring#readme) (planned) makes them persistent JavaScript objects that server
   code loads and writes like any others, and Fountain adds users and clients.
 - Clients subscribe to selections of objects over WebSockets, and receive
   incremental updates as the data changes. On both sides, the reactivity is
@@ -30,7 +30,7 @@ server and every connected client.
 The design is in [the whitepaper](whitepaper.md), which lists the decisions
 made so far and what is still open. The specifications, written one layer at a
 time before each is built, are in [documents](documents):
-[the data model](documents/data-model.md), then
-[the protocol](documents/protocol.md). The storage and garbage collection layer
+[the protocol](documents/protocol.md) here, on
+[the data model](../wellspring/documents/data-model.md), which is Wellspring's. The storage and garbage collection layer
 was built first, in Aquifer, and is described in
 [its own documents](../aquifer/documents/persistent-garbage-collection.md).

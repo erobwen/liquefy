@@ -30,9 +30,10 @@ Also key:
   result to match against);
 - two components of the same class taking turns in the same place (without
   keys, the second carries on as the first, with the first's state);
-- a component referred to from outside the build result (a closure, an
-  plain field) - after a pattern match those references point to the
-  discarded twin; a key makes the constructor return the established instance
+- a component referred to from outside the build result (a closure, a
+  untracked field) - after a pattern match those references point to the
+  discarded twin, and so do `meta()`/`untrackedMeta()` records written through
+  them; a key makes the constructor return the established instance
   itself.
 
 Everything else - the fixed layout of a page, a toolbar's buttons, the parts

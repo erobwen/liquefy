@@ -1,7 +1,7 @@
 import { getWorld } from "../cascade.js";
 import assert from "assert";
 
-const { observable, temporal, meta, plainMeta, innerMeta, repeat, retractRepeater, transaction } = getWorld();
+const { observable, temporal, meta, untrackedMeta, innerMeta, repeat, retractRepeater, transaction } = getWorld();
 
 describe("innerMeta()", function () {
 
@@ -35,8 +35,8 @@ describe("innerMeta()", function () {
   });
 });
 
-// meta() and plainMeta() are the same pair of records, observable and not.
-for (const [name, record, observed] of [["meta", meta, true], ["plainMeta", plainMeta, false]]) {
+// meta() and untrackedMeta() are the same pair of records, observable and not.
+for (const [name, record, observed] of [["meta", meta, true], ["untrackedMeta", untrackedMeta, false]]) {
   describe(name + "()", function () {
 
     it(name + "(object) is a record for the object, made on first use and the same ever after", function () {
@@ -79,15 +79,15 @@ function innerMetaOrNull(object) {
   try { return innerMeta(object); } catch (error) { return null; }
 }
 
-describe("meta() and plainMeta() together", function () {
+describe("meta() and untrackedMeta() together", function () {
 
   it("are separate records, and neither is cascade's bookkeeping", function () {
     const object = observable({ a: 1 });
-    assert.notStrictEqual(meta(object), plainMeta(object));
-    assert.notStrictEqual(meta(object, "a"), plainMeta(object, "a"));
+    assert.notStrictEqual(meta(object), untrackedMeta(object));
+    assert.notStrictEqual(meta(object, "a"), untrackedMeta(object, "a"));
     assert.notStrictEqual(meta(object), innerMeta(object));
-    assert.notStrictEqual(plainMeta(object), innerMeta(object));
-    plainMeta(object).id = "mine";
+    assert.notStrictEqual(untrackedMeta(object), innerMeta(object));
+    untrackedMeta(object).id = "mine";
     meta(object).proxy = "mine too";
     assert.equal(typeof(innerMeta(object).id), "number");
     assert.strictEqual(innerMeta(object).proxy, object);
@@ -97,10 +97,10 @@ describe("meta() and plainMeta() together", function () {
     const document = observable({ title: "Untitled" });
     const sync = observable({ loaded: "unloaded" });
     meta(document).sync = sync;
-    plainMeta(document).store = { name: "the store" };
+    untrackedMeta(document).store = { name: "the store" };
     meta(document, "title").saved = "Untitled";
     assert.strictEqual(meta(document).sync, sync);
-    assert.equal(plainMeta(document).store.name, "the store");
+    assert.equal(untrackedMeta(document).store.name, "the store");
     assert.equal(meta(document, "title").saved, "Untitled");
   });
 });

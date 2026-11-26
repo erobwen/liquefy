@@ -51,8 +51,8 @@ export class DOMPlacingContainer extends DOMNodeComponent {
     return (this.isUnit && this.isUnit(component)) || (component instanceof DOMNodeComponent && component.providesNode());
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     result.previouslySetStyle = {};
     // Every element placed this time, in tree order, each with its nearest
     // placed ancestor element (or null) - see nodeOf().
@@ -66,7 +66,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
 
   // The container's own element, placed like any other rendered node.
   renderNode(target, existingElement) {
-    const u = this.plain;
+    const u = this.untracked;
     const element = existingElement || document.createElement("div");
     target.reattachElement(element);
     u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
@@ -76,7 +76,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
   // The target its children are expanded onto - its own element. Cached:
   // the same target object every time.
   childTarget() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.node);
     return u.childTarget;
   }
@@ -87,7 +87,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
   // expanded, this container's own first - and who was placed before (for
   // notifyPlaced()). u.tracked lists every placed element afterwards.
   expandSubtree(context, children = this.children) {
-    const u = this.plain;
+    const u = this.untracked;
     u.tracked = [];
     const placements = [];
     const placedBefore = u.placed;
@@ -110,7 +110,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
         nodes.push(this.looseText(owner, index, child).ensureNode());
         return;
       }
-      for (const expanded of child.expand(target, context, owner, (component) => this.isLeaf(component), this.plain.placed)) {
+      for (const expanded of child.expand(target, context, owner, (component) => this.isLeaf(component), this.untracked.placed)) {
         nodes.push(this.nodeOf(expanded, ancestor, placements));
       }
     });
@@ -123,14 +123,14 @@ export class DOMPlacingContainer extends DOMNodeComponent {
     if (isUnit || !(component instanceof DOMNodeComponent && component.providesNode())) {
       const holder = this.renderIsland(component);
       // Rendered, not placed: rendering tells it when it's shown or hidden.
-      this.plain.placed.delete(component);
-      this.plain.tracked.push({ element: holder, ancestor });
+      this.untracked.placed.delete(component);
+      this.untracked.tracked.push({ element: holder, ancestor });
       return holder;
     }
     const node = component.ensureNode();
     if (component instanceof DOMElementComponent) {
-      this.plain.tracked.push({ element: node, ancestor });
-      const u = component.plain;
+      this.untracked.tracked.push({ element: node, ancestor });
+      const u = component.untracked;
       // Cached, like DOMElementComponent's own render() does - the same
       // target object every time. Dropped when the element is replaced (a
       // tag change - see DOMElementComponent.replaceElement()).
@@ -149,7 +149,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
   // making a new one (DOMElementComponent's own render() makes a fresh
   // one every time; the resulting DOM is the same).
   looseText(owner, index, value) {
-    const u = owner.plain;
+    const u = owner.untracked;
     if (!u.looseTexts) u.looseTexts = [];
     let textComponent = u.looseTexts[index];
     if (!textComponent) {
@@ -165,7 +165,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
   // container provides - which gives it a box to be placed as a unit - with
   // the context it entered the tree with while being expanded.
   renderIsland(component) {
-    const u = component.plain;
+    const u = component.untracked;
     if (!u.islandElement) {
       u.islandElement = document.createElement("div");
       u.islandElement.setAttribute(this.constructor.islandAttribute, "");
@@ -210,7 +210,7 @@ export class DOMPlacingContainer extends DOMNodeComponent {
   // to something new (a portal's contents, say) is let go before the new
   // one takes it. Unless the container itself is hidden.
   notifyPlaced(placedBefore) {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.hidden) return;
     for (const component of placedBefore) {
       if (!u.placed.has(component)) component.onHide();
@@ -229,14 +229,14 @@ export class DOMPlacingContainer extends DOMNodeComponent {
   // until it reruns. A portal source would find no portal to show in.
   onHide() {
     super.onHide();
-    const u = this.plain;
+    const u = this.untracked;
     u.hidden = true;
     for (const component of u.placed) component.onHide();
   }
 
   onShow() {
     super.onShow();
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.hidden) return;
     u.hidden = false;
     for (const component of u.placed) {

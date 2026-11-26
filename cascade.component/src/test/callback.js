@@ -15,11 +15,11 @@ describe("callback()", function () {
         this.onPick = onPick;
         this.style = frozen(style);
       }
-      initialPlain() {
+      initialUntracked() {
         return { renders: 0 };
       }
       render() {
-        this.plain.renders++;
+        this.untracked.renders++;
         this.onPick;
         this.style;
       }
@@ -42,7 +42,7 @@ describe("callback()", function () {
     model.version = 1;
     model.version = 2;
     assert.equal(child.onPick, first, "the same function");
-    assert.equal(child.plain.renders, 1, "so the child didn't rerender for it");
+    assert.equal(child.untracked.renders, 1, "so the child didn't rerender for it");
     child.onPick();
     assert.deepEqual(picked, [2], "the latest closure - nothing stale");
   });
@@ -51,7 +51,7 @@ describe("callback()", function () {
     const { model, child } = setup((fn) => fn);
     model.version = 1;
     model.version = 2;
-    assert.equal(child.plain.renders, 3);
+    assert.equal(child.untracked.renders, 3);
   });
 
   it("outside any build, it just returns the function", function () {
@@ -74,8 +74,8 @@ describe("callback()", function () {
     }
     const list = new List();
     list.renderOnto({ name: "target" });
-    assert.deepEqual([...list.plain.callbacks.keys()], ["aPick", "bPick"]);
+    assert.deepEqual([...list.untracked.callbacks.keys()], ["aPick", "bPick"]);
     for (let i = 0; i < 20; i++) model.ids = ["item" + i];
-    assert.deepEqual([...list.plain.callbacks.keys()], ["item19Pick"]);
+    assert.deepEqual([...list.untracked.callbacks.keys()], ["item19Pick"]);
   });
 });

@@ -114,26 +114,26 @@ export class ApplicationMenuFrame extends Component {
   // cascade.component/README.md) - and placed by ApplicationMenuFrameLayout
   // as a plain child reference. Owned, so established here and disposed of
   // with the frame (see Component.establish()).
-  initialPlain() {
+  initialUntracked() {
     return {
-      ...super.initialPlain(),
+      ...super.initialUntracked(),
       topBarPortal: portal({ key: "topBarPortal", style: { display: "flex", alignItems: "center", gap: "4px", flex: "none" } }).establish(),
       topBarEndPortal: portal({ key: "topBarEndPortal", style: { display: "flex", alignItems: "center", gap: "8px", flex: "none", marginLeft: "auto" } }).establish(),
     };
   }
 
   onDispose() {
-    this.plain.topBarPortal.dispose();
-    this.plain.topBarEndPortal.dispose();
+    this.untracked.topBarPortal.dispose();
+    this.untracked.topBarEndPortal.dispose();
     super.onDispose();
   }
 
   get topBarPortal() {
-    return this.plain.topBarPortal;
+    return this.untracked.topBarPortal;
   }
 
   get topBarEndPortal() {
-    return this.plain.topBarEndPortal;
+    return this.untracked.topBarEndPortal;
   }
 
   // What the whole app inherits from here - its root services, the
@@ -166,7 +166,7 @@ export class ApplicationMenuFrame extends Component {
     const key = this.location.path[0];
     const page = key === undefined ? this.pages[0] : this.pages.find((each) => each.key === key);
     if (page) return page;
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.correctingPath) {
       u.correctingPath = true;
       setTimeout(() => {

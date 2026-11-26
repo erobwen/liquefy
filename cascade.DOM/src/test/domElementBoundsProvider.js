@@ -49,9 +49,9 @@ describe("DOMElementBoundsProvider", function () {
   // Reads the size of the element it's placed in from build().
   class Probe extends Component {
     build() {
-      this.plain.buildCount = (this.plain.buildCount || 0) + 1;
-      this.plain.lastWidth = this.fromTarget("width");
-      this.plain.lastHeight = this.fromTarget("height");
+      this.untracked.buildCount = (this.untracked.buildCount || 0) + 1;
+      this.untracked.lastWidth = this.fromTarget("width");
+      this.untracked.lastHeight = this.fromTarget("height");
       return null;
     }
   }
@@ -60,19 +60,19 @@ describe("DOMElementBoundsProvider", function () {
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ className: "bounds-provider", style: { width: "640px", height: "480px" }, child: probe });
     provider.renderOnto(new DOMElementTarget(container));
-    const element = provider.plain.node;
+    const element = provider.untracked.node;
     assert.equal(container.querySelector(".bounds-provider"), element);
     assert.ok(FakeResizeObserver.observing(element));
-    assert.equal(probe.plain.buildCount, 1);
-    assert.equal(probe.plain.lastWidth, 640, "measured when first rendered");
-    assert.equal(probe.plain.lastHeight, 480);
+    assert.equal(probe.untracked.buildCount, 1);
+    assert.equal(probe.untracked.lastWidth, 640, "measured when first rendered");
+    assert.equal(probe.untracked.lastHeight, 480);
 
     FakeResizeObserver.report(element, 640, 480);
-    assert.equal(probe.plain.buildCount, 1, "the observer's first report finds the same size: nothing to build");
+    assert.equal(probe.untracked.buildCount, 1, "the observer's first report finds the same size: nothing to build");
 
     FakeResizeObserver.report(element, 300, 480);
-    assert.equal(probe.plain.lastWidth, 300);
-    assert.equal(probe.plain.buildCount, 2);
+    assert.equal(probe.untracked.lastWidth, 300);
+    assert.equal(probe.untracked.buildCount, 2);
   });
 
   it("measures its content box: a border-box element's padding and border aren't room", function () {
@@ -82,15 +82,15 @@ describe("DOMElementBoundsProvider", function () {
       child: probe,
     });
     provider.renderOnto(new DOMElementTarget(container));
-    assert.equal(probe.plain.lastWidth, 200);
-    assert.equal(probe.plain.lastHeight, 100);
+    assert.equal(probe.untracked.lastWidth, 200);
+    assert.equal(probe.untracked.lastHeight, 100);
   });
 
   it("not in the page: no size", function () {
     const detached = document.createElement("div");
     const probe = new Probe();
     new DOMElementBoundsProvider({ style: { width: "640px" }, child: probe }).renderOnto(new DOMElementTarget(detached));
-    assert.equal(probe.plain.lastWidth, undefined);
+    assert.equal(probe.untracked.lastWidth, undefined);
   });
 
   it("only what's placed on its element is measured - an element in between is a target of its own", function () {
@@ -102,8 +102,8 @@ describe("DOMElementBoundsProvider", function () {
     }
     const provider = new DOMElementBoundsProvider({ child: new Wrapped() });
     provider.renderOnto(new DOMElementTarget(container));
-    FakeResizeObserver.report(provider.plain.node, 640, 480);
-    assert.equal(probe.plain.lastWidth, undefined);
+    FakeResizeObserver.report(provider.untracked.node, 640, 480);
+    assert.equal(probe.untracked.lastWidth, undefined);
   });
 
   it("still follows its size after being rendered again - by a rebuild of its creator, say (a theme switch)", function () {
@@ -118,15 +118,15 @@ describe("DOMElementBoundsProvider", function () {
     }
     const holder = new Holder();
     holder.renderOnto(new DOMElementTarget(container));
-    const element = () => holder.currentBuild.plain.node;
+    const element = () => holder.currentBuild.untracked.node;
     FakeResizeObserver.report(element(), 300, 200);
     holder.color = "blue";
     assert.equal(element().style.color, "blue", "rendered again");
-    assert.equal(probe.plain.lastWidth, 300);
+    assert.equal(probe.untracked.lastWidth, 300);
 
     FakeResizeObserver.report(element(), 800, 600);
-    assert.equal(probe.plain.lastWidth, 800, "and every change after that");
-    assert.equal(probe.plain.lastHeight, 600);
+    assert.equal(probe.untracked.lastWidth, 800, "and every change after that");
+    assert.equal(probe.untracked.lastHeight, 600);
   });
 
   it("stops observing once dropped from its own build()-owning parent", function () {
@@ -141,7 +141,7 @@ describe("DOMElementBoundsProvider", function () {
     }
     const frame = new Frame({ shown: true, child: new Probe() });
     frame.renderOnto(new DOMElementTarget(container));
-    const element = frame.currentBuild.plain.node;
+    const element = frame.currentBuild.untracked.node;
     assert.ok(FakeResizeObserver.observing(element));
 
     frame.shown = false; // drops the keyed DOMElementBoundsProvider - disposed
@@ -153,10 +153,10 @@ describe("DOMElementBoundsProvider", function () {
     const probe = new Probe();
     const provider = new DOMElementBoundsProvider({ style: { width: "200px", height: "100px" }, child: probe });
     provider.renderOnto(new DOMElementTarget(container));
-    assert.equal(probe.plain.lastWidth, 200);
-    provider.plain.node.style.width = "150px";
+    assert.equal(probe.untracked.lastWidth, 200);
+    provider.untracked.node.style.width = "150px";
     dom.window.dispatchEvent(new dom.window.Event("resize"));
-    assert.equal(probe.plain.lastWidth, 150);
+    assert.equal(probe.untracked.lastWidth, 150);
   });
 
   // Fully styleable by its creator (see the class's own doc) - and correctly

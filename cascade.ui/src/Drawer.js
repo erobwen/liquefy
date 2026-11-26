@@ -180,7 +180,7 @@ export class Drawers extends Component {
 
   // How each edge's panel looked last - its sheet still does, once the
   // panel has gone elsewhere, while it closes (see sheetLook()).
-  initialPlain() {
+  initialUntracked() {
     return { looks: {} };
   }
 
@@ -249,7 +249,7 @@ export class Drawers extends Component {
   // now, as the last one did (it's closing, or closed), so a panel moving
   // elsewhere leaves a sheet that closes as it was.
   sheetLook(side, panel) {
-    const u = this.plain;
+    const u = this.untracked;
     if (panel) {
       u.looks[side] = { size: panel.size, header: panel.header, title: panel.title, style: panel.style };
     }

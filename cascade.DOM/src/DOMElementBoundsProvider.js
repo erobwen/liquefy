@@ -49,8 +49,8 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
     this.className = className || null;
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     result.previouslySetStyle = {};
     return result;
   }
@@ -63,7 +63,7 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
     // not leave the old one stuck (same reasoning applyStyle below has for
     // a style property that disappears the same way).
     element.className = this.className || "";
-    const u = this.plain;
+    const u = this.untracked;
     u.previouslySetStyle = applyStyle(element, { contain: "size layout", ...(this.style || {}) }, u.previouslySetStyle);
     return element;
   }
@@ -72,7 +72,7 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
   // already reads the size.
   render(target, context) {
     super.render(target, context);
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.childTarget) {
       u.childTarget = DOMElementTarget.forElement(u.node);
       u.childTarget.observeBounds();
@@ -82,7 +82,7 @@ export class DOMElementBoundsProvider extends DOMNodeComponent {
 
   onDispose() {
     super.onDispose();
-    if (this.plain.childTarget) this.plain.childTarget.stopObservingBounds();
+    if (this.untracked.childTarget) this.untracked.childTarget.stopObservingBounds();
   }
 }
 

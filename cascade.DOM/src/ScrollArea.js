@@ -72,7 +72,7 @@ export class ScrollArea extends Component {
     this.areaChildren = frozen(children || []);
   }
 
-  initialPlain() {
+  initialUntracked() {
     return { id: "scrollArea" + (++lastId), stop: null, scrolls: false };
   }
 
@@ -84,7 +84,7 @@ export class ScrollArea extends Component {
     super.onEstablish();
     if (typeof(document) === "undefined" || typeof(ResizeObserver) === "undefined") return;
     registerFadeProperties();
-    const u = this.plain;
+    const u = this.untracked;
     let scroller = null;
     let observer = null;
     let children = null;
@@ -182,12 +182,12 @@ export class ScrollArea extends Component {
   }
 
   onDispose() {
-    if (this.plain.stop) this.plain.stop();
+    if (this.untracked.stop) this.untracked.stop();
     super.onDispose();
   }
 
   build() {
-    const { id } = this.plain;
+    const { id } = this.untracked;
     const faded = this.fade > 0
       ? { maskImage: fadeMask, WebkitMaskImage: fadeMask, transition: fadeEasing }
       : {};

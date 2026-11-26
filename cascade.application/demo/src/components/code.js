@@ -40,7 +40,7 @@ export class HighlightedCode extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.node) {
       u.node = document.createElement("pre");
       u.node.style.margin = "0";

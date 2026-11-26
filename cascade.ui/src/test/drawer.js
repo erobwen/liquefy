@@ -197,13 +197,13 @@ describe("drawer", function () {
       initialState() {
         return { side: "left" };
       }
-      initialPlain() {
+      initialUntracked() {
         return { counter: new Counter().establish() };
       }
       build() {
         return div(
           { style: { position: "relative" } },
-          drawer({ open: true, side: this.side, title: "Filters", animate: false }, this.plain.counter),
+          drawer({ open: true, side: this.side, title: "Filters", animate: false }, this.untracked.counter),
         );
       }
     }

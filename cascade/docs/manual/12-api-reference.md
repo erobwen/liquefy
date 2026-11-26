@@ -62,7 +62,7 @@ World members:
 | `postponeInvalidations` / `continueInvalidations` | `()` | Start / end (and process) a batch by hand. |
 | `onTransactionEnd` | `onTransactionEnd(listener) → remove` | Calls `listener()` each time a transaction that changed something has ended, after the repeaters it set off have run again. A write outside any transaction and any repeater is one of its own. |
 | `meta` | `meta(object, [property]) → record` | The observable metadata record of an observable, or of one of its properties: empty, made on first use, the same ever after. |
-| `plainMeta` | `plainMeta(object, [property]) → object` | The same, as a plain object: for bookkeeping that must not be observed. |
+| `untrackedMeta` | `untrackedMeta(object, [property]) → object` | The same, as a plain object that is never observed: for bookkeeping that must not be observed. Not `meta()` read without tracking - a record of its own. |
 | `innerMeta` | `innerMeta(object) → object` | Cascade's own bookkeeping about an observable (its `id`, target, handler ...). For reading. |
 | `sameAsPreviousDeep` | `sameAsPreviousDeep(a, b, [depthLimit = 8])` | Deep comparison of plain (non-observable) values. |
 | `caching` | `caching(fn) → cachedFn` | See below. |
@@ -100,7 +100,7 @@ Reactive functions, from the world `getWorld({ name: "cascade.component" })`:
 | Export | Description |
 |---|---|
 | `world` | The world itself (for `world.caching`, `world.transaction`, `world.withoutReactions`, ...). |
-| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `plainMeta`, `innerMeta`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
+| `observable`, `temporal`, `deeplyObservable`, `isObservable`, `isTemporal`, `ensure`, `repeat`, `linkRepeater`, `withoutRecording`, `sameAsPreviousDeep`, `invalidateOnChange`, `postponeInvalidations`, `continueInvalidations`, `onTransactionEnd`, `meta`, `untrackedMeta`, `innerMeta`, `flush`, `accessInitialValues`, `declareState`, `retractRepeater`, `refreshIfNeeded` | As in 12.1. |
 | `finalize`, `state` | **Internal**, as in 12.1. (`establish`/`dispose` are not exported: use `Component.establish()`/`dispose()`.) |
 
 Components and helpers:
@@ -135,7 +135,7 @@ Components and helpers:
 |---|---|
 | `setProperties(properties)` | Interpret properties (default: assign all). |
 | `initialState() → object` | Declare state and defaults (runs after `setProperties()`). |
-| `initialPlain() → object` | Seed `this.plain` (at initial time; the place to create owned components). |
+| `initialUntracked() → object` | Seed `this.untracked` (at initial time; the place to create owned components). |
 | `provide() → object \| null` | What the subtree inherits (default `null`: no context of its own). Called once. |
 | `build() → Component \| Component[] \| null` | What this component is made of. |
 | `render(target, context)` | Real-time work on the target (default: build and render the result). |
@@ -161,7 +161,7 @@ Components and helpers:
 | `refreshCreatorBuild()` | Bring the creator's build up to date. Advanced. |
 | `getComponentTypeName()`, `toString()` | Debug names (`"Card:42(key)"`). |
 
-Fields: `key`, `creator`, `renderContext` (observable), `plain`,
+Fields: `key`, `creator`, `renderContext` (observable), `untracked`,
 `currentBuild`, `componentTypeName` (optional
 override for the debug name).
 

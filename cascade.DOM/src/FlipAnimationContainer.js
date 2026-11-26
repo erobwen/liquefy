@@ -151,8 +151,8 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
     this.keepCorners = keepCorners !== false;
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     // Per animating element - see startAnimations().
     result.springs = new Map();
     // Elements lifted above their siblings while something in them appears,
@@ -220,7 +220,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   //    for it. After the first, it's cheap, but not free with thousands of
   //    elements.
   render(target, context) {
-    const u = this.plain;
+    const u = this.untracked;
     // How large its own box is drawn right now - on its way to another size
     // included.
     const sizedAt = u.node && u.node.isConnected ? sizeOf(u.node) : null;
@@ -336,7 +336,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // rendered somewhere else, and must not still look like a ghost there.
   onRetract() {
     this.stopAll();
-    this.plain.hasRendered = false;
+    this.untracked.hasRendered = false;
     super.onRetract();
   }
 
@@ -381,7 +381,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // that place gone (or no longer in the container), it goes into the
   // container itself.
   removeAsGhosts(fading, drawnAt) {
-    const u = this.plain;
+    const u = this.untracked;
     const ghosts = [];
     const root = u.node;
     const checked = new Set();
@@ -471,7 +471,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // they're in, and none is in another (they're put in what the leaving
   // element was in, which isn't leaving - see removeAsGhosts()).
   positionGhosts(ghosts, drawnAt) {
-    const u = this.plain;
+    const u = this.untracked;
     const carriersAt = new Map();
     const measured = ghosts.map((element) => {
       const carrier = element.parentNode;
@@ -509,7 +509,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // With `zoom`, at its own size times as much as its carrier has grown or
   // shrunk since (see zoomAlong in setProperties()).
   follow(element, ghost, carrier, zoom) {
-    const layout = this.plain.layout.get(ghost.carrier);
+    const layout = this.untracked.layout.get(ghost.carrier);
     // Placed in the carrier as it's laid out right now (`laid`), and
     // scaled against how it's scaled right now (`total`) - neither as at
     // rest, while the container's box is on its way (see startSizing()).
@@ -532,7 +532,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // What's in a parent only to position its ghosts goes back to how it
   // was once none are left in it.
   releasePositioning() {
-    const u = this.plain;
+    const u = this.untracked;
     for (const [parent, position] of [...u.positioning]) {
       if ([...u.ghosts.keys()].some((ghost) => ghost.parentNode === parent)) continue;
       this.setPosition(parent, position);
@@ -541,7 +541,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   restoreGhost(element) {
-    const u = this.plain;
+    const u = this.untracked;
     const { savedStyle, copies } = u.ghosts.get(element);
     // Back in the tree: its islands' components put their own nodes back.
     for (const copy of copies) copy.remove();
@@ -555,7 +555,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // close the gap. And its own box, from the size it was drawn at
   // (`sizedAt`), to its size now.
   startAnimations(drawnAt, changingLooks, sizedAt) {
-    const u = this.plain;
+    const u = this.untracked;
     const tracked = new Set(u.tracked.map(({ element }) => element));
     for (const element of u.springs.keys()) {
       if (!tracked.has(element)) u.springs.delete(element);
@@ -675,7 +675,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // nothing clipped it - or nothing will - it's as if something just large
   // enough for it, there, had.
   startClips(drawnAt) {
-    const u = this.plain;
+    const u = this.untracked;
     u.clips = new Map();
     const cache = new Map();
     for (const [element, spring] of u.springs) {
@@ -705,7 +705,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // element clips what's in it. Per node, in `cache`.
   clipOf(node, cache) {
     if (cache && cache.has(node)) return cache.get(node);
-    const root = this.plain.node;
+    const root = this.untracked.node;
     let clip = null;
     for (let each = node; each && each !== root && each.nodeType === 1; each = each.parentNode) {
       const style = each.ownerDocument.defaultView.getComputedStyle(each);
@@ -763,7 +763,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   isAnimating() {
-    const u = this.plain;
+    const u = this.untracked;
     return u.springs.size > 0 || u.ghosts.size > 0 || !!u.sizing;
   }
 
@@ -794,7 +794,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // a row wraps at some width, or something gives way only once there's
   // no room - and what's painted, on whole pixels, takes knowing exactly.
   startSizing(from, to) {
-    const u = this.plain;
+    const u = this.untracked;
     const dx = from.width - to.width;
     const dy = from.height - to.height;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
@@ -825,7 +825,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // read where it is. One layout pass - which the box's new size takes
   // anyway. Null with the box at its size: everything lies as at rest.
   measureLaidOut() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.sizing) return null;
     this.drawSize();
     for (const { element } of u.tracked) element.style.transform = "";
@@ -852,7 +852,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // element around it that scrolls - the window among them, which is
   // scrolled as far as the document's own element is.
   scrolled() {
-    const root = this.plain.node;
+    const root = this.untracked.node;
     const total = { x: 0, y: 0 };
     for (let each = root.parentNode; each && each.nodeType === 1; each = each.parentNode) {
       total.x += each.scrollLeft || 0;
@@ -862,7 +862,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   drawSize() {
-    const u = this.plain;
+    const u = this.untracked;
     const { spring, to, saved, written } = u.sizing;
     if ("width" in saved) written.width = round(Math.max(0, to.width + spring.x)) + "px";
     if ("height" in saved) written.height = round(Math.max(0, to.height + spring.y)) + "px";
@@ -872,7 +872,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // Its own box as the app has it again - what the app has given it
   // meanwhile (its style updated) kept.
   endSizing() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.sizing) return;
     const style = u.node.style;
     const { saved, written } = u.sizing;
@@ -889,7 +889,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // drawCorners()). Corners given in percent are left alone: they're
   // relative to the box, and go along with it anyway.
   startCorners(element, from, spring) {
-    const u = this.plain;
+    const u = this.untracked;
     const to = cornersOf(element);
     if (!to || !from) return;
     if (to.every(([x, y]) => x === 0 && y === 0) && from.every(([x, y]) => x === 0 && y === 0)) return;
@@ -917,7 +917,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   endCorners(element) {
-    const u = this.plain;
+    const u = this.untracked;
     for (const each of element ? [element] : [...u.corners.keys()]) {
       each.style.borderRadius = u.corners.get(each).saved;
       u.corners.delete(each);
@@ -934,7 +934,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // now - which, while the container's own box is on its way to its size,
   // may be otherwise (see startSizing() and measureLaidOut()).
   applyAnimation() {
-    const u = this.plain;
+    const u = this.untracked;
     this.raiseTravellers();
     const zoomAlong = withoutRecording(() => this.zoomAlong);
     // element -> { x, y, sx, sy, laid, total }: its drawn top-left, in page
@@ -1115,7 +1115,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // rest of the way. Null for what has no spring: nothing to start from, or
   // arrived.
   relay(key, from, measure) {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.relaid.has(key)) return u.springs.get(key) || null;
     if (!from) return null;
     u.relaid.add(key);
@@ -1135,7 +1135,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // `snap` rounds a distance to them; `offset` is how far from a place,
   // measured as everything is, to where something lying there is painted.
   pixels() {
-    const u = this.plain;
+    const u = this.untracked;
     const view = u.node.ownerDocument.defaultView;
     const ratio = view.devicePixelRatio > 0 ? view.devicePixelRatio : 1;
     const snap = (value) => Math.round(value * ratio) / ratio;
@@ -1166,7 +1166,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // the shorthand alone, written back empty, would clear an `overflowY`
   // given on its own, and an element scrolling one way would scroll no more.
   lift() {
-    const u = this.plain;
+    const u = this.untracked;
     const lifting = new Set();
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     const confine = withoutRecording(() => this.confine);
@@ -1191,7 +1191,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   unlift(element) {
-    const u = this.plain;
+    const u = this.untracked;
     const saved = u.lifted.get(element);
     if (!saved) return;
     element.style.zIndex = saved.zIndex;
@@ -1209,7 +1209,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // every raised one that has arrived (see Stacking in the class doc). A
   // ghost fading out over its destination is beneath it, too.
   raiseTravellers() {
-    const u = this.plain;
+    const u = this.untracked;
     const ancestorOf = new Map(u.tracked.map(({ element, ancestor }) => [element, ancestor]));
     const travelling = new Set();
     for (const [element, spring] of u.springs) {
@@ -1248,7 +1248,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // anew all the way rather than squashed, and what doesn't fit in it yet
   // cut off (see applyAnimation()).
   raise(element) {
-    const u = this.plain;
+    const u = this.untracked;
     const document = element.ownerDocument;
     const style = document.defaultView.getComputedStyle(element);
     const layout = u.layout.get(element);
@@ -1293,7 +1293,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // a ghost of its own (see textGhost()) - the way an element appears and
   // leaves in something on its way.
   wrapTexts(element) {
-    const u = this.plain;
+    const u = this.untracked;
     const from = u.from.get(element);
     if (!from || !from.texts || !isBoxLayout(element)) return [];
     const texts = [];
@@ -1326,7 +1326,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // its middle, for how large that's drawn, as it was: so it goes along as
   // that grows or shrinks, the way a ghost goes along with its carrier.
   textGhost(element, box, at) {
-    const u = this.plain;
+    const u = this.untracked;
     const span = element.ownerDocument.createElement("span");
     span.textContent = at.text;
     const share = (offset, size) => (size > 0 ? offset / size * 100 : 50) + "%";
@@ -1344,7 +1344,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
 
   // Back in its place - and the layer gone, once nothing is in it.
   lower(element) {
-    const u = this.plain;
+    const u = this.untracked;
     const { placeholder, saved, texts } = u.raised.get(element);
     for (const { node, span, leaving } of texts) {
       if (leaving) span.remove();
@@ -1364,7 +1364,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   lowerAll() {
-    for (const element of [...this.plain.raised.keys()]) this.lower(element);
+    for (const element of [...this.untracked.raised.keys()]) this.lower(element);
   }
 
   // An element on its way somewhere takes on how it looks there - its
@@ -1375,7 +1375,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // along - at the pace of everything else, however fast that is. Its font
   // size is its scale's business (see startAnimations()).
   changeLooks(element, from, spring) {
-    const u = this.plain;
+    const u = this.untracked;
     if (typeof element.animate !== "function") return;
     const to = looksOf(element);
     const before = {};
@@ -1398,7 +1398,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // Every change of look done with, at once - the elements that were
   // changing returned, to go on from where they're drawn.
   endLooks() {
-    const u = this.plain;
+    const u = this.untracked;
     const changing = new Set(u.looks.keys());
     for (const change of u.looks.values()) change.cancel();
     u.looks.clear();
@@ -1410,12 +1410,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // stays so whatever else the container puts back meanwhile (a ghost done
   // fading in it, a lift ending).
   positionOf(element) {
-    const raised = this.plain.raised.get(element);
+    const raised = this.untracked.raised.get(element);
     return raised ? raised.saved.position : element.style.position;
   }
 
   setPosition(element, position) {
-    const raised = this.plain.raised.get(element);
+    const raised = this.untracked.raised.get(element);
     if (raised) raised.saved.position = position;
     else element.style.position = position;
   }
@@ -1424,7 +1424,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // the highest z-index in it - so above everything in it, overlays
   // included, whatever stacks them.
   layer() {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.layer) return u.layer;
     const root = u.node;
     const view = root.ownerDocument.defaultView;
@@ -1445,12 +1445,12 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   // The container positions what's absolutely positioned in it - its
   // ghosts and its layer: one that isn't positioned becomes relative.
   positionRoot() {
-    const root = this.plain.node;
+    const root = this.untracked.node;
     if (isStatic(root.ownerDocument.defaultView.getComputedStyle(root))) root.style.position = "relative";
   }
 
   requestFrame() {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.framePending) return;
     u.framePending = true;
     u.lastFrameTime = FlipAnimationContainer.clock.now();
@@ -1458,7 +1458,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   frame() {
-    const u = this.plain;
+    const u = this.untracked;
     u.framePending = false;
     // Switched off meanwhile: everything is where it belongs, at once.
     if (!withoutRecording(() => this.enabled)) {
@@ -1494,7 +1494,7 @@ export class FlipAnimationContainer extends DOMPlacingContainer {
   }
 
   stopAll() {
-    const u = this.plain;
+    const u = this.untracked;
     u.springs.clear();
     if (u.following) u.following.clear();
     if (u.carried) u.carried.clear();

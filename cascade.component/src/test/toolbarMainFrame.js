@@ -18,15 +18,15 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
     }
 
     render(target) {
-      this.plain.renderCount = (this.plain.renderCount || 0) + 1;
+      this.untracked.renderCount = (this.untracked.renderCount || 0) + 1;
       target.remainingHeight -= this.height;
     }
   }
 
   class ContentArea extends Component {
     render(target) {
-      this.plain.renderCount = (this.plain.renderCount || 0) + 1;
-      this.plain.seenAvailableHeight = target.remainingHeight;
+      this.untracked.renderCount = (this.untracked.renderCount || 0) + 1;
+      this.untracked.seenAvailableHeight = target.remainingHeight;
     }
   }
 
@@ -38,7 +38,7 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
     }
 
     render(target) {
-      this.plain.renderCount = (this.plain.renderCount || 0) + 1;
+      this.untracked.renderCount = (this.untracked.renderCount || 0) + 1;
       this.toolbar.renderOnto(target);
       this.contentArea.renderOnto(target);
     }
@@ -52,10 +52,10 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
 
     mainFrame.renderOnto(target);
 
-    assert.equal(contentArea.plain.seenAvailableHeight, 350);
-    assert.equal(toolbar.plain.renderCount, 1);
-    assert.equal(contentArea.plain.renderCount, 1);
-    assert.equal(mainFrame.plain.renderCount, 1);
+    assert.equal(contentArea.untracked.seenAvailableHeight, 350);
+    assert.equal(toolbar.untracked.renderCount, 1);
+    assert.equal(contentArea.untracked.renderCount, 1);
+    assert.equal(mainFrame.untracked.renderCount, 1);
   });
 
   it("changing the toolbar's own height reruns only the toolbar and the content area, not the main frame", function () {
@@ -67,10 +67,10 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
 
     toolbar.height = 80; // toolbar's own input changes - no structural change to main frame
 
-    assert.equal(toolbar.plain.renderCount, 2);
-    assert.equal(contentArea.plain.renderCount, 2);
-    assert.equal(contentArea.plain.seenAvailableHeight, 320); // 400 - 80
-    assert.equal(mainFrame.plain.renderCount, 1); // main frame itself never touched
+    assert.equal(toolbar.untracked.renderCount, 2);
+    assert.equal(contentArea.untracked.renderCount, 2);
+    assert.equal(contentArea.untracked.seenAvailableHeight, 320); // 400 - 80
+    assert.equal(mainFrame.untracked.renderCount, 1); // main frame itself never touched
   });
 
   it("main frame rebuilding for an unrelated reason relinks toolbar and content area without rerunning them", function () {
@@ -80,11 +80,11 @@ describe("toolbar/main-frame layout (real-time renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(target);
 
-    mainFrame.plain.repeater.restart();
+    mainFrame.untracked.repeater.restart();
 
-    assert.equal(mainFrame.plain.renderCount, 2);
-    assert.equal(toolbar.plain.renderCount, 1); // relinked, not rerun
-    assert.equal(contentArea.plain.renderCount, 1); // relinked, not rerun
+    assert.equal(mainFrame.untracked.renderCount, 2);
+    assert.equal(toolbar.untracked.renderCount, 1); // relinked, not rerun
+    assert.equal(contentArea.untracked.renderCount, 1); // relinked, not rerun
     assert.equal(target.remainingHeight, 350); // unchanged, reconciled quietly
   });
 

@@ -11,7 +11,7 @@ export class Gauge extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.node) u.node = document.createElement("div");
     u.node.innerHTML = gaugeSvg(this.value);
     return u.node;

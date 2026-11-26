@@ -48,7 +48,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     }
 
     renderNode(target, existingElement) {
-      const u = this.plain;
+      const u = this.untracked;
       const el = existingElement || target.appendElement("div");
       el.className = "main-frame";
       // Both the inner target and the context wrapping it have to persist
@@ -77,8 +77,8 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const frameElement = container.children[0];
     assert.equal(frameElement.className, "main-frame");
     assert.equal(frameElement.children.length, 2);
-    assert.equal(frameElement.children[0], toolbar.plain.node);
-    assert.equal(frameElement.children[1], contentArea.plain.node);
+    assert.equal(frameElement.children[0], toolbar.untracked.node);
+    assert.equal(frameElement.children[1], contentArea.untracked.node);
     assert.equal(frameElement.children[0].className, "toolbar");
     assert.equal(frameElement.children[0].textContent, "Toolbar");
     assert.equal(frameElement.children[1].className, "content");
@@ -91,10 +91,10 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(root);
 
-    const originalFrameElement = mainFrame.plain.node;
-    const originalToolbarElement = toolbar.plain.node;
+    const originalFrameElement = mainFrame.untracked.node;
+    const originalToolbarElement = toolbar.untracked.node;
 
-    mainFrame.plain.repeater.restart();
+    mainFrame.untracked.repeater.restart();
 
     assert.equal(container.children.length, 1);
     assert.equal(container.children[0], originalFrameElement); // reused in place, not recreated
@@ -109,14 +109,14 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
     const mainFrame = new MainFrame(toolbar, contentArea);
     mainFrame.renderOnto(root);
 
-    const frameElement = mainFrame.plain.node;
-    const originalContentElement = contentArea.plain.node;
+    const frameElement = mainFrame.untracked.node;
+    const originalContentElement = contentArea.untracked.node;
 
     toolbar.label = "Toolbar v2"; // toolbar's own input changes
 
     assert.equal(frameElement.children.length, 2); // still exactly 2, no duplicate
     assert.equal(frameElement.children[0].textContent, "Toolbar v2"); // replaced in place
-    assert.equal(frameElement.children[0], toolbar.plain.node);
+    assert.equal(frameElement.children[0], toolbar.untracked.node);
     assert.equal(frameElement.children[1], originalContentElement); // content area untouched, same element
   });
 
@@ -145,7 +145,7 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
       }
 
       renderNode(target, existingElement) {
-        const u = this.plain;
+        const u = this.untracked;
         const el = existingElement || target.appendElement("div");
         el.className = "main-frame";
         if (!u.childTarget) {
@@ -157,27 +157,27 @@ describe("DOMElementTarget (real-time DOM renderOnto)", function () {
         // that writing a *different* value into the same, persistent
         // context object is what invalidates the child, same as any other
         // reactive write - not the renderOnto() call itself.
-        u.childTarget.spaceLeft = this.plain.simulatedSpaceLeft;
+        u.childTarget.spaceLeft = this.untracked.simulatedSpaceLeft;
         this.contentArea.renderOnto(u.childTarget);
         return el;
       }
     }
     const mainFrame = new MeasuringMainFrame(toolbar, contentArea);
-    mainFrame.plain.simulatedSpaceLeft = 300;
+    mainFrame.untracked.simulatedSpaceLeft = 300;
 
     mainFrame.renderOnto(root);
     assert.equal(seenSpaceLeft, 300);
     assert.equal(renderCount, 1);
 
     // Same measurement again - reconciles quietly, content area untouched.
-    mainFrame.plain.repeater.restart();
+    mainFrame.untracked.repeater.restart();
     assert.equal(renderCount, 1);
 
     // A genuinely different measurement - content area reruns and sees it,
     // purely through the ordinary reactive write above, not a special
     // "notify children" call.
-    mainFrame.plain.simulatedSpaceLeft = 250;
-    mainFrame.plain.repeater.restart();
+    mainFrame.untracked.simulatedSpaceLeft = 250;
+    mainFrame.untracked.repeater.restart();
     assert.equal(seenSpaceLeft, 250);
     assert.equal(renderCount, 2);
   });

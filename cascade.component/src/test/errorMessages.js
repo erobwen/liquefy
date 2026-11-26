@@ -86,4 +86,14 @@ describe("error messages", function () {
     assert.equal(warnings.length, 1, "once, and only for the one with whitespace");
     assert.match(warnings[0], /"save the file" became a key, not text/);
   });
+
+  it("a property named like a getter without a setter - untracked, say - is told as a name clash", function () {
+    assert.throws(() => new Leaf({ untracked: true }), /Leaf: a property named "untracked" can't be given - Component keeps its untracked fields under that name/);
+    class Gauge extends Component {
+      get reading() { return 1; }
+      render() {}
+    }
+    assert.throws(() => new Gauge({ reading: 2 }), /Gauge has a getter by that name and no setter/);
+    assert.equal(new Leaf({ value: 1 }).value, 1, "other properties as before");
+  });
 });

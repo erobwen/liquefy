@@ -13,30 +13,30 @@ describe("the lifecycle of an owned component", function () {
   const global = observable({ text: "hello" });
 
   class Owned extends Component {
-    initialPlain() {
+    initialUntracked() {
       return { builds: 0, established: 0 };
     }
     onEstablish() {
       super.onEstablish();
-      this.plain.established++;
+      this.untracked.established++;
     }
     build() {
-      this.plain.builds++;
-      this.plain.text = global.text;
+      this.untracked.builds++;
+      this.untracked.text = global.text;
       return null;
     }
   }
 
   class Owner extends Component {
-    initialPlain() {
+    initialUntracked() {
       return { owned: new Owned({ key: "owned" }).establish() };
     }
     onDispose() {
-      this.plain.owned.dispose();
+      this.untracked.owned.dispose();
       super.onDispose();
     }
     build() {
-      return this.plain.owned;
+      return this.untracked.owned;
     }
   }
 
@@ -53,20 +53,20 @@ describe("the lifecycle of an owned component", function () {
     const data = observable({ showOwner: true });
     const parent = new Parent({ data });
     parent.renderOnto(context());
-    const owned = parent.currentBuild.plain.owned;
-    assert.equal(owned.plain.established, 1);
-    assert.equal(owned.plain.builds, 1);
+    const owned = parent.currentBuild.untracked.owned;
+    assert.equal(owned.untracked.established, 1);
+    assert.equal(owned.untracked.builds, 1);
 
     // Established already: nothing happens again.
     owned.establish();
-    assert.equal(owned.plain.established, 1);
+    assert.equal(owned.untracked.established, 1);
 
     // The owner is dropped - and the owned component with it: the data it
     // read changing no longer builds it.
     data.showOwner = false;
-    assert.ok(owned.plain.buildRepeater.retracted, "disposed with its owner");
+    assert.ok(owned.untracked.buildRepeater.retracted, "disposed with its owner");
     global.text = "goodbye";
-    assert.equal(owned.plain.builds, 1);
+    assert.equal(owned.untracked.builds, 1);
   });
 
   it("a component built in a build() is established by that build", function () {
@@ -99,9 +99,9 @@ describe("the lifecycle of an owned component", function () {
 });
 
 describe("development checks on components", function () {
-  it("initialPlain() may not use a name Component keeps its own bookkeeping under", function () {
+  it("initialUntracked() may not use a name Component keeps its own bookkeeping under", function () {
     class Clashing extends Component {
-      initialPlain() {
+      initialUntracked() {
         return { renderContext: "mine" };
       }
       render() {}

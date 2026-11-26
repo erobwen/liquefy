@@ -25,7 +25,7 @@ import { getCreator } from "./Component.js";
 export function callback(key, fn) {
   const creator = getCreator();
   if (!creator) return fn;
-  const u = creator.plain;
+  const u = creator.untracked;
   if (!u.callbacks) u.callbacks = new Map();
   let stable = u.callbacks.get(key);
   if (!stable) {

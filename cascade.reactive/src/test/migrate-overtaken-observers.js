@@ -30,25 +30,25 @@ import assert from "assert";
 // its case 1 needs a third rebuild) - here b.claim is nonzero, so a
 // version of cascade.js without this fix gives a final answer that is
 // simply wrong, not just less efficient.
-const { plainMeta, temporal, repeat, linkRepeater } = getWorld({ name: "migrate-overtaken-observers", timeLevels: 5 });
+const { untrackedMeta, temporal, repeat, linkRepeater } = getWorld({ name: "migrate-overtaken-observers", timeLevels: 5 });
 
 describe("migrateOvertakenObserversFor (a farther-writing dependency catches up once a closer writing shows up)", function () {
 
   const PADDING = 5;
 
   class Leaf {
-    get plain() {
-      if (!("repeater" in plainMeta(this))) {
-        Object.assign(plainMeta(this), { repeater: null, renderCount: 0, seenSpaceLeft: null });
+    get untracked() {
+      if (!("repeater" in untrackedMeta(this))) {
+        Object.assign(untrackedMeta(this), { repeater: null, renderCount: 0, seenSpaceLeft: null });
       }
-      return plainMeta(this);
+      return untrackedMeta(this);
     }
     constructor(claim) {
       this.claim = claim;
       return temporal(this);
     }
     renderOnto(target) {
-      const u = this.plain;
+      const u = this.untracked;
       if (u.repeater) {
         linkRepeater(u.repeater);
       } else {
@@ -62,20 +62,20 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
   }
 
   class Panel {
-    get plain() {
-      if (!("repeater" in plainMeta(this))) {
-        Object.assign(plainMeta(this), { repeater: null, rebuildCount: 0, a: null, b: null });
+    get untracked() {
+      if (!("repeater" in untrackedMeta(this))) {
+        Object.assign(untrackedMeta(this), { repeater: null, rebuildCount: 0, a: null, b: null });
       }
-      return plainMeta(this);
+      return untrackedMeta(this);
     }
     constructor(a, b) {
       const wrapped = temporal(this);
-      wrapped.plain.a = a;
-      wrapped.plain.b = b;
+      wrapped.untracked.a = a;
+      wrapped.untracked.b = b;
       return wrapped;
     }
     renderOnto(target) {
-      const u = this.plain;
+      const u = this.untracked;
       if (u.repeater) {
         linkRepeater(u.repeater);
       } else {
@@ -105,8 +105,8 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
 
     // b must see the space left as panel's own "between" write settles to
     // with a's fresh output - 95 - 30 - 5 = 60.
-    assert.equal(b.plain.seenSpaceLeft, 60);
-    assert.equal(b.plain.renderCount, 2);
+    assert.equal(b.untracked.seenSpaceLeft, 60);
+    assert.equal(b.untracked.renderCount, 2);
 
     // The only mathematically correct final answer: 60 - b.claim(7) -
     // PADDING(5) = 48. A version of this file's own migration logic that
@@ -119,7 +119,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     // Confirms this needed panel's own dependency to actually be
     // re-pointed and re-triggered, not just the ordinary a -> panel
     // "between" -> b cascade already covered by renderOnto.js's case 1.
-    assert.equal(panel.plain.rebuildCount, 3);
+    assert.equal(panel.untracked.rebuildCount, 3);
   });
 
   it("when the migrated value happens not to change, the migration itself does not force an extra notification", function () {
@@ -149,7 +149,7 @@ describe("migrateOvertakenObserversFor (a farther-writing dependency catches up 
     // not), without needing to cross-reference renderOnto.js to see why
     // the numbers land where they do.
     assert.equal(target.spaceLeft, 55);
-    assert.equal(panel.plain.rebuildCount, 2);
+    assert.equal(panel.untracked.rebuildCount, 2);
   });
 
 });

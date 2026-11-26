@@ -16,7 +16,7 @@ describe("Component state (initialState/setState)", function () {
       return { count: this.step * 10 };
     }
     render() {
-      this.plain.seen = this.count;
+      this.untracked.seen = this.count;
     }
   }
 
@@ -26,7 +26,7 @@ describe("Component state (initialState/setState)", function () {
     }
     render(target) {
       const counter = this.buildOneStep();
-      this.plain.counter = counter;
+      this.untracked.counter = counter;
       counter.renderOnto(target);
     }
   }
@@ -35,23 +35,23 @@ describe("Component state (initialState/setState)", function () {
     const owner = new Owner();
     owner.step = 1;
     owner.renderOnto({});
-    const counter = owner.plain.counter;
+    const counter = owner.untracked.counter;
     assert.equal(counter.step, 1);
     assert.equal(counter.count, 10);
 
     counter.count = 42; // user interaction - outside any repeater
 
     owner.step = 2; // Owner's build() reruns -> Counter reconstructed and reconciled by key
-    assert.equal(owner.plain.counter, counter, "same instance across the rebuild");
+    assert.equal(owner.untracked.counter, counter, "same instance across the rebuild");
     assert.equal(counter.step, 2, "the property follows the fresh construction");
     assert.equal(counter.count, 42, "the state does not - the rebuild's default (20) is never copied back");
-    assert.equal(counter.plain.seen, 42);
+    assert.equal(counter.untracked.seen, 42);
   });
 
   it("setState() writes state from inside another component's render(), and rejects undeclared properties", function () {
     class Frame extends Component {
       initialState() { return { assigned: null }; }
-      render() { this.plain.seen = this.assigned; }
+      render() { this.untracked.seen = this.assigned; }
     }
     class Opener extends Component {
       setProperties({ frame }) { this.frame = frame; }
@@ -64,10 +64,10 @@ describe("Component state (initialState/setState)", function () {
     opener.open = false;
     frame.renderOnto({});
     opener.renderOnto({});
-    assert.equal(frame.plain.seen, null);
+    assert.equal(frame.untracked.seen, null);
 
     opener.open = true; // Opener reruns -> writes Frame's state from inside a repeater, via setState
-    assert.equal(frame.plain.seen, "content");
+    assert.equal(frame.untracked.seen, "content");
 
     assert.throws(() => frame.setState({ notDeclared: 1 }), /not a state property/);
   });
@@ -88,7 +88,7 @@ describe("a dropped component is retracted on dispose, before any stale rerun of
       this.owner = owner; // a plain property, written into whoever's build() constructs this
     }
     build() {
-      this.plain.builds = (this.plain.builds || 0) + 1;
+      this.untracked.builds = (this.untracked.builds || 0) + 1;
       return { marker: this.owner.items.join(",") }; // throws if `owner` has been unlinked
     }
     render() {
@@ -121,11 +121,11 @@ describe("a dropped component is retracted on dispose, before any stale rerun of
     build() {
       const sibling = this.modal ? null : new Sibling({ key: "sibling", owner: this });
       const other = new Other({ key: "other" });
-      this.plain.sibling = sibling || this.plain.sibling;
+      this.untracked.sibling = sibling || this.untracked.sibling;
       return new Middle({ key: "middle", children: [sibling, other].filter(Boolean) });
     }
     render(target) {
-      const n = (this.plain.renderCount = (this.plain.renderCount || 0) + 1);
+      const n = (this.untracked.renderCount = (this.untracked.renderCount || 0) + 1);
       this.items = ["run" + n]; // unlinks the previous run's writings on dispose, `owner` included
       this.modal = n >= 2; // drops Sibling on the second run - the breakpoint flipping
       this.buildOneStep().renderOnto(target);
@@ -135,13 +135,13 @@ describe("a dropped component is retracted on dispose, before any stale rerun of
   it("Sibling's build() does not run again once Sibling is dropped, even though its stale rerun was already queued", function () {
     const gp = new Grandparent();
     gp.renderOnto({});
-    const sibling = gp.plain.sibling;
-    assert.equal(sibling.plain.builds, 1);
+    const sibling = gp.untracked.sibling;
+    assert.equal(sibling.untracked.builds, 1);
 
-    gp.plain.repeater.restart(); // no throw, no stale build()
+    gp.untracked.repeater.restart(); // no throw, no stale build()
 
-    assert.equal(sibling.plain.builds, 1, "a dropped component's stale rerun is discarded, not run");
-    assert.ok(sibling.plain.repeater.retracted, "retracted on dispose, not left to whoever rendered it");
+    assert.equal(sibling.untracked.builds, 1, "a dropped component's stale rerun is discarded, not run");
+    assert.ok(sibling.untracked.repeater.retracted, "retracted on dispose, not left to whoever rendered it");
   });
 
   it("a property assigned afterwards - from an event handler, say - is warned about: properties are given, not assigned", function () {

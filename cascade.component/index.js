@@ -1,4 +1,4 @@
-export { world, observable, temporal, deeplyObservable, isObservable, isTemporal, ensure, repeat, linkRepeater, finalize, withoutRecording, sameAsPreviousDeep, invalidateOnChange, postponeInvalidations, continueInvalidations, onTransactionEnd, meta, plainMeta, innerMeta, flush, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, state } from "./src/Cascade.js";
+export { world, observable, temporal, deeplyObservable, isObservable, isTemporal, ensure, repeat, linkRepeater, finalize, withoutRecording, sameAsPreviousDeep, invalidateOnChange, postponeInvalidations, continueInvalidations, onTransactionEnd, meta, untrackedMeta, innerMeta, flush, accessInitialValues, declareState, retractRepeater, refreshIfNeeded, state } from "./src/Cascade.js";
 export { Component, aggregateToString, componentPath, getCreator, ContextScope, contextScope } from "./src/Component.js";
 export { frozen, isPlainData } from "./src/frozen.js";
 export { callback } from "./src/callback.js";

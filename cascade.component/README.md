@@ -102,7 +102,7 @@ If a component is created by its creator the following needs to hold.
 
    Being in charge of the lifecycle means doing what the rebuild process does for components built in a build function: call `establish()` on the component where it is created (that calls its `onEstablish()`, where it can acquire external resources), and `dispose()` on it once the creator is done with it - typically in the creator's own `onDispose()`, before `super.onDispose()`. Disposing is not optional: a component that reads observable data that never changes again is never invalidated, so without `dispose()` its repeaters stay subscribed, and keep everything they built, for as long as that data lives. A component created on the top level, outside any component, is established by whoever creates it, and disposed by them if it doesn't live as long as the app does.
 
-   Create such components in `initialPlain()`, not in `initialState()`: `initialState()` also runs for the throwaway object constructed during a rebuild, so a component created and established there would be thrown away without ever being disposed. `initialPlain()` runs lazily, the first time `this.plain` is read - which, unless the constructor itself reads them, is on the established object.
+   Create such components in `initialUntracked()`, not in `initialState()`: `initialState()` also runs for the throwaway object constructed during a rebuild, so a component created and established there would be thrown away without ever being disposed. `initialUntracked()` runs lazily, the first time `this.untracked` is read - which, unless the constructor itself reads them, is on the established object.
 
 WARNING: There is a danger in combining both these methods. If a component is created during the creator's build call, it will be registered in the rebuild process, and even if the creator keeps track of a reference to the component, the rebuild system might dispose of it. 
 
@@ -126,7 +126,7 @@ Usually the answer is to drop the inner key - static structure is matched by pat
 
 A matched component is merged into the established one exactly as a keyed one is (see "State during rebuild" below): its properties copied over, its state never. The matching reads the new build through its proxies, without recording any dependencies, and matches it against a plain-data snapshot of the previous build taken at the end of each run - the previous build's own properties are retracted once it's invalidated, so they can't be read back (see cascade.reactive's "Rebuild shape analysis").
 
-One thing a key does that matching can't: references outside of what build() returns - a variable in a closure, a plain field - still point to the new, discarded twin after a match. A component referred to like that wants a key.
+One thing a key does that matching can't: references outside of what build() returns - a variable in a closure, an untracked field - still point to the new, discarded twin after a match - and so does whatever is written through them, meta() and untrackedMeta() records included. A component referred to like that wants a key.
 
 ### A dropped keyed child is gone forever
 
@@ -134,7 +134,7 @@ We do not keep keyed instances around indefinitely. If a build() call does not c
 
 If a UI genuinely needs to keep a keyed child alive - visible or not - across such a toggle, there are two ways:
 
-1. **Build the child in initialization and take full control of its own lifecycle** - the second pattern from "Building Sub Components" above: create it in `initialPlain()`, call `establish()` on it there and `dispose()` on it in your own `onDispose()`, and let build() just place it, where and when it likes - never construct it inside a build() as well.
+1. **Build the child in initialization and take full control of its own lifecycle** - the second pattern from "Building Sub Components" above: create it in `initialUntracked()`, call `establish()` on it there and `dispose()` on it in your own `onDispose()`, and let build() just place it, where and when it likes - never construct it inside a build() as well.
 2. **Keep it keyed, but hidden, using `.showIf()`.** Instead of guarding a keyed child's *construction* with an `if`, build it unconditionally every run and use `.showIf(condition)` on the result to control whether it's actually included in what build() returns:
    ```js
    buildMySubComponent().showIf(condition)
@@ -165,9 +165,9 @@ So cascade.reactive itself is aware of state properties, and treats them differe
 
 ### Implementation
 
-- `Component.initialState()` - override it to return `{name: default, ...}`. It runs in the constructor right after `setProperties()`, so a default may derive from a property. The constructor hands the result to cascade.reactive's `declareState(object, defaults)`, which marks the names as state on the object's meta and writes the defaults at the baseline position (time 0, no writer) - like construction data, not tied to whichever repeater happened to be constructing the component.
+- `Component.initialState()` - override it to return `{name: default, ...}`. It runs in the constructor right after `setProperties()`, so a default may derive from a property. The constructor hands the result to cascade.reactive's `declareState(object, defaults)`, which marks the names as state in the object's innerMeta() and writes the defaults at the baseline position (time 0, no writer) - like construction data, not tied to whichever repeater happened to be constructing the component.
 - Writing a state property from inside a repeater throws (`setHandlerObject` in cascade.reactive). Event handlers run outside any repeater and can just assign. From anywhere else, use `Component.setState({name: value})` - it wraps `accessInitialValues()`, so the write lands on the baseline writing the state already lives at, and it rejects names that were never declared.
 - During rebuild, `mergeInto()` (cascade.reactive/src/lib/utility.js) skips state properties when copying the throwaway object's properties onto the established one. That is the only gate - the constructor never tries to detect a rebuild, it just writes its defaults (they go to the throwaway, and are not copied back).
 - A dropped sub component (no longer constructed by its creator's build - keyed or matched by pattern) is retracted immediately, in `Component.onDispose()` via `retractRepeater()`, so no already-queued stale rerun of it can run first. A component overriding `onDispose()` must call `super.onDispose()`.
 
-Three kinds of fields, then: *properties* (re-set from the constructing context on every rebuild), *state* (established once, changed by the user, exempt from rebuild copying), and *plain fields* (`this.plain`, non-reactive bookkeeping).
+Three kinds of fields, then: *properties* (re-set from the constructing context on every rebuild), *state* (established once, changed by the user, exempt from rebuild copying), and *untracked fields* (`this.untracked`, non-reactive bookkeeping).

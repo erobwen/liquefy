@@ -25,8 +25,8 @@ describe("independent build repeaters", function () {
 
   class Leaf extends Component {
     render() {
-      this.plain.renderCount = (this.plain.renderCount || 0) + 1;
-      this.plain.sawTheme = this.inherit("theme");
+      this.untracked.renderCount = (this.untracked.renderCount || 0) + 1;
+      this.untracked.sawTheme = this.inherit("theme");
     }
   }
 
@@ -39,20 +39,20 @@ describe("independent build repeaters", function () {
     const parent = new Parent();
     parent.renderOnto(target, context());
 
-    const { repeater: render, buildRepeater: build } = parent.plain;
+    const { repeater: render, buildRepeater: build } = parent.untracked;
     assert.equal(build.parentRepeater, null);
     assert.notEqual(build.chainHead, render.chainHead);
     assert.equal(build.time(), render.time());
     // The render repeater's own children are just the leaf's render repeater.
     const children = repeaterChildren(render);
     assert.equal(children.length, 1);
-    assert.equal(children[0], parent.currentBuild.plain.repeater);
+    assert.equal(children[0], parent.currentBuild.untracked.repeater);
   });
 
   it("build() sees the render context's latest values, and a change there rebuilds and rerenders", function () {
     class Themed extends Component {
       build() {
-        this.plain.buildCount = (this.plain.buildCount || 0) + 1;
+        this.untracked.buildCount = (this.untracked.buildCount || 0) + 1;
         return new Leaf({ key: "leaf-" + this.inherit("theme") });
       }
     }
@@ -62,23 +62,23 @@ describe("independent build repeaters", function () {
     assert.equal(themed.currentBuild.key, "leaf-light");
 
     renderContext.provided.theme = "dark";
-    assert.equal(themed.plain.buildCount, 2);
+    assert.equal(themed.untracked.buildCount, 2);
     assert.equal(themed.currentBuild.key, "leaf-dark");
-    assert.equal(themed.currentBuild.plain.sawTheme, "dark");
+    assert.equal(themed.currentBuild.untracked.sawTheme, "dark");
   });
 
   it("a render rerun that doesn't change the build's inputs doesn't rebuild", function () {
     class Parent extends Component {
       build() {
-        this.plain.buildCount = (this.plain.buildCount || 0) + 1;
+        this.untracked.buildCount = (this.untracked.buildCount || 0) + 1;
         return new Leaf({ key: "leaf" });
       }
     }
     const parent = new Parent();
     parent.renderOnto(target, context());
-    parent.plain.repeater.restart();
-    parent.plain.repeater.restart();
-    assert.equal(parent.plain.buildCount, 1);
+    parent.untracked.repeater.restart();
+    parent.untracked.repeater.restart();
+    assert.equal(parent.untracked.buildCount, 1);
   });
 
   it("survives the component being hidden: keyed children keep their identity and state; no rebuilding while hidden", function () {
@@ -98,7 +98,7 @@ describe("independent build repeaters", function () {
     }
     class Labelled extends Component {
       build() {
-        this.plain.buildCount = (this.plain.buildCount || 0) + 1;
+        this.untracked.buildCount = (this.untracked.buildCount || 0) + 1;
         return new Counter({ key: "counter", label: model.label });
       }
     }
@@ -116,19 +116,19 @@ describe("independent build repeaters", function () {
     const labelled = new Labelled();
     const toggle = new Switch({ child: labelled });
     toggle.renderOnto(target, context());
-    const buildRepeater = labelled.plain.buildRepeater;
+    const buildRepeater = labelled.untracked.buildRepeater;
     const counter = labelled.currentBuild;
     counter.count = 5;
 
     toggle.show = false;
-    assert.ok(labelled.plain.repeater.retracted);
+    assert.ok(labelled.untracked.repeater.retracted);
     assert.ok(!buildRepeater.retracted, "the build repeater is kept");
     model.label = "b";
-    assert.equal(labelled.plain.buildCount, 1, "no rebuilding while not rendered");
+    assert.equal(labelled.untracked.buildCount, 1, "no rebuilding while not rendered");
 
     toggle.show = true;
-    assert.equal(labelled.plain.buildRepeater, buildRepeater, "the same build repeater");
-    assert.equal(labelled.plain.buildCount, 2, "revalidated once, when shown again");
+    assert.equal(labelled.untracked.buildRepeater, buildRepeater, "the same build repeater");
+    assert.equal(labelled.untracked.buildCount, 2, "revalidated once, when shown again");
     assert.equal(labelled.currentBuild, counter, "the same keyed child object");
     assert.equal(counter.count, 5, "with its state");
     assert.equal(counter.label, "b", "and its properties rebuilt from what changed while hidden");
@@ -138,7 +138,7 @@ describe("independent build repeaters", function () {
     const model = observable({ label: "x" });
     class Inner extends Component {
       build() {
-        this.plain.buildCount = (this.plain.buildCount || 0) + 1;
+        this.untracked.buildCount = (this.untracked.buildCount || 0) + 1;
         return new Leaf({ key: "leaf-" + model.label });
       }
     }
@@ -156,8 +156,8 @@ describe("independent build repeaters", function () {
     assert.ok(inner instanceof Inner);
 
     outer.includeInner = false;
-    assert.ok(inner.plain.buildRepeater.retracted);
+    assert.ok(inner.untracked.buildRepeater.retracted);
     model.label = "y";
-    assert.equal(inner.plain.buildCount, 1, "a dropped component never rebuilds again");
+    assert.equal(inner.untracked.buildCount, 1, "a dropped component never rebuilds again");
   });
 });

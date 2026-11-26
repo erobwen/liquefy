@@ -56,7 +56,7 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
     }
 
     renderNode(target, existingElement) {
-      const u = this.plain;
+      const u = this.untracked;
       const el = existingElement || target.appendElement("div");
       el.className = "menu-frame";
       if (!u.childTarget) {
@@ -69,8 +69,8 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
       // getBoundingClientRect() measurements (see cascade.application/demo
       // for the version measuring an actual browser). The point being
       // proven is the dedup behavior below, not the measurement itself.
-      u.childTarget.usableWidth = this.plain.simulatedFrameWidth - this.plain.simulatedMenuWidth;
-      u.childTarget.usableHeight = this.plain.simulatedFrameHeight;
+      u.childTarget.usableWidth = this.untracked.simulatedFrameWidth - this.untracked.simulatedMenuWidth;
+      u.childTarget.usableHeight = this.untracked.simulatedFrameHeight;
 
       this.workArea.renderOnto(u.childTarget);
 
@@ -81,9 +81,9 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   it("passes real usable bounds down to the work area after measuring the menu", function () {
     const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
-    menuFrame.plain.simulatedFrameWidth = 1000;
-    menuFrame.plain.simulatedFrameHeight = 700;
-    menuFrame.plain.simulatedMenuWidth = 220;
+    menuFrame.untracked.simulatedFrameWidth = 1000;
+    menuFrame.untracked.simulatedFrameHeight = 700;
+    menuFrame.untracked.simulatedMenuWidth = 220;
 
     menuFrame.renderOnto(root);
 
@@ -95,13 +95,13 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   it("an unrelated rebuild that produces the same usable bounds does not rerun the work area", function () {
     const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
-    menuFrame.plain.simulatedFrameWidth = 1000;
-    menuFrame.plain.simulatedFrameHeight = 700;
-    menuFrame.plain.simulatedMenuWidth = 220;
+    menuFrame.untracked.simulatedFrameWidth = 1000;
+    menuFrame.untracked.simulatedFrameHeight = 700;
+    menuFrame.untracked.simulatedMenuWidth = 220;
     menuFrame.renderOnto(root);
     assert.equal(workAreaRenderCount, 1);
 
-    menuFrame.plain.repeater.restart(); // same measurements every time
+    menuFrame.untracked.repeater.restart(); // same measurements every time
 
     assert.equal(workAreaRenderCount, 1); // reconciled quietly, no rerun
   });
@@ -109,14 +109,14 @@ describe("MenuFrame (side-by-side layout, real width measurement)", function () 
   it("a genuinely different measurement reruns the work area with the new bounds", function () {
     const root = new DOMElementTarget(container);
     const menuFrame = new MenuFrame(new Menu(), new WorkArea());
-    menuFrame.plain.simulatedFrameWidth = 1000;
-    menuFrame.plain.simulatedFrameHeight = 700;
-    menuFrame.plain.simulatedMenuWidth = 220;
+    menuFrame.untracked.simulatedFrameWidth = 1000;
+    menuFrame.untracked.simulatedFrameHeight = 700;
+    menuFrame.untracked.simulatedMenuWidth = 220;
     menuFrame.renderOnto(root);
     assert.equal(workAreaRenderCount, 1);
 
-    menuFrame.plain.simulatedFrameWidth = 800; // window resized narrower
-    menuFrame.plain.repeater.restart();
+    menuFrame.untracked.simulatedFrameWidth = 800; // window resized narrower
+    menuFrame.untracked.repeater.restart();
 
     assert.equal(seenUsableWidth, 580);
     assert.equal(workAreaRenderCount, 2);

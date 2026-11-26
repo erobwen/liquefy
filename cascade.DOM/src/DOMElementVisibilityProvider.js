@@ -43,8 +43,8 @@ export class DOMElementVisibilityProvider extends DOMNodeComponent {
     this.margin = margin || undefined;
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     result.previouslySetStyle = {};
     return result;
   }
@@ -53,7 +53,7 @@ export class DOMElementVisibilityProvider extends DOMNodeComponent {
     const element = existingElement || target.appendElement("div");
     if (existingElement) target.reattachElement(existingElement);
     element.className = this.className || "";
-    const u = this.plain;
+    const u = this.untracked;
     u.previouslySetStyle = applyStyle(element, this.style || {}, u.previouslySetStyle);
     return element;
   }
@@ -62,7 +62,7 @@ export class DOMElementVisibilityProvider extends DOMNodeComponent {
   // there is to read - not seen yet, until the observer first reports.
   render(target, context) {
     super.render(target, context);
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.childTarget) {
       u.childTarget = DOMElementTarget.forElement(u.node);
       u.childTarget.observeVisibility({ amount: this.amount, margin: this.margin });
@@ -75,12 +75,12 @@ export class DOMElementVisibilityProvider extends DOMNodeComponent {
   // Before its child is rendered again: it's built not seen.
   onShow() {
     super.onShow();
-    if (this.plain.childTarget) this.plain.childTarget.resetVisibility();
+    if (this.untracked.childTarget) this.untracked.childTarget.resetVisibility();
   }
 
   onDispose() {
     super.onDispose();
-    if (this.plain.childTarget) this.plain.childTarget.stopObservingVisibility();
+    if (this.untracked.childTarget) this.untracked.childTarget.stopObservingVisibility();
   }
 }
 

@@ -51,7 +51,7 @@ function setStyleProperty(elementStyle, property, value) {
 // (whatever this same function returned last time, or {} the first time) -
 // clears a property that's no longer present, only touches the DOM for a
 // property whose value actually changed. Returns the next `previouslySetStyle`
-// for the caller to store (typically on `this.plain`) and pass back in
+// for the caller to store (typically on `this.untracked`) and pass back in
 // next time.
 export function applyStyle(element, newStyle, previouslySetStyle) {
   const elementStyle = element.style;

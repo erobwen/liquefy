@@ -1,4 +1,4 @@
-import { observable, plainMeta, repeat, refreshIfNeeded, accessInitialValues, withoutRecording, retractRepeater } from "./Cascade.js";
+import { observable, untrackedMeta, repeat, refreshIfNeeded, accessInitialValues, withoutRecording, retractRepeater } from "./Cascade.js";
 
 /**
  * RenderContext - what a component's subtree inherits: a chain of what the
@@ -70,7 +70,7 @@ export class RenderContext {
 
   // What `name` is above this context - cached here (see the class doc).
   inheritFromAbove(name) {
-    const own = plainMeta(this);
+    const own = untrackedMeta(this);
     // Gone for good (see onDispose()): still answered - a stale read of a
     // dropped component is no reason to fail - but not cached any more:
     // nothing would ever dispose of a repeater started now.
@@ -125,11 +125,11 @@ export class RenderContext {
 
   // Its component is gone for good: so are the lookups cached on it.
   onDispose() {
-    plainMeta(this).disposed = true;
-    const cache = plainMeta(this).inheritCache;
+    untrackedMeta(this).disposed = true;
+    const cache = untrackedMeta(this).inheritCache;
     if (!cache) return;
     for (const entry of cache.values()) retractRepeater(entry.repeater);
-    plainMeta(this).inheritCache = null;
+    untrackedMeta(this).inheritCache = null;
   }
 }
 

@@ -1,4 +1,4 @@
-import { observable, plainMeta } from "../Cascade.js";
+import { observable, untrackedMeta } from "../Cascade.js";
 import { Component } from "../Component.js";
 import { RenderContext } from "../RenderContext.js";
 import assert from "assert";
@@ -27,7 +27,7 @@ describe("Component.inherit() (through the render context chain)", function () {
 
   class Leaf extends Component {
     render() {
-      this.plain.foundFrame = this.inherit("frame");
+      this.untracked.foundFrame = this.inherit("frame");
     }
   }
 
@@ -35,7 +35,7 @@ describe("Component.inherit() (through the render context chain)", function () {
     const leaf = new Leaf();
     const frame = new Frame(leaf);
     frame.renderOnto(target);
-    assert.equal(leaf.plain.foundFrame, frame);
+    assert.equal(leaf.untracked.foundFrame, frame);
     assert.equal(frame.inherit("frame"), undefined, "its own is for its children");
   });
 
@@ -44,7 +44,7 @@ describe("Component.inherit() (through the render context chain)", function () {
     const innerFrame = new Frame(leaf);
     const outerFrame = new Frame(innerFrame);
     outerFrame.renderOnto(target);
-    assert.equal(leaf.plain.foundFrame, innerFrame);
+    assert.equal(leaf.untracked.foundFrame, innerFrame);
     assert.equal(innerFrame.inherit("frame"), outerFrame, "a frame itself finds the one around it");
   });
 
@@ -64,13 +64,13 @@ describe("Component.inherit() (through the render context chain)", function () {
     frame.renderOnto(target);
     assert.equal(plain.renderContext, leaf.renderContext);
     assert.equal(leaf.renderContext.parent, RenderContext.empty);
-    assert.equal(leaf.plain.foundFrame, frame);
+    assert.equal(leaf.untracked.foundFrame, frame);
   });
 
   it("through build() as well: what a provider builds inherits from it", function () {
     class Reader extends Component {
       build() {
-        this.plain.found = this.inherit("frame");
+        this.untracked.found = this.inherit("frame");
         return null;
       }
     }
@@ -84,7 +84,7 @@ describe("Component.inherit() (through the render context chain)", function () {
     }
     const frame = new BuildingFrame();
     frame.renderOnto(target);
-    assert.equal(frame.currentBuild.plain.found, frame);
+    assert.equal(frame.currentBuild.untracked.found, frame);
   });
 
   it("a getter provided follows what it reads", function () {
@@ -104,11 +104,11 @@ describe("Component.inherit() (through the render context chain)", function () {
       }
     }
     class Reader extends Component {
-      initialPlain() {
+      initialUntracked() {
         return { seen: [] };
       }
       build() {
-        this.plain.seen.push(this.inherit("color"));
+        this.untracked.seen.push(this.inherit("color"));
         return null;
       }
     }
@@ -116,18 +116,18 @@ describe("Component.inherit() (through the render context chain)", function () {
     const source = new Source({ child: reader });
     source.renderOnto(target);
     source.color = "blue";
-    assert.deepEqual(reader.plain.seen, ["red", "blue"]);
+    assert.deepEqual(reader.untracked.seen, ["red", "blue"]);
   });
 
   it("a provider removed upstream: the context below is re-pointed, not replaced - and only a different result is followed", function () {
     const data = observable({ withMiddle: true });
     class Reader extends Component {
-      initialPlain() {
+      initialUntracked() {
         return { builds: 0, found: null };
       }
       build() {
-        this.plain.builds++;
-        this.plain.found = this.inherit("frame");
+        this.untracked.builds++;
+        this.untracked.found = this.inherit("frame");
         return null;
       }
     }
@@ -169,26 +169,26 @@ describe("Component.inherit() (through the render context chain)", function () {
     }
     const root = new Root();
     root.renderOnto(target);
-    const innerContext = inner.plain.ownContext;
-    assert.equal(reader.plain.found, root);
-    assert.equal(innerContext.parent, middle.plain.ownContext);
-    assert.equal(reader.plain.builds, 1);
+    const innerContext = inner.untracked.ownContext;
+    assert.equal(reader.untracked.found, root);
+    assert.equal(innerContext.parent, middle.untracked.ownContext);
+    assert.equal(reader.untracked.builds, 1);
 
     data.withMiddle = false;
-    assert.equal(inner.plain.ownContext, innerContext, "the same context");
-    assert.equal(innerContext.parent, root.plain.ownContext, "re-pointed");
-    assert.equal(reader.plain.found, root);
-    assert.equal(reader.plain.builds, 1, "found the same frame - nothing to rebuild");
+    assert.equal(inner.untracked.ownContext, innerContext, "the same context");
+    assert.equal(innerContext.parent, root.untracked.ownContext, "re-pointed");
+    assert.equal(reader.untracked.found, root);
+    assert.equal(reader.untracked.builds, 1, "found the same frame - nothing to rebuild");
   });
 
   it("a nearer provider removed upstream: what's below finds the next one up, and follows", function () {
     const data = observable({ withMiddle: true });
     class Reader extends Component {
-      initialPlain() {
+      initialUntracked() {
         return { found: [] };
       }
       build() {
-        this.plain.found.push(this.inherit("frame"));
+        this.untracked.found.push(this.inherit("frame"));
         return null;
       }
     }
@@ -218,9 +218,9 @@ describe("Component.inherit() (through the render context chain)", function () {
     const root = new Root();
     root.renderOnto(target);
     data.withMiddle = false;
-    assert.deepEqual(reader.plain.found, [middle, root]);
+    assert.deepEqual(reader.untracked.found, [middle, root]);
     data.withMiddle = true;
-    assert.deepEqual(reader.plain.found, [middle, root, middle]);
+    assert.deepEqual(reader.untracked.found, [middle, root, middle]);
   });
 
   it("returns undefined when nothing provides it - and refuses before it's in the tree", function () {
@@ -236,7 +236,7 @@ describe("Component.inherit() (through the render context chain)", function () {
   it("the root context provides what it's given", function () {
     const leaf = new Leaf();
     leaf.renderOnto(target, new RenderContext({ frame: "root frame" }));
-    assert.equal(leaf.plain.foundFrame, "root frame");
+    assert.equal(leaf.untracked.foundFrame, "root frame");
   });
 });
 
@@ -245,11 +245,11 @@ describe("a disposed render context", function () {
     const root = new RenderContext({ frame: "root frame" });
     const context = new RenderContext({ other: 1 }, root);
     assert.equal(context.inherit("frame"), "root frame");
-    const cached = plainMeta(context).inheritCache.size;
+    const cached = untrackedMeta(context).inheritCache.size;
     context.onDispose();
     assert.equal(context.inherit("frame"), "root frame");
     assert.equal(context.inherit("somethingElse"), undefined);
-    assert.equal(plainMeta(context).inheritCache, null, "nothing cached on it again");
+    assert.equal(untrackedMeta(context).inheritCache, null, "nothing cached on it again");
     assert.ok(cached > 0);
   });
 

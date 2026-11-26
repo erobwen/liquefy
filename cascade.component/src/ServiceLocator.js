@@ -168,7 +168,7 @@ export function hydrateService(query, fallbackLocator) {
 function rootKey() {
   const creator = getCreator();
   if (!creator) return "h";
-  const u = creator.plain;
+  const u = creator.untracked;
   if (u.hydratedInBuild !== u.callbackBuild) {
     u.hydratedInBuild = u.callbackBuild;
     u.hydrated = 0;

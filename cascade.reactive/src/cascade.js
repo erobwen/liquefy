@@ -170,7 +170,7 @@ function createWorld(configuration) {
 
     // Metadata
     meta,
-    plainMeta,
+    untrackedMeta,
     innerMeta,
 
     // Transaction
@@ -412,8 +412,10 @@ function createWorld(configuration) {
    *   interface reads - the value last saved, whether it is being saved, an
    *   error, whether it is loaded.
    *
-   *   plainMeta(object, [property]) is a plain object: for bookkeeping that
-   *   must not be observed - a component's plain fields (this.plain), the handle to
+   *   untrackedMeta(object, [property]) is an untracked record: a plain
+   *   object, never observed (not meta() read without tracking, but a
+   *   record of its own). For bookkeeping that must not be observed - a
+   *   component's untracked fields (this.untracked), the handle to
    *   disconnect an observer with.
    *
    *   Cascade decides no field of either. Put values, plain objects or
@@ -453,14 +455,14 @@ function createWorld(configuration) {
   // repeater must not be that repeater's, gone (or taken for a rebuilt
   // one) when it reruns.
   const createObservableRecord = () => accessInitialValues(() => observable({}));
-  const createPlainRecord = () => ({});
+  const createUntrackedRecord = () => ({});
 
   function meta(object, property) {
     return metaRecord("meta", object, property, arguments.length >= 2, "objectMetadata", "propertyMetadata", createObservableRecord);
   }
 
-  function plainMeta(object, property) {
-    return metaRecord("plainMeta", object, property, arguments.length >= 2, "plainObjectMetadata", "plainPropertyMetadata", createPlainRecord);
+  function untrackedMeta(object, property) {
+    return metaRecord("untrackedMeta", object, property, arguments.length >= 2, "untrackedObjectMetadata", "untrackedPropertyMetadata", createUntrackedRecord);
   }
 
   function withoutReactionsDo(callback) {

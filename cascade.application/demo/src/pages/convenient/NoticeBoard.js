@@ -7,7 +7,7 @@ import { button, card, column, themeColor } from "@liquefy/cascade.ui";
 // a build(), so it's this board that establishes it and disposes of it (see
 // Component.establish()).
 export class NoticeBoard extends Component {
-  initialPlain() {
+  initialUntracked() {
     return {
       board: portal(
         { style: { padding: "12px", minHeight: "150px", border: "1px dashed " + themeColor.border, borderRadius: "8px" } },
@@ -17,19 +17,19 @@ export class NoticeBoard extends Component {
   }
 
   onDispose() {
-    this.plain.board.dispose();
+    this.untracked.board.dispose();
     super.onDispose();
   }
 
   // Found by inherit("noticeBoard") from anywhere below.
   provide() {
-    return { noticeBoard: this.plain.board };
+    return { noticeBoard: this.untracked.board };
   }
 
   build() {
     return card(
       { style: { display: "flex", flexDirection: "column", gap: "12px" } },
-      this.plain.board,
+      this.untracked.board,
       div({ style: { padding: "12px", border: "1px dashed " + themeColor.border, borderRadius: "8px" } },
         div({ style: { padding: "12px", border: "1px dashed " + themeColor.border, borderRadius: "8px" } },
           new Poster())),

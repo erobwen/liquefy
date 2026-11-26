@@ -49,8 +49,8 @@ export class OverflowContainer extends DOMPlacingContainer {
     this.onOverflow = onOverflow || null;
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     result.nodes = [];
     result.ellipsisNodes = [];
     result.overflowCount = 0;
@@ -63,7 +63,7 @@ export class OverflowContainer extends DOMPlacingContainer {
 
   render(target, context) {
     super.render(target, context);
-    const u = this.plain;
+    const u = this.untracked;
     // Read, so that a resize (a bounds provider around it measuring the
     // element it's placed in) lays it out again - though the room itself
     // is measured on its own element.
@@ -86,7 +86,7 @@ export class OverflowContainer extends DOMPlacingContainer {
   // rest in the overflow slot. Only DOM work - so it can run on its own too,
   // when a node changes size (see observe()).
   layout() {
-    const u = this.plain;
+    const u = this.untracked;
     const row = u.node;
     const nodes = u.nodes;
     const overflowTarget = this.overflowSlot ? this.overflowSlot.ensureNode() : null;
@@ -147,7 +147,7 @@ export class OverflowContainer extends DOMPlacingContainer {
   // moment after it was added, say - is. (Called by the observer, outside
   // any rendering - a plain event, like a click.)
   observe(node) {
-    const u = this.plain;
+    const u = this.untracked;
     if (typeof(ResizeObserver) === "undefined" || node.nodeType !== 1 || u.sizes.has(node)) return;
     if (!u.observer) {
       u.observer = new ResizeObserver((entries) => {
@@ -173,7 +173,7 @@ export class OverflowContainer extends DOMPlacingContainer {
   // there, the nodes of children no longer shown (or no longer alive) - and
   // put back when the row is.
   emptyOverflowSlot() {
-    const slotNode = this.plain.overflowTarget;
+    const slotNode = this.untracked.overflowTarget;
     if (slotNode) this.placeInOrder(slotNode, []);
   }
 
@@ -184,13 +184,13 @@ export class OverflowContainer extends DOMPlacingContainer {
 
   onReattach(target) {
     super.onReattach(target);
-    if (this.plain.node) this.layout();
+    if (this.untracked.node) this.layout();
   }
 
   onDispose() {
     this.emptyOverflowSlot();
     super.onDispose();
-    const u = this.plain;
+    const u = this.untracked;
     if (u.observer) u.observer.disconnect();
     u.observed.clear();
   }
@@ -221,14 +221,14 @@ export class DOMElementSlot extends DOMNodeComponent {
     this.style = frozen(style || null);
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     result.previouslySetStyle = {};
     return result;
   }
 
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.node) u.node = document.createElement("div");
     u.previouslySetStyle = applyStyle(u.node, this.style || {}, u.previouslySetStyle);
     return u.node;

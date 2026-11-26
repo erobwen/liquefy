@@ -89,7 +89,7 @@ function noteBuild(component) {
 // A yellow outline, fading - on the element a component built.
 function flash(component) {
   const built = component.currentBuild;
-  const node = built && built.plain && built.plain.node;
+  const node = built && built.untracked && built.untracked.node;
   if (!node || !node.isConnected || typeof(node.animate) !== "function") return;
   node.animate(
     [

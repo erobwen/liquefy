@@ -76,7 +76,7 @@ render(target, context) {
 **Rule.** A component constructed in a `build()` is established and disposed
 by that build: when a rebuild doesn't construct it again, it is disposed.
 Anything a component owns outside its build - created in
-`initialPlain()` - must be established and disposed by the component
+`initialUntracked()` - must be established and disposed by the component
 itself. Never both build a component and keep it by reference.
 
 **Why.** The rebuild only knows what it constructed. Something it didn't
@@ -91,16 +91,16 @@ changes again, nothing ever invalidates it).
 // Wrong: built here AND kept - the first build without it disposes it
 // out from under the reference.
 build() {
-  this.plain.board = this.plain.board || portal({ key: "board" });
-  return div(this.showBoard ? this.plain.board : null);
+  this.untracked.board = this.untracked.board || portal({ key: "board" });
+  return div(this.showBoard ? this.untracked.board : null);
 }
 
 // Right: owned - created, established and disposed by the owner.
-initialPlain() {
+initialUntracked() {
   return { board: portal({ key: "board" }).establish() };
 }
 onDispose() {
-  this.plain.board.dispose();
+  this.untracked.board.dispose();
   super.onDispose();
 }
 ```
@@ -111,7 +111,7 @@ doesn't live as long as the app.
 
 ## 11.4 Content components passed as properties: fine, but state belongs to the component
 
-**Rule.** A parent may keep components (in plain fields, owned as in 11.3)
+**Rule.** A parent may keep components (in untracked fields, owned as in 11.3)
 and pass them as properties - "content" components handed to layout
 components - and the layout places them. The content component's state
 lives in the content component, not in the layout. A component of a
@@ -128,7 +128,7 @@ a model the components read.
 // The owner keeps both editors (owned as in 10.3), and hands one to the
 // layout - `layout` here stands for a layout component of your own:
 build() {
-  return layout({ content: this.mode === "text" ? this.plain.textEditor : this.plain.sheetEditor });
+  return layout({ content: this.mode === "text" ? this.untracked.textEditor : this.untracked.sheetEditor });
 }
 ```
 
@@ -257,16 +257,16 @@ A component merely not rendered for a while (its page switched away from)
 keeps its build and its keyed children; only its builder dropping it
 disposes it.
 
-## 11.10 Create owned components in initialPlain(), not initialState()
+## 11.10 Create owned components in initialUntracked(), not initialState()
 
-**Rule.** A component you own (11.3) is created in `initialPlain()`
+**Rule.** A component you own (11.3) is created in `initialUntracked()`
 - not in `initialState()`, the constructor or `setProperties()`.
 
 **Why.** `initialState()` (like the constructor and `setProperties()`) runs
 for the throwaway twin of every rebuild too; a component created and
 established there is thrown away without being disposed.
-`initialPlain()` runs lazily, on the established object (unless the
-constructor itself reads `this.plain`), and at the baseline.
+`initialUntracked()` runs lazily, on the established object (unless the
+constructor itself reads `this.untracked`), and at the baseline.
 
 ## 11.11 Override hooks call super
 
@@ -298,7 +298,7 @@ Details that bite:
 
 - `callback()` only works inside a `build()` - it's kept by the component
   whose build is running. Called anywhere else (an event handler,
-  `initialPlain()`, `render()`) it just returns `fn`.
+  `initialUntracked()`, `render()`) it just returns `fn`.
 - A component with the default `setProperties()` compares every property by
   identity - `view()` components included. A `style: { ... }` literal
   passed to one rebuilds it every time. Override `setProperties()` and
@@ -320,7 +320,7 @@ there.
 ## 11.14 References outside the build result want a key
 
 **Rule.** If you keep a reference to a component you construct in a build (in
-a closure or a plain field), key it.
+a closure or an untracked field), key it.
 
 **Why.** On a pattern match, only references in what the build returned are
 redirected to the established component. Others still point to the
@@ -370,42 +370,42 @@ and `onDispose()`, and cascade.reactive's `refresh()`, `dispose()` and
   contents). (Previously such a child, inside a FlipAnimationContainer,
   built once more after its creator was gone, with undefined properties.)
 
-## 11.17 What initialPlain() returns is copied
+## 11.17 What initialUntracked() returns is copied
 
-**Rule.** In closures made in `initialPlain()`, read through
-`this.plain`, not the object you return. Don't use the names
+**Rule.** In closures made in `initialUntracked()`, read through
+`this.untracked`, not the object you return. Don't use the names
 Component keeps there itself.
 
-**Why.** `this.plain` is a copy of the object `initialPlain()`
-returns (`Object.assign({ repeater: null }, own)`), not that object. A
+**Why.** `this.untracked` is `untrackedMeta(this)`, with the fields of the object
+`initialUntracked()` returns copied into it - not that object itself. A
 closure that captures the returned object never sees what's written to
-`this.plain` later - by `build()`, say.
+`this.untracked` later - by `build()`, say.
 
 ```js
-initialPlain() {
+initialUntracked() {
   const u = { settings: null };
   // Wrong: reads the original object - build()'s write never reaches it.
   // u.isWide = () => u.settings.wide;
-  u.isWide = () => this.plain.settings.wide;
+  u.isWide = () => this.untracked.settings.wide;
   return u;
 }
 
 build() {
-  this.plain.settings = settingsFor("editor", { wide: false });
+  this.untracked.settings = settingsFor("editor", { wide: false });
   ...
 }
 ```
 
 Found in Tabula: an editor's editing functions, made in
-`initialPlain()`, read settings the build put on `this.plain`
+`initialUntracked()`, read settings the build put on `this.untracked`
 - and found `null`, throwing on the first Enter.
 
 Reserved names (`repeater`, `buildRepeater`, `renderTarget`,
 `renderContext`, `renderParent`, `ownContext`, `childContext`,
 `renderTimeless`, `pullingComponent`, `callbacks`, `callbackBuild`,
 `hydrated`, `hydratedInBuild`) throw when returned from
-`initialPlain()`. Writing one later, directly on
-`this.plain`, isn't caught - and breaks the component.
+`initialUntracked()`. Writing one later, directly on
+`this.untracked`, isn't caught - and breaks the component.
 
 ## 11.18 One property, one writing pipeline: don't write shared state from build()
 
@@ -439,7 +439,7 @@ build() {
 onclick: callback("show", () => { model.lastShown = this.item.id; })
 ```
 
-Writes to the component's *own* bookkeeping go in `this.plain`,
+Writes to the component's *own* bookkeeping go in `this.untracked`,
 which isn't observable and has no such rule.
 
 ## 11.19 A write in an event handler re-renders before the handler returns
@@ -566,7 +566,7 @@ of the component whose build is running. That's what lets a theme restyle a
 `button`, a theme switch rebuild exactly what used it, and another platform
 (prerendering) supply its own elements. Constructed directly, a component
 bypasses all of that. Called outside any build - at module level, in an
-event handler, in `initialPlain()` read from a render - a factory
+event handler, in `initialUntracked()` read from a render - a factory
 has no context to look in (or another component's): an HTML tag falls back
 to the plain DOM element, and a themed widget to the debug placeholder (a
 visible warning box), whatever theme the app has. To make something
@@ -597,7 +597,7 @@ export class Gauge extends DOMNodeComponent {
     this.value = value;
   }
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.node) {
       u.node = document.createElement("div");
       u.listening = new AbortController();
@@ -607,7 +607,7 @@ export class Gauge extends DOMNodeComponent {
     return u.node;
   }
   onDispose() {
-    if (this.plain.listening) this.plain.listening.abort();
+    if (this.untracked.listening) this.untracked.listening.abort();
     super.onDispose();
   }
 }
@@ -637,10 +637,10 @@ onEstablish() {
   super.onEstablish();
   const keys = (event) => { if ((event.ctrlKey || event.metaKey) && event.key === "s") { event.preventDefault(); this.save(); } };
   document.addEventListener("keydown", keys, true);
-  this.plain.removeKeys = () => document.removeEventListener("keydown", keys, true);
+  this.untracked.removeKeys = () => document.removeEventListener("keydown", keys, true);
 }
 onDispose() {
-  if (this.plain.removeKeys) this.plain.removeKeys();
+  if (this.untracked.removeKeys) this.untracked.removeKeys();
   super.onDispose();
 }
 ```

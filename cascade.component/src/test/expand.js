@@ -65,12 +65,12 @@ describe("expand / enterTree", function () {
 
     for (const component of [top, middle, leaf]) {
       assert.equal(component.renderContext, renderContext);
-      assert.equal(component.plain.renderTarget, target);
+      assert.equal(component.untracked.renderTarget, target);
     }
-    assert.equal(top.plain.renderParent, owner);
-    assert.equal(middle.plain.renderParent, top);
-    assert.equal(leaf.plain.renderParent, middle);
-    assert.equal(top.plain.repeater, null, "entered the tree, not rendered - no render repeater");
+    assert.equal(top.untracked.renderParent, owner);
+    assert.equal(middle.untracked.renderParent, top);
+    assert.equal(leaf.untracked.renderParent, middle);
+    assert.equal(top.untracked.repeater, null, "entered the tree, not rendered - no render repeater");
   });
 
   it("a build reads the provided context - and rebuilds when it changes", function () {

@@ -8,11 +8,11 @@ describe("Component.fromTarget()", function () {
   const measuredTarget = (width) => observable({ lastChild: null, timeless: observable({ width }) });
 
   class Reader extends Component {
-    initialPlain() {
+    initialUntracked() {
       return { seen: [] };
     }
     build() {
-      this.plain.seen.push(this.fromTarget("width"));
+      this.untracked.seen.push(this.fromTarget("width"));
       return null;
     }
   }
@@ -30,12 +30,12 @@ describe("Component.fromTarget()", function () {
     new Parent().renderOnto({ name: "root" });
     a.timeless.width = 120;
     state.onA = false;
-    assert.deepEqual(reader.plain.seen, [100, 120, 300]);
+    assert.deepEqual(reader.untracked.seen, [100, 120, 300]);
   });
 
   it("undefined on a target with no timeless side", function () {
     const reader = new Reader();
     reader.renderOnto({ name: "plain" });
-    assert.deepEqual(reader.plain.seen, [undefined]);
+    assert.deepEqual(reader.untracked.seen, [undefined]);
   });
 });

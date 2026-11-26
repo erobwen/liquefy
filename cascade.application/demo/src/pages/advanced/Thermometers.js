@@ -20,7 +20,7 @@ export class Thermometers extends Component {
   }
 
   render(target) {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.nodes) u.nodes = [];
     while (u.nodes.length < this.count) u.nodes.push(document.createElement("div"));
     while (u.nodes.length > this.count) u.nodes.pop().remove();
@@ -30,7 +30,7 @@ export class Thermometers extends Component {
 
   place(target) {
     let previous = target.lastChild; // what was rendered just before
-    for (const node of this.plain.nodes) {
+    for (const node of this.untracked.nodes) {
       const next = previous ? previous.nextSibling : target.element.firstChild;
       // Touch the real DOM only when it's not already in place.
       if (next !== node) target.element.insertBefore(node, next);
@@ -42,12 +42,12 @@ export class Thermometers extends Component {
   // Not rendered for a while (see DOMNodeComponent, which does the
   // same for one node): take the nodes out - and put them back, in place.
   onRetract() {
-    for (const node of this.plain.nodes || []) node.remove();
+    for (const node of this.untracked.nodes || []) node.remove();
     super.onRetract();
   }
 
   onReattach(target) {
-    if (this.plain.nodes) this.place(target);
+    if (this.untracked.nodes) this.place(target);
     super.onReattach(target);
   }
 }

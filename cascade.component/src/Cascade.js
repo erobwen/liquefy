@@ -30,7 +30,7 @@ export const {
   continueInvalidations,
   onTransactionEnd,
   meta,
-  plainMeta,
+  untrackedMeta,
   innerMeta,
   flush,
   accessInitialValues,

@@ -32,14 +32,14 @@ export class TextInput extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.node) u.node = this.createTextarea();
     return u.node;
   }
 
   // Done with: its listeners, and its textarea, gone.
   onDispose() {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.listening) u.listening.abort();
     u.listening = null;
     if (u.node) u.node.remove();
@@ -62,7 +62,7 @@ export class TextInput extends DOMNodeComponent {
     // Every listener below, removed in one go when it's disposed.
     // The textarea's own window's: an element only takes a signal from there.
     const listening = new textarea.ownerDocument.defaultView.AbortController();
-    this.plain.listening = listening;
+    this.untracked.listening = listening;
     const options = { signal: listening.signal };
 
     const send = (command) => {
@@ -97,12 +97,12 @@ export class TextInput extends DOMNodeComponent {
   }
 
   focus() {
-    const node = this.plain.node;
+    const node = this.untracked.node;
     if (node) node.focus({ preventScroll: true });
   }
 
   isFocused() {
-    const node = this.plain.node;
+    const node = this.untracked.node;
     return !!node && node.ownerDocument.activeElement === node;
   }
 
@@ -112,7 +112,7 @@ export class TextInput extends DOMNodeComponent {
   // measured, and it's moved by what it missed. Off in a box that clips,
   // typing would scroll that box to it.
   moveTo(left, top) {
-    const node = this.plain.node;
+    const node = this.untracked.node;
     if (!node) return;
     node.style.left = left + "px";
     node.style.top = top + "px";

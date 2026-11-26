@@ -187,7 +187,7 @@ export class GraphView extends DOMNodeComponent {
   }
 
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.node) {
       u.node = document.createElement("div");
       Object.assign(u.node.style, { width: "100%", height: "100%", position: "absolute", inset: "0" });
@@ -352,7 +352,7 @@ export class GraphView extends DOMNodeComponent {
   }
 
   onDispose() {
-    const u = this.plain;
+    const u = this.untracked;
     u.layout?.stop();
     if (u.layoutFrame) cancelAnimationFrame(u.layoutFrame);
     u.resizeObserver?.disconnect();

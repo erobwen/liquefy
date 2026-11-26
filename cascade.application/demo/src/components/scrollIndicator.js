@@ -28,14 +28,14 @@ class IndicatedScroll extends DOMNodeComponent {
     this.style = frozen(style || null);
   }
 
-  initialPlain() {
-    return { ...super.initialPlain(), previouslySetStyle: {} };
+  initialUntracked() {
+    return { ...super.initialUntracked(), previouslySetStyle: {} };
   }
 
   // Rendered, never placed by someone else (renderNode(), not
   // ensureNode()): it renders its child itself.
   renderNode(target, existingElement) {
-    const u = this.plain;
+    const u = this.untracked;
     const element = existingElement || target.appendElement("div");
     if (existingElement) target.reattachElement(existingElement);
     if (!u.scroller) {
@@ -63,7 +63,7 @@ class IndicatedScroll extends DOMNodeComponent {
 
   render(target, context) {
     super.render(target, context);
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.scroller);
     this.child.renderOnto(u.childTarget, context);
     // What's in it, followed too - its own size is what there is to scroll.
@@ -77,7 +77,7 @@ class IndicatedScroll extends DOMNodeComponent {
   }
 
   drawThumb() {
-    const { scroller, thumb } = this.plain;
+    const { scroller, thumb } = this.untracked;
     const view = scroller.clientHeight;
     const all = scroller.scrollHeight;
     const scrolls = all > view + 1;
@@ -94,7 +94,7 @@ class IndicatedScroll extends DOMNodeComponent {
   }
 
   onDispose() {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.observer) u.observer.disconnect();
     if (u.scroller) u.scroller.removeEventListener("scroll", u.update);
     super.onDispose();

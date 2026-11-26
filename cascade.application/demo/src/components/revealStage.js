@@ -97,7 +97,7 @@ class RevealStage extends FlipAnimationContainer {
   }
 
   reserveRoom(placements) {
-    const element = this.plain.node;
+    const element = this.untracked.node;
     const least = this.style && typeof(this.style.minHeight) !== "undefined" ? defaultToPx(this.style.minHeight, "minHeight") : "";
     element.style.minHeight = least;
     if (!this.trial || !element.isConnected) return;
@@ -110,8 +110,8 @@ class RevealStage extends FlipAnimationContainer {
       }
     }
     for (const [slot, piece] of this.trial) {
-      const slotNode = slot.plain.node;
-      const pieceNode = piece.plain.node;
+      const slotNode = slot.untracked.node;
+      const pieceNode = piece.untracked.node;
       if (slotNode && pieceNode) slotNode.appendChild(pieceNode);
     }
     element.style.minHeight = element.offsetHeight + "px";

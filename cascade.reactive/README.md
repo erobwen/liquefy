@@ -130,12 +130,12 @@ A repeater that reads a property of a timeless object and then writes another va
 
 Metadata is what is known about an object, or about one of its properties, beyond its value - the value last saved, whether it is being saved, an error, whether it is loaded. It is kept beside the object, so that the object keeps the shape it would have without it, and it is shared by everything that shows the object. There are two kinds of record, each for the object as a whole or for one of its properties:
 
-    meta(object)                  // observable record about the object
-    meta(object, property)        // observable record about one property
-    plainMeta(object)             // plain record about the object
-    plainMeta(object, property)   // plain record about one property
+    meta(object)                      // observable record about the object
+    meta(object, property)            // observable record about one property
+    untrackedMeta(object)             // untracked record about the object
+    untrackedMeta(object, property)   // untracked record about one property
 
-Each is empty until something is put in it, made the first time it is asked for, and the same ever after. meta() is for what the user interface reads, and is observed like any observable; plainMeta() is for bookkeeping that must not be observed (cascade.component keeps a component's plain fields, this.plain, there). cascade.reactive decides no field of either: put values, plain objects or observables in them. A layer that wants a corner of its own keeps one object under a name of its own.
+Each is empty until something is put in it, made the first time it is asked for, and the same ever after. meta() is for what the user interface reads, and is observed like any observable; untrackedMeta() is a plain object, never observed - not meta() read without tracking, but a record of its own - for bookkeeping that must not be observed (cascade.component keeps a component's untracked fields, this.untracked, there - so on a component, the names Component keeps there itself, such as repeater and renderTarget, are taken). cascade.reactive decides no field of either: put values, plain objects or observables in them. A layer that wants a corner of its own keeps one object under a name of its own.
 
     Object.assign(meta(contact, "email"), { saved: contact.email, saving: 0 });
     meta(document).sync = observable({ loaded: "unloaded" });
@@ -265,7 +265,7 @@ onEstablish and onDispose are called on an object built in a rebuild when it is 
 
 ## innerMeta(object).rebuildTwin
 
-The re building mechanism internally uses a forwarding mechanism that can be used directly - the one place where you write to innerMeta(). To use it, simply type innerMeta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. Note that the forwarding disregards the inner metadata of the object that is reached by innerMeta(myObject). As a consequence of this, innerMeta(object).id cannot be relied upon when forwarding is used, such as in a rebuilding scenario. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
+The re building mechanism internally uses a forwarding mechanism that can be used directly - the one place where you write to innerMeta(). To use it, simply type innerMeta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. innerMeta(myObject) itself is never forwarded: it stays myObject's own, id included. A getter, though, runs on the object it is forwarded to, so inside a getter `this` is otherObject, and innerMeta(this).id is otherObject's id - in a rebuild, the temporary twin's. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.
 
 
 ## transaction

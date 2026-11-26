@@ -61,7 +61,7 @@ export class Paragraph extends Component {
     throw new Error(this.constructor.name + " must implement content()");
   }
 
-  initialPlain() {
+  initialUntracked() {
     // `breaks`/`placements`: how many times each step has run - bookkeeping
     // to see what a change actually did.
     return { lineRepeater: null, breaks: 0, placements: 0 };
@@ -71,7 +71,7 @@ export class Paragraph extends Component {
   // Frozen: broken the same as before, it's the same value, and placing it
   // has nothing to redo.
   breakLines() {
-    this.plain.breaks++;
+    this.untracked.breaks++;
     const { spaceBefore = 0, spaceAfter = 0, ...content } = this.content();
     return frozen({
       spaceBefore,
@@ -87,7 +87,7 @@ export class Paragraph extends Component {
   // first. Never retracted while the paragraph is merely not rendered, only
   // when it's dropped (onDispose()).
   brokenLines() {
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.lineRepeater) {
       u.lineRepeater = repeat(() => {
         this.lineLayout = this.breakLines();
@@ -105,7 +105,7 @@ export class Paragraph extends Component {
   // Step 2: placing the lines.
   render(sequence) {
     const { spaceBefore, spaceAfter, lines } = this.brokenLines();
-    this.plain.placements++;
+    this.untracked.placements++;
     const format = this.format;
     const bottom = format.height - format.margins.bottom;
     let { page, y, atPageTop } = sequence.flow;
@@ -138,7 +138,7 @@ export class Paragraph extends Component {
   }
 
   onDispose() {
-    const u = this.plain;
+    const u = this.untracked;
     if (u.lineRepeater) retractRepeater(u.lineRepeater);
     super.onDispose();
   }

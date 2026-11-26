@@ -228,7 +228,7 @@ Cascade has this as `meta()`, in cascade.reactive.
 
 `meta(object)` is an observable record about the object, and `meta(object, property)` one about a single property. Each is empty until something is put in it, and made the first time it is asked for, so objects and properties that nobody asks about cost nothing. The form field example keeps its saved values, counts of saves in flight, locks and errors in the property records.
 
-`plainMeta(object)` and `plainMeta(object, property)` are the same records as plain objects, for bookkeeping that must not be observed. Cascade's components keep their plain fields (`this.plain`) there.
+`untrackedMeta(object)` and `untrackedMeta(object, property)` are the same records as plain objects, for bookkeeping that must not be observed. Cascade's components keep their untracked fields (`this.untracked`) there.
 
 Cascade's own bookkeeping (the object's id, its target, its handler) is kept apart, in `innerMeta(object)`, so that no name in the records is reserved. It is the one property a Cascade proxy answers itself instead of passing on to its target, under a configurable name, by default one that application data is unlikely to use (`object.cascadeMetadataObject`). `innerMeta()` is the way to reach it.
 
@@ -238,7 +238,7 @@ A layer that needs state of its own about an object keeps it under a name of its
 meta(document).sync.loaded         // "unloaded" | "loading" | "loaded"
 meta(document).sync.saving         // changes sent and not yet confirmed
 meta(document).sync.subscriptions  // subscriptions holding it (section 3.7)
-plainMeta(document).store          // the store it belongs to (section 3.8)
+untrackedMeta(document).store          // the store it belongs to (section 3.8)
 meta(document, "title").saved  // the last value the server confirmed
 meta(document, "title").error
 ```
@@ -522,7 +522,7 @@ A client may hold thousands of objects that mirror server objects. Every change 
 
 Observing each object individually would be wasteful. Instead, objects belong to a store.
 
-A store is a server-local or client-local object (section 2.3) that receives a notification on every change to every object that belongs to it. The object's metadata names its store (`plainMeta(object).store`).
+A store is a server-local or client-local object (section 2.3) that receives a notification on every change to every object that belongs to it. The object's metadata names its store (`untrackedMeta(object).store`).
 
 On a client, the store:
 
@@ -1993,7 +1993,7 @@ Establish the basic security and subscription model.
 
 In order:
 
-1. In Cascade: `meta()`, `plainMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
+1. In Cascade: `meta()`, `untrackedMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
 2. An object layer on the store: persistent objects as proxies, one instance per identity, classes registered by name, and a server store that turns each transaction into one Frozen transaction and a change set.
 3. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
 4. Selections and `load`, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7).

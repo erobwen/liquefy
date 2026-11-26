@@ -214,10 +214,10 @@ export class AdvancedUsagePage extends Component {
       ),
       h3("2. Take full control"),
       p(
-        "Create them yourself, once, in ", name("initialPlain()"), " - and since no build ",
+        "Create them yourself, once, in ", name("initialUntracked()"), " - and since no build ",
         "does it for you, call ", name("establish()"), " on them there, and ", name("dispose()"), " in ",
         "your own ", name("onDispose()"), ". Skip the dispose, and a child reading data that never changes ",
-        "again is never invalidated - it holds on to all it built and subscribed to, for good. Plain fields (this.plain), because ",
+        "again is never invalidated - it holds on to all it built and subscribed to, for good. Untracked fields (this.untracked), because ",
         "nothing needs to observe the references - an observable property for them would only be overhead. Then ",
         "build() just places them, where and when it likes.",
       ),

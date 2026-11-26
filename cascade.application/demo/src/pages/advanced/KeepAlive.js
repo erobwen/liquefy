@@ -61,10 +61,10 @@ export class Shown extends Tabs {
 
 // 2. Full control: created once, in initialization - and established
 // there, and disposed when this is, since no build() does either for them
-// (see Component.establish()). Kept as plain fields - nothing needs to observe the references, so
+// (see Component.establish()). Kept as untracked fields - nothing needs to observe the references, so
 // an observable property for them would only be overhead.
 export class Owned extends Tabs {
-  initialPlain() {
+  initialUntracked() {
     return {
       first: new Tally({ key: "first", label: "First" }).establish(),
       second: new Tally({ key: "second", label: "Second" }).establish(),
@@ -72,8 +72,8 @@ export class Owned extends Tabs {
   }
 
   onDispose() {
-    this.plain.first.dispose();
-    this.plain.second.dispose();
+    this.untracked.first.dispose();
+    this.untracked.second.dispose();
     super.onDispose();
   }
 
@@ -81,7 +81,7 @@ export class Owned extends Tabs {
     return column(
       { style: { gap: "12px" } },
       this.tabBar(),
-      this.tab === "first" ? this.plain.first : this.plain.second,
+      this.tab === "first" ? this.untracked.first : this.untracked.second,
     );
   }
 }

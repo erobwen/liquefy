@@ -33,11 +33,11 @@ describe("frozen properties", function () {
         this.value = frozen(value);
         this.raw = raw;
       }
-      initialPlain() {
+      initialUntracked() {
         return { renders: 0 };
       }
       render() {
-        this.plain.renders++;
+        this.untracked.renders++;
         this.value;
         this.raw;
       }
@@ -50,7 +50,7 @@ describe("frozen properties", function () {
     const parent = new Parent();
     parent.renderOnto(({ name: "target" }));
     const child = parent.currentBuild;
-    return { model, child, renders: () => child.plain.renders };
+    return { model, child, renders: () => child.untracked.renders };
   }
 
   it("rebuilt with an equal frozen value, in new objects: unchanged - its reader doesn't rerun", function () {

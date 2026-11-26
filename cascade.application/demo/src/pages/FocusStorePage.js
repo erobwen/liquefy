@@ -120,19 +120,19 @@ export class FocusStore extends Component {
     this.style = style || {};
   }
 
-  initialPlain() {
+  initialUntracked() {
     return { statusBar: new StatusBar({ key: "statusBar", height: this.size.statusBar }).establish() };
   }
 
   onDispose() {
-    this.plain.statusBar.dispose();
+    this.untracked.statusBar.dispose();
     super.onDispose();
   }
 
   // Provided for portalSource({ portal: "cartPortal" }) - see
   // Component.provide().
   provide() {
-    const bar = this.plain.statusBar.plain;
+    const bar = this.untracked.statusBar.untracked;
     return { cartPortal: bar.cart, cartSummaryPortal: bar.summary };
   }
 
@@ -150,7 +150,7 @@ export class FocusStore extends Component {
   build() {
     const { products, size, speed } = this;
     const style = { ...storeStyle, fontSize: size.fontSize, ...this.style };
-    const content = [new ProductList({ key: "products", products, size }), this.plain.statusBar];
+    const content = [new ProductList({ key: "products", products, size }), this.untracked.statusBar];
     // One line animates it all:
     return this.animate
       ? animationContainer({ key: "animated", confine: true, zoomAlong: true, speed, style }, content)
@@ -314,7 +314,7 @@ class StatusBar extends Component {
     return { cartShown: true };
   }
 
-  initialPlain() {
+  initialUntracked() {
     return {
       cart: portal(
         { key: "cart", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", flex: "1 1 auto", minWidth: 0, overflow: "visible" } },
@@ -325,8 +325,8 @@ class StatusBar extends Component {
   }
 
   onDispose() {
-    this.plain.cart.dispose();
-    this.plain.summary.dispose();
+    this.untracked.cart.dispose();
+    this.untracked.summary.dispose();
     super.onDispose();
   }
 
@@ -344,12 +344,12 @@ class StatusBar extends Component {
         () => { this.cartShown = !this.cartShown; },
       ),
       this.cartShown
-        ? this.plain.cart
+        ? this.untracked.cart
         : div(
           { style: { flex: "1 1 auto", fontStyle: "italic", opacity: 0.7 } },
           text("The cart is hidden - what you choose waits in it."),
         ),
-      this.plain.summary,
+      this.untracked.summary,
     );
   }
 }

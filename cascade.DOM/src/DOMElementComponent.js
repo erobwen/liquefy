@@ -48,8 +48,8 @@ export class DOMElementComponent extends DOMNodeComponent {
     this.attributes = frozen(attributes);
   }
 
-  initialPlain() {
-    const result = super.initialPlain();
+  initialUntracked() {
+    const result = super.initialUntracked();
     result.previouslySetAttributes = {};
     result.previouslySetStyle = {};
     return result;
@@ -61,7 +61,7 @@ export class DOMElementComponent extends DOMNodeComponent {
   // places it otherwise (cascade.dom's FlipAnimationContainer, which also
   // places its children).
   ensureNode() {
-    const u = this.plain;
+    const u = this.untracked;
     let element = u.node;
     // A reconciled component whose tag changed (a theme swap turning a
     // `button` into an `mdui-button` under the same key, say) can't keep its
@@ -92,7 +92,7 @@ export class DOMElementComponent extends DOMNodeComponent {
   // page. Handed a different target, every child is re-rendered onto it
   // (see Component.renderOnto()) and reattaches its own node there.
   replaceElement(oldElement) {
-    const u = this.plain;
+    const u = this.untracked;
     const newElement = document.createElement(this.tagName);
     if (oldElement.id) newElement.id = oldElement.id;
     while (oldElement.firstChild) newElement.appendChild(oldElement.firstChild);
@@ -109,7 +109,7 @@ export class DOMElementComponent extends DOMNodeComponent {
   // property directly on the real element in between reruns isn't fought
   // over on the next one, same reasoning flow's own version had.
   applyAttributes(element) {
-    const u = this.plain;
+    const u = this.untracked;
     const newAttributes = this.attributes;
 
     for (const key in u.previouslySetAttributes) {
@@ -141,7 +141,7 @@ export class DOMElementComponent extends DOMNodeComponent {
   // component that owns a real element and accepts `style` directly needs
   // this same diffing, not just DOMElementComponent.
   applyStyle(element, newStyle) {
-    const u = this.plain;
+    const u = this.untracked;
     u.previouslySetStyle = diffApplyStyle(element, newStyle, u.previouslySetStyle);
   }
 
@@ -149,7 +149,7 @@ export class DOMElementComponent extends DOMNodeComponent {
   // was given: an element provides nothing, so it adds no context of its own.
   render(target, context) {
     super.render(target, context);
-    const u = this.plain;
+    const u = this.untracked;
     if (!u.childTarget) u.childTarget = DOMElementTarget.forElement(u.node);
     // Rendered again after a placing container (see DOMPlacingContainer)
     // placed its children: whatever that left in its element is no

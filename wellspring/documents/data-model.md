@@ -206,7 +206,7 @@ Deep checks of frozen values cost time in proportion to their size. A value that
 
 **C4. Unknown classes.** An object whose class name is not registered on the side that receives it is refused there, and reported. A client that does not know a class is running old code, and is handled as a version mismatch (whitepaper section 8.6).
 
-**C5. Class versions.** A registered class has a version, a non-negative integer, 0 by default. Every record stores the version of the class it was last written under. An object whose stored version is older than its class's is migrated when it is loaded ([design](design.md) section 8), before any application code sees it.
+**C5. Class versions.** A registered class has a version, a non-negative integer, 0 by default. Every record stores the version of the class it was last written under. An object whose stored version is older than its class's is migrated when it is loaded ([design](design.md) section 8), before any application code sees it. A record whose stored version is newer than its class's is refused.
 
 **C6. No private fields.** A class whose instances are synchronized must not declare `#private` fields or methods. On an object that was constructed they work: the base class returns the observable, and the subclass's private fields are installed on it. But an object made from a record (K2) never ran the constructor, and has none, so every method that reads one throws on every object that was stored, sent, or loaded. Registration refuses a class in which private members can be seen in the source, and the rule is documented for the rest. State that must not be synchronized is kept in metadata (K5).
 

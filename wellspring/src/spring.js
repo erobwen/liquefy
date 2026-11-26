@@ -10,8 +10,8 @@
  * What is here: the identity map, references resolved when they are read, persistence by
  * reachability, one Aquifer transaction per Cascade transaction, objects whose records are
  * reclaimed while they are in memory, load(), which holds a selection in memory and pins it in
- * Aquifer while it is held, checks before writes, and volatile objects, which are synchronized
- * but never stored. Migrations and persistent repeaters come later (design section 11).
+ * Aquifer while it is held, checks before writes, volatile objects, which are synchronized but
+ * never stored, and migrations. Indexes and persistent repeaters come later (design section 11).
  */
 
 import { Database, ROOT } from "@liquefy/aquifer";
@@ -105,6 +105,11 @@ export class Spring {
     this.gone = new Set(); // identities asked for that have no record
     this.stubs = new Map(); // identity → stub
     this.stubIds = new WeakMap(); // stub → identity
+
+    // Migrations (design section 8).
+    this.migrating = 0;
+    this.suspendFlush = 0; // a migration is running: its changes are written when it is whole
+    this.migrationScan = null; // the background pass that completes migrations
 
     this.db = new Database({ store, options: options.aquifer || {}, onReclaimed: (ids) => this.reclaimed(ids) });
     this.lastCommit = this.db.commit();
@@ -286,7 +291,102 @@ export class Spring {
         target[field] = this.model.decodeValue(encoded, decodeOptions);
       }
     }
+    const stored = record.$version === undefined ? 0 : record.$version;
+    if (entry && stored !== entry.version) this.migrate(object, id, entry, stored);
     return object;
+  }
+
+  /*------------------------------------------------------------------
+   *  Migrations (design section 8)
+   *-----------------------------------------------------------------*/
+
+  /**
+   * Brings an object made from a record of an older version of its class up to the class's
+   * version, before anyone has seen it: applies the class's migrations in order, and writes
+   * the object back under the new version.
+   *
+   * It is a transaction of its own, written at once, whatever the code that caused the load is
+   * doing: its changes are kept apart from those of a transaction that is under way, are not
+   * undone if that one fails, and are not asked about by the checks before writes, since they
+   * are Wellspring's and no user's. What the migration reads is not recorded by a computation
+   * that is running.
+   *
+   * If a migration fails, its changes are undone, nothing is written, and the object is
+   * dropped from memory, so that the next read tries again from the record.
+   */
+  migrate(object, id, entry, stored) {
+    const give = (error) => {
+      this.objects.delete(id);
+      this.model.clearIdentity(object);
+      this.model.infoOf(object).spring = undefined;
+      throw error;
+    };
+    if (stored > entry.version) {
+      give(new DataModelError("Object " + id + " is stored under version " + stored + " of class \"" + entry.name + "\", which is newer than the registered version " + entry.version + "."));
+    }
+    const saved = { changed: this.changed, events: this.events };
+    this.changed = new Set([object]); // written back even if no field changed: the version did
+    this.events = [];
+    this.skipChecks++;
+    this.migrating++;
+    const suspendedBefore = this.suspendFlush; // more than zero if this load was made by a migration
+    this.suspendFlush++;
+    try {
+      this.world.withoutRecording(() => this.world.transaction(() => {
+        for (let version = stored; version < entry.version; version++) {
+          const migration = entry.migrations[version];
+          if (typeof(migration) !== "function") {
+            throw new DataModelError("Class \"" + entry.name + "\" has no migration from version " + version + ", which object " + id + " is stored under.");
+          }
+          migration(object);
+        }
+      }));
+      this.suspendFlush = 0;
+      this.flush();
+    } catch (error) {
+      this.rollBack(this.events);
+      give(error);
+    } finally {
+      this.suspendFlush = suspendedBefore;
+      this.migrating--;
+      this.skipChecks--;
+      this.changed = saved.changed;
+      this.events = saved.events;
+    }
+  }
+
+  /**
+   * Starts completing migrations in the background: every stored object of an older version
+   * than its class is loaded, which migrates it, a few at a time, by work(). When it is done,
+   * no record of an older version is left, and the migrations from those versions can be
+   * removed from the classes.
+   */
+  completeMigrations() {
+    this.migrationScan = { ids: this.db.objectIds(), next: 0, migrated: 0 };
+  }
+
+  /** One step of completing migrations: looks at a batch of records. True if more remain. */
+  migrationStep(batch = 50) {
+    const scan = this.migrationScan;
+    if (!scan) return false;
+    const end = Math.min(scan.next + batch, scan.ids.length);
+    for (; scan.next < end; scan.next++) {
+      const id = scan.ids[scan.next];
+      if (this.inMemory(id) !== undefined) continue; // migrated when it was loaded
+      const record = this.db.get(id);
+      if (record === undefined || record.$class === undefined || record.$class === ARRAY_CLASS || record.$class === OBJECT_CLASS) continue;
+      const entry = this.model.classByName(record.$class);
+      if ((record.$version === undefined ? 0 : record.$version) >= entry.version) continue;
+      this.direct++;
+      try {
+        this.objectFor(id);
+        scan.migrated++;
+      } finally {
+        this.direct--;
+      }
+    }
+    if (scan.next >= scan.ids.length) this.migrationScan = null;
+    return this.migrationScan !== null;
   }
 
   /**
@@ -358,6 +458,8 @@ export class Spring {
    * Aquifer transaction.
    */
   flush() {
+    if (this.suspendFlush > 0) return;
+    const migration = this.migrating > 0;
     if (this.changed.size === 0) {
       this.writePins();
       return;
@@ -391,7 +493,7 @@ export class Spring {
 
     if (created.length === 0 && storedChanged.length === 0) {
       this.writePins();
-      const change = { commit: null, created, changed, events, volatileCreated, volatileChanged };
+      const change = { commit: null, created, changed, events, volatileCreated, volatileChanged, migration };
       for (const listener of this.commitListeners) listener(change);
       return;
     }
@@ -429,7 +531,7 @@ export class Spring {
       if (this.holds.has(object)) this.pinned.add(object);
       this.adoptAs(object, newIds.get(object));
     }
-    const change = { commit: this.lastCommit, created, changed, events, volatileCreated, volatileChanged };
+    const change = { commit: this.lastCommit, created, changed, events, volatileCreated, volatileChanged, migration };
     for (const listener of this.commitListeners) listener(change);
   }
 
@@ -727,14 +829,21 @@ export class Spring {
    * the collector's work; persistent repeaters and migrations will join it.
    */
   work(steps = 1) {
-    const done = this.db.collector.run(steps);
+    let done = this.db.collector.run(steps);
+    // Migrations being completed get as many steps as the collector was offered.
+    for (let step = 0; step < steps && this.migrationScan !== null; step++) {
+      this.migrationStep();
+      done++;
+    }
     const backlog = this.db.collector.backlog();
-    const remaining = backlog.cohorts + backlog.items + backlog.structureTasks + backlog.deferrals > 0;
-    return { steps: done, remaining, pressure: false, backlog };
+    const migrating = this.migrationScan !== null;
+    const remaining = migrating || backlog.cohorts + backlog.items + backlog.structureTasks + backlog.deferrals > 0;
+    return { steps: done, remaining, pressure: false, backlog, migrating };
   }
 
   /** Runs background work until none is left, including deferred cuts that are not yet due. */
   workUntilIdle() {
+    while (this.migrationStep()) { /* until every record has been looked at */ }
     this.db.collector.run(Infinity, { flush: true });
   }
 }

@@ -445,7 +445,9 @@ A migration may add or remove fields, change the structure of an object, make ne
 
 **Indexes.** An index over a field that a migration introduces must account for objects that have not yet been migrated. Whether an index is complete is a separate question from whether each object is correct (section 7.3): an index over a new field is built by loading its members, which migrates them.
 
-Lazy migration avoids rewriting the database whenever a class changes. A migration that must be finished, so that an old version can be dropped, is completed by loading every object of the class, in the background.
+**A migration that fails.** If a migration throws, or what it wrote cannot be stored, its changes are undone, nothing is written, and the object is dropped from memory. The read that caused the load fails with the migration's error, and the next read tries again from the record. The same happens to a record that has no migration from its version. A record of a newer version than the registered class is refused: the code running is older than the data.
+
+Lazy migration avoids rewriting the database whenever a class changes. A migration that must be finished, so that an old version can be dropped, is completed in the background: `spring.completeMigrations()` starts a pass over every stored record, which `work` (section 9.4) carries out a batch at a time, loading each object of an older version than its class. When the pass has ended, no older record is left, and the migrations from those versions can be removed from the classes.
 
 ---
 
@@ -534,7 +536,7 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - **References resolved on read.** A field of a record object that holds a reference is an accessor on the target until it is first read; the accessor decodes the field, puts the value in its place, and returns it. Writing such a field first puts the value in place, then writes through the observable, so that the write has its event. A field that was never read is written back as it was stored, without loading what it names.
    - **Arrays are resolved when they are made**, since Cascade copies an array's elements then. A cycle of arrays that contain each other cannot be loaded, and says so.
    - **Failed transactions are rolled back** in memory, from the old values the events carry.
-   - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4); migrations (step 7). Classes are registered per data model, so two stores in one process share their classes.
+   - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4). Classes are registered per data model, so two stores in one process share their classes.
 4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading. *Done*, in `src/spring.js`. How it came out:
    - `load(start, selector, action)` runs the selector in an independent repeater, holds what it selects, pins the stored objects among it in Aquifer, and runs `action(selection)`. It returns a handle with `selection` and `release()`. When the selection changes, joined objects are held and pinned and left objects let go, in the same Aquifer transaction as the write that changed it.
    - Objects that are held but still local are pinned in the transaction that stores them.
@@ -553,7 +555,12 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - **`filter`**, an option, says which objects a selection may contain and pass through. It runs with the rule, and is reactive like it.
    - **A store that waits** is stood in for by `options.wait`. `handle.loaded` says whether everything the selection reaches is in memory.
    - **Not yet:** the parts of an object, its arrays and classless objects, are not selected with it by themselves (whitepaper section 3.4); a rule adds them. The other open points are in section 3.7.
-7. **Migrations** (section 8).
+7. **Migrations** (section 8). *Done*, in `src/spring.js`. How it came out:
+   - A class's `static migrations` are kept with it in the registry, and checked there: functions, each named by a version older than the class's.
+   - An object made from an older record is migrated before `make` returns it. The migration's changes are collected apart from those of a transaction under way, and written at once, in an Aquifer transaction of their own, reported to `onCommit` listeners with `migration: true`. The checks before writes are not asked, and a running computation does not record what the migration read.
+   - An object that a migration reads is loaded, and migrated, first, in a transaction of its own.
+   - `spring.completeMigrations()` and `work` complete migrations in the background, fifty records for each step. The pass lists every stored identity when it starts, which is too much for a large database; it should walk the store with a cursor.
+   - **Not yet:** telling an index about objects that are not yet migrated (section 8, "Indexes"), which waits for indexes. With a store that waits, a migration can read only what is in memory.
 8. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
 9. **Keys that read other objects**: stored dependency records, background work, tracked staleness.
 

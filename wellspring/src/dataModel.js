@@ -286,7 +286,17 @@ export function createDataModel(world) {
     const existing = classesByName.get(name);
     if (existing && existing.Class !== Class) throw new DataModelError("Another class is already registered as \"" + name + "\".");
     for (let scan = Class; scan && scan !== Synchronized; scan = Object.getPrototypeOf(scan)) checkNoPrivateMembers(scan);
-    classesByName.set(name, { Class, name, version });
+    // Migrations (design section 8): one function for each older version, named by the version
+    // it migrates from. Applying them is the object layer's, when it loads an older record.
+    const migrations = options.migrations !== undefined ? options.migrations : (Class.migrations !== undefined ? Class.migrations : {});
+    if (migrations === null || typeof(migrations) !== "object") throw new DataModelError("A class's migrations are an object of functions, named by the version each migrates from.");
+    for (const key of Object.keys(migrations)) {
+      const from = Number(key);
+      if (!Number.isInteger(from) || from < 0 || from >= version || typeof(migrations[key]) !== "function") {
+        throw new DataModelError("Migration \"" + key + "\" of class \"" + name + "\" is not a function named by a version older than " + version + ".");
+      }
+    }
+    classesByName.set(name, { Class, name, version, migrations });
     namesByClass.set(Class, name);
     return Class;
   }

@@ -1,6 +1,6 @@
 # Wellspring
 
-*In progress - the data model, objects over Aquifer's records, loading and unloading, selectors as local rules, checks before writes, and volatile objects are implemented; migrations and indexes are planned.*
+*In progress - the data model, objects over Aquifer's records, loading and unloading, selectors as local rules, checks before writes, volatile objects, and migrations are implemented; indexes are planned.*
 
 Wellspring makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -60,7 +60,9 @@ which is applied in rounds, with one read of the store for each level, and
 which also works when the store has to wait for a read.
 `spring.checkWrites(check)` sees every write before it is made, and can refuse
 it; `spring.volatile(object)` makes an object that is synchronized but never
-stored.
+stored. A class with `static version` and `static migrations` has its older
+objects migrated as they are loaded, each in a transaction of its own;
+`spring.completeMigrations()` finishes the rest in the background.
 
 ```javascript
 import { MemoryStore } from "@liquefy/aquifer";

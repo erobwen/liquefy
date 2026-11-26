@@ -59,7 +59,8 @@ transaction(() => {
     spring.root.documents.push(document);   // now it is stored
 });
 
-// Loading: everything the selector selects is in memory inside the action.
+// Loading: everything the selector selects is in memory inside the action,
+// which runs when it is (section 3.7).
 load(spring.root, selectLibrary, () => {
     for (const document of spring.root.documents) {
         console.log(document.title);
@@ -101,7 +102,9 @@ load(document, selectDocument, () => {
 });
 ```
 
-A selector is a function that takes an object and a set, and fills the set with every object that belongs with it (whitepaper section 3.4). `load` runs the selector, reads from Aquifer whatever is not in memory, and then runs the action. Since Aquifer reads synchronously, `load` is synchronous: the action has run when it returns.
+A selector is a function that takes an object and a set, and fills the set with every object that belongs with it (whitepaper section 3.4). `load` runs the selector, reads from Aquifer whatever is not in memory, and then runs the action.
+
+The action runs when the selection is in memory. With a store that answers a read at once, as Aquifer's stores do today, that is before `load` returns. With a store that may have to wait for a read, it is later (section 3.7). Code that is to work with both does not rely on the action having run when `load` returns.
 
 `load` is to a server what `subscribe` is to a client (whitepaper section 3.7). The two have the same shape, so code written against a selection runs on either side.
 
@@ -145,11 +148,60 @@ Code that means to detach a structure and attach it somewhere else later holds i
 
 ## 3.6 Following a reference that is not loaded
 
-On a server, a reference can always be followed. A stored reference is an identity; when the field that holds it is read, Wellspring takes the object from the identity map, or reads its record from Aquifer and makes it ([data model](data-model.md) K7). Aquifer reads synchronously, so application code sees an ordinary property read. There are no stubs on a server.
+On a server whose store answers a read at once, a reference can always be followed. A stored reference is an identity; when the field that holds it is read, Wellspring takes the object from the identity map, or reads its record from Aquifer and makes it ([data model](data-model.md) K7). Aquifer reads synchronously, so application code sees an ordinary property read. There are no stubs on a server.
 
 An object reached this way is in memory, but nothing holds it. It is correct to read and write it. Two things are different from an object that a load holds: it may be unloaded when nothing refers to it, and a selection does not follow it.
 
 Under Fountain, the same code may run on a client, where a reference outside the subscribed selection cannot be followed. Wellspring therefore reports, in development and when asked to, every reference followed outside a load, so that code that works on a server does not fail on a client. Used alone, following references freely is simply a convenience.
+
+The same report serves a server whose store may have to wait for a read (section 3.7). There, as on a client, a reference outside what is loaded cannot be followed.
+
+## 3.7 When a read may have to wait
+
+Aquifer's stores answer a read at once: a memory store, and LMDB, which maps its file into memory. Everything above is written for that, and it will not always hold.
+
+- **A large database on disk.** A read of a page that is not in memory stops the whole process while the disk is read. A selector that walks a million such objects stops the server for seconds. Waiting does not make the walk faster, but it lets other work run meanwhile.
+- **A store on another machine.** When several servers share a database, a server may have to ask for a record over the network. That read cannot be answered at once.
+
+The earlier attempts met this with fibers: a property read that found nothing in memory suspended the code that made it. Fibers are gone from Node, and the alternative, `await` at every read, would mark every function that touches an object, and Cascade cannot record what a computation reads across an `await`.
+
+**Only `load` waits.** A property read never waits. Inside the action, everything selected is in memory, and the code is ordinary synchronous JavaScript. A reference that leads out of what is loaded cannot be followed there, and says so. This is the situation of a client under `subscribe`, so a server with such a store is the same case, not a new one.
+
+**A selector is a local rule.** For `load` to wait, the engine must be able to run a selector over objects that have not arrived. A selector written as one function that walks the whole structure cannot be stopped halfway. A selector written as a local rule can (whitepaper section 3.5): given one object, which of the objects it refers to are selected along with it.
+
+```javascript
+const selectTree = {
+    Node: (node, selection) => selection.add(node.left, node.right),
+};
+```
+
+The rule adds references. It does not read through them. The engine applies it transitively, in rounds:
+
+1. Run the rule for every object that has joined the selection and is in memory. Collect the references it adds.
+2. Ask the store for all of those not in memory, in one batch.
+3. When they have arrived, make the objects, and go to 1. When a round adds nothing, the selection is complete, and the action runs.
+
+There is one round, and one question to the store, for each level of the structure, not one for each object. A rule can depend on data: the path to a key in a search tree is the rule `key < node.key ? node.left : node.right`, and costs one round per level, which is what such a search costs anyway.
+
+A reference to an object that is not in memory reads, inside a rule, as a stub: an object with an identity and nothing else. A rule may add a stub to the selection. A rule that reads a field of a stub, to decide by a neighbour's contents, is stopped; the engine asks for the object and runs that rule again when it has arrived. A rule is small, so this is cheap. It is avoided altogether by letting the neighbour's own rule decide.
+
+**The same rules give three more things**, each of which was wanted already:
+
+- A selection is updated incrementally. Each application of a rule is a Cascade repeater of its own, and a change to one object runs the rule for that object only (section 7.1, "Granularity").
+- Fountain's filter (section 9.2) is a condition in the engine: it does not apply the rule to an object the user may not read.
+- A client names a selector, and the server applies the rules. The client never has them (whitepaper section 3.4).
+
+**A selector written as one function** remains, for a store that answers at once. It is the simplest to write, and it is the reference that the rules are tested against: a selection built from rules must equal the one the whole function gives.
+
+**More inside an action.** An algorithm that finds, while it runs, that it needs objects outside its selection makes another `load`, and continues in that load's action. It does not follow the reference.
+
+**Open.**
+
+- **A selection that grows by a write.** A write can make a held selection reach objects that are not in memory: a held chapter is given a note whose own parts were never loaded. With a store that waits, the selection is then incomplete until they have arrived. Whether the code that made the write must have loaded them first, or the selection reports that it is incomplete, is not decided.
+- **Writes.** A transaction's writes go to Aquifer at its end. With a store on another machine, the commit itself waits, and can fail because another server changed the same records. That belongs to the design of several servers on one database, which is not begun.
+- **What a stub is**, exactly, and whether it is the same thing as a client's stub.
+
+Until a store that waits exists, the implementation runs every round at once, and nothing above changes for code that uses it.
 
 ---
 
@@ -408,6 +460,10 @@ Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, 
 4. **The commit that last changed each record.** Wellspring does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
 5. **The size of the collector's backlog**, so that Wellspring can report pressure (section 9.4). Collector steps already exist (`collector.run`), are bounded, and end when there is nothing to do.
 
+One more is wanted, and not yet built:
+
+6. **A read of many records in one call**, given their identities. `load` asks for each round of a selection this way (section 3.7). Today it answers at once. It is the one place in the interface that is meant to be able to wait, when a store on disk or on another machine needs it to.
+
 Aquifer finds references in a record by looking, at any depth, for an object with a `$ref` key. Wellspring's encoding escapes every key of the application's that begins with `$`, so that the tag appears only where a reference is ([data model](data-model.md) E1 and E4), and the two agree on the graph.
 
 ## 9.2 What Wellspring offers Fountain
@@ -428,7 +484,7 @@ The data model, which is the encoding, the registry of classes, the check on wha
 
 Aquifer's collector does its work in steps. Each step is one transaction of bounded size, roughly constant in time, and steps can be interleaved with the application's transactions in any order (Aquifer's invariant B1). Wellspring has background work of the same kind: persistent repeaters that catch up in the background (section 7.3), and migrations that are being completed (section 8).
 
-Nothing runs on its own. Everything stays synchronous, and the program at the top decides when background work is done. Wellspring offers one call for all of it:
+Nothing runs on its own. Background work stays synchronous, and the program at the top decides when background work is done. Wellspring offers one call for all of it:
 
 ```javascript
 const result = spring.work(steps);   // { steps, remaining, pressure }
@@ -452,6 +508,9 @@ Used alone, Wellspring's application decides the ratio. Under Fountain, Fountain
 |---|---|
 | Bounding memory: weak holding alone, or least-recently-used unloading as well | 3.4 |
 | What a local-again object's references to reclaimed objects read as | 3.5 |
+| A held selection that a write makes reach objects not in memory, with a store that waits | 3.7 |
+| Writes and commits against a store on another machine | 3.7 |
+| What a stub is, and whether it is a client's stub | 3.7 |
 | How dependency records are coarsened for objects that many keys read, and when | 7.2 |
 | At what size or rate of change a live index stops being the right tool | 7.2 |
 | What happens to a member whose key computation throws: it must not stop the index, and must not stay filed under a key that is no longer true (whitepaper section 8.16) | 7.1 |
@@ -473,7 +532,7 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - **References resolved on read.** A field of a record object that holds a reference is an accessor on the target until it is first read; the accessor decodes the field, puts the value in its place, and returns it. Writing such a field first puts the value in place, then writes through the observable, so that the write has its event. A field that was never read is written back as it was stored, without loading what it names.
    - **Arrays are resolved when they are made**, since Cascade copies an array's elements then. A cycle of arrays that contain each other cannot be loaded, and says so.
    - **Failed transactions are rolled back** in memory, from the old values the events carry.
-   - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4); migrations (step 6). Classes are registered per data model, so two stores in one process share their classes.
+   - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4); migrations (step 7). Classes are registered per data model, so two stores in one process share their classes.
 4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading. *Done*, in `src/spring.js`. How it came out:
    - `load(start, selector, action)` runs the selector in an independent repeater, holds what it selects, pins the stored objects among it in Aquifer, and runs `action(selection)`. It returns a handle with `selection` and `release()`. When the selection changes, joined objects are held and pinned and left objects let go, in the same Aquifer transaction as the write that changed it.
    - Objects that are held but still local are pinned in the transaction that stores them.
@@ -483,8 +542,9 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - `spring.checkWrites(check)` adds a check asked before every write to an object of the store, stored or volatile, with `{ object, key, value, operation }`. It runs against the state before the write and refuses by throwing, so a refused write leaves nothing to undo. For this, cascade.reactive's `meta(object).checkWrite` now also names the operation, and is asked about deletes and about every array method, also those that only remove or move elements.
    - `spring.volatile(object)` makes a local object volatile: an identity beginning with "v", synchronized, never stored. Local objects a volatile object comes to refer to become volatile too; a class can say `static volatile = true`, and its instances are then refused where they would be stored. A stored object never refers to a volatile one: such a write is refused when it is made, and a local structure that would bring one in is refused when it would be stored, and rolled back.
    - Changes to volatile objects make no Aquifer transaction. They are reported to `onCommit` listeners with `commit: null`, in `volatileChanged` and `volatileCreated`.
-6. **Migrations** (section 8).
-7. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
-8. **Keys that read other objects**: stored dependency records, background work, tracked staleness.
+6. **Selectors as local rules** (section 3.7): a selector as a table of rules by class, applied in rounds, one repeater per selection and object; a read of many records in one call in Aquifer; `load`'s action running when the selection is in memory. Tested against the whole-function selector, and against a store that is made to wait.
+7. **Migrations** (section 8).
+8. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
+9. **Keys that read other objects**: stored dependency records, background work, tracked staleness.
 
 A specification with invariants is written for each step before it is begun. The data model's is [written](data-model.md).

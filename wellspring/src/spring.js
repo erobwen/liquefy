@@ -16,6 +16,19 @@
 
 import { Database, ROOT } from "@liquefy/aquifer";
 import { DataModelError, ARRAY_CLASS, OBJECT_CLASS, escapeKey, unescapeKey, RECORD_KEYS } from "./values.js";
+import { RuleLoad, Selection, NotLoaded } from "./ruleLoad.js";
+
+/** The identities an encoded value refers to strongly, at any depth. */
+function collectReferences(encoded, into) {
+  if (encoded === null || typeof(encoded) !== "object") return;
+  if (Array.isArray(encoded)) {
+    for (const item of encoded) collectReferences(item, into);
+    return;
+  }
+  const keys = Object.keys(encoded);
+  if (keys.length === 1 && keys[0] === "$ref") into.add(encoded.$ref);
+  else for (const key of keys) collectReferences(encoded[key], into);
+}
 
 /** Whether an object's class says its instances are volatile: `static volatile = true`. */
 function isVolatileClass(object) {
@@ -81,9 +94,23 @@ export class Spring {
     this.nextVolatile = 1;
     this.removeWriteCheck = model.addWriteCheck((object, key, value, operation) => this.checkWrite(object, key, value, operation));
 
+    // Loading by rules, and reads that may have to wait (design section 3.7). `options.wait`
+    // makes this a store that waits: a function that is given each read, as a function to call
+    // when the read is to arrive. It is how a store on a slow disk, or on another machine, is
+    // stood in for. With it, a reference is followed only to what is in memory.
+    this.wait = options.wait || null;
+    this.inRule = 0; // a rule is running: a reference to what is not in memory reads as a stub
+    this.direct = 0; // a read that may go to the store though the store waits
+    this.arrived = new Map(); // identity → record, of what a read brought and is being made
+    this.gone = new Set(); // identities asked for that have no record
+    this.stubs = new Map(); // identity → stub
+    this.stubIds = new WeakMap(); // stub → identity
+
     this.db = new Database({ store, options: options.aquifer || {}, onReclaimed: (ids) => this.reclaimed(ids) });
     this.lastCommit = this.db.commit();
+    this.direct++;
     this.root = this.objectFor(ROOT);
+    this.direct--;
     this.removeTransactionEndListener = this.world.onTransactionEnd(() => this.flush());
   }
 
@@ -120,6 +147,7 @@ export class Spring {
     info.resolve = this.resolve;
     this.objects.set(id, new WeakRef(object));
     this.forget.register(object, id);
+    this.stubs.delete(id);
     if (this.holds.has(object) && !this.pinned.has(object)) this.pendingPins.add(object);
   }
 
@@ -133,12 +161,89 @@ export class Spring {
    * record was reclaimed (data model O3).
    */
   objectFor(id) {
-    const entry = this.objects.get(id);
-    const known = entry && entry.deref();
+    const known = this.inMemory(id);
     if (known !== undefined) return known;
-    const record = this.db.get(id);
+    if (this.gone.has(id)) return null;
+    let record = this.arrived.get(id);
+    if (record === undefined) {
+      // Inside a rule, what is not in memory is not read: the rule gets a stub, which it may
+      // add to its selection, and the load asks for all such objects at once (section 3.7).
+      if (this.inRule > 0) return this.stubFor(id);
+      if (this.wait && this.direct === 0) {
+        throw new DataModelError("Object " + id + " is not loaded. With a store that waits, a reference is followed only to what a load has brought into memory (design section 3.7).");
+      }
+      record = this.db.get(id);
+    }
     if (record === undefined) return null;
-    return this.make(id, record);
+    const inRule = this.inRule;
+    this.inRule = 0; // what is made now is made whole, whoever asked
+    try {
+      return this.make(id, record);
+    } finally {
+      this.inRule = inRule;
+    }
+  }
+
+  /** The object with the given identity if it is in memory, or undefined. */
+  inMemory(id) {
+    const entry = this.objects.get(id);
+    return entry === undefined ? undefined : entry.deref();
+  }
+
+  /**
+   * A stub: what a reference to an object that is not in memory reads as inside a rule. It has
+   * an identity and nothing else. A rule may add it to its selection; reading into it stops the
+   * rule, which is run again when the object has arrived.
+   */
+  stubFor(id) {
+    let stub = this.stubs.get(id);
+    if (stub === undefined) {
+      const stop = () => { throw new NotLoaded(id); };
+      stub = new Proxy({}, {
+        get: (target, key) => (typeof(key) === "symbol" && key !== Symbol.iterator ? undefined : stop()),
+        set: stop, has: stop, ownKeys: stop, deleteProperty: stop, defineProperty: stop, getOwnPropertyDescriptor: stop,
+      });
+      this.stubs.set(id, stub);
+      this.stubIds.set(stub, id);
+    }
+    return stub;
+  }
+
+  /**
+   * Reads many objects in one question to the store, makes them, and calls `done` with them.
+   * An array is made with its elements (data model A4), so the elements of an array that
+   * arrives are asked for before anything is made, in a question of their own. With a store
+   * that answers at once, `done` has been called when this returns.
+   */
+  readMany(ids, done, records = new Map()) {
+    const arrive = () => {
+      const read = this.db.getMany(ids);
+      const more = new Set();
+      for (const id of ids) {
+        const record = read.get(id);
+        if (record === undefined) {
+          this.gone.add(id);
+          continue;
+        }
+        records.set(id, record);
+        if (record.$class === ARRAY_CLASS) collectReferences(record.$elements, more);
+      }
+      for (const id of [...more]) {
+        if (records.has(id) || this.gone.has(id) || this.inMemory(id) !== undefined) more.delete(id);
+      }
+      if (more.size > 0) return this.readMany([...more], done, records);
+
+      const made = [];
+      for (const [id, record] of records) this.arrived.set(id, record);
+      try {
+        for (const id of records.keys()) made.push(this.objectFor(id));
+      } finally {
+        for (const id of records.keys()) this.arrived.delete(id);
+      }
+      done(made);
+    };
+    if (this.wait) this.wait(arrive);
+    else arrive();
   }
 
   make(id, record) {
@@ -202,9 +307,16 @@ export class Spring {
     const keys = Object.keys(encoded);
     const single = keys.length === 1 && keys[0] === "$ref";
     const resolve = () => {
-      const value = this.model.decodeValue(encoded, decodeOptions);
-      Object.defineProperty(target, field, { value, writable: true, enumerable: true, configurable: true });
-      return value;
+      // The value is put in place for good, so it is made of objects, never of a rule's stubs.
+      const inRule = this.inRule;
+      this.inRule = 0;
+      try {
+        const value = this.model.decodeValue(encoded, decodeOptions);
+        Object.defineProperty(target, field, { value, writable: true, enumerable: true, configurable: true });
+        return value;
+      } finally {
+        this.inRule = inRule;
+      }
     };
     const get = single
       ? () => this.objectFor(encoded.$ref)
@@ -489,15 +601,37 @@ export class Spring {
    * Returns a handle: `handle.selection` is the current selection, a Set, and
    * `handle.release()` ends the load.
    *
-   * On a server, a reference outside the selection can still be followed (design section
-   * 3.6); what the load adds is that its objects stay, and stay pinned.
+   * With a store that answers at once, a reference outside the selection can still be followed
+   * (design section 3.6); what the load adds is that its objects stay, and stay pinned.
+   *
+   * A selector is one of two things (design section 3.7):
+   *
+   * - A table of local rules by class name, `{ Node: (node, selection) => selection.add(node.left) }`.
+   *   Each rule adds what is selected along with one object. The rules are applied in rounds,
+   *   with one read of the store for each, and a change to an object runs that object's rule
+   *   only. This is the form that works with a store that waits; the action then runs later,
+   *   and `handle.loaded` says whether everything selected is in memory.
+   * - A function `(start, selection)` that fills the whole selection. It runs again as a whole
+   *   when anything it read changes, and needs a store that answers at once.
+   *
+   * Options, before or after the action: `filter(object)`, for a table of rules, says whether
+   * the selection may contain an object, and pass through it. Fountain passes a user's right
+   * to read.
    */
-  load(start, selector, action) {
+  load(start, selector, ...rest) {
     if (!this.owns(start)) throw new DataModelError("load() starts from an object of this store.");
-    const handle = { selection: new Set(), released: false, release: () => {} };
+    const action = rest.find((item) => typeof(item) === "function");
+    const options = rest.find((item) => item !== null && typeof(item) === "object") || {};
+    if (typeof(selector) !== "function") {
+      if (selector === null || typeof(selector) !== "object") throw new DataModelError("A selector is a function, or a table of rules by class name.");
+      const ruleLoad = new RuleLoad(this, start, selector, action, options);
+      this.writePins();
+      return ruleLoad.handle;
+    }
+    const handle = { selection: new Selection(), loaded: true, released: false, release: () => {} };
     let current = new Set();
     const repeater = this.world.repeat("load", () => {
-      const selection = new Set();
+      const selection = new Selection();
       selector(start, selection);
       this.world.withoutRecording(() => {
         for (const object of selection) {
@@ -514,8 +648,9 @@ export class Spring {
       handle.released = true;
       this.world.retractRepeater(repeater);
       for (const object of current) this.release(object);
-      current = new Set();
+      current = new Selection();
       handle.selection = current;
+      handle.loaded = false;
       this.writePins();
     };
     this.writePins();

@@ -46,6 +46,9 @@ needs from it:
 - **`db.collector.backlog()`:** how much collector work is pending, so that a
   caller that runs the collector in a ratio to its own work can tell when it
   falls behind.
+- **`db.getMany(ids)`:** many objects in one read, as a Map from id to
+  fields. This is the read that is meant to be able to wait, when a store
+  on a slow disk or on another machine needs it to; today it answers at once.
 
 ## Documents
 

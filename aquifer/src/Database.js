@@ -115,6 +115,21 @@ export class Database {
     return record;
   }
 
+  /**
+   * Reads many objects in one call, from committed state: a Map from each id that exists to its
+   * fields. An id with no object is left out. The layer above asks for a whole round of a
+   * selection this way, so that a store that has to wait for a read waits once for all of them.
+   */
+  getMany(ids) {
+    const records = new Map();
+    for (const id of ids) {
+      if (records.has(id)) continue;
+      const record = this.get(id);
+      if (record !== undefined) records.set(id, record);
+    }
+    return records;
+  }
+
   /** Ids of all stored objects. */
   objectIds() {
     return this.store.keys("o/").map((key) => key.slice(2));

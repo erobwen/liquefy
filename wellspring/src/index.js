@@ -30,13 +30,14 @@ export const { transaction, repeat, ensure, meta, metaData } = world;
 
 /**
  * Holds what `selector` selects from `start` in memory, pinned, and runs `action` once it is:
- * `load(document, selectDocument, (selection) => {...})`. Returns a handle with `release()`
- * (design section 3).
+ * `load(document, selectDocument, (selection) => {...})`. A selector is a table of local rules
+ * by class name, or a function that fills the whole selection. Returns a handle with
+ * `selection`, `loaded` and `release()` (design section 3).
  */
-export function load(start, selector, action) {
+export function load(start, selector, ...rest) {
   const info = model.infoOf(start);
   if (!info || !info.spring) throw new Error("load() starts from a stored object.");
-  return info.spring.load(start, selector, action);
+  return info.spring.load(start, selector, ...rest);
 }
 
 export const {

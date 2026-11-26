@@ -197,11 +197,12 @@ A reference to an object that is not in memory reads, inside a rule, as a stub: 
 
 **Open.**
 
-- **A selection that grows by a write.** A write can make a held selection reach objects that are not in memory: a held chapter is given a note whose own parts were never loaded. With a store that waits, the selection is then incomplete until they have arrived. Whether the code that made the write must have loaded them first, or the selection reports that it is incomplete, is not decided.
+- **A selection that grows by a write.** A write can make a held selection reach objects that are not in memory: a held chapter is given a note whose own parts were never loaded. With a store that waits, the selection is then incomplete until they have arrived. The load's handle says so, in `handle.loaded`. Whether that is enough, or the code that made the write should have to load them first, is not decided.
 - **Writes.** A transaction's writes go to Aquifer at its end. With a store on another machine, the commit itself waits, and can fail because another server changed the same records. That belongs to the design of several servers on one database, which is not begun.
-- **What a stub is**, exactly, and whether it is the same thing as a client's stub.
+- **Whether a server's stub and a client's are the same thing.** A server's stub is not the object it stands for: it exists inside rules only, and the field reads as the object itself once that has arrived. A reference does not say what class its object has, so a stub cannot be turned into the object.
+- **Maps and sets of references**, with a store that waits. A field that holds references inside a map or a set is made whole when it is read, and so needs every object it names in memory. A rule cannot yet add them without that.
 
-Until a store that waits exists, the implementation runs every round at once, and nothing above changes for code that uses it.
+No store waits yet. Wellspring can be opened as if its store did (`options.wait`), which is how the rounds are tested: reads then arrive when the test says, and a reference is followed only to what is in memory.
 
 ---
 
@@ -460,9 +461,9 @@ Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, 
 4. **The commit that last changed each record.** Wellspring does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
 5. **The size of the collector's backlog**, so that Wellspring can report pressure (section 9.4). Collector steps already exist (`collector.run`), are bounded, and end when there is nothing to do.
 
-One more is wanted, and not yet built:
+One more was added later:
 
-6. **A read of many records in one call**, given their identities. `load` asks for each round of a selection this way (section 3.7). Today it answers at once. It is the one place in the interface that is meant to be able to wait, when a store on disk or on another machine needs it to.
+6. **A read of many records in one call**, given their identities: `db.getMany(ids)`. `load` asks for each round of a selection this way (section 3.7). Today it answers at once. It is the one place in the interface that is meant to be able to wait, when a store on disk or on another machine needs it to.
 
 Aquifer finds references in a record by looking, at any depth, for an object with a `$ref` key. Wellspring's encoding escapes every key of the application's that begins with `$`, so that the tag appears only where a reference is ([data model](data-model.md) E1 and E4), and the two agree on the graph.
 
@@ -510,7 +511,8 @@ Used alone, Wellspring's application decides the ratio. Under Fountain, Fountain
 | What a local-again object's references to reclaimed objects read as | 3.5 |
 | A held selection that a write makes reach objects not in memory, with a store that waits | 3.7 |
 | Writes and commits against a store on another machine | 3.7 |
-| What a stub is, and whether it is a client's stub | 3.7 |
+| Whether a server's stub and a client's are the same thing | 3.7 |
+| Maps and sets of references, with a store that waits | 3.7 |
 | How dependency records are coarsened for objects that many keys read, and when | 7.2 |
 | At what size or rate of change a live index stops being the right tool | 7.2 |
 | What happens to a member whose key computation throws: it must not stop the index, and must not stay filed under a key that is no longer true (whitepaper section 8.16) | 7.1 |
@@ -542,7 +544,15 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - `spring.checkWrites(check)` adds a check asked before every write to an object of the store, stored or volatile, with `{ object, key, value, operation }`. It runs against the state before the write and refuses by throwing, so a refused write leaves nothing to undo. For this, cascade.reactive's `meta(object).checkWrite` now also names the operation, and is asked about deletes and about every array method, also those that only remove or move elements.
    - `spring.volatile(object)` makes a local object volatile: an identity beginning with "v", synchronized, never stored. Local objects a volatile object comes to refer to become volatile too; a class can say `static volatile = true`, and its instances are then refused where they would be stored. A stored object never refers to a volatile one: such a write is refused when it is made, and a local structure that would bring one in is refused when it would be stored, and rolled back.
    - Changes to volatile objects make no Aquifer transaction. They are reported to `onCommit` listeners with `commit: null`, in `volatileChanged` and `volatileCreated`.
-6. **Selectors as local rules** (section 3.7): a selector as a table of rules by class, applied in rounds, one repeater per selection and object; a read of many records in one call in Aquifer; `load`'s action running when the selection is in memory. Tested against the whole-function selector, and against a store that is made to wait.
+6. **Selectors as local rules** (section 3.7): a selector as a table of rules by class, applied in rounds, one repeater per selection and object; a read of many records in one call in Aquifer; `load`'s action running when the selection is in memory. Tested against the whole-function selector, and against a store that is made to wait. *Done*, in `src/ruleLoad.js` and `src/spring.js`. How it came out:
+   - `load(start, rules, action)` takes a table of rules by class name; arrays and classless objects have the rules named `Array` and `Object`. A function is still taken as a whole selector. A rule's selection is a set whose `add` takes any number of objects, and ignores null.
+   - **Rounds.** Inside a rule, a reference to an object that is not in memory reads as a stub, also when the store answers at once, so the same path runs in both cases. The engine asks for all of a round's stubs with one `db.getMany`. A tree of fifteen nodes is loaded in three reads.
+   - **One repeater per selection and object.** A change runs the rule of the changed object only. The selection is then found again by following what the rules last gave from the starting object, without running any rule; a cycle that is cut off is let go. This costs in proportion to the selection for each structural change, in set operations only.
+   - **A rule that reads into a stub** is stopped, and applied again when the object has arrived.
+   - **An array is made with its elements**, so when an array's record arrives, its elements are asked for, in a read of their own, before it is made.
+   - **`filter`**, an option, says which objects a selection may contain and pass through. It runs with the rule, and is reactive like it.
+   - **A store that waits** is stood in for by `options.wait`. `handle.loaded` says whether everything the selection reaches is in memory.
+   - **Not yet:** the parts of an object, its arrays and classless objects, are not selected with it by themselves (whitepaper section 3.4); a rule adds them. The other open points are in section 3.7.
 7. **Migrations** (section 8).
 8. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
 9. **Keys that read other objects**: stored dependency records, background work, tracked staleness.

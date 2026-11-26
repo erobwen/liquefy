@@ -1,6 +1,6 @@
 # Wellspring
 
-*In progress - the data model, objects over Aquifer's records, loading and unloading, checks before writes, and volatile objects are implemented; migrations and indexes are planned.*
+*In progress - the data model, objects over Aquifer's records, loading and unloading, selectors as local rules, checks before writes, and volatile objects are implemented; migrations and indexes are planned.*
 
 Wellspring makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -53,7 +53,11 @@ object like any other. What a stored object comes to refer to is stored with
 it; a reference is loaded when it is first read; each Cascade transaction is
 written as one Aquifer transaction. `load(start, selector, action)` holds a
 selection in memory, and pins it in Aquifer, until it is released; what
-nothing holds is unloaded, and read from its record again when needed.
+nothing holds is unloaded, and read from its record again when needed. A
+selector is a function that fills the whole selection, or a table of local
+rules by class name, `{ Node: (node, selection) => selection.add(node.left, node.right) }`,
+which is applied in rounds, with one read of the store for each level, and
+which also works when the store has to wait for a read.
 `spring.checkWrites(check)` sees every write before it is made, and can refuse
 it; `spring.volatile(object)` makes an object that is synchronized but never
 stored.

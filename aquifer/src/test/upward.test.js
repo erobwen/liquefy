@@ -244,3 +244,22 @@ describe("onReclaimed, and the collector's backlog", function () {
     assert.equal(idle.cohorts + idle.items + idle.deferrals, 0, JSON.stringify(idle));
   });
 });
+
+describe("reading many objects in one call", function () {
+
+  it("gives the fields of each object that exists, and leaves out the others", function () {
+    const { db } = setup();
+    let a, b;
+    db.transaction((tx) => {
+      a = tx.create({ name: "a" });
+      b = tx.create({ name: "b", other: ref(a) });
+      tx.set(ROOT, "a", ref(a));
+      tx.set(ROOT, "b", ref(b));
+    });
+    const records = db.getMany([a, b, "no-such-object", a, ROOT]);
+    assert.deepEqual([...records.keys()], [a, b, ROOT]);
+    assert.deepEqual(records.get(a), db.get(a));
+    assert.deepEqual(records.get(b), db.get(b));
+    assert.equal(records.get(ROOT)[PINS_FIELD], undefined, "the root's reserved field is left out, as by get");
+  });
+});

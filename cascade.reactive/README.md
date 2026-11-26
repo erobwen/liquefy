@@ -263,6 +263,26 @@ onChange will receive a message, containing information about any change that ha
 
 onEstablish and onDispose are called on an object built in a rebuild when it is first established, and when a rebuild no longer creates it. They correspond to the React concepts of componentDidMount and componentWillUnmount, but for a generalized data structure rebuilding framework.
 
+## hasObservers and sourcesOf
+
+Two questions about who depends on what, answered without reaching into how cascade.reactive keeps its observers.
+
+hasObservers(object, key) tells whether any repeater or invalidator observes that property right now; hasObservers(object), whether anything of the object is observed at all. Use it to keep something going only while it is shown - a server subscription, a polling loop - and stop it when nothing reads the data any more (like hasSinks in the TC39 Signals proposal):
+
+    if (!hasObservers(document, "comments")) unsubscribe(document, "comments");
+
+Ask once the reruns are done - after a flush, or at the end of a transaction. A sole reader that reruns lets go of what it read and reads it again: onRemovedLastObserver fires in between, and is best taken as a reason to ask hasObservers() a moment later. Some keys are observed together, so the answer covers more than the key: a method or getter on the prototype is observed if any prototype member of the object is read, and an array's length and indices if any of its elements are.
+
+sourcesOf(observer) lists what a repeater (its own reads, not its child repeaters') or an invalidator read in its last run, as `{ object, key, kind }`, one entry each - for devtools, or for explaining why something reruns:
+
+    const repeater = ensure(() => total.value = cart.items.length * price.value);
+    sourcesOf(repeater);
+    // [{ object: cart, key: "items", kind: "property" },
+    //  { object: cart.items, key: null, kind: "elements" },
+    //  { object: price, key: "value", kind: "property" }]
+
+kind is "property" (key is the property's name), "keys" (it enumerated the object), "elements" (it read an array's elements or length) or "prototype" (it read a method or getter on the prototype; key is null, since which one is not kept).
+
 ## innerMeta(object).rebuildTwin
 
 The re building mechanism internally uses a forwarding mechanism that can be used directly - the one place where you write to innerMeta(). To use it, simply type innerMeta(myObject).rebuildTwin = otherObject. This will cause myObject have the identity of myObject, but the state of otherObject. Quite useful for some very special scenarios. innerMeta(myObject) itself is never forwarded: it stays myObject's own, id included. A getter, though, runs on the object it is forwarded to, so inside a getter `this` is otherObject, and innerMeta(this).id is otherObject's id - in a rebuild, the temporary twin's. Also, forwarding takes place before any onReadGlobal and onWriteGlobal event can be fired, those events will be fired, but for the object that the object was forwarding to.

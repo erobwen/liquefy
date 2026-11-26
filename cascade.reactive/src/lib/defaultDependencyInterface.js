@@ -237,7 +237,28 @@ export function defaultDependencyInterfaceCreator(causality) {
   }
 
   return {
-    
+
+    // Whether anyone is in an observer set - in its root, or in a chunk
+    // after it (an emptied chunk is unlinked, so any chunk left has
+    // someone in it). For hasObservers() in cascade.js.
+    isObserved: (observerSet) =>
+      observerSet !== null && (observerSet.contentsCounter > 0 || observerSet.first !== null),
+
+    // What one of an observer's sources is about, and whether the observer
+    // is still in it: an observer moved to a closer writing keeps the set
+    // it left among its sources (see relocatePropertyObserverEntry). A
+    // source may be a chunk: only its root has the handler, description
+    // and key. For sourcesOf() in cascade.js.
+    describeSource: (observerSet, observer) => {
+      const root = observerSet.isRoot ? observerSet : observerSet.parent;
+      return {
+        handler: root.handler,
+        description: root.description,
+        key: root.key,
+        current: typeof(observerSet.contents[observer.id]) !== 'undefined',
+      };
+    },
+
     // A read of an array's elements, on the writing of its elements
     // timeline it resolved to (or, for a partial reading its own writing,
     // the one before it - see cascade.js's observeArray). Returns the

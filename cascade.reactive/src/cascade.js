@@ -173,6 +173,10 @@ function createWorld(configuration) {
     untrackedMeta,
     innerMeta,
 
+    // Introspection
+    hasObservers,
+    sourcesOf,
+
     // Transaction
     transaction : postponeInvalidationsAndDo,
     postponeInvalidations,
@@ -463,6 +467,126 @@ function createWorld(configuration) {
 
   function untrackedMeta(object, property) {
     return metaRecord("untrackedMeta", object, property, arguments.length >= 2, "untrackedObjectMetadata", "untrackedPropertyMetadata", createUntrackedRecord);
+  }
+
+
+  /**********************************
+   *
+   *   Introspection
+   *
+   *   hasObservers(object, [key]) tells whether anything observes `key` of
+   *   the object right now - any repeater or invalidator, at any time
+   *   position - or, without a key, anything of it at all: its
+   *   properties, its keys, its elements, its prototype members. Not
+   *   observed a moment ago is not final: a sole reader rerunning lets go
+   *   of what it read and reads it again (onRemovedLastObserver fires in
+   *   between), so ask once the reruns are done - after a flush, at the
+   *   end of a transaction.
+   *
+   *   Where the observers are kept answers for more than the key:
+   *   - a key found on the prototype (a method, a getter) is observed if
+   *     any prototype member of the object is read - they are observed
+   *     together (see "Prototype members");
+   *   - an array's length and indices are observed if any of its elements
+   *     are read - they are observed together, by what was read of the
+   *     whole (see "Temporal arrays").
+   *
+   *   sourcesOf(observer) lists what a repeater (its own reads, not its
+   *   children's) or an invalidator read in its last run, as
+   *   { object, key, kind }, one entry each. kind is "property" (key is
+   *   the property's name), "keys" (it enumerated the object), "elements"
+   *   (it read an array's elements or length) or "prototype" (it read a
+   *   method or getter on the prototype - key null: which one is not
+   *   kept).
+   *
+   **********************************/
+
+  // How a dependency interface names what an observer set is for - see
+  // lib/defaultDependencyInterface.js.
+  const sourceKinds = {
+    propertyDependees: "property",
+    enumerationDependees: "keys",
+    arrayDependees: "elements",
+    prototypeDependees: "prototype",
+  };
+
+  function requireIntrospection(caller) {
+    if (typeof(dependencyInterface.isObserved) !== "function" || typeof(dependencyInterface.describeSource) !== "function") {
+      throw new Error(caller + "() isn't supported by this world's customDependencyInterfaceCreator - it has no isObserved()/describeSource().");
+    }
+  }
+
+  function timelineIsObserved(timeline) {
+    if (typeof(timeline) === "undefined" || timeline === null) return false;
+    for (let writing = timeline.first; writing !== null; writing = writing.next) {
+      if (dependencyInterface.isObserved(writing.observers)) return true;
+    }
+    return false;
+  }
+
+  function hasObservers(object, key) {
+    requireIntrospection("hasObservers");
+    if (!isObservable(object)) throw new Error("hasObservers() expects an observable object.");
+    const handler = object[objectMetaProperty].handler;
+    const target = handler.target;
+    const isObserved = dependencyInterface.isObserved;
+    // A property's name, as the proxy is given it: list[3] reads "3".
+    if (typeof(key) === "number") key = String(key);
+    if (arguments.length < 2) {
+      if (isObserved(handler.prototypeObservers)) return true;
+      if (handler.elements && timelineIsObserved(handler.elements)) return true;
+      const timelines = handler.timelines;
+      if (timelineIsObserved(timelines[enumerationTimelineKey])) return true;
+      for (const name in timelines) {
+        if (timelineIsObserved(timelines[name])) return true;
+      }
+      return false;
+    }
+    if (handler.elements && (key === "length" || isArrayIndex(key))) {
+      return timelineIsObserved(handler.elements);
+    }
+    if (timelineIsObserved(handler.timelines[key])) return true;
+    return isPrototypeMember(handler, target, key) && isObserved(handler.prototypeObservers);
+  }
+
+  // A repeater's own partials, this run's and - between an invalidation
+  // and the end of its rerun - the previous run's still awaiting it.
+  function* partialsOf(repeater) {
+    for (const list of [repeater.children, repeater.pendingChildren]) {
+      if (!list) continue;
+      for (let node = list.first; node !== null; node = node.nextSibling) {
+        if (node.type === "partial") yield node;
+      }
+    }
+  }
+
+  function sourcesOf(observer) {
+    requireIntrospection("sourcesOf");
+    if (observer === null || typeof(observer) !== "object") {
+      throw new Error("sourcesOf() expects a repeater or an invalidator.");
+    }
+    const observers = Array.isArray(observer.sources) ? [observer] : [...partialsOf(observer)];
+    if (observers.length === 0 && !observer.children) {
+      throw new Error("sourcesOf() expects a repeater or an invalidator.");
+    }
+    const found = new Map();
+    const result = [];
+    for (const each of observers) {
+      for (const observerSet of each.sources) {
+        const { handler, description, key, current } = dependencyInterface.describeSource(observerSet, each);
+        if (!current) continue;
+        const kind = sourceKinds[description] || description;
+        const object = handler.proxy;
+        const entryKey = kind === "property" ? key : null;
+        let byKind = found.get(object);
+        if (!byKind) found.set(object, byKind = new Set());
+        const seen = kind + ":" + (typeof(entryKey) === "symbol" ? entryKey.toString() : String(entryKey));
+        if (byKind.has(seen)) continue;
+        byKind.add(seen);
+        result.push({ object, key: entryKey, kind });
+      }
+    }
+    return result;
   }
 
   function withoutReactionsDo(callback) {

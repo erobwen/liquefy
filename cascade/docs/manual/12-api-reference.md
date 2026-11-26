@@ -64,6 +64,8 @@ World members:
 | `meta` | `meta(object, [property]) → record` | The observable metadata record of an observable, or of one of its properties: empty, made on first use, the same ever after. |
 | `untrackedMeta` | `untrackedMeta(object, [property]) → object` | The same, as a plain object that is never observed: for bookkeeping that must not be observed. Not `meta()` read without tracking - a record of its own. |
 | `innerMeta` | `innerMeta(object) → object` | Cascade's own bookkeeping about an observable (its `id`, target, handler ...). For reading. |
+| `hasObservers` | `hasObservers(object, [key]) → boolean` | Whether any repeater or invalidator observes `key` of the object right now (without a key: anything of it). Ask after the reruns are done. A prototype member counts as observed if any is; an array's length and indices if any element read is. |
+| `sourcesOf` | `sourcesOf(observer) → [{ object, key, kind }]` | What a repeater (its own reads) or an invalidator read in its last run. `kind`: `"property"`, `"keys"`, `"elements"` or `"prototype"` (key `null`). |
 | `sameAsPreviousDeep` | `sameAsPreviousDeep(a, b, [depthLimit = 8])` | Deep comparison of plain (non-observable) values. |
 | `caching` | `caching(fn) → cachedFn` | See below. |
 | `log`, `logGroup`, `logUngroup`, `logToString`, `loge`, `logs`, `logss` | | Debug logging without recording. |

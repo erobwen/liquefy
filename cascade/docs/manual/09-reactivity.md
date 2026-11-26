@@ -34,7 +34,9 @@ What `@liquefy/cascade.component` re-exports from its world: `observable`,
 `accessInitialValues`, `declareState`, `finalize`, `sameAsPreviousDeep`,
 `state` - and the world itself as `world`. Everything else is reached through
 it: `world.transaction`, `world.withoutReactions`, `world.establish`,
-`world.dispose`, `world.caching`, `world.log`.
+`world.dispose`, `world.caching`, `world.log`, and, for devtools and
+diagnostics, `world.hasObservers(object, [key])` and `world.sourcesOf(observer)`
+(see the cascade.reactive README).
 
 Options of `getWorld()` (defaults in brackets):
 

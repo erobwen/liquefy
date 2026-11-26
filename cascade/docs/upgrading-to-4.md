@@ -85,6 +85,19 @@ observer down from inside another repeater no longer makes that repeater
 observe the object, so you no longer need to wrap `dispose()` or
 `retractRepeater()` in `withoutRecording()` for that reason.
 
+Code that reached into cascade's internals to ask who depends on what (by
+walking `innerMeta(object).handler.timelines` and its observer sets, or by
+reading an observer's `sources`) can use two new functions instead, which
+won't change with the internals:
+
+- `hasObservers(object, [key])`: whether anything observes the property (or
+  the object) right now. Ask after the reruns are done, such as after an
+  `onRemovedLastObserver`.
+- `sourcesOf(observer)`: what a repeater or invalidator read, as
+  `{ object, key, kind }`.
+
+Both are on the world (`world.hasObservers`, `world.sourcesOf`).
+
 ## Components: unobservable becomes untracked
 
 | 3.x | 4.0 |

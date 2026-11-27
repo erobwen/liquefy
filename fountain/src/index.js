@@ -18,8 +18,9 @@
 
 import { Synchronized, synchronized, Index, registerClasses, model, world } from "@liquefy/deepwell";
 import { AuthenticationError, DEFAULT_SCRYPT, hashPassword, verifyPassword, newToken, tokenHash, jwtVerifier } from "./credentials.js";
+import { ChangeSet, ALL, recordReads, touches, makeDelivery, applyDelivery, clientRecord } from "./observation.js";
 
-export { AuthenticationError, jwtVerifier };
+export { AuthenticationError, jwtVerifier, ChangeSet, ALL, applyDelivery };
 
 export class AuthorizationError extends Error {
   constructor(message) {
@@ -350,6 +351,13 @@ export class Fountain {
         "Fountain.State": FountainState, "Fountain.Session": Session });
       registered = true;
     }
+    // The application's session class is registered like any class, under a name of its own.
+    // Clients are told of every session as a Fountain.Session: they never have its code.
+    try {
+      model.classNameOf(Object.create(SessionClass.prototype));
+    } catch (error) {
+      model.registerClass(SessionClass, { name: "Fountain.Session." + SessionClass.name });
+    }
     this.well = well;
     this.Session = SessionClass;
     this.identityProviders = identityProviders;
@@ -362,15 +370,15 @@ export class Fountain {
     this.decoyPassword = hashPassword(newToken(), scrypt);
     this.watchers = new WeakMap(); // object → the states of the sessions that hold it, or are it
 
-    // What a held object refers to changes when it is written: what the sessions that hold it
-    // know of changes with it. Read once the transaction is stored, and its new objects have
-    // their identities.
-    this.removeCommitListener = well.onCommit((change) => {
-      for (const object of change.changed) {
-        const states = this.watchers.get(object);
-        if (states !== undefined) for (const state of [...states]) this.retrack(state, object);
-      }
-    });
+    this.observers = new Set(); // see observe()
+    this.touched = new Set(); // the states of the sessions whose selections changed since the last commit
+    this.changeSetListeners = [];
+
+    // After each commit (observation.md): what a held object refers to is counted again, the
+    // commit's change set is made, observers whose reads it touches run again, and each session
+    // that holds something it wrote, or whose selections changed, is given its delivery. All of
+    // it once the transaction is stored, and its new objects have their identities.
+    this.removeCommitListener = well.onCommit((change) => this.committed(change));
 
     // A new database is made with one user, the super user (U3).
     if (well.root.fountain === undefined) {
@@ -390,6 +398,111 @@ export class Fountain {
   close() {
     this.removeCheck();
     this.removeCommitListener();
+    this.observers.clear();
+  }
+
+  /*------------------------------------------------------------------
+   *  Observation (observation.md)
+   *-----------------------------------------------------------------*/
+
+  committed(change) {
+    const eventsByState = new Map(); // state → Map(object → its events in this commit)
+    for (const event of change.events) {
+      const states = this.watchers.get(event.object);
+      if (states === undefined) continue;
+      for (const state of states) {
+        let byObject = eventsByState.get(state);
+        if (byObject === undefined) eventsByState.set(state, byObject = new Map());
+        if (!byObject.has(event.object)) byObject.set(event.object, []);
+        byObject.get(event.object).push(event);
+      }
+    }
+    for (const object of change.changed) {
+      const states = this.watchers.get(object);
+      if (states !== undefined) for (const state of [...states]) this.retrack(state, object);
+    }
+
+    const changeSet = ChangeSet.fromCommit(change);
+    for (const listener of this.changeSetListeners) listener(changeSet);
+    for (const observer of [...this.observers]) {
+      if (this.observers.has(observer) && touches(changeSet, observer.reads)) observer.run(changeSet);
+    }
+
+    const states = new Set([...this.touched, ...eventsByState.keys()]);
+    this.touched.clear();
+    for (const state of states) this.deliver(state, change.commit, eventsByState.get(state) || new Map());
+  }
+
+  deliver(state, commit, eventsByObject) {
+    const delivery = makeDelivery(this.well, state, commit, eventsByObject);
+    if (delivery === null) return;
+    state.outbox.push(delivery);
+    for (const listener of [...state.deliveryListeners]) listener(delivery);
+  }
+
+  /** Calls `listener(changeSet)` after every commit, with what it wrote. Returns a remover. */
+  onChangeSet(listener) {
+    this.changeSetListeners.push(listener);
+    return () => { this.changeSetListeners = this.changeSetListeners.filter((other) => other !== listener); };
+  }
+
+  /**
+   * Observes a computation by what it reads (observation.md section 3): runs `compute`,
+   * records what it read by identity and field, and after every commit whose change set touches
+   * that, runs it again and calls `changed(value, changeSet)`. It holds no object in memory:
+   * what it read may be unloaded, and is read again when it runs. Returns
+   * `{ value, reads, stop() }`.
+   */
+  observe(compute, changed = () => {}) {
+    const fountain = this;
+    const observer = {
+      value: undefined,
+      reads: new Map(),
+      run(changeSet) {
+        const { value, reads } = recordReads(compute);
+        observer.value = value;
+        observer.reads = reads;
+        if (changeSet !== undefined) changed(value, changeSet);
+      },
+      stop() { fountain.observers.delete(observer); },
+    };
+    observer.run();
+    this.observers.add(observer);
+    return observer;
+  }
+
+  /**
+   * The deliveries of a session not yet taken, in order: what a client is to be sent
+   * (observation.md section 4). What changed since the last commit, such as a new session, is
+   * made into a delivery first.
+   */
+  takeDeliveries(session) {
+    const state = stateOf(session);
+    if (state.pendingJoined.size > 0 || state.pendingLeft.size > 0) {
+      this.touched.delete(state);
+      this.deliver(state, this.well.lastCommit, new Map());
+    }
+    const outbox = state.outbox;
+    state.outbox = [];
+    return outbox;
+  }
+
+  /** Calls `listener(delivery)` for each delivery of a session as it is made. Returns a remover. */
+  onDelivery(session, listener) {
+    const state = stateOf(session);
+    state.deliveryListeners.push(listener);
+    return () => { state.deliveryListeners = state.deliveryListeners.filter((other) => other !== listener); };
+  }
+
+  /** The records of what a session holds, by identity, as its client should have them: for tests and diagnosis. */
+  clientView(session) {
+    const state = stateOf(session);
+    const view = new Map();
+    for (const object of [session, ...state.holders.keys()]) {
+      const id = model.identityOf(object);
+      if (id !== undefined) view.set(id, clientRecord(this.well, object));
+    }
+    return view;
   }
 
   get superUser() {
@@ -473,7 +586,12 @@ export class Fountain {
   /** A new session, with no user: what a connection starts with. */
   createSession() {
     const session = new this.Session();
-    const state = { fountain: this, grants: new Set(), subscriptions: new Set(), effects: [], token: null, holders: new Map(), outgoing: new Map(), incoming: new Map() };
+    const state = {
+      fountain: this, grants: new Set(), subscriptions: new Set(), effects: [], token: null,
+      holders: new Map(), outgoing: new Map(), incoming: new Map(),
+      // What the client is to be sent (observation.md section 4).
+      pendingJoined: new Set([session]), pendingLeft: new Set(), sentIds: new Map(), outbox: [], deliveryListeners: [],
+    };
     state.session = session;
     sessionStates.set(session, state);
     this.well.volatile(session);
@@ -521,6 +639,9 @@ export class Fountain {
       if (holders === undefined) {
         state.holders.set(object, holders = new Set());
         if (!state.outgoing.has(object)) this.track(state, object);
+        if (state.pendingLeft.has(object)) state.pendingLeft.delete(object); // held all along
+        else state.pendingJoined.add(object);
+        this.touched.add(state);
       }
       holders.add(subscription);
     }
@@ -530,7 +651,11 @@ export class Fountain {
       holders.delete(subscription);
       if (holders.size > 0) continue;
       state.holders.delete(object);
-      if (object !== stateSession(state)) this.untrack(state, object);
+      if (object === stateSession(state)) continue;
+      this.untrack(state, object);
+      if (state.pendingJoined.has(object)) state.pendingJoined.delete(object); // never sent
+      else state.pendingLeft.add(object);
+      this.touched.add(state);
     }
   }
 

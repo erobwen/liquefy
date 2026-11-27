@@ -134,9 +134,10 @@ data model.
 The server on top of Deepwell, for full stack reactivity: clients
 subscribe to persistent objects over WebSockets and stay in sync as they
 change, with users and authorization per object built in from the start.
-In progress, not yet published: the user model runs and is tested (users,
-sessions, signing in, the session's remote methods, authorization); there is
-no network yet - see [fountain](fountain#readme), and the design in
+In progress, not yet published: the user model (users, sessions, signing in,
+the session's remote methods, authorization) and observation (what each
+session is to be sent after each commit) run and are tested; there is no
+network yet - see [fountain](fountain#readme), and the design in
 [the whitepaper](fountain/whitepaper.md).
 
 ## Flow

@@ -1,10 +1,10 @@
 # Indexes
 
-*Specification, draft. Part of [Deepwell](../README.md), with [its design](design.md), whose sections 6 and 7 it details for step 8 of the roadmap: a B-tree of persistent objects, with keys that read only their member. It is implemented in `src/indexes.js`, with what a store adds in `src/well.js`.*
+*Specification, draft. Part of [Deepwell](../README.md), with [its design](design.md), whose sections 6 and 7 it details for steps 8 and 9 of the roadmap: a B-tree of persistent objects, with keys that read their member, and keys that read other objects. It is implemented in `src/indexes.js`, with what a store adds in `src/well.js`.*
 
-This document states what an index is, what a key is, how the tree is stored, what a member knows of its indexes, and when a key is evaluated again. Each rule that can be checked is stated as an invariant, with who maintains it and how it is verified, in the style of [the data model](data-model.md).
+This document states what an index is, what a key is, how the tree is stored, what a member knows of its indexes, when a key is evaluated again, and how a key that reads other objects is evaluated again when one of them is written. Each rule that can be checked is stated as an invariant, with who maintains it and how it is verified, in the style of [the data model](data-model.md).
 
-What is not in this step is listed in section 8.
+What is not done is listed in section 9.
 
 ---
 
@@ -16,7 +16,9 @@ What is not in this step is listed in section 8.
 - **Sequence number.** A number the index gives a member when it is added, one more for each. A member keeps it for as long as it is a member.
 - **Entry.** A member's place in the index: its key and its sequence number. Entries are ordered by key, and entries of the same key by sequence number, so no two entries are equal.
 - **Node.** One of the objects the tree is made of, an instance of `Deepwell.IndexNode`.
-- **Filed under.** A member is filed under the key of its entry. That may differ from its key now only inside the transaction that wrote the member (T2).
+- **Filed under.** A member is filed under the key of its entry. That may differ from its key now only inside the transaction that wrote the member (T2), or while the member is stale (D3).
+- **Source.** A synchronized object, other than the member, that a member's key read a field of.
+- **Stale.** A member is stale when one of its sources was written and its key has not been computed since. An index is stale while it has stale members.
 
 ---
 
@@ -49,14 +51,16 @@ An index class is registered by name, like any class of stored objects. Its `key
 | `keys(range)` | The keys in a range, one for each member, in order. Loads no member. |
 | `get(key)` | The members filed under exactly that key. |
 | `first()`, `last()` | The member at either end. |
-| `rebuild()` | Makes the tree again from nothing (R1). |
+| `stale` | Whether the index has stale members (D3). |
+| `isStale(member)` | Whether that member is stale. |
+| `rebuild()` | Makes the trees again from nothing (R1). |
 | `check()` | Verifies the invariants below, and returns what is wrong. |
 
 A range is `{ from, to, after, before, limit, reverse }`, all optional. `from` and `to` are bounds that are included; `after` and `before` are bounds that are not. `reverse: true` gives the range from its end. Without bounds, a range is the whole index.
 
 `keyChanged(member, oldKey, newKey)` is called when a member's key is found to have changed (T1). What it does by default is move the entry. A subclass that maintains more than the tree extends it.
 
-`static order` is the most entries a node may hold: 32 by default, at least 4.
+`static order` is the most entries a node may hold: 32 by default, at least 4. `static immediate` is how many keys may read one object and still be computed again in the transaction that writes it: 16 by default (D3).
 
 An index is used the same way on objects that are not stored. Nothing in it depends on a store, except what section 5 says of records.
 
@@ -70,9 +74,8 @@ An index is used the same way on objects that are not stored. Nothing in it depe
 **K2. A key is computed without writing.** While `keyOf` runs, every write to a synchronized object throws. A migration of an object that `keyOf` causes to be loaded is not `keyOf`'s write, and is made (design section 8).
 *Maintained by:* the data model's write check, asked by the index. *Verified by:* a test with a `keyOf` that writes.
 
-**K3. A key reads only its member.** What `keyOf` reads is recorded, and it is refused if it read a field of any object other than the member: another object the member refers to, an array or a classless object that is a part of the member, or the index itself. Reading a field of the member that holds a reference is reading the member; reading into what it refers to is not.
-*Why:* a write to another object would not cause the key to be evaluated again (T1). Keys that read other objects need stored dependency records, which are step 9.
-*Maintained by:* `evaluate`, from what cascade.reactive's `sourcesOf()` reports. *Verified by:* tests with keys that read a referred object, a part, and the index.
+**K3. A key reads stored state only, and what it read is known.** What `keyOf` reads is recorded. The synchronized objects it read a field of, other than the member, are the key's sources (section 7): another object the member refers to, an array or a classless object that is a part of the member, or the index itself. Reading a field of the member that holds a reference is reading the member; reading into what it refers to makes that object a source. A key that read an observable that is not synchronized, or a volatile object, is refused: a write to it could not cause the key to be evaluated again. A key cannot be computed inside `withoutRecording()`, where what it reads cannot be seen; that is refused too.
+*Maintained by:* `evaluate`, from what cascade.reactive's `sourcesOf()` reports. *Verified by:* tests with keys that read a referred object, a part, the index, an observable that is not synchronized, and a volatile object.
 
 **K4. A key is a value of its own.** The key an entry holds is frozen, and shares nothing that can change with the member it was computed from.
 *Maintained by:* `normalizeKey`, which copies dates and arrays and freezes the result.
@@ -160,7 +163,7 @@ This is what makes a write to a member find its entry, with nothing looked up in
 **T1. A write to a member evaluates its keys again.** Every write to a member of an index, stored or not, notes the member. At the end of the transaction, before anything is stored, the key of each noted member is computed for each index it is in, and compared with the key it is filed under. Where they differ, `keyChanged` is called, which moves the entry. No dependency is stored: being a member is the trigger (design section 7.2).
 *Maintained by:* the write check, which notes the member, and `settle`, which a store calls first thing when it writes a transaction. *Verified by:* the fuzzer of I1 to I7, and a test that writes a member after the store has been opened anew.
 
-**T2. At the end of a transaction, every member is filed under its key.** For every member of every index, `keyOf(member)` equals the key it is filed under. Inside the transaction that wrote a member, before its end, the index still has the member where it was.
+**T2. At the end of a transaction, every member that is not stale is filed under its key.** For every member of every index that is not stale (D3), `keyOf(member)` equals the key it is filed under. Inside the transaction that wrote a member, before its end, the index still has the member where it was.
 *Verified by:* `check()`, which computes every key again.
 
 **T3. The move is part of the transaction.** What `keyChanged` writes is written in the same Aquifer transaction as the write to the member that caused it. A transaction that cannot be written leaves the tree, and what the members know, as they were before it.
@@ -173,16 +176,60 @@ This is what makes a write to a member find its entry, with nothing looked up in
 
 ---
 
-# 7. Rebuilding
+# 7. Keys that read other objects
 
-**R1. An index can be made again from nothing.** `rebuild()` discards the tree, and files every member again under the key it has now. The result holds the same members, in the same order as before if the index was correct. It reads every member.
+A key such as `product.price * product.currency.rate` reads an object other than its member. A write to that object must cause the key to be evaluated again, also when the member is not in memory, and after a restart (design section 7.2).
+
+**What is stored.** Three things, none of them an observer:
+
+- *In the member's record,* with the key it is filed under: the sources of that key, each named by a number that the index gave the source. This is what the key read when it was last computed.
+
+  ```json
+  "$indexes": [[{ "$weak": "n7" }, 24, 4, [0]]]
+  ```
+
+- *In the source's record,* under a reserved key: for each index that has keys that read it, the number the index gave it.
+
+  ```json
+  { "$class": "Currency", "$version": 0, "rate": 2, "$dependents": [[{ "$weak": "n7" }, 0]] }
+  ```
+
+- *In the index,* a second tree, `dependencies`, of the same nodes as the first: one entry for each member and source of its key, ordered by the source's number and then by the member's sequence number, referring to the member. The members whose keys read a source are a range of it.
+
+A source's record says only that an index has keys that read it, and by which number. That is one small entry however many keys read the source: a million products that read one currency are a million entries in the index's tree, in nodes that are read a few at a time, and one entry in the currency. The numbers are what lets the entries be ordered, and removed, without loading the source.
+
+**D1. A write to a source is noticed.** Every write to a synchronized object that knows of an index whose keys read it notes the object. At the end of the transaction, before anything is stored, the members whose keys read it are found in the index's `dependencies`, and their keys are computed again (D3 says when). What an index writes to itself as it works, its size and the like, is not noticed; a write to a field of the index by anything else is.
+*Maintained by:* the write check, and `settle`. *Verified by:* tests that write a source, also after the store has been opened anew with nothing else in memory.
+
+**D2. The dependencies are those of the keys as last computed.** For every member, the sources in its record are the objects its key read when it was last computed; `dependencies` holds exactly one entry for each member and source in those records, and no other; and every source knows of the index, by the number those records use. When a key is computed again and reads other objects than before, the entries, and the member's record, are changed to match, in the same transaction.
+A source that no key reads any longer keeps knowing of the index until it is next written; then it is found to have no readers, and forgets.
+*Maintained by:* `refresh`, `add` and `delete`. *Verified by:* `check()`, after every step of a fuzzer that also changes what members refer to, changes sources, and replaces them.
+
+**D3. Few readers are computed again at once, many in the background.** When a source is written, and at most `immediate` keys read it, they are computed again in that transaction, and T2 holds at its end. When more do, the index notes the source in `work`, which is stored, and is stale: the members whose keys read that source, and have not been computed since, may be filed under keys that are no longer theirs, and `isStale(member)` says which they are. A store's `work()` computes them again, fifty for each step, each step a transaction of its own; when a source's readers are all done, it is removed from `work`. A source that is written again while its work is under way starts over.
+*Why:* a million keys cannot be computed in the transaction that changed one rate (design section 7.2).
+*Verified by:* tests with more readers than `immediate`, of the stale members, of the work done in steps, and of a source written again meanwhile; the fuzzer runs `work` at random, and requires the index to be right whenever it is not stale.
+
+**D4. Work survives a restart.** `work` is a field of the index. An index that is made from its record with work left is taken up again by the store's `work()`.
+*Verified by:* a test that reopens the store with work left.
+A stale index that nothing has read since the store was opened is not in memory, and its work waits until it is.
+
+**D5. Sources are named when the index is.** Like a member's (M5), a source's record names only indexes that are stored; when an index is stored after its sources, they are written again in the transaction that stores it.
+*Verified by:* a test that fills an index before attaching it to the root.
+
+---
+
+# 8. Rebuilding
+
+**R1. An index can be made again from nothing.** `rebuild()` discards both trees and the work, and files every member again under the key it has now, with the dependencies of that key. The result holds the same members, in the same order as before if the index was correct and not stale. It reads every member.
 *This is the oracle:* an index that has been maintained through any sequence of changes holds what one rebuilt from nothing holds. *Verified by:* the fuzzer, which compares the index with its members sorted by their keys, and with itself after `rebuild()`.
 
 ---
 
-# 8. Not in this step
+# 9. Not done
 
-- **Keys that read other objects** (design section 7.2): stored dependency records, background work for objects that many keys read, and tracked staleness. Step 9. Until then K3 refuses such keys.
+- **Coarse dependency records** (design section 7.2): one record saying that an index as a whole depends on an object, in place of an entry for each key that reads it.
+- **A key that throws while the index works in the background** (whitepaper section 8.16): the step fails, and is tried again. It should not stop the index.
+- **Finding stale indexes that are not in memory** (D4).
 - **Member sets that follow a selection** (design section 6.2). Members are added and removed by calling `add` and `delete`.
 - **Weak holding of members** (design section 7.2), which needs the collector to call the index's removal code before it reclaims a member. An index holds its members (M3).
 - **Rebuilding when the class of an index changes.** `rebuild()` exists, and must be called; a version of the index class is not yet a reason for it, and an index being rebuilt does not say how much of its member set it covers (design section 7.3).

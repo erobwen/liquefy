@@ -274,6 +274,7 @@ export class Well {
         const elements = (record.$elements || []).map((item) => this.model.decodeValue(item, decodeOptions));
         const array = this.model.adopt(elements);
         this.adoptAs(array, id);
+        this.indexes.loadRecords(array, record);
         return array;
       } finally {
         this.making.delete(id);
@@ -287,7 +288,7 @@ export class Well {
     const target = Object.create(entry ? entry.Class.prototype : Object.prototype);
     const object = this.model.adopt(target);
     this.adoptAs(object, id);
-    if (record.$indexes !== undefined) this.indexes.loadMemberships(object, record.$indexes);
+    this.indexes.loadRecords(object, record);
     for (const key of Object.keys(record)) {
       if (RECORD_KEYS.has(key) || key.startsWith("$") && !key.startsWith("$$")) continue;
       const field = unescapeKey(key);
@@ -300,6 +301,7 @@ export class Well {
     }
     const stored = record.$version === undefined ? 0 : record.$version;
     if (entry && stored !== entry.version) this.migrate(object, id, entry, stored);
+    if (object instanceof this.indexes.Index) this.indexes.indexLoaded(object);
     return object;
   }
 
@@ -519,12 +521,12 @@ export class Well {
     const storedChanged = changed.filter((object) => !this.isVolatile(object));
     const volatileChanged = changed.filter((object) => this.isVolatile(object));
     for (const object of storedChanged) visit(object);
-    // An index that is stored now is named by its members' records from now on: those of its
-    // members that were stored already are written again.
+    // An index that is stored now is named from now on by the records of its members, and of
+    // the objects its keys read: those that were stored already are written again.
     for (const object of created) {
       if (!(object instanceof this.indexes.Index)) continue;
-      for (const member of this.indexes.membersToWriteFor(object)) {
-        if (this.isStored(member) && !storedChanged.includes(member)) storedChanged.push(member);
+      for (const other of this.indexes.objectsToWriteFor(object)) {
+        if (this.isStored(other) && !storedChanged.includes(other)) storedChanged.push(other);
       }
     }
     const volatileCreated = [];
@@ -728,6 +730,7 @@ export class Well {
     const record = { $class: name, $version: name === OBJECT_CLASS || name === ARRAY_CLASS ? 0 : this.model.classByName(name).version };
     if (name === ARRAY_CLASS) {
       record.$elements = [...object].map((item) => this.model.encodeValue(item, { identify }));
+      this.indexes.encodeRecords(object, record, identityOf);
       return record;
     }
     const target = this.world.innerMeta(object).target;
@@ -738,8 +741,7 @@ export class Well {
         : this.model.encodeValue(object[key], { identify });
       if (encoded !== undefined) record[escapeKey(key)] = encoded;
     }
-    const indexes = this.indexes.encodeMemberships(object, identityOf);
-    if (indexes !== undefined) record.$indexes = indexes;
+    this.indexes.encodeRecords(object, record, identityOf);
     return record;
   }
 
@@ -888,12 +890,24 @@ export class Well {
     }
   }
 
+  /** One step of an index's background work (indexes.md D3). True if a step was made. */
+  indexStep() {
+    this.direct++;
+    try {
+      return this.indexes.workStep(this);
+    } finally {
+      this.direct--;
+    }
+  }
+
   /**
-   * Runs up to `steps` steps of background work, and reports how much is left. Today that is
-   * the collector's work; persistent repeaters and migrations will join it.
+   * Runs up to `steps` steps of background work, and reports how much is left: the collector's
+   * work, migrations being completed, and the keys of indexes that are to be computed again.
    */
   work(steps = 1) {
     let done = this.db.collector.run(steps);
+    // Indexes that are stale get as many steps as the collector was offered.
+    for (let step = 0; step < steps && this.indexStep(); step++) done++;
     // Migrations being completed get as many steps as the collector was offered.
     for (let step = 0; step < steps && this.migrationScan !== null; step++) {
       this.migrationStep();
@@ -901,13 +915,15 @@ export class Well {
     }
     const backlog = this.db.collector.backlog();
     const migrating = this.migrationScan !== null;
-    const remaining = migrating || backlog.cohorts + backlog.items + backlog.structureTasks + backlog.deferrals > 0;
-    return { steps: done, remaining, pressure: false, backlog, migrating };
+    const indexing = this.indexes.hasWork(this);
+    const remaining = migrating || indexing || backlog.cohorts + backlog.items + backlog.structureTasks + backlog.deferrals > 0;
+    return { steps: done, remaining, pressure: false, backlog, migrating, indexing };
   }
 
   /** Runs background work until none is left, including deferred cuts that are not yet due. */
   workUntilIdle() {
     while (this.migrationStep()) { /* until every record has been looked at */ }
+    while (this.indexStep()) { /* until no index is stale */ }
     this.db.collector.run(Infinity, { flush: true });
   }
 }

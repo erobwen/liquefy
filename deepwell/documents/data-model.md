@@ -285,7 +285,7 @@ The record of an array object holds its elements under a third reserved key:
 { "$class": "Array", "$version": 0, "$elements": [ { "$ref": "n457" }, { "$ref": "n458" } ] }
 ```
 
-A fourth reserved key, `$indexes`, holds what an object that is a member of indexes knows of them: for each, a weak reference to the index, the key the object is filed under, and its sequence number ([indexes](indexes.md) section 5). It is Deepwell's, on the server: it is not a field, and is not sent.
+A fourth reserved key, `$indexes`, holds what an object that is a member of indexes knows of them: for each, a weak reference to the index, the key the object is filed under, its sequence number, and what the key read ([indexes](indexes.md) sections 5 and 7). A fifth, `$dependents`, holds what an object knows of the indexes whose keys read it. Both are Deepwell's, on the server: they are not fields, and are not sent.
 
 Fields are kept flat, as Aquifer's own fields, so that Aquifer's `set` and `delete` of a field are a write and a delete of a field of the object.
 
@@ -307,7 +307,7 @@ The commit that last changed an object is not in its record. Aquifer keeps it wi
 | `Set` | `{ "$set": [element, ...] }`, elements encoded |
 | `Uint8Array` | `{ "$binary": "<base64>" }` |
 
-**E1. Every key that begins with `$` is the encoding's own.** In an encoded record, at any depth, a key that begins with a single `$` is one of the reserved keys (`$class`, `$version`, `$elements`, `$indexes`) or tags (`$ref`, `$weak`, `$number`, `$date`, `$map`, `$set`, `$binary`). A key of the application's that begins with `$`, whether the name of a field or a key inside a frozen value, is escaped by writing one more `$` in front of it: a field named `$ref` is stored under `$$ref`, and one named `$$x` under `$$$x`. The decoder removes one `$` from every key that begins with two.
+**E1. Every key that begins with `$` is the encoding's own.** In an encoded record, at any depth, a key that begins with a single `$` is one of the reserved keys (`$class`, `$version`, `$elements`, `$indexes`, `$dependents`) or tags (`$ref`, `$weak`, `$number`, `$date`, `$map`, `$set`, `$binary`). A key of the application's that begins with `$`, whether the name of a field or a key inside a frozen value, is escaped by writing one more `$` in front of it: a field named `$ref` is stored under `$$ref`, and one named `$$x` under `$$$x`. The decoder removes one `$` from every key that begins with two.
 *Maintained by:* the encoder. *Verified:* round-trip tests with field names and frozen values whose keys are, or look like, tags.
 
 This is needed for more than tidiness. Aquifer finds references by looking, at any depth of a record, for an object with a `$ref` key. An application value such as `{ $ref: "n1", note: "x" }` stored as it is would be taken for a reference, and a client could use it to keep an arbitrary object alive, or to name one that does not exist.

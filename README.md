@@ -125,8 +125,7 @@ The layer on top of Aquifer: it turns Aquifer's records into persistent
 JavaScript objects that server code loads, reads and writes like any others.
 Usable on its own, without clients. In progress, not yet published: objects
 over records, loading and unloading, selectors, checks before writes, volatile
-objects, migrations and indexes run and are tested; index keys that read
-other objects are planned - see
+objects, migrations and indexes run and are tested - see
 [deepwell](deepwell#readme) for its design and the specification of its
 data model.
 

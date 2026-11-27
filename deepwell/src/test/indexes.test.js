@@ -27,7 +27,12 @@ class ByName extends Index {
   keyOf(product) { return [product.name, product.price]; }
 }
 class ByRate extends Index {
-  keyOf(product) { return product.price * product.currency.rate; }
+  static order = 4;
+  static immediate = 3;
+  keyOf(product) { return product.currency === null ? product.price : product.price * product.currency.rate; }
+}
+class ByVolatile extends Index {
+  keyOf(product) { return product.price * ByVolatile.other.rate; }
 }
 class ByTags extends Index {
   keyOf(product) { return product.tags.length; }
@@ -42,7 +47,7 @@ class Parameterized extends Index {
 class Wide extends Index {
   keyOf(product) { return product.price; }
 }
-const classes = { Product, Currency, ByPrice, ByName, ByRate, ByTags, Writing, Parameterized, Wide };
+const classes = { Product, Currency, ByPrice, ByName, ByRate, ByTags, Writing, Parameterized, Wide, ByVolatile };
 
 const wells = [];
 function openWell(store = new MemoryStore()) {
@@ -362,17 +367,14 @@ describe("indexes: against a model", function () {
 
 describe("indexes: what is refused", function () {
 
-  it("a key that reads another object than its member", function () {
+  it("a key that reads what is not stored state: an observable that is not synchronized, a volatile object", function () {
     const well = openWell();
-    const index = well.root.byRate = new ByRate();
-    const product = new Product("a", 2);
-    product.currency = new Currency(3);
-    assert.throws(() => index.add(product), /another object than its member/);
+    const index = well.root.byVolatile = new ByVolatile();
+    ByVolatile.other = world.observable({ rate: 2 });
+    assert.throws(() => index.add(new Product("a", 2)), /not synchronized/);
+    ByVolatile.other = well.volatile(new Currency(2));
+    assert.throws(() => index.add(new Product("a", 2)), /volatile/);
     assert.equal(index.size, 0);
-    const byTags = well.root.byTags = new ByTags();
-    assert.throws(() => byTags.add(product), /another object than its member/);
-    const parameterized = well.root.parameterized = new Parameterized();
-    assert.throws(() => parameterized.add(product), /the index itself/);
   });
 
   it("a key that writes", function () {
@@ -500,4 +502,229 @@ describe("indexes: an index that is stored after its members", function () {
     assert.equal(again.root.products[0].price, 5);
     assert.deepEqual(checkIntegrity(again.db.store, { quiescent: true }), []);
   });
+});
+
+describe("indexes: keys that read other objects", function () {
+
+  function rates(well, count, perCurrency) {
+    const index = well.root.byRate = new ByRate();
+    well.root.currencies = synchronized([]);
+    well.root.products = synchronized([]);
+    transaction(() => {
+      for (let c = 0; c < count; c++) {
+        const currency = new Currency(c + 1);
+        well.root.currencies.push(currency);
+        for (let i = 0; i < perCurrency; i++) {
+          const product = new Product("c" + c + "p" + i, i + 1);
+          product.currency = currency;
+          well.root.products.push(product);
+          index.add(product);
+        }
+      }
+    });
+    return index;
+  }
+
+  it("moves the members whose keys read an object, in the transaction that writes it", function () {
+    const well = openWell();
+    const index = rates(well, 3, 3);
+    assert.deepEqual(index.keys(), [1, 2, 2, 3, 3, 4, 6, 6, 9]);
+    const before = well.lastCommit;
+    well.root.currencies[0].rate = 10;
+    assert.equal(well.lastCommit, before + 1);
+    assert.equal(index.stale, false);
+    assert.deepEqual(index.keys(), [2, 3, 4, 6, 6, 9, 10, 20, 30]);
+    assert.deepEqual(index.check(), []);
+  });
+
+  it("does so after the store is opened anew, with only the object that is written in memory", function () {
+    const well = openWell();
+    rates(well, 3, 3);
+    const again = reopen(well);
+    again.root.currencies[1].rate = 100;
+    assert.deepEqual(again.root.byRate.keys(), [1, 2, 3, 3, 6, 9, 100, 200, 300]);
+    assert.deepEqual(again.root.byRate.check(), []);
+  });
+
+  it("follows a key that comes to read another object, and forgets the one it read", function () {
+    const well = openWell();
+    const index = rates(well, 2, 2);
+    const [first, second] = well.root.currencies;
+    const product = well.root.products[0];
+    product.currency = second;
+    assert.equal(index.filedKeyOf(product), 2);
+    first.rate = 50;
+    assert.equal(index.filedKeyOf(product), 2, "it reads the first currency no longer");
+    second.rate = 7;
+    assert.equal(index.filedKeyOf(product), 7);
+    product.currency = null;
+    second.rate = 9;
+    assert.equal(index.filedKeyOf(product), 1);
+    assert.deepEqual(index.check(), []);
+  });
+
+  it("removes a member's dependencies with it", function () {
+    const well = openWell();
+    const index = rates(well, 2, 2);
+    for (const product of [...well.root.products]) index.delete(product);
+    assert.equal(index.dependencies.entries.length, 0);
+    well.root.currencies[0].rate = 3; // nothing reads it: it forgets the index
+    assert.deepEqual(index.check(), []);
+    assert.equal(index.size, 0);
+  });
+
+  it("reads a part of the member: an array of its own", function () {
+    const well = openWell();
+    const index = well.root.byTags = new ByTags();
+    const products = [new Product("a", 1), new Product("b", 1)];
+    transaction(() => { for (const product of products) index.add(product); });
+    products[0].tags.push("x", "y");
+    assert.deepEqual(names(index.members()), ["b", "a"]);
+    assert.deepEqual(index.keys(), [0, 2]);
+    const again = reopen(well);
+    again.root.byTags.first().tags.push("1", "2", "3");
+    assert.deepEqual(names(again.root.byTags.members()), ["a", "b"]);
+    assert.deepEqual(again.root.byTags.check(), []);
+  });
+
+  it("reads the index itself: a field of the index that says what the key is", function () {
+    const well = openWell();
+    const index = well.root.parameterized = new Parameterized();
+    const products = [new Product("b", 1), new Product("a", 2), new Product("c", 3)];
+    transaction(() => { for (const product of products) index.add(product); });
+    assert.deepEqual(names(index.members()), ["b", "a", "c"]);
+    assert.equal(index.stale, false, "adding members, which the index writes itself for, is no change of what the keys read");
+    index.field = "name";
+    assert.deepEqual(names(index.members()), ["a", "b", "c"]);
+    assert.deepEqual(index.check(), []);
+  });
+
+  it("is stale when many keys read the object that was written, until the work is done", function () {
+    const well = openWell();
+    const index = rates(well, 2, 10);
+    const before = index.keys();
+    const [first, second] = well.root.currencies;
+    first.rate = 100;
+    assert.equal(index.stale, true);
+    assert.deepEqual(index.keys(), before, "nothing has moved yet");
+    const mine = well.root.products.filter((product) => product.currency === first);
+    const others = well.root.products.filter((product) => product.currency === second);
+    assert.ok(mine.every((product) => index.isStale(product)));
+    assert.ok(others.every((product) => !index.isStale(product)));
+    assert.deepEqual(index.check(), [], "stale members are known to be: nothing is wrong");
+    assert.equal(well.work(1).indexing, false, "ten keys are one step");
+    assert.equal(index.stale, false);
+    assert.deepEqual(index.keys().slice(-3), [800, 900, 1000]);
+    assert.deepEqual(index.check(), []);
+  });
+
+  it("takes the work up again after the store is opened anew", function () {
+    const well = openWell();
+    rates(well, 1, 10);
+    well.root.currencies[0].rate = 5;
+    assert.equal(well.root.byRate.stale, true);
+    const again = reopen(well);
+    assert.equal(again.root.byRate.stale, true);
+    assert.equal(again.work(0).indexing, true);
+    again.workUntilIdle();
+    assert.equal(again.root.byRate.stale, false);
+    assert.deepEqual(again.root.byRate.keys(), [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
+    assert.deepEqual(again.root.byRate.check(), []);
+  });
+
+  it("does the work in steps, and starts over if the object is written again", function () {
+    const well = openWell();
+    const index = rates(well, 1, 120);
+    const currency = well.root.currencies[0];
+    currency.rate = 2;
+    assert.equal(index.workStep(50), true);
+    assert.equal(index.isStale(well.root.products[0]), false);
+    assert.equal(index.filedKeyOf(well.root.products[0]), 2);
+    assert.equal(index.isStale(well.root.products[119]), true);
+    assert.equal(index.filedKeyOf(well.root.products[119]), 120);
+    currency.rate = 3;
+    assert.equal(index.isStale(well.root.products[0]), true, "all are to be computed again");
+    well.workUntilIdle();
+    assert.equal(index.stale, false);
+    assert.deepEqual(index.keys(), well.root.products.map((product) => product.price * 3));
+    assert.deepEqual(index.check(), []);
+  });
+
+  it("names an index that is stored after the objects its keys read", function () {
+    const well = openWell();
+    well.root.currency = new Currency(2);
+    well.root.products = synchronized([new Product("a", 1), new Product("b", 2)]);
+    for (const product of well.root.products) product.currency = well.root.currency;
+    const index = new ByRate();
+    for (const product of well.root.products) index.add(product);
+    well.root.byRate = index;
+    const again = reopen(well);
+    again.root.currency.rate = 10;
+    assert.deepEqual(again.root.byRate.keys(), [10, 20]);
+    assert.deepEqual(again.root.byRate.check(), []);
+  });
+
+  for (const seed of [11, 12, 13]) {
+    it("random changes to members and to what their keys read leave the index as one built from nothing (seed " + seed + ")", function () {
+      this.timeout(30000);
+      const next = random(seed);
+      const pick = (list) => list[Math.floor(next() * list.length)];
+      let well = openWell();
+      well.root.byRate = new ByRate();
+      well.root.all = synchronized([]);
+      well.root.currencies = synchronized([new Currency(1), new Currency(2), new Currency(3), new Currency(5)]);
+      const keyOf = (product) => (product.currency === null ? product.price : product.price * product.currency.rate);
+
+      for (let step = 0; step < 300; step++) {
+        const all = well.root.all;
+        const index = well.root.byRate;
+        const currencies = well.root.currencies;
+        transaction(() => {
+          const choice = next();
+          if (choice < 0.4 || all.length === 0) {
+            const product = new Product("p" + step, 1 + Math.floor(next() * 20));
+            product.currency = next() < 0.9 ? pick(currencies) : null;
+            all.push(product);
+            index.add(product);
+          } else if (choice < 0.5) {
+            const product = pick(all);
+            index.delete(product);
+            all.splice(all.indexOf(product), 1);
+          } else if (choice < 0.65) {
+            pick(all).price = 1 + Math.floor(next() * 20);
+          } else if (choice < 0.8) {
+            pick(all).currency = next() < 0.9 ? pick(currencies) : null;
+          } else if (choice < 0.95) {
+            pick(currencies).rate = 1 + Math.floor(next() * 9);
+          } else {
+            const replaced = Math.floor(next() * currencies.length);
+            const old = currencies[replaced];
+            const currency = new Currency(1 + Math.floor(next() * 9));
+            for (const product of all) if (product.currency === old) product.currency = currency;
+            currencies.splice(replaced, 1, currency);
+          }
+        });
+        if (next() < 0.3) well.work(1);
+        assert.deepEqual(well.root.byRate.check(), [], "step " + step);
+
+        if (step % 25 === 24) {
+          well.workUntilIdle();
+          const settled = well.root.byRate;
+          assert.equal(settled.stale, false);
+          const wanted = [...well.root.all].map(keyOf).sort((a, b) => a - b);
+          assert.deepEqual(settled.keys(), wanted, "step " + step);
+          assert.deepEqual(settled.check(), [], "idle at step " + step);
+        }
+        if (step % 100 === 99) {
+          assert.deepEqual(checkIntegrity(well.db.store, { quiescent: true }), []);
+          well = reopen(well);
+          assert.deepEqual(well.root.byRate.check(), [], "after reopening at step " + step);
+          const before = well.root.byRate.keys();
+          well.root.byRate.rebuild();
+          assert.deepEqual(well.root.byRate.keys(), before);
+          assert.deepEqual(well.root.byRate.check(), []);
+        }
+      }
+    });
+  }
 });

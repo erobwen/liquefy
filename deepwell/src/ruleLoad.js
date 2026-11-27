@@ -43,6 +43,7 @@ export class RuleLoad {
     this.rules = rules;
     this.action = action;
     this.filter = options.filter || null;
+    this.onChange = options.onChange || null; // (joined, left), each an array, when the selection changes
 
     this.entries = new Map(); // object → { repeater, selects, needs, excluded, started }
     this.held = new Set();
@@ -132,11 +133,22 @@ export class RuleLoad {
       }
     }
 
-    for (const object of reached) if (!this.held.has(object)) well.hold(object);
-    for (const object of this.held) if (!reached.has(object)) well.release(object);
+    const joined = [];
+    const left = [];
+    for (const object of reached) {
+      if (this.held.has(object)) continue;
+      well.hold(object);
+      joined.push(object);
+    }
+    for (const object of this.held) {
+      if (reached.has(object)) continue;
+      well.release(object);
+      left.push(object);
+    }
     for (const object of [...this.entries.keys()]) if (!visited.has(object)) this.drop(object);
     this.held = reached;
     this.handle.selection = reached;
+    if (this.onChange !== null && (joined.length > 0 || left.length > 0)) this.onChange(joined, left);
     return missing;
   }
 
@@ -209,7 +221,9 @@ export class RuleLoad {
     this.handle.released = true;
     for (const object of [...this.entries.keys()]) this.drop(object);
     for (const object of this.held) this.well.release(object);
+    const left = [...this.held];
     this.held = new Set();
+    if (this.onChange !== null && left.length > 0) this.onChange([], left);
     this.arrivals = [];
     this.handle.selection = new Selection();
     this.handle.loaded = false;

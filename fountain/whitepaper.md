@@ -510,7 +510,9 @@ The selector decides which references to follow. A document selector follows the
 
 A reference that leaves the selection is delivered to the client as a stub: an identity and a type, without content. The client can subscribe to another selection to obtain the object behind it.
 
-A stub reveals that an object exists, and its class, also when the user may not read the object. That is accepted. An application for which it is too much keeps such references in an object that the user cannot read at all.
+A stub reveals that an object exists, and its class, also when the user may not read the object. That is accepted, and it holds for everything in the system: whoever cannot see what an object contains can sometimes see that it exists. A visitor in a shop sees the door marked "staff only", and not what is behind it.
+
+To hide that something exists, it is put inside an object that is already protected: its door is inside a room the visitor cannot enter. This is the *two step rule to hide existence*. A selection passes only through objects the user may read, so a reference that is held only by an object the user may not read is never delivered, and the object it names does not exist for that user, not even as a stub. An application for which revealing existence is too much keeps such references in an object that the user cannot read at all.
 
 Selectors are registered by name, as classes are. A client subscribes by naming a selector and a starting object. It never sends code to the server.
 
@@ -1649,7 +1651,7 @@ In order:
 1. In Cascade: `meta()`, `untrackedMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
 2. Aquifer's interface upward: volatile roots, a change set and commit number per transaction, reclaim notifications inside the transaction, and the commit that last changed each record (section 2.6).
 3. Deepwell, following [its own roadmap](../deepwell/documents/design.md): persistent objects as observables, one instance per identity, classes registered by name, the data model's encoding, `load` with hold counts, unloading, and a store that turns each transaction into one Aquifer transaction. Usable and tested on its own, without clients.
-4. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, with the subscription forest protecting arrays and classless objects (sections 3.4, 4.1 and 4.2).
+4. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, with the subscription forest protecting arrays and classless objects (sections 3.4, 4.1 and 4.2). Done, without a network: specified in [the user model](documents/user-model.md).
 5. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
 6. Selections per session, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.
 7. The protocol and `subscribe`: authenticated connections, subscribing to a selection, receiving it, receiving changes, reconnecting. Read-only clients first.

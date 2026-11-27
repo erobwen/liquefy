@@ -745,6 +745,34 @@ export class Well {
     return record;
   }
 
+  /**
+   * Runs `action` as a transaction that is made whole or not at all: if it throws, every
+   * write it made to an object of this store is undone, nothing is stored, and the error is
+   * thrown on. A Cascade transaction alone keeps the writes made before an error. Fountain runs
+   * a session's methods this way. It is an outermost transaction: inside another atomic one,
+   * it is part of that.
+   */
+  atomic(action) {
+    if (this.inAtomic) return action();
+    let result;
+    this.inAtomic = true;
+    this.suspendFlush++;
+    try {
+      this.world.transaction(() => { result = action(); });
+    } catch (error) {
+      const events = this.events;
+      this.changed = new Set();
+      this.events = [];
+      this.rollBack(events, this.indexes.takeJournal());
+      throw error;
+    } finally {
+      this.suspendFlush--;
+      this.inAtomic = false;
+    }
+    this.flush();
+    return result;
+  }
+
   /** Calls `listener({ commit, created, changed, events })` after each commit. Returns a remover. */
   onCommit(listener) {
     this.commitListeners.push(listener);
@@ -782,9 +810,10 @@ export class Well {
    * - A function `(start, selection)` that fills the whole selection. It runs again as a whole
    *   when anything it read changes, and needs a store that answers at once.
    *
-   * Options, before or after the action: `filter(object)`, for a table of rules, says whether
-   * the selection may contain an object, and pass through it. Fountain passes a user's right
-   * to read.
+   * Options, before or after the action, for a table of rules: `filter(object)` says whether
+   * the selection may contain an object, and pass through it; Fountain passes a user's right
+   * to read. `onChange(joined, left)` is told, with two arrays, each time objects join or leave
+   * the selection, and with everything as `left` when the load is released.
    */
   load(start, selector, ...rest) {
     if (!this.owns(start)) throw new DataModelError("load() starts from an object of this store.");

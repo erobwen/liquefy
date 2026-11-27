@@ -5,7 +5,7 @@
 A JavaScript-first persistent object database with change-driven garbage
 collection. It is the first piece of Liquefy's full stack reactivity: the storage under
 [Deepwell](../deepwell#readme), the layer of persistent JavaScript objects (in progress), and
-[Fountain](../fountain#readme), the planned server on top of that.
+[Fountain](../fountain#readme), the server on top of that (in progress).
 
 Aquifer works with records: ids, fields, and strong and weak references. It
 knows nothing of classes or reactivity, and does not depend on Cascade.

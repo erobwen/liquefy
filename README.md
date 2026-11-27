@@ -11,7 +11,7 @@ the database to the screen.
 - **[Aquifer](#aquifer)** - a garbage collected JavaScript object database, the
   first piece of the full stack. A prototype.
 - **[Deepwell](#deepwell)** - persistent JavaScript objects on top of Aquifer. In progress.
-- **[Fountain](#fountain)** - the server on top of that. Planned.
+- **[Fountain](#fountain)** - the server on top of that. In progress.
 - **[Flow](#flow)** - the generation before Cascade, kept for its history.
 
 **[Try the demo](https://erobwen.github.io/liquefy/cascade/)** - every page has a
@@ -131,10 +131,12 @@ data model.
 
 ## Fountain
 
-The server planned on top of Deepwell, for full stack reactivity: clients
+The server on top of Deepwell, for full stack reactivity: clients
 subscribe to persistent objects over WebSockets and stay in sync as they
 change, with users and authorization per object built in from the start.
-Nothing runs yet - the design is in
+In progress, not yet published: the user model runs and is tested (users,
+sessions, signing in, the session's remote methods, authorization); there is
+no network yet - see [fountain](fountain#readme), and the design in
 [the whitepaper](fountain/whitepaper.md).
 
 ## Flow

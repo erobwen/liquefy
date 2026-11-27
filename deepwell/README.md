@@ -59,7 +59,7 @@ rules by class name, `{ Node: (node, selection) => selection.add(node.left, node
 which is applied in rounds, with one read of the store for each level, and
 which also works when the store has to wait for a read.
 `well.checkWrites(check)` sees every write before it is made, and can refuse
-it; `well.volatile(object)` makes an object that is synchronized but never
+it; `well.atomic(action)` is a transaction that is made whole or not at all; `well.volatile(object)` makes an object that is synchronized but never
 stored. A class with `static version` and `static migrations` has its older
 objects migrated as they are loaded, each in a transaction of its own;
 `well.completeMigrations()` finishes the rest in the background.

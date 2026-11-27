@@ -254,7 +254,7 @@ Stubs exist on clients. A client cannot read a record when it follows a referenc
 
 **S3. Reading a field of a stub is an error in development.** It is reported through Cascade's `onReadGlobal`, and returns Cascade's `cannotReadPropertyValue`. Calling a method of a stub is allowed; a method that reads fields reads the same error value.
 
-**S4. A stub reveals existence and class.** That is accepted (whitepaper section 3.4).
+**S4. A stub reveals existence and class.** That is accepted (whitepaper section 3.4). To hide that an object exists, it is referred to only from objects that the user may not read: the two step rule ([user model](../../fountain/documents/user-model.md) E1).
 
 **S5. An object can become a stub again.** When an object leaves all of a client's selections but is still referred to from objects the client holds, its fields are removed, and it becomes a stub. When nothing the client holds refers to it, it is dropped.
 

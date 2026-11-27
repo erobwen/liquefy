@@ -1,6 +1,6 @@
 import assert from "assert";
 import { MemoryStore } from "@liquefy/aquifer";
-import { open, load, transaction, Synchronized, synchronized, model, DataModelError } from "../index.js";
+import { open, load, transaction, Synchronized, synchronized, model, registerClasses, DataModelError } from "../index.js";
 
 class Node extends Synchronized {
   key = 0;
@@ -349,5 +349,36 @@ describe("a store that waits (design section 3.7)", function () {
     assert.ok(!acted);
     assert.equal(handle.selection.size, 0);
     assert.equal(well.holdsOf(well.root), 0);
+  });
+});
+
+describe("rule loads: onChange", function () {
+
+  it("is told what joins and leaves the selection, and everything as left on release", function () {
+    const well = open({ store: new MemoryStore() });
+    try {
+      class Link extends Synchronized {
+        constructor(name) { super(); this.name = name; this.next = null; }
+      }
+      registerClasses({ OnChangeLink: Link });
+      const a = new Link("a");
+      const b = new Link("b");
+      const c = new Link("c");
+      a.next = b;
+      well.root.chain = a;
+      const seen = [];
+      const handle = well.load(a, { OnChangeLink: (link, selection) => selection.add(link.next) }, {
+        onChange: (joined, left) => seen.push([joined.map((link) => link.name).sort(), left.map((link) => link.name).sort()]),
+      });
+      assert.deepEqual(seen, [[["a", "b"], []]]);
+      b.next = c;
+      assert.deepEqual(seen[1], [["c"], []]);
+      a.next = c;
+      assert.deepEqual(seen[2], [[], ["b"]]);
+      handle.release();
+      assert.deepEqual(seen[3], [[], ["a", "c"]]);
+    } finally {
+      well.close();
+    }
   });
 });

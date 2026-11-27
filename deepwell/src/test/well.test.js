@@ -308,3 +308,37 @@ describe("change notification", function () {
     assert.ok(world.isObservable(changes[1].changed[0]));
   });
 });
+
+describe("atomic transactions", function () {
+
+  it("are made whole or not at all: a transaction that throws leaves nothing written", function () {
+    const well = openWell();
+    well.root.title = "Before";
+    well.root.list = synchronized([1]);
+    const before = well.lastCommit;
+    assert.throws(() => well.atomic(() => {
+      well.root.title = "During";
+      well.root.list.push(2);
+      well.root.added = new Document();
+      throw new Error("No.");
+    }), /No\./);
+    assert.equal(well.root.title, "Before");
+    assert.deepEqual([...well.root.list], [1]);
+    assert.equal(well.root.added, undefined);
+    assert.equal(well.lastCommit, before, "nothing was stored");
+    assert.equal(reopen(well).root.title, "Before");
+  });
+
+  it("are stored as one transaction when they do not throw, and return what the action returns", function () {
+    const well = openWell();
+    const before = well.lastCommit;
+    const result = well.atomic(() => {
+      well.root.a = 1;
+      well.atomic(() => { well.root.b = 2; }); // inside another, a part of it
+      return "done";
+    });
+    assert.equal(result, "done");
+    assert.equal(well.lastCommit, before + 1);
+    assert.equal(reopen(well).root.b, 2);
+  });
+});

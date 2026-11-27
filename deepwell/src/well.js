@@ -11,12 +11,15 @@
  * reachability, one Aquifer transaction per Cascade transaction, objects whose records are
  * reclaimed while they are in memory, load(), which holds a selection in memory and pins it in
  * Aquifer while it is held, checks before writes, volatile objects, which are synchronized but
- * never stored, and migrations. Indexes and persistent repeaters come later (design section 11).
+ * never stored, migrations, and what indexes need of a store (indexes.js): a member's record
+ * of its indexes is kept in its own record, and the keys of members that were written are
+ * compared, and their entries moved, before a transaction is stored.
  */
 
 import { Database, ROOT } from "@liquefy/aquifer";
 import { DataModelError, ARRAY_CLASS, OBJECT_CLASS, escapeKey, unescapeKey, RECORD_KEYS } from "./values.js";
 import { RuleLoad, Selection, NotLoaded } from "./ruleLoad.js";
+import { createIndexes } from "./indexes.js";
 
 /** The identities an encoded value refers to strongly, at any depth. */
 function collectReferences(encoded, into) {
@@ -51,13 +54,15 @@ function holdsReference(encoded) {
  * `dispatch` (index.js does this for Deepwell's default world).
  */
 export function createWellHost(model) {
+  if (!model.indexes) model.indexes = createIndexes(model);
   const wells = new Set();
   function dispatch(event) {
     for (const well of wells) well.noticeEvent(event);
   }
   function open(options) {
-    const well = new Well(model, options, () => wells.delete(well));
+    const well = new Well(model, options, () => { wells.delete(well); model.indexes.state.wells = wells.size; });
     wells.add(well);
+    model.indexes.state.wells = wells.size;
     return well;
   }
   return { dispatch, open };
@@ -67,6 +72,7 @@ export class Well {
   constructor(model, { store, classes, options = {} } = {}, onClose = () => {}) {
     if (!store) throw new DataModelError("open() needs a store: Aquifer's MemoryStore or LmdbStore.");
     this.model = model;
+    this.indexes = model.indexes;
     this.world = model.world;
     this.onClose = onClose;
     if (classes) model.registerClasses(classes);
@@ -281,6 +287,7 @@ export class Well {
     const target = Object.create(entry ? entry.Class.prototype : Object.prototype);
     const object = this.model.adopt(target);
     this.adoptAs(object, id);
+    if (record.$indexes !== undefined) this.indexes.loadMemberships(object, record.$indexes);
     for (const key of Object.keys(record)) {
       if (RECORD_KEYS.has(key) || key.startsWith("$") && !key.startsWith("$$")) continue;
       const field = unescapeKey(key);
@@ -324,9 +331,11 @@ export class Well {
     if (stored > entry.version) {
       give(new DataModelError("Object " + id + " is stored under version " + stored + " of class \"" + entry.name + "\", which is newer than the registered version " + entry.version + "."));
     }
-    const saved = { changed: this.changed, events: this.events };
+    const saved = { changed: this.changed, events: this.events, journal: this.indexes.state.journal, computing: this.indexes.state.computing };
     this.changed = new Set([object]); // written back even if no field changed: the version did
     this.events = [];
+    this.indexes.state.journal = [];
+    this.indexes.state.computing = 0; // a load made by a key still migrates what it loads (design section 8)
     this.skipChecks++;
     this.migrating++;
     const suspendedBefore = this.suspendFlush; // more than zero if this load was made by a migration
@@ -344,7 +353,7 @@ export class Well {
       this.suspendFlush = 0;
       this.flush();
     } catch (error) {
-      this.rollBack(this.events);
+      this.rollBack(this.events, this.indexes.takeJournal());
       give(error);
     } finally {
       this.suspendFlush = suspendedBefore;
@@ -352,6 +361,8 @@ export class Well {
       this.skipChecks--;
       this.changed = saved.changed;
       this.events = saved.events;
+      this.indexes.state.journal = saved.journal;
+      this.indexes.state.computing = saved.computing;
     }
   }
 
@@ -460,6 +471,26 @@ export class Well {
   flush() {
     if (this.suspendFlush > 0) return;
     const migration = this.migrating > 0;
+
+    // Indexes first (indexes.md T1): the keys of the members that were written are compared
+    // with the keys they are filed under, and their entries moved. What that writes is part of
+    // this transaction, and is stored with it.
+    this.suspendFlush++;
+    this.direct++;
+    try {
+      this.indexes.settle();
+    } catch (error) {
+      const failed = this.events;
+      this.changed = new Set();
+      this.events = [];
+      this.rollBack(failed, this.indexes.takeJournal());
+      throw error;
+    } finally {
+      this.direct--;
+      this.suspendFlush--;
+    }
+    const journal = this.indexes.takeJournal();
+
     if (this.changed.size === 0) {
       this.writePins();
       return;
@@ -477,7 +508,7 @@ export class Well {
       for (const value of this.referencedObjects(object)) {
         if (this.model.identityOf(value) !== undefined || newIds.has(value)) continue;
         if (isVolatileClass(value)) {
-          this.rollBack(events);
+          this.rollBack(events, journal);
           throw new DataModelError("A stored object cannot refer to an object of a volatile class (" + value.constructor.name + ").");
         }
         newIds.set(value, undefined);
@@ -488,6 +519,14 @@ export class Well {
     const storedChanged = changed.filter((object) => !this.isVolatile(object));
     const volatileChanged = changed.filter((object) => this.isVolatile(object));
     for (const object of storedChanged) visit(object);
+    // An index that is stored now is named by its members' records from now on: those of its
+    // members that were stored already are written again.
+    for (const object of created) {
+      if (!(object instanceof this.indexes.Index)) continue;
+      for (const member of this.indexes.membersToWriteFor(object)) {
+        if (this.isStored(member) && !storedChanged.includes(member)) storedChanged.push(member);
+      }
+    }
     const volatileCreated = [];
     for (const object of volatileChanged) volatileCreated.push(...this.makeVolatileFrom(object, newIds));
 
@@ -512,9 +551,10 @@ export class Well {
         }
         return id;
       };
-      for (const object of created) tx.replace(newIds.get(object), this.encode(object, identify));
+      const identityOf = (object) => this.model.identityOf(object) ?? newIds.get(object);
+      for (const object of created) tx.replace(newIds.get(object), this.encode(object, identify, identityOf));
       for (const object of storedChanged) {
-        if (this.isStored(object)) tx.replace(this.model.identityOf(object), this.encode(object, identify));
+        if (this.isStored(object)) tx.replace(this.model.identityOf(object), this.encode(object, identify, identityOf));
       }
       for (const object of created) {
         if (this.holds.has(object)) tx.pin(newIds.get(object));
@@ -523,7 +563,7 @@ export class Well {
       commit = tx;
       });
     } catch (error) {
-      this.rollBack(events);
+      this.rollBack(events, journal);
       throw error;
     }
     this.lastCommit = commit.commit;
@@ -592,7 +632,7 @@ export class Well {
   }
 
   checkWrite(object, key, value, operation) {
-    if (this.loading > 0 || this.skipChecks > 0 || !this.owns(object)) return;
+    if (this.loading > 0 || this.skipChecks > 0 || this.indexes.state.maintaining > 0 || !this.owns(object)) return;
     if (!this.isVolatile(object) && this.refersToVolatile(value)) {
       throw new DataModelError("A stored object cannot refer to a volatile object (design section 2).");
     }
@@ -619,9 +659,11 @@ export class Well {
    * before it, from the old values that its events carry (design section 4), so that what is in
    * memory is what is stored. The writes that undo it are not recorded.
    */
-  rollBack(events) {
+  rollBack(events, journal = []) {
     this.loading++;
+    this.indexes.state.maintaining++; // the nodes of an index are among what is returned
     try {
+      this.indexes.undo(journal);
       for (let i = events.length - 1; i >= 0; i--) {
         const event = events[i];
         const object = event.object;
@@ -635,7 +677,27 @@ export class Well {
         }
       }
     } finally {
+      this.indexes.state.maintaining--;
       this.loading--;
+    }
+  }
+
+  /**
+   * Notes that a stored object is to be written in this transaction though none of its fields
+   * changed: what its record says of its indexes did (indexes.md section 5).
+   */
+  noteChanged(object) {
+    if (this.isStored(object)) this.changed.add(object);
+  }
+
+  /** The index with the given identity, for a member that names it, or null if it is gone. */
+  indexFor(id) {
+    this.direct++;
+    try {
+      const index = this.objectFor(id);
+      return index instanceof this.indexes.Index ? index : null;
+    } finally {
+      this.direct--;
     }
   }
 
@@ -661,7 +723,7 @@ export class Well {
   }
 
   /** An object's record (data model 8.1), copying fields that were never read. */
-  encode(object, identify) {
+  encode(object, identify, identityOf = (other) => this.model.identityOf(other)) {
     const name = this.model.classNameOf(object);
     const record = { $class: name, $version: name === OBJECT_CLASS || name === ARRAY_CLASS ? 0 : this.model.classByName(name).version };
     if (name === ARRAY_CLASS) {
@@ -676,6 +738,8 @@ export class Well {
         : this.model.encodeValue(object[key], { identify });
       if (encoded !== undefined) record[escapeKey(key)] = encoded;
     }
+    const indexes = this.indexes.encodeMemberships(object, identityOf);
+    if (indexes !== undefined) record.$indexes = indexes;
     return record;
   }
 

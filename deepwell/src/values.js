@@ -15,7 +15,7 @@ export class DataModelError extends Error {
 export const TAGS = new Set(["$ref", "$weak", "$number", "$date", "$map", "$set", "$binary"]);
 
 /** The reserved keys of a record (data model 8.1). */
-export const RECORD_KEYS = new Set(["$class", "$version", "$elements"]);
+export const RECORD_KEYS = new Set(["$class", "$version", "$elements", "$indexes"]);
 
 /** The class names that are built in (data model C3). */
 export const OBJECT_CLASS = "Object";

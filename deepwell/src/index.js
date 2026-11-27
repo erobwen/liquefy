@@ -40,6 +40,12 @@ export function load(start, selector, ...rest) {
   return info.well.load(start, selector, ...rest);
 }
 
+/**
+ * The base class of indexes: a B-tree of persistent objects, ordered by `keyOf(member)`
+ * (documents/indexes.md). `compareKeys` is the order of keys.
+ */
+export const { Index, compareKeys } = model.indexes;
+
 export const {
   Synchronized, synchronized, isSynchronized, weak,
   registerClass, registerClasses,

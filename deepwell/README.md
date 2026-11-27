@@ -1,6 +1,6 @@
 # Deepwell
 
-*In progress - the data model, objects over Aquifer's records, loading and unloading, selectors as local rules, checks before writes, volatile objects, and migrations are implemented; indexes are planned.*
+*In progress - the data model, objects over Aquifer's records, loading and unloading, selectors as local rules, checks before writes, volatile objects, migrations, and indexes whose keys read only their member are implemented; keys that read other objects are planned.*
 
 Deepwell makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
@@ -64,6 +64,14 @@ stored. A class with `static version` and `static migrations` has its older
 objects migrated as they are loaded, each in a transaction of its own;
 `well.completeMigrations()` finishes the rest in the background.
 
+**Indexes** (`src/indexes.js`, specified in [documents/indexes.md](documents/indexes.md)):
+a class that extends `Index` and defines `keyOf(member)` is a B-tree of
+persistent objects. `index.add(product)` files a member under its key; a write
+to the member that changes its key moves it, in the same transaction;
+`index.members({ from: 10, to: 20 })` and `index.keys(...)` answer ranges in
+key order, reading one node for each level of the tree. A key reads only its
+member's own fields, for now.
+
 ```javascript
 import { MemoryStore } from "@liquefy/aquifer";
 import { open, transaction, Synchronized, synchronized } from "@liquefy/deepwell";
@@ -95,5 +103,8 @@ npm test -w @liquefy/deepwell
 - [data-model.md](documents/data-model.md) - the specification of what a
   persistent object is, which values its fields can hold, and how they are
   stored and sent, with invariants
+- [indexes.md](documents/indexes.md) - the specification of indexes: keys,
+  the tree, what a member knows of its indexes, and when a key is evaluated
+  again, with invariants
 - [The Fountain whitepaper](../fountain/whitepaper.md) - the larger system
   this is part of

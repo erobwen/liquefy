@@ -561,7 +561,13 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - An object that a migration reads is loaded, and migrated, first, in a transaction of its own.
    - `well.completeMigrations()` and `work` complete migrations in the background, fifty records for each step. The pass lists every stored identity when it starts, which is too much for a large database; it should walk the store with a cursor.
    - **Not yet:** telling an index about objects that are not yet migrated (section 8, "Indexes"), which waits for indexes. With a store that waits, a migration can read only what is in memory.
-8. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
+8. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing. *Done*, in `src/indexes.js` and `src/well.js`, specified in [indexes](indexes.md). How it came out:
+   - `class ByPrice extends Index { keyOf(product) { return product.price; } }`, registered like any class. `add`, `delete`, `members(range)`, `keys(range)`, `rebuild()`, and `check()`, which verifies the specification's invariants.
+   - **The key repeater is not an object.** What section 7.1 calls an instance of a persistent repeater, the subject, the last value and the owner, is an entry in the member's own record: for each index the member is in, the key it is filed under. A write to a member finds it there, with nothing looked up in the index. It is stored under a reserved key, `$indexes`, with a weak reference to the index.
+   - **Keys are evaluated at the end of the transaction**, before it is stored: every member that was written has its keys computed and compared, and `keyChanged` moves those that differ, in the same Aquifer transaction. Inside the transaction the index still has the member where it was.
+   - **A key is checked to be pure, and to read only its member.** Writing throws while it is computed, and cascade.reactive's `sourcesOf()` tells what it read; a key that read another object is refused, until step 9.
+   - **A node is one record**, with its entries in one frozen value and a reference field of its own for each, so that a node is read without loading what it refers to. Entries of the same key are ordered by a sequence number that the index gives each member.
+   - **Not yet:** what [indexes](indexes.md) section 8 lists: member sets that follow a selection, weak holding of members, rebuilding when the class of an index changes, a store that waits, and moving a reference between nodes without loading what it names.
 9. **Keys that read other objects**: stored dependency records, background work, tracked staleness.
 
 A specification with invariants is written for each step before it is begun. The data model's is [written](data-model.md).

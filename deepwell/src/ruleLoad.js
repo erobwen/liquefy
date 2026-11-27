@@ -36,9 +36,9 @@ export class Selection extends Set {
 }
 
 export class RuleLoad {
-  constructor(spring, start, rules, action, options = {}) {
-    this.spring = spring;
-    this.world = spring.world;
+  constructor(well, start, rules, action, options = {}) {
+    this.well = well;
+    this.world = well.world;
     this.start = start;
     this.rules = rules;
     this.action = action;
@@ -102,14 +102,14 @@ export class RuleLoad {
    * returns the identities of the objects selected that are not in memory.
    */
   close() {
-    const spring = this.spring;
+    const well = this.well;
     const reached = new Selection();
     const visited = new Set();
     const missing = new Set();
     const want = (id) => {
-      const object = spring.inMemory(id);
+      const object = well.inMemory(id);
       if (object !== undefined) return object;
-      if (!spring.gone.has(id)) missing.add(id);
+      if (!well.gone.has(id)) missing.add(id);
       return undefined;
     };
     const queue = [this.start];
@@ -118,7 +118,7 @@ export class RuleLoad {
       if (visited.has(object)) continue;
       visited.add(object);
       let entry = this.entryFor(object);
-      if (entry.needs !== null && (spring.inMemory(entry.needs) !== undefined || spring.gone.has(entry.needs))) {
+      if (entry.needs !== null && (well.inMemory(entry.needs) !== undefined || well.gone.has(entry.needs))) {
         // What stopped the rule has arrived: apply it again.
         this.drop(object);
         entry = this.entryFor(object);
@@ -132,8 +132,8 @@ export class RuleLoad {
       }
     }
 
-    for (const object of reached) if (!this.held.has(object)) spring.hold(object);
-    for (const object of this.held) if (!reached.has(object)) spring.release(object);
+    for (const object of reached) if (!this.held.has(object)) well.hold(object);
+    for (const object of this.held) if (!reached.has(object)) well.release(object);
     for (const object of [...this.entries.keys()]) if (!visited.has(object)) this.drop(object);
     this.held = reached;
     this.handle.selection = reached;
@@ -144,15 +144,15 @@ export class RuleLoad {
   entryFor(object) {
     let entry = this.entries.get(object);
     if (entry !== undefined) return entry;
-    const spring = this.spring;
+    const well = this.well;
     entry = { repeater: null, selects: [], needs: null, excluded: false, started: false };
     this.entries.set(object, entry);
-    const rule = this.rules[spring.model.classNameOf(object)];
+    const rule = this.rules[well.model.classNameOf(object)];
     entry.repeater = this.world.repeat("select", () => {
       const selection = new Selection();
       let excluded = false;
       let needs = null;
-      spring.inRule++;
+      well.inRule++;
       try {
         if (this.filter && !this.filter(object)) excluded = true;
         else if (rule) rule(object, selection);
@@ -160,16 +160,16 @@ export class RuleLoad {
         if (!(error instanceof NotLoaded)) throw error;
         needs = error.id;
       } finally {
-        spring.inRule--;
+        well.inRule--;
       }
       entry.excluded = excluded;
       entry.needs = needs;
       if (needs === null) {
         // A rule that was stopped keeps what it gave before, until it has run to its end.
         entry.selects = [...selection].map((item) => {
-          const id = spring.stubIds.get(item);
+          const id = well.stubIds.get(item);
           if (id !== undefined) return id;
-          if (!spring.model.isSynchronized(item)) throw new DataModelError("A rule selects synchronized objects only.");
+          if (!well.model.isSynchronized(item)) throw new DataModelError("A rule selects synchronized objects only.");
           return item;
         });
       }
@@ -191,13 +191,13 @@ export class RuleLoad {
     let arrived = false;
     let returned = false;
     this.fetching = true;
-    this.spring.readMany(ids, (made) => {
+    this.well.readMany(ids, (made) => {
       this.fetching = false;
       this.arrivals.push(...made);
       arrived = true;
       if (returned && !this.handle.released) {
         this.settle();
-        this.spring.writePins();
+        this.well.writePins();
       }
     });
     returned = true;
@@ -208,11 +208,11 @@ export class RuleLoad {
     if (this.handle.released) return;
     this.handle.released = true;
     for (const object of [...this.entries.keys()]) this.drop(object);
-    for (const object of this.held) this.spring.release(object);
+    for (const object of this.held) this.well.release(object);
     this.held = new Set();
     this.arrivals = [];
     this.handle.selection = new Selection();
     this.handle.loaded = false;
-    this.spring.writePins();
+    this.well.writePins();
   }
 }

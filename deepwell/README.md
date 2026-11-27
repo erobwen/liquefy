@@ -22,12 +22,12 @@ server-side tool, a desktop application, a single-user editor that keeps its
 documents as objects.
 
 ```javascript
-const spring = open({ store: new LmdbStore("./data"), classes: { Document, Chapter } });
+const well = open({ store: new LmdbStore("./data"), classes: { Document, Chapter } });
 
-load(spring.root, selectLibrary, () => {
+load(well.root, selectLibrary, () => {
     // Everything the selector selects is in memory here, and stays there
     // for as long as the load is held.
-    for (const document of spring.root.documents) {
+    for (const document of well.root.documents) {
         document.title = document.title.trim();   // stored at the end of the transaction
     }
 });
@@ -48,7 +48,7 @@ load(spring.root, selectLibrary, () => {
 
 ## What exists
 
-**Objects over records** (`src/spring.js`): open a store, and its root is an
+**Objects over records** (`src/well.js`): open a store, and its root is an
 object like any other. What a stored object comes to refer to is stored with
 it; a reference is loaded when it is first read; each Cascade transaction is
 written as one Aquifer transaction. `load(start, selector, action)` holds a
@@ -58,11 +58,11 @@ selector is a function that fills the whole selection, or a table of local
 rules by class name, `{ Node: (node, selection) => selection.add(node.left, node.right) }`,
 which is applied in rounds, with one read of the store for each level, and
 which also works when the store has to wait for a read.
-`spring.checkWrites(check)` sees every write before it is made, and can refuse
-it; `spring.volatile(object)` makes an object that is synchronized but never
+`well.checkWrites(check)` sees every write before it is made, and can refuse
+it; `well.volatile(object)` makes an object that is synchronized but never
 stored. A class with `static version` and `static migrations` has its older
 objects migrated as they are loaded, each in a transaction of its own;
-`spring.completeMigrations()` finishes the rest in the background.
+`well.completeMigrations()` finishes the rest in the background.
 
 ```javascript
 import { MemoryStore } from "@liquefy/aquifer";
@@ -70,10 +70,10 @@ import { open, transaction, Synchronized, synchronized } from "@liquefy/deepwell
 
 class Document extends Synchronized { title = "Untitled"; }
 
-const spring = open({ store: new MemoryStore(), classes: { Document } });
+const well = open({ store: new MemoryStore(), classes: { Document } });
 transaction(() => {
-    spring.root.documents = synchronized([]);
-    spring.root.documents.push(new Document());   // stored: reachable from the root
+    well.root.documents = synchronized([]);
+    well.root.documents.push(new Document());   // stored: reachable from the root
 });
 ```
 

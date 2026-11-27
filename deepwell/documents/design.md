@@ -48,7 +48,7 @@ class Document extends Synchronized {
     chapters = synchronized([]);
 }
 
-const spring = open({
+const well = open({
     store: new LmdbStore("./data"),
     classes: { Document, Chapter, Paragraph },
 });
@@ -56,13 +56,13 @@ const spring = open({
 // Making: the document is local until a stored object refers to it.
 transaction(() => {
     const document = new Document();
-    spring.root.documents.push(document);   // now it is stored
+    well.root.documents.push(document);   // now it is stored
 });
 
 // Loading: everything the selector selects is in memory inside the action,
 // which runs when it is (section 3.7).
-load(spring.root, selectLibrary, () => {
-    for (const document of spring.root.documents) {
+load(well.root, selectLibrary, () => {
+    for (const document of well.root.documents) {
         console.log(document.title);
     }
 });
@@ -73,7 +73,7 @@ document.title = "A New Title";
 
 **Synchronized objects.** An object that Deepwell can store is a synchronized object: an instance of a class that extends `Synchronized`, or a plain object or array passed to `synchronized()` ([data model](data-model.md) section 2.1). Both are Cascade observables. `Synchronized` returns the observable from its constructor, as Cascade's components do, so `this` is already the observable inside a subclass's constructor.
 
-**The root.** A database has one root object, `spring.root`, which always exists and is always loaded. Everything stored is reachable from it (whitepaper section 4.5).
+**The root.** A database has one root object, `well.root`, which always exists and is always loaded. Everything stored is reachable from it (whitepaper section 4.5).
 
 **Transactions.** A transaction is Cascade's: `transaction(() => {...})`. At its end, after the repeaters it set off have run, its changes are written as one Aquifer transaction. A write made outside any transaction is a transaction of its own.
 
@@ -447,7 +447,7 @@ A migration may add or remove fields, change the structure of an object, make ne
 
 **A migration that fails.** If a migration throws, or what it wrote cannot be stored, its changes are undone, nothing is written, and the object is dropped from memory. The read that caused the load fails with the migration's error, and the next read tries again from the record. The same happens to a record that has no migration from its version. A record of a newer version than the registered class is refused: the code running is older than the data.
 
-Lazy migration avoids rewriting the database whenever a class changes. A migration that must be finished, so that an old version can be dropped, is completed in the background: `spring.completeMigrations()` starts a pass over every stored record, which `work` (section 9.4) carries out a batch at a time, loading each object of an older version than its class. When the pass has ended, no older record is left, and the migrations from those versions can be removed from the classes.
+Lazy migration avoids rewriting the database whenever a class changes. A migration that must be finished, so that an old version can be dropped, is completed in the background: `well.completeMigrations()` starts a pass over every stored record, which `work` (section 9.4) carries out a batch at a time, loading each object of an older version than its class. When the pass has ended, no older record is left, and the migrations from those versions can be removed from the classes.
 
 ---
 
@@ -490,7 +490,7 @@ Aquifer's collector does its work in steps. Each step is one transaction of boun
 Nothing runs on its own. Background work stays synchronous, and the program at the top decides when background work is done. Deepwell offers one call for all of it:
 
 ```javascript
-const result = spring.work(steps);   // { steps, remaining, pressure }
+const result = well.work(steps);   // { steps, remaining, pressure }
 ```
 
 `work` runs up to `steps` steps of background work, collector steps through Aquifer's `collector.run`, and returns at once when there is nothing to do. It reports how many steps it ran, whether work remains, and whether there is **pressure**: the collector's backlog has grown beyond a configured size, or memory is near a configured limit.
@@ -531,22 +531,22 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
 
 1. **The data model's code**: encoding and decoding, the write check, the registry of classes, making an object from a record. No Aquifer, no network. Round-trip tests over generated values. *Done*, in `src/dataModel.js` and `src/values.js`, on cascade.reactive's `innerMeta(object).checkWrite`.
 2. **Aquifer's interface upward** (section 9.1): volatile roots, commit numbers, reclaim notifications, the commit per record, the collector's backlog. *Done.*
-3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed. *Done*, in `src/spring.js`. How it came out:
+3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed. *Done*, in `src/well.js`. How it came out:
    - **Events.** Deepwell's default world is made with an event hook that hands Cascade's change events to every open store; each store keeps those of the objects it owns. At `onTransactionEnd`, it stores the local objects that have become reachable from what changed, and writes every changed object's record, in one Aquifer transaction.
    - **References resolved on read.** A field of a record object that holds a reference is an accessor on the target until it is first read; the accessor decodes the field, puts the value in its place, and returns it. Writing such a field first puts the value in place, then writes through the observable, so that the write has its event. A field that was never read is written back as it was stored, without loading what it names.
    - **Arrays are resolved when they are made**, since Cascade copies an array's elements then. A cycle of arrays that contain each other cannot be loaded, and says so.
    - **Failed transactions are rolled back** in memory, from the old values the events carry.
    - **Not yet:** the open question of what a local-again object's references to objects reclaimed with it read as (they read as `null`); explicit loading and unloading (step 4). Classes are registered per data model, so two stores in one process share their classes.
-4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading. *Done*, in `src/spring.js`. How it came out:
+4. **Loading**: `load`, hold counts, volatile roots, selections as Cascade repeaters that follow the graph, first by running the whole selector again, unloading. *Done*, in `src/well.js`. How it came out:
    - `load(start, selector, action)` runs the selector in an independent repeater, holds what it selects, pins the stored objects among it in Aquifer, and runs `action(selection)`. It returns a handle with `selection` and `release()`. When the selection changes, joined objects are held and pinned and left objects let go, in the same Aquifer transaction as the write that changed it.
    - Objects that are held but still local are pinned in the transaction that stores them.
    - Unloading is section 3.4: weakly held identity map, and reference fields that look their objects up rather than keep them.
    - **Not yet:** a load made inside a repeater does not belong to that repeater (section 3.2); it is independent, and released through its handle. Cascade gives no hook when a repeater is retracted, which ownership would need.
-5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2). *Done*, in `src/spring.js`. How it came out:
-   - `spring.checkWrites(check)` adds a check asked before every write to an object of the store, stored or volatile, with `{ object, key, value, operation }`. It runs against the state before the write and refuses by throwing, so a refused write leaves nothing to undo. For this, cascade.reactive's `innerMeta(object).checkWrite` now also names the operation, and is asked about deletes and about every array method, also those that only remove or move elements.
-   - `spring.volatile(object)` makes a local object volatile: an identity beginning with "v", synchronized, never stored. Local objects a volatile object comes to refer to become volatile too; a class can say `static volatile = true`, and its instances are then refused where they would be stored. A stored object never refers to a volatile one: such a write is refused when it is made, and a local structure that would bring one in is refused when it would be stored, and rolled back.
+5. **Checks before writes, and volatile objects**: what Fountain needs (section 9.2). *Done*, in `src/well.js`. How it came out:
+   - `well.checkWrites(check)` adds a check asked before every write to an object of the store, stored or volatile, with `{ object, key, value, operation }`. It runs against the state before the write and refuses by throwing, so a refused write leaves nothing to undo. For this, cascade.reactive's `innerMeta(object).checkWrite` now also names the operation, and is asked about deletes and about every array method, also those that only remove or move elements.
+   - `well.volatile(object)` makes a local object volatile: an identity beginning with "v", synchronized, never stored. Local objects a volatile object comes to refer to become volatile too; a class can say `static volatile = true`, and its instances are then refused where they would be stored. A stored object never refers to a volatile one: such a write is refused when it is made, and a local structure that would bring one in is refused when it would be stored, and rolled back.
    - Changes to volatile objects make no Aquifer transaction. They are reported to `onCommit` listeners with `commit: null`, in `volatileChanged` and `volatileCreated`.
-6. **Selectors as local rules** (section 3.7): a selector as a table of rules by class, applied in rounds, one repeater per selection and object; a read of many records in one call in Aquifer; `load`'s action running when the selection is in memory. Tested against the whole-function selector, and against a store that is made to wait. *Done*, in `src/ruleLoad.js` and `src/spring.js`. How it came out:
+6. **Selectors as local rules** (section 3.7): a selector as a table of rules by class, applied in rounds, one repeater per selection and object; a read of many records in one call in Aquifer; `load`'s action running when the selection is in memory. Tested against the whole-function selector, and against a store that is made to wait. *Done*, in `src/ruleLoad.js` and `src/well.js`. How it came out:
    - `load(start, rules, action)` takes a table of rules by class name; arrays and classless objects have the rules named `Array` and `Object`. A function is still taken as a whole selector. A rule's selection is a set whose `add` takes any number of objects, and ignores null.
    - **Rounds.** Inside a rule, a reference to an object that is not in memory reads as a stub, also when the store answers at once, so the same path runs in both cases. The engine asks for all of a round's stubs with one `db.getMany`. A tree of fifteen nodes is loaded in three reads.
    - **One repeater per selection and object.** A change runs the rule of the changed object only. The selection is then found again by following what the rules last gave from the starting object, without running any rule; a cycle that is cut off is let go. This costs in proportion to the selection for each structural change, in set operations only.
@@ -555,11 +555,11 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - **`filter`**, an option, says which objects a selection may contain and pass through. It runs with the rule, and is reactive like it.
    - **A store that waits** is stood in for by `options.wait`. `handle.loaded` says whether everything the selection reaches is in memory.
    - **Not yet:** the parts of an object, its arrays and classless objects, are not selected with it by themselves (whitepaper section 3.4); a rule adds them. The other open points are in section 3.7.
-7. **Migrations** (section 8). *Done*, in `src/spring.js`. How it came out:
+7. **Migrations** (section 8). *Done*, in `src/well.js`. How it came out:
    - A class's `static migrations` are kept with it in the registry, and checked there: functions, each named by a version older than the class's.
    - An object made from an older record is migrated before `make` returns it. The migration's changes are collected apart from those of a transaction under way, and written at once, in an Aquifer transaction of their own, reported to `onCommit` listeners with `migration: true`. The checks before writes are not asked, and a running computation does not record what the migration read.
    - An object that a migration reads is loaded, and migrated, first, in a transaction of its own.
-   - `spring.completeMigrations()` and `work` complete migrations in the background, fifty records for each step. The pass lists every stored identity when it starts, which is too much for a large database; it should walk the store with a cursor.
+   - `well.completeMigrations()` and `work` complete migrations in the background, fifty records for each step. The pass lists every stored identity when it starts, which is too much for a large database; it should walk the store with a cursor.
    - **Not yet:** telling an index about objects that are not yet migrated (section 8, "Indexes"), which waits for indexes. With a store that waits, a migration can read only what is in memory.
 8. **Indexes**: a B-tree of persistent objects, with key repeaters that read only their member (sections 6 and 7). Every index tested against one rebuilt from nothing.
 9. **Keys that read other objects**: stored dependency records, background work, tracked staleness.

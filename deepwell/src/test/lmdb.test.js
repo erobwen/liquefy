@@ -17,27 +17,27 @@ describe("objects over records, on LMDB", function () {
 
   it("keeps objects when the store is closed and opened again", async function () {
     let store = new LmdbStore(path, { noSync: true });
-    let spring = open({ store, classes: { Note } });
+    let well = open({ store, classes: { Note } });
     transaction(() => {
-      spring.root.notes = synchronized([]);
+      well.root.notes = synchronized([]);
       for (let i = 0; i < 3; i++) {
         const note = new Note();
         note.text = "note " + i;
         note.created = new Date(1000 * i);
-        spring.root.notes.push(note);
+        well.root.notes.push(note);
       }
     });
-    spring.close();
+    well.close();
     await store.close();
 
     store = new LmdbStore(path, { noSync: true });
-    spring = open({ store, classes: { Note } });
-    const notes = spring.root.notes;
+    well = open({ store, classes: { Note } });
+    const notes = well.root.notes;
     assert.equal(notes.length, 3);
     assert.ok(notes[2] instanceof Note);
     assert.equal(notes[2].text, "note 2");
     assert.equal(notes[2].created.getTime(), 2000);
-    spring.close();
+    well.close();
     await store.close();
   });
 });

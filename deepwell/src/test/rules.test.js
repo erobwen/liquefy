@@ -23,18 +23,18 @@ function selectTreeWhole(node, selection) {
   selectTreeWhole(node.right, selection);
 }
 
-const springs = [];
-function openSpring(store = new MemoryStore(), options = {}) {
-  const spring = open({ store, classes: { RuleNode: Node, RuleNote: Note }, options });
-  springs.push(spring);
-  return spring;
+const wells = [];
+function openWell(store = new MemoryStore(), options = {}) {
+  const well = open({ store, classes: { RuleNode: Node, RuleNote: Note }, options });
+  wells.push(well);
+  return well;
 }
-afterEach(() => { while (springs.length) springs.pop().close(); });
+afterEach(() => { while (wells.length) wells.pop().close(); });
 
-function reopen(spring, options) {
-  spring.close();
-  springs.splice(springs.indexOf(spring), 1);
-  return openSpring(spring.db.store, options);
+function reopen(well, options) {
+  well.close();
+  wells.splice(wells.indexOf(well), 1);
+  return openWell(well.db.store, options);
 }
 
 /** A full binary tree of the given depth, keys in search order. */
@@ -50,9 +50,9 @@ function tree(depth, low = 0, high = 2 ** depth - 1) {
 }
 
 function withTree(depth) {
-  const spring = openSpring();
-  transaction(() => { spring.root.tree = tree(depth); });
-  return spring;
+  const well = openWell();
+  transaction(() => { well.root.tree = tree(depth); });
+  return well;
 }
 
 function keys(selection) {
@@ -60,52 +60,52 @@ function keys(selection) {
 }
 
 /** Counts the reads of the store, single and in batches. */
-function countReads(spring) {
+function countReads(well) {
   const counts = { get: 0, getMany: 0 };
-  const { get, getMany } = spring.db;
-  spring.db.getMany = function (ids) {
+  const { get, getMany } = well.db;
+  well.db.getMany = function (ids) {
     counts.getMany++;
     const before = counts.get;
     const result = getMany.call(this, ids);
     counts.get = before; // the reads a batch makes are the batch's
     return result;
   };
-  spring.db.get = function (id) { counts.get++; return get.call(this, id); };
+  well.db.get = function (id) { counts.get++; return get.call(this, id); };
   return counts;
 }
 
 describe("selectors as local rules (design section 3.7)", function () {
 
   it("apply the rule transitively, and run the action with the selection held and pinned", function () {
-    const spring = reopen(withTree(3));
+    const well = reopen(withTree(3));
     let seen = null;
-    const handle = load(spring.root.tree, selectTree, (selection) => { seen = selection; });
+    const handle = load(well.root.tree, selectTree, (selection) => { seen = selection; });
     assert.strictEqual(seen, handle.selection);
     assert.ok(handle.loaded);
     assert.deepEqual(keys(handle.selection), [0, 1, 2, 3, 4, 5, 6]);
     for (const node of handle.selection) {
-      assert.equal(spring.holdsOf(node), 1);
-      assert.ok(spring.isPinned(node));
+      assert.equal(well.holdsOf(node), 1);
+      assert.ok(well.isPinned(node));
     }
-    assert.equal(spring.inMemory(model.identityOf(spring.root.tree)).note instanceof Note, true, "a note can be followed, but was not selected");
+    assert.equal(well.inMemory(model.identityOf(well.root.tree)).note instanceof Note, true, "a note can be followed, but was not selected");
     assert.ok(![...handle.selection].some((object) => object instanceof Note));
     const nodes = [...handle.selection];
     handle.release();
-    assert.ok(nodes.every((node) => spring.holdsOf(node) === 0 && !spring.isPinned(node)));
+    assert.ok(nodes.every((node) => well.holdsOf(node) === 0 && !well.isPinned(node)));
   });
 
   it("select what the whole-function selector selects", function () {
-    const spring = reopen(withTree(4));
-    const byRules = load(spring.root.tree, selectTree);
-    const whole = load(spring.root.tree, selectTreeWhole);
+    const well = reopen(withTree(4));
+    const byRules = load(well.root.tree, selectTree);
+    const whole = load(well.root.tree, selectTreeWhole);
     assert.deepEqual(keys(byRules.selection), keys(whole.selection));
     assert.equal(byRules.selection.size, 15);
   });
 
   it("ask the store once for each level, not once for each object", function () {
-    const spring = reopen(withTree(4));
-    const start = spring.root.tree;
-    const counts = countReads(spring);
+    const well = reopen(withTree(4));
+    const start = well.root.tree;
+    const counts = countReads(well);
     const handle = load(start, selectTree);
     assert.equal(handle.selection.size, 15);
     assert.equal(counts.getMany, 3, "three levels below the starting object");
@@ -113,9 +113,9 @@ describe("selectors as local rules (design section 3.7)", function () {
   });
 
   it("run the rule of the changed object only", function () {
-    const spring = reopen(withTree(3));
+    const well = reopen(withTree(3));
     const runs = [];
-    const handle = load(spring.root.tree, {
+    const handle = load(well.root.tree, {
       RuleNode: (node, selection) => { runs.push(node.key); selection.add(node.left, node.right); },
     });
     assert.equal(runs.length, 7);
@@ -131,41 +131,41 @@ describe("selectors as local rules (design section 3.7)", function () {
   });
 
   it("follow the graph: what joins is held and pinned, what leaves is let go", function () {
-    const spring = withTree(2);
-    const top = spring.root.tree;
+    const well = withTree(2);
+    const top = well.root.tree;
     const handle = load(top, selectTree);
     assert.equal(handle.selection.size, 3);
     const left = top.left;
     const added = tree(2);
     left.left = added;
     assert.ok(handle.selection.has(added) && handle.selection.has(added.right), "a whole structure joined");
-    assert.ok(spring.isStored(added) && spring.isPinned(added.right), "stored and pinned in the same transaction");
+    assert.ok(well.isStored(added) && well.isPinned(added.right), "stored and pinned in the same transaction");
     top.left = null;
     assert.deepEqual(keys(handle.selection), [1, 2]);
-    assert.equal(spring.holdsOf(left), 0);
-    assert.equal(spring.holdsOf(added.right), 0);
-    assert.ok(!spring.isPinned(added));
+    assert.equal(well.holdsOf(left), 0);
+    assert.equal(well.holdsOf(added.right), 0);
+    assert.ok(!well.isPinned(added));
   });
 
   it("let go of a cycle that is cut off, which counting references would keep", function () {
-    const spring = openSpring();
+    const well = openWell();
     const a = new Node(), b = new Node(), c = new Node();
     transaction(() => {
       a.left = b; b.left = c; c.left = b; // b and c refer to each other
-      spring.root.tree = a;
+      well.root.tree = a;
     });
     const handle = load(a, selectTree);
     assert.equal(handle.selection.size, 3);
     a.left = null;
     assert.equal(handle.selection.size, 1);
-    assert.equal(spring.holdsOf(b), 0);
-    assert.equal(spring.holdsOf(c), 0);
+    assert.equal(well.holdsOf(b), 0);
+    assert.equal(well.holdsOf(c), 0);
   });
 
   it("can depend on data: the path to a key, one read for each level", function () {
-    const spring = reopen(withTree(5));
-    const start = spring.root.tree;
-    const counts = countReads(spring);
+    const well = reopen(withTree(5));
+    const start = well.root.tree;
+    const counts = countReads(well);
     const wanted = 22;
     const handle = load(start, {
       RuleNode: (node, selection) => {
@@ -180,13 +180,13 @@ describe("selectors as local rules (design section 3.7)", function () {
   });
 
   it("run a rule again when it read into an object that had not arrived", function () {
-    const spring = reopen((() => {
+    const well = reopen((() => {
       const s = withTree(2);
       s.root.tree.left.note.published = true;
       return s;
     })());
     let runs = 0;
-    const handle = load(spring.root.tree, {
+    const handle = load(well.root.tree, {
       RuleNode: (node, selection) => {
         runs++;
         selection.add(node.left, node.right);
@@ -199,16 +199,16 @@ describe("selectors as local rules (design section 3.7)", function () {
     assert.equal(handle.selection.size, 4);
     assert.ok(runs > 3, "the rules that were stopped ran again");
     // And it is reactive, like any other read of the rule.
-    spring.root.tree.right.note.published = true;
+    well.root.tree.right.note.published = true;
     assert.equal(handle.selection.size, 5);
   });
 
   it("select arrays and classless objects by the rules named Array and Object", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
-      spring.root.shelf = synchronized({ books: synchronized([new Note(), new Note()]) });
+      well.root.shelf = synchronized({ books: synchronized([new Note(), new Note()]) });
     });
-    const again = reopen(spring);
+    const again = reopen(well);
     const handle = load(again.root, {
       Object: (object, selection) => selection.add(object.shelf, object.books),
       Array: (array, selection) => selection.add(...array),
@@ -217,9 +217,9 @@ describe("selectors as local rules (design section 3.7)", function () {
   });
 
   it("pass only through what the filter lets through", function () {
-    const spring = reopen(withTree(3));
+    const well = reopen(withTree(3));
     const allowed = synchronized({ below: 5 });
-    const handle = load(spring.root.tree, selectTree, { filter: (node) => node.key < allowed.below });
+    const handle = load(well.root.tree, selectTree, { filter: (node) => node.key < allowed.below });
     assert.deepEqual(keys(handle.selection), [0, 1, 2, 3], "5 is refused, and 4 and 6 are only reached through it");
     allowed.below = 6; // the filter is reactive too
     assert.deepEqual(keys(handle.selection), [0, 1, 2, 3, 4, 5]);
@@ -228,20 +228,20 @@ describe("selectors as local rules (design section 3.7)", function () {
   });
 
   it("refuse a rule that selects something that is not a synchronized object", function () {
-    const spring = withTree(1);
-    assert.throws(() => load(spring.root, { Object: (root, selection) => selection.add({}) }), DataModelError);
-    assert.throws(() => load(spring.root, "selectTree"), /table of rules/);
+    const well = withTree(1);
+    assert.throws(() => load(well.root, { Object: (root, selection) => selection.add({}) }), DataModelError);
+    assert.throws(() => load(well.root, "selectTree"), /table of rules/);
   });
 
   it("stay equal to the whole-function selector under random changes", function () {
-    const spring = openSpring();
+    const well = openWell();
     let seed = 12345;
     const random = (n) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
     const nodes = [];
     transaction(() => {
       for (let i = 0; i < 12; i++) { const node = new Node(); node.key = i; nodes.push(node); }
-      spring.root.tree = nodes[0];
-      spring.root.all = synchronized([...nodes]); // keeps every node stored
+      well.root.tree = nodes[0];
+      well.root.all = synchronized([...nodes]); // keeps every node stored
     });
     const byRules = load(nodes[0], selectTree);
     const whole = load(nodes[0], function select(node, selection) {
@@ -257,7 +257,7 @@ describe("selectors as local rules (design section 3.7)", function () {
       else node.right = target;
       assert.deepEqual(keys(byRules.selection), keys(whole.selection), "step " + step);
       for (const each of nodes) {
-        assert.equal(spring.holdsOf(each), byRules.selection.has(each) ? 2 : 0, "step " + step);
+        assert.equal(well.holdsOf(each), byRules.selection.has(each) ? 2 : 0, "step " + step);
       }
     }
   });
@@ -267,16 +267,16 @@ describe("a store that waits (design section 3.7)", function () {
 
   const selectFromRoot = { Object: (root, selection) => selection.add(root.tree), ...selectTree };
 
-  function waiting(spring) {
+  function waiting(well) {
     const reads = [];
-    const again = reopen(spring, { wait: (arrive) => reads.push(arrive) });
-    return { spring: again, reads, arrive: () => reads.shift()() };
+    const again = reopen(well, { wait: (arrive) => reads.push(arrive) });
+    return { well: again, reads, arrive: () => reads.shift()() };
   }
 
   it("runs the action when the selection has arrived, one read for each level", function () {
-    const { spring, reads, arrive } = waiting(withTree(3));
+    const { well, reads, arrive } = waiting(withTree(3));
     let seen = null;
-    const handle = load(spring.root, selectFromRoot, (selection) => { seen = keys(selection); });
+    const handle = load(well.root, selectFromRoot, (selection) => { seen = keys(selection); });
     assert.equal(seen, null, "the action has not run when load returns");
     assert.ok(!handle.loaded);
     assert.equal(handle.selection.size, 1, "only the root so far");
@@ -290,24 +290,24 @@ describe("a store that waits (design section 3.7)", function () {
     assert.equal(rounds, 3);
     assert.ok(handle.loaded);
     assert.equal(seen.length, 8, "the root and seven nodes");
-    for (const object of handle.selection) assert.ok(spring.isPinned(object));
+    for (const object of handle.selection) assert.ok(well.isPinned(object));
   });
 
   it("follows no reference to what is not in memory, outside a rule", function () {
-    const { spring, reads, arrive } = waiting(withTree(2));
-    assert.throws(() => spring.root.tree, /not loaded/);
-    const handle = load(spring.root, selectFromRoot);
+    const { well, reads, arrive } = waiting(withTree(2));
+    assert.throws(() => well.root.tree, /not loaded/);
+    const handle = load(well.root, selectFromRoot);
     while (reads.length > 0) arrive();
-    const top = spring.root.tree; // loaded now
+    const top = well.root.tree; // loaded now
     assert.equal(top.left.key, 0);
     assert.throws(() => top.note, /not loaded/, "the note was not selected");
     handle.release();
   });
 
   it("says that a selection is incomplete while what a write made it reach is on its way", function () {
-    const { spring, reads, arrive } = waiting(withTree(3));
+    const { well, reads, arrive } = waiting(withTree(3));
     const want = synchronized({ key: 0 });
-    const handle = load(spring.root, {
+    const handle = load(well.root, {
       Object: (root, selection) => selection.add(root.tree),
       RuleNode: (node, selection) => {
         if (want.key < node.key) selection.add(node.left);
@@ -326,9 +326,9 @@ describe("a store that waits (design section 3.7)", function () {
   });
 
   it("makes an array with its elements, which are asked for before it is made", function () {
-    const spring = openSpring();
-    transaction(() => { spring.root.list = synchronized([new Note(), new Note()]); });
-    const { spring: again, reads, arrive } = waiting(spring);
+    const well = openWell();
+    transaction(() => { well.root.list = synchronized([new Note(), new Note()]); });
+    const { well: again, reads, arrive } = waiting(well);
     const handle = load(again.root, { Object: (root, selection) => selection.add(root.list) });
     arrive(); // the list's record
     assert.ok(!handle.loaded, "the list is not made before its elements have arrived");
@@ -340,14 +340,14 @@ describe("a store that waits (design section 3.7)", function () {
   });
 
   it("drops a read that arrives after the load was released", function () {
-    const { spring, reads, arrive } = waiting(withTree(3));
+    const { well, reads, arrive } = waiting(withTree(3));
     let acted = false;
-    const handle = load(spring.root, selectFromRoot, () => { acted = true; });
+    const handle = load(well.root, selectFromRoot, () => { acted = true; });
     arrive();
     handle.release();
     while (reads.length > 0) arrive();
     assert.ok(!acted);
     assert.equal(handle.selection.size, 0);
-    assert.equal(spring.holdsOf(spring.root), 0);
+    assert.equal(well.holdsOf(well.root), 0);
   });
 });

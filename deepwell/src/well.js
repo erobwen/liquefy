@@ -3,9 +3,9 @@
  * objects and writes their changes back. Designed in documents/design.md, sections 2 to 5; the
  * values and records are documents/data-model.md's.
  *
- *   const spring = open({ store, classes: { Document } });
- *   spring.root.documents = synchronized([]);      // stored at the end of the transaction
- *   spring.root.documents.push(new Document());    // stored too: reachable from the root
+ *   const well = open({ store, classes: { Document } });
+ *   well.root.documents = synchronized([]);      // stored at the end of the transaction
+ *   well.root.documents.push(new Document());    // stored too: reachable from the root
  *
  * What is here: the identity map, references resolved when they are read, persistence by
  * reachability, one Aquifer transaction per Cascade transaction, objects whose records are
@@ -50,20 +50,20 @@ function holdsReference(encoded) {
  * objects it has stored. `world` must have been created with `onEventGlobal` calling
  * `dispatch` (index.js does this for Deepwell's default world).
  */
-export function createSpringHost(model) {
-  const springs = new Set();
+export function createWellHost(model) {
+  const wells = new Set();
   function dispatch(event) {
-    for (const spring of springs) spring.noticeEvent(event);
+    for (const well of wells) well.noticeEvent(event);
   }
   function open(options) {
-    const spring = new Spring(model, options, () => springs.delete(spring));
-    springs.add(spring);
-    return spring;
+    const well = new Well(model, options, () => wells.delete(well));
+    wells.add(well);
+    return well;
   }
   return { dispatch, open };
 }
 
-export class Spring {
+export class Well {
   constructor(model, { store, classes, options = {} } = {}, onClose = () => {}) {
     if (!store) throw new DataModelError("open() needs a store: Aquifer's MemoryStore or LmdbStore.");
     this.model = model;
@@ -132,7 +132,7 @@ export class Spring {
   /** Whether an object belongs to this store: stored by it, or volatile in it. */
   owns(object) {
     const info = this.model.infoOf(object);
-    return info !== undefined && info.spring === this && info.id !== undefined;
+    return info !== undefined && info.well === this && info.id !== undefined;
   }
 
   /** Whether an object is a volatile object of this store: synchronized, never stored. */
@@ -148,7 +148,7 @@ export class Spring {
   adoptAs(object, id) {
     this.model.setIdentity(object, id);
     const info = this.model.infoOf(object);
-    info.spring = this;
+    info.well = this;
     info.resolve = this.resolve;
     this.objects.set(id, new WeakRef(object));
     this.forget.register(object, id);
@@ -318,7 +318,7 @@ export class Spring {
     const give = (error) => {
       this.objects.delete(id);
       this.model.clearIdentity(object);
-      this.model.infoOf(object).spring = undefined;
+      this.model.infoOf(object).well = undefined;
       throw error;
     };
     if (stored > entry.version) {
@@ -422,7 +422,7 @@ export class Spring {
       ? () => this.objectFor(encoded.$ref)
       : function () { return resolve(); };
     get.encoded = encoded; // Encoding an unread field copies it, without loading anything.
-    const spring = this;
+    const well = this;
     Object.defineProperty(target, field, {
       enumerable: true,
       configurable: true,
@@ -430,11 +430,11 @@ export class Spring {
       set(value) {
         // The write has been checked already, on its way here.
         resolve();
-        spring.skipChecks++;
+        well.skipChecks++;
         try {
           object[field] = value;
         } finally {
-          spring.skipChecks--;
+          well.skipChecks--;
         }
       },
     });
@@ -819,7 +819,7 @@ export class Spring {
       if (object === undefined) continue;
       const info = this.model.infoOf(object);
       this.model.clearIdentity(object);
-      info.spring = undefined;
+      info.well = undefined;
       this.pinned.delete(object);
     }
   }

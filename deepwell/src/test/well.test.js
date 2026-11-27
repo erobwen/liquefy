@@ -18,19 +18,19 @@ class Chapter extends Synchronized {
 }
 const classes = { Document, Chapter };
 
-const springs = [];
-function openSpring(store = new MemoryStore()) {
-  const spring = open({ store, classes });
-  springs.push(spring);
-  return spring;
+const wells = [];
+function openWell(store = new MemoryStore()) {
+  const well = open({ store, classes });
+  wells.push(well);
+  return well;
 }
-afterEach(() => { while (springs.length) springs.pop().close(); });
+afterEach(() => { while (wells.length) wells.pop().close(); });
 
 /** Opens the same store again, as a new process would: nothing in memory is shared. */
-function reopen(spring) {
-  spring.close();
-  springs.splice(springs.indexOf(spring), 1);
-  return openSpring(spring.db.store);
+function reopen(well) {
+  well.close();
+  wells.splice(wells.indexOf(well), 1);
+  return openWell(well.db.store);
 }
 
 function recordsRead(store, action) {
@@ -43,12 +43,12 @@ function recordsRead(store, action) {
 describe("objects over records: writing and reading back", function () {
 
   it("stores what is written to the root, and reads it back after reopening", function () {
-    const spring = openSpring();
-    spring.root.title = "Library";
-    spring.root.count = 3;
-    spring.root.settings = Object.freeze({ margin: 20 });
-    spring.root.when = new Date(1000);
-    const again = reopen(spring);
+    const well = openWell();
+    well.root.title = "Library";
+    well.root.count = 3;
+    well.root.settings = Object.freeze({ margin: 20 });
+    well.root.when = new Date(1000);
+    const again = reopen(well);
     assert.equal(again.root.title, "Library");
     assert.equal(again.root.count, 3);
     assert.equal(again.root.settings.margin, 20);
@@ -56,20 +56,20 @@ describe("objects over records: writing and reading back", function () {
   });
 
   it("writes one Aquifer transaction per Cascade transaction", function () {
-    const spring = openSpring();
-    const before = spring.lastCommit;
+    const well = openWell();
+    const before = well.lastCommit;
     transaction(() => {
-      spring.root.a = 1;
-      spring.root.b = 2;
-      spring.root.c = 3;
+      well.root.a = 1;
+      well.root.b = 2;
+      well.root.c = 3;
     });
-    assert.equal(spring.lastCommit, before + 1);
-    spring.root.d = 4; // a bare write is a transaction of its own
-    assert.equal(spring.lastCommit, before + 2);
+    assert.equal(well.lastCommit, before + 1);
+    well.root.d = 4; // a bare write is a transaction of its own
+    assert.equal(well.lastCommit, before + 2);
   });
 
   it("stores class instances, and makes them again without running the constructor", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
       const document = new Document();
       document.title = "Novel";
@@ -77,10 +77,10 @@ describe("objects over records: writing and reading back", function () {
       chapter.title = "One";
       chapter.document = document;
       document.chapters.push(chapter);
-      spring.root.document = document;
+      well.root.document = document;
     });
     const before = constructed;
-    const again = reopen(spring);
+    const again = reopen(well);
     const document = again.root.document;
     assert.ok(document instanceof Document);
     assert.equal(document.describe(), "Novel (1 chapters)");
@@ -89,25 +89,25 @@ describe("objects over records: writing and reading back", function () {
   });
 
   it("deletes fields", function () {
-    const spring = openSpring();
-    spring.root.gone = "soon";
-    delete spring.root.gone;
-    const again = reopen(spring);
+    const well = openWell();
+    well.root.gone = "soon";
+    delete well.root.gone;
+    const again = reopen(well);
     assert.ok(!("gone" in again.root));
     assert.deepEqual(Object.keys(again.root), []);
   });
 
   it("keeps maps, sets and weak references, with objects in them", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
       const target = new Chapter();
       target.title = "Target";
-      spring.root.target = target;
-      spring.root.byName = new Map([["t", target]]);
-      spring.root.tags = new Set(["a", target]);
-      spring.root.loose = weak(target);
+      well.root.target = target;
+      well.root.byName = new Map([["t", target]]);
+      well.root.tags = new Set(["a", target]);
+      well.root.loose = weak(target);
     });
-    const again = reopen(spring);
+    const again = reopen(well);
     const target = again.root.target;
     assert.strictEqual(again.root.byName.get("t"), target);
     assert.ok([...again.root.tags].includes(target));
@@ -118,63 +118,63 @@ describe("objects over records: writing and reading back", function () {
 describe("persistence by reachability (data model O2)", function () {
 
   it("stores a local object, and what it refers to, when a stored object comes to refer to it", function () {
-    const spring = openSpring();
+    const well = openWell();
     const document = new Document();
     const chapter = new Chapter();
     document.chapters.push(chapter);
     assert.equal(model.identityOf(document), undefined, "local where it was made");
-    spring.root.document = document;
-    assert.ok(spring.owns(document) && spring.owns(document.chapters) && spring.owns(chapter));
-    const again = reopen(spring);
+    well.root.document = document;
+    assert.ok(well.owns(document) && well.owns(document.chapters) && well.owns(chapter));
+    const again = reopen(well);
     assert.equal(again.root.document.chapters.length, 1);
   });
 
   it("does not store a local object that nothing stored refers to", function () {
-    const spring = openSpring();
+    const well = openWell();
     const loose = synchronized({ never: "stored" });
     loose.more = 1;
-    spring.root.other = 1;
+    well.root.other = 1;
     assert.equal(model.identityOf(loose), undefined);
-    assert.equal(spring.db.objectIds().filter((id) => id !== "root").length, 0);
+    assert.equal(well.db.objectIds().filter((id) => id !== "root").length, 0);
   });
 
   it("stores later writes to an object that became stored", function () {
-    const spring = openSpring();
+    const well = openWell();
     const chapter = new Chapter();
-    spring.root.chapter = chapter;
+    well.root.chapter = chapter;
     chapter.title = "Changed afterwards";
-    assert.equal(reopen(spring).root.chapter.title, "Changed afterwards");
+    assert.equal(reopen(well).root.chapter.title, "Changed afterwards");
   });
 
   it("refuses a weak reference to an object that will not be stored", function () {
-    const spring = openSpring();
-    assert.throws(() => { spring.root.loose = weak(new Chapter()); }, /not stored/);
+    const well = openWell();
+    assert.throws(() => { well.root.loose = weak(new Chapter()); }, /not stored/);
   });
 });
 
 describe("references are resolved when they are read (data model K7)", function () {
 
   it("makes the root without reading what it refers to", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
-      spring.root.documents = synchronized([]);
-      for (let i = 0; i < 5; i++) spring.root.documents.push(new Document());
-      spring.root.big = new Document();
+      well.root.documents = synchronized([]);
+      for (let i = 0; i < 5; i++) well.root.documents.push(new Document());
+      well.root.big = new Document();
     });
-    const store = spring.db.store;
-    spring.close();
-    springs.pop();
+    const store = well.db.store;
+    well.close();
+    wells.pop();
     let again;
-    const read = recordsRead(store, () => { again = openSpring(store); });
+    const read = recordsRead(store, () => { again = openWell(store); });
     assert.deepEqual([...read], ["root"], "opening reads the root, nothing else");
     const onFirstUse = recordsRead(store, () => again.root.big.title);
     assert.equal(onFirstUse.size, 1, "reading a field loads the one object it names");
   });
 
   it("writes a field before it was ever read, as an ordinary change", function () {
-    const spring = openSpring();
-    spring.root.chapter = new Chapter();
-    const again = reopen(spring);
+    const well = openWell();
+    well.root.chapter = new Chapter();
+    const again = reopen(well);
     const replacement = new Chapter();
     replacement.title = "New";
     again.root.chapter = replacement;
@@ -182,12 +182,12 @@ describe("references are resolved when they are read (data model K7)", function 
   });
 
   it("writes an object without loading its unread references", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
-      spring.root.a = new Chapter();
-      spring.root.b = new Chapter();
+      well.root.a = new Chapter();
+      well.root.b = new Chapter();
     });
-    const again = reopen(spring);
+    const again = reopen(well);
     again.root.title = "touched";
     assert.deepEqual([...again.objects.keys()], ["root"], "only the root is in memory: its unread references were copied");
     const third = reopen(again);
@@ -195,14 +195,14 @@ describe("references are resolved when they are read (data model K7)", function 
   });
 
   it("gives one object per identity, however it is reached (O4)", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
       const chapter = new Chapter();
-      spring.root.first = chapter;
-      spring.root.second = chapter;
-      spring.root.list = synchronized([chapter]);
+      well.root.first = chapter;
+      well.root.second = chapter;
+      well.root.list = synchronized([chapter]);
     });
-    const again = reopen(spring);
+    const again = reopen(well);
     assert.strictEqual(again.root.first, again.root.second);
     assert.strictEqual(again.root.list[0], again.root.first);
   });
@@ -211,80 +211,80 @@ describe("references are resolved when they are read (data model K7)", function 
 describe("reclaimed records (data model O3)", function () {
 
   it("makes an object in memory local again when its record is reclaimed, and stores it anew if it is linked in", function () {
-    const spring = openSpring();
+    const well = openWell();
     const chapter = new Chapter();
-    spring.root.chapter = chapter;
+    well.root.chapter = chapter;
     const id = model.identityOf(chapter);
-    delete spring.root.chapter;
-    spring.workUntilIdle();
-    assert.equal(spring.db.get(id), undefined, "reclaimed");
+    delete well.root.chapter;
+    well.workUntilIdle();
+    assert.equal(well.db.get(id), undefined, "reclaimed");
     assert.equal(model.identityOf(chapter), undefined, "local again");
-    assert.ok(!spring.owns(chapter));
+    assert.ok(!well.owns(chapter));
     chapter.title = "still usable";
-    spring.root.again = chapter;
-    assert.ok(spring.owns(chapter));
+    well.root.again = chapter;
+    assert.ok(well.owns(chapter));
     assert.notEqual(model.identityOf(chapter), id, "a new identity");
-    assert.equal(reopen(spring).root.again.title, "still usable");
+    assert.equal(reopen(well).root.again.title, "still usable");
   });
 
   it("clears weak references to what was reclaimed", function () {
-    const spring = openSpring();
+    const well = openWell();
     transaction(() => {
-      spring.root.target = new Chapter();
-      spring.root.loose = weak(spring.root.target);
+      well.root.target = new Chapter();
+      well.root.loose = weak(well.root.target);
     });
-    const loose = spring.root.loose;
+    const loose = well.root.loose;
     assert.ok(loose.deref());
-    delete spring.root.target;
-    spring.workUntilIdle();
+    delete well.root.target;
+    well.workUntilIdle();
     assert.equal(loose.deref(), undefined);
-    assert.equal(reopen(spring).root.loose.deref(), undefined);
+    assert.equal(reopen(well).root.loose.deref(), undefined);
   });
 
   it("keeps Aquifer's invariants, and stores exactly what is reachable", function () {
-    const spring = openSpring();
+    const well = openWell();
     for (let i = 0; i < 20; i++) {
       transaction(() => {
         const document = new Document();
         for (let j = 0; j < 3; j++) document.chapters.push(new Chapter());
-        spring.root["d" + (i % 5)] = document;
+        well.root["d" + (i % 5)] = document;
       });
     }
-    spring.workUntilIdle();
-    assert.deepEqual(checkIntegrity(spring.db.store, { quiescent: true }), []);
-    assert.equal(spring.db.objectIds().length, reachableFromRoot(spring.db.store).size);
+    well.workUntilIdle();
+    assert.deepEqual(checkIntegrity(well.db.store, { quiescent: true }), []);
+    assert.equal(well.db.objectIds().length, reachableFromRoot(well.db.store).size);
   });
 });
 
 describe("refusals", function () {
 
   it("refuses what the data model refuses, before anything is stored", function () {
-    const spring = openSpring();
-    const before = spring.lastCommit;
-    assert.throws(() => { spring.root.bad = { plain: true }; }, DataModelError);
-    assert.equal(spring.lastCommit, before);
+    const well = openWell();
+    const before = well.lastCommit;
+    assert.throws(() => { well.root.bad = { plain: true }; }, DataModelError);
+    assert.equal(well.lastCommit, before);
   });
 
   it("refuses a class that is not registered, and returns the objects in memory to what is stored", function () {
-    const spring = openSpring();
+    const well = openWell();
     class Unregistered extends Synchronized {}
-    spring.root.list = synchronized([1, 2]);
-    spring.root.kept = "before";
+    well.root.list = synchronized([1, 2]);
+    well.root.kept = "before";
     assert.throws(() => transaction(() => {
-      spring.root.kept = "changed";
-      delete spring.root.list;
-      spring.root.x = new Unregistered();
+      well.root.kept = "changed";
+      delete well.root.list;
+      well.root.x = new Unregistered();
     }), /not registered/);
-    assert.equal(spring.root.kept, "before");
-    assert.ok(!("x" in spring.root));
-    assert.deepEqual([...spring.root.list], [1, 2]);
+    assert.equal(well.root.kept, "before");
+    assert.ok(!("x" in well.root));
+    assert.deepEqual([...well.root.list], [1, 2]);
     assert.throws(() => transaction(() => {
-      spring.root.list.push(3);
-      spring.root.list.splice(0, 1, new Unregistered());
+      well.root.list.push(3);
+      well.root.list.splice(0, 1, new Unregistered());
     }), /not registered/);
-    assert.deepEqual([...spring.root.list], [1, 2]);
-    spring.root.after = "fine";
-    const again = reopen(spring);
+    assert.deepEqual([...well.root.list], [1, 2]);
+    well.root.after = "fine";
+    const again = reopen(well);
     assert.equal(again.root.kept, "before");
     assert.equal(again.root.after, "fine");
     assert.deepEqual([...again.root.list], [1, 2]);
@@ -294,15 +294,15 @@ describe("refusals", function () {
 describe("change notification", function () {
 
   it("reports each commit, with what was created and what changed", function () {
-    const spring = openSpring();
+    const well = openWell();
     const changes = [];
-    spring.onCommit((change) => changes.push(change));
+    well.onCommit((change) => changes.push(change));
     const chapter = new Chapter();
-    spring.root.chapter = chapter;
+    well.root.chapter = chapter;
     chapter.title = "x";
     assert.equal(changes.length, 2);
     assert.deepEqual(changes[0].created, [chapter]);
-    assert.deepEqual(changes[0].changed, [spring.root]);
+    assert.deepEqual(changes[0].changed, [well.root]);
     assert.deepEqual(changes[1].changed, [chapter]);
     assert.equal(changes[1].events[0].type, "set");
     assert.ok(world.isObservable(changes[1].changed[0]));

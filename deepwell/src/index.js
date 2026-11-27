@@ -1,10 +1,10 @@
 import getWorld from "@liquefy/cascade.reactive";
 import { createDataModel } from "./dataModel.js";
-import { createSpringHost } from "./spring.js";
+import { createWellHost } from "./well.js";
 
 export { createDataModel } from "./dataModel.js";
 export { DataModelError, sameValue } from "./values.js";
-export { Spring } from "./spring.js";
+export { Well } from "./well.js";
 
 /**
  * Deepwell's default world, and its data model. The world is made with an event hook that
@@ -17,11 +17,11 @@ export { Spring } from "./spring.js";
 let host = null;
 export const world = getWorld({ name: "deepwell", onEventGlobal: (event) => host && host.dispatch(event) });
 export const model = createDataModel(world);
-host = createSpringHost(model);
+host = createWellHost(model);
 
 /**
  * Opens a store: `open({ store, classes })`, where `store` is Aquifer's MemoryStore or
- * LmdbStore, and `classes` the classes to register, by name. Returns a Spring, whose `root` is
+ * LmdbStore, and `classes` the classes to register, by name. Returns a Well, whose `root` is
  * the database's root object.
  */
 export const open = host.open;
@@ -36,8 +36,8 @@ export const { transaction, repeat, ensure, meta, untrackedMeta, innerMeta } = w
  */
 export function load(start, selector, ...rest) {
   const info = model.infoOf(start);
-  if (!info || !info.spring) throw new Error("load() starts from a stored object.");
-  return info.spring.load(start, selector, ...rest);
+  if (!info || !info.well) throw new Error("load() starts from a stored object.");
+  return info.well.load(start, selector, ...rest);
 }
 
 export const {

@@ -10,7 +10,7 @@ the database to the screen.
   [cascade.reactive](cascade.reactive#readme), the reactive core.
 - **[Aquifer](#aquifer)** - a garbage collected JavaScript object database, the
   first piece of the full stack. A prototype.
-- **[Deepwell](#deepwell)** - persistent JavaScript objects on top of Aquifer. Planned.
+- **[Deepwell](#deepwell)** - persistent JavaScript objects on top of Aquifer. In progress.
 - **[Fountain](#fountain)** - the server on top of that. Planned.
 - **[Flow](#flow)** - the generation before Cascade, kept for its history.
 
@@ -121,9 +121,11 @@ which shows its collector at work step by step.
 
 ## Deepwell
 
-The layer planned on top of Aquifer: it turns Aquifer's records into persistent
+The layer on top of Aquifer: it turns Aquifer's records into persistent
 JavaScript objects that server code loads, reads and writes like any others.
-Usable on its own, without clients. Nothing runs yet - see
+Usable on its own, without clients. In progress, not yet published: objects
+over records, loading and unloading, selectors, checks before writes, volatile
+objects and migrations run and are tested; indexes are planned - see
 [deepwell](deepwell#readme) for its design and the specification of its
 data model.
 

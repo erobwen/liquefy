@@ -8,7 +8,7 @@ server and every connected client.
 
 - A central server holds the authoritative object graph. It is built in three
   layers: [Aquifer](../aquifer) stores records and collects garbage,
-  [Deepwell](../deepwell#readme) (planned) makes them persistent JavaScript objects that server
+  [Deepwell](../deepwell#readme) (in progress) makes them persistent JavaScript objects that server
   code loads and writes like any others, and Fountain adds users and clients.
 - Clients subscribe to selections of objects over WebSockets, and receive
   incremental updates as the data changes. On both sides, the reactivity is

@@ -1,6 +1,6 @@
 # Protocol
 
-*Specification, draft. Part of [Fountain](../README.md); it details [the whitepaper](../whitepaper.md), sections 3.4 to 3.11, 4.1, 4.5 and 8.14. It is built on [the data model](../../deepwell/documents/data-model.md).*
+*Specification, draft. Part of [Fountain](../README.md); it details [the whitepaper](../whitepaper.md), sections 3.4 to 3.11, 4.1, 4.5 and 8.14. It is built on [the data model](../../deepwell/documents/data-model.md). What the server implements of it, and where it differs, is in [its status](protocol-status.md).*
 
 This document specifies the conversation between a client and the server: the messages, their order, what each side keeps, how changes travel in both directions, and how a client reconnects. It is the contract between the client store and the server store (whitepaper section 3.8).
 

@@ -115,6 +115,8 @@ fountain.call(session, "createDocument", ["Notes"]);
 
 **M5. A grant lasts as long as the sign-in.** `session.grant(object)` lets the session read an object whatever its `canRead` says of the user. It ends with the sign-in (N4).
 
+**M6. What a method returns, a client knows of.** A reference that a remote method returns is a root that the session's clients may subscribe from (whitepaper section 4.5), for as long as the session lives: it gives an identity, not access. After a restart, the session is made anew, and an application sets the fields that refer to its user's roots in `session.signedIn()`, which is called each time the session is bound to a user.
+
 Arguments and results are not yet checked to be data that can be sent; that belongs with the protocol.
 
 ---

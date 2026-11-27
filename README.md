@@ -136,8 +136,8 @@ subscribe to persistent objects over WebSockets and stay in sync as they
 change, with users and authorization per object built in from the start.
 In progress, not yet published: the user model (users, sessions, signing in,
 the session's remote methods, authorization) observation (what each
-session is to be sent after each commit) and selections run and are tested; there is no
-network yet - see [fountain](fountain#readme), and the design in
+session is to be sent after each commit), selections and the protocol for
+read-only clients run and are tested; clients cannot write yet - see [fountain](fountain#readme), and the design in
 [the whitepaper](fountain/whitepaper.md).
 
 ## Flow

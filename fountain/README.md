@@ -1,6 +1,6 @@
 # Fountain
 
-*In progress - the user model is implemented: users, the super user, sessions, signing in with a password or through an external login service, the session's remote methods, and authorization through `canRead` and `canWrite`; observation: change sets, observers, and what each session is to be sent after each commit; and selections: named selectors, parts that come along, which subscriptions hold what, and incremental selections tested against whole ones. There is no network yet: nothing here talks to a client.*
+*In progress - the user model is implemented: users, the super user, sessions, signing in with a password or through an external login service, the session's remote methods, and authorization through `canRead` and `canWrite`; observation: change sets, observers, and what each session is to be sent after each commit; selections: named selectors, parts that come along, which subscriptions hold what, and incremental selections tested against whole ones; and the protocol, for read-only clients: connections, subscriptions, changes, calls and reconnecting. Clients cannot write yet.*
 
 Fountain is the server Liquefy is heading toward: full stack reactivity, with
 persistent JavaScript objects as the one model shared by the database, the
@@ -58,6 +58,11 @@ its selections, and the fields that changed (`fountain.takeDeliveries(session)`,
 with what the server holds for it. `fountain.observe(compute, changed)` runs a
 computation again when a commit writes what it read.
 
+`fountain.connect(send)` opens a connection of the protocol, over any transport
+that carries JSON messages in order; `PlainClient` is a client of it that keeps
+plain records. A simulator cuts connections and restarts the server, and checks
+that clients converge.
+
 ```console
 npm test -w @liquefy/fountain
 ```
@@ -70,7 +75,7 @@ time before each is built, are in [documents](documents):
 [the user model](documents/user-model.md),
 [observation](documents/observation.md),
 [selections](documents/selections.md) and
-[the protocol](documents/protocol.md) here, on
+[the protocol](documents/protocol.md), with [its status](documents/protocol-status.md), here, on
 [the data model](../deepwell/documents/data-model.md), which is Deepwell's. The storage and garbage collection layer
 was built first, in Aquifer, and is described in
 [its own documents](../aquifer/documents/persistent-garbage-collection.md).

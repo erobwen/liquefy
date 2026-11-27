@@ -163,7 +163,11 @@ function classOf(well, id) {
  * during the transaction, and what the transaction wrote to what it held before. Returns null
  * if there is nothing to send.
  *
- *   { commit, joined: [{ id, record }], left: [id], changed: [{ id, fields, deleted } | { id, splices }], stubs: [{ id, class }] }
+ *   { commit, joined: [{ id, record }], left: [id], changed: [{ id, fields, deleted } | { id, splices }],
+ *     stubs: [{ id, class }], memberships: { [id]: [sub, ...] } }
+ *
+ * `memberships` gives, for each object whose subscriptions changed and that is still held, the
+ * numbers of the subscriptions that hold it (selections.md section 4).
  */
 export function makeDelivery(well, state, commit, eventsByObject) {
   const joined = [];
@@ -209,6 +213,17 @@ export function makeDelivery(well, state, commit, eventsByObject) {
   state.pendingJoined.clear();
   state.pendingLeft.clear();
 
+  const memberships = {};
+  let membershipCount = 0;
+  for (const object of state.pendingMemberships) {
+    const holders = state.holders.get(object);
+    const id = model.identityOf(object);
+    if (holders === undefined || id === undefined) continue;
+    memberships[id] = [...holders].map((subscription) => subscription.sub).sort((a, b) => (typeof(a) === "number" && typeof(b) === "number" ? a - b : String(a) < String(b) ? -1 : 1));
+    membershipCount++;
+  }
+  state.pendingMemberships.clear();
+
   // Stubs: what what is sent refers to, that the client will not hold and has not been told of.
   for (const id of state.sentIds.values()) sent.add(id);
   const referred = new Set();
@@ -225,13 +240,23 @@ export function makeDelivery(well, state, commit, eventsByObject) {
     stubs.push({ id, class: classOf(well, id) });
   }
 
-  if (joined.length === 0 && left.length === 0 && changed.length === 0) return null;
-  return { commit, joined, left, changed, stubs };
+  if (joined.length === 0 && left.length === 0 && changed.length === 0 && membershipCount === 0) return null;
+  return { commit, joined, left, changed, stubs, memberships };
 }
 
-/** Applies a delivery to a client's copy: a Map from identity to record. For tests, and the client store. */
-export function applyDelivery(copy, delivery) {
-  for (const id of delivery.left) copy.delete(id);
+/**
+ * Applies a delivery to a client's copy: a Map from identity to record, and, if given, a Map
+ * from identity to the numbers of the subscriptions that hold it. For tests, and the client
+ * store.
+ */
+export function applyDelivery(copy, delivery, memberships = null) {
+  for (const id of delivery.left) {
+    copy.delete(id);
+    if (memberships !== null) memberships.delete(id);
+  }
+  if (memberships !== null && delivery.memberships) {
+    for (const [id, subs] of Object.entries(delivery.memberships)) memberships.set(id, subs.slice());
+  }
   for (const { id, record } of delivery.joined) copy.set(id, structuredClone(record));
   for (const change of delivery.changed) {
     const record = copy.get(change.id);

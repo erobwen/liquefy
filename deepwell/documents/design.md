@@ -556,7 +556,7 @@ Each step is tested against a model before the next is begun, as Aquifer was: a 
    - **`filter`**, an option, says which objects a selection may contain and pass through. It runs with the rule, and is reactive like it.
    - **`onChange(joined, left)`**, an option, is told what joins and leaves the selection, as it happens, and everything as left when the load is released. Fountain keeps what a session holds, and what it holds refers to, this way.
    - **A store that waits** is stood in for by `options.wait`. `handle.loaded` says whether everything the selection reaches is in memory.
-   - **Not yet:** the parts of an object, its arrays and classless objects, are not selected with it by themselves (whitepaper section 3.4); a rule adds them. The other open points are in section 3.7.
+   - **Not yet:** the parts of an object, its arrays and classless objects, are not selected with it by themselves (whitepaper section 3.4); a rule adds them. Fountain's selectors do this ([selections](../../fountain/documents/selections.md) C2). The other open points are in section 3.7.
 7. **Migrations** (section 8). *Done*, in `src/well.js`. How it came out:
    - A class's `static migrations` are kept with it in the registry, and checked there: functions, each named by a version older than the class's.
    - An object made from an older record is migrated before `make` returns it. The migration's changes are collected apart from those of a transaction under way, and written at once, in an Aquifer transaction of their own, reported to `onCommit` listeners with `migration: true`. The checks before writes are not asked, and a running computation does not record what the migration read.

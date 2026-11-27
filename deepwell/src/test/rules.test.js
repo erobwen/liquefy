@@ -381,4 +381,45 @@ describe("rule loads: onChange", function () {
       well.close();
     }
   });
+
+  it("follows the changes of an object that joined when a rule ran again", function () {
+    // Its rule repeater was made while the load settled from inside another rule, where
+    // recording was once paused: it read nothing, and never ran again.
+    const well = open({ store: new MemoryStore() });
+    try {
+      class Step extends Synchronized {
+        constructor(name) { super(); this.name = name; this.next = null; }
+      }
+      registerClasses({ JoinedStep: Step });
+      const first = well.root.first = new Step("first");
+      const handle = well.load(first, { JoinedStep: (step, selection) => selection.add(step.next) });
+      const second = new Step("second");
+      first.next = second; // joins on a rerun of the first rule
+      const third = new Step("third");
+      second.next = third; // its own rule must see this
+      assert.equal(handle.selection.has(third), true);
+      second.next = null;
+      assert.equal(handle.selection.has(third), false);
+    } finally {
+      well.close();
+    }
+  });
+
+  it("is told the same by a load with a whole selector", function () {
+    const well = open({ store: new MemoryStore() });
+    try {
+      well.root.items = synchronized([synchronized({ name: "a" }), synchronized({ name: "b" })]);
+      const seen = [];
+      const handle = well.load(well.root, (root, selection) => { selection.add(root.items, ...root.items); }, {
+        onChange: (joined, left) => seen.push([joined.length, left.length]),
+      });
+      assert.deepEqual(seen, [[3, 0]]);
+      well.root.items.splice(0, 1);
+      assert.deepEqual(seen[1], [0, 1]);
+      handle.release();
+      assert.deepEqual(seen[2], [0, 2]);
+    } finally {
+      well.close();
+    }
+  });
 });

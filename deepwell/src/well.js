@@ -810,10 +810,11 @@ export class Well {
    * - A function `(start, selection)` that fills the whole selection. It runs again as a whole
    *   when anything it read changes, and needs a store that answers at once.
    *
-   * Options, before or after the action, for a table of rules: `filter(object)` says whether
+   * Options, before or after the action: `filter(object)`, for a table of rules, says whether
    * the selection may contain an object, and pass through it; Fountain passes a user's right
-   * to read. `onChange(joined, left)` is told, with two arrays, each time objects join or leave
-   * the selection, and with everything as `left` when the load is released.
+   * to read. `onChange(joined, left)`, for either kind, is told, with two arrays, each time
+   * objects join or leave the selection, and with everything as `left` when the load is
+   * released.
    */
   load(start, selector, ...rest) {
     if (!this.owns(start)) throw new DataModelError("load() starts from an object of this store.");
@@ -826,25 +827,36 @@ export class Well {
       return ruleLoad.handle;
     }
     const handle = { selection: new Selection(), loaded: true, released: false, release: () => {} };
+    const onChange = options.onChange || null;
     let current = new Set();
     const repeater = this.world.repeat("load", () => {
       const selection = new Selection();
       selector(start, selection);
       this.world.withoutRecording(() => {
+        const joined = [];
+        const left = [];
         for (const object of selection) {
           if (!this.model.isSynchronized(object)) throw new DataModelError("A selector selects synchronized objects only.");
-          if (!current.has(object)) this.hold(object);
+          if (current.has(object)) continue;
+          this.hold(object);
+          joined.push(object);
         }
-        for (const object of current) if (!selection.has(object)) this.release(object);
+        for (const object of current) {
+          if (selection.has(object)) continue;
+          this.release(object);
+          left.push(object);
+        }
+        current = selection;
+        handle.selection = selection;
+        if (onChange !== null && (joined.length > 0 || left.length > 0)) onChange(joined, left);
       });
-      current = selection;
-      handle.selection = selection;
     }, { independent: true });
     handle.release = () => {
       if (handle.released) return;
       handle.released = true;
       this.world.retractRepeater(repeater);
       for (const object of current) this.release(object);
+      if (onChange !== null && current.size > 0) onChange([], [...current]);
       current = new Selection();
       handle.selection = current;
       handle.loaded = false;

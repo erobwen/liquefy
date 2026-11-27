@@ -93,7 +93,8 @@ export class RuleLoad {
     this.handle.loaded = complete;
     if (complete && !this.acted) {
       this.acted = true;
-      if (this.action) this.action(this.handle.selection);
+      // What the action reads is no rule's: it is not recorded by a rule that is running.
+      if (this.action) this.world.withoutRecording(() => this.action(this.handle.selection));
     }
   }
 
@@ -185,7 +186,9 @@ export class RuleLoad {
           return item;
         });
       }
-      if (entry.started) this.world.withoutRecording(() => this.settle());
+      // Not without recording: the repeaters of objects that join now must record what their
+      // rules read. They are independent, so what they read is theirs, not this rule's.
+      if (entry.started) this.settle();
       entry.started = true;
     }, { independent: true });
     return entry;

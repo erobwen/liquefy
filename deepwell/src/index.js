@@ -3,7 +3,8 @@ import { createDataModel } from "./dataModel.js";
 import { createWellHost } from "./well.js";
 
 export { createDataModel } from "./dataModel.js";
-export { DataModelError, sameValue } from "./values.js";
+export { DataModelError, sameValue, ARRAY_CLASS, OBJECT_CLASS } from "./values.js";
+export { Selection } from "./ruleLoad.js";
 export { Well } from "./well.js";
 
 /**

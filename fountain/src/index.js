@@ -19,6 +19,7 @@
 import { Synchronized, synchronized, Index, registerClasses, model, world } from "@liquefy/deepwell";
 import { AuthenticationError, DEFAULT_SCRYPT, hashPassword, verifyPassword, newToken, tokenHash, jwtVerifier } from "./credentials.js";
 import { ChangeSet, ALL, recordReads, touches, makeDelivery, applyDelivery, clientRecord } from "./observation.js";
+import { isPart, withParts, wholeSelection } from "./selections.js";
 
 export { AuthenticationError, jwtVerifier, ChangeSet, ALL, applyDelivery };
 
@@ -251,6 +252,16 @@ export class Session extends Synchronized {
   }
 
   /** Whether this session may create users. The super user may; an application may allow others. */
+  /**
+   * Whether this session may subscribe with a selector from a starting object (whitepaper
+   * section 4.5, "The session also governs subscriptions"). Asked after the starting object has
+   * been found to be one the session knows of and may read. `selector` is the selector's name,
+   * or null for a table of rules given by server code. Any, by default.
+   */
+  maySubscribe(selector, start) {
+    return true;
+  }
+
   mayCreateUsers() {
     return this.fountain.isSuperUser(this.user);
   }
@@ -270,7 +281,7 @@ export class Session extends Synchronized {
 }
 
 // What the base class has that is not for clients, by any name a subclass might leave it.
-const NOT_REMOTE = new Set(["constructor", "mayCreateUsers", "grant", "afterCommit", "canRead", "canWrite"]);
+const NOT_REMOTE = new Set(["constructor", "mayCreateUsers", "maySubscribe", "grant", "afterCommit", "canRead", "canWrite"]);
 
 /*------------------------------------------------------------------
  *  Fountain
@@ -278,12 +289,6 @@ const NOT_REMOTE = new Set(["constructor", "mayCreateUsers", "grant", "afterComm
 
 let registered = false;
 
-/** Whether an object is neither an instance of an application class, nor Fountain's: an array, or a classless object. */
-function isPart(object) {
-  if (Array.isArray(object)) return true;
-  const prototype = Object.getPrototypeOf(object);
-  return prototype === Object.prototype || prototype === null;
-}
 
 function isServerOnly(object) {
   return !isPart(object) && object.constructor.serverOnly === true;
@@ -314,16 +319,21 @@ function outgoingIdentities(object) {
       if (id !== undefined) ids.add(id);
     }
   };
-  const target = world.innerMeta(object).target;
-  if (Array.isArray(target)) {
-    for (const item of target) add(item);
-    return ids;
-  }
-  for (const key of Object.keys(target)) {
-    const descriptor = Object.getOwnPropertyDescriptor(target, key);
-    if (descriptor.get && descriptor.get.encoded !== undefined) encodedReferences(descriptor.get.encoded, ids);
-    else add(descriptor.value);
-  }
+  // The target says which fields were never read, without loading them; the values of the rest
+  // are read through the object, since a value that a repeater has read lives on its timeline
+  // and no longer on the target.
+  world.withoutRecording(() => {
+    if (Array.isArray(object)) {
+      for (const item of object) add(item);
+      return;
+    }
+    const target = world.innerMeta(object).target;
+    for (const key of Object.keys(object)) {
+      const descriptor = Object.getOwnPropertyDescriptor(target, key);
+      if (descriptor && descriptor.get && descriptor.get.encoded !== undefined) encodedReferences(descriptor.get.encoded, ids);
+      else add(object[key]);
+    }
+  });
   return ids;
 }
 
@@ -370,6 +380,7 @@ export class Fountain {
     this.decoyPassword = hashPassword(newToken(), scrypt);
     this.watchers = new WeakMap(); // object → the states of the sessions that hold it, or are it
 
+    this.selectors = new Map(); // name → { name, rules, whole }: see registerSelector()
     this.observers = new Set(); // see observe()
     this.touched = new Set(); // the states of the sessions whose selections changed since the last commit
     this.changeSetListeners = [];
@@ -478,7 +489,7 @@ export class Fountain {
    */
   takeDeliveries(session) {
     const state = stateOf(session);
-    if (state.pendingJoined.size > 0 || state.pendingLeft.size > 0) {
+    if (state.pendingJoined.size > 0 || state.pendingLeft.size > 0 || state.pendingMemberships.size > 0) {
       this.touched.delete(state);
       this.deliver(state, this.well.lastCommit, new Map());
     }
@@ -591,6 +602,8 @@ export class Fountain {
       holders: new Map(), outgoing: new Map(), incoming: new Map(),
       // What the client is to be sent (observation.md section 4).
       pendingJoined: new Set([session]), pendingLeft: new Set(), sentIds: new Map(), outbox: [], deliveryListeners: [],
+      // Which of its subscriptions hold what (selections.md section 4).
+      pendingMemberships: new Set(), nextSub: 1, subs: new Map(),
     };
     state.session = session;
     sessionStates.set(session, state);
@@ -634,6 +647,9 @@ export class Fountain {
 
   /** Objects joined and left the selection of one of a session's subscriptions. */
   selectionChanged(state, subscription, joined, left) {
+    for (const object of joined) state.pendingMemberships.add(object);
+    for (const object of left) state.pendingMemberships.add(object);
+    if (joined.length > 0 || left.length > 0) this.touched.add(state);
     for (const object of joined) {
       let holders = state.holders.get(object);
       if (holders === undefined) {
@@ -844,35 +860,120 @@ export class Fountain {
    *-----------------------------------------------------------------*/
 
   /**
-   * Subscribes a session to what a table of rules selects from an object it knows of and may
-   * read. The selection passes only through objects the user may read, and follows both the
-   * data and the rights as they change. Returns `{ root, selection, release() }`.
+   * Registers a selector under a name, by which clients subscribe (whitepaper section 3.4): a
+   * table of local rules by class name. With `{ whole: true }`, its selection is computed
+   * from nothing each time anything it read changes, as one repeater; otherwise each rule is a
+   * repeater of its own, and a change runs the rule of the changed object only. The two give
+   * the same selection (selections.md R1), so a selector can start out whole.
    */
-  subscribe(session, start, rules) {
+  registerSelector(name, rules, { whole = false } = {}) {
+    if (typeof(name) !== "string" || name === "") throw new Error("A selector is registered under a name.");
+    if (rules === null || typeof(rules) !== "object") throw new Error("A selector is a table of rules by class name.");
+    if (this.selectors.has(name)) throw new Error("A selector is already registered as \"" + name + "\".");
+    this.selectors.set(name, { name, rules, whole });
+  }
+
+  /**
+   * Subscribes a session to what a selector selects from an object it knows of and may read.
+   * `selector` is the name of a registered selector, as a client gives it, or a table of rules,
+   * for server code. The selection passes only through objects the user may read, takes the
+   * parts of what it selects along, and follows both the data and the rights as they change.
+   *
+   * Options: `sub`, the subscription's number, which the client chooses, unique within the
+   * session (one is given if it is left out); and `whole`, for a table of rules.
+   *
+   * Returns `{ sub, selector, root, selection, release() }`.
+   */
+  subscribe(session, start, selector, options = {}) {
     const state = stateOf(session);
-    if (rules === null || typeof(rules) !== "object") throw new Error("A subscription's selector is a table of rules by class name.");
+    let entry;
+    if (typeof(selector) === "string") {
+      entry = this.selectors.get(selector);
+      if (entry === undefined) throw new AuthorizationError("No selector is registered as \"" + selector + "\" (selections.md N1).");
+    } else if (selector !== null && typeof(selector) === "object") {
+      entry = { name: null, rules: selector, whole: options.whole === true };
+    } else {
+      throw new Error("A subscription's selector is the name of a registered selector, or a table of rules by class name.");
+    }
     if (!this.knows(session, start)) throw new AuthorizationError("A client can subscribe only from an object that it knows of (user-model.md S1).");
     if (!this.mayRead(session, start)) throw new AuthorizationError("The user may not read the object to subscribe from (user-model.md S2).");
+    if (session.maySubscribe(entry.name, start) !== true) throw new AuthorizationError("The session does not allow this subscription (selections.md N2).");
+    const sub = options.sub === undefined ? state.nextSub++ : options.sub;
+    if (state.subs.has(sub)) throw new Error("The session has a subscription numbered " + String(sub) + " already.");
+
     const subscription = {
+      sub,
+      selector: entry.name,
+      whole: entry.whole,
       root: start,
       handle: null,
       get selection() { return subscription.handle.selection; },
       release: () => {
+        if (!state.subscriptions.has(subscription)) return;
         state.subscriptions.delete(subscription);
+        state.subs.delete(sub);
         subscription.handle.release();
       },
     };
     state.subscriptions.add(subscription);
-    subscription.handle = this.well.load(start, rules, {
-      filter: (object) => this.mayRead(session, object),
-      onChange: (joined, left) => this.selectionChanged(state, subscription, joined, left),
-    });
+    state.subs.set(sub, subscription);
+    const filter = (object) => this.mayRead(session, object);
+    const onChange = (joined, left) => this.selectionChanged(state, subscription, joined, left);
+    try {
+      subscription.handle = entry.whole
+        ? this.well.load(start, (from, selection) => wholeSelection(this.well, from, entry.rules, filter, selection), { onChange })
+        : this.well.load(start, withParts(this.well, entry.rules), { filter, onChange });
+      subscription.handle.rules = entry.rules;
+    } catch (error) {
+      state.subscriptions.delete(subscription);
+      state.subs.delete(sub);
+      throw error;
+    }
     return subscription;
   }
 
   subscriptionsOf(session) {
     return [...stateOf(session).subscriptions];
   }
+
+  /** The subscription of a session with a given number, or undefined. */
+  subscription(session, sub) {
+    return stateOf(session).subs.get(sub);
+  }
+
+  /** The numbers of the subscriptions of a session that hold an object, in order. */
+  subscriptionsHolding(session, object) {
+    const holders = stateOf(session).holders.get(object);
+    return holders === undefined ? [] : [...holders].map((subscription) => subscription.sub).sort(compareSubs);
+  }
+
+  /**
+   * What a session's subscriptions hold, as its client should know it: for each object held
+   * through a subscription, by identity, the numbers of the subscriptions that hold it. For
+   * tests and diagnosis.
+   */
+  membershipsOf(session) {
+    const memberships = new Map();
+    for (const object of stateOf(session).holders.keys()) {
+      const id = model.identityOf(object);
+      if (id !== undefined) memberships.set(id, this.subscriptionsHolding(session, object));
+    }
+    return memberships;
+  }
+
+  /**
+   * The selection of a subscription computed from nothing, with the rights as they are now:
+   * what the incremental one must equal (selections.md R1). For tests and diagnosis.
+   */
+  recomputeSelection(session, subscription) {
+    const entry = subscription.selector === null ? null : this.selectors.get(subscription.selector);
+    const rules = entry !== null ? entry.rules : subscription.handle.rules;
+    return world.withoutRecording(() => wholeSelection(this.well, subscription.root, rules, (object) => this.mayRead(session, object)));
+  }
+}
+
+function compareSubs(a, b) {
+  return typeof(a) === "number" && typeof(b) === "number" ? a - b : String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0;
 }
 
 export function createFountain(options) {

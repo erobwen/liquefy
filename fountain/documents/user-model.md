@@ -164,10 +164,7 @@ The authorization methods are asked against the state before the write. They are
 A subscription is what makes a session hold objects. Selections per session, with their counts and their delivery to clients, are steps of their own in the roadmap; what is here is what authorization needs of them.
 
 ```javascript
-const subscription = fountain.subscribe(session, document, {
-    Document: (document, selection) => selection.add(document.chapters),
-    Array: (array, selection) => selection.add(...array),
-});
+const subscription = fountain.subscribe(session, document, "document");   // a selector registered by name: see selections.md
 subscription.selection;   // the objects the session holds through it
 subscription.release();
 ```

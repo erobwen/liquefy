@@ -26,7 +26,7 @@ host = createSpringHost(model);
  */
 export const open = host.open;
 
-export const { transaction, repeat, ensure, meta, metaData } = world;
+export const { transaction, repeat, ensure, meta, untrackedMeta, innerMeta } = world;
 
 /**
  * Holds what `selector` selects from `start` in memory, pinned, and runs `action` once it is:

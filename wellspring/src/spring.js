@@ -580,7 +580,7 @@ export class Spring {
   /**
    * Adds a check, asked before every write to an object of this store, stored or volatile:
    * `check({ object, key, value, operation })`, where `operation` is "set", "delete", "add",
-   * or the name of an array method (cascade.reactive's meta(object).checkWrite). It is asked
+   * or the name of an array method (cascade.reactive's innerMeta(object).checkWrite). It is asked
    * against the state before the write, and refuses the write by throwing; then nothing is
    * written, and there is nothing to undo. Returns a function that removes it.
    *
@@ -651,7 +651,7 @@ export class Spring {
       for (const item of object) add(item);
       return found;
     }
-    const target = this.world.meta(object).target;
+    const target = this.world.innerMeta(object).target;
     for (const key of Object.keys(object)) {
       const descriptor = Object.getOwnPropertyDescriptor(target, key);
       if (descriptor && descriptor.get && descriptor.get.encoded !== undefined) continue; // unread: stored already
@@ -668,7 +668,7 @@ export class Spring {
       record.$elements = [...object].map((item) => this.model.encodeValue(item, { identify }));
       return record;
     }
-    const target = this.world.meta(object).target;
+    const target = this.world.innerMeta(object).target;
     for (const key of Object.keys(object)) {
       const descriptor = Object.getOwnPropertyDescriptor(target, key);
       const encoded = descriptor && descriptor.get && descriptor.get.encoded !== undefined

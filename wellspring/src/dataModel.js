@@ -19,10 +19,10 @@ import {
 } from "./values.js";
 
 export function createDataModel(world) {
-  if (!world || typeof(world.observable) !== "function" || typeof(world.meta) !== "function") {
-    throw new DataModelError("createDataModel() needs a Cascade world, with meta() (cascade.reactive 3.2 or later).");
+  if (!world || typeof(world.observable) !== "function" || typeof(world.innerMeta) !== "function") {
+    throw new DataModelError("createDataModel() needs a Cascade world, with innerMeta() (cascade.reactive 4.0 or later).");
   }
-  const { observable, isObservable, meta, metaData } = world;
+  const { observable, isObservable, innerMeta, untrackedMeta } = world;
   const model = {};
 
   /*------------------------------------------------------------------
@@ -32,8 +32,7 @@ export function createDataModel(world) {
   /** The data model's own record about an object, in its metadata. */
   function infoOf(object) {
     if (!isObservable(object)) return undefined;
-    const objectMeta = meta(object);
-    const info = objectMeta.synchronized;
+    const info = untrackedMeta(object).synchronized;
     return info && info.model === model ? info : undefined;
   }
 
@@ -64,10 +63,10 @@ export function createDataModel(world) {
       }
     }
     const proxy = observable(target);
-    const info = metaData(proxy, "synchronized");
+    const info = untrackedMeta(proxy).synchronized = {};
     info.model = model;
     info.id = undefined;
-    meta(proxy).checkWrite = isArray
+    innerMeta(proxy).checkWrite = isArray
       ? (key, value, operation) => { checkArrayWrite(key, value, operation); runWriteChecks(proxy, key, value, operation); }
       : (key, value, operation) => { checkField(key, value, operation); runWriteChecks(proxy, key, value, operation); };
     return proxy;
@@ -76,7 +75,7 @@ export function createDataModel(world) {
   /*
    * Checks that layers above add (design section 4): asked before every write to every
    * synchronized object of this data model, after the data model's own check, with the object,
-   * the key, the value, and the operation, as cascade.reactive's meta(object).checkWrite gives
+   * the key, the value, and the operation, as cascade.reactive's innerMeta(object).checkWrite gives
    * them. A check refuses a write by throwing.
    */
   const writeChecks = [];
@@ -139,7 +138,7 @@ export function createDataModel(world) {
 
   /** Cascade's id for the object, unique within the world: its local id (data model section 1). */
   function localIdOf(object) {
-    return meta(object).id;
+    return innerMeta(object).id;
   }
 
   /*------------------------------------------------------------------
@@ -211,7 +210,7 @@ export function createDataModel(world) {
     if (typeof(value) === "function") throw new DataModelError("A field cannot hold a function. Methods belong on the class.");
     if (isObservable(value)) {
       if (isSynchronized(value)) return "reference";
-      if (meta(value).world !== world) throw new DataModelError("A field cannot refer to an object of another Cascade world.");
+      if (innerMeta(value).world !== world) throw new DataModelError("A field cannot refer to an object of another Cascade world.");
       throw new DataModelError("A field cannot refer to an observable that is not synchronized. Make it with synchronized(), or extend Synchronized.");
     }
     if (value instanceof WeakReference) return "weak";

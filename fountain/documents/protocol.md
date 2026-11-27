@@ -585,7 +585,7 @@ Per field, in the observable record `meta(object, field)`, made only for fields 
 
 "Unsaved" is not stored: a field is unsaved while its local value differs from `saved`.
 
-Not per object, on the store: `meta(object).store` names the store an object belongs to (whitepaper section 3.8).
+Not per object, on the store: `untrackedMeta(object).store` names the store an object belongs to (whitepaper section 3.8).
 
 ---
 

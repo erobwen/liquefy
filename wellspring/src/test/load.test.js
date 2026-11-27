@@ -170,7 +170,7 @@ describe("unloading (design section 3.4)", function () {
   it("does not keep what a field refers to in memory: the field looks it up", function () {
     const spring = reopen((() => { const s = openSpring(); withDocument(s); return s; })());
     const root = spring.root;
-    const target = world.meta(root).target;
+    const target = world.innerMeta(root).target;
     root.document.title; // read it
     const descriptor = Object.getOwnPropertyDescriptor(target, "document");
     assert.equal(typeof(descriptor.get), "function", "still an accessor after being read");

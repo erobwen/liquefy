@@ -16,7 +16,7 @@ Open points are marked **Open** where they occur, and collected in section 11.
 
 - **Synchronized object.** An object made to be kept in step with others: with the user interface through Cascade's repeaters, with stored records in the layer below, and with copies on other machines. It is a Cascade observable, made by `synchronized()` or by constructing a class that extends `Synchronized` (section 2). It is either a **record object**, with named fields, or an **array object**, an observable array.
 - **Local** and **shared.** A synchronized object is local when it exists only where it was made. It becomes shared when a shared object comes to refer to it: on the server it is then stored, and on a client it is then sent to the server (section 2.2).
-- **Local id.** The id Cascade gives every observable when it is made (`meta(object).id`), unique within one world for the lifetime of that world.
+- **Local id.** The id Cascade gives every observable when it is made (`innerMeta(object).id`), unique within one world for the lifetime of that world.
 - **Identity.** The string that names a shared object, the same on the server, in storage, and on every client. It is the id of the object's record in Aquifer.
 - **Field.** A named property of a record object, or an index of an array object.
 - **Value.** What a field holds: one of the kinds in section 3.
@@ -175,7 +175,7 @@ A map or set held by a synchronized field must not be changed in place. To chang
 A synchronized object is accepted whether it is local or shared. Every synchronized object makes the check on its own fields from the moment it is made, also while it is local, so that when it becomes shared, its fields have already been checked.
 
 The check is made at the moment of writing, on the side that writes, so that the error points at the code that caused it. The server makes the same check on every value it receives, and refuses a transaction that contains a value that fails it.
-*Maintained by:* the object layer, through cascade.reactive's per-object hook `meta(object).checkWrite(key, value, operation)`, which is asked before every write, including deletes and every array method, and refuses by throwing. A delete of an array element is refused, since it would leave a hole (A2). *Verified:* tests, one per refused kind.
+*Maintained by:* the object layer, through cascade.reactive's per-object hook `innerMeta(object).checkWrite(key, value, operation)`, which is asked before every write, including deletes and every array method, and refuses by throwing. A delete of an array element is refused, since it would leave a hole (A2). *Verified:* tests, one per refused kind.
 
 Deep checks of frozen values cost time in proportion to their size. A value that has been checked once can be remembered, by identity, in a weak set; since it is frozen, it cannot change afterwards.
 
@@ -232,7 +232,7 @@ Steps 3 and 4 are made without emitting change events and without setting off re
 
 **Open.** The name of the hook (`onLoaded`, or Cascade's existing `onEstablish`), and whether writing from it is refused or only reported.
 
-**K5. State that is not synchronized.** A class that needs state that is not stored and not sent keeps it in metadata (`metaData(object, name)`), which is never stored. It is lost when the object is unloaded, and absent when the object is made from a record; the hook of K4 can set it up again.
+**K5. State that is not synchronized.** A class that needs state that is not stored and not sent keeps it in untracked metadata (`untrackedMeta(object)`), which is never stored. It is lost when the object is unloaded, and absent when the object is made from a record; the hook of K4 can set it up again.
 
 **Open.** Whether a class can declare ordinary named fields as not synchronized, for example with a static list. Metadata may be enough.
 

@@ -11,7 +11,7 @@
     "test": "mocha --expose-gc ./src/test"
   },
   "dependencies": {
-    "@liquefy/cascade.reactive": "^3.2.1",
+    "@liquefy/cascade.reactive": "^4.0.1",
     "@liquefy/aquifer": "*"
   },
   "devDependencies": {

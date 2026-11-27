@@ -546,7 +546,7 @@ function createWorld(configuration) {
       return timelineIsObserved(handler.elements);
     }
     if (timelineIsObserved(handler.timelines[key])) return true;
-    return isPrototypeMember(handler, target, key) && isObserved(handler.prototypeObservers);
+    return (isPrototypeMember(handler, target, key) || isQuietlyShadowed(handler, key)) && isObserved(handler.prototypeObservers);
   }
 
   // A repeater's own partials, this run's and - between an invalidation
@@ -3045,15 +3045,37 @@ function createWorld(configuration) {
   // merges what it built into the established object by every enumerable
   // key, inherited ones included - see mergeInto() - and so writes a
   // view()'s methods onto it, unchanged.)
+  //
+  // A key written that way is no longer a prototype member - it has a
+  // value of the object's own, or a timeline - while the readers of the
+  // member are still in the set, not on the key's timeline. So the key is
+  // remembered (handler.quietlyShadowed), and the next value written by it
+  // that isn't the member's tells them, like the first would have. Telling
+  // them empties the set, and there is nothing left to remember.
   function shadowPrototypeMember(handler, key, descriptor, write) {
-    let shadows = handler.prototypeObservers !== null && isPrototypeMember(handler, handler.target, key);
+    if (handler.prototypeObservers === null) return write();
+    const isMember = isPrototypeMember(handler, handler.target, key);
+    let shadows = isMember || isQuietlyShadowed(handler, key);
     if (shadows && "value" in descriptor) {
       const inherited = inheritedDescriptor(handler.target, key);
-      if (inherited && "value" in inherited && inherited.value === descriptor.value) shadows = false;
+      if (inherited && "value" in inherited && inherited.value === descriptor.value) {
+        shadows = false;
+        if (isMember) {
+          if (handler.quietlyShadowed === null) handler.quietlyShadowed = new Set();
+          handler.quietlyShadowed.add(key);
+        }
+      }
     }
     const result = write();
-    if (shadows) invalidatePrototypeObservers(handler, key);
+    if (shadows) {
+      handler.quietlyShadowed = null;
+      invalidatePrototypeObservers(handler, key);
+    }
     return result;
+  }
+
+  function isQuietlyShadowed(handler, key) {
+    return handler.quietlyShadowed !== null && handler.quietlyShadowed.has(key);
   }
 
   function inheritedDescriptor(target, key) {
@@ -3624,6 +3646,9 @@ function createWorld(configuration) {
     handler.timeless = timeless;
     // Who read a member of its prototypes - see "Prototype members".
     handler.prototypeObservers = null;
+    // Keys given the very value of the prototype member they hide, whose
+    // readers haven't been told - see shadowPrototypeMember().
+    handler.quietlyShadowed = null;
 
     handler.meta = {
       world: world,

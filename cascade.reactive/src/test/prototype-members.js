@@ -64,6 +64,55 @@ describe("Prototype members", function () {
     assert.equal(runs, 1);
   });
 
+  it("another value written after the very method is seen", function () {
+    const { repeat, Thing } = setup();
+    const thing = new Thing();
+    let runs = 0, seen;
+    repeat(() => { runs++; seen = thing.area(); });
+    thing.area = Thing.prototype.area;
+    assert.equal(runs, 1);
+    thing.area = () => 20;
+    assert.equal(seen, 20);
+    assert.equal(runs, 2);
+    thing.area = () => 30;
+    assert.equal(seen, 30, "now read as a property of its own");
+    assert.equal(runs, 3);
+  });
+
+  it("the very method written, deleted, then another value written is seen", function () {
+    const { repeat, Thing } = setup();
+    const thing = new Thing();
+    let runs = 0, seen;
+    repeat(() => { runs++; seen = thing.area(); });
+    thing.area = Thing.prototype.area;
+    delete thing.area;
+    assert.equal(runs, 1);
+    thing.area = () => 20;
+    assert.equal(seen, 20);
+  });
+
+  it("a getter defined over the very method written is seen", function () {
+    const { repeat, Thing } = setup();
+    const thing = new Thing();
+    let seen;
+    repeat(() => { seen = thing.area; });
+    thing.area = Thing.prototype.area;
+    Object.defineProperty(thing, "area", { get() { return 99; }, configurable: true, enumerable: true });
+    assert.equal(seen, 99);
+  });
+
+  it("the very method written from inside a repeater, then another value, is seen", function () {
+    const { temporal, repeat, Thing } = setup();
+    const thing = new Thing();
+    const which = temporal({ other: false });
+    let seen;
+    repeat(() => { seen = thing.area(); });
+    repeat(() => { thing.area = which.other ? () => 20 : Thing.prototype.area; });
+    assert.equal(seen, 10);
+    which.other = true;
+    assert.equal(seen, 20);
+  });
+
   it("a reader taken down no longer hears of it", function () {
     const { temporal, repeat, innerMeta, Thing } = setup();
     const thing = new Thing();

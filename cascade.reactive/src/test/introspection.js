@@ -58,6 +58,16 @@ describe("introspection", function () {
       assert.equal(hasObservers(thing), false);
     });
 
+    it("a method given the very value it inherits: still observed, by the readers of the prototype's", function () {
+      class Tool { use() { return 1; } }
+      const tool = temporal(new Tool());
+      const repeater = repeat(() => tool.use());
+      tool.use = Tool.prototype.use;
+      assert.equal(hasObservers(tool, "use"), true);
+      retractRepeater(repeater);
+      assert.equal(hasObservers(tool, "use"), false);
+    });
+
     it("an array's length and indices: observed together, by what was read of its elements", function () {
       const list = temporal([1, 2, 3]);
       const repeater = repeat(() => list[0]);

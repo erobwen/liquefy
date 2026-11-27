@@ -1,5 +1,5 @@
 {
-  "name": "@liquefy/wellspring",
+  "name": "@liquefy/deepwell",
   "version": "0.0.0",
   "private": true,
   "description": "Persistent JavaScript objects on top of Aquifer's records.",
@@ -15,7 +15,7 @@
     "@liquefy/aquifer": "*"
   },
   "devDependencies": {
-    "mocha": "^10.8.2"
+    "mocha": "^12.0.3"
   },
   "exports": {
     ".": "./src/index.js",

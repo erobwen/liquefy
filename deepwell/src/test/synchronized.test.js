@@ -2,7 +2,7 @@ import assert from "assert";
 import getWorld from "@liquefy/cascade.reactive";
 import { createDataModel, DataModelError } from "../index.js";
 
-const world = getWorld({ name: "wellspring test: synchronized" });
+const world = getWorld({ name: "deepwell test: synchronized" });
 const model = createDataModel(world);
 const { Synchronized, synchronized, isSynchronized, weak } = model;
 
@@ -62,7 +62,7 @@ describe("Synchronized and synchronized() (data model 2.1)", function () {
   });
 
   it("an object of another data model, or another world, is not synchronized here", function () {
-    const other = createDataModel(getWorld({ name: "wellspring test: other world" }));
+    const other = createDataModel(getWorld({ name: "deepwell test: other world" }));
     const foreign = other.synchronized({});
     assert.ok(!isSynchronized(foreign));
     assert.throws(() => { synchronized({}).x = foreign; }, DataModelError);

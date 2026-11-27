@@ -1,12 +1,12 @@
 # Data model
 
-*Specification, draft. Part of [Wellspring](../README.md), with [its design](design.md). It details [the whitepaper](../../fountain/whitepaper.md), section 2.5, and is implemented by Wellspring (whitepaper section 2.6) on the server and by Fountain's client store on clients.*
+*Specification, draft. Part of [Deepwell](../README.md), with [its design](design.md). It details [the whitepaper](../../fountain/whitepaper.md), section 2.5, and is implemented by Deepwell (whitepaper section 2.6) on the server and by Fountain's client store on clients.*
 
-This document states exactly what a synchronized object is, which values its fields can hold, how each value is stored and sent, and how an object is made again from what was stored. [The protocol](../../fountain/documents/protocol.md) between client and server is built from these values, and Wellspring stores them in [Aquifer](../../aquifer#readme).
+This document states exactly what a synchronized object is, which values its fields can hold, how each value is stored and sent, and how an object is made again from what was stored. [The protocol](../../fountain/documents/protocol.md) between client and server is built from these values, and Deepwell stores them in [Aquifer](../../aquifer#readme).
 
 Each rule that can be checked is stated as an invariant, with who maintains it and how it is verified, in the style of Aquifer's [invariants](../../aquifer/documents/invariants.md). "Encoder" means the function that turns a field value into its stored or sent form, and "decoder" its inverse. "Write check" means the check made when a value is written to a field of a synchronized object, on the client or on the server.
 
-"The object layer" means whichever of the two is at work: Wellspring on the server, the client store on a client. Both use the same code for what this document specifies: the registry of classes, the write check, the encoder and decoder, and the making of an object from a record. That code depends on neither Aquifer nor a network. Rules that concern storage apply to Wellspring only.
+"The object layer" means whichever of the two is at work: Deepwell on the server, the client store on a client. Both use the same code for what this document specifies: the registry of classes, the write check, the encoder and decoder, and the making of an object from a record. That code depends on neither Aquifer nor a network. Rules that concern storage apply to Deepwell only.
 
 Open points are marked **Open** where they occur, and collected in section 11.
 
@@ -49,7 +49,7 @@ const list = synchronized([]);              // an array object
 
 `synchronized(target)` makes a plain object or an array observable. It is the same operation as Cascade's `observable`, under the name that says what it is for at every level of the stack: an object that is kept in step, through repeaters, with whatever depends on it.
 
-**Open.** Whether `synchronized` becomes an alias of `observable` in cascade.reactive itself, or is exported only by Wellspring and Fountain. As an alias, one function serves an object that is shown in a user interface and stored in a database, and both are the same Cascade world.
+**Open.** Whether `synchronized` becomes an alias of `observable` in cascade.reactive itself, or is exported only by Deepwell and Fountain. As an alias, one function serves an object that is shown in a user interface and stored in a database, and both are the same Cascade world.
 
 **O1. A synchronized object is an observable of the world it lives in.** On a client, synchronized objects are observables of the same Cascade world as the application's components, so that a component that reads one is updated when it changes. Fields of an object that is not observable are never synchronized.
 *Maintained by:* the object layer, which makes objects only through Cascade, and the write check (V9). *Verified:* tests.
@@ -287,7 +287,7 @@ The record of an array object holds its elements under a third reserved key:
 
 Fields are kept flat, as Aquifer's own fields, so that Aquifer's `set` and `delete` of a field are a write and a delete of a field of the object.
 
-The commit that last changed an object is not in its record. Aquifer keeps it with the object's metadata ([Aquifer's backlog](../../aquifer/documents/backlog.md)), and Wellspring reads it from there.
+The commit that last changed an object is not in its record. Aquifer keeps it with the object's metadata ([Aquifer's backlog](../../aquifer/documents/backlog.md)), and Deepwell reads it from there.
 
 ## 8.2 Values
 

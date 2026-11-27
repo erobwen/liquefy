@@ -7,15 +7,15 @@ export { DataModelError, sameValue } from "./values.js";
 export { Spring } from "./spring.js";
 
 /**
- * Wellspring's default world, and its data model. The world is made with an event hook that
+ * Deepwell's default world, and its data model. The world is made with an event hook that
  * hands Cascade's change events to every open store, which is how a property write becomes a
  * write to the database (design section 4).
  *
- * The data model alone, without Aquifer, is `@liquefy/wellspring/dataModel`, for code that runs
+ * The data model alone, without Aquifer, is `@liquefy/deepwell/dataModel`, for code that runs
  * on clients too.
  */
 let host = null;
-export const world = getWorld({ name: "wellspring", onEventGlobal: (event) => host && host.dispatch(event) });
+export const world = getWorld({ name: "deepwell", onEventGlobal: (event) => host && host.dispatch(event) });
 export const model = createDataModel(world);
 host = createSpringHost(model);
 

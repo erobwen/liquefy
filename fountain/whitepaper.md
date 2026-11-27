@@ -81,7 +81,7 @@ The default is live and simple; optimization is local and does not change the mo
 
 | Decision | Section |
 |---|---|
-| Three layers: Aquifer stores records and collects garbage, Wellspring makes them persistent objects with `load`, Fountain adds users and clients. Aquifer does not depend on Cascade. | 2.6 |
+| Three layers: Aquifer stores records and collects garbage, Deepwell makes them persistent objects with `load`, Fountain adds users and clients. Aquifer does not depend on Cascade. | 2.6 |
 | References are one way, as in JavaScript. No incoming references in the model. | 2.2 |
 | A synchronized object is a Cascade observable, made by extending `Synchronized` or with `synchronized()`. Plain data is a frozen value, synchronized as a whole. An unfrozen plain object in a synchronized field throws. No `#private` fields. | 2.5 |
 | An object is local where it is made, and is stored and sent when an object that already is comes to refer to it. On the server, being stored always means being reachable from the root. | 2.2 |
@@ -109,7 +109,7 @@ The default is live and simple; optimization is local and does not change the mo
 | What keeps derived data up to date is a persistent repeater: a pure computed value with a reaction, defined by an object and its methods. | 5.3 |
 | Index trees are maintained by the index's own code, not by repeaters. B-trees are the default. | 5.3 |
 | The collector is Aquifer's: a maintained spanning tree with regions and cohorts. | 7 |
-| Fountain's main loop schedules background work, garbage collection included, in a configured ratio to the messages it handles, and may stall new messages when Wellspring reports pressure. | 2.6 |
+| Fountain's main loop schedules background work, garbage collection included, in a configured ratio to the messages it handles, and may stall new messages when Deepwell reports pressure. | 2.6 |
 | Shared publications for large readerships are left for later. | 8.13 |
 
 ---
@@ -159,7 +159,7 @@ The server is responsible for:
 
 Clients maintain local representations of subscribed objects and use reactive computations to update their interfaces.
 
-The server is built in three layers, Aquifer, Wellspring and Fountain, described in section 2.6.
+The server is built in three layers, Aquifer, Deepwell and Fountain, described in section 2.6.
 
 ## 2.2 Persistent JavaScript objects
 
@@ -206,7 +206,7 @@ Objects are given stable identities. A reference between objects is stored as th
 }
 ```
 
-The class itself is not stored. A stored object names its class, and is given that class's prototype when it is loaded. The exact form of a record is specified in [the data model](../wellspring/documents/data-model.md).
+The class itself is not stored. A stored object names its class, and is given that class's prototype when it is loaded. The exact form of a record is specified in [the data model](../deepwell/documents/data-model.md).
 
 **References are one way**
 
@@ -294,7 +294,7 @@ Cascade already has a hook for this. A world can be given an `onReadGlobal` func
 
 ## 2.5 What a field can hold
 
-A synchronized object is a Cascade observable: an instance of a registered class that extends `Synchronized`, or a plain object or an array made with `synchronized()`. Its fields can hold the following. The exact rules are in [the data model](../wellspring/documents/data-model.md).
+A synchronized object is a Cascade observable: an instance of a registered class that extends `Synchronized`, or a plain object or an array made with `synchronized()`. Its fields can hold the following. The exact rules are in [the data model](../deepwell/documents/data-model.md).
 
 **Primitive values**
 
@@ -366,7 +366,7 @@ The system is three packages, each with one purpose, and each usable without the
   Fountain     users, sessions, security, selections per session,
                the protocol, the client store
      |
-  Wellspring   persistent JavaScript objects on a server:
+  Deepwell   persistent JavaScript objects on a server:
                classes, loading and unloading, migrations
      |
   Aquifer      records, references, transactions, garbage collection
@@ -374,15 +374,15 @@ The system is three packages, each with one purpose, and each usable without the
 
 **Aquifer** is a database of records. A record has an id and fields, and a field can hold a strong or a weak reference to another record. Aquifer runs transactions and collects what cannot be reached (section 7). It knows nothing of classes, observables, or users, and does not depend on Cascade. Its correctness is stated, and tested, in terms of records alone.
 
-**Wellspring** turns records into objects. A Wellspring object is a Cascade observable, an instance of a registered class, whose property writes are stored without the application saying so. Wellspring keeps one instance per identity, makes objects from records and records from objects ([the data model](../wellspring/documents/data-model.md)), migrates old objects when they are loaded (section 6), and decides what is in memory.
+**Deepwell** turns records into objects. A Deepwell object is a Cascade observable, an instance of a registered class, whose property writes are stored without the application saying so. Deepwell keeps one instance per identity, makes objects from records and records from objects ([the data model](../deepwell/documents/data-model.md)), migrates old objects when they are loaded (section 6), and decides what is in memory.
 
 Its central operation is `load`: code names a starting object and a selector, and receives control when everything the selector selects is in memory, and held there (section 3.7). It is to a server what `subscribe` is to a client. Because a selector follows the fields of objects, loading belongs here and not in Aquifer; and because Cascade records what a selector reads, a loaded selection follows the graph as it changes.
 
-Wellspring needs Cascade for two things: Cascade's change events are how an ordinary property write becomes a write to the database, and its recording of reads is how a selection, or a persistent repeater (section 5.3), knows what it depends on.
+Deepwell needs Cascade for two things: Cascade's change events are how an ordinary property write becomes a write to the database, and its recording of reads is how a selection, or a persistent repeater (section 5.3), knows what it depends on.
 
-Wellspring has its own [design document](../wellspring/documents/design.md), which holds what this paper used to say about loading on the server, indexes, persistent repeaters, and migration.
+Deepwell has its own [design document](../deepwell/documents/design.md), which holds what this paper used to say about loading on the server, indexes, persistent repeaters, and migration.
 
-An application with no clients at all can be written on Wellspring alone: a server-side tool, a desktop application, a single-user editor that keeps its documents as objects.
+An application with no clients at all can be written on Deepwell alone: a server-side tool, a desktop application, a single-user editor that keeps its documents as objects.
 
 **Fountain** is everything that involves more than one party: users and sessions, authorization, a selection per session, the protocol, and the store on each client.
 
@@ -396,19 +396,19 @@ The layers are meant to read alike, so that what is learned at one level holds a
 
 **What is shared with clients**
 
-The data model itself, which is the encoding of values, the registry of classes, the check on what a field may hold, and the making of an object from a record, runs on clients as well as on the server. It depends on neither Aquifer nor a network. Whether it is a part of Wellspring that a browser can load, or a small package of its own, is decided when it is written.
+The data model itself, which is the encoding of values, the registry of classes, the check on what a field may hold, and the making of an object from a record, runs on clients as well as on the server. It depends on neither Aquifer nor a network. Whether it is a part of Deepwell that a browser can load, or a small package of its own, is decided when it is written.
 
 **What each layer asks of the one below**
 
-Wellspring asks of Aquifer: volatile roots, so that a loaded object is not collected while it is held; the set of changes of each transaction, with a commit number, from which everything reactive is triggered; notification of a reclaim inside the transaction that performs it, so that indexes and weak references are updated with it; and the commit that last changed each record (section 7).
+Deepwell asks of Aquifer: volatile roots, so that a loaded object is not collected while it is held; the set of changes of each transaction, with a commit number, from which everything reactive is triggered; notification of a reclaim inside the transaction that performs it, so that indexes and weak references are updated with it; and the commit that last changed each record (section 7).
 
 **The main loop**
 
-The server is one synchronous loop. It takes the next message from a client, handles it in a transaction, and sends what has to be sent. Between messages, it lets Wellspring do background work, including Aquifer's garbage collection, in a ratio that is a setting: one step of background work after every message, or one after every fifth. When no message is waiting, it does background work until there is none.
+The server is one synchronous loop. It takes the next message from a client, handles it in a transaction, and sends what has to be sent. Between messages, it lets Deepwell do background work, including Aquifer's garbage collection, in a ratio that is a setting: one step of background work after every message, or one after every fifth. When no message is waiting, it does background work until there is none.
 
-The collector's steps are bounded and can be interleaved with transactions in any order, so the ratio decides only how fast garbage is reclaimed, not whether the database is correct. In the rare case that Wellspring reports pressure, because the collector has fallen far behind or memory is running out, the loop may stop taking new messages until the pressure is gone (Wellspring's [design](../wellspring/documents/design.md), section 9.4).
+The collector's steps are bounded and can be interleaved with transactions in any order, so the ratio decides only how fast garbage is reclaimed, not whether the database is correct. In the rare case that Deepwell reports pressure, because the collector has fallen far behind or memory is running out, the loop may stop taking new messages until the pressure is gone (Deepwell's [design](../deepwell/documents/design.md), section 9.4).
 
-Fountain asks of Wellspring: objects, classes and `load`; a transaction around a client's writes; the change set of each commit, in terms of objects; and a way to run a selector as a given user, passing only through what that user may read.
+Fountain asks of Deepwell: objects, classes and `load`; a transaction around a client's writes; the change set of each commit, in terms of objects; and a way to run a selector as a given user, passing only through what that user may read.
 
 ---
 
@@ -659,7 +659,7 @@ Inside the action, code runs synchronously and may follow any reference within t
 
 On a client, `selectDocument` is the name of a selector registered on the server, or a handle that carries the name. The client does not have the selector's code (section 3.4). A subscription can take options before the action, such as `{ gated: true }` (section 3.10).
 
-`load` is Wellspring's (section 2.6), works without Fountain, and is described in [Wellspring's design](../wellspring/documents/design.md), section 3. The two functions have the same shape, so code written against a selection can run on either side. They are kept as two names because they are different things: a subscription involves a connection and a user, and loading does not.
+`load` is Deepwell's (section 2.6), works without Fountain, and is described in [Deepwell's design](../deepwell/documents/design.md), section 3. The two functions have the same shape, so code written against a selection can run on either side. They are kept as two names because they are different things: a subscription involves a connection and a user, and loading does not.
 
 The names were earlier `ensureSubscribed` and `ensureLoaded`. They were changed because `ensure()` already has a meaning in Cascade, where it is the preferred name for `repeat()`.
 
@@ -712,7 +712,7 @@ A store also needs to know when a transaction has ended, so that it can send. Ca
 
 **The same structure on the server**
 
-On the server, Wellspring (section 2.6) is a store as well. At the end of a transaction, its changes are written to the database as one Aquifer transaction, and the resulting change set is what triggers selections, queries, and persistent repeaters (section 3.6).
+On the server, Deepwell (section 2.6) is a store as well. At the end of a transaction, its changes are written to the database as one Aquifer transaction, and the resulting change set is what triggers selections, queries, and persistent repeaters (section 3.6).
 
 A client store and the server store differ only in where they send a finished transaction.
 
@@ -1163,7 +1163,7 @@ It is the request and response half of the model, beside the stream of writes. I
 
 The authorization methods of section 4.2 govern what a user can do directly: which objects a selection can deliver, and which fields a client can write.
 
-A session method is trusted code. While it runs, it reads and writes with full access, and decides itself what crosses back to the client. On the server, a reference can always be followed, whatever is in memory (Wellspring's [design](../wellspring/documents/design.md), section 3.6), so the method does not need to load anything first. The example reads the salaries of the whole company, which the user may not read, and returns a single boolean.
+A session method is trusted code. While it runs, it reads and writes with full access, and decides itself what crosses back to the client. On the server, a reference can always be followed, whatever is in memory (Deepwell's [design](../deepwell/documents/design.md), section 3.6), so the method does not need to load anything first. The example reads the salaries of the whole company, which the user may not read, and returns a single boolean.
 
 A session method thus extends a user's access for the duration of one call, and only in the way the method allows. The user never gets the salary data; the user gets an answer about it.
 
@@ -1212,13 +1212,13 @@ Fountain does not need to provide the scheduler or the HTTP server. It needs to 
 
 Indexes are not a feature of the database engine. They are ordinary persistent data structures, built from persistent objects, that an application defines.
 
-Indexes are Wellspring's (section 2.6). What follows in sections 5.1 to 5.4 and 5.7 is a summary; the full text is in [Wellspring's design](../wellspring/documents/design.md), sections 6 and 7. Live queries, which deliver an index's contents to clients, are Fountain's, and are described here in sections 5.5 and 5.6.
+Indexes are Deepwell's (section 2.6). What follows in sections 5.1 to 5.4 and 5.7 is a summary; the full text is in [Deepwell's design](../deepwell/documents/design.md), sections 6 and 7. Live queries, which deliver an index's contents to clients, are Fountain's, and are described here in sections 5.5 and 5.6.
 
 ## 5.2 Live indexes
 
 An index has a member set, a key computed from each member, and an ordered structure, by default a B-tree whose nodes are persistent objects. It is live: when a member's key changes, the member moves, and when the member set changes, entries are added and removed.
 
-Described in [Wellspring's design](../wellspring/documents/design.md), section 6.2.
+Described in [Deepwell's design](../deepwell/documents/design.md), section 6.2.
 
 ## 5.3 Persistent repeaters
 
@@ -1228,7 +1228,7 @@ A persistent repeater is a pure computed value, with a reaction that its owner c
 
 The same structure, at the level of selections, gives rule repeaters: one per selection and object (section 3.5).
 
-Persistent repeaters are Wellspring's, and work without clients. They are described in [Wellspring's design](../wellspring/documents/design.md), section 7.1.
+Persistent repeaters are Deepwell's, and work without clients. They are described in [Deepwell's design](../deepwell/documents/design.md), section 7.1.
 
 ## 5.4 Triggering a persistent repeater without stored observers
 
@@ -1238,7 +1238,7 @@ A key that reads only its member needs no stored dependencies: any write to the 
 
 An index holds its members weakly, and its own removal code is called before a member is reclaimed.
 
-The mechanism is described in [Wellspring's design](../wellspring/documents/design.md), section 7.2.
+The mechanism is described in [Deepwell's design](../deepwell/documents/design.md), section 7.2.
 
 ## 5.5 Live queries
 
@@ -1270,7 +1270,7 @@ Live indexes are the default, the proof of concept, and sufficient for simple ap
 
 An index that is expected to be complete cannot be updated whenever a background scheduler happens to run. Indexes are therefore of three kinds: maintained inside the transaction that changed a key; eventually consistent, with the stale members tracked; and lazy, with their coverage tracked while they are built.
 
-The kinds are described in [Wellspring's design](../wellspring/documents/design.md), section 7.3.
+The kinds are described in [Deepwell's design](../deepwell/documents/design.md), section 7.3.
 
 ---
 
@@ -1278,7 +1278,7 @@ The kinds are described in [Wellspring's design](../wellspring/documents/design.
 
 Because objects are loaded individually, a class can change without the database being rewritten. A class has a version and a set of migrations, each record stores the version it was written under, and an object whose record is older than its class is migrated when it is loaded, before application code sees it.
 
-Migration is Wellspring's, and is described in [Wellspring's design](../wellspring/documents/design.md), section 8.
+Migration is Deepwell's, and is described in [Deepwell's design](../deepwell/documents/design.md), section 8.
 
 What concerns Fountain is the other half: a client that runs older code than the server (section 8.6).
 
@@ -1640,7 +1640,7 @@ It is a debugging tool, a teaching tool, and an administration tool. Since it is
 
 ## Phase 1: Persistent reactive object model
 
-Implement Wellspring, on Aquifer, and then Fountain's first parts on Wellspring: stable object identity, persistence, transactions, reactive objects, and WebSocket synchronization.
+Implement Deepwell, on Aquifer, and then Fountain's first parts on Deepwell: stable object identity, persistence, transactions, reactive objects, and WebSocket synchronization.
 
 Establish the user model, security, and subscriptions. Security is not added later: the user model is the base of every authorization decision, and the protocol, selections and stores are all shaped by it.
 
@@ -1648,7 +1648,7 @@ In order:
 
 1. In Cascade: `meta()`, `untrackedMeta()` and `innerMeta()` (section 2.4), and `onTransactionEnd` (section 3.8). Done.
 2. Aquifer's interface upward: volatile roots, a change set and commit number per transaction, reclaim notifications inside the transaction, and the commit that last changed each record (section 2.6).
-3. Wellspring, following [its own roadmap](../wellspring/documents/design.md): persistent objects as observables, one instance per identity, classes registered by name, the data model's encoding, `load` with hold counts, unloading, and a store that turns each transaction into one Aquifer transaction. Usable and tested on its own, without clients.
+3. Deepwell, following [its own roadmap](../deepwell/documents/design.md): persistent objects as observables, one instance per identity, classes registered by name, the data model's encoding, `load` with hold counts, unloading, and a store that turns each transaction into one Aquifer transaction. Usable and tested on its own, without clients.
 4. The user model, from the start: `User`, the super user, sessions whose class the application extends, remote methods on the session (beginning with signing in and creating users), passwords, and verification of external access tokens. `canRead` and `canWrite` are evaluated from the first write, with the subscription forest protecting arrays and classless objects (sections 3.4, 4.1 and 4.2).
 5. Observation: recording what a computation reads, and matching it against commit change sets (section 3.6).
 6. Selections per session, with subscription counts: named selectors, first by rerunning the whole selector, then incrementally, tested against the first (sections 3.4, 3.5 and 3.7). Selections pass only through objects the user may read.
@@ -1686,4 +1686,4 @@ Users and sessions are part of the system from the start. Authorization is writt
 
 Garbage collection, which was the hardest part of the original proposal, exists as a prototype. What remains is the layer above it.
 
-The data model and the protocol are specified, with invariants that tests and a simulator can check. The next step is the smallest implementation that can be tested against them: the data model's code first, then Wellspring's objects over Aquifer's records, then the protocol with plain fields only.
+The data model and the protocol are specified, with invariants that tests and a simulator can check. The next step is the smallest implementation that can be tested against them: the data model's code first, then Deepwell's objects over Aquifer's records, then the protocol with plain fields only.

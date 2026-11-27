@@ -305,7 +305,7 @@ settings.load = () => {};  // throws, and settings.load stays undefined
 
 A check that only cares about values looks at `"set"` and `"add"`; one that decides who may change the object at all, such as authorization, looks at every call.
 
-Unlike `onWriteGlobal`, which a world has once and which is told only the key, `checkWrite` belongs to one object and is given the value. Wellspring uses it for the write check of its synchronized objects.
+Unlike `onWriteGlobal`, which a world has once and which is told only the key, `checkWrite` belongs to one object and is given the value. Deepwell uses it for the write check of its synchronized objects.
 
 ## innerMeta(object).rebuildTwin
 

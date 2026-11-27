@@ -4,7 +4,7 @@ import { strongReferences } from "@liquefy/aquifer";
 import { createDataModel, DataModelError } from "../index.js";
 
 const events = [];
-const world = getWorld({ name: "wellspring test: encoding", onEventGlobal: (event) => events.push(event) });
+const world = getWorld({ name: "deepwell test: encoding", onEventGlobal: (event) => events.push(event) });
 const model = createDataModel(world);
 const { Synchronized, synchronized, weak, encodeValue, decodeValue, encodeRecord, makeFromRecord } = model;
 
@@ -242,7 +242,7 @@ describe("records and making objects (data model 8.1, K1, K2)", function () {
 describe("classes (data model section 5)", function () {
 
   it("registers by name, with a version, and gives a signature", function () {
-    const local = createDataModel(getWorld({ name: "wellspring test: classes" }));
+    const local = createDataModel(getWorld({ name: "deepwell test: classes" }));
     class Book extends local.Synchronized { static version = 2; }
     class Author extends local.Synchronized {}
     local.registerClasses({ Book, Author });
@@ -254,7 +254,7 @@ describe("classes (data model section 5)", function () {
   });
 
   it("refuses what cannot be registered", function () {
-    const local = createDataModel(getWorld({ name: "wellspring test: classes 2" }));
+    const local = createDataModel(getWorld({ name: "deepwell test: classes 2" }));
     class Plain {}
     assert.throws(() => local.registerClass(Plain), /extends Synchronized/);
     class Object2 extends local.Synchronized {}
@@ -269,7 +269,7 @@ describe("classes (data model section 5)", function () {
   });
 
   it("refuses classes with #private members (C6), which would fail on the observable", function () {
-    const local = createDataModel(getWorld({ name: "wellspring test: classes 3" }));
+    const local = createDataModel(getWorld({ name: "deepwell test: classes 3" }));
     class Secretive extends local.Synchronized {
       #secret = 1;
       reveal() { return this.#secret; }

@@ -12,7 +12,7 @@ class Note extends Synchronized {
 
 describe("objects over records, on LMDB", function () {
   let path;
-  beforeEach(() => (path = mkdtempSync(join(tmpdir(), "wellspring-"))));
+  beforeEach(() => (path = mkdtempSync(join(tmpdir(), "deepwell-"))));
   afterEach(() => rmSync(path, { recursive: true, force: true }));
 
   it("keeps objects when the store is closed and opened again", async function () {

@@ -3,7 +3,7 @@
  * hold, and how objects and values are encoded and made again. Specified in
  * documents/data-model.md; the invariants named here (O1, V9, E1, ...) are its.
  *
- * This code is shared by Wellspring on the server and Fountain's client store.
+ * This code is shared by Deepwell on the server and Fountain's client store.
  * It depends on cascade.reactive, and on neither Aquifer nor a network.
  *
  *   const model = createDataModel(world);        // one per Cascade world
@@ -513,7 +513,7 @@ export function createDataModel(world) {
   /**
    * Makes an object from a record (data model K2): with its class's prototype,
    * without calling the constructor, without events. `options.id` is its
-   * identity. Migration of older versions is Wellspring's, not done here.
+   * identity. Migration of older versions is Deepwell's, not done here.
    */
   function makeFromRecord(record, references = {}, options = {}) {
     const decoded = decodeRecord(record, references);

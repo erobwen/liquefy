@@ -1,5 +1,5 @@
 /**
- * Objects over records: a Wellspring store, which turns Aquifer's records into synchronized
+ * Objects over records: a Deepwell store, which turns Aquifer's records into synchronized
  * objects and writes their changes back. Designed in documents/design.md, sections 2 to 5; the
  * values and records are documents/data-model.md's.
  *
@@ -48,7 +48,7 @@ function holdsReference(encoded) {
 /**
  * The store's side of a world: one Cascade world can serve several stores, each owning the
  * objects it has stored. `world` must have been created with `onEventGlobal` calling
- * `dispatch` (index.js does this for Wellspring's default world).
+ * `dispatch` (index.js does this for Deepwell's default world).
  */
 export function createSpringHost(model) {
   const springs = new Set();
@@ -308,7 +308,7 @@ export class Spring {
    * It is a transaction of its own, written at once, whatever the code that caused the load is
    * doing: its changes are kept apart from those of a transaction that is under way, are not
    * undone if that one fails, and are not asked about by the checks before writes, since they
-   * are Wellspring's and no user's. What the migration reads is not recorded by a computation
+   * are Deepwell's and no user's. What the migration reads is not recorded by a computation
    * that is running.
    *
    * If a migration fails, its changes are undone, nothing is written, and the object is

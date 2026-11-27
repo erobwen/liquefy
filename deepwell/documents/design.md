@@ -1,16 +1,16 @@
-# Wellspring design
+# Deepwell design
 
 *Design, draft. Nothing here runs yet. Sections 6 to 8 were moved here from [the Fountain whitepaper](../../fountain/whitepaper.md) in November 2026, where they were sections 5.1 to 5.4, 5.7 and 6.*
 
-Wellspring is the layer between [Aquifer](../../aquifer#readme) and [Fountain](../../fountain#readme). Aquifer stores records and collects garbage. Wellspring turns those records into persistent JavaScript objects that server code loads, reads and writes like any others. Fountain adds users, sessions and clients.
+Deepwell is the layer between [Aquifer](../../aquifer#readme) and [Fountain](../../fountain#readme). Aquifer stores records and collects garbage. Deepwell turns those records into persistent JavaScript objects that server code loads, reads and writes like any others. Fountain adds users, sessions and clients.
 
-This document says what Wellspring is for, what its interface looks like, how loading and unloading work, and how derived data, such as indexes, is kept up to date. What exactly an object is, and how it is stored, is in [the data model](data-model.md).
+This document says what Deepwell is for, what its interface looks like, how loading and unloading work, and how derived data, such as indexes, is kept up to date. What exactly an object is, and how it is stored, is in [the data model](data-model.md).
 
 ---
 
 # 1. Purpose and scope
 
-**What Wellspring does**
+**What Deepwell does**
 
 - Makes objects from records, and records from objects ([data model](data-model.md)).
 - Keeps one object per identity.
@@ -40,7 +40,7 @@ An application with no clients: a server-side tool, a desktop application, a sin
 The interface is illustrative. It shows the shape, not the final names.
 
 ```javascript
-import { open, load, transaction, synchronized, Synchronized } from "@liquefy/wellspring";
+import { open, load, transaction, synchronized, Synchronized } from "@liquefy/deepwell";
 import { LmdbStore } from "@liquefy/aquifer/src/store/LmdbStore.js";
 
 class Document extends Synchronized {
@@ -71,17 +71,17 @@ load(spring.root, selectLibrary, () => {
 document.title = "A New Title";
 ```
 
-**Synchronized objects.** An object that Wellspring can store is a synchronized object: an instance of a class that extends `Synchronized`, or a plain object or array passed to `synchronized()` ([data model](data-model.md) section 2.1). Both are Cascade observables. `Synchronized` returns the observable from its constructor, as Cascade's components do, so `this` is already the observable inside a subclass's constructor.
+**Synchronized objects.** An object that Deepwell can store is a synchronized object: an instance of a class that extends `Synchronized`, or a plain object or array passed to `synchronized()` ([data model](data-model.md) section 2.1). Both are Cascade observables. `Synchronized` returns the observable from its constructor, as Cascade's components do, so `this` is already the observable inside a subclass's constructor.
 
 **The root.** A database has one root object, `spring.root`, which always exists and is always loaded. Everything stored is reachable from it (whitepaper section 4.5).
 
 **Transactions.** A transaction is Cascade's: `transaction(() => {...})`. At its end, after the repeaters it set off have run, its changes are written as one Aquifer transaction. A write made outside any transaction is a transaction of its own.
 
-**Persistence by reachability.** A synchronized object is local when it is made, and is stored when a stored object comes to refer to it ([data model](data-model.md) O2). At the end of a transaction, Wellspring follows the new references from stored objects and stores every local object they reach. Nothing is saved by calling a method, and nothing is deleted by calling one: an object that can no longer be reached from the root is garbage, and Aquifer reclaims it. The criterion is always reachability from the root, as for a file in a file system.
+**Persistence by reachability.** A synchronized object is local when it is made, and is stored when a stored object comes to refer to it ([data model](data-model.md) O2). At the end of a transaction, Deepwell follows the new references from stored objects and stores every local object they reach. Nothing is saved by calling a method, and nothing is deleted by calling one: an object that can no longer be reached from the root is garbage, and Aquifer reclaims it. The criterion is always reachability from the root, as for a file in a file system.
 
 A synchronized object that no stored object refers to is an ordinary object in memory, and is never stored. This is how the same world can hold both the application's data and objects that must not be stored.
 
-**Volatile objects.** Some synchronized objects must never be stored, though they are synchronized with clients: Fountain's sessions, connections, and presence objects (whitepaper section 2.3). Wellspring lets an object be marked volatile when it is made. A volatile object is never stored, and a write that would make a stored object refer to one is refused ([data model](data-model.md) R1).
+**Volatile objects.** Some synchronized objects must never be stored, though they are synchronized with clients: Fountain's sessions, connections, and presence objects (whitepaper section 2.3). Deepwell lets an object be marked volatile when it is made. A volatile object is never stored, and a write that would make a stored object refer to one is refused ([data model](data-model.md) R1).
 
 **The same names at every level**
 
@@ -118,7 +118,7 @@ A load made inside a reactive computation belongs to that computation: it is rel
 
 ## 3.3 Held objects are volatile roots
 
-An object that a load holds must not be reclaimed, though nothing in the database may refer to it any longer: code is working on it, and may link it in again. Wellspring pins it in Aquifer for as long as it is held (Aquifer's volatile roots).
+An object that a load holds must not be reclaimed, though nothing in the database may refer to it any longer: code is working on it, and may link it in again. Deepwell pins it in Aquifer for as long as it is held (Aquifer's volatile roots).
 
 Pins are kept in memory only. They are gone when the process ends, and there are none when a store is opened.
 
@@ -138,21 +138,21 @@ For that to work, the objects in memory must not hold each other strongly throug
 
 Code can keep a reference to an object after the load that held it has been released. If the object then becomes unreachable from the root, Aquifer reclaims its record, while the JavaScript object is still in memory.
 
-Wellspring is told of every reclaim (section 9.1). An object in memory whose record is reclaimed becomes local again ([data model](data-model.md) O3): it keeps the fields it has, and loses its identity. If code later makes a stored object refer to it, it is stored anew, by reachability, under a new identity, like any other local object.
+Deepwell is told of every reclaim (section 9.1). An object in memory whose record is reclaimed becomes local again ([data model](data-model.md) O3): it keeps the fields it has, and loses its identity. If code later makes a stored object refer to it, it is stored anew, by reachability, under a new identity, like any other local object.
 
 What was persistent has become volatile, because its persistence was pulled from under it. Nothing dangles in the database, and nothing is kept alive by a variable.
 
 The cost is in what the object referred to. Objects that were reclaimed with it and were in memory are local again too, and still referred to. Objects that were reclaimed with it and were not in memory are gone, and a reference to one of them names nothing ([data model](data-model.md), the open point of section 2.2).
 
-Code that means to detach a structure and attach it somewhere else later holds it with a load in the meantime, which pins all of it. For the common case of a move within one or a few transactions, Aquifer's time-limited hold is enough, and Wellspring applies it to what a transaction detaches.
+Code that means to detach a structure and attach it somewhere else later holds it with a load in the meantime, which pins all of it. For the common case of a move within one or a few transactions, Aquifer's time-limited hold is enough, and Deepwell applies it to what a transaction detaches.
 
 ## 3.6 Following a reference that is not loaded
 
-On a server whose store answers a read at once, a reference can always be followed. A stored reference is an identity; when the field that holds it is read, Wellspring takes the object from the identity map, or reads its record from Aquifer and makes it ([data model](data-model.md) K7). Aquifer reads synchronously, so application code sees an ordinary property read. There are no stubs on a server.
+On a server whose store answers a read at once, a reference can always be followed. A stored reference is an identity; when the field that holds it is read, Deepwell takes the object from the identity map, or reads its record from Aquifer and makes it ([data model](data-model.md) K7). Aquifer reads synchronously, so application code sees an ordinary property read. There are no stubs on a server.
 
 An object reached this way is in memory, but nothing holds it. It is correct to read and write it. Two things are different from an object that a load holds: it may be unloaded when nothing refers to it, and a selection does not follow it.
 
-Under Fountain, the same code may run on a client, where a reference outside the subscribed selection cannot be followed. Wellspring therefore reports, in development and when asked to, every reference followed outside a load, so that code that works on a server does not fail on a client. Used alone, following references freely is simply a convenience.
+Under Fountain, the same code may run on a client, where a reference outside the subscribed selection cannot be followed. Deepwell therefore reports, in development and when asked to, every reference followed outside a load, so that code that works on a server does not fail on a client. Used alone, following references freely is simply a convenience.
 
 The same report serves a server whose store may have to wait for a read (section 3.7). There, as on a client, a reference outside what is loaded cannot be followed.
 
@@ -202,13 +202,13 @@ A reference to an object that is not in memory reads, inside a rule, as a stub: 
 - **Whether a server's stub and a client's are the same thing.** A server's stub is not the object it stands for: it exists inside rules only, and the field reads as the object itself once that has arrived. A reference does not say what class its object has, so a stub cannot be turned into the object.
 - **Maps and sets of references**, with a store that waits. A field that holds references inside a map or a set is made whole when it is read, and so needs every object it names in memory. A rule cannot yet add them without that.
 
-No store waits yet. Wellspring can be opened as if its store did (`options.wait`), which is how the rounds are tested: reads then arrive when the test says, and a reference is followed only to what is in memory.
+No store waits yet. Deepwell can be opened as if its store did (`options.wait`), which is how the rounds are tested: reads then arrive when the test says, and a reference is followed only to what is in memory.
 
 ---
 
 # 4. Transactions and the store
 
-Wellspring is a store in the sense of whitepaper section 3.8: it receives every change to every synchronized object, through Cascade's `onEventGlobal`, collects the changes of a transaction, and at the transaction's end (`onTransactionEnd`) writes them.
+Deepwell is a store in the sense of whitepaper section 3.8: it receives every change to every synchronized object, through Cascade's `onEventGlobal`, collects the changes of a transaction, and at the transaction's end (`onTransactionEnd`) writes them.
 
 Writing a transaction means, in one Aquifer transaction:
 
@@ -216,9 +216,9 @@ Writing a transaction means, in one Aquifer transaction:
 2. Encoding the changed fields ([data model](data-model.md) section 8) and writing the records.
 3. Writing what persistent repeaters changed (section 7.3). Those that maintain a transactional index have already run, as part of the Cascade transaction.
 
-**The change set comes from Cascade's events.** The changes of a transaction, as Wellspring passes them on, are built from the events Cascade emitted: which fields of which objects were set and deleted, with their old and new values, and which splices were made to which arrays. Aquifer could not supply this. It sees a record with fields, and an array as one field, so a splice would be lost.
+**The change set comes from Cascade's events.** The changes of a transaction, as Deepwell passes them on, are built from the events Cascade emitted: which fields of which objects were set and deleted, with their old and new values, and which splices were made to which arrays. Aquifer could not supply this. It sees a record with fields, and an array as one field, so a splice would be lost.
 
-From Aquifer, Wellspring takes the commit number, and what the collector did: the objects it reclaimed.
+From Aquifer, Deepwell takes the commit number, and what the collector did: the objects it reclaimed.
 
 **Checks before writes.** A layer above can ask to see each write before it is applied, and refuse it. Fountain uses this for authorization and for gated writes, which must be judged against the state before the write ([protocol](../../fountain/documents/protocol.md) section 7.3). A write that is refused before it is applied leaves nothing to undo.
 
@@ -228,7 +228,7 @@ From Aquifer, Wellspring takes the commit number, and what the collector did: th
 
 # 5. Observation
 
-Wellspring needs to know when something that a selection or a persistent repeater has read is changed.
+Deepwell needs to know when something that a selection or a persistent repeater has read is changed.
 
 It does not need the temporal signals that Cascade uses to order a rendering pipeline. On a server, order is given by commits. Plain observation is sufficient: what was read, and whether it has since been written.
 
@@ -439,7 +439,7 @@ A class has a version, 0 unless it says otherwise, and every record stores the v
 
 A migration may add or remove fields, change the structure of an object, make new objects, and remove or introduce references. The objects it makes become stored by reachability, like any others.
 
-**A migration is a transaction of its own.** It is written by Wellspring, as the system, whatever the code that caused the load was doing. A load made inside a computation that must not write, such as a key (section 7.1), still migrates what it loads: the migration is not that computation's write. It goes through Aquifer's write barrier like any other transaction.
+**A migration is a transaction of its own.** It is written by Deepwell, as the system, whatever the code that caused the load was doing. A load made inside a computation that must not write, such as a key (section 7.1), still migrates what it loads: the migration is not that computation's write. It goes through Aquifer's write barrier like any other transaction.
 
 **A migration is a pure function of the object.** It reads and writes the object it is given, and the objects it makes. It does not depend on when it runs, since objects of one class are migrated at different times, as they happen to be loaded.
 
@@ -453,41 +453,41 @@ Lazy migration avoids rewriting the database whenever a class changes. A migrati
 
 # 9. Between the layers
 
-## 9.1 What Wellspring asks of Aquifer
+## 9.1 What Deepwell asks of Aquifer
 
-Most of what Wellspring needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Five things were missing. They are now built ([Aquifer's backlog](../../aquifer/documents/backlog.md), "The interface upward"):
+Most of what Deepwell needs exists in Aquifer: transactions, `create`, `get`, `set`, `delete`, `replace`, strong and weak references. Five things were missing. They are now built ([Aquifer's backlog](../../aquifer/documents/backlog.md), "The interface upward"):
 
 1. **Volatile roots.** Pinning an object across transactions, for as long as a load holds it (section 3.3). Pins are in memory only, and are cleared when a store is opened.
-2. **A commit number per transaction**, from one counter, and a report of what the collector did. The field-level change set is built by Wellspring itself, from Cascade's events (section 4).
-3. **Notification of a reclaim**, `onReclaimed(ids)`, so that an index removes its entry for a member (section 7.2), weak references are cleared, and an object still in memory becomes local again (section 3.5). It comes right after the collector's step has committed, before anything else runs, rather than inside the step: what Wellspring does with it is in memory, and must not act on a reclaim that could still be rolled back. An index's entry for a reclaimed member is removed in Wellspring's next transaction, and dangles, weakly, until then.
-4. **The commit that last changed each record.** Wellspring does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
-5. **The size of the collector's backlog**, so that Wellspring can report pressure (section 9.4). Collector steps already exist (`collector.run`), are bounded, and end when there is nothing to do.
+2. **A commit number per transaction**, from one counter, and a report of what the collector did. The field-level change set is built by Deepwell itself, from Cascade's events (section 4).
+3. **Notification of a reclaim**, `onReclaimed(ids)`, so that an index removes its entry for a member (section 7.2), weak references are cleared, and an object still in memory becomes local again (section 3.5). It comes right after the collector's step has committed, before anything else runs, rather than inside the step: what Deepwell does with it is in memory, and must not act on a reclaim that could still be rolled back. An index's entry for a reclaimed member is removed in Deepwell's next transaction, and dangles, weakly, until then.
+4. **The commit that last changed each record.** Deepwell does not need it itself. Fountain does, for reconnecting clients, and it is Aquifer that knows.
+5. **The size of the collector's backlog**, so that Deepwell can report pressure (section 9.4). Collector steps already exist (`collector.run`), are bounded, and end when there is nothing to do.
 
 One more was added later:
 
 6. **A read of many records in one call**, given their identities: `db.getMany(ids)`. `load` asks for each round of a selection this way (section 3.7). Today it answers at once. It is the one place in the interface that is meant to be able to wait, when a store on disk or on another machine needs it to.
 
-Aquifer finds references in a record by looking, at any depth, for an object with a `$ref` key. Wellspring's encoding escapes every key of the application's that begins with `$`, so that the tag appears only where a reference is ([data model](data-model.md) E1 and E4), and the two agree on the graph.
+Aquifer finds references in a record by looking, at any depth, for an object with a `$ref` key. Deepwell's encoding escapes every key of the application's that begins with `$`, so that the tag appears only where a reference is ([data model](data-model.md) E1 and E4), and the two agree on the graph.
 
-## 9.2 What Wellspring offers Fountain
+## 9.2 What Deepwell offers Fountain
 
 - Objects, classes, and `load`.
 - A transaction around a client's writes, with everything stored or nothing.
 - The change set of each commit, in terms of objects and fields.
 - A check on each write before it is applied, which Fountain uses for authorization and gated writes (section 4).
 - Volatile objects, which are synchronized but never stored (section 2).
-- A way to run a selector with a filter on which objects it may pass through, which Fountain uses to pass only through what a user may read. Wellspring itself knows nothing of users.
+- A way to run a selector with a filter on which objects it may pass through, which Fountain uses to pass only through what a user may read. Deepwell itself knows nothing of users.
 - Indexes and persistent repeaters. Fountain delivers their contents to clients as live queries (whitepaper sections 5.5 and 5.6).
 
 ## 9.3 What is shared with clients
 
-The data model, which is the encoding, the registry of classes, the check on what a field may hold, and the making of an object from a record, runs on Fountain's clients as well. It depends on neither Aquifer nor a network. It is either a part of Wellspring that a browser can load, or a small package of its own. To be decided when it is written.
+The data model, which is the encoding, the registry of classes, the check on what a field may hold, and the making of an object from a record, runs on Fountain's clients as well. It depends on neither Aquifer nor a network. It is either a part of Deepwell that a browser can load, or a small package of its own. To be decided when it is written.
 
 ## 9.4 Background work, and who schedules it
 
-Aquifer's collector does its work in steps. Each step is one transaction of bounded size, roughly constant in time, and steps can be interleaved with the application's transactions in any order (Aquifer's invariant B1). Wellspring has background work of the same kind: persistent repeaters that catch up in the background (section 7.3), and migrations that are being completed (section 8).
+Aquifer's collector does its work in steps. Each step is one transaction of bounded size, roughly constant in time, and steps can be interleaved with the application's transactions in any order (Aquifer's invariant B1). Deepwell has background work of the same kind: persistent repeaters that catch up in the background (section 7.3), and migrations that are being completed (section 8).
 
-Nothing runs on its own. Background work stays synchronous, and the program at the top decides when background work is done. Wellspring offers one call for all of it:
+Nothing runs on its own. Background work stays synchronous, and the program at the top decides when background work is done. Deepwell offers one call for all of it:
 
 ```javascript
 const result = spring.work(steps);   // { steps, remaining, pressure }
@@ -497,9 +497,9 @@ const result = spring.work(steps);   // { steps, remaining, pressure }
 
 **A quota, in the normal case.** The program at the top calls `work` between the things it does, in a configured ratio: one step after every event it handles, or one after every fifth. When it is idle, it calls `work` until nothing remains.
 
-**Pressure, in the rare case.** When `work` reports pressure, the program may stop taking new requests and call `work` until the pressure is gone. That is a decision for the program, which knows what stalling costs; Wellspring only reports.
+**Pressure, in the rare case.** When `work` reports pressure, the program may stop taking new requests and call `work` until the pressure is gone. That is a decision for the program, which knows what stalling costs; Deepwell only reports.
 
-Used alone, Wellspring's application decides the ratio. Under Fountain, Fountain's main loop does (whitepaper section 2.6).
+Used alone, Deepwell's application decides the ratio. Under Fountain, Fountain's main loop does (whitepaper section 2.6).
 
 **Open.** The defaults: the ratio, the backlog size that counts as pressure, and how memory is measured. To be set from measurements.
 
@@ -527,12 +527,12 @@ Used alone, Wellspring's application decides the ratio. Under Fountain, Fountain
 
 # 11. Roadmap
 
-Each step is tested against a model before the next is begun, as Aquifer was: a fuzzer makes random changes to objects, and an oracle compares what Wellspring has stored with a plain object graph kept in memory. Closing the store and opening it again must give the same graph.
+Each step is tested against a model before the next is begun, as Aquifer was: a fuzzer makes random changes to objects, and an oracle compares what Deepwell has stored with a plain object graph kept in memory. Closing the store and opening it again must give the same graph.
 
 1. **The data model's code**: encoding and decoding, the write check, the registry of classes, making an object from a record. No Aquifer, no network. Round-trip tests over generated values. *Done*, in `src/dataModel.js` and `src/values.js`, on cascade.reactive's `innerMeta(object).checkWrite`.
 2. **Aquifer's interface upward** (section 9.1): volatile roots, commit numbers, reclaim notifications, the commit per record, the collector's backlog. *Done.*
 3. **Objects over records**: `Synchronized` and `synchronized()`, the identity map, references resolved on read, persistence by reachability, the store that writes each transaction as one Aquifer transaction and reports its change set, objects whose records are reclaimed. *Done*, in `src/spring.js`. How it came out:
-   - **Events.** Wellspring's default world is made with an event hook that hands Cascade's change events to every open store; each store keeps those of the objects it owns. At `onTransactionEnd`, it stores the local objects that have become reachable from what changed, and writes every changed object's record, in one Aquifer transaction.
+   - **Events.** Deepwell's default world is made with an event hook that hands Cascade's change events to every open store; each store keeps those of the objects it owns. At `onTransactionEnd`, it stores the local objects that have become reachable from what changed, and writes every changed object's record, in one Aquifer transaction.
    - **References resolved on read.** A field of a record object that holds a reference is an accessor on the target until it is first read; the accessor decodes the field, puts the value in its place, and returns it. Writing such a field first puts the value in place, then writes through the observable, so that the write has its event. A field that was never read is written back as it was stored, without loading what it names.
    - **Arrays are resolved when they are made**, since Cascade copies an array's elements then. A cycle of arrays that contain each other cannot be loaded, and says so.
    - **Failed transactions are rolled back** in memory, from the old values the events carry.

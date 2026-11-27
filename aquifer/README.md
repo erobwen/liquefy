@@ -4,7 +4,7 @@
 
 A JavaScript-first persistent object database with change-driven garbage
 collection. It is the first piece of Liquefy's full stack reactivity: the storage under
-[Wellspring](../wellspring#readme), the planned layer of persistent JavaScript objects, and
+[Deepwell](../deepwell#readme), the planned layer of persistent JavaScript objects, and
 [Fountain](../fountain#readme), the planned server on top of that.
 
 Aquifer works with records: ids, fields, and strong and weak references. It
@@ -34,7 +34,7 @@ npm test -w @liquefy/aquifer
 
 ## For the layer above
 
-Besides transactions over records, Aquifer offers what [Wellspring](../wellspring#readme)
+Besides transactions over records, Aquifer offers what [Deepwell](../deepwell#readme)
 needs from it:
 
 - **Volatile roots:** `tx.pin(id)` keeps an object alive though nothing

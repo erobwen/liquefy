@@ -1,8 +1,8 @@
-# Wellspring
+# Deepwell
 
 *In progress - the data model, objects over Aquifer's records, loading and unloading, selectors as local rules, checks before writes, volatile objects, and migrations are implemented; indexes are planned.*
 
-Wellspring makes persistent JavaScript objects out of
+Deepwell makes persistent JavaScript objects out of
 [Aquifer](../aquifer#readme)'s records: objects that server code loads, reads
 and writes like any others, and that are stored without the application saying
 so.
@@ -11,13 +11,13 @@ It is the middle of Liquefy's three layers for full stack reactivity:
 
 - [Aquifer](../aquifer#readme) stores records, runs transactions, and collects
   garbage. It knows nothing of classes or reactivity.
-- **Wellspring** turns records into objects: instances of registered classes,
+- **Deepwell** turns records into objects: instances of registered classes,
   one per identity, observable through
   [cascade.reactive](../cascade.reactive#readme).
 - [Fountain](../fountain#readme) adds users, sessions, security, and clients
   that stay in sync over WebSockets.
 
-Wellspring can be used on its own, by an application with no clients: a
+Deepwell can be used on its own, by an application with no clients: a
 server-side tool, a desktop application, a single-user editor that keeps its
 documents as objects.
 
@@ -66,7 +66,7 @@ objects migrated as they are loaded, each in a transaction of its own;
 
 ```javascript
 import { MemoryStore } from "@liquefy/aquifer";
-import { open, transaction, Synchronized, synchronized } from "@liquefy/wellspring";
+import { open, transaction, Synchronized, synchronized } from "@liquefy/deepwell";
 
 class Document extends Synchronized { title = "Untitled"; }
 
@@ -79,17 +79,17 @@ transaction(() => {
 
 **The data model** ([specification](documents/data-model.md), `src/dataModel.js`),
 which Fountain's clients share, and which loads without Aquifer as
-`@liquefy/wellspring/dataModel`: `Synchronized` and `synchronized()`, the
+`@liquefy/deepwell/dataModel`: `Synchronized` and `synchronized()`, the
 check on what a field may hold, the registry of classes, weak references, and
 the encoding of values and records.
 
 ```console
-npm test -w @liquefy/wellspring
+npm test -w @liquefy/deepwell
 ```
 
 ## Documents
 
-- [design.md](documents/design.md) - what Wellspring is for, loading and
+- [design.md](documents/design.md) - what Deepwell is for, loading and
   unloading, transactions, observation, indexes and persistent repeaters,
   migration, and what it asks of Aquifer and offers Fountain
 - [data-model.md](documents/data-model.md) - the specification of what a

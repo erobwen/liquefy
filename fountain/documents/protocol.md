@@ -1,6 +1,6 @@
 # Protocol
 
-*Specification, draft. Part of [Fountain](../README.md); it details [the whitepaper](../whitepaper.md), sections 3.4 to 3.11, 4.1, 4.5 and 8.14. It is built on [the data model](../../wellspring/documents/data-model.md).*
+*Specification, draft. Part of [Fountain](../README.md); it details [the whitepaper](../whitepaper.md), sections 3.4 to 3.11, 4.1, 4.5 and 8.14. It is built on [the data model](../../deepwell/documents/data-model.md).*
 
 This document specifies the conversation between a client and the server: the messages, their order, what each side keeps, how changes travel in both directions, and how a client reconnects. It is the contract between the client store and the server store (whitepaper section 3.8).
 
@@ -16,12 +16,12 @@ Open points are marked **Open**, and collected in section 15.
   application code
         |
   client store  ----------- this protocol -----------  server store
-  (Cascade world)          one WebSocket per tab        (Fountain, on Wellspring, on Aquifer)
+  (Cascade world)          one WebSocket per tab        (Fountain, on Deepwell, on Aquifer)
 ```
 
 Covered here: what travels over the connection, and the state each side keeps in order to send and receive it.
 
-Not covered: how the server evaluates selectors and authorization (it is enough that it can), how the server holds and stores objects (Wellspring and Aquifer, whitepaper section 2.6), and how the client store hooks into Cascade (it uses `onEventGlobal`, `onTransactionEnd` and `meta()`, whitepaper sections 2.4 and 3.8).
+Not covered: how the server evaluates selectors and authorization (it is enough that it can), how the server holds and stores objects (Deepwell and Aquifer, whitepaper section 2.6), and how the client store hooks into Cascade (it uses `onEventGlobal`, `onTransactionEnd` and `meta()`, whitepaper sections 2.4 and 3.8).
 
 ---
 
@@ -33,7 +33,7 @@ Not covered: how the server evaluates selectors and authorization (it is enough 
 - **Stored object** and **volatile object.** A stored object has a record in Aquifer. A volatile object is synchronized but never stored: a session, a connection, a presence object (section 12).
 - **Commit.** A transaction applied by the server that changed stored objects. Commits are numbered by one counter for the whole server, increasing, never reused. Changes to volatile objects are not commits and have no number.
 - **Client transaction.** The writes a client makes in one Cascade transaction, sent as one message (whitepaper section 3.8). It is named by a **transaction identity** that the client chooses: its client identity, a dot, and a counter.
-- **Temporary identity.** The name of an object that a client has made and the server has not yet named: `t` followed by the object's local id ([data model](../../wellspring/documents/data-model.md) section 1). It is unique for the lifetime of the client identity, and never reused.
+- **Temporary identity.** The name of an object that a client has made and the server has not yet named: `t` followed by the object's local id ([data model](../../deepwell/documents/data-model.md) section 1). It is unique for the lifetime of the client identity, and never reused.
 - **Subscription.** A selector and a starting object, held by a connection, with options. Named by a **subscription number** chosen by the client, unique within the connection.
 - **Subscription forest.** A selection is a shallow tree: its starting object is the root, and its members are under it (whitepaper section 3.4). A connection's selections together are its forest. Its roots are what the session refers to and what session methods have returned.
 - **Held object.** An object whose fields the client has: the union of its subscriptions' selections. An object that the client knows only by a reference is a **stub** (data model section 7).
@@ -279,7 +279,7 @@ An array whose elements are synchronized objects, all distinct, is anchored: its
 
 ## 7.3 What the server does with a transaction
 
-On receiving a transaction, the server, in one Wellspring transaction:
+On receiving a transaction, the server, in one Deepwell transaction:
 
 1. Checks that `tx` has not been applied (section 10). If it has, it sends the answer it sent before, and stops.
 2. Checks every value (data model V9) and every class (data model C4), resolves temporary identities (W2), and checks that every object written, and every object referred to, is one the client may name (F1).
@@ -288,7 +288,7 @@ On receiving a transaction, the server, in one Wellspring transaction:
    1. If the object is in a gated subscription of this connection, compares the field's current value with `was` (section 7.5).
    2. Asks `canWrite`, with the user, the field, and the new value, against the state as it is now, before this write (whitepaper section 4.2). For an array or a classless object, which has no `canWrite`, it asks the root of the selection through which the connection holds it, with the user and no field; if the connection holds it through several selections, the write is allowed if any root allows it, and if a root has no `canWrite`, it allows it.
    3. Applies the write: resolving anchors against its own array, or transforming a positional splice (below).
-5. Lets the repeaters that the writes set off run: the selections of every connection, and the persistent repeaters that run inside the transaction (Wellspring's [design](../../wellspring/documents/design.md), section 5).
+5. Lets the repeaters that the writes set off run: the selections of every connection, and the persistent repeaters that run inside the transaction (Deepwell's [design](../../deepwell/documents/design.md), section 5).
 6. Commits, recording the transaction and its answer in the table of applied transactions, in the same Aquifer transaction.
 
 If any check refuses, the writes already applied are taken back, nothing is committed, and the server answers `refused` (section 7.4). Otherwise it answers with the commit (section 8.1).

@@ -26,7 +26,7 @@
     "flow.application/hello-world",
     "aquifer",
     "aquifer.visualizer",
-    "wellspring"
+    "deepwell"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
